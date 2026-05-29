@@ -152,9 +152,7 @@ describe("agentStore", () => {
         enabled: true,
       });
       const sourceId = store.getState().createSession();
-      const messages = [
-        { id: "user-1", role: "user" as const, parts: [] },
-      ];
+      const messages = [{ id: "user-1", role: "user" as const, parts: [] }];
 
       const forkId = store.getState().forkSession({
         sourceSessionId: sourceId,

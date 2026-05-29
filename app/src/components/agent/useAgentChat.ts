@@ -279,7 +279,13 @@ export function useAgentChat({
   // or fork, so stale Accept/Reject affordances don't dangle against tool calls
   // the transcript no longer contains.
   const clearDroppedToolState = useCallback(
-    ({ previous, next }: { previous: AgentUIMessage[]; next: AgentUIMessage[] }) => {
+    ({
+      previous,
+      next,
+    }: {
+      previous: AgentUIMessage[];
+      next: AgentUIMessage[];
+    }) => {
       if (!sessionId) {
         return;
       }
