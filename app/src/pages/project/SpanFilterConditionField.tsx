@@ -5,7 +5,6 @@ import type {
 import { autocompletion } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { css } from "@emotion/react";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type { EditorView } from "@uiw/react-codemirror";
 import CodeMirror, {
   type BasicSetupOptions,
@@ -36,6 +35,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -252,7 +252,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     useSpanFilters();
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
   const projectId = useTracingContext((state) => state.projectId);
 
@@ -461,7 +461,7 @@ function FilterConditionSnippet(props: {
   const { initialSnippet, onAddFilterConditionSnippet } = props;
   const [snippet, setSnippet] = useState<string>(initialSnippet);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   return (
     <div css={fieldBaseCSS}>
       <Label>{props.label}</Label>

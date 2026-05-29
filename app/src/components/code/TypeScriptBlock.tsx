@@ -1,5 +1,4 @@
 import { javascript } from "@codemirror/lang-javascript";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type {
   BasicSetupOptions,
   ReactCodeMirrorProps,
@@ -8,6 +7,8 @@ import CodeMirror from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
+
+import { pierreDark, pierreLight } from "./pierreCodeMirrorTheme";
 
 type TypeScriptBlockProps = Omit<
   ReactCodeMirrorProps,
@@ -18,7 +19,7 @@ type TypeScriptBlockProps = Omit<
 
 export function TypeScriptBlock(props: TypeScriptBlockProps) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const { basicSetup: propsBasicSetup } = props;
 
   const basicSetup = useMemo(() => {

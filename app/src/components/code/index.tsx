@@ -1,3 +1,4 @@
+export * from "./pierreCodeMirrorTheme";
 export * from "./PreBlock";
 export * from "./JSONEditor";
 export * from "./JSONBlock";
