@@ -508,11 +508,16 @@ export function ChatView({
                 // its actions until the chat reports it is settled.
                 const isLast = index === messages.length - 1;
                 const showActions = !isLast || status === "ready";
+                // Pin the most recent assistant turn's toolbar so its actions
+                // stay visible; other turns reveal their toolbars on hover to
+                // cut down on stacked-toolbar clutter.
+                const pinToolbar = isLast && status === "ready";
                 return (
                   <AssistantMessage
                     key={message.id}
                     message={message}
                     showActions={showActions}
+                    pinToolbar={pinToolbar}
                     onRewindRequest={onRewindRequest}
                   />
                 );

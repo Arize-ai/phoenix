@@ -85,20 +85,26 @@ export function UserMessage({
  * `showActions` gates the feedback/copy/trace toolbar — callers should set
  * it to `false` while this particular message is still streaming so users
  * don't interact with incomplete content.
+ *
+ * `pinToolbar` keeps the toolbar always visible instead of revealing it on
+ * hover/focus. Callers use it for the most recent assistant turn, whose actions
+ * (copy, feedback, trace) are the ones users reach for most often.
  */
 export function AssistantMessage({
   message,
   showActions = true,
+  pinToolbar = false,
   onRewindRequest,
 }: {
   message: AgentUIMessage;
   showActions?: boolean;
+  pinToolbar?: boolean;
   onRewindRequest?: MessageRewindRequest;
 }) {
   const grouped = groupMessageParts(message.parts);
 
   return (
-    <Message from="assistant">
+    <Message from="assistant" data-pin-toolbar={pinToolbar || undefined}>
       <MessageContent>
         <div css={assistantMessageCSS}>
           {grouped.map((group) => {
