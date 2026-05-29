@@ -24,6 +24,11 @@ class _FakeProfile:
 @dataclass
 class _FakeModel:
     profile: _FakeProfile
+    # `build_web_search_capability` inspects these to apply the OpenAI-family
+    # denylist. Default to a non-OpenAI provider so the profile alone drives
+    # support resolution in these mutation tests.
+    system: str = "anthropic"
+    model_name: str = "claude-x"
 
 
 class TestAgentModelCapabilitiesMutation:
