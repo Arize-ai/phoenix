@@ -204,6 +204,26 @@ class TestNonEmptyMatcher:
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
 
 
+class TestEmptyOrAbsentMatcher:
+    def test_passes_when_key_absent(self) -> None:
+        output = _output_with_tool_call("save_prompt", {"description": "x"})
+        expected = {"tool_call_args": {"save_prompt": {"tags": {"empty_or_absent": True}}}}
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    @pytest.mark.parametrize("empty", [[], "", {}])
+    def test_passes_when_value_is_empty(self, empty: Any) -> None:
+        # An omitted `tags` and an explicit empty `tags` are equivalent for the
+        # save tool; both must satisfy the matcher.
+        output = _output_with_tool_call("save_prompt", {"description": "x", "tags": empty})
+        expected = {"tool_call_args": {"save_prompt": {"tags": {"empty_or_absent": True}}}}
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    def test_fails_when_value_is_non_empty(self) -> None:
+        output = _output_with_tool_call("save_prompt", {"description": "x", "tags": ["staging"]})
+        expected = {"tool_call_args": {"save_prompt": {"tags": {"empty_or_absent": True}}}}
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+
 class TestEqualsMatcher:
     def test_explicit_equals_matcher(self) -> None:
         output = _output_with_tool_call("set_time_range", {"timeRangeKey": "1h"})
@@ -230,6 +250,8 @@ class TestMatcherSchemaErrors:
             {"not_contains": None},
             {"any": False},
             {"non_empty": False},
+            {"empty_or_absent": False},
+            {"empty_or_absent": True, "equals": []},
         ],
     )
     def test_malformed_matcher_fails_with_error(self, matcher: dict[str, Any]) -> None:

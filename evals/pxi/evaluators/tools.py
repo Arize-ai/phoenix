@@ -280,8 +280,22 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 # - ``any: true`` -- the key must be present in observed args; value is free.
 # - ``non_empty: true`` -- the key must be present and contain non-whitespace text.
 # - ``absent: true`` -- the key must not be present in observed args.
+# - ``empty_or_absent: true`` -- the key is omitted OR present as an empty
+#   collection (``[]``, ``""``, ``{}``). Use for args where omitting and
+#   passing an empty value are semantically equivalent, e.g. ``tags`` (the save
+#   tool treats an omitted ``tags`` and ``tags: []`` identically), so the agent
+#   may legitimately produce either form.
 _MATCHER_KEYS: frozenset[str] = frozenset(
-    {"equals", "contains_all", "contains_any", "not_contains", "any", "non_empty", "absent"}
+    {
+        "equals",
+        "contains_all",
+        "contains_any",
+        "not_contains",
+        "any",
+        "non_empty",
+        "absent",
+        "empty_or_absent",
+    }
 )
 # Sentinel meaning "the key was not present at all in the observed call args."
 # Distinct from a literal ``None`` value so the ``any`` matcher (presence-only
@@ -315,6 +329,11 @@ def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
             return "matcher 'absent' must be true"
         if len(matcher) > 1:
             return "matcher 'absent' cannot be combined with other matchers"
+    if "empty_or_absent" in matcher:
+        if matcher["empty_or_absent"] is not True:
+            return "matcher 'empty_or_absent' must be true"
+        if len(matcher) > 1:
+            return "matcher 'empty_or_absent' cannot be combined with other matchers"
     for key in ("contains_all", "contains_any", "not_contains"):
         if key in matcher and _string_list_or_none(matcher[key]) is None:
             return f"matcher {key!r} must be a list of strings"
@@ -334,6 +353,10 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
         # All other matcher keys still apply if combined with ``any``.
     if "absent" in matcher:
         return observed is _MISSING
+    if "empty_or_absent" in matcher:
+        return observed is _MISSING or (
+            isinstance(observed, (list, str, dict)) and len(observed) == 0
+        )
     if "non_empty" in matcher:
         if not isinstance(observed, str) or not observed.strip():
             return False
@@ -505,12 +528,14 @@ def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     - Literal values compare with ``==``.
     - A dict whose top-level keys are all in the matcher vocabulary
       (``equals``, ``contains_all``, ``contains_any``, ``not_contains``,
-      ``any``, ``non_empty``, ``absent``) is treated as a matcher object. Matchers cover the cases
-      where exact equality is too strict -- commutative DSL clauses
-      ("filter must mention both ``start_time`` and ``2026-04-03`` in any
-      order"), free-form values (``{any: true}`` asserts presence only),
-      required string content (``{non_empty: true}`` rejects blank text), absent
-      values (``{absent: true}`` asserts the key was omitted), and negative
-      constraints (``not_contains``).
+      ``any``, ``non_empty``, ``absent``, ``empty_or_absent``) is treated as a
+      matcher object. Matchers cover the cases where exact equality is too
+      strict -- commutative DSL clauses ("filter must mention both
+      ``start_time`` and ``2026-04-03`` in any order"), free-form values
+      (``{any: true}`` asserts presence only), required string content
+      (``{non_empty: true}`` rejects blank text), absent values
+      (``{absent: true}`` asserts the key was omitted), omitted-or-empty values
+      (``{empty_or_absent: true}`` accepts a missing key or an empty
+      collection), and negative constraints (``not_contains``).
     """
     return evaluate_tool_call_args(output, expected)

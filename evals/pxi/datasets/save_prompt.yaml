@@ -26,7 +26,7 @@ examples:
           promptId: { absent: true }
           name: { absent: true }
           description: { non_empty: true }
-          tags: { absent: true }
+          tags: { empty_or_absent: true }
       budgets:
         max_tool_calls: 2
     metadata:
@@ -53,7 +53,7 @@ examples:
           description:
             non_empty: true
             contains_all: [stricter, handoff]
-          tags: { absent: true }
+          tags: { empty_or_absent: true }
       budgets:
         max_tool_calls: 2
     metadata:
@@ -101,22 +101,18 @@ examples:
       tools:
         required: [save_prompt]
       tool_call_args:
-        # "Keep the current tag" on an instance that already has one means
-        # "do not promote that tag onto the new version." The tool treats an
-        # omitted `tags` and an explicit `tags: []` identically
-        # (`requestedTags ?? []`), and the tool instructions direct the model
-        # to pass `tags: []` in exactly this case, so accept either form. The
-        # core assertion of this example is unchanged: promptId and name must
-        # be omitted because the prompt is inferred from the instance context.
+        # This example asserts implicit-version targeting: an instance already
+        # associated with a prompt must be saved by omitting promptId and name
+        # (the prompt is inferred from the instance context). Tags are
+        # intentionally NOT asserted here: "keep the current tag" is ambiguous
+        # between "don't move the tag" (tags: []) and "carry the tag onto this
+        # version" (tags: ["staging"]), both reasonable agent readings. Tag
+        # behavior is covered deterministically by the explicit-tags and
+        # save-without-tags examples instead.
         save_prompt:
-          - promptId: { absent: true }
-            name: { absent: true }
-            description: { non_empty: true }
-            tags: { equals: [] }
-          - promptId: { absent: true }
-            name: { absent: true }
-            description: { non_empty: true }
-            tags: { absent: true }
+          promptId: { absent: true }
+          name: { absent: true }
+          description: { non_empty: true }
       budgets:
         max_tool_calls: 2
     metadata:
@@ -143,7 +139,7 @@ examples:
           description:
             non_empty: true
             contains_all: [retrieval, citations]
-          tags: { absent: true }
+          tags: { empty_or_absent: true }
       budgets:
         max_tool_calls: 2
     metadata:
@@ -169,7 +165,7 @@ examples:
           promptId: { absent: true }
           name: { absent: true }
           description: { non_empty: true }
-          tags: { absent: true }
+          tags: { empty_or_absent: true }
       budgets:
         max_tool_calls: 2
     metadata:
@@ -219,7 +215,9 @@ examples:
           promptId: { absent: true }
           name: { absent: true }
           description: { non_empty: true }
-          tags: []
+          # "No tags" is satisfied by either an omitted `tags` or `tags: []`;
+          # the tool treats them identically (`requestedTags ?? []`).
+          tags: { empty_or_absent: true }
       budgets:
         max_tool_calls: 2
     metadata:
