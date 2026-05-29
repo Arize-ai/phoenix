@@ -25,6 +25,88 @@ export const attachmentsCSS = css`
     flex-direction: column;
     width: 100%;
   }
+
+  /* Collapsible inline stack: at rest only the front chip shows, the rest tuck
+     behind it as a deck peeking out by a sliver; hover/focus fans it out. */
+  &[data-variant="inline"][data-collapsible] {
+    --attachment-stack-separator-color: var(--global-background-color-default);
+    /* Sliver each card behind the front peeks out by, and the width of a
+       collapsed card before it is overlapped. */
+    --attachment-stack-peek: var(--global-dimension-size-50);
+    --attachment-stack-card: var(--global-dimension-size-200);
+
+    flex-wrap: nowrap;
+    gap: 0;
+    transition: gap 0.2s ease;
+
+    > [data-attachment] {
+      position: relative;
+      box-shadow: 0 0 0 var(--global-border-size-thin)
+        var(--attachment-stack-separator-color);
+      transition:
+        width 0.2s ease,
+        min-width 0.2s ease,
+        padding 0.2s ease,
+        margin-left 0.2s ease;
+    }
+
+    /* Collapse every chip but the front to a narrow card with clipped contents. */
+    > [data-attachment]:not(:last-child) {
+      width: var(--attachment-stack-card);
+      min-width: var(--attachment-stack-card);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    > [data-attachment]:not(:last-child) > * {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    /* Slide each card under its predecessor; later cards paint on top. */
+    > [data-attachment] + [data-attachment] {
+      margin-left: calc(
+        var(--attachment-stack-peek) - var(--attachment-stack-card)
+      );
+    }
+
+    .attachment-info__detail {
+      max-width: 0;
+      opacity: 0;
+      margin-left: 0;
+      transition:
+        max-width 0.2s ease,
+        opacity 0.2s ease,
+        margin 0.2s ease;
+    }
+  }
+
+  &[data-variant="inline"][data-collapsible]:hover,
+  &[data-variant="inline"][data-collapsible]:focus-within {
+    flex-wrap: wrap;
+    gap: var(--global-dimension-size-75);
+
+    > [data-attachment]:not(:last-child) {
+      width: auto;
+      min-width: 0;
+      padding: 0 var(--global-dimension-size-100);
+      overflow: visible;
+    }
+
+    > [data-attachment]:not(:last-child) > * {
+      opacity: 1;
+    }
+
+    > [data-attachment] + [data-attachment] {
+      margin-left: 0;
+    }
+
+    .attachment-info__detail {
+      max-width: var(--global-dimension-size-3000);
+      opacity: 1;
+      margin-left: var(--global-dimension-size-50);
+    }
+  }
 `;
 
 // ---------------------------------------------------------------------------
@@ -52,6 +134,9 @@ export const attachmentCSS = css`
       from var(--attachment-base-color) 88 calc(c * 0.4) h
     );
     --attachment-text-color: lch(from var(--attachment-base-color) 45 c h);
+    --attachment-detail-color: lch(
+      from var(--attachment-base-color) 55 c h / 0.75
+    );
 
     display: inline-flex;
     align-items: center;
@@ -76,6 +161,9 @@ export const attachmentCSS = css`
     );
     --attachment-text-color: lch(
       from var(--attachment-base-color) 90 calc(c * 0.8) h
+    );
+    --attachment-detail-color: lch(
+      from var(--attachment-base-color) 78 calc(c * 0.6) h / 0.8
     );
   }
 
@@ -154,6 +242,27 @@ export const attachmentInfoCSS = css`
     text-overflow: ellipsis;
     color: var(--global-text-color-500);
     font-size: var(--global-font-size-xs);
+  }
+
+  /* Chips with a secondary detail lay label + dimmed detail on one row. */
+  &.attachment-info--with-detail {
+    display: inline-flex;
+    align-items: baseline;
+    overflow: hidden;
+
+    .attachment-info__label {
+      flex: 0 0 auto;
+    }
+
+    .attachment-info__detail {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      color: var(--attachment-detail-color);
+      font-variant-numeric: tabular-nums;
+    }
   }
 `;
 

@@ -44,19 +44,22 @@ const CONTEXT_DATA: AttachmentContextData[] = [
     type: "context",
     id: "trace:1",
     category: "trace",
-    label: "Trace: ee6a3a45...",
+    label: "Trace",
+    detail: "ee6a3a45...",
   },
   {
     type: "context",
     id: "span:2",
     category: "span",
-    label: "Span: U3BhbjoxMTIz",
+    label: "Span",
+    detail: "U3BhbjoxMTIz",
   },
   {
     type: "context",
     id: "filter:1",
     category: "span_filter",
-    label: 'Filter: status_code = "ERROR"',
+    label: "Filter",
+    detail: 'status_code = "ERROR"',
   },
 ];
 
@@ -106,6 +109,30 @@ export const ContextPills: Story = {
   render: () => (
     <div css={containerCSS}>
       <Attachments variant="inline">
+        {CONTEXT_DATA.map((data) => (
+          <Attachment key={data.id} data={data}>
+            <AttachmentPreview />
+            <AttachmentInfo />
+          </Attachment>
+        ))}
+      </Attachments>
+    </div>
+  ),
+};
+
+/**
+ * Collapsible context stack. At rest the chips overlap into a single-line
+ * stack — the last chip stays fully visible, the rest tuck behind it as
+ * icon-only badges, and every id/detail is hidden. Hover (or focus) the group
+ * to fan the stack out and reveal each detail.
+ *
+ * This is the shape `AgentContextPills` uses above the chat input so a long
+ * list of contexts stays compact until the user wants to inspect it.
+ */
+export const CollapsibleStack: Story = {
+  render: () => (
+    <div css={containerCSS}>
+      <Attachments variant="inline" collapsible>
         {CONTEXT_DATA.map((data) => (
           <Attachment key={data.id} data={data}>
             <AttachmentPreview />
