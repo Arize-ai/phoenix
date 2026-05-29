@@ -3122,6 +3122,11 @@ export interface components {
          * @description Built-in model target available from the playground model menu.
          */
         PlaygroundBuiltinModelContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "builtin";
             /** Provider */
             provider: string;
             /** Modelname */
@@ -3149,6 +3154,11 @@ export interface components {
          * @description Custom provider model target available from the playground model menu.
          */
         PlaygroundCustomProviderModelContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
             /** Customproviderid */
             customProviderId: string;
             /** Customprovidername */
@@ -3165,14 +3175,8 @@ export interface components {
         PlaygroundInstanceContext: {
             /** Instanceid */
             instanceId: number;
-            /** Provider */
-            provider: string;
-            /** Modelname */
-            modelName?: string | null;
-            /** Customproviderid */
-            customProviderId?: string | null;
-            /** Customprovidername */
-            customProviderName?: string | null;
+            /** Model */
+            model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
         };
         /** Project */
         Project: {

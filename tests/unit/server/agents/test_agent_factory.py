@@ -366,8 +366,11 @@ class TestUIContextInstructions:
                     instances=[
                         PlaygroundInstanceContext(
                             instance_id=7,
-                            provider="OPENAI",
-                            model_name="gpt-5",
+                            model=PlaygroundBuiltinModelContext(
+                                type="builtin",
+                                provider="OPENAI",
+                                model_name="gpt-5",
+                            ),
                         )
                     ],
                     availableBuiltinModels=[
@@ -494,8 +497,11 @@ class TestPlaygroundTools:
                     instances=[
                         PlaygroundInstanceContext(
                             instance_id=1,
-                            provider="OPENAI",
-                            model_name="gpt-5",
+                            model=PlaygroundBuiltinModelContext(
+                                type="builtin",
+                                provider="OPENAI",
+                                model_name="gpt-5",
+                            ),
                         )
                     ],
                 )

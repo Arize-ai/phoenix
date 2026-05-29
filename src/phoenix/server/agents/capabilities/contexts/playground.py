@@ -38,13 +38,29 @@ def _serialize_instance(
     *,
     index: int,
 ) -> dict[str, Any]:
+    model = instance.model
+    if model is None:
+        return {
+            "label": ascii_uppercase[index],
+            "instance_id": instance.instance_id,
+            "has_model": False,
+        }
     return {
         "label": ascii_uppercase[index],
         "instance_id": instance.instance_id,
-        "provider": _sanitize_playground_value(instance.provider),
-        "model_name": _sanitize_playground_value(instance.model_name),
-        "custom_provider_id": _sanitize_playground_value(instance.custom_provider_id),
-        "custom_provider_name": _sanitize_playground_value(instance.custom_provider_name),
+        "has_model": True,
+        "provider": _sanitize_playground_value(model.provider),
+        "model_name": _sanitize_playground_value(model.model_name),
+        "custom_provider_id": _sanitize_playground_value(
+            model.custom_provider_id
+            if isinstance(model, PlaygroundCustomProviderModelContext)
+            else None
+        ),
+        "custom_provider_name": _sanitize_playground_value(
+            model.custom_provider_name
+            if isinstance(model, PlaygroundCustomProviderModelContext)
+            else None
+        ),
     }
 
 

@@ -314,11 +314,13 @@ class OtlpStatus(TypedDict):
 
 
 class PlaygroundBuiltinModelContext(TypedDict):
+    type: Literal["builtin"]
     provider: str
     modelName: str
 
 
 class PlaygroundCustomProviderModelContext(TypedDict):
+    type: Literal["custom"]
     customProviderId: str
     customProviderName: str
     provider: str
@@ -327,10 +329,7 @@ class PlaygroundCustomProviderModelContext(TypedDict):
 
 class PlaygroundInstanceContext(TypedDict):
     instanceId: int
-    provider: str
-    modelName: NotRequired[str]
-    customProviderId: NotRequired[str]
-    customProviderName: NotRequired[str]
+    model: NotRequired[Union[PlaygroundBuiltinModelContext, PlaygroundCustomProviderModelContext]]
 
 
 class Project(TypedDict):

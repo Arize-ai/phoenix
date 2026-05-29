@@ -96,6 +96,11 @@ import {
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
+import {
+  arePlaygroundInstancesForAgentEqual,
+  buildPlaygroundAgentContext,
+  getPlaygroundInstanceForAgent,
+} from "./playgroundAgentContextUtils";
 import { PlaygroundConfigButton } from "./PlaygroundConfigButton";
 import { PlaygroundCredentialsDropdown } from "./PlaygroundCredentialsDropdown";
 import { PlaygroundDatasetSection } from "./PlaygroundDatasetSection";
@@ -305,26 +310,10 @@ function PlaygroundContent() {
   );
   const playgroundInstancesForAgent = usePlaygroundContext(
     (state) =>
-      state.instances.map((instance) => ({
-        instanceId: instance.id,
-        provider: instance.model.provider,
-        modelName: instance.model.modelName,
-        customProviderId: instance.model.customProvider?.id ?? null,
-        customProviderName: instance.model.customProvider?.name ?? null,
-      })),
-    (left, right) =>
-      left.length === right.length &&
-      left.every((leftInstance, index) => {
-        const rightInstance = right[index];
-        return (
-          rightInstance != null &&
-          leftInstance.instanceId === rightInstance.instanceId &&
-          leftInstance.provider === rightInstance.provider &&
-          leftInstance.modelName === rightInstance.modelName &&
-          leftInstance.customProviderId === rightInstance.customProviderId &&
-          leftInstance.customProviderName === rightInstance.customProviderName
-        );
-      })
+      state.instances.map((instance) =>
+        getPlaygroundInstanceForAgent(instance)
+      ),
+    arePlaygroundInstancesForAgentEqual
   );
   const instanceIds = usePlaygroundContext(
     (state) => state.instances.map((instance) => instance.id),
@@ -344,12 +333,12 @@ function PlaygroundContent() {
     useModelMenuData();
 
   const advertisedPlaygroundContext = useMemo(
-    () => ({
-      type: "playground" as const,
-      instances: playgroundInstancesForAgent,
-      availableBuiltinModels,
-      availableCustomModels,
-    }),
+    () =>
+      buildPlaygroundAgentContext({
+        instances: playgroundInstancesForAgent,
+        availableBuiltinModels,
+        availableCustomModels,
+      }),
     [availableBuiltinModels, availableCustomModels, playgroundInstancesForAgent]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);

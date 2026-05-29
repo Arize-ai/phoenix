@@ -2,7 +2,7 @@
   <description>The playground prompt editor is mounted. Use the alphabetic `label` (A, B, C, D) when discussing instances with the user, and pass the numeric `instanceId` when calling tools.</description>
   <instances>
 {% for instance in playground.instances %}
-    <instance label="{{ instance.label }}" instanceId="{{ instance.instance_id }}" provider="{{ instance.provider }}" modelName="{{ instance.model_name }}"{% if instance.custom_provider_id %} customProviderId="{{ instance.custom_provider_id }}" customProviderName="{{ instance.custom_provider_name }}"{% endif %}/>
+    <instance label="{{ instance.label }}" instanceId="{{ instance.instance_id }}"{% if instance.has_model %} provider="{{ instance.provider }}" modelName="{{ instance.model_name }}"{% if instance.custom_provider_id %} customProviderId="{{ instance.custom_provider_id }}" customProviderName="{{ instance.custom_provider_name }}"{% endif %}{% endif %}/>
 {% endfor %}
   </instances>
   <available_model_targets>

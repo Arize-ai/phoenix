@@ -11075,6 +11075,12 @@
       },
       "PlaygroundBuiltinModelContext": {
         "properties": {
+          "type": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Type",
+            "default": "builtin"
+          },
           "provider": {
             "type": "string",
             "title": "Provider"
@@ -11130,6 +11136,12 @@
       },
       "PlaygroundCustomProviderModelContext": {
         "properties": {
+          "type": {
+            "type": "string",
+            "const": "custom",
+            "title": "Type",
+            "default": "custom"
+          },
           "customProviderId": {
             "type": "string",
             "title": "Customproviderid"
@@ -11163,48 +11175,35 @@
             "type": "integer",
             "title": "Instanceid"
           },
-          "provider": {
-            "type": "string",
-            "title": "Provider"
-          },
-          "modelName": {
+          "model": {
             "anyOf": [
               {
-                "type": "string"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PlaygroundBuiltinModelContext"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "type",
+                  "mapping": {
+                    "builtin": "#/components/schemas/PlaygroundBuiltinModelContext",
+                    "custom": "#/components/schemas/PlaygroundCustomProviderModelContext"
+                  }
+                }
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Modelname"
-          },
-          "customProviderId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customproviderid"
-          },
-          "customProviderName": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Customprovidername"
+            "title": "Model"
           }
         },
         "type": "object",
         "required": [
-          "instanceId",
-          "provider"
+          "instanceId"
         ],
         "title": "PlaygroundInstanceContext",
         "description": "One mounted playground instance and its current model selection."
