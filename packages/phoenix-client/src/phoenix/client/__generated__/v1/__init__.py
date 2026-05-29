@@ -1231,7 +1231,6 @@ class HTTPValidationError(TypedDict):
 
 class PlaygroundContext(TypedDict):
     type: Literal["playground"]
-    instanceIds: NotRequired[Sequence[int]]
     instances: NotRequired[Sequence[PlaygroundInstanceContext]]
     availableBuiltinModels: NotRequired[Sequence[PlaygroundBuiltinModelContext]]
     availableCustomModels: NotRequired[Sequence[PlaygroundCustomProviderModelContext]]

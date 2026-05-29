@@ -127,7 +127,6 @@ class PlaygroundContext(_ChatContextBase):
     """Playground prompt editor state mounted in the current browser route."""
 
     type: Literal["playground"]
-    instance_ids: list[int] = Field(default_factory=list, alias="instanceIds")
     instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
     available_builtin_models: list[PlaygroundBuiltinModelContext] = Field(
         default_factory=list,

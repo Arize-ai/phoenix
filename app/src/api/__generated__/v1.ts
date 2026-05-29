@@ -3137,8 +3137,6 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
-            /** Instanceids */
-            instanceIds?: number[];
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
             /** Availablebuiltinmodels */

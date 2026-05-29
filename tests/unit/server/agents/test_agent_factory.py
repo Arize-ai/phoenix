@@ -274,7 +274,7 @@ class TestSystemBlockCacheBoundary:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(type="playground"),
                 project=ProjectContext(
                     type="project",
                     project_node_id="UHJvamVjdDox",
@@ -302,7 +302,7 @@ class TestSystemBlockCacheBoundary:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(type="playground"),
                 project=ProjectContext(
                     type="project",
                     project_node_id="UHJvamVjdDox",
@@ -335,7 +335,7 @@ class TestSystemBlockCacheBoundary:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(type="playground"),
                 project=ProjectContext(
                     type="project",
                     project_node_id="UHJvamVjdDox",

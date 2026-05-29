@@ -346,17 +346,11 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () => ({
       type: "playground" as const,
-      instanceIds,
       instances: playgroundInstancesForAgent,
       availableBuiltinModels,
       availableCustomModels,
     }),
-    [
-      availableBuiltinModels,
-      availableCustomModels,
-      instanceIds,
-      playgroundInstancesForAgent,
-    ]
+    [availableBuiltinModels, availableCustomModels, playgroundInstancesForAgent]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 

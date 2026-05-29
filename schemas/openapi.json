@@ -11099,13 +11099,6 @@
             "const": "playground",
             "title": "Type"
           },
-          "instanceIds": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Instanceids"
-          },
           "instances": {
             "items": {
               "$ref": "#/components/schemas/PlaygroundInstanceContext"

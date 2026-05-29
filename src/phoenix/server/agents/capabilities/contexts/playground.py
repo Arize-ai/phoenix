@@ -48,17 +48,6 @@ def _serialize_instance(
     }
 
 
-def _serialize_legacy_instance(instance_id: int, *, index: int) -> dict[str, Any]:
-    return {
-        "label": ascii_uppercase[index],
-        "instance_id": instance_id,
-        "provider": "",
-        "model_name": "",
-        "custom_provider_id": "",
-        "custom_provider_name": "",
-    }
-
-
 def _serialize_builtin_model(model: PlaygroundBuiltinModelContext) -> dict[str, str]:
     return {
         "provider": _sanitize_playground_value(model.provider),
@@ -76,19 +65,11 @@ def _serialize_custom_model(model: PlaygroundCustomProviderModelContext) -> dict
 
 
 def _serialize_playground(playground: PlaygroundContext) -> dict[str, Any]:
-    instances = (
-        [
+    return {
+        "instances": [
             _serialize_instance(instance, index=index)
             for index, instance in enumerate(playground.instances)
-        ]
-        if playground.instances
-        else [
-            _serialize_legacy_instance(instance_id, index=index)
-            for index, instance_id in enumerate(playground.instance_ids)
-        ]
-    )
-    return {
-        "instances": instances,
+        ],
         "available_builtin_models": [
             _serialize_builtin_model(model) for model in playground.available_builtin_models
         ],
