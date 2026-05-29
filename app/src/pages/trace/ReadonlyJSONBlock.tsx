@@ -1,10 +1,10 @@
 import { json } from "@codemirror/lang-json";
 import { css } from "@emotion/react";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 
 const codeMirrorCSS = css`
@@ -41,7 +41,7 @@ export function ReadonlyJSONBlock({
   basicSetup?: BasicSetupOptions;
 }) {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   // We need to make sure that the content can actually be displayed
   // As JSON as we cannot fully trust the backend to always send valid JSON
   const { value, mimeType } = useMemo(() => {
