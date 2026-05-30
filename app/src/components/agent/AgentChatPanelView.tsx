@@ -1,15 +1,20 @@
 import { css } from "@emotion/react";
 import type { ReactNode, RefObject } from "react";
+import { Pressable } from "react-aria";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
+  Badge,
   Button,
   Flex,
   Icon,
   Icons,
   LinkButton,
+  RichTooltip,
   Text,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
@@ -24,6 +29,7 @@ import type { Size } from "@phoenix/types/geometry";
 import { PxiGlyph } from "./PxiGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 520;
@@ -111,6 +117,9 @@ export function AgentChatHeader({
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
+  // Only surface the beta badge on the empty/new session, where there is no
+  // summary yet competing for space in the header.
+  const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
@@ -124,6 +133,29 @@ export function AgentChatHeader({
         <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
           {sessionDisplayName}
         </Text>
+        {showBetaBadge ? (
+          <TooltipTrigger delay={0}>
+            <Pressable>
+              <span
+                role="button"
+                tabIndex={0}
+                css={css`
+                  display: inline-flex;
+                  flex: none;
+                  cursor: default;
+                `}
+              >
+                <Badge variant="info">Beta</Badge>
+              </span>
+            </Pressable>
+            <RichTooltip>
+              <TooltipArrow />
+              <Text size="XS">
+                The assistant is in beta — expect changes as it evolves.
+              </Text>
+            </RichTooltip>
+          </TooltipTrigger>
+        ) : null}
       </Flex>
       <Flex
         direction="row"
