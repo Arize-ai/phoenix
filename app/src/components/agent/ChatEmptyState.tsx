@@ -11,7 +11,13 @@ export type EmptyStateQuickAction = {
   prompt: string;
 };
 
-const DEFAULT_QUICK_ACTIONS: EmptyStateQuickAction[] = [
+/**
+ * Fallback quick actions shown when PXI has no page-specific context to draw
+ * suggestions from (e.g. on a route that advertises no agent context). When a
+ * page does advertise context, {@link useAgentQuickActions} supplies a tailored
+ * set instead.
+ */
+export const DEFAULT_QUICK_ACTIONS: EmptyStateQuickAction[] = [
   {
     icon: <Icons.BulbOutline />,
     label: "How do I use Phoenix?",

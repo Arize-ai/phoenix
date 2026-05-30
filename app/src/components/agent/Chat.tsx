@@ -11,6 +11,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -385,6 +386,13 @@ export function ChatView({
     [canToggleEditPermission, editPermissionMode, setPermissions]
   );
 
+  // Quick actions track the agent contexts PXI is advertising for the current
+  // route, so the empty state suggests what the assistant can actually do here
+  // (e.g. run/enhance prompts on the playground). An explicit prop still wins
+  // for callers that want a fixed set.
+  const contextualQuickActions = useAgentQuickActions();
+  const quickActions = emptyStateQuickActions ?? contextualQuickActions;
+
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
     textareaRef.current?.focus();
@@ -409,7 +417,7 @@ export function ChatView({
                 <ChatEmptyState
                   key={theme}
                   subtext={emptyStateSubtext}
-                  quickActions={emptyStateQuickActions}
+                  quickActions={quickActions}
                   onQuickAction={handleQuickAction}
                 >
                   {missingCredentialsProvider ? (
