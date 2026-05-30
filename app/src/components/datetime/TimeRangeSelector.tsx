@@ -1,24 +1,24 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
 import { Dialog, DialogTrigger } from "react-aria-components";
 
 import { usePreferencesContext } from "@phoenix/contexts";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
 import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
-import { Button } from "../core/button";
-import { Heading, Text } from "../core/content";
-import { Icon, Icons, SelectChevronUpDownIcon } from "../core/icon";
-import { Flex } from "../core/layout";
+import { Badge } from "../core/badge";
+import { IconButton } from "../core/button";
+import { Text } from "../core/content";
+import { SelectChevronUpDownIcon } from "../core/icon";
 import { ListBox, ListBoxItem } from "../core/listbox";
-import { Popover, PopoverArrow } from "../core/overlay";
+import { Popover } from "../core/overlay";
 import type { ComponentSize } from "../core/types";
-import { View } from "../core/view";
 import { LAST_N_TIME_RANGES } from "./constants";
-import { TimeRangeForm } from "./TimeRangeForm";
+import { TimeRangeFields } from "./TimeRangeFields";
 import type { OpenTimeRangeWithKey } from "./types";
-import { getTimeRangeFromLastNTimeRangeKey, isTimeRangeKey } from "./utils";
+import {
+  getTimeRangeFromLastNTimeRangeKey,
+  isLastNTimeRangeKey,
+} from "./utils";
 
 export type TimeRangeSelectorProps = {
   isDisabled?: boolean;
@@ -27,161 +27,213 @@ export type TimeRangeSelectorProps = {
   size?: ComponentSize;
 };
 
-const listBoxCSS = css`
-  width: 130px;
+/**
+ * A Datadog-style time range control. The current window is always shown as an
+ * inline, editable field: typing into the start/end dates forks the active
+ * preset into a custom range, while the chevron opens the list of quick
+ * presets. The leading badge surfaces the active preset's shorthand and the
+ * trailing label shows the time zone the range is displayed in.
+ */
+const timeRangeSelectorCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  box-sizing: border-box;
+  width: 470px;
+  max-width: 100%;
+  height: var(--global-input-height-s);
+  padding-inline: var(--global-dimension-size-100)
+    var(--global-dimension-size-25);
+  background-color: var(--global-input-field-background-color);
+  border: var(--global-border-size-thin) solid
+    var(--global-input-field-border-color);
+  border-radius: var(--global-rounding-small);
+  color: var(--global-text-color-900);
+  font-size: var(--global-font-size-s);
+  transition:
+    border-color 0.2s ease-in-out,
+    outline-color 0.2s ease-in-out;
+  outline: var(--global-border-size-thin) solid transparent;
+  outline-offset: -1px;
+
+  &:hover:not([data-disabled]) {
+    border-color: var(--global-input-field-border-color-active);
+  }
+  &:focus-within:not([data-disabled]) {
+    border-color: var(--global-input-field-border-color-active);
+    outline-color: var(--global-input-field-border-color-active);
+  }
+  &[data-disabled] {
+    opacity: var(--global-opacity-disabled);
+    cursor: not-allowed;
+  }
+
+  .time-range-selector__fields {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--global-dimension-size-50);
+    min-width: 0;
+  }
+
+  .time-range-selector__separator {
+    flex: none;
+    color: var(--global-text-color-500);
+  }
+
+  .react-aria-DateInput {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    padding-block: 2px;
+    width: fit-content;
+    forced-color-adjust: none;
+  }
+
+  .react-aria-DateSegment {
+    padding: 0 1px;
+    font-variant-numeric: tabular-nums;
+    color: var(--global-text-color-900);
+    border-radius: var(--global-rounding-xsmall);
+
+    &[data-type="literal"] {
+      padding: 0;
+      /* Preserve the locale separator (e.g. ", ") that flex would collapse. */
+      white-space: pre;
+    }
+    &[data-placeholder] {
+      color: var(--text-color-placeholder);
+      font-style: italic;
+    }
+    &[data-disabled] {
+      color: var(--global-text-color-500);
+    }
+    &:focus {
+      color: var(--highlight-foreground);
+      background: var(--highlight-background);
+      outline: none;
+      caret-color: transparent;
+    }
+  }
+
+  .time-range-selector__fields[data-invalid] .react-aria-DateSegment {
+    color: var(--global-color-danger);
+  }
+
+  .time-range-selector__timezone {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .time-range-selector__presets-trigger {
+    flex: none;
+  }
+`;
+
+const presetListBoxCSS = css`
+  width: 160px;
+`;
+
+const badgeCSS = css`
+  flex: none;
+  font-variant-numeric: tabular-nums;
 `;
 
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
-  const { timeRangeFormatter } = useTimeFormatters();
   const displayTimezone = usePreferencesContext(
     (state) => state.displayTimezone
   );
-  /**
-   * Get the display text for the time range key. Shows the explicit time range in the case of "custom"
-   */
-  const getDisplayText = ({
-    timeRangeKey,
-    start,
-    end,
-  }: OpenTimeRangeWithKey) => {
-    if (timeRangeKey === "custom") {
-      return timeRangeFormatter({ start, end });
-    }
-    const rangeValue = LAST_N_TIME_RANGES.find(
-      (range) => range.key === timeRangeKey
-    );
-    if (!rangeValue) {
-      // Should never happen but must make sure to handle it
-      return "invalid";
-    }
-    return rangeValue.label;
-  };
-  const hasDisplayTimeZone = displayTimezone !== undefined;
-  const absoluteTimeZone = displayTimezone ?? getTimeZone();
-  return (
-    <DialogTrigger>
-      <Button
-        size={size}
-        leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
-        isDisabled={isDisabled}
-      >
-        <Flex direction="row" gap="size-100" alignItems="center">
-          <>{getDisplayText(value)}</>
-          {hasDisplayTimeZone && (
-            <Text size="S" color="text-500">
-              {getTimeZoneShortName({
-                locale: getLocale(),
-                timeZone: absoluteTimeZone,
-              })}
-            </Text>
-          )}
-        </Flex>
-        <SelectChevronUpDownIcon />
-      </Button>
-      <Popover placement="bottom end">
-        <Dialog>
-          {({ close }) => (
-            <>
-              <PopoverArrow />
-              <Flex direction="row">
-                <CustomTimeRangeWrap visible={timeRangeKey === "custom"}>
-                  {/* We force re-mount to reset the dirty state in the form */}
-                  {timeRangeKey === "custom" && (
-                    <Flex direction="column" gap="size-100" height="100%">
-                      <Heading level={2} weight="heavy">
-                        Time Range
-                      </Heading>
-                      <Text color="text-700" size="S">
-                        {`Displayed in ${absoluteTimeZone} (${getTimeZoneShortName({ locale: getLocale(), timeZone: absoluteTimeZone })})`}
-                      </Text>
-                      <TimeRangeForm
-                        initialValue={{ start, end }}
-                        timeZone={displayTimezone}
-                        onSubmit={(timeRange) => {
-                          if (onChange) {
-                            onChange({
-                              timeRangeKey: "custom",
-                              ...timeRange,
-                            });
-                          }
-                          close();
-                        }}
-                      />
-                    </Flex>
-                  )}
-                </CustomTimeRangeWrap>
-                <ListBox
-                  aria-label="time range preset selection"
-                  selectionMode="single"
-                  autoFocus
-                  selectedKeys={[timeRangeKey]}
-                  css={listBoxCSS}
-                  onSelectionChange={(selection) => {
-                    if (selection === "all") {
-                      close();
-                      return;
-                    }
-                    const timeRangeKey = selection.keys().next().value;
-                    if (!isTimeRangeKey(timeRangeKey)) {
-                      // Sometimes the time range is undefined for some reason
-                      // TODO: figure out why this happens
-                      return;
-                    }
-                    if (timeRangeKey !== "custom") {
-                      // Compute the time range
-                      onChange({
-                        timeRangeKey,
-                        ...getTimeRangeFromLastNTimeRangeKey(timeRangeKey),
-                      });
-                      close();
-                      return;
-                    } else {
-                      onChange({
-                        timeRangeKey,
-                        start: start,
-                        end: end,
-                      });
-                    }
-                  }}
-                >
-                  {LAST_N_TIME_RANGES.map(({ key, label }) => (
-                    <ListBoxItem key={key} id={key}>
-                      {label}
-                    </ListBoxItem>
-                  ))}
-                  <ListBoxItem key="custom" id="custom">
-                    Custom
-                  </ListBoxItem>
-                </ListBox>
-              </Flex>
-            </>
-          )}
-        </Dialog>
-      </Popover>
-    </DialogTrigger>
-  );
-}
+  const timeZone = displayTimezone ?? getTimeZone();
+  const timeZoneShortName = getTimeZoneShortName({
+    locale: getLocale(),
+    timeZone,
+  });
 
-function CustomTimeRangeWrap({
-  children,
-  visible,
-}: PropsWithChildren<{ visible: boolean }>) {
+  const isCustom = timeRangeKey === "custom";
+  const badgeLabel = isCustom ? "Custom" : timeRangeKey;
+
+  // Forces the inline fields to reset whenever the committed range or the
+  // display time zone changes from the outside (e.g. selecting a preset).
+  const fieldsKey = `${timeRangeKey}|${start?.getTime() ?? ""}|${end?.getTime() ?? ""}|${timeZone}`;
+
   return (
     <div
-      css={css`
-        display: ${visible ? "block" : "none"};
-      `}
+      className="time-range-selector"
+      css={timeRangeSelectorCSS}
+      data-size={size}
+      data-disabled={isDisabled || undefined}
+      role="group"
+      aria-label="Time range"
     >
-      <View
-        borderEndWidth="thin"
-        borderColor="default"
-        padding="size-200"
-        height="100%"
-      >
-        {children}
-      </View>
+      <Badge size="S" variant={isCustom ? "info" : "default"} css={badgeCSS}>
+        {badgeLabel}
+      </Badge>
+      <TimeRangeFields
+        key={fieldsKey}
+        start={start}
+        end={end}
+        timeZone={timeZone}
+        isDisabled={isDisabled}
+        onCommit={(timeRange) =>
+          onChange({ timeRangeKey: "custom", ...timeRange })
+        }
+      />
+      {timeZoneShortName && (
+        <Text
+          size="XS"
+          color="text-500"
+          className="time-range-selector__timezone"
+        >
+          {timeZoneShortName}
+        </Text>
+      )}
+      <DialogTrigger>
+        <IconButton
+          size="S"
+          isDisabled={isDisabled}
+          aria-label="Choose a preset time range"
+          className="time-range-selector__presets-trigger"
+        >
+          <SelectChevronUpDownIcon />
+        </IconButton>
+        <Popover placement="bottom end">
+          <Dialog>
+            {({ close }) => (
+              <ListBox
+                aria-label="time range preset selection"
+                selectionMode="single"
+                autoFocus
+                selectedKeys={isCustom ? [] : [timeRangeKey]}
+                css={presetListBoxCSS}
+                onSelectionChange={(selection) => {
+                  if (selection === "all") {
+                    close();
+                    return;
+                  }
+                  const selectedKey = selection.keys().next().value;
+                  if (!isLastNTimeRangeKey(selectedKey)) {
+                    return;
+                  }
+                  onChange({
+                    timeRangeKey: selectedKey,
+                    ...getTimeRangeFromLastNTimeRangeKey(selectedKey),
+                  });
+                  close();
+                }}
+              >
+                {LAST_N_TIME_RANGES.map(({ key, label }) => (
+                  <ListBoxItem key={key} id={key}>
+                    {label}
+                  </ListBoxItem>
+                ))}
+              </ListBox>
+            )}
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
     </div>
   );
 }
