@@ -1,5 +1,6 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
+import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { SET_PLAYGROUND_REPETITIONS_TOOL_NAME } from "@phoenix/agent/tools/playgroundRepetitions";
 import {
@@ -83,6 +84,31 @@ describe("toolRegistry", () => {
         tool: "ask_user",
         toolCallId: "tool-call-2",
         errorText: expect.any(String),
+      })
+    );
+  });
+
+  it("tells the agent how to recover from an empty batch span annotation call", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-empty-batch-annotation",
+        toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
+        toolCallId: "tool-call-empty-batch-annotation",
+        errorText: expect.stringContaining("needs an annotations array"),
       })
     );
   });
