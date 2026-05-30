@@ -386,7 +386,7 @@ export function ChatView({
     [canToggleEditPermission, editPermissionMode, setPermissions]
   );
 
-  // Quick actions track the agent contexts PXI is advertising for the current
+  // Quick actions track the agent contexts the assistant is advertising for the current
   // route, so the empty state suggests what the assistant can actually do here
   // (e.g. run/enhance prompts on the playground). An explicit prop still wins
   // for callers that want a fixed set.

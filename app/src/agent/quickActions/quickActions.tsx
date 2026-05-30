@@ -20,7 +20,7 @@ type AgentContextType = AgentContext["type"];
 const MAX_QUICK_ACTIONS = 3;
 
 /**
- * Specificity ranking for the page-level contexts PXI advertises. When several
+ * Specificity ranking for the page-level contexts the assistant advertises. When several
  * contexts are active at once (e.g. a span is selected inside a project), the
  * more specific context's suggestions are surfaced first because they map to
  * the narrowest, most actionable set of tools. Contexts absent from this list
@@ -36,7 +36,7 @@ const CONTEXT_SPECIFICITY: AgentContextType[] = [
 
 /**
  * Quick actions contributed by each page-level agent context. The active set is
- * derived from whatever contexts PXI is currently advertising, so the
+ * derived from whatever contexts the assistant is currently advertising, so the
  * suggestions track the tools available where the user actually is in the UI:
  * the playground exposes prompt/run actions, a project exposes trace triage and
  * filtering, and so on. The tool that backs each prompt is gated server-side by
@@ -155,7 +155,7 @@ function selectActiveContextKey(state: AgentState): string {
 }
 
 /**
- * Quick actions tailored to the agent contexts PXI is currently advertising for
+ * Quick actions tailored to the agent contexts the assistant is currently advertising for
  * the active route/page. Returns the generic defaults when the page advertises
  * no actionable context.
  */

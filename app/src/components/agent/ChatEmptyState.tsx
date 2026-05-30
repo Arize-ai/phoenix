@@ -12,7 +12,7 @@ export type EmptyStateQuickAction = {
 };
 
 /**
- * Fallback quick actions shown when PXI has no page-specific context to draw
+ * Fallback quick actions shown when the assistant has no page-specific context to draw
  * suggestions from (e.g. on a route that advertises no agent context). When a
  * page does advertise context, {@link useAgentQuickActions} supplies a tailored
  * set instead.
