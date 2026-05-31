@@ -43,6 +43,11 @@ jobs:
         "seldo", "yfrigui2"
       ]'), github.actor)
     runs-on: ubuntu-latest
+    # Bound the interactive run so a hung/looping agent can't hold the runner
+    # indefinitely — which, with the queue concurrency above, would also block
+    # every later @claude on this PR. Higher than the read-only workflows since
+    # @claude may be asked to implement larger changes.
+    timeout-minutes: 60
     permissions:
       # Writes to PRs/issues and pushes from Claude go through the App token
       # minted by the OIDC exchange below — the workflow GITHUB_TOKEN is only

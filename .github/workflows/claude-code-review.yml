@@ -10,6 +10,12 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
+# One review per PR: a new push (synchronize) cancels the in-flight review of
+# the now-stale commit, so only the latest state is reviewed.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   claude-review:
     # Optional: Filter by PR author
@@ -19,6 +25,9 @@ jobs:
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
     runs-on: ubuntu-latest
+    # Bound the run so a hung review can't hold the runner indefinitely;
+    # a single-PR review finishes well under this.
+    timeout-minutes: 30
     permissions:
       # PR/issue read+write goes through the Claude App token minted by the
       # OIDC exchange below — the workflow GITHUB_TOKEN is only used for the

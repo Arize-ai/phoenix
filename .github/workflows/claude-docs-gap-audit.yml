@@ -47,6 +47,12 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Safe:
+          # inputs are public repo/PR/issue content, registered secrets stay masked,
+          # and the OIDC app token is never in Claude's context. Note: logs are public.
+          show_full_output: 'true'
           # Setting additional_permissions triggers the action to explicitly request
           # contents/pull_requests/issues: write on the OIDC-minted app token, which
           # the post-action "Create docs gap issue" step uses via

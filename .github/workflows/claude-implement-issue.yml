@@ -4,6 +4,13 @@ on:
   issues:
     types: [labeled]
 
+# One implementation per issue. cancel-in-progress is false so an in-flight
+# run (which may already be committing/pushing a PR) is never killed mid-work;
+# a duplicate trigger queues behind it and the guard step then no-ops.
+concurrency:
+  group: claude-implement-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   implement:
     # Only run when good-agent-issue label is added
@@ -93,6 +100,12 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Safe:
+          # inputs are public repo/PR/issue content, registered secrets stay masked,
+          # and the OIDC app token is never in Claude's context. Note: logs are public.
+          show_full_output: 'true'
           # Setting additional_permissions triggers the action to explicitly request
           # contents/pull_requests/issues: write on the OIDC-minted app token, which
           # the post-action "Commit and open PR" step uses via

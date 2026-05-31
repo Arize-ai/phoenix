@@ -82,10 +82,17 @@ jobs:
         with:
           version: ${{ steps.dependabot.outputs.version }}
 
-      - name: Install bubblewrap
+      - name: Install subprocess isolation deps
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
-        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 for subprocess isolation.
-        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
+        # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
+        # user namespaces it relies on by default.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
 
       - name: Run Claude Code
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
@@ -95,6 +102,17 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Safe:
+          # inputs are public repo/PR/issue content, registered secrets stay masked,
+          # and the OIDC app token is never in Claude's context. Note: logs are public.
+          show_full_output: 'true'
+          # Mints an OIDC app token with contents/pull_requests/issues: write,
+          # which the post-action "Commit and open pull request" step uses via
+          # steps.claude.outputs.github_token instead of a long-lived PAT.
+          additional_permissions: |
+            contents: write
           prompt: |
             Bump the pinned uv CLI version across this repo from `${{ steps.repo.outputs.version }}` to `${{ steps.dependabot.outputs.version }}` so it matches the version Dependabot supports.
 
@@ -113,7 +131,9 @@ jobs:
       - name: Commit and open pull request
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0' && steps.claude.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          # OIDC app token minted by the claude-code-action step above — short-lived,
+          # auto-revoked at job end, and (unlike GITHUB_TOKEN) triggers downstream CI.
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
           UV_VERSION: ${{ steps.dependabot.outputs.version }}
         run: |
           if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
