@@ -44,9 +44,36 @@ function fetchJsonObservable<T>(
     const controller = new AbortController();
 
     graphQLFetch(input, { ...init, signal: controller.signal })
-      .then((response) => {
+      .then(async (response) => {
         invariant(response instanceof Response, "response must be a Response");
-        return response.json();
+        // Read the body as text first so that an empty or non-JSON response
+        // (for example a gateway timeout or an upstream 5xx with no body)
+        // surfaces a descriptive error instead of the opaque
+        // "Unexpected end of JSON input" thrown by response.json().
+        const text = await response.text();
+        if (text.trim() === "") {
+          throw new Error(
+            `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`
+          );
+        }
+        let data: unknown;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(
+            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}).`
+          );
+        }
+        // A non-OK status with a parseable body still indicates a failure.
+        // Defer to the GraphQL "errors" handling below when the body carries
+        // them (so the precise GraphQL error is surfaced); otherwise fail
+        // loudly with the HTTP status rather than treating the body as data.
+        if (!response.ok && !(isObject(data) && "errors" in data)) {
+          throw new Error(
+            `GraphQL request failed with status ${response.status} ${response.statusText}.`
+          );
+        }
+        return data;
       })
       .then((data) => {
         const error = hasErrors?.(data);
