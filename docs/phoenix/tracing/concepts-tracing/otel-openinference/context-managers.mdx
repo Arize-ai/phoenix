@@ -1,0 +1,156 @@
+---
+title: "OpenInference Context Managers"
+sidebarTitle: "Context managers"
+description: "Six context managers from openinference.instrumentation that attach session IDs, user IDs, metadata, tags, and prompt templates to every span in scope."
+keywords: ['using_session', 'using_user', 'using_metadata', 'using_tags', 'using_prompt_template', 'using_attributes', 'OpenInference', 'OITracer']
+---
+
+OpenInference provides a set of **context managers** that attach attributes to every span created while they're in scope. They are the easiest way to add cross-cutting context — session ID, user ID, metadata, tags, prompt templates — without modifying every span by hand.
+
+Context managers are the recommended way to handle attributes that apply to a *group* of spans. For attributes that only apply to one span, set them directly on that span instead.
+
+# How They Work
+
+Each context manager attaches a value to the OpenTelemetry context. When a span is created while the manager is in scope, the OpenInference-aware tracer returned by [`register()`](/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers#what-register-does-under-the-hood) reads those context attributes and stamps them onto the span as it's created.
+
+This is why `register()` matters: it returns an `OITracer` instead of a vanilla OTel tracer. If you bypass `register()` and use the raw OTel tracer, these context managers still set context values, but the tracer won't pick them up automatically.
+
+# The Six Helpers
+
+All six live in `openinference.instrumentation`:
+
+| Helper | Sets | Use case |
+| :--- | :--- | :--- |
+| `using_session` | `session.id` | Group traces into a multi-turn conversation. |
+| `using_user` | `user.id` | Tag spans with the user the request belongs to. |
+| `using_metadata` | `metadata` | Arbitrary JSON-stringified data. |
+| `using_tags` | `tag.tags` | A list of tags for filtering and search. |
+| `using_prompt_template` | `llm.prompt_template.{template,version,variables}` | Attach the prompt template, its version, and the variables used. |
+| `using_attributes` | Any combination of the above | Set multiple in one block to avoid nesting. |
+
+# `using_session`
+
+Sets the `session.id` attribute on every span in scope. This is how Phoenix groups traces into a session.
+
+```python
+from openinference.instrumentation import using_session
+
+with using_session(session_id="user-42-conv-7"):
+    response = client.chat.completions.create(...)
+    # every span created in this block gets session.id = "user-42-conv-7"
+```
+
+For practical session setup, see [Set up sessions](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions).
+
+# `using_user`
+
+Sets the `user.id` attribute.
+
+```python
+from openinference.instrumentation import using_user
+
+with using_user(user_id="user-42"):
+    response = client.chat.completions.create(...)
+```
+
+# `using_metadata`
+
+Sets arbitrary JSON-stringified metadata. Useful for application-specific context (tenant, environment, request source) that doesn't fit the other helpers.
+
+```python
+from openinference.instrumentation import using_metadata
+
+with using_metadata({"tenant": "acme", "feature_flag": "v2"}):
+    response = client.chat.completions.create(...)
+```
+
+# `using_tags`
+
+Sets the `tag.tags` attribute — a list of strings used for filtering and search in the Phoenix UI.
+
+```python
+from openinference.instrumentation import using_tags
+
+with using_tags(["experiment-7", "high-priority"]):
+    response = client.chat.completions.create(...)
+```
+
+# `using_prompt_template`
+
+Sets the three prompt-template attributes — `llm.prompt_template.template`, `llm.prompt_template.version`, `llm.prompt_template.variables` — at once.
+
+```python
+from openinference.instrumentation import using_prompt_template
+
+template = "You are a helpful assistant. The user's name is {{name}}."
+
+with using_prompt_template(
+    template=template,
+    version="v3",
+    variables={"name": "Alice"},
+):
+    response = client.chat.completions.create(...)
+```
+
+Attaching the template (rather than only the final prompt) makes it possible to evaluate, compare, and re-run prompts directly from the Phoenix UI.
+
+# `using_attributes`
+
+Sets several of the above in one block — useful when you'd otherwise nest three or four context managers.
+
+```python
+from openinference.instrumentation import using_attributes
+
+with using_attributes(
+    session_id="user-42-conv-7",
+    user_id="user-42",
+    metadata={"tenant": "acme"},
+    tags=["experiment-7"],
+    prompt_template=template,
+    prompt_template_version="v3",
+    prompt_template_variables={"name": "Alice"},
+):
+    response = client.chat.completions.create(...)
+```
+
+For the canonical reference, see [Customize your traces](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans).
+
+# Manual Spans and Context Inheritance
+
+Context managers attach attributes to the OTel context. The `OITracer` reads those attributes when it creates a span — that's how auto-instrumented spans (and spans created with the `OITracer`) automatically inherit them.
+
+Manual spans created with a raw OTel tracer do **not** automatically pick up these context attributes. If you mix manual spans with context managers, use the helper from `openinference.instrumentation`:
+
+```python
+from openinference.instrumentation import get_attributes_from_context
+
+def create_span_with_context(tracer, name, **kwargs):
+    with tracer.start_as_current_span(name, **kwargs) as span:
+        context_attributes = dict(get_attributes_from_context())
+        span.set_attributes(context_attributes)
+        return span
+
+# Usage
+with using_session(session_id="my-session-id"):
+    with create_span_with_context(tracer, "my-manual-span") as span:
+        # span now has session.id attached
+        ...
+```
+
+This pulls the current context attributes and applies them to the new span. For more on this pattern, see [Advanced Patterns: Inheriting Context Attributes in Manual Spans](/docs/phoenix/tracing/how-to-tracing/setup-tracing#inheriting-context-attributes-in-manual-spans).
+
+# When Context Managers Help (and When They Don't)
+
+| Use a context manager when... | Set the attribute on the span directly when... |
+| :--- | :--- |
+| The value applies to many spans (whole conversation, whole request). | The value applies to just this one span. |
+| You're using auto-instrumentation and can't reach inside library code. | You're creating the span by hand anyway. |
+| You want to scope cross-cutting context cleanly with a `with` block. | The value is computed from per-span data. |
+
+---
+
+## Next step
+
+You've covered every approach to setting attributes. Next, the mechanics that keep traces intact across process, thread, and service boundaries — context propagation:
+
+<Card title="Next: Context Propagation" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation" />

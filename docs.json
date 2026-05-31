@@ -398,6 +398,25 @@
                   "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
                   "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
+                  {
+                    "group": "OpenTelemetry and OpenInference",
+                    "pages": [
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/overview",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/signals",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/resource",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector"
+                    ]
+                  },
                   "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
                 ]
               },
@@ -1157,6 +1176,7 @@
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
               "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
+              "docs/phoenix/cookbook/tracing/openinference-best-practices",
               "docs/phoenix/cookbook/tracing/cookbooks"
             ]
           },
