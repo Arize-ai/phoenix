@@ -6,17 +6,6 @@ description: >-
   avoids triggering the skill for advice questions, statistical queries, filter
   intents, summarize requests, vague questions, and queries answerable without
   a full diagnostic investigation (negative cases).
-
-  Trigger criterion (from SKILL.md): explicit cross-trace diagnosis —
-  "what's going wrong?", "were there errors?", "debug this", "where is my
-  agent struggling?". Non-trigger cases: advice questions, statistical
-  questions, summarize requests, trace-filter intents, vague diagnostic
-  questions, queries answerable with bash/filter tools directly, and
-  unrelated requests.
-
-  Negative examples use forbidden_tool_call_args rather than
-  tools.forbidden so that a legitimate load_skill call for a different skill
-  in the same turn does not cause a false failure.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
@@ -241,8 +230,6 @@ examples:
   # load_skill call for a different skill in the same turn doesn't fail.
 
   - id: negative-errors-last-day
-    # "Were there any errors in the last day?" reads as a yes/no lookup —
-    # answerable with a single bash/filter query. Not a diagnosis request.
     splits: [regression]
     input:
       messages:
@@ -263,8 +250,6 @@ examples:
           query rather than a diagnostic investigation.
 
   - id: negative-tool-errors
-    # "Have there been any tool errors?" is a yes/no lookup over tool spans —
-    # answerable with bash or set_spans_filter without a full trace diagnosis.
     splits: [regression]
     input:
       messages:
@@ -285,9 +270,6 @@ examples:
           Does not require a multi-trace diagnostic investigation.
 
   - id: negative-compare-traces
-    # "Compare this trace to other older traces" could be exploratory browsing
-    # rather than failure diagnosis. No active trace in context and no
-    # explicit failure framing makes this a navigation/comparison request.
     splits: [regression]
     input:
       messages:
@@ -346,8 +328,6 @@ examples:
           Not a request to investigate failures.
 
   - id: negative-filter-errors
-    # Wrong-tool case: "show me traces with errors" is a filter intent,
-    # not a cross-trace diagnosis request.
     splits: [regression]
     input:
       messages:
