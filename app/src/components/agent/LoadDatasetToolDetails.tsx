@@ -141,16 +141,18 @@ function LoadDatasetResultDetails({ output }: { output: unknown }) {
 
   return (
     <>
-      <ToolPartLabel variant="success">Dataset loaded</ToolPartLabel>
+      <ToolPartLabel variant="success">
+        Loaded a dataset into the playground
+      </ToolPartLabel>
       <ul className="load-dataset__preview">
         <LoadDatasetPreviewRow label="Dataset">
           {result.datasetName ?? result.datasetId}
         </LoadDatasetPreviewRow>
-        {result.splitNames.length > 0 ? (
-          <LoadDatasetPreviewRow label="Split">
-            {result.splitNames.join(", ")}
-          </LoadDatasetPreviewRow>
-        ) : null}
+        <LoadDatasetPreviewRow label="Split">
+          {result.splitNames.length > 0
+            ? result.splitNames.join(", ")
+            : "All splits"}
+        </LoadDatasetPreviewRow>
       </ul>
     </>
   );
