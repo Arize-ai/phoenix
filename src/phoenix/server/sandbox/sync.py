@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from sqlalchemy import Executable, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -13,6 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from phoenix.db import models
 from phoenix.db.models import Base, LanguageName, SandboxBackendType
 from phoenix.db.types.identifier import Identifier
+
+if TYPE_CHECKING:
+    from phoenix.server.sandbox import AdapterMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +71,7 @@ async def sync_languages(session: AsyncSession) -> None:
 
 async def sync_sandbox_providers(
     session: AsyncSession,
-    adapter_metadata: Mapping[SandboxBackendType, Any],
+    adapter_metadata: Mapping[SandboxBackendType, AdapterMetadata],
 ) -> None:
     """Seed one sandbox_providers row per metadata key; existing rows preserved."""
     backend_types = list(adapter_metadata.keys())
@@ -109,7 +112,7 @@ def default_sandbox_config_name(
 
 def is_seeded_default_config(
     row: models.SandboxConfig,
-    adapter_metadata: Mapping[SandboxBackendType, Any],
+    adapter_metadata: Mapping[SandboxBackendType, AdapterMetadata],
 ) -> bool:
     """True if ``row`` is a default the seeder owns and would (re)create.
 
@@ -121,7 +124,7 @@ def is_seeded_default_config(
     allowlist — is not owned and is freely deletable.
     """
     meta = adapter_metadata.get(row.backend_type)
-    if meta is None or not getattr(meta, "auto_seedable", False):
+    if meta is None or not meta.auto_seedable:
         return False
     from phoenix.server.sandbox import SANDBOX_ADAPTERS  # noqa: PLC0415
 
@@ -134,7 +137,7 @@ def is_seeded_default_config(
 
 async def sync_sandbox_default_configs(
     session: AsyncSession,
-    adapter_metadata: Mapping[SandboxBackendType, Any],
+    adapter_metadata: Mapping[SandboxBackendType, AdapterMetadata],
 ) -> None:
     """Seed one default sandbox_configs row per (backend_type, language) where eligible.
 
@@ -151,7 +154,7 @@ async def sync_sandbox_default_configs(
 
     rows_to_insert: list[dict[str, Any]] = []
     for backend_type, meta in adapter_metadata.items():
-        if not getattr(meta, "auto_seedable", False):
+        if not meta.auto_seedable:
             continue
         if SANDBOX_ADAPTERS.get(backend_type) is None:
             continue
