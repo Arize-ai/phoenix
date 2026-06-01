@@ -2999,7 +2999,7 @@ input PromptInvocationParametersInput @oneOf {
 type PromptLabel implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  name: Identifier!
+  name: String!
   description: String
   color: String
 }
