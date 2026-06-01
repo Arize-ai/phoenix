@@ -56,10 +56,10 @@ gh release list --repo Arize-ai/phoenix --limit 30
 ls docs/phoenix/release-notes/*/
 
 # Dates already covered in the aggregate file
-grep 'Update label=' docs/phoenix/release-notes.mdx
+grep 'ReleaseUpdate label=' docs/phoenix/release-notes.mdx
 ```
 
-Each `<Update>` entry in the aggregate file covers a date. Multiple versions released on the same
+Each `<ReleaseUpdate>` entry in the aggregate file covers a date. Multiple versions released on the same
 date get combined into one entry. Identify releases that have no corresponding coverage.
 
 ## Step 2: Analyze Commits
@@ -249,12 +249,17 @@ Match the version line to which packages are involved:
 
 File: `docs/phoenix/release-notes.mdx`
 
-Insert each new `<Update>` block at the correct chronological position relative to **all**
+Insert each new `<ReleaseUpdate>` block at the correct chronological position relative to **all**
 existing blocks — not as a contiguous group at the top. Each block is a condensed summary
 linking to the individual file.
 
+The file imports the `ReleaseUpdate` component at the top (after the frontmatter):
 ```mdx
-<Update label="MM.DD.YYYY">
+import { ReleaseUpdate } from "../snippets/ReleaseUpdate.jsx";
+```
+
+```mdx
+<ReleaseUpdate label="MM.DD.YYYY" href="/docs/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug-title">
 ## [MM.DD.YYYY: Feature Title](/docs/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug-title)
 **Available in ...**
 
@@ -262,14 +267,15 @@ Brief 1-3 sentence summary. Action-oriented.
 
 - **Key capability** with brief description
 - **Another capability** with brief description
-</Update>
+</ReleaseUpdate>
 ```
 
 Rules:
 - `label` uses dot separators: `MM.DD.YYYY`
+- `href` must match the link in the heading
 - Link path has no `.mdx` extension
 - Keep each block to 5-10 lines
-- If one MDX file covers multiple features, create separate `<Update>` blocks per feature date
+- If one MDX file covers multiple features, create separate `<ReleaseUpdate>` blocks per feature date
 
 ### Reverse-chronological insertion (do not skip this)
 
@@ -406,7 +412,7 @@ grep -l '^title: "Release Notes"$' docs/phoenix/release-notes/**/*.mdx 2>/dev/nu
   || echo "OK: all per-date files have descriptive titles"
 
 # Confirm reverse-chronological order in the aggregate file
-grep -nP 'Update label="[\d.]+' docs/phoenix/release-notes.mdx \
+grep -nP 'ReleaseUpdate label="[\d.]+' docs/phoenix/release-notes.mdx \
   | awk -F'[:."]' '{ printf "%s %s%s%s\n", $1, $5, $3, $4 }' \
   | awk 'NR>1 && $2>prev { print "OUT OF ORDER at release-notes.mdx:" $1 " — " $2 " appears above " prev; bad=1 } { prev=$2 } END { if (!bad) print "OK: reverse-chronological order intact" }'
 ```
