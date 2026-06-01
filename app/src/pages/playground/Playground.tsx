@@ -28,6 +28,10 @@ import {
   RUN_PLAYGROUND_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundRun";
 import {
+  createSavePromptClientAction,
+  SAVE_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
   createSetVariableValuesClientAction,
   SET_VARIABLE_VALUES_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundVariableValues";
@@ -285,6 +289,7 @@ function PlaygroundContent() {
       registerClientAction,
       unregisterClientAction,
       setPendingPromptEdit,
+      setPendingSavePrompt,
     } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOL_NAME,
@@ -299,6 +304,15 @@ function PlaygroundContent() {
       createEditPromptClientAction({
         playgroundStore,
         setPendingPromptEdit,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
+    registerClientAction(
+      SAVE_PROMPT_TOOL_NAME,
+      createSavePromptClientAction({
+        playgroundStore,
+        setPendingSavePrompt,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -319,6 +333,7 @@ function PlaygroundContent() {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      unregisterClientAction(SAVE_PROMPT_TOOL_NAME);
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
@@ -327,6 +342,13 @@ function PlaygroundContent() {
       )) {
         if (pendingEdit) {
           void pendingEdit.cancel?.();
+        }
+      }
+      for (const pendingSave of Object.values(
+        agentStore.getState().pendingSavePromptsByToolCallId
+      )) {
+        if (pendingSave) {
+          void pendingSave.cancel?.();
         }
       }
     };

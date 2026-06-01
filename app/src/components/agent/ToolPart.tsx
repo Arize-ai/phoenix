@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
 
 import {
@@ -29,6 +30,12 @@ import {
   formatEditPromptState,
   getEditPromptToolPreview,
 } from "./EditPromptToolDetails";
+import {
+  formatSavePromptState,
+  getSavePromptStatusVariant,
+  getSavePromptToolPreview,
+  SavePromptToolDetails,
+} from "./SavePromptToolDetails";
 import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
@@ -623,6 +630,13 @@ function getToolPresentation(
         stateLabel: formatEditPromptState(part),
         statusVariant,
         details: <EditPromptToolDetails part={part} />,
+      };
+    case SAVE_PROMPT_TOOL_NAME:
+      return {
+        preview: getSavePromptToolPreview(part),
+        stateLabel: formatSavePromptState(part),
+        statusVariant: getSavePromptStatusVariant(part) ?? statusVariant,
+        details: <SavePromptToolDetails part={part} />,
       };
     case BATCH_SPAN_ANNOTATE_TOOL_NAME:
       return {

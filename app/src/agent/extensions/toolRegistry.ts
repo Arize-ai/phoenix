@@ -41,6 +41,11 @@ import {
   type RunPlaygroundInput,
 } from "@phoenix/agent/tools/playgroundRun";
 import {
+  parseSavePromptInput,
+  SAVE_PROMPT_TOOL_NAME,
+  type SavePromptInput,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
   parseSetVariableValuesInput,
   SET_VARIABLE_VALUES_TOOL_NAME,
   type SetVariableValuesInput,
@@ -536,6 +541,58 @@ const editPromptAgentTool = createRegisteredAgentTool<EditPromptInput>({
   },
 });
 
+const savePromptAgentTool = createRegisteredAgentTool<SavePromptInput>({
+  name: SAVE_PROMPT_TOOL_NAME,
+  parseInput: parseSavePromptInput,
+  invalidInputErrorText: `Invalid ${SAVE_PROMPT_TOOL_NAME} input. Expected { description: string, instanceId?: number, promptId?: string, name?: string, tags?: string[] }.`,
+  uiBehavior: {
+    autoOpen: true,
+    scrollIntoViewOnMount: true,
+  },
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
+    const action =
+      agentStore.getState().registeredClientActions[SAVE_PROMPT_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The playground prompt editor is not mounted; cannot save prompts.",
+      });
+      return;
+    }
+    if (!sessionId) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: "Cannot save prompts without an active session.",
+      });
+      return;
+    }
+    const result = await action(input, {
+      toolCallId: toolCall.toolCallId,
+      sessionId,
+      addToolOutput,
+    });
+    if (!result.ok) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
 const runPlaygroundAgentTool = createRegisteredAgentTool<RunPlaygroundInput>({
   name: RUN_PLAYGROUND_TOOL_NAME,
   parseInput: parseRunPlaygroundInput,
@@ -713,6 +770,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
+  savePromptAgentTool as RegisteredAgentTool<unknown>,
   runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,

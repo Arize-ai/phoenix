@@ -273,7 +273,8 @@ def _empty_experiment(phoenix_dataset: Any) -> RanExperiment:
 def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, *, base_url: str) -> bool:
     if experiment["experiment_id"]:
         experiment_url = urljoin(
-            base_url.rstrip("/") + "/", f"experiments/{experiment['experiment_id']}"
+            base_url.rstrip("/") + "/",
+            f"datasets/{experiment['dataset_id']}/compare?experimentId={experiment['experiment_id']}",
         )
         print(f"Experiment: {experiment_url}")
     evaluation_runs = list(experiment.get("evaluation_runs") or [])
