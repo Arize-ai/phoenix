@@ -15,12 +15,13 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "load_dataset"
 
 DESCRIPTION = (
-    "Load a dataset into the currently mounted playground so the user can run prompts "
-    "over it. Optionally scope the run to a single split. This tool does not switch the "
-    "playground immediately: the browser renders an inline accept/reject card and the "
-    "user must approve the change. Pass dataset and split names exactly as they appear in "
-    "Phoenix; the browser resolves the names to IDs. Use this when the user asks to load, "
-    "open, switch to, or run against a dataset (or a split of one) in the playground."
+    "Load a dataset into the currently mounted playground, optionally scoped to a single "
+    "split, so the prompt runs over the dataset's examples. Use this when the user asks to "
+    "load, open, switch to, or run against a dataset (or one split of it) in the "
+    "playground. This only switches the playground's dataset selection; it does not edit "
+    "prompts, set variables, or run the playground. In manual approval mode an inline "
+    "accept/reject card applies the change on approval (skipped when edit_permission is "
+    "bypass)."
 )
 
 PARAMETERS: dict[str, Any] = {
