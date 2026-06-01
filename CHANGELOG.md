@@ -1,5 +1,44 @@
 # Changelog
 
+## [16.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.3.0...arize-phoenix-v16.4.0) (2026-06-01)
+
+
+### Features
+
+* Add no-data chart overlays ([#13471](https://github.com/Arize-ai/phoenix/issues/13471)) ([792aa92](https://github.com/Arize-ai/phoenix/commit/792aa920b732e3084bdcfb2d946e773ca5eee385))
+* **agent:** collapse agent context pills into a deck ([#13516](https://github.com/Arize-ai/phoenix/issues/13516)) ([f1e0e2e](https://github.com/Arize-ai/phoenix/commit/f1e0e2ec926c101e91c34eb945376611bb36cb9d))
+* **agent:** make PXI quick actions dynamic per page context ([#13534](https://github.com/Arize-ai/phoenix/issues/13534)) ([e60ba32](https://github.com/Arize-ai/phoenix/commit/e60ba321df4e83495ce820f6fd8dff40839dee08))
+* **agents:** add Claude Opus 4.8 support to PXI ([#13497](https://github.com/Arize-ai/phoenix/issues/13497)) ([f13fd0b](https://github.com/Arize-ai/phoenix/commit/f13fd0b18f5ffb0be3b54600a1f65e82a529348c))
+* **agents:** add span annotation tool ([#13502](https://github.com/Arize-ai/phoenix/issues/13502)) ([4c8262c](https://github.com/Arize-ai/phoenix/commit/4c8262ca60b1abcb19d000f9f8477ba30b6cf5e1))
+* **agents:** Floating chat drag, resize, style improvements ([#13443](https://github.com/Arize-ai/phoenix/issues/13443)) ([79d8afe](https://github.com/Arize-ai/phoenix/commit/79d8afee0decf2310a313ab7647db738ff4d7aa7))
+* **agent:** show a Beta badge in the PXI header on new chats ([#13535](https://github.com/Arize-ai/phoenix/issues/13535)) ([1deb767](https://github.com/Arize-ai/phoenix/commit/1deb76778dfc8f71f45879ae728595392b70f258))
+* **agents:** trace debugging skill ([#13467](https://github.com/Arize-ai/phoenix/issues/13467)) ([7ddc699](https://github.com/Arize-ai/phoenix/commit/7ddc699409bd5072bf26a9c6ed72845adeed91a2))
+* **agents:** upgrade eval harness with message history ([#13474](https://github.com/Arize-ai/phoenix/issues/13474)) ([b8cc702](https://github.com/Arize-ai/phoenix/commit/b8cc70214ba14069c4591e2b8d48a6d106367494))
+* **app:** style code blocks with the Pierre theme for consistent light/dark ([#13519](https://github.com/Arize-ai/phoenix/issues/13519)) ([a3ec631](https://github.com/Arize-ai/phoenix/commit/a3ec6312c7846451b5f002121e0eaa0cfbf0d9bf))
+* **filter:** make span_kind comparisons case-insensitive ([#13489](https://github.com/Arize-ai/phoenix/issues/13489)) ([a1970a3](https://github.com/Arize-ai/phoenix/commit/a1970a3de1aab85f5eb87efece3bece0d8823470))
+* lift trace UX feature flag ([#13470](https://github.com/Arize-ai/phoenix/issues/13470)) ([f22e85b](https://github.com/Arize-ai/phoenix/commit/f22e85b151fb06c49cb1e4d433dc21fcd6cbfffa))
+* playground skill ([#13465](https://github.com/Arize-ai/phoenix/issues/13465)) ([8ec9392](https://github.com/Arize-ai/phoenix/commit/8ec9392477bb300be1acecf73753ba170c38afd6))
+* surface PXI model credential setup ([#13458](https://github.com/Arize-ai/phoenix/issues/13458)) ([566a1f5](https://github.com/Arize-ai/phoenix/commit/566a1f5887794b151e410f47ea0519a9a5b1ae05))
+
+
+### Bug Fixes
+
+* adjust spans sparkline bar gap ([#13500](https://github.com/Arize-ai/phoenix/issues/13500)) ([8da7337](https://github.com/Arize-ai/phoenix/commit/8da7337d4d6230e83ca898af93c5bb0f444d279f))
+* avoid PXI initial scroll animation ([#13456](https://github.com/Arize-ai/phoenix/issues/13456)) ([6a408ad](https://github.com/Arize-ai/phoenix/commit/6a408adf12c0ec05f0e04c8739d5e4e7b01e8a6d))
+* **cost:** update built-in model token prices ([#13522](https://github.com/Arize-ai/phoenix/issues/13522)) ([d14a55c](https://github.com/Arize-ai/phoenix/commit/d14a55c32abdf56a4f3532be2d1ad60a4ef061ea))
+* keep PXI thinking indicator after tool calls ([#13488](https://github.com/Arize-ai/phoenix/issues/13488)) ([dfd0ec6](https://github.com/Arize-ai/phoenix/commit/dfd0ec6fa66a9d117d44f80a9b5dfb0fc789ae0b))
+* load evaluator subclass fields in dataloader ([#13449](https://github.com/Arize-ai/phoenix/issues/13449)) ([1a36841](https://github.com/Arize-ai/phoenix/commit/1a3684126dc165438aac65a5f2f81a109c7464c4))
+
+
+### Documentation
+
+* Add Phoenix release notes for 05-21-2026 through 05-27-2026 ([#13446](https://github.com/Arize-ai/phoenix/issues/13446)) ([6200ae2](https://github.com/Arize-ai/phoenix/commit/6200ae2984504d05e2b17293db7abb9cbf0abcbe))
+* add ReleaseUpdate component with read more links ([#13544](https://github.com/Arize-ai/phoenix/issues/13544)) ([ffa4762](https://github.com/Arize-ai/phoenix/commit/ffa4762ecec9a8d826941646b57d4a9c2b0b080b))
+* **agents:** note python and node are unavailable in PXI bash tool ([#13493](https://github.com/Arize-ai/phoenix/issues/13493)) ([1718c71](https://github.com/Arize-ai/phoenix/commit/1718c71ecfc6a4865e29abc490bf2204e00ccfcb))
+* **graphql:** describe Span token count fields and TokenCountPromptDetails ([#13491](https://github.com/Arize-ai/phoenix/issues/13491)) ([a2ffe12](https://github.com/Arize-ai/phoenix/commit/a2ffe12fadfa350d69fbf6c585289fdd277f2a82))
+* introduce PXI agent ([#13476](https://github.com/Arize-ai/phoenix/issues/13476)) ([c5fe607](https://github.com/Arize-ai/phoenix/commit/c5fe607e259b0eb07e401a417084825cc11b664a))
+* **skills:** weekly audit — 2026-05-27 ([3108194](https://github.com/Arize-ai/phoenix/commit/3108194c51bcf789fa4bfae3eaf77ba3e4ed4742))
+
 ## [16.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.2.0...arize-phoenix-v16.3.0) (2026-05-27)
 
 
