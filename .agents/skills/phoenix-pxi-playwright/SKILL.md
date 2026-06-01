@@ -153,6 +153,8 @@ pnpm run test:e2e:pxi
 
 Real PXI specs require external model credentials. Keep tests skipped by default unless `PXI_E2E=true` is set.
 
+When `PXI_E2E=true`, the Playwright config runs with one worker because PXI specs share a Phoenix test server/database and may mutate agent-visible setup such as sandbox configs.
+
 ## Experiment Persistence
 
 - Persistence defaults to `http://localhost:6006` so real E2E runs can be inspected in the developer's local Phoenix instance.

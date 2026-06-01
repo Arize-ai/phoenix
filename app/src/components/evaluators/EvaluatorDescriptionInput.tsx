@@ -14,7 +14,16 @@ const useEvaluatorDescriptionInputForm = () => {
     return state.evaluator.description;
   });
   const form = useForm({ defaultValues: { description }, mode: "onChange" });
-  const subscribe = form.subscribe;
+  const { getValues, setValue, subscribe } = form;
+  useEffect(() => {
+    if (getValues("description") !== description) {
+      setValue("description", description, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: true,
+      });
+    }
+  }, [description, getValues, setValue]);
   useEffect(() => {
     return subscribe({
       formState: { isValid: true, values: true },

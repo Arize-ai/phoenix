@@ -20,9 +20,13 @@ import { PlaygroundExperimentToolbar } from "./PlaygroundExperimentToolbar";
 export function PlaygroundDatasetSection({
   datasetId,
   splitIds,
+  isCodeEvaluatorFormOpen,
+  onCodeEvaluatorFormOpenChange,
 }: {
   datasetId: string;
   splitIds?: string[];
+  isCodeEvaluatorFormOpen: boolean;
+  onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
 }) {
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
@@ -169,6 +173,8 @@ export function PlaygroundDatasetSection({
         }
         onEvaluatorCreated={onEvaluatorCreated}
         query={data}
+        isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+        onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
       />
       <PlaygroundDatasetExamplesTableProvider key={key}>
         <PlaygroundDatasetExamplesTable

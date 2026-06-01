@@ -38,6 +38,8 @@ type PlaygroundEvaluatorSelectProps = {
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
   query: PlaygroundEvaluatorSelect_query$key;
   isDisabled?: boolean;
+  isCodeEvaluatorFormOpen: boolean;
+  onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
 };
 
 export function PlaygroundEvaluatorSelect(
@@ -52,6 +54,8 @@ export function PlaygroundEvaluatorSelect(
     onEvaluatorCreated,
     query,
     isDisabled,
+    isCodeEvaluatorFormOpen,
+    onCodeEvaluatorFormOpenChange,
   } = props;
 
   const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
@@ -71,8 +75,6 @@ export function PlaygroundEvaluatorSelect(
   } | null>(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
-  const [isCreateCodeEvaluatorOpen, setIsCreateCodeEvaluatorOpen] =
-    useState(false);
   const associateBuiltinEvaluatorDialogOpen =
     builtinEvaluatorIdToAssociate != null;
   const onCloseAssociateBuiltinEvaluatorDialog = () => {
@@ -159,7 +161,7 @@ export function PlaygroundEvaluatorSelect(
             onCreateEvaluator={() =>
               setCreateLLMEvaluatorDialogInitialState(true)
             }
-            onCreateCodeEvaluator={() => setIsCreateCodeEvaluatorOpen(true)}
+            onCreateCodeEvaluator={() => onCodeEvaluatorFormOpenChange(true)}
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={(initialState) => {
               setCreateLLMEvaluatorDialogInitialState(initialState);
@@ -219,8 +221,8 @@ export function PlaygroundEvaluatorSelect(
         updateConnectionIds={updateConnectionIds}
       />
       <CreateCodeDatasetEvaluatorSlideover
-        isOpen={isCreateCodeEvaluatorOpen}
-        onOpenChange={setIsCreateCodeEvaluatorOpen}
+        isOpen={isCodeEvaluatorFormOpen}
+        onOpenChange={onCodeEvaluatorFormOpenChange}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
         onEvaluatorCreated={onEvaluatorCreated}

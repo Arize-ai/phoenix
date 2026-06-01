@@ -104,6 +104,27 @@ class PlaygroundContext(_ChatContextBase):
     instance_ids: list[int] = Field(alias="instanceIds")
 
 
+class CodeEvaluatorContext(_ChatContextBase):
+    """Code-evaluator create/edit form mounted in the current browser route."""
+
+    type: Literal["code_evaluator"]
+    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
+
+
+class DatasetContext(_ChatContextBase):
+    """Dataset the user is currently viewing or has bound to a workflow.
+
+    Carries the dataset's relay node id and, when known, the active version
+    node id. These IDs scope the create-form handoff link and the sampling of
+    active dataset examples used as prompt context; the dataset schema itself
+    is open.
+    """
+
+    type: Literal["dataset"]
+    dataset_node_id: str = Field(alias="datasetNodeId")
+    dataset_version_node_id: str | None = Field(default=None, alias="datasetVersionNodeId")
+
+
 class GraphQLContext(_ChatContextBase):
     """GraphQL runtime state."""
 
@@ -126,6 +147,8 @@ class ChatContext(
             | TraceContext
             | AgentSpanContext
             | PlaygroundContext
+            | CodeEvaluatorContext
+            | DatasetContext
             | GraphQLContext
             | WebAccessContext,
             Field(discriminator="type"),
@@ -142,6 +165,8 @@ class ResolvedContexts:
     trace: TraceContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
+    code_evaluator: CodeEvaluatorContext | None = None
+    dataset: DatasetContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
 
@@ -154,6 +179,10 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.app = context_value
         elif isinstance(context_value, PlaygroundContext):
             resolved.playground = context_value
+        elif isinstance(context_value, CodeEvaluatorContext):
+            resolved.code_evaluator = context_value
+        elif isinstance(context_value, DatasetContext):
+            resolved.dataset = context_value
         elif isinstance(context_value, ProjectContext):
             resolved.project = context_value
         elif isinstance(context_value, TraceContext):

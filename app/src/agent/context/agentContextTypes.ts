@@ -52,6 +52,14 @@ export function agentContextKey(context: AgentContext): string {
       return "app";
     case "playground":
       return "playground";
+    case "code_evaluator":
+      return context.evaluatorNodeId
+        ? `code_evaluator:${context.evaluatorNodeId}`
+        : "code_evaluator:create";
+    case "dataset":
+      return context.datasetVersionNodeId
+        ? `dataset:${context.datasetNodeId}:${context.datasetVersionNodeId}`
+        : `dataset:${context.datasetNodeId}`;
     case "project":
       return `project:${context.projectNodeId}`;
     case "trace":

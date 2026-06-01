@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
+import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
@@ -25,6 +26,11 @@ import {
   getDocsToolPreview,
   isDocsToolName,
 } from "./DocsToolDetails";
+import {
+  EditCodeEvaluatorDraftToolDetails,
+  formatEditCodeEvaluatorDraftState,
+  getEditCodeEvaluatorDraftToolPreview,
+} from "./EditCodeEvaluatorDraftToolDetails";
 import {
   EditPromptToolDetails,
   formatEditPromptState,
@@ -644,6 +650,13 @@ function getToolPresentation(
         stateLabel: formatBatchSpanAnnotateState(part),
         statusVariant,
         details: <BatchSpanAnnotateToolDetails part={part} />,
+      };
+    case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
+      return {
+        preview: getEditCodeEvaluatorDraftToolPreview(part),
+        stateLabel: formatEditCodeEvaluatorDraftState(part),
+        statusVariant,
+        details: <EditCodeEvaluatorDraftToolDetails part={part} />,
       };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME: {

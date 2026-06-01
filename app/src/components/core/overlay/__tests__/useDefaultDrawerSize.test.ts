@@ -2,7 +2,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
 import { useDefaultDrawerSize } from "../useDefaultDrawerSize";
+
+installTestStorage();
 
 const DRAWER_STORAGE_KEY = "arize-phoenix-drawer-trace-details-size";
 const PERSIST_DEBOUNCE_MS = 250;

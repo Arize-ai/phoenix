@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncGenerator, AsyncIterator, Iterable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
 from contextlib import aclosing
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
@@ -26,12 +26,13 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ProviderMetadata,
     ToolInputAvailableChunk,
 )
-from sqlalchemy import Insert, func, select
+from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
+from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
@@ -45,15 +46,26 @@ from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.context import (
     ChatContext,
+    ResolvedContexts,
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
-from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.agents.types import (
+    AgentDependencies,
+    AgentOutput,
+    SandboxAvailability,
+)
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.bearer_auth import is_authenticated
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.SandboxConfig import (
+    SandboxBackendStatus,
+    get_sandbox_backend_info,
+)
+from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
+from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
@@ -334,6 +346,62 @@ async def _persist_db_traces(
     session.add_all(db_traces)
 
 
+async def _load_available_sandbox_backend_types(
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+) -> frozenset[models.SandboxBackendType]:
+    backend_info = await get_sandbox_backend_info(
+        secrets=SecretsContext(session=session, decrypt=decrypt),
+    )
+    return frozenset(
+        info.backend_type.value
+        for info in backend_info
+        if info.status is SandboxBackendStatus.AVAILABLE
+    )
+
+
+async def _load_sandbox_availability(
+    session: AsyncSession,
+    *,
+    available_backend_types: frozenset[models.SandboxBackendType] | None = None,
+) -> SandboxAvailability:
+    """Compute the pre-turn ``has_usable`` gate for sandbox-backed capabilities.
+
+    ``has_usable`` is true when at least one enabled ``SandboxConfig`` sits
+    under an enabled provider. When ``available_backend_types`` is supplied it
+    mirrors the code-evaluator form's backend-status filter, so the gate matches
+    the set the mounted form can actually select. The selectable inventory is
+    fetched on-demand by the agent via ``phoenix-gql``, not loaded here."""
+    if available_backend_types is not None and not available_backend_types:
+        return SandboxAvailability(has_usable=False)
+    condition = (
+        models.SandboxConfig.enabled.is_(True)
+        & models.SandboxProvider.enabled.is_(True)
+        & (models.SandboxProvider.backend_type == models.SandboxConfig.backend_type)
+    )
+    if available_backend_types is not None:
+        condition &= models.SandboxConfig.backend_type.in_(available_backend_types)
+    has_usable = bool(await session.scalar(select(exists().where(condition))))
+    return SandboxAvailability(has_usable=has_usable)
+
+
+def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int | None:
+    if node_id is None:
+        return None
+    try:
+        return from_global_id_with_expected_type(
+            GlobalID.from_id(node_id),
+            expected_type_name,
+        )
+    except ValueError:
+        return None
+
+
+def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
+    return contexts.dataset is not None or contexts.code_evaluator is not None
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -450,6 +518,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             agent_span_recorder = _AgentSpanContextRecorder()
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
+        resolved_contexts = resolve_contexts(body.contexts)
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -458,6 +527,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
                 )
+                sandbox_availability = SandboxAvailability()
+                if _contexts_need_sandbox_availability(resolved_contexts):
+                    available_backend_types = await _load_available_sandbox_backend_types(
+                        session=session,
+                        decrypt=request.app.state.decrypt,
+                    )
+                    sandbox_availability = await _load_sandbox_availability(
+                        session,
+                        available_backend_types=available_backend_types,
+                    )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -468,7 +547,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
-        resolved_contexts = resolve_contexts(body.contexts)
         web_access_enabled = (
             resolved_contexts.web_access is not None
             and resolved_contexts.web_access.enabled
@@ -485,9 +563,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             run_input=body,
             accept=request.headers.get("accept"),
         )
+        is_viewer = False
+        if "user" in request.scope:
+            user = request.user
+            if isinstance(user, PhoenixUser):
+                is_viewer = user.is_viewer
         deps = AgentDependencies(
             contexts=resolved_contexts,
             edit_permission=body.edit_permission,
+            is_viewer=is_viewer,
+            sandbox_availability=sandbox_availability,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

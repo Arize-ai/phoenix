@@ -1,9 +1,12 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { createReadPlaygroundOutputClientAction } from "@phoenix/agent/tools/playgroundOutput";
 import {
   _resetInstanceId,
   _resetMessageId,
   createPlaygroundStore,
 } from "@phoenix/store/playground";
+
+installTestStorage();
 
 describe("playground output agent tool", () => {
   beforeEach(() => {

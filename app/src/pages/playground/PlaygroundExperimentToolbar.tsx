@@ -31,6 +31,8 @@ type PlaygroundExperimentToolbarProps = {
   updateConnectionIds: string[];
   onEvaluatorCreated: (datasetEvaluatorId: string) => void;
   query: PlaygroundEvaluatorSelect_query$key;
+  isCodeEvaluatorFormOpen: boolean;
+  onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
 };
 
 export function PlaygroundExperimentToolbar({
@@ -41,6 +43,8 @@ export function PlaygroundExperimentToolbar({
   updateConnectionIds,
   onEvaluatorCreated,
   query,
+  isCodeEvaluatorFormOpen,
+  onCodeEvaluatorFormOpenChange,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const recordExperiments = usePlaygroundContext(
@@ -112,6 +116,8 @@ export function PlaygroundExperimentToolbar({
             onEvaluatorCreated={onEvaluatorCreated}
             query={query}
             isDisabled={isRunning}
+            isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+            onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
           <PlaygroundExperimentSettingsButton

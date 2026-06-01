@@ -1,7 +1,10 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   SET_TIME_RANGE_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
 import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
 import {
@@ -17,6 +20,8 @@ import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVa
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 import { createPlaygroundStore } from "@phoenix/store/playground";
+
+installTestStorage();
 
 describe("toolRegistry", () => {
   beforeEach(() => {
@@ -202,6 +207,58 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_TIME_RANGE_TOOL_NAME,
         output: "updated",
+      })
+    );
+  });
+
+  it("returns an error when open_code_evaluator_form has no mounted action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-open-evaluator-form-missing",
+        toolName: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+        toolCallId: "tool-call-open-evaluator-form-missing",
+        errorText:
+          "The dataset-backed playground is not mounted; cannot open the evaluator form.",
+      })
+    );
+  });
+
+  it("returns an error when test_code_evaluator_draft has no mounted action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-code-evaluator-test-missing",
+        toolName: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+        toolCallId: "tool-call-code-evaluator-test-missing",
+        errorText:
+          "The code-evaluator test section is not mounted; cannot test the draft.",
       })
     );
   });

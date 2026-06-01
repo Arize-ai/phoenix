@@ -13,11 +13,15 @@ from phoenix.server.agents.capabilities.tools.external import (
     bash,
     batch_span_annotate,
     clone_prompt_instance,
+    edit_code_evaluator_draft,
     edit_prompt_instance,
+    open_code_evaluator_form,
+    read_code_evaluator_draft,
     read_playground_output,
     read_prompt_instance,
     read_prompt_tools,
     render_generative_ui,
+    run_code_evaluator_draft,
     run_playground,
     save_prompt,
     set_spans_filter,
@@ -33,8 +37,17 @@ from phoenix.server.agents.capabilities.tools.external.batch_span_annotate impor
 from phoenix.server.agents.capabilities.tools.external.clone_prompt_instance import (
     ClonePromptInstanceCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
+    EditCodeEvaluatorDraftCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance import (
     EditPromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.open_code_evaluator_form import (
+    OpenCodeEvaluatorFormCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
+    ReadCodeEvaluatorDraftCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_playground_output import (
     ReadPlaygroundOutputCapability,
@@ -47,6 +60,9 @@ from phoenix.server.agents.capabilities.tools.external.read_prompt_tools import 
 )
 from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
     RenderGenerativeUICapability,
+)
+from phoenix.server.agents.capabilities.tools.external.run_code_evaluator_draft import (
+    RunCodeEvaluatorDraftCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.run_playground import (
     RunPlaygroundCapability,
@@ -74,11 +90,15 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         batch_span_annotate.TOOL_DEFINITION,
         bash.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
+        edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
+        open_code_evaluator_form.TOOL_DEFINITION,
+        read_code_evaluator_draft.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
         read_prompt_tools.TOOL_DEFINITION,
         read_playground_output.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
+        run_code_evaluator_draft.TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
         save_prompt.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
@@ -120,6 +140,10 @@ def get_external_tool_capability_function(
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
+        OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
+        ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
+        EditCodeEvaluatorDraftCapability(instructions=prompts.edit_code_evaluator_draft_tool),
+        RunCodeEvaluatorDraftCapability(instructions=prompts.test_code_evaluator_draft_tool),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
@@ -134,7 +158,10 @@ __all__ = [
     "BatchSpanAnnotateCapability",
     "BashCapability",
     "ClonePromptInstanceCapability",
+    "EditCodeEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
+    "OpenCodeEvaluatorFormCapability",
+    "ReadCodeEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",
     "ReadPromptToolsCapability",
     "ReadPlaygroundOutputCapability",
@@ -145,6 +172,7 @@ __all__ = [
     "SetTimeRangeCapability",
     "SetVariableValuesCapability",
     "WritePromptToolsCapability",
+    "RunCodeEvaluatorDraftCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",
 ]

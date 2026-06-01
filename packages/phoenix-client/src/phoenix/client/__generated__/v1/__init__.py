@@ -52,6 +52,11 @@ class CategoricalAnnotationValue(TypedDict):
     score: NotRequired[float]
 
 
+class CodeEvaluatorContext(TypedDict):
+    type: Literal["code_evaluator"]
+    evaluatorNodeId: NotRequired[str]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -105,6 +110,12 @@ class Dataset(TypedDict):
     created_at: str
     updated_at: str
     example_count: int
+
+
+class DatasetContext(TypedDict):
+    type: Literal["dataset"]
+    datasetNodeId: str
+    datasetVersionNodeId: NotRequired[str]
 
 
 class DatasetExample(TypedDict):
@@ -1477,6 +1488,8 @@ class ChatRegenerateMessage(TypedDict):
                 TraceContext,
                 AgentSpanContext,
                 PlaygroundContext,
+                CodeEvaluatorContext,
+                DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
             ]
@@ -1500,6 +1513,8 @@ class ChatSubmitMessage(TypedDict):
                 TraceContext,
                 AgentSpanContext,
                 PlaygroundContext,
+                CodeEvaluatorContext,
+                DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
             ]

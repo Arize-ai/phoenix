@@ -1,5 +1,8 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { createSetVariableValuesClientAction } from "@phoenix/agent/tools/playgroundVariableValues";
 import { createPlaygroundStore } from "@phoenix/store/playground";
+
+installTestStorage();
 
 describe("playground variable values agent tool", () => {
   it("sets playground variable values", async () => {

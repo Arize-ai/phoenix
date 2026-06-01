@@ -14,7 +14,8 @@ const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
 const baseURL =
   process.env.PLAYWRIGHT_BASE_URL ??
   `http://localhost:${process.env.PHOENIX_PORT ?? "6006"}`;
-const pxiTestIgnore = process.env.PXI_E2E === "true" ? [] : ["**/pxi/**"];
+const isPxiE2E = process.env.PXI_E2E === "true";
+const pxiTestIgnore = isPxiE2E ? [] : ["**/pxi/**"];
 
 const projects: Project[] = [
   {
@@ -74,9 +75,9 @@ export default defineConfig({
     /* CI runners are slower; use one centralized expect timeout policy */
     timeout: isCI ? 30_000 : 10_000,
   },
-  // Use default workers (cpu count)
-  workers: undefined,
-  fullyParallel: true,
+  // PXI specs share one Phoenix server/database and mutate agent-visible setup.
+  workers: isPxiE2E ? 1 : undefined,
+  fullyParallel: !isPxiE2E,
   testDir: "./tests",
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,

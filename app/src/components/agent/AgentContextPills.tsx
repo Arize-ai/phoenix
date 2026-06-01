@@ -42,6 +42,10 @@ function contextLabel(context: AgentContext): string {
       return "Trace";
     case "span":
       return "Span";
+    case "code_evaluator":
+      return "Code Evaluator";
+    case "dataset":
+      return "Dataset";
   }
 }
 
@@ -57,6 +61,13 @@ function contextDetail(context: AgentContext): string | undefined {
       }
       return truncateId(spanId);
     }
+    case "code_evaluator":
+      // Labeled by action, not entity, so it reads distinctly from surface pills.
+      return context.evaluatorNodeId
+        ? `Editing evaluator: ${truncateId(context.evaluatorNodeId)}`
+        : "New evaluator";
+    case "dataset":
+      return truncateId(context.datasetNodeId);
     default:
       return undefined;
   }
@@ -73,9 +84,8 @@ function toAttachmentData(context: AgentContext): AttachmentContextData {
 }
 
 /**
- * Render a project's active span filter as its own pill so the user can see
- * the filter the agent is aware of, even though the filter rides as a field
- * on the project context rather than its own context type.
+ * Renders a project's span filter as its own pill, though the filter rides as a
+ * field on the project context rather than a context type of its own.
  */
 function spanFilterAttachmentData(
   context: AgentContext
@@ -93,15 +103,7 @@ function spanFilterAttachmentData(
   };
 }
 
-/**
- * Renders the active agent contexts as non-removable attachments above the
- * chat input so the user can see, at a glance, what Phoenix state the agent
- * is aware of for the next turn (project, trace, selected span, active span
- * filter).
- *
- * Reads from the same `selectActiveContexts` selector used to populate the
- * chat request payload, so what the user sees is what the agent receives.
- */
+/** Renders the active agent contexts as non-removable pills above the chat input. */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
 
@@ -122,6 +124,10 @@ export function AgentContextPills() {
       ? [toAttachmentData(context), filterPill]
       : [toAttachmentData(context)];
   });
+
+  if (items.length === 0) {
+    return null;
+  }
 
   return (
     <Attachments

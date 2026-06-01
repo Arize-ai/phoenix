@@ -55,7 +55,16 @@ const useEvaluatorNameInputForm = () => {
     defaultValues: { [FIELD_NAME]: name },
     mode: "onChange",
   });
-  const subscribe = form.subscribe;
+  const { getValues, setValue, subscribe } = form;
+  useEffect(() => {
+    if (getValues(FIELD_NAME) !== name) {
+      setValue(FIELD_NAME, name, {
+        shouldDirty: false,
+        shouldTouch: false,
+        shouldValidate: true,
+      });
+    }
+  }, [getValues, name, setValue]);
   // Sync valid values to the store
   useEffect(() => {
     return subscribe({

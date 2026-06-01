@@ -1610,7 +1610,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -1691,6 +1691,19 @@ export interface components {
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * CodeEvaluatorContext
+         * @description Code-evaluator create/edit form mounted in the current browser route.
+         */
+        CodeEvaluatorContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code_evaluator";
+            /** Evaluatornodeid */
+            evaluatorNodeId?: string | null;
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -1958,6 +1971,26 @@ export interface components {
             updated_at: string;
             /** Example Count */
             example_count: number;
+        };
+        /**
+         * DatasetContext
+         * @description Dataset the user is currently viewing or has bound to a workflow.
+         *
+         *     Carries the dataset's relay node id and, when known, the active version
+         *     node id. These IDs scope the create-form handoff link and the sampling of
+         *     active dataset examples used as prompt context; the dataset schema itself
+         *     is open.
+         */
+        DatasetContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dataset";
+            /** Datasetnodeid */
+            datasetNodeId: string;
+            /** Datasetversionnodeid */
+            datasetVersionNodeId?: string | null;
         };
         /** DatasetExample */
         DatasetExample: {

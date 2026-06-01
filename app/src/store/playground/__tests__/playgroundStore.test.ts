@@ -1,3 +1,4 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -13,6 +14,8 @@ import {
   getInitialInstances,
 } from "../playgroundStore";
 import type { CanonicalResponseFormat, InitialPlaygroundState } from "../types";
+
+installTestStorage();
 
 const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
   type: "json_schema",

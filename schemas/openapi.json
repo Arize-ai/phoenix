@@ -7305,6 +7305,12 @@
             "$ref": "#/components/schemas/PlaygroundContext"
           },
           {
+            "$ref": "#/components/schemas/CodeEvaluatorContext"
+          },
+          {
+            "$ref": "#/components/schemas/DatasetContext"
+          },
+          {
             "$ref": "#/components/schemas/GraphQLContext"
           },
           {
@@ -7317,6 +7323,8 @@
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
+            "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
+            "dataset": "#/components/schemas/DatasetContext",
             "graphql": "#/components/schemas/GraphQLContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
@@ -7503,6 +7511,32 @@
         ],
         "title": "ChatSubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "CodeEvaluatorContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code_evaluator",
+            "title": "Type"
+          },
+          "evaluatorNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluatornodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "CodeEvaluatorContext",
+        "description": "Code-evaluator create/edit form mounted in the current browser route."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -8201,6 +8235,37 @@
           "example_count"
         ],
         "title": "Dataset"
+      },
+      "DatasetContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dataset",
+            "title": "Type"
+          },
+          "datasetNodeId": {
+            "type": "string",
+            "title": "Datasetnodeid"
+          },
+          "datasetVersionNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datasetversionnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "datasetNodeId"
+        ],
+        "title": "DatasetContext",
+        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. These IDs scope the create-form handoff link and the sampling of\nactive dataset examples used as prompt context; the dataset schema itself\nis open."
       },
       "DatasetExample": {
         "properties": {

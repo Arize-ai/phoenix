@@ -15,6 +15,7 @@ import {
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
+import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -186,9 +187,9 @@ export function useAgentChat({
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     unresolvedToolCalls.forEach((toolCall) => {
+      // The generic interruption output resolves the AI SDK tool call; clear
+      // the live approval state too so stale Accept/Reject actions disappear.
       if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
-        // The generic interruption output resolves the AI SDK tool call; clear
-        // the live approval state too so stale Accept/Reject actions disappear.
         store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
       }
       if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
@@ -196,6 +197,9 @@ export function useAgentChat({
       }
       if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
         store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
+        store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
       }
     });
 

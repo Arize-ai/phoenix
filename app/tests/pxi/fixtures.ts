@@ -13,6 +13,10 @@ import { expectOK, getSpanToolName, getUiMessageToolNames } from "./utils";
 
 export type { PxiTurn } from "./types";
 
+type LatestAssistantTurn = Omit<PxiTurn, "durationMs"> & {
+  parts: unknown[];
+};
+
 function getAssistantProvider() {
   return process.env.PXI_E2E_ASSISTANT_PROVIDER ?? DEFAULT_ASSISTANT_PROVIDER;
 }
@@ -47,12 +51,19 @@ async function installAgentDefaults({ page }: { page: Page }) {
         "arize-phoenix-feature-flags",
         JSON.stringify({ agents: true, tracing_ux: false })
       );
+      // Write the canonical v9 partialize shape directly so the fixture does
+      // not depend on the store's migrate path. The store's version is
+      // tracked in app/src/store/agentStore.ts (`persist({ version })`); keep
+      // this fixture in sync when bumping the schema version, otherwise the
+      // migrate-forced field values silently override what the fixture
+      // intends to set.
       localStorage.setItem(
         "arize-phoenix-assistant",
         JSON.stringify({
           state: {
             isOpen: false,
-            position: "detached",
+            position: "pinned",
+            fabPlacement: "bottom-end",
             sessions: [],
             activeSessionId: null,
             sessionMap: {},
@@ -62,7 +73,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
               invocationParameters: [],
               supportedInvocationParameters: [],
             },
-            userInstructions: "",
             observability: {
               storeLocalTraces: true,
               exportRemoteTraces: false,
@@ -73,7 +83,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
               "graphql.mutations": false,
             },
           },
-          version: 5,
+          version: 9,
         })
       );
     },
@@ -125,6 +135,14 @@ export class PxiDriver {
     const startedAt = Date.now();
     await this.page.getByLabel("Message input").fill(message);
     await this.page.getByRole("button", { name: "Send message" }).click();
+    const turn = await this.getLatestAssistantTurn();
+    return {
+      ...turn,
+      durationMs: Date.now() - startedAt,
+    };
+  }
+
+  async getLatestAssistantTurn(): Promise<LatestAssistantTurn> {
     const turnHandle = await this.page.waitForFunction(() => {
       const stored = localStorage.getItem("arize-phoenix-assistant");
       if (!stored) {
@@ -186,7 +204,6 @@ export class PxiDriver {
     return {
       ...turn,
       calledTools: [...new Set([...calledTools, ...uiCalledTools])],
-      durationMs: Date.now() - startedAt,
     };
   }
 

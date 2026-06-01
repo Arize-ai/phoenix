@@ -6,4 +6,15 @@
 {% endfor %}
   </instances>
   <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, `set_variable_values` when the user wants to populate manual playground variable inputs, `run_playground` when the user wants to run the mounted playground, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state. For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.</guidance>
+  <dataset_evaluator_authoring>
+{% if dataset %}
+    A dataset is loaded in the playground. If the user asks to create or iterate on a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough.
+    1. If `open_code_evaluator_form` is available, call it to open the code-evaluator form in place. Do not navigate away from the current playground URL.
+    2. Once the code-evaluator form is mounted, use `read_code_evaluator_draft` and `edit_code_evaluator_draft` to populate or revise the draft.
+    3. After the user accepts the draft edit, offer to run `test_code_evaluator_draft` before they click Create. If the user agrees, run it and use the preview result to iterate.
+    4. Stop before persistence. Do NOT use GraphQL mutations or claim the evaluator is created; the user clicks Create from the form when ready.
+{% else %}
+    If the user asks to create a code evaluator for experiment scoring, ask them to load a dataset first. Do not give a manual form walkthrough or propose evaluator source code until a dataset context is available.
+{% endif %}
+  </dataset_evaluator_authoring>
 </phoenix_playground_context>

@@ -1,4 +1,11 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
@@ -25,6 +32,12 @@ import {
 } from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+/**
+ * Slideover that authors a new code evaluator and binds it to a dataset.
+ *
+ * The form registers the code-evaluator draft context while mounted, allowing
+ * PXI to fill the draft with read/edit proposal tools after the user opens it.
+ */
 export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,
@@ -39,7 +52,6 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
 } & ModalOverlayProps) => {
   const isDirtyRef = useRef(false);
 
-  // Reset dirty state when slideover opens
   useEffect(() => {
     if (isOpen) {
       isDirtyRef.current = false;
@@ -149,6 +161,7 @@ const CreateCodeEvaluatorDialog = ({
         createCodeEvaluator(input: $input) {
           evaluator {
             id
+            name
           }
         }
       }
@@ -172,29 +185,35 @@ const CreateCodeEvaluatorDialog = ({
         }
       }
     `);
-  const initialState: EvaluatorStoreProps = {
-    evaluator: {
-      globalName: "",
-      name: "",
-      description: "",
-      inputMapping: {
-        literalMapping: {},
-        pathMapping: {},
+  const initialState: EvaluatorStoreProps = useMemo(() => {
+    return {
+      evaluator: {
+        globalName: "",
+        name: "",
+        description: "",
+        inputMapping: {
+          literalMapping: {},
+          pathMapping: {},
+        },
+        kind: "CODE",
+        isBuiltin: false,
+        includeExplanation: false,
       },
-      kind: "CODE",
-      isBuiltin: false,
-      includeExplanation: false,
-    },
-    outputConfigs: [createDefaultFreeformOutputConfig("")],
-    dataset: {
-      readonly: true,
-      id: datasetId,
-      selectedExampleId: null,
-      selectedSplitIds: [],
-    },
-    evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
-    showPromptPreview: false,
-  };
+      outputConfigs: [createDefaultFreeformOutputConfig("")],
+      dataset: {
+        readonly: true,
+        id: datasetId,
+        selectedExampleId: null,
+        selectedSplitIds: [],
+      },
+      evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      showPromptPreview: false,
+    };
+  }, [datasetId]);
+
+  const initialLanguage = "PYTHON";
+  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON");
+  const initialSandboxConfigId: string | null = null;
 
   const onSubmit = (
     store: EvaluatorStoreInstance,
@@ -212,6 +231,10 @@ const CreateCodeEvaluatorDialog = ({
     const normalizedName = (globalName || name).trim();
     const normalizedDescription = description.trim() || undefined;
     invariant(normalizedName, "evaluator name is required");
+    invariant(
+      payload.sandboxConfigId,
+      "sandbox config is required to create a code evaluator"
+    );
 
     createCodeEvaluator({
       variables: {
@@ -226,12 +249,12 @@ const CreateCodeEvaluatorDialog = ({
         },
       },
       onCompleted: (response) => {
-        const evaluatorId = response.createCodeEvaluator.evaluator.id;
+        const createdEvaluator = response.createCodeEvaluator.evaluator;
         createDatasetCodeEvaluator({
           variables: {
             input: {
               datasetId,
-              evaluatorId,
+              evaluatorId: createdEvaluator.id,
               name: normalizedName,
               description: normalizedDescription,
               outputConfigs: buildOutputConfigsInput(outputConfigs),
@@ -251,19 +274,19 @@ const CreateCodeEvaluatorDialog = ({
             onClose();
           },
           onError: (mutationError) => {
-            setError(
+            const flattened =
               getErrorMessagesFromRelayMutationError(mutationError)?.join(
                 "\n"
-              ) ?? mutationError.message
-            );
+              ) ?? mutationError.message;
+            setError(flattened);
           },
         });
       },
       onError: (mutationError) => {
-        setError(
+        const flattened =
           getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
-            mutationError.message
-        );
+          mutationError.message;
+        setError(flattened);
       },
     });
   };
@@ -280,10 +303,10 @@ const CreateCodeEvaluatorDialog = ({
           }
           mode="create"
           error={error}
-          initialLanguage="PYTHON"
-          initialSourceCode={getDefaultCodeEvaluatorSource("PYTHON")}
+          initialLanguage={initialLanguage}
+          initialSourceCode={initialSourceCode}
           sandboxConfigs={sandboxConfigs}
-          initialSandboxConfigId={null}
+          initialSandboxConfigId={initialSandboxConfigId}
         />
       )}
     </EvaluatorStoreProvider>

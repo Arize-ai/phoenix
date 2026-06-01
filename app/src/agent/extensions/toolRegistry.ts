@@ -16,8 +16,23 @@ import {
   bindPendingBatchSpanAnnotateActions,
   parseBatchSpanAnnotateInput,
 } from "@phoenix/agent/tools/batchSpanAnnotate";
+import {
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  parseEditCodeEvaluatorDraftInput,
+  parseReadCodeEvaluatorDraftInput,
+  parseTestCodeEvaluatorDraftInput,
+  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  type EditCodeEvaluatorDraftActionContext,
+  type EditCodeEvaluatorDraftInput,
+  type OpenCodeEvaluatorFormInput,
+  type ReadCodeEvaluatorDraftInput,
+  type TestCodeEvaluatorDraftInput,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
+import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import {
   parseReadPlaygroundOutputInput,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
@@ -204,6 +219,11 @@ export type SetTimeRangeInput = {
   timeRangeKey: TimeRangeKey;
   startTime?: string;
   endTime?: string;
+};
+
+export {
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 };
 
 export type RenderGenerativeUIInput = {
@@ -845,6 +865,187 @@ const writePromptToolsAgentTool =
     },
   });
 
+/** Reads the current code-evaluator draft from the mounted form. */
+const readCodeEvaluatorDraftAgentTool =
+  createRegisteredAgentTool<ReadCodeEvaluatorDraftInput>({
+    name: READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    parseInput: parseReadCodeEvaluatorDraftInput,
+    invalidInputErrorText: `Invalid ${READ_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {}.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          READ_CODE_EVALUATOR_DRAFT_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The code-evaluator form is not mounted; cannot read the draft.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Code-evaluator draft read.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+/**
+ * Proposes edits to the mounted code-evaluator draft as a pending change the
+ * user accepts or rejects; requires an active session to attribute the edit.
+ */
+const editCodeEvaluatorDraftAgentTool =
+  createRegisteredAgentTool<EditCodeEvaluatorDraftInput>({
+    name: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    parseInput: parseEditCodeEvaluatorDraftInput,
+    invalidInputErrorText: `Invalid ${EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected { operations: EditCodeEvaluatorDraftOperation[] }.`,
+    uiBehavior: {
+      autoOpen: true,
+      scrollIntoViewOnMount: true,
+    },
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The code-evaluator form is not mounted; cannot edit the draft.",
+        });
+        return;
+      }
+      if (!sessionId) {
+        await addToolOutput({
+          state: "output-error",
+          tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "Cannot propose code-evaluator draft edits without an active session.",
+        });
+        return;
+      }
+      const context: EditCodeEvaluatorDraftActionContext = {
+        toolCallId: toolCall.toolCallId,
+        sessionId,
+        addToolOutput,
+      };
+      const result = await action(input, context);
+      if (!result.ok) {
+        await addToolOutput({
+          state: "output-error",
+          tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+/** Opens the code-evaluator form in the mounted dataset-backed playground. */
+const openCodeEvaluatorFormAgentTool =
+  createRegisteredAgentTool<OpenCodeEvaluatorFormInput>({
+    name: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+    parseInput: parseEmptyToolInput,
+    invalidInputErrorText: `Invalid ${OPEN_CODE_EVALUATOR_FORM_TOOL_NAME} input. Expected {}.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          OPEN_CODE_EVALUATOR_FORM_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The dataset-backed playground is not mounted; cannot open the evaluator form.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Code-evaluator form opened.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+/** Runs the mounted code-evaluator draft against its test payload. */
+const testCodeEvaluatorDraftAgentTool =
+  createRegisteredAgentTool<TestCodeEvaluatorDraftInput>({
+    name: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    parseInput: parseTestCodeEvaluatorDraftInput,
+    invalidInputErrorText: `Invalid ${TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME} input.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The code-evaluator test section is not mounted; cannot test the draft.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Code-evaluator draft tested.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
@@ -862,6 +1063,10 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
   batchSpanAnnotateAgentTool as RegisteredAgentTool<unknown>,
+  openCodeEvaluatorFormAgentTool as RegisteredAgentTool<unknown>,
+  readCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
+  editCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
+  testCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */

@@ -16,3 +16,9 @@ export const SESSION_VIEW_PARAM = "sessionView";
  * navigation.
  */
 export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";
+
+/**
+ * Opens the dataset Evaluators page directly into the create-code-evaluator
+ * slideover. Used by PXI handoff links from dataset-backed playground flows.
+ */
+export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
