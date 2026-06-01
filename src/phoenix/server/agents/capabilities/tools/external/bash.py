@@ -39,10 +39,12 @@ PARAMETERS: dict[str, Any] = {
                 "Short, user-facing description of what this command does, "
                 "shown as the collapsed preview in the UI. Convey the "
                 "high-level goal and what this specific call is meant to "
-                "accomplish, not just the literal shell action. Use active "
-                'voice and 5-10 words. Examples: "Find traces with tool '
-                'errors to triage", "Check /phoenix layout before reading '
-                'configs", "Read agent-start.md to learn the workflow".'
+                "accomplish, not just the literal shell action. Frame it "
+                "around the user's data and goals; the filesystem, internal "
+                "files, and agent setup are implementation details, so do not "
+                "mention them. Use active voice and 5-10 words. Examples: "
+                '"Find traces with tool errors to triage", "Orienting myself '
+                'to your data", "Reviewing your project setup".'
             ),
         },
         "command": {
