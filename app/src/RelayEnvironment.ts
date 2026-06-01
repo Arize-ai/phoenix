@@ -74,8 +74,12 @@ function fetchJsonObservable<T>(
         // them (so the precise GraphQL error is surfaced); otherwise fail
         // loudly with the HTTP status rather than treating the body as data.
         if (!response.ok && !(isObject(data) && "errors" in data)) {
+          // The body parsed as JSON but is not a GraphQL error envelope (for
+          // example a load balancer or auth layer error). Include a snippet so
+          // the failure is diagnosable rather than reported as a bare status.
+          const snippet = JSON.stringify(data).slice(0, 500);
           throw new Error(
-            `GraphQL request failed with status ${response.status} ${response.statusText}.`
+            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`
           );
         }
         return data;
