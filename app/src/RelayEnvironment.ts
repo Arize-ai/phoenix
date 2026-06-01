@@ -23,6 +23,11 @@ const graphQLPath = BASE_URL + "/graphql";
 const isAuthenticationEnabled = window.Config.authenticationEnabled;
 const graphQLFetch = isAuthenticationEnabled ? authFetch : fetch;
 
+// The maximum number of characters of a failed response body to include in an
+// error message. Large enough to clear the boilerplate <head> of a CSS-heavy
+// gateway error page and reach the actual error, small enough to stay readable.
+const ERROR_BODY_SNIPPET_LENGTH = 1000;
+
 /**
  * Create an observable that fetches JSON from the given input and returns an error if
  * the data has errors.
@@ -64,7 +69,7 @@ function fetchJsonObservable<T>(
           }
           // The body is likely an HTML error page from a gateway or proxy.
           // Include a snippet to make the failure easier to diagnose.
-          const snippet = text.slice(0, 500);
+          const snippet = text.slice(0, ERROR_BODY_SNIPPET_LENGTH);
           throw new Error(
             `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`
           );
@@ -77,7 +82,10 @@ function fetchJsonObservable<T>(
           // The body parsed as JSON but is not a GraphQL error envelope (for
           // example a load balancer or auth layer error). Include a snippet so
           // the failure is diagnosable rather than reported as a bare status.
-          const snippet = JSON.stringify(data).slice(0, 500);
+          const snippet = JSON.stringify(data).slice(
+            0,
+            ERROR_BODY_SNIPPET_LENGTH
+          );
           throw new Error(
             `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`
           );
