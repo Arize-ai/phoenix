@@ -16,6 +16,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     edit_code_evaluator_draft,
     edit_prompt_instance,
     list_playground_model_targets,
+    load_dataset,
     open_code_evaluator_form,
     read_code_evaluator_draft,
     read_playground_output,
@@ -47,6 +48,9 @@ from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance impo
 )
 from phoenix.server.agents.capabilities.tools.external.list_playground_model_targets import (
     ListPlaygroundModelTargetsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.load_dataset import (
+    LoadDatasetCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.open_code_evaluator_form import (
     OpenCodeEvaluatorFormCapability,
@@ -100,6 +104,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         clone_prompt_instance.TOOL_DEFINITION,
         edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
+        load_dataset.TOOL_DEFINITION,
         open_code_evaluator_form.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
@@ -154,6 +159,7 @@ def get_external_tool_capability_function(
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
+        LoadDatasetCapability(instructions=prompts.load_dataset_tool),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
         EditCodeEvaluatorDraftCapability(instructions=prompts.edit_code_evaluator_draft_tool),
@@ -175,6 +181,7 @@ __all__ = [
     "EditCodeEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
     "ListPlaygroundModelTargetsCapability",
+    "LoadDatasetCapability",
     "OpenCodeEvaluatorFormCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",

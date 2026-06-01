@@ -42,6 +42,12 @@ import {
   type SetPlaygroundModelInput,
 } from "@phoenix/agent/tools/playgroundModel";
 import {
+  LOAD_DATASET_TOOL_NAME,
+  parseLoadDatasetInput,
+  type LoadDatasetActionContext,
+  type LoadDatasetInput,
+} from "@phoenix/agent/tools/playgroundLoadDataset";
+import {
   parseReadPlaygroundOutputInput,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
   type ReadPlaygroundOutputInput,
@@ -707,6 +713,59 @@ const savePromptAgentTool = createRegisteredAgentTool<SavePromptInput>({
   },
 });
 
+const loadDatasetAgentTool = createRegisteredAgentTool<LoadDatasetInput>({
+  name: LOAD_DATASET_TOOL_NAME,
+  parseInput: parseLoadDatasetInput,
+  invalidInputErrorText: `Invalid ${LOAD_DATASET_TOOL_NAME} input. Expected { datasetName: string, splitName?: string }.`,
+  uiBehavior: {
+    autoOpen: true,
+    scrollIntoViewOnMount: true,
+  },
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
+    const action =
+      agentStore.getState().registeredClientActions[LOAD_DATASET_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: LOAD_DATASET_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The playground is not mounted; cannot load a dataset into the playground.",
+      });
+      return;
+    }
+    if (!sessionId) {
+      await addToolOutput({
+        state: "output-error",
+        tool: LOAD_DATASET_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: "Cannot load a dataset without an active session.",
+      });
+      return;
+    }
+    const context: LoadDatasetActionContext = {
+      toolCallId: toolCall.toolCallId,
+      sessionId,
+      addToolOutput,
+    };
+    const result = await action(input, context);
+    if (!result.ok) {
+      await addToolOutput({
+        state: "output-error",
+        tool: LOAD_DATASET_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
 const runPlaygroundAgentTool = createRegisteredAgentTool<RunPlaygroundInput>({
   name: RUN_PLAYGROUND_TOOL_NAME,
   parseInput: parseRunPlaygroundInput,
@@ -1147,6 +1206,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   savePromptAgentTool as RegisteredAgentTool<unknown>,
   readPromptToolsAgentTool as RegisteredAgentTool<unknown>,
   writePromptToolsAgentTool as RegisteredAgentTool<unknown>,
+  loadDatasetAgentTool as RegisteredAgentTool<unknown>,
   runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
