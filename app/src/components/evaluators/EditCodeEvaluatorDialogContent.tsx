@@ -2,7 +2,6 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
@@ -26,6 +25,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
   DialogContent,
   DialogHeader,
@@ -584,7 +584,7 @@ const CodeEditor = ({
   onChange: (value: string) => void;
 }) => {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
 

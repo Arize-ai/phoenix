@@ -3,6 +3,7 @@ import type { ChatStatus } from "ai";
 import {
   type CSSProperties,
   type ReactNode,
+  useMemo,
   useRef,
   type PropsWithChildren,
   useState,
@@ -11,6 +12,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -29,7 +31,7 @@ import {
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
@@ -44,11 +46,20 @@ import {
 import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
-import { AssistantMessage, UserMessage } from "./ChatMessage";
+import {
+  AssistantMessage,
+  type MessageRewindRequest,
+  UserMessage,
+} from "./ChatMessage";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
+import {
+  MessageRewindConfirmation,
+  type MessageRewindMode,
+  type MessageRewindRole,
+} from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
 import { isToolUIPart } from "./toolPartTypes";
 import { useAgentChat } from "./useAgentChat";
@@ -277,10 +288,13 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    rewindToMessage,
+    forkFromMessage,
   } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
 
   return (
     <ChatView
+      sessionId={sessionId}
       messages={messages}
       sendMessage={sendMessage}
       stop={stop}
@@ -289,11 +303,12 @@ export function Chat({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
+      rewindToMessage={rewindToMessage}
+      forkFromMessage={forkFromMessage}
       modelMenuValue={modelMenuValue}
       onModelChange={onModelChange}
       emptyStateSubtext={emptyStateSubtext}
       emptyStateQuickActions={emptyStateQuickActions}
-      sessionId={sessionId}
       modelSelection={modelSelection}
     >
       {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
@@ -306,6 +321,7 @@ export function Chat({
  * controller path that keeps streaming alive while the panel is hidden.
  */
 export function ChatView({
+  sessionId,
   messages,
   sendMessage,
   stop,
@@ -314,14 +330,16 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
+  rewindToMessage,
+  forkFromMessage,
   modelMenuValue,
   onModelChange,
   children,
   emptyStateSubtext,
   emptyStateQuickActions,
-  sessionId,
   modelSelection,
 }: PropsWithChildren<{
+  sessionId?: string | null;
   messages: AgentUIMessage[];
   sendMessage: (message: { text: string }) => void;
   stop: () => Promise<void>;
@@ -330,19 +348,34 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
+  /**
+   * Truncates the active session at a message; returns user text to restore.
+   * Absent on read-only surfaces, which hides the rewind/fork controls.
+   */
+  rewindToMessage?: (messageId: string) => string | null;
+  /** Branches a new session from a message; absent hides the fork control. */
+  forkFromMessage?: (messageId: string) => string | null;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
-  sessionId: string | null;
   modelSelection: AgentModelSelection;
 }>) {
   const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
     initial: "instant",
   });
+  const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [inputValue, setInputValue] = useState("");
+  // Seed the input from any prompt staged for this session (e.g. forked from a
+  // user message). The controller remounts this view per session, so the lazy
+  // initializer runs once per session and the store entry is consumed exactly
+  // once. Reading it here (rather than in an effect) avoids a cascading render.
+  const [inputValue, setInputValue] = useState(
+    () =>
+      (sessionId ? store.getState().consumePendingInput(sessionId) : null) ?? ""
+  );
+
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext(
@@ -391,9 +424,54 @@ export function ChatView({
     [canToggleEditPermission, editPermissionMode, setPermissions]
   );
 
+  // Quick actions track the agent contexts the assistant is advertising for the current
+  // route, so the empty state suggests what the assistant can actually do here
+  // (e.g. run/enhance prompts on the playground). An explicit prop still wins
+  // for callers that want a fixed set.
+  const contextualQuickActions = useAgentQuickActions();
+  const quickActions = emptyStateQuickActions ?? contextualQuickActions;
+
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
     textareaRef.current?.focus();
+  };
+
+  // Pending rewind/fork confirmation, shown inline in place of the prompt
+  // input. Panel-local because the confirmation is an inline surface, not a
+  // modal — a modal would flip the global open-modal observer and re-parent
+  // this panel between its docked/floating layouts, tearing the surface down.
+  const [rewindRequest, setRewindRequest] = useState<{
+    mode: MessageRewindMode;
+    messageId: string;
+    role: MessageRewindRole;
+  } | null>(null);
+
+  // Rewind/fork mutate or branch finalized history, so they are only offered
+  // once the chat has settled — never mid-request.
+  const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
+    if (status !== "ready" || !rewindToMessage) {
+      return undefined;
+    }
+    return (request) => setRewindRequest(request);
+  }, [status, rewindToMessage]);
+
+  const handleConfirmRewind = () => {
+    if (!rewindRequest) {
+      return;
+    }
+    const { mode, messageId } = rewindRequest;
+    setRewindRequest(null);
+    if (mode === "fork") {
+      // Forking switches the active session, which remounts this view; the new
+      // session restores any staged input via the lazy initializer above.
+      forkFromMessage?.(messageId);
+    } else {
+      const restoredInput = rewindToMessage?.(messageId);
+      if (restoredInput != null) {
+        setInputValue(restoredInput);
+        textareaRef.current?.focus();
+      }
+    }
   };
 
   return (
@@ -415,7 +493,7 @@ export function ChatView({
                 <ChatEmptyState
                   key={theme}
                   subtext={emptyStateSubtext}
-                  quickActions={emptyStateQuickActions}
+                  quickActions={quickActions}
                   onQuickAction={handleQuickAction}
                 >
                   {missingCredentialsProvider ? (
@@ -429,17 +507,33 @@ export function ChatView({
               )}
               {messages.map((message, index) => {
                 if (message.role === "user") {
-                  return <UserMessage key={message.id} parts={message.parts} />;
+                  return (
+                    <UserMessage
+                      key={message.id}
+                      message={message}
+                      onRewindRequest={onRewindRequest}
+                    />
+                  );
                 }
                 // Only the last assistant message can still be streaming — hide
                 // its actions until the chat reports it is settled.
                 const isLast = index === messages.length - 1;
                 const showActions = !isLast || status === "ready";
+                // Pin the most recent assistant turn's toolbar so its actions
+                // stay visible; other turns reveal their toolbars on hover to
+                // cut down on stacked-toolbar clutter.
+                const pinToolbar = isLast && status === "ready";
+                // Rewinding to the last assistant turn is a no-op: nothing
+                // follows it to truncate and, once settled, it has no pending
+                // tool calls to clear. Hide the rewind control there.
                 return (
                   <AssistantMessage
                     key={message.id}
                     message={message}
                     showActions={showActions}
+                    pinToolbar={pinToolbar}
+                    onRewindRequest={onRewindRequest}
+                    allowRewind={!isLast}
                   />
                 );
               })}
@@ -452,6 +546,15 @@ export function ChatView({
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <AgentConsentGate />
+            </PromptInput>
+          ) : rewindRequest ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <MessageRewindConfirmation
+                mode={rewindRequest.mode}
+                role={rewindRequest.role}
+                onConfirm={handleConfirmRewind}
+                onCancel={() => setRewindRequest(null)}
+              />
             </PromptInput>
           ) : pendingElicitation ? (
             <PromptInput status={status} isDisabled mode="elicitation">

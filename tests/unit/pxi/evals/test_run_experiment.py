@@ -20,6 +20,7 @@ from evals.pxi.harness.run_experiment import (
     _get_split_filtered_dataset,
     _has_regression_evaluator_failure,
     _phoenix_examples,
+    _print_score_summary,
     _task_error_rows,
     main,
 )
@@ -147,6 +148,24 @@ def test_task_error_rows_include_task_run_errors() -> None:
     ]
 
     assert _task_error_rows(experiment) == [("example-1", "TimeoutError: task timed out")]
+
+
+def test_score_summary_prints_compare_url(capsys: pytest.CaptureFixture[str]) -> None:
+    experiment = _ran_experiment(
+        dataset_id="RGF0YXNldDox",
+        experiment_id="RXhwZXJpbWVudDoy",
+    )
+
+    has_failures = _print_score_summary(_dataset(), experiment, base_url="http://127.0.0.1:6006")
+
+    assert has_failures is False
+    captured = capsys.readouterr()
+    assert (
+        "Experiment: "
+        "http://127.0.0.1:6006/datasets/RGF0YXNldDox/compare?experimentId=RXhwZXJpbWVudDoy"
+        in captured.out
+    )
+    assert "http://127.0.0.1:6006/experiments/RXhwZXJpbWVudDoy" not in captured.out
 
 
 def test_main_defaults_to_regression_split(monkeypatch: pytest.MonkeyPatch) -> None:

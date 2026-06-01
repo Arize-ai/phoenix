@@ -23,6 +23,11 @@ const graphQLPath = BASE_URL + "/graphql";
 const isAuthenticationEnabled = window.Config.authenticationEnabled;
 const graphQLFetch = isAuthenticationEnabled ? authFetch : fetch;
 
+// The maximum number of characters of a failed response body to include in an
+// error message. Large enough to clear the boilerplate <head> of a CSS-heavy
+// gateway error page and reach the actual error, small enough to stay readable.
+const ERROR_BODY_SNIPPET_LENGTH = 1000;
+
 /**
  * Create an observable that fetches JSON from the given input and returns an error if
  * the data has errors.
@@ -44,9 +49,48 @@ function fetchJsonObservable<T>(
     const controller = new AbortController();
 
     graphQLFetch(input, { ...init, signal: controller.signal })
-      .then((response) => {
+      .then(async (response) => {
         invariant(response instanceof Response, "response must be a Response");
-        return response.json();
+        // Clone the response so the raw body is still readable as text if
+        // response.json() fails — an empty or non-JSON response (for example a
+        // gateway timeout or an upstream 5xx returning an HTML error page)
+        // should surface a descriptive error instead of the opaque
+        // "Unexpected end of JSON input" thrown by response.json().
+        const responseClone = response.clone();
+        let data: unknown;
+        try {
+          data = await response.json();
+        } catch {
+          const text = (await responseClone.text()).trim();
+          if (text === "") {
+            throw new Error(
+              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`
+            );
+          }
+          // The body is likely an HTML error page from a gateway or proxy.
+          // Include a snippet to make the failure easier to diagnose.
+          const snippet = text.slice(0, ERROR_BODY_SNIPPET_LENGTH);
+          throw new Error(
+            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`
+          );
+        }
+        // A non-OK status with a parseable body still indicates a failure.
+        // Defer to the GraphQL "errors" handling below when the body carries
+        // them (so the precise GraphQL error is surfaced); otherwise fail
+        // loudly with the HTTP status rather than treating the body as data.
+        if (!response.ok && !(isObject(data) && "errors" in data)) {
+          // The body parsed as JSON but is not a GraphQL error envelope (for
+          // example a load balancer or auth layer error). Include a snippet so
+          // the failure is diagnosable rather than reported as a bare status.
+          const snippet = JSON.stringify(data).slice(
+            0,
+            ERROR_BODY_SNIPPET_LENGTH
+          );
+          throw new Error(
+            `GraphQL request failed with status ${response.status} ${response.statusText}: ${snippet}`
+          );
+        }
+        return data;
       })
       .then((data) => {
         const error = hasErrors?.(data);

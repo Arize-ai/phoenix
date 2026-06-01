@@ -1,10 +1,9 @@
 import { defaultKeymap } from "@codemirror/commands";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type { BasicSetupOptions } from "@uiw/react-codemirror";
 import ReactCodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 
 import { Label } from "@phoenix/components";
-import { CodeWrap } from "@phoenix/components/code";
+import { CodeWrap, pierreDark, pierreLight } from "@phoenix/components/code";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
 
@@ -46,7 +45,7 @@ export const VariableEditor = ({
   const { theme } = useTheme();
   const editorValue = defaultValue ?? "";
   const editorKey = label ?? "";
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   return (
     <div css={fieldBaseCSS}>
       <Label>{label}</Label>

@@ -882,7 +882,7 @@ export function SpansTable(props: SpansTableProps) {
             zIndex={2}
           >
             <Suspense fallback={<ProjectTraceCountSparklineSkeleton />}>
-              <ProjectTraceCountSparkline />
+              <ProjectTraceCountSparkline projectId={projectId} />
             </Suspense>
           </View>
           <View

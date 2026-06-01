@@ -6,6 +6,7 @@ SandboxBackends resolver.
 
 from __future__ import annotations
 
+import io
 import re
 from pathlib import Path
 from unittest.mock import patch
@@ -21,6 +22,10 @@ from phoenix.server.sandbox._download import (
 )
 
 _FILENAME = "python-3.12.0.wasm"
+
+_URLOPEN = "phoenix.server.sandbox._download.urllib.request.urlopen"
+
+# io.BytesIO doubles as a urlopen response: a context manager that read() drains.
 
 
 class TestResolveWasmBinaryIfPresent:
@@ -77,7 +82,7 @@ class TestResolveWasmBinaryIfPresent:
         assert resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME) is None
         assert not cache_dir.exists(), "probe path must not create cache_dir as a side effect"
 
-    def test_probe_path_never_calls_urlretrieve(
+    def test_probe_path_never_downloads(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """probe_binary() runs on every render of the sandbox-config UI; a
@@ -86,11 +91,11 @@ class TestResolveWasmBinaryIfPresent:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
 
-        with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
+        with patch(_URLOPEN) as mock_urlopen:
             for _ in range(3):
                 resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME)
 
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
         assert not cache_dir.exists()
 
 
@@ -102,14 +107,14 @@ class TestEnsureWasmBinaryEnvVarOverride:
         binary.write_bytes(b"fake wasm")
         monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(binary))
 
-        with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
+        with patch(_URLOPEN) as mock_urlopen:
             result = ensure_wasm_binary(
                 wasm_dir=tmp_path / "unused-cache",
                 expected_sha256="",
             )
 
         assert result == binary
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
     def test_env_var_set_and_file_missing_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -117,7 +122,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
         missing = tmp_path / "missing.wasm"
         monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(missing))
 
-        with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
+        with patch(_URLOPEN) as mock_urlopen:
             with pytest.raises(WASMBinaryUnavailable, match=re.escape(str(missing))):
                 ensure_wasm_binary(
                     wasm_dir=tmp_path / "unused-cache",
@@ -126,7 +131,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
 
         # Critical: an operator-set-but-missing path MUST NOT silently
         # trigger the lazy download. Anything else masks misconfiguration.
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
 
 class TestEnsureWasmBinaryEnvVarUnset:
@@ -139,7 +144,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
         cached = cache_dir / _FILENAME
         cached.write_bytes(b"cached wasm")
 
-        with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
+        with patch(_URLOPEN) as mock_urlopen:
             result = ensure_wasm_binary(
                 wasm_dir=cache_dir,
                 filename=_FILENAME,
@@ -147,7 +152,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
             )
 
         assert result == cached
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
     def test_env_var_unset_and_cache_absent_triggers_lazy_download(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -155,22 +160,18 @@ class TestEnsureWasmBinaryEnvVarUnset:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
 
-        def _fake_retrieve(_url: str, dest: str) -> None:
-            Path(dest).write_bytes(b"downloaded wasm")
-
-        with patch(
-            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
-            side_effect=_fake_retrieve,
-        ) as mock_retrieve:
+        with patch(_URLOPEN, return_value=io.BytesIO(b"downloaded wasm")) as mock_urlopen:
             result = ensure_wasm_binary(
                 wasm_dir=cache_dir,
                 filename=_FILENAME,
                 expected_sha256="",
             )
 
-        mock_retrieve.assert_called_once()
+        mock_urlopen.assert_called_once()
         assert result == cache_dir / _FILENAME
         assert result.read_bytes() == b"downloaded wasm"
+        # The download must pass a socket timeout, or a stalled connection hangs startup.
+        assert mock_urlopen.call_args.kwargs.get("timeout")
 
     def test_env_var_empty_string_treated_as_unset(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -217,7 +218,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
         monkeypatch.setattr("phoenix.server.sandbox._download._no_local_storage", lambda: True)
         wasm_dir = tmp_path / "wasm"
 
-        with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
+        with patch(_URLOPEN) as mock_urlopen:
             with pytest.raises(WASMBinaryUnavailable) as exc_info:
                 ensure_wasm_binary(
                     wasm_dir=wasm_dir,
@@ -227,7 +228,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
 
         assert str(exc_info.value) == no_local_storage_message()
         assert "PHOENIX_WASM_BINARY_PATH" not in str(exc_info.value)
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
         assert not wasm_dir.exists()
 
 
@@ -247,16 +248,10 @@ class TestPrefetchWasmBinaryIfNeeded:
         payload_sha = hashlib.sha256(payload).hexdigest()
         monkeypatch.setattr("phoenix.server.sandbox._download._WASM_SHA256", payload_sha)
 
-        def _fake_retrieve(_url: str, dest: str) -> None:
-            Path(dest).write_bytes(payload)
-
-        with patch(
-            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
-            side_effect=_fake_retrieve,
-        ) as mock_retrieve:
+        with patch(_URLOPEN, return_value=io.BytesIO(payload)) as mock_urlopen:
             await prefetch_wasm_binary_if_needed()
 
-        mock_retrieve.assert_called_once()
+        mock_urlopen.assert_called_once()
         assert (wasm_dir / _FILENAME).read_bytes() == payload
 
     async def test_prefetch_fails_soft_on_hash_mismatch(
@@ -271,13 +266,7 @@ class TestPrefetchWasmBinaryIfNeeded:
         expected_sha = hashlib.sha256(b"real upstream").hexdigest()
         monkeypatch.setattr("phoenix.server.sandbox._download._WASM_SHA256", expected_sha)
 
-        def _poisoned_retrieve(_url: str, dest: str) -> None:
-            Path(dest).write_bytes(b"tampered payload")
-
-        with patch(
-            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
-            side_effect=_poisoned_retrieve,
-        ):
+        with patch(_URLOPEN, return_value=io.BytesIO(b"tampered payload")):
             with caplog.at_level("WARNING", logger="phoenix.server.sandbox._download"):
                 await prefetch_wasm_binary_if_needed()
 
@@ -294,10 +283,7 @@ class TestPrefetchWasmBinaryIfNeeded:
         wasm_dir = tmp_path / "wasm"
         monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
 
-        with patch(
-            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
-            side_effect=OSError("network down"),
-        ):
+        with patch(_URLOPEN, side_effect=OSError("network down")):
             with caplog.at_level("WARNING", logger="phoenix.server.sandbox._download"):
                 await prefetch_wasm_binary_if_needed()
 

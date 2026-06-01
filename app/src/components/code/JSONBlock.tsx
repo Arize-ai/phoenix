@@ -1,6 +1,5 @@
 import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type {
   BasicSetupOptions,
   ReactCodeMirrorProps,
@@ -9,6 +8,8 @@ import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
+
+import { pierreDark, pierreLight } from "./pierreCodeMirrorTheme";
 
 type JSONBlockProps = Omit<
   ReactCodeMirrorProps,
@@ -20,7 +21,7 @@ type JSONBlockProps = Omit<
 export function JSONBlock(props: JSONBlockProps) {
   const { basicSetup: propsBasicSetup, ...rest } = props;
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const basicSetup = useMemo(() => {
     const baseSetup = {
       lineNumbers: true,

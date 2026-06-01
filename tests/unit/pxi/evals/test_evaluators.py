@@ -293,6 +293,36 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "fail"
 
+    def test_absent_matcher_passes_when_arg_is_omitted(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("save_prompt", {"instanceId": 1}),
+            expected=self._expected(
+                save_prompt={
+                    "instanceId": 1,
+                    "promptId": {"absent": True},
+                    "name": {"absent": True},
+                }
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_absent_matcher_fails_when_arg_is_present(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("save_prompt", {"instanceId": 1, "promptId": "UHJvbXB0OjE="}),
+            expected=self._expected(save_prompt={"promptId": {"absent": True}}),
+        )
+        assert result["label"] == "fail"
+
+    def test_absent_matcher_cannot_be_combined_with_other_matchers(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("save_prompt", {}),
+            expected=self._expected(save_prompt={"promptId": {"absent": True, "any": True}}),
+        )
+        assert result["label"] == "fail"
+        assert (
+            "cannot be combined" in result["metadata"]["save_prompt"]["matcher_errors"]["promptId"]
+        )
+
     # ---------------- Variant-list pattern ----------------
 
     def test_variant_list_passes_when_first_variant_matches(self) -> None:

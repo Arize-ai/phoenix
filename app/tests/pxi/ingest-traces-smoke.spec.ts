@@ -87,7 +87,7 @@ test.describe("PXI ingest traces smoke", () => {
 
     const assistantTextHandle = await page.waitForFunction(
       () => {
-        const stored = localStorage.getItem("arize-phoenix-agent");
+        const stored = localStorage.getItem("arize-phoenix-assistant");
         if (!stored) return null;
         const parsed = JSON.parse(stored) as {
           state?: {

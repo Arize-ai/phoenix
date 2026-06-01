@@ -29,7 +29,14 @@ _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
 _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
 )
+_READ_PROMPT_TOOLS_TOOL_INSTRUCTIONS = get_template(
+    "tools/READ_PROMPT_TOOLS_TOOL_INSTRUCTIONS.xml.j2"
+)
+_WRITE_PROMPT_TOOLS_TOOL_INSTRUCTIONS = get_template(
+    "tools/WRITE_PROMPT_TOOLS_TOOL_INSTRUCTIONS.xml.j2"
+)
 _RUN_PLAYGROUND_TOOL_INSTRUCTIONS = get_template("tools/RUN_PLAYGROUND_TOOL_INSTRUCTIONS.xml.j2")
+_SAVE_PROMPT_TOOL_INSTRUCTIONS = get_template("tools/SAVE_PROMPT_TOOL_INSTRUCTIONS.xml.j2")
 _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -67,6 +74,9 @@ class AgentPrompts:
     read_playground_output_tool: Template = _READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS
     clone_prompt_instance_tool: Template = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     edit_prompt_instance_tool: Template = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    save_prompt_tool: Template = _SAVE_PROMPT_TOOL_INSTRUCTIONS
+    read_prompt_tools_tool: Template = _READ_PROMPT_TOOLS_TOOL_INSTRUCTIONS
+    write_prompt_tools_tool: Template = _WRITE_PROMPT_TOOLS_TOOL_INSTRUCTIONS
     run_playground_tool: Template = _RUN_PLAYGROUND_TOOL_INSTRUCTIONS
     set_variable_values_tool: Template = _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS

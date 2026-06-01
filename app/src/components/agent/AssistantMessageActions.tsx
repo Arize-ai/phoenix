@@ -1,6 +1,5 @@
 import { isTextUIPart } from "ai";
-import copy from "copy-to-clipboard";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
@@ -13,6 +12,8 @@ import {
 import { useViewer } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
+
+import { MessageCopyAction } from "./MessageCopyAction";
 
 /**
  * Annotation name used for both span- and trace-level user feedback on
@@ -118,13 +119,19 @@ async function postAnnotation(
  * - Copy: copies the assistant's text response to the clipboard.
  * - Trace: opens the associated trace in a new tab. Requires `traceId`.
  *
- * The component silently renders nothing if the message has no text and no
- * metadata capable of supporting any action.
+ * `children` are rendered after the built-in actions in the same toolbar row
+ * (e.g. rewind/fork controls), and force the toolbar to render even when the
+ * message itself supports no built-in actions.
+ *
+ * The component silently renders nothing if the message has no text, no
+ * metadata capable of supporting any action, and no `children`.
  */
 export function AssistantMessageActions({
   message,
+  children,
 }: {
   message: AgentUIMessage;
+  children?: ReactNode;
 }) {
   const { viewer } = useViewer();
   const storeLocalTraces = useAgentContext(
@@ -140,16 +147,9 @@ export function AssistantMessageActions({
   const canAnnotate = storeLocalTraces && metadata?.trace != null;
   const canOpenTrace = storeLocalTraces && metadata?.trace != null;
 
-  if (!hasMessageText && !canAnnotate && !canOpenTrace) {
+  if (!hasMessageText && !canAnnotate && !canOpenTrace && !children) {
     return null;
   }
-
-  const handleCopy = () => {
-    if (!hasMessageText) {
-      return;
-    }
-    copy(messageText);
-  };
 
   const handleOpenTrace = () => {
     if (!canOpenTrace || !metadata?.trace) {
@@ -244,15 +244,7 @@ export function AssistantMessageActions({
             />
           </MessageAction>
         ) : null}
-        {hasMessageText ? (
-          <MessageAction
-            label="Copy"
-            tooltip="Copy this response"
-            onPress={handleCopy}
-          >
-            <Icon svg={<Icons.DuplicateOutline />} />
-          </MessageAction>
-        ) : null}
+        {hasMessageText ? <MessageCopyAction text={messageText} /> : null}
         {canOpenTrace ? (
           <MessageAction
             label="Trace"
@@ -262,6 +254,7 @@ export function AssistantMessageActions({
             <Icon svg={<Icons.Trace />} />
           </MessageAction>
         ) : null}
+        {children}
       </MessageActions>
     </MessageToolbar>
   );

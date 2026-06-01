@@ -9,6 +9,8 @@ metadata:
 
 Phoenix has a built-in AI assistant named **PXI** (pronounced "pixie"). PXI is the user-facing name for the assistant feature — backend configuration (env vars, project names) uses generic `agents`/`assistant` naming, not "PXI".
 
+**Naming in code: don't write "PXI" in code comments, docstrings, or symbol/variable names.** "PXI" is only the product/brand name for the assistant; in code prose refer to it as "the assistant". Reserve "PXI" for user-facing UI copy and docs. Keep identifiers on the generic `agent`/`assistant` vocabulary already used throughout the codebase (`AgentContext`, `useAgentChat`, etc.).
+
 The model-facing surface (tool definitions, system-prompt assembly, capability guidance) is **server-owned**. The browser is responsible for execution and dispatch only. Adding or editing a PXI tool almost always touches both the server and the frontend; this index spans both layers.
 
 ## Architecture At A Glance

@@ -219,6 +219,8 @@ function AgentChatController({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    rewindToMessage,
+    forkFromMessage,
   } = useAgentChat({
     sessionId: activeSessionId,
     chatApiUrl,
@@ -247,6 +249,7 @@ function AgentChatController({
       {/* Catch runaway suspense triggers that aren't handled locally */}
       <Suspense fallback={<Loading />}>
         <ChatView
+          sessionId={activeSessionId}
           messages={messages}
           sendMessage={sendMessage}
           stop={stop}
@@ -255,9 +258,10 @@ function AgentChatController({
           pendingElicitation={pendingElicitation}
           handleElicitationSubmit={handleElicitationSubmit}
           handleElicitationCancel={handleElicitationCancel}
+          rewindToMessage={rewindToMessage}
+          forkFromMessage={forkFromMessage}
           modelMenuValue={menuValue}
           onModelChange={handleModelChange}
-          sessionId={activeSessionId}
           modelSelection={modelSelection}
         >
           {activeSessionId ? (

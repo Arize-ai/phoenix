@@ -1,6 +1,5 @@
 import { defaultKeymap } from "@codemirror/commands";
 import { css } from "@emotion/react";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type {
   BasicSetupOptions,
   ReactCodeMirrorProps,
@@ -8,6 +7,7 @@ import type {
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
 import React, { useEffect, useMemo, useState } from "react";
 
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -61,7 +61,7 @@ export const TemplateEditor = ({
 }: TemplateEditorProps) => {
   const [value, setValue] = useState(() => defaultValue);
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
     const ext: TemplateEditorProps["extensions"] = [...baseExtensions];
     switch (templateFormat) {

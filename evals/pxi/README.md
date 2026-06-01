@@ -218,10 +218,14 @@ whose top-level keys are all in this vocabulary:
 | `contains_any: [<str>, ...]` | Observed must be a string containing at least one substring. |
 | `not_contains: [<str>, ...]` | Observed must be a string containing none of the substrings. |
 | `any: true` | The key must be present in observed args; value is unconstrained. |
+| `non_empty: true` | The key must be present and contain non-whitespace text. |
+| `absent: true` | The key must not be present in observed args. |
 
 To leave an arg entirely unconstrained, just omit it from `expected` --
 subset matching ignores observed keys you don't mention. Use `any: true`
-only when presence itself matters.
+only when presence itself matters, and `non_empty: true` when required string
+content matters. Use `absent: true` when omission itself is the behavior under
+test.
 
 For efficiency-focused examples, add `expected.budgets.max_tool_calls` and
 enable the `tool_call_count_within_limit` evaluator. Bash-first examples can
@@ -250,7 +254,8 @@ list of acceptable arg maps. The match is intentionally permissive in three ways
 Literal values compare with `==`. For order-invariant string matching, use the
 matcher vocabulary above. For example, `contains_all: ["span_kind == 'LLM'",
 "latency_ms >= 5000"]` accepts either clause order without making every string
-literal order-insensitive.
+literal order-insensitive. Use `absent: true` for keys that must be omitted
+despite subset matching otherwise allowing extra observed keys.
 
 Tool arg keys must match the tool's exact JSON schema, including camelCase. For
 `set_spans_filter` that means `condition` and `rootSpansOnly`;

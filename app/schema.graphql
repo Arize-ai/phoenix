@@ -4332,7 +4332,6 @@ type UpdateModelMutationPayload {
 
 input UpdateSandboxConfigInput {
   id: ID!
-  name: Identifier
   description: String
   config: SandboxConfigVariantInput
   timeout: Int

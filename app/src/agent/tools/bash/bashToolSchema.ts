@@ -1,5 +1,6 @@
 export interface BashToolInput {
   command: string;
+  summary?: string;
 }
 
 export function getBashToolInput(input: unknown): BashToolInput | null {
@@ -7,11 +8,14 @@ export function getBashToolInput(input: unknown): BashToolInput | null {
     return null;
   }
 
-  const { command } = input as Partial<BashToolInput>;
+  const { command, summary } = input as Partial<BashToolInput>;
 
   if (typeof command !== "string") {
     return null;
   }
 
-  return { command };
+  return {
+    command,
+    ...(typeof summary === "string" ? { summary } : {}),
+  };
 }

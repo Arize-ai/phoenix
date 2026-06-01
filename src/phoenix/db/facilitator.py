@@ -591,11 +591,16 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
 async def _ensure_sandbox_providers(db: DbSessionFactory) -> None:
     """Seed sandbox provider rows. Idempotent."""
     from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA  # noqa: PLC0415
-    from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers  # noqa: PLC0415
+    from phoenix.server.sandbox.sync import (  # noqa: PLC0415
+        sync_languages,
+        sync_sandbox_default_configs,
+        sync_sandbox_providers,
+    )
 
     async with db() as session:
         await sync_languages(session)
         await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
+        await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
 
 
 async def _ensure_builtin_evaluators(db: DbSessionFactory) -> None:

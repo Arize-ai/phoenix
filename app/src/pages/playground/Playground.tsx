@@ -24,9 +24,19 @@ import {
   READ_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
+  createReadPromptToolsClientAction,
+  createWritePromptToolsClientAction,
+  READ_PROMPT_TOOLS_TOOL_NAME,
+  WRITE_PROMPT_TOOLS_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPromptTools";
+import {
   createRunPlaygroundClientAction,
   RUN_PLAYGROUND_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundRun";
+import {
+  createSavePromptClientAction,
+  SAVE_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
   createSetVariableValuesClientAction,
   SET_VARIABLE_VALUES_TOOL_NAME,
@@ -285,6 +295,7 @@ function PlaygroundContent() {
       registerClientAction,
       unregisterClientAction,
       setPendingPromptEdit,
+      setPendingSavePrompt,
     } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOL_NAME,
@@ -304,6 +315,15 @@ function PlaygroundContent() {
       })
     );
     registerClientAction(
+      SAVE_PROMPT_TOOL_NAME,
+      createSavePromptClientAction({
+        playgroundStore,
+        setPendingSavePrompt,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
+    registerClientAction(
       RUN_PLAYGROUND_TOOL_NAME,
       createRunPlaygroundClientAction({ playgroundStore })
     );
@@ -315,18 +335,36 @@ function PlaygroundContent() {
       SET_VARIABLE_VALUES_TOOL_NAME,
       createSetVariableValuesClientAction({ playgroundStore })
     );
+    registerClientAction(
+      READ_PROMPT_TOOLS_TOOL_NAME,
+      createReadPromptToolsClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      WRITE_PROMPT_TOOLS_TOOL_NAME,
+      createWritePromptToolsClientAction({ playgroundStore })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      unregisterClientAction(SAVE_PROMPT_TOOL_NAME);
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
+      unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
+      unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {
         if (pendingEdit) {
           void pendingEdit.cancel?.();
+        }
+      }
+      for (const pendingSave of Object.values(
+        agentStore.getState().pendingSavePromptsByToolCallId
+      )) {
+        if (pendingSave) {
+          void pendingSave.cancel?.();
         }
       }
     };

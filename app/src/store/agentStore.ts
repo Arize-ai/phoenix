@@ -1,4 +1,4 @@
-import type { ChatStatus } from "ai";
+import { isTextUIPart, type ChatStatus } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -16,6 +16,7 @@ import {
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
+import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
@@ -61,18 +62,6 @@ export type AgentObservabilitySettings = {
 };
 
 export type AgentEditPermissionMode = "manual" | "bypass";
-
-const AGENT_EDIT_PERMISSION_MODES: readonly AgentEditPermissionMode[] = [
-  "manual",
-  "bypass",
-];
-
-/** Narrows an unknown persisted value to a recognized edit-permission mode. */
-function isAgentEditPermissionMode(
-  value: unknown
-): value is AgentEditPermissionMode {
-  return AGENT_EDIT_PERMISSION_MODES.includes(value as AgentEditPermissionMode);
-}
 
 export type AgentPermissions = {
   /** How user-visible edit approvals should be resolved. */
@@ -148,6 +137,42 @@ const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
 
 const MAX_STORED_AGENT_SESSIONS = 3;
 
+/** Prefix applied to a forked session's summary to denote its origin. */
+const FORK_SUMMARY_PREFIX = "(fork) ";
+
+/** Max length for a derived (non-LLM) fork summary before truncation. */
+const FORK_SUMMARY_MAX_LENGTH = 50;
+
+/**
+ * Builds the summary for a session forked from `source`. Reuses the source's
+ * LLM-generated summary when available, otherwise derives a short label from
+ * its first user message, then prefixes it with `(fork)`. Seeding a non-empty
+ * summary here also prevents the async summarizer from overwriting it.
+ */
+function buildForkSummary(source: AgentSession): string {
+  let base = source.shortSummary.trim();
+  if (!base) {
+    const firstUserMessage = source.messages.find(
+      (message) => message.role === "user"
+    );
+    const text = firstUserMessage?.parts
+      .filter(isTextUIPart)
+      .map((part) => part.text)
+      .join(" ")
+      .trim();
+    base = text
+      ? text.length > FORK_SUMMARY_MAX_LENGTH
+        ? `${text.slice(0, FORK_SUMMARY_MAX_LENGTH)}...`
+        : text
+      : "";
+  }
+  // Avoid stacking "(fork) (fork) ..." when forking a fork.
+  if (base.startsWith(FORK_SUMMARY_PREFIX)) {
+    return base;
+  }
+  return base ? `${FORK_SUMMARY_PREFIX}${base}` : FORK_SUMMARY_PREFIX.trim();
+}
+
 /**
  * Serializable properties that define the agent's state.
  * These are the values persisted to local storage.
@@ -188,6 +213,11 @@ export interface AgentState extends AgentProps {
   setFabPlacement: (placement: AgentFabPlacement) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
+  forkSession: (params: {
+    sourceSessionId: string;
+    messages: AgentUIMessage[];
+    restoredInput?: string | null;
+  }) => string | null;
   setActiveSession: (sessionId: string | null) => void;
   updateSessionSummary: (sessionId: string, summary: string) => void;
   updateSessionModelConfig: (
@@ -226,6 +256,16 @@ export interface AgentState extends AgentProps {
   ) => void;
   chatStatusBySessionId: Record<string, ChatStatus>;
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
+
+  /**
+   * Prompt-input text staged for a session that has not yet (re)mounted its
+   * chat view. Used when forking from a user message: the new session opens
+   * with the rewound user message restored into the input so it can be edited
+   * and re-sent. Ephemeral and consumed once by the view on mount.
+   */
+  pendingInputBySessionId: Record<string, string>;
+  setPendingInput: (sessionId: string, input: string | null) => void;
+  consumePendingInput: (sessionId: string) => string | null;
   setSessionUsage: (
     sessionId: string,
     newUsage: {
@@ -265,10 +305,10 @@ export interface AgentState extends AgentProps {
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
 
-  // -- Prompt edit approvals advertised by edit_prompt_instance tool calls --
-  // TODO(pending-tool-rehydration): Replace this edit_prompt_instance-specific state
-  // with a generic pending tool state map keyed by toolCallId. The tool
-  // registry should own each tool's serializer and runtime rebinder.
+  // -- Approval-gated tool proposals advertised by agent tool calls --
+  // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
+  // generic pending tool state map keyed by toolCallId. The tool registry
+  // should own each tool's serializer and runtime rebinder.
   pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;
   setPendingPromptEdit: (
     toolCallId: string,
@@ -280,6 +320,11 @@ export interface AgentState extends AgentProps {
   setPendingBatchSpanAnnotate: (
     toolCallId: string,
     annotation: PendingBatchSpanAnnotate | null
+  ) => void;
+  pendingSavePromptsByToolCallId: Partial<Record<string, PendingSavePrompt>>;
+  setPendingSavePrompt: (
+    toolCallId: string,
+    pendingSave: PendingSavePrompt | null
   ) => void;
 }
 
@@ -334,6 +379,7 @@ function buildSessionRetentionPatch({
   | "sessionMap"
   | "pendingElicitationBySessionId"
   | "chatStatusBySessionId"
+  | "pendingInputBySessionId"
 > {
   const retainedSessionIdSet = new Set(retainedSessionIds);
   return {
@@ -351,6 +397,10 @@ function buildSessionRetentionPatch({
       record: state.chatStatusBySessionId,
       retainedSessionIds: retainedSessionIdSet,
     }),
+    pendingInputBySessionId: pruneSessionScopedRecord({
+      record: state.pendingInputBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
   };
 }
 
@@ -358,7 +408,7 @@ function buildSessionRetentionPatch({
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
- * persist (to local storage under "arize-phoenix-agent"). The `isOpen`
+ * persist (to local storage under "arize-phoenix-assistant"). The `isOpen`
  * property is excluded from persistence so the panel always starts closed.
  *
  * @param initialProps - Optional overrides for the default store properties.
@@ -367,7 +417,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   const agentStore: StateCreator<
     AgentState,
     [["zustand/devtools", unknown]]
-  > = (set) => ({
+  > = (set, get) => ({
     isOpen: false,
     position: "pinned",
     fabPlacement: "bottom-end",
@@ -383,6 +433,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
+    pendingSavePromptsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -434,6 +485,50 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
       return sessionId;
     },
+    forkSession: ({ sourceSessionId, messages, restoredInput }) => {
+      const sessionId = generateUUID();
+      let created = false;
+      set(
+        (state) => {
+          const source = state.sessionMap[sourceSessionId];
+          if (!source) return state;
+          created = true;
+          const session: AgentSession = {
+            id: sessionId,
+            shortSummary: buildForkSummary(source),
+            messages,
+            // Carry over the source session's context and model so the fork
+            // continues the same conversation under the same configuration.
+            context: [...source.context],
+            modelConfig: { ...source.modelConfig },
+            createdAt: Date.now(),
+          };
+          // Forking always retains the source session alongside the new one;
+          // the standard retention rule then trims to the most recent few.
+          const nextSessionIds = [...state.sessions, sessionId].slice(
+            -MAX_STORED_AGENT_SESSIONS
+          );
+          const pendingInputBySessionId = { ...state.pendingInputBySessionId };
+          if (restoredInput) {
+            pendingInputBySessionId[sessionId] = restoredInput;
+          }
+          return {
+            ...buildSessionRetentionPatch({
+              state: {
+                ...state,
+                sessionMap: { ...state.sessionMap, [sessionId]: session },
+              },
+              retainedSessionIds: nextSessionIds,
+              activeSessionId: sessionId,
+            }),
+            pendingInputBySessionId,
+          };
+        },
+        false,
+        { type: "forkSession" }
+      );
+      return created ? sessionId : null;
+    },
     deleteSession: (sessionId) => {
       set(
         (state) => {
@@ -447,6 +542,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           delete newPendingElicitationBySessionId[sessionId];
           const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
           delete newChatStatusBySessionId[sessionId];
+          const newPendingInputBySessionId = {
+            ...state.pendingInputBySessionId,
+          };
+          delete newPendingInputBySessionId[sessionId];
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
@@ -458,6 +557,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             activeSessionId: newActiveSessionId,
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
+            pendingInputBySessionId: newPendingInputBySessionId,
           };
         },
         false,
@@ -621,6 +721,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           sessionMap: {},
           pendingElicitationBySessionId: {},
           chatStatusBySessionId: {},
+          pendingInputBySessionId: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -665,6 +766,41 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         false,
         { type: "setPendingElicitation" }
       );
+    },
+
+    pendingInputBySessionId: {},
+    setPendingInput: (sessionId, input) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingInputBySessionId };
+          if (input) {
+            next[sessionId] = input;
+          } else {
+            delete next[sessionId];
+          }
+          return { pendingInputBySessionId: next };
+        },
+        false,
+        { type: "setPendingInput" }
+      );
+    },
+    consumePendingInput: (sessionId) => {
+      const input = get().pendingInputBySessionId[sessionId] ?? null;
+      if (input != null) {
+        set(
+          (state) => {
+            if (!(sessionId in state.pendingInputBySessionId)) {
+              return state;
+            }
+            const next = { ...state.pendingInputBySessionId };
+            delete next[sessionId];
+            return { pendingInputBySessionId: next };
+          },
+          false,
+          { type: "consumePendingInput" }
+        );
+      }
+      return input;
     },
 
     chatStatusBySessionId: {},
@@ -829,82 +965,29 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingSavePrompt: (toolCallId, pendingSave) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingSavePromptsByToolCallId };
+          if (pendingSave) {
+            next[toolCallId] = pendingSave;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingSavePromptsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingSavePrompt" }
+      );
+    },
+
     ...initialProps,
   });
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
-      name: "arize-phoenix-agent",
-      version: 8,
-      migrate: (persisted, version) => {
-        const state = persisted as Partial<AgentProps> & {
-          capabilities?: Partial<AgentCapabilities>;
-          observability?: Partial<AgentObservabilitySettings>;
-          permissions?: Partial<AgentPermissions>;
-          debug?: {
-            retainInactiveBashSessions?: boolean;
-            dangerouslyEnableMutations?: boolean;
-          };
-        };
-        const migratedSessionMap: Record<string, AgentSession> = {};
-
-        for (const [sessionId, session] of Object.entries(
-          state.sessionMap ?? {}
-        )) {
-          migratedSessionMap[sessionId] = {
-            ...session,
-            createdAt: (session as AgentSession).createdAt ?? 0,
-          };
-        }
-
-        const migratedCapabilities = {
-          ...createDefaultAgentCapabilities(),
-          ...(state.capabilities ?? {}),
-          ...(version <= 2
-            ? {
-                "bash.retainInactiveSessions":
-                  state.debug?.retainInactiveBashSessions ??
-                  state.capabilities?.["bash.retainInactiveSessions"] ??
-                  false,
-                "graphql.mutations":
-                  state.debug?.dangerouslyEnableMutations ??
-                  state.capabilities?.["graphql.mutations"] ??
-                  false,
-              }
-            : {}),
-        };
-
-        return {
-          ...state,
-          // `position` existed before it was wired into the UI, but the
-          // visible behavior was always the pinned side panel. Treat pre-v8
-          // persisted values as pinned so the new floating mode is opt-in.
-          position:
-            version <= 7
-              ? "pinned"
-              : state.position === "detached"
-                ? "detached"
-                : "pinned",
-          fabPlacement: state.fabPlacement ?? "bottom-end",
-          sessionMap: migratedSessionMap,
-          observability: {
-            ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
-            ...(state.observability ?? {}),
-          },
-          permissions: {
-            ...DEFAULT_AGENT_PERMISSIONS,
-            ...(state.permissions ?? {}),
-            // Drop any persisted edit mode that is no longer recognized (e.g.
-            // the legacy "ask"/"auto_accept" values) so it resets to default.
-            edits: isAgentEditPermissionMode(state.permissions?.edits)
-              ? state.permissions.edits
-              : DEFAULT_AGENT_PERMISSIONS.edits,
-          },
-          capabilities: migratedCapabilities,
-          pendingPromptEditsByToolCallId: {},
-          pendingBatchSpanAnnotatesByToolCallId: {},
-        } as AgentState;
-      },
+      name: "arize-phoenix-assistant",
+      version: 0,
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,

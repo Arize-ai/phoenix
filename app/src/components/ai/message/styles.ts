@@ -116,6 +116,39 @@ export const messageToolbarCSS = css`
   gap: var(--global-dimension-size-100);
   padding-top: var(--global-dimension-size-50);
   width: 100%;
+
+  /* Reveal-on-interaction: keep per-message action toolbars hidden by default
+     to reduce the persistent visual noise of stacked toolbars, and reveal them
+     when the message is hovered or contains keyboard focus. A message can opt
+     out (always show) via [data-pin-toolbar="true"] on the Message root — used
+     for the most recent assistant turn. */
+  opacity: 0;
+  transition: opacity 0.12s ease;
+
+  [data-from]:hover > &,
+  [data-from]:focus-within > &,
+  [data-pin-toolbar="true"] > & {
+    opacity: 1;
+  }
+
+  /* Keep the toolbar visible while one of its actions has an open menu/popover.
+     The popover is portaled out of the message and takes focus with it, so
+     :hover and :focus-within on the message both drop — but the trigger button
+     keeps aria-expanded set, so the toolbar anchoring the open menu stays put
+     instead of fading out from under it. */
+  &:has([aria-expanded="true"]) {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    /* Touch devices have no hover; keep toolbars visible so the actions remain
+       reachable. */
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `;
 
 // ---------------------------------------------------------------------------

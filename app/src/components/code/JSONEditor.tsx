@@ -1,7 +1,6 @@
 import { defaultKeymap } from "@codemirror/commands";
 import { json, jsonLanguage, jsonParseLinter } from "@codemirror/lang-json";
 import { linter } from "@codemirror/lint";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import type { ReactCodeMirrorProps } from "@uiw/react-codemirror";
 import CodeMirror, {
   EditorView,
@@ -20,6 +19,8 @@ import { useMemo } from "react";
 
 import { useTheme } from "@phoenix/contexts";
 
+import { pierreDark, pierreLight } from "./pierreCodeMirrorTheme";
+
 export type JSONEditorProps = Omit<
   ReactCodeMirrorProps,
   "theme" | "extensions" | "editable"
@@ -37,7 +38,7 @@ export type JSONEditorProps = Omit<
 export function JSONEditor(props: JSONEditorProps) {
   const { theme } = useTheme();
   const { jsonSchema, optionalLint, basicSetup, ...restProps } = props;
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const contentLength = props.value?.length;
   // When optionalLint is false, this value will always be true
   // If optionalLint is true, we only lint when there is content to allow for empty json values

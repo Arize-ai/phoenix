@@ -10,30 +10,17 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import { DEFAULT_PROMPT_VERSION_TAGS } from "@phoenix/constants";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { usePlaygroundStore } from "@phoenix/contexts/PlaygroundContext";
 import type { UpsertPromptFromTemplateDialogCreateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import type { UpsertPromptFromTemplateDialogUpdateMutation } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogUpdateMutation.graphql";
-import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/playgroundPromptUtils";
+import {
+  getInstancePromptParamsFromStore,
+  toPromptVersionTagInputs,
+} from "@phoenix/pages/playground/playgroundPromptUtils";
 import type { SavePromptFormParams } from "@phoenix/pages/playground/SavePromptForm";
 import { SavePromptForm } from "@phoenix/pages/playground/SavePromptForm";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-
-/**
- * Map tag names to the input shape expected by the create/update mutations.
- */
-function toTagInputs(tags: string[]) {
-  return tags.map((tagName) => {
-    const tagDefinition = DEFAULT_PROMPT_VERSION_TAGS.find(
-      (def) => def.name === tagName
-    );
-    return {
-      name: tagName,
-      description: tagDefinition?.description ?? null,
-    };
-  });
-}
 
 type UpsertPromptFromTemplateProps = {
   instanceId: number;
@@ -133,7 +120,7 @@ export const UpsertPromptFromTemplateDialog = ({
             promptVersion: {
               ...promptInput,
             },
-            tags: tags.length > 0 ? toTagInputs(tags) : null,
+            tags: toPromptVersionTagInputs(tags),
           },
         },
         onCompleted: (response) => {
@@ -181,7 +168,7 @@ export const UpsertPromptFromTemplateDialog = ({
               ...promptInput,
               description: params.description,
             },
-            tags: tags.length > 0 ? toTagInputs(tags) : null,
+            tags: toPromptVersionTagInputs(tags),
           },
         },
         onCompleted: (response) => {

@@ -16,6 +16,9 @@ import { stringifyToolValue } from "./toolPartTypes";
  */
 export function getBashToolPreview(part: ToolInvocationPart): string {
   const input = getBashToolInput(part.input);
+  if (input?.summary) {
+    return input.summary;
+  }
   const command = input?.command ?? stringifyToolValue(part.input);
   return command ? command.split("\n")[0] : "";
 }

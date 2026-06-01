@@ -28,6 +28,9 @@ _WASM_URL = f"{_WASM_RELEASE_BASE}/{_WASM_FILENAME}"
 # Operator-supplied paths are trusted as-is and NOT hash-checked.
 _WASM_SHA256 = "e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763"
 
+# Per-operation socket timeout (connect + each read) for the binary download, so a
+# stalled connection fails fast instead of hanging startup. Not a total-transfer cap.
+_WASM_DOWNLOAD_TIMEOUT_SECONDS = 30.0
 
 _NO_LOCAL_STORAGE_LONG_FORM = (
     "WASM sandbox binary unavailable: Phoenix is running in no-local-storage mode "
@@ -114,7 +117,10 @@ def ensure_wasm_binary(
 
     logger.info(f"Downloading WASM binary from {url} → {dest}")
     try:
-        urllib.request.urlretrieve(url, dest)  # noqa: S310
+        with urllib.request.urlopen(  # noqa: S310
+            url, timeout=_WASM_DOWNLOAD_TIMEOUT_SECONDS
+        ) as response:
+            dest.write_bytes(response.read())
     except Exception as exc:
         dest.unlink(missing_ok=True)
         raise RuntimeError(f"Failed to download WASM binary: {exc}") from exc

@@ -54,6 +54,7 @@ DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.read_playground_output_tool.render(),
         _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.edit_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.save_prompt_tool.render(),
         _DEFAULT_PROMPTS.run_playground_tool.render(),
         _DEFAULT_PROMPTS.set_variable_values_tool.render(),
     }
@@ -422,6 +423,7 @@ class TestPlaygroundTools:
 
         assert "run_playground" not in _get_tool_names(captured_request.body)
         assert "read_playground_output" not in _get_tool_names(captured_request.body)
+        assert "save_prompt" not in _get_tool_names(captured_request.body)
         assert "set_variable_values" not in _get_tool_names(captured_request.body)
 
     async def test_run_playground_tool_is_advertised_with_playground_context(
@@ -440,6 +442,7 @@ class TestPlaygroundTools:
 
         assert "run_playground" in _get_tool_names(captured_request.body)
         assert "read_playground_output" in _get_tool_names(captured_request.body)
+        assert "save_prompt" in _get_tool_names(captured_request.body)
         assert "set_variable_values" in _get_tool_names(captured_request.body)
 
 
@@ -491,6 +494,7 @@ class TestSkillsCapability:
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
         assert "<name>debug-trace</name>" in cached_text
+        assert "<name>annotate-spans</name>" in cached_text
         assert "<name>playground</name>" not in cached_text
 
     async def test_skill_tools_are_advertised(

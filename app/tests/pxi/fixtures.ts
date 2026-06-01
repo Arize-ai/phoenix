@@ -48,7 +48,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
         JSON.stringify({ agents: true, tracing_ux: false })
       );
       localStorage.setItem(
-        "arize-phoenix-agent",
+        "arize-phoenix-assistant",
         JSON.stringify({
           state: {
             isOpen: false,
@@ -126,7 +126,7 @@ export class PxiDriver {
     await this.page.getByLabel("Message input").fill(message);
     await this.page.getByRole("button", { name: "Send message" }).click();
     const turnHandle = await this.page.waitForFunction(() => {
-      const stored = localStorage.getItem("arize-phoenix-agent");
+      const stored = localStorage.getItem("arize-phoenix-assistant");
       if (!stored) {
         return null;
       }
@@ -253,7 +253,7 @@ export class PxiDriver {
 
   async getActiveSessionId(): Promise<string> {
     const handle = await this.page.waitForFunction(() => {
-      const stored = localStorage.getItem("arize-phoenix-agent");
+      const stored = localStorage.getItem("arize-phoenix-assistant");
       if (!stored) return null;
       const parsed = JSON.parse(stored) as {
         state?: { activeSessionId?: string | null };
