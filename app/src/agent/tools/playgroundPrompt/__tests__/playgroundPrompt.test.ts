@@ -14,7 +14,7 @@ import {
 
 describe("playground prompt agent tools", () => {
   beforeEach(() => {
-    localStorage.removeItem("arize-phoenix-agent");
+    localStorage.removeItem("arize-phoenix-pxi");
     _resetInstanceId();
     _resetMessageId();
   });
