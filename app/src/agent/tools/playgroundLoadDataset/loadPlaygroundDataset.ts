@@ -51,7 +51,7 @@ type ResolvedDatasetRow = {
   splits: ReadonlyArray<{ id: string; name: string }>;
 };
 
-// Resolves names to ids; emptiness is split-scoped. Returns {ok:false,error} on any failure.
+// Emptiness is split-scoped: a supplied split's example count is checked, not the dataset total.
 export async function resolveLoadDatasetTarget(
   input: LoadDatasetInput
 ): Promise<DatasetTargetResolution> {
@@ -174,7 +174,6 @@ function getResolveFailureMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Failed to resolve dataset.";
 }
 
-/** Builds the JSON-safe snapshot the card shows and the accept handler applies verbatim. */
 export function buildDatasetSelectionSnapshot(
   target: ResolvedDatasetTarget
 ): DatasetSelectionSnapshot {
@@ -186,10 +185,10 @@ export function buildDatasetSelectionSnapshot(
   };
 }
 
-/** Optimistic-concurrency revision (djb2). Split ids are sorted so the revision is order-independent. */
 export function buildSelectionRevision(selection: ExpectedSelection): string {
   const serialized = JSON.stringify({
     datasetId: selection.datasetId,
+    // Sorted so the revision is order-independent.
     splitIds: [...selection.splitIds].sort(),
   });
   let hash = 5381;

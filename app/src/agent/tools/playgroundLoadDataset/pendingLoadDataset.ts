@@ -7,7 +7,6 @@ import type {
   PendingLoadDataset,
 } from "./types";
 
-/** Accept re-resolves the target and re-checks selection drift before the dual-write. */
 export function bindPendingLoadDatasetActions({
   pendingLoad,
   resolveDatasetTarget,

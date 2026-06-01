@@ -54,7 +54,6 @@ function applyDatasetSelection({
   });
 }
 
-/** Client action for load_dataset: resolves names to ids, validates, and registers a pending proposal for approval. */
 export function createLoadDatasetClientAction({
   playgroundStore,
   setSearchParams,
@@ -65,7 +64,6 @@ export function createLoadDatasetClientAction({
 }: {
   playgroundStore: PlaygroundStore;
   setSearchParams: SetURLSearchParams;
-  /** Reads the current URL search params (kept fresh across renders). */
   getSearchParams: () => URLSearchParams;
   setPendingLoadDataset: (
     toolCallId: string,
