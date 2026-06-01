@@ -44,6 +44,7 @@ import {
   useAgentModelCredentialStatus,
 } from "./AgentModelCredentialForm";
 import { AgentModelMenu } from "./AgentModelMenu";
+import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import {
@@ -609,6 +610,7 @@ export function ChatView({
                     shouldFlip
                     variant="quiet"
                   />
+                  <AgentWebSearchToggle />
                 </PromptInputTools>
 
                 <PromptInputActions>

@@ -25,8 +25,8 @@ describe("agent capabilities", () => {
         (definition) => definition.controlSurface === "experimental-settings"
       )
     );
-    expect(
-      agentSettingsCapabilities.map((definition) => definition.key)
-    ).toEqual(["web.access"]);
+    // web.access moved to the chat globe toggle, so no capability is surfaced
+    // in agent settings anymore.
+    expect(agentSettingsCapabilities).toEqual([]);
   });
 });
