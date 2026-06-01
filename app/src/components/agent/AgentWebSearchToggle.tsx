@@ -22,7 +22,7 @@ const webSearchToggleCSS = css`
   margin: 0;
   cursor: pointer;
   color: var(--global-text-color-500);
-  opacity: 0.65;
+  opacity: var(--global-opacity-disabled);
   font-size: var(--global-font-size-s);
   line-height: 1;
   transition:
