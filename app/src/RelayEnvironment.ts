@@ -46,22 +46,27 @@ function fetchJsonObservable<T>(
     graphQLFetch(input, { ...init, signal: controller.signal })
       .then(async (response) => {
         invariant(response instanceof Response, "response must be a Response");
-        // Read the body as text first so that an empty or non-JSON response
-        // (for example a gateway timeout or an upstream 5xx with no body)
-        // surfaces a descriptive error instead of the opaque
+        // Clone the response so the raw body is still readable as text if
+        // response.json() fails — an empty or non-JSON response (for example a
+        // gateway timeout or an upstream 5xx returning an HTML error page)
+        // should surface a descriptive error instead of the opaque
         // "Unexpected end of JSON input" thrown by response.json().
-        const text = await response.text();
-        if (text.trim() === "") {
-          throw new Error(
-            `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`
-          );
-        }
+        const responseClone = response.clone();
         let data: unknown;
         try {
-          data = JSON.parse(text);
+          data = await response.json();
         } catch {
+          const text = (await responseClone.text()).trim();
+          if (text === "") {
+            throw new Error(
+              `GraphQL request failed: the server returned an empty response (status ${response.status} ${response.statusText}).`
+            );
+          }
+          // The body is likely an HTML error page from a gateway or proxy.
+          // Include a snippet to make the failure easier to diagnose.
+          const snippet = text.slice(0, 500);
           throw new Error(
-            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}).`
+            `GraphQL request failed: the server returned a non-JSON response (status ${response.status} ${response.statusText}): ${snippet}`
           );
         }
         // A non-OK status with a parseable body still indicates a failure.
