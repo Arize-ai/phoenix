@@ -17,6 +17,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Video | `Icons.PlayCircleOutline` | Video-typed file attachments (no dedicated `Video*` icon). |
 | Context (generic) | `Icons.InfoOutline` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
 | Bypass / unguarded approvals | `Icons.ShieldOutline` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
+| Undo / rewind | `Icons.RotateCcwOutline` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `HistoryOutline` (clock = history/session list). |
 
 ## When you need an icon
 
