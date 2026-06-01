@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import { useMemo, useRef } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import { useParams } from "react-router";
 import type { TooltipContentProps } from "recharts";
 import {
   Bar,
@@ -121,8 +120,11 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
   );
 }
 
-export function ProjectTraceCountSparkline() {
-  const { projectId } = useParams();
+export function ProjectTraceCountSparkline({
+  projectId,
+}: {
+  projectId: string;
+}) {
   const { timeRange, setCustomTimeRange } = useTimeRange();
   const startBoundedTimeRange = useMemo(
     () => getStartBoundedTimeRange(timeRange),
@@ -158,7 +160,7 @@ export function ProjectTraceCountSparkline() {
       }
     `,
     {
-      projectId: projectId as string,
+      projectId,
       timeRange: {
         start: startBoundedTimeRange.start.toISOString(),
         end: startBoundedTimeRange.end?.toISOString(),
