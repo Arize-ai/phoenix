@@ -293,6 +293,7 @@ export function Chat({
       onModelChange={onModelChange}
       emptyStateSubtext={emptyStateSubtext}
       emptyStateQuickActions={emptyStateQuickActions}
+      sessionId={sessionId}
       modelSelection={modelSelection}
     >
       {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
@@ -318,6 +319,7 @@ export function ChatView({
   children,
   emptyStateSubtext,
   emptyStateQuickActions,
+  sessionId,
   modelSelection,
 }: PropsWithChildren<{
   messages: AgentUIMessage[];
@@ -332,6 +334,7 @@ export function ChatView({
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
+  sessionId: string | null;
   modelSelection: AgentModelSelection;
 }>) {
   const { theme } = useTheme();
