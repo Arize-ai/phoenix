@@ -275,7 +275,6 @@ class CreateSandboxConfigInput:
 @strawberry.input
 class UpdateSandboxConfigInput:
     id: GlobalID
-    name: Optional[Identifier] = strawberry.UNSET
     description: Optional[str] = strawberry.UNSET
     config: Optional[SandboxConfigVariantInput] = strawberry.UNSET
     timeout: Optional[int] = strawberry.UNSET
@@ -370,41 +369,36 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: UpdateSandboxConfigInput,
     ) -> UpdateSandboxConfigPayload:
-        try:
-            async with info.context.db() as session:
-                row = await session.get(models.SandboxConfig, input.row_id)
-                if row is None:
-                    raise NotFound(f"SandboxConfig not found: {input.id}")
-                if input.name:
-                    row.name = input.name
-                if input.description is not strawberry.UNSET:
-                    row.description = input.description
-                if input.config is not strawberry.UNSET and input.config is not None:
-                    try:
-                        validated = input.config.to_orm()
-                    except (ValueError, ValidationError, UnsupportedOperation) as exc:
-                        raise BadRequest(str(exc))
-                    if validated.backend_type != row.backend_type:
-                        raise BadRequest(
-                            f"Config variant {validated.backend_type!r} does not match existing "
-                            f"row provider kind {row.backend_type!r}; recreate the config "
-                            "to change provider."
-                        )
-                    if validated.language != row.language:
-                        # language is row-immutable.
-                        raise BadRequest(
-                            f"Config language {validated.language!r} does not match "
-                            f"existing row language {row.language!r}; language is "
-                            "row-immutable and cannot be changed via update."
-                        )
-                    row.config = validated.model_dump(mode="json", exclude_none=True)
-                if isinstance(input.timeout, int) and input.timeout > 0:
-                    row.timeout = input.timeout
-                if isinstance(input.enabled, bool):
-                    row.enabled = input.enabled
-                row.user_id = info.context.user_id
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            raise Conflict("A sandbox config with that name already exists for this provider")
+        async with info.context.db() as session:
+            row = await session.get(models.SandboxConfig, input.row_id)
+            if row is None:
+                raise NotFound(f"SandboxConfig not found: {input.id}")
+            if input.description is not strawberry.UNSET:
+                row.description = input.description
+            if input.config is not strawberry.UNSET and input.config is not None:
+                try:
+                    validated = input.config.to_orm()
+                except (ValueError, ValidationError, UnsupportedOperation) as exc:
+                    raise BadRequest(str(exc))
+                if validated.backend_type != row.backend_type:
+                    raise BadRequest(
+                        f"Config variant {validated.backend_type!r} does not match existing "
+                        f"row provider kind {row.backend_type!r}; recreate the config "
+                        "to change provider."
+                    )
+                if validated.language != row.language:
+                    # language is row-immutable.
+                    raise BadRequest(
+                        f"Config language {validated.language!r} does not match "
+                        f"existing row language {row.language!r}; language is "
+                        "row-immutable and cannot be changed via update."
+                    )
+                row.config = validated.model_dump(mode="json", exclude_none=True)
+            if isinstance(input.timeout, int) and input.timeout > 0:
+                row.timeout = input.timeout
+            if isinstance(input.enabled, bool):
+                row.enabled = input.enabled
+            row.user_id = info.context.user_id
 
         return UpdateSandboxConfigPayload(
             sandbox_config=SandboxConfig(id=row.id, db_record=row),
