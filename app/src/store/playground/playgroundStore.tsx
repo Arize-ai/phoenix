@@ -273,6 +273,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     instances,
     allInstanceMessages: instanceMessages,
     externallyUpdatedMessageRevisionById: {},
+    externallyUpdatedToolRevisionById: {},
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
@@ -783,6 +784,20 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "updateInstance" }
+      );
+    },
+    markToolsExternallyUpdated: (toolIds) => {
+      if (toolIds.length === 0) return;
+      set(
+        (state) => {
+          const next = { ...state.externallyUpdatedToolRevisionById };
+          for (const toolId of toolIds) {
+            next[toolId] = (next[toolId] ?? 0) + 1;
+          }
+          return { externallyUpdatedToolRevisionById: next };
+        },
+        false,
+        { type: "markToolsExternallyUpdated" }
       );
     },
     runPlaygroundInstances: () => {

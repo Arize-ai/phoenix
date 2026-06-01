@@ -21,6 +21,9 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
     )
   );
   const updateInstance = usePlaygroundContext((state) => state.updateInstance);
+  const externallyUpdatedToolRevisionById = usePlaygroundContext(
+    (state) => state.externallyUpdatedToolRevisionById
+  );
   if (instance == null) {
     throw new Error(`Playground instance ${instanceId} not found`);
   }
@@ -74,9 +77,14 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
           />
           <Flex direction={"column"} gap="size-200">
             {tools.map((tool) => {
+              // Fold the external-update revision into the key so an external
+              // tool write (e.g. PXI) remounts the uncontrolled editor with the
+              // new definition. Local typing does not bump the revision.
+              const externalRevision =
+                externallyUpdatedToolRevisionById[tool.id] ?? 0;
               return (
                 <PlaygroundTool
-                  key={tool.id}
+                  key={`${tool.id}-${externalRevision}`}
                   playgroundInstanceId={instanceId}
                   toolId={tool.id}
                 />

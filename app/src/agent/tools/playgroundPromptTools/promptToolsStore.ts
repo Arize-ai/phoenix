@@ -1,0 +1,311 @@
+import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  type CanonicalToolDefinition,
+  generateToolId,
+  type PlaygroundStore,
+  type Tool,
+} from "@phoenix/store/playground";
+
+import type {
+  PromptToolsActionResult,
+  PromptToolSnapshot,
+  PromptToolsSnapshot,
+  WritePromptToolEntry,
+  WritePromptToolResult,
+  WritePromptToolsInput,
+  WritePromptToolsResult,
+} from "./types";
+
+/**
+ * Returns a snapshot of one playground prompt instance's tool list plus a
+ * content-hash revision token. If only one instance exists, it is selected
+ * automatically; otherwise `instanceId` is required.
+ */
+export function getPromptToolsSnapshot({
+  playgroundStore,
+  instanceId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId?: number;
+}): PromptToolsActionResult<PromptToolsSnapshot> {
+  const instance = resolveInstance({ playgroundStore, instanceId });
+  if (!instance.ok) return instance;
+  const { playgroundInstance, index } = instance.output;
+  const tools = playgroundInstance.tools.map(toPromptToolSnapshot);
+  const snapshotWithoutRevision = {
+    instanceId: playgroundInstance.id,
+    index,
+    label: getInstanceLabel(index),
+    tools,
+  };
+  return {
+    ok: true,
+    output: {
+      ...snapshotWithoutRevision,
+      revision: buildPromptToolsRevision(snapshotWithoutRevision),
+    },
+  };
+}
+
+/**
+ * Applies a `write_prompt_tools` batch to the playground store: each `tools`
+ * entry patches an existing function tool when its `id` is provided, or creates
+ * a new one otherwise, and every id in `deleteToolIds` is removed. Verifies the
+ * input's `expectedRevision` against the current snapshot before mutating;
+ * rejects on mismatch.
+ *
+ * The batch is all-or-nothing: every entry and delete id is validated against
+ * the snapshot read before anything is mutated, so a single bad entry (missing
+ * id, a raw passthrough tool on the write path, an update/delete conflict, or a
+ * delete that would orphan the forced tool choice) rejects the whole batch and
+ * leaves the playground untouched. Unlike writes, deletes may target raw vendor
+ * tools — removing a tool needs no knowledge of its shape.
+ */
+export function applyWritePromptTools({
+  playgroundStore,
+  input,
+}: {
+  playgroundStore: PlaygroundStore;
+  input: WritePromptToolsInput;
+}): PromptToolsActionResult<WritePromptToolsResult> {
+  const instance = resolveInstance({
+    playgroundStore,
+    instanceId: input.instanceId,
+  });
+  if (!instance.ok) return instance;
+  const { playgroundInstance } = instance.output;
+
+  const beforeSnapshot = getPromptToolsSnapshot({
+    playgroundStore,
+    instanceId: playgroundInstance.id,
+  });
+  if (!beforeSnapshot.ok) return beforeSnapshot;
+  if (beforeSnapshot.output.revision !== input.expectedRevision) {
+    return {
+      ok: false,
+      error:
+        "The prompt tool list has changed since it was last viewed by PXI.",
+    };
+  }
+
+  const writeEntries = input.tools ?? [];
+  const deleteIds = new Set(input.deleteToolIds ?? []);
+
+  // Validation pass — all-or-nothing. Update entries must reference an existing
+  // function tool from the snapshot we just read; ids assigned to tools created
+  // earlier in the same batch are not addressable here. Nothing is mutated
+  // until every entry and delete id is known to be applicable.
+  for (let index = 0; index < writeEntries.length; index++) {
+    const entry = writeEntries[index]!;
+    const requestedId = "id" in entry ? entry.id : undefined;
+    if (requestedId == null) continue;
+    const existing = playgroundInstance.tools.find(
+      (candidate) => candidate.id === requestedId
+    );
+    if (!existing) {
+      return {
+        ok: false,
+        error: `tools[${index}]: prompt tool ${requestedId} was not found on instance ${playgroundInstance.id}.`,
+      };
+    }
+    if (existing.kind !== "function") {
+      return {
+        ok: false,
+        error: `tools[${index}]: prompt tool ${requestedId} is a vendor passthrough (raw) tool and cannot be edited via PXI. Edit it in the playground tool editor.`,
+      };
+    }
+    if (deleteIds.has(requestedId)) {
+      return {
+        ok: false,
+        error: `tools[${index}]: prompt tool ${requestedId} cannot be both updated and deleted in the same batch.`,
+      };
+    }
+  }
+
+  const forcedChoice = playgroundInstance.toolChoice;
+  const forcedFunctionName =
+    forcedChoice?.type === "SPECIFIC_FUNCTION"
+      ? forcedChoice.functionName
+      : undefined;
+  // If a deleted tool is the prompt's forced tool choice, deleting it would
+  // orphan that choice. Rather than reject (the user would just clear the
+  // choice and retry, ending here anyway), reset the choice to auto
+  // (ZERO_OR_MORE — the instance default) and disclose it in the result.
+  let resetToolChoiceFrom: string | undefined;
+  for (const deleteId of deleteIds) {
+    const existing = playgroundInstance.tools.find(
+      (candidate) => candidate.id === deleteId
+    );
+    if (!existing) {
+      return {
+        ok: false,
+        error: `deleteToolIds: prompt tool ${deleteId} was not found on instance ${playgroundInstance.id}.`,
+      };
+    }
+    if (
+      forcedFunctionName != null &&
+      existing.kind === "function" &&
+      existing.definition.name === forcedFunctionName
+    ) {
+      resetToolChoiceFrom = forcedFunctionName;
+    }
+  }
+
+  // Apply pass — drop deleted tools first, then fold each write entry over the
+  // working copy so multiple entries (including repeated patches to the same
+  // id) compose in order.
+  let workingTools: Tool[] = playgroundInstance.tools.filter(
+    (candidate) => !deleteIds.has(candidate.id)
+  );
+  const results: WritePromptToolResult[] = [];
+  for (const entry of writeEntries) {
+    const requestedId = "id" in entry ? entry.id : undefined;
+    if (requestedId != null) {
+      workingTools = workingTools.map((candidate) =>
+        candidate.id === requestedId && candidate.kind === "function"
+          ? { ...candidate, definition: patchDefinition(candidate, entry) }
+          : candidate
+      );
+      results.push({ status: "updated", toolId: requestedId });
+    } else {
+      const newId = generateToolId();
+      workingTools = [
+        ...workingTools,
+        {
+          kind: "function",
+          id: newId,
+          editorType: "json",
+          definition: patchDefinition(null, entry),
+        },
+      ];
+      results.push({ status: "created", toolId: newId });
+    }
+  }
+
+  playgroundStore.getState().updateInstance({
+    instanceId: playgroundInstance.id,
+    patch: {
+      tools: workingTools,
+      ...(resetToolChoiceFrom != null
+        ? { toolChoice: { type: "ZERO_OR_MORE" } }
+        : {}),
+    },
+    dirty: true,
+  });
+  // The tool editors are uncontrolled (CodeMirror). Bump the external-update
+  // revision for the tools we created/updated so any mounted editor remounts
+  // and shows the new definition instead of its stale initial value.
+  playgroundStore
+    .getState()
+    .markToolsExternallyUpdated(results.map((result) => result.toolId));
+
+  const afterSnapshot = getPromptToolsSnapshot({
+    playgroundStore,
+    instanceId: playgroundInstance.id,
+  });
+  if (!afterSnapshot.ok) return afterSnapshot;
+
+  return {
+    ok: true,
+    output: {
+      results,
+      deletedToolIds: [...deleteIds],
+      ...(resetToolChoiceFrom != null ? { resetToolChoiceFrom } : {}),
+      revision: afterSnapshot.output.revision,
+    },
+  };
+}
+
+/**
+ * Builds the canonical definition for one batch entry. Pass the existing
+ * function tool to patch (only fields present in `entry` change), or `null`
+ * to create a fresh definition. `name` is always taken from the entry.
+ */
+function patchDefinition(
+  existing: Extract<Tool, { kind: "function" }> | null,
+  entry: WritePromptToolEntry
+): CanonicalToolDefinition {
+  return {
+    ...(existing ? existing.definition : {}),
+    name: entry.name,
+    ...("description" in entry
+      ? { description: entry.description ?? null }
+      : {}),
+    ...("parameters" in entry
+      ? { parameters: entry.parameters ?? undefined }
+      : {}),
+    ...("strict" in entry ? { strict: entry.strict ?? null } : {}),
+  };
+}
+
+function resolveInstance({
+  playgroundStore,
+  instanceId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId?: number;
+}): PromptToolsActionResult<{
+  playgroundInstance: ReturnType<
+    PlaygroundStore["getState"]
+  >["instances"][number];
+  index: number;
+}> {
+  const state = playgroundStore.getState();
+  const instances = state.instances;
+  const resolvedInstanceId =
+    instanceId ?? (instances.length === 1 ? instances[0]?.id : undefined);
+  if (resolvedInstanceId == null) {
+    return {
+      ok: false,
+      error: `Multiple playground instances are available. Pass one of these instance IDs: ${instances
+        .map((instance) => instance.id)
+        .join(", ")}.`,
+    };
+  }
+  const index = instances.findIndex(
+    (candidate) => candidate.id === resolvedInstanceId
+  );
+  if (index < 0) {
+    return {
+      ok: false,
+      error: `Playground instance ${resolvedInstanceId} was not found.`,
+    };
+  }
+  return {
+    ok: true,
+    output: { playgroundInstance: instances[index]!, index },
+  };
+}
+
+function toPromptToolSnapshot(tool: Tool): PromptToolSnapshot {
+  if (tool.kind === "function") {
+    return {
+      kind: "function",
+      id: tool.id,
+      name: tool.definition.name,
+      ...(tool.definition.description !== undefined
+        ? { description: tool.definition.description ?? null }
+        : {}),
+      ...(tool.definition.parameters !== undefined
+        ? { parameters: tool.definition.parameters }
+        : {}),
+      ...(tool.definition.strict !== undefined
+        ? { strict: tool.definition.strict ?? null }
+        : {}),
+    };
+  }
+  return {
+    kind: "raw",
+    id: tool.id,
+    raw: tool.raw,
+  };
+}
+
+function buildPromptToolsRevision(value: unknown): string {
+  const serialized = JSON.stringify(value);
+  let hash = 5381;
+  for (let index = 0; index < serialized.length; index++) {
+    hash = (hash * 33) ^ serialized.charCodeAt(index);
+  }
+  return `prompt-tools-${(hash >>> 0).toString(16)}`;
+}
