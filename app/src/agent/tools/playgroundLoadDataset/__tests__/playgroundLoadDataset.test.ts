@@ -15,11 +15,7 @@ import {
   createPlaygroundStore,
 } from "@phoenix/store/playground";
 
-/**
- * Builds a mutable URL-search-params test harness. `setSearchParams` applies the
- * router updater against the current params so accept-time writes are
- * observable, and `params` can be reassigned to simulate selection drift.
- */
+// Mutable URL-search-params harness; `setDrift` reassigns params to simulate selection drift.
 function createSearchParamsHarness(initial?: string) {
   let params = new URLSearchParams(initial);
   const setSearchParams = vi.fn<SetURLSearchParams>((next) => {
@@ -35,12 +31,8 @@ function createSearchParamsHarness(initial?: string) {
   };
 }
 
-/**
- * Applying a selection writes the playground store, which persists to
- * localStorage. Some jsdom configs expose an opaque-origin window whose
- * localStorage lacks `setItem`; install an in-memory shim so the dual-write
- * assertions are hermetic.
- */
+// Some jsdom configs expose an opaque-origin localStorage with no `setItem`; shim it
+// so the store dual-write (which persists to localStorage) is hermetic.
 function ensureWorkingLocalStorage() {
   if (typeof window.localStorage?.setItem === "function") {
     return;

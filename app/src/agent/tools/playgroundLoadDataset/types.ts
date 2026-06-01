@@ -16,11 +16,7 @@ export type LoadDatasetActionContext = z.output<
   typeof loadDatasetActionContextSchema
 >;
 
-/**
- * JSON-safe snapshot of a playground dataset selection. `splitIds` is an array
- * solely to preserve the playground's repeated-`splitId` URL contract; v1 holds
- * at most one split.
- */
+// `splitIds` is an array to match the playground's repeated-`splitId` URL contract (v1: one split).
 export type DatasetSelectionSnapshot = {
   datasetId: string;
   splitIds: string[];

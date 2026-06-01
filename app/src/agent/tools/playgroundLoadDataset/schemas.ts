@@ -6,11 +6,7 @@ import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 
 export type LoadDatasetToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
-/**
- * Input schema for the load_dataset tool. Must agree with the server-owned
- * PARAMETERS (the model-facing source of truth): `datasetName` is a required
- * string and `splitName` is optional. v1 accepts at most one split.
- */
+// Must agree with the server-owned PARAMETERS: datasetName required, splitName optional.
 export const loadDatasetInputSchema = z
   .preprocess(
     (input) =>

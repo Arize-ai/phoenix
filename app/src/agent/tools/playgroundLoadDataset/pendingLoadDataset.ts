@@ -7,11 +7,7 @@ import type {
   PendingLoadDataset,
 } from "./types";
 
-/**
- * Attaches accept/reject/cancel to a pending load_dataset proposal. Accept
- * re-resolves the target and re-checks selection drift before the dual-write, so
- * the URL never receives stale ids the card did not show.
- */
+/** Accept re-resolves the target and re-checks selection drift before the dual-write. */
 export function bindPendingLoadDatasetActions({
   pendingLoad,
   resolveDatasetTarget,
@@ -36,9 +32,8 @@ export function bindPendingLoadDatasetActions({
         return;
       }
 
-      // The dataset and split are separate, deletable entities, so
-      // selection-drift detection alone is insufficient — re-resolve the target
-      // to confirm it still exists before writing its ids into the URL.
+      // Dataset/split are separately deletable, so drift detection alone is insufficient:
+      // re-resolve the target before writing its ids to the URL.
       const resolution = await resolveDatasetTarget(pendingLoad.input);
       if (!resolution.ok) {
         await addToolOutput({

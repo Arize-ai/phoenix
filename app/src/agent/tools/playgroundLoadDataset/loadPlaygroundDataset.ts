@@ -51,11 +51,7 @@ type ResolvedDatasetRow = {
   splits: ReadonlyArray<{ id: string; name: string }>;
 };
 
-/**
- * Resolves a load_dataset input's dataset/split names to ids. Emptiness is
- * split-scoped (the selected split's count when a split is given, else the
- * dataset total). Returns `{ok:false,error}` on any failure.
- */
+// Resolves names to ids; emptiness is split-scoped. Returns {ok:false,error} on any failure.
 export async function resolveLoadDatasetTarget(
   input: LoadDatasetInput
 ): Promise<DatasetTargetResolution> {
