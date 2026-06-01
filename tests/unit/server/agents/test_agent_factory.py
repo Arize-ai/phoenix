@@ -494,6 +494,7 @@ class TestSkillsCapability:
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
         assert "<name>debug-trace</name>" in cached_text
+        assert "<name>annotate-spans</name>" in cached_text
         assert "<name>playground</name>" not in cached_text
 
     async def test_skill_tools_are_advertised(
