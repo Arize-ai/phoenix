@@ -1,10 +1,9 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 
 import {
   _resetInstanceId,

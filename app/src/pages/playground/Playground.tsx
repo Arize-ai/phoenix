@@ -281,10 +281,9 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
-  const [
-    codeEvaluatorFormDatasetId,
-    setCodeEvaluatorFormDatasetId,
-  ] = useState<string | null>(null);
+  const [codeEvaluatorFormDatasetId, setCodeEvaluatorFormDatasetId] = useState<
+    string | null
+  >(null);
   const isCodeEvaluatorFormOpen =
     datasetId != null && codeEvaluatorFormDatasetId === datasetId;
   const isRunning = usePlaygroundContext((state) =>

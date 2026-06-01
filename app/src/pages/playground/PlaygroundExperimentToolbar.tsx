@@ -117,9 +117,7 @@ export function PlaygroundExperimentToolbar({
             query={query}
             isDisabled={isRunning}
             isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-            onCodeEvaluatorFormOpenChange={
-              onCodeEvaluatorFormOpenChange
-            }
+            onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
           <PlaygroundExperimentSettingsButton

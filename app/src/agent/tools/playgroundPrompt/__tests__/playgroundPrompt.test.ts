@@ -1,3 +1,4 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   createClonePromptInstanceClientAction,
   createEditPromptClientAction,
@@ -11,8 +12,6 @@ import {
   _resetMessageId,
   createPlaygroundStore,
 } from "@phoenix/store/playground";
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 
 installTestStorage();
 

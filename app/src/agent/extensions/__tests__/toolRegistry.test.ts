@@ -1,3 +1,4 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
@@ -19,8 +20,6 @@ import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVa
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 import { createPlaygroundStore } from "@phoenix/store/playground";
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 
 installTestStorage();
 

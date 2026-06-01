@@ -31,8 +31,8 @@ import {
   type TestCodeEvaluatorDraftInput,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
-import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
+import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import {
   parseReadPlaygroundOutputInput,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,

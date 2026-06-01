@@ -174,9 +174,7 @@ export function PlaygroundDatasetSection({
         onEvaluatorCreated={onEvaluatorCreated}
         query={data}
         isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
-        onCodeEvaluatorFormOpenChange={
-          onCodeEvaluatorFormOpenChange
-        }
+        onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
       />
       <PlaygroundDatasetExamplesTableProvider key={key}>
         <PlaygroundDatasetExamplesTable

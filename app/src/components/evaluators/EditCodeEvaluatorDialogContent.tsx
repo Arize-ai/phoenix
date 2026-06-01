@@ -263,10 +263,7 @@ export const EditCodeEvaluatorDialogContent = ({
   }, [sandboxConfigIndex]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
-  const isDraftMounted = useCallback(
-    () => draftHostRef.current != null,
-    []
-  );
+  const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
 
   useEffect(() => {
     const buildSnapshot = (): CodeEvaluatorDraftSnapshot => {

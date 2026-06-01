@@ -1,6 +1,5 @@
-import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
-
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
 import { createAgentStore } from "../agentStore";
 

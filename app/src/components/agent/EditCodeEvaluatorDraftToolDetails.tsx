@@ -44,11 +44,16 @@ export function EditCodeEvaluatorDraftToolDetails({
   });
 
   return (
-    <DiffAcceptRejectToolDetails<CodeEvaluatorDraftSnapshot, PendingCodeEvaluatorEdit>
+    <DiffAcceptRejectToolDetails<
+      CodeEvaluatorDraftSnapshot,
+      PendingCodeEvaluatorEdit
+    >
       part={part}
       pending={pending}
       snapshotToText={draftSnapshotToText}
-      fileName={pending ? draftFileName(pending.before) : "code-evaluator-draft.txt"}
+      fileName={
+        pending ? draftFileName(pending.before) : "code-evaluator-draft.txt"
+      }
       renderHeader={renderCodeEvaluatorDiffHeader}
       preparingLabel={EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}
       preparingText="Preparing code-evaluator draft diff..."

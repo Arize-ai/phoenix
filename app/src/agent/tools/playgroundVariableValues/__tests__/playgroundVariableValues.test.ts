@@ -1,7 +1,6 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { createSetVariableValuesClientAction } from "@phoenix/agent/tools/playgroundVariableValues";
 import { createPlaygroundStore } from "@phoenix/store/playground";
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 
 installTestStorage();
 

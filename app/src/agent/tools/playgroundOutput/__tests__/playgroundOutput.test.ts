@@ -1,11 +1,10 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { createReadPlaygroundOutputClientAction } from "@phoenix/agent/tools/playgroundOutput";
 import {
   _resetInstanceId,
   _resetMessageId,
   createPlaygroundStore,
 } from "@phoenix/store/playground";
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 
 installTestStorage();
 

@@ -161,9 +161,7 @@ export function PlaygroundEvaluatorSelect(
             onCreateEvaluator={() =>
               setCreateLLMEvaluatorDialogInitialState(true)
             }
-            onCreateCodeEvaluator={() =>
-              onCodeEvaluatorFormOpenChange(true)
-            }
+            onCreateCodeEvaluator={() => onCodeEvaluatorFormOpenChange(true)}
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={(initialState) => {
               setCreateLLMEvaluatorDialogInitialState(initialState);

@@ -2,6 +2,7 @@ import { act, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   MODAL_OVERLAY_CLASS_NAME,
   MODAL_PORTAL_CONTAINER_ATTR,
@@ -10,8 +11,6 @@ import { AgentProvider, useAgentContext } from "@phoenix/contexts/AgentContext";
 import { FeatureFlagsContext } from "@phoenix/contexts/FeatureFlagsContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 
 import { AgentChatWidget } from "../AgentChatWidget";
 
