@@ -259,8 +259,7 @@ import { ReleaseUpdate } from "../snippets/ReleaseUpdate.jsx";
 ```
 
 ```mdx
-<ReleaseUpdate label="MM.DD.YYYY" href="/docs/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug-title">
-## [MM.DD.YYYY: Feature Title](/docs/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug-title)
+<ReleaseUpdate label="MM.DD.YYYY" href="/docs/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug-title" title="Feature Title">
 **Available in ...**
 
 Brief 1-3 sentence summary. Action-oriented.
@@ -272,7 +271,8 @@ Brief 1-3 sentence summary. Action-oriented.
 
 Rules:
 - `label` uses dot separators: `MM.DD.YYYY`
-- `href` must match the link in the heading
+- `title` is the feature title (without date prefix — the component generates `label: title` as the heading)
+- `href` is the link to the individual MDX file
 - Link path has no `.mdx` extension
 - Keep each block to 5-10 lines
 - If one MDX file covers multiple features, create separate `<ReleaseUpdate>` blocks per feature date
