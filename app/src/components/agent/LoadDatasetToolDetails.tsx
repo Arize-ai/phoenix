@@ -67,11 +67,6 @@ export function getLoadDatasetToolPreview(part: ToolInvocationPart): string {
     : input.datasetName;
 }
 
-/**
- * Semantic color for the collapsed tool-summary status pill, kept in sync with
- * the body heading: a completed load reads success, a rejection reads warning,
- * and a failure reads danger.
- */
 export function getLoadDatasetStatusVariant(
   part: ToolInvocationPart
 ): "danger" | "warning" | "success" | undefined {

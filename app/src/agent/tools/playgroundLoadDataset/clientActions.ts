@@ -20,11 +20,7 @@ import type {
   ResolveDatasetTarget,
 } from "./types";
 
-/**
- * Reads the live playground dataset selection from the URL search params. The
- * URL — not the store — is the source of truth for the rendered dataset mode,
- * so drift detection must read it too.
- */
+// The URL (not the store) is the source of truth for the rendered dataset mode.
 function getUrlSelection(searchParams: URLSearchParams): ExpectedSelection {
   return {
     datasetId: searchParams.get("datasetId"),
@@ -32,12 +28,7 @@ function getUrlSelection(searchParams: URLSearchParams): ExpectedSelection {
   };
 }
 
-/**
- * Applies a selection by replicating PlaygroundDatasetSelect.onSelectionChange:
- * write the store (keeps the experiment path + per-dataset config consistent)
- * and the URL (flips the visible mode), setting `datasetId` + one repeated
- * `splitId` per split and clearing the now-stale `exampleId`.
- */
+// Mirrors PlaygroundDatasetSelect.onSelectionChange: the URL write (not the store) flips the rendered mode.
 function applyDatasetSelection({
   snapshot,
   playgroundStore,
@@ -63,12 +54,7 @@ function applyDatasetSelection({
   });
 }
 
-/**
- * Creates the client action handler for the load_dataset tool. At propose time
- * it resolves the dataset/split names to ids, validates existence + emptiness,
- * snapshots the selection with a drift revision, and registers a pending
- * proposal for user approval before the playground switches into dataset mode.
- */
+/** Client action for load_dataset: resolves names to ids, validates, and registers a pending proposal for approval. */
 export function createLoadDatasetClientAction({
   playgroundStore,
   setSearchParams,

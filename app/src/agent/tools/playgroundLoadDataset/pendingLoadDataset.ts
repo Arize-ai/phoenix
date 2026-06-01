@@ -8,10 +8,9 @@ import type {
 } from "./types";
 
 /**
- * Attaches accept/reject callbacks to a pending load_dataset proposal. On
- * accept, the proposed target is re-resolved and the live selection re-checked
- * for drift before the dual-write, so the URL never receives stale ids the card
- * did not show.
+ * Attaches accept/reject/cancel to a pending load_dataset proposal. Accept
+ * re-resolves the target and re-checks selection drift before the dual-write, so
+ * the URL never receives stale ids the card did not show.
  */
 export function bindPendingLoadDatasetActions({
   pendingLoad,

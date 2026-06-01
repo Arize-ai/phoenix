@@ -24,7 +24,7 @@ def test_load_dataset_instructions_expose_params_and_discovery_preflight() -> No
 def test_load_dataset_parameters_expose_only_dataset_name_and_optional_split_name() -> None:
     """Pin the ``load_dataset`` model-facing parameter contract.
 
-    The browser dispatch (Phase 2) resolves these names to IDs, so the advertised
+    The browser dispatch resolves these names to IDs, so the advertised
     schema is the integration contract: ``datasetName`` is a required string and
     ``splitName`` is an optional, nullable string. Nothing else is accepted.
     """

@@ -12,10 +12,8 @@ import type {
   ResolvedDatasetTarget,
 } from "./types";
 
-// `datasets(filter:)` uses substring `ilike` matching, so a single name may
-// return multiple rows; the resolver exact-matches the supplied name against
-// them. Dataset names are unique, so a larger page only guards against an exact
-// match being pushed past the first page by similarly named datasets.
+// `datasets(filter:)` is a substring `ilike` match, so a name can return multiple rows;
+// the page size only guards against an exact match being pushed past the first page.
 const DATASET_RESOLVE_PAGE_SIZE = 100;
 
 const resolveDatasetQuery = graphql`
@@ -54,12 +52,9 @@ type ResolvedDatasetRow = {
 };
 
 /**
- * Resolves the dataset and (optional) split named in a load_dataset input to
- * concrete ids, validating that the dataset exists, the split exists within it,
- * and the targeted selection is non-empty. Emptiness is split-scoped: when a
- * split is supplied the selected split's example count is checked, otherwise the
- * dataset-level count. Returns `{ok:false,error}` on any failure so the caller
- * can surface a propose-time error and show no card.
+ * Resolves a load_dataset input's dataset/split names to ids. Emptiness is
+ * split-scoped (the selected split's count when a split is given, else the
+ * dataset total). Returns `{ok:false,error}` on any failure.
  */
 export async function resolveLoadDatasetTarget(
   input: LoadDatasetInput
@@ -183,10 +178,7 @@ function getResolveFailureMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Failed to resolve dataset.";
 }
 
-/**
- * Builds the JSON-safe selection snapshot the card shows and the accept handler
- * applies verbatim.
- */
+/** Builds the JSON-safe snapshot the card shows and the accept handler applies verbatim. */
 export function buildDatasetSelectionSnapshot(
   target: ResolvedDatasetTarget
 ): DatasetSelectionSnapshot {
@@ -198,11 +190,7 @@ export function buildDatasetSelectionSnapshot(
   };
 }
 
-/**
- * djb2 hash of a selection, used as an optimistic-concurrency revision (no
- * native revision counter exists). Split ids are sorted so the revision depends
- * on the selection, not on split ordering.
- */
+/** Optimistic-concurrency revision (djb2). Split ids are sorted so the revision is order-independent. */
 export function buildSelectionRevision(selection: ExpectedSelection): string {
   const serialized = JSON.stringify({
     datasetId: selection.datasetId,

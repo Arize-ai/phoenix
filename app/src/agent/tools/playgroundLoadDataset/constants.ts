@@ -1,5 +1,4 @@
-// Must byte-match the server tool NAME advertised in
-// src/phoenix/server/agents/tools/external/load_dataset.py — the name is the
+// Must byte-match the server tool NAME (load_dataset.py) — the name is the
 // single contract between server advertisement and browser dispatch.
 export const LOAD_DATASET_TOOL_NAME = "load_dataset";
 

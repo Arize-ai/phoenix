@@ -17,10 +17,9 @@ export type LoadDatasetActionContext = z.output<
 >;
 
 /**
- * Stable, JSON-safe snapshot of a playground dataset selection. Owned by this
- * module rather than reusing a Relay/UI type so a pending entry can be
- * serialized and rebound. `splitIds` is kept as an array solely to preserve the
- * playground's repeated-`splitId` URL contract; v1 holds at most one split.
+ * JSON-safe snapshot of a playground dataset selection. `splitIds` is an array
+ * solely to preserve the playground's repeated-`splitId` URL contract; v1 holds
+ * at most one split.
  */
 export type DatasetSelectionSnapshot = {
   datasetId: string;
@@ -29,11 +28,7 @@ export type DatasetSelectionSnapshot = {
   splitNames?: string[];
 };
 
-/**
- * The current playground dataset selection captured at propose time, used to
- * detect drift before the accept-time dual-write. Holds the resolved
- * `datasetId`/`splitIds` and the revision derived from them.
- */
+/** Playground selection captured at propose time; re-checked for drift before the accept-time dual-write. */
 export type ExpectedSelection = {
   datasetId: string | null;
   splitIds: string[];
