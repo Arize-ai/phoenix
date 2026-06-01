@@ -63,18 +63,6 @@ export type AgentObservabilitySettings = {
 
 export type AgentEditPermissionMode = "manual" | "bypass";
 
-const AGENT_EDIT_PERMISSION_MODES: readonly AgentEditPermissionMode[] = [
-  "manual",
-  "bypass",
-];
-
-/** Narrows an unknown persisted value to a recognized edit-permission mode. */
-function isAgentEditPermissionMode(
-  value: unknown
-): value is AgentEditPermissionMode {
-  return AGENT_EDIT_PERMISSION_MODES.includes(value as AgentEditPermissionMode);
-}
-
 export type AgentPermissions = {
   /** How user-visible edit approvals should be resolved. */
   edits: AgentEditPermissionMode;
@@ -352,7 +340,7 @@ function buildSessionRetentionPatch({
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
- * persist (to local storage under "arize-phoenix-agent"). The `isOpen`
+ * persist (to local storage under "arize-phoenix-assistant"). The `isOpen`
  * property is excluded from persistence so the panel always starts closed.
  *
  * @param initialProps - Optional overrides for the default store properties.
@@ -823,78 +811,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
-      name: "arize-phoenix-agent",
-      version: 8,
-      migrate: (persisted, version) => {
-        const state = persisted as Partial<AgentProps> & {
-          capabilities?: Partial<AgentCapabilities>;
-          observability?: Partial<AgentObservabilitySettings>;
-          permissions?: Partial<AgentPermissions>;
-          debug?: {
-            retainInactiveBashSessions?: boolean;
-            dangerouslyEnableMutations?: boolean;
-          };
-        };
-        const migratedSessionMap: Record<string, AgentSession> = {};
-
-        for (const [sessionId, session] of Object.entries(
-          state.sessionMap ?? {}
-        )) {
-          migratedSessionMap[sessionId] = {
-            ...session,
-            createdAt: (session as AgentSession).createdAt ?? 0,
-          };
-        }
-
-        const migratedCapabilities = {
-          ...createDefaultAgentCapabilities(),
-          ...(state.capabilities ?? {}),
-          ...(version <= 2
-            ? {
-                "bash.retainInactiveSessions":
-                  state.debug?.retainInactiveBashSessions ??
-                  state.capabilities?.["bash.retainInactiveSessions"] ??
-                  false,
-                "graphql.mutations":
-                  state.debug?.dangerouslyEnableMutations ??
-                  state.capabilities?.["graphql.mutations"] ??
-                  false,
-              }
-            : {}),
-        };
-
-        return {
-          ...state,
-          // `position` existed before it was wired into the UI, but the
-          // visible behavior was always the pinned side panel. Treat pre-v8
-          // persisted values as pinned so the new floating mode is opt-in.
-          position:
-            version <= 7
-              ? "pinned"
-              : state.position === "detached"
-                ? "detached"
-                : "pinned",
-          fabPlacement: state.fabPlacement ?? "bottom-end",
-          sessionMap: migratedSessionMap,
-          observability: {
-            ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
-            ...(state.observability ?? {}),
-          },
-          permissions: {
-            ...DEFAULT_AGENT_PERMISSIONS,
-            ...(state.permissions ?? {}),
-            // Drop any persisted edit mode that is no longer recognized (e.g.
-            // the legacy "ask"/"auto_accept" values) so it resets to default.
-            edits: isAgentEditPermissionMode(state.permissions?.edits)
-              ? state.permissions.edits
-              : DEFAULT_AGENT_PERMISSIONS.edits,
-          },
-          capabilities: migratedCapabilities,
-          pendingPromptEditsByToolCallId: {},
-          pendingBatchSpanAnnotatesByToolCallId: {},
-          pendingSavePromptsByToolCallId: {},
-        } as AgentState;
-      },
+      name: "arize-phoenix-assistant",
+      version: 0,
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,

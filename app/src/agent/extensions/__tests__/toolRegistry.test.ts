@@ -20,7 +20,7 @@ import { createPlaygroundStore } from "@phoenix/store/playground";
 
 describe("toolRegistry", () => {
   beforeEach(() => {
-    localStorage.removeItem("arize-phoenix-agent");
+    localStorage.removeItem("arize-phoenix-assistant");
   });
 
   it("skips server-executed tools without producing output", async () => {
