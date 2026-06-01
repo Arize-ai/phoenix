@@ -17,6 +17,23 @@ export type CustomProviderInfo = {
   modelNames: readonly string[];
 };
 
+export type AvailableBuiltinModel = {
+  provider: ModelProvider;
+  modelName: string;
+};
+
+export type AvailableCustomModel = {
+  customProviderId: string;
+  customProviderName: string;
+  provider: ModelProvider;
+  modelName: string;
+};
+
+export type ModelCatalog = {
+  installedBuiltInProviders: ReadonlySet<ModelProvider>;
+  customProviders: readonly CustomProviderInfo[];
+};
+
 export type ModelProviderInfo = {
   readonly key: GenerativeProviderKey;
   readonly name: string;
@@ -105,20 +122,20 @@ export function useModelMenuData() {
     [data.modelProviders]
   );
 
-  const availableBuiltinModels = useMemo(
+  const availableBuiltinModels = useMemo<AvailableBuiltinModel[]>(
     () =>
       data.playgroundModels
         .filter((model) =>
           installedBuiltInProviders.has(model.providerKey as ModelProvider)
         )
         .map((model) => ({
-          provider: model.providerKey,
+          provider: model.providerKey as ModelProvider,
           modelName: model.name,
         })),
     [data.playgroundModels, installedBuiltInProviders]
   );
 
-  const availableCustomModels = useMemo(
+  const availableCustomModels = useMemo<AvailableCustomModel[]>(
     () =>
       customProviders.flatMap((provider) => {
         const providerKey = getProviderKeyForGenerativeModelSDK(provider.sdk);
@@ -132,7 +149,7 @@ export function useModelMenuData() {
     [customProviders]
   );
 
-  const modelCatalog = useMemo(
+  const modelCatalog = useMemo<ModelCatalog>(
     () => ({
       installedBuiltInProviders,
       customProviders,

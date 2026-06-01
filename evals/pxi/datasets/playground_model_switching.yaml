@@ -1,0 +1,50 @@
+dataset_name: playground_model_switching
+description: >-
+  PXI eval suite for lazy playground model discovery and model switching.
+  Covers listing available playground models and resolving ambiguous model
+  switch requests through list_playground_model_targets before switching.
+evaluators:
+  - correct_tools_called
+  - tool_call_count_within_limit
+examples:
+  - id: list-available-playground-models
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 1
+              model:
+                type: builtin
+                provider: OPENAI
+                modelName: gpt-5
+      messages:
+        - role: user
+          content: What models are available in this playground?
+    expected:
+      tools:
+        required: [list_playground_model_targets]
+        forbidden: [set_playground_model]
+        exact_match: true
+      budgets:
+        max_tool_calls: 1
+    metadata: {}
+  - id: generic-sonnet-switch-discovers-targets-first
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 1
+              model:
+                type: builtin
+                provider: OPENAI
+                modelName: gpt-5
+      messages:
+        - role: user
+          content: Switch this playground to sonnet.
+    expected:
+      tools:
+        required: [list_playground_model_targets, set_playground_model]
+        exact_match: true
+    metadata: {}

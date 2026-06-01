@@ -11096,7 +11096,7 @@
           "modelName"
         ],
         "title": "PlaygroundBuiltinModelContext",
-        "description": "Built-in model target available from the playground model menu."
+        "description": "Built-in playground model selection."
       },
       "PlaygroundContext": {
         "properties": {
@@ -11111,20 +11111,6 @@
             },
             "type": "array",
             "title": "Instances"
-          },
-          "availableBuiltinModels": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundBuiltinModelContext"
-            },
-            "type": "array",
-            "title": "Availablebuiltinmodels"
-          },
-          "availableCustomModels": {
-            "items": {
-              "$ref": "#/components/schemas/PlaygroundCustomProviderModelContext"
-            },
-            "type": "array",
-            "title": "Availablecustommodels"
           }
         },
         "type": "object",
@@ -11167,7 +11153,7 @@
           "modelName"
         ],
         "title": "PlaygroundCustomProviderModelContext",
-        "description": "Custom provider model target available from the playground model menu."
+        "description": "Custom-provider playground model selection."
       },
       "PlaygroundInstanceContext": {
         "properties": {

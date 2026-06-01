@@ -6,7 +6,10 @@ import {
   SET_TIME_RANGE_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
-import { SET_PLAYGROUND_MODEL_TOOL_NAME } from "@phoenix/agent/tools/playgroundModel";
+import {
+  LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+  SET_PLAYGROUND_MODEL_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundModel";
 import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
 import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
@@ -426,6 +429,38 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_PLAYGROUND_MODEL_TOOL_NAME,
         output: "model updated",
+      })
+    );
+  });
+
+  it("dispatches list_playground_model_targets to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({
+      ok: true,
+      output: "model targets",
+    });
+    store
+      .getState()
+      .registerClientAction(LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-list-model-targets",
+        toolName: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({});
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+        output: "model targets",
       })
     );
   });

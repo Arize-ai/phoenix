@@ -1,0 +1,17 @@
+<tool name="list_playground_model_targets">
+  <description>Read the model targets currently available in the mounted playground.</description>
+  <when_to_use>
+    - The user asks which playground models are available.
+    - You need to suggest, compare, or list playground model options.
+    - You need custom provider IDs or exact model target payloads before calling `set_playground_model`.
+    - You are preparing `ask_user` options that involve playground model choices.
+  </when_to_use>
+  <guidelines>
+    - Use this tool instead of relying on general knowledge of model lineups.
+    - Use the returned `target` payloads exactly when calling `set_playground_model`.
+    - If the user asks for a vague model family such as "sonnet" or "gpt", choose from the returned targets only when the family match is clear.
+    - When multiple returned targets match the same family, prefer the target whose returned model name appears to be the latest version in that family.
+    - If the returned targets do not make the latest version clear, ask the user which model to use instead of guessing from outside knowledge.
+    - Call `set_playground_model` directly only when the user already provided an exact target and no model-choice ambiguity remains.
+  </guidelines>
+</tool>

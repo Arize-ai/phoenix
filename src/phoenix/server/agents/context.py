@@ -98,7 +98,7 @@ class AppContext(_ChatContextBase):
 
 
 class PlaygroundBuiltinModelContext(_ChatContextBase):
-    """Built-in model target available from the playground model menu."""
+    """Built-in playground model selection."""
 
     type: Literal["builtin"] = "builtin"
     provider: str
@@ -106,7 +106,7 @@ class PlaygroundBuiltinModelContext(_ChatContextBase):
 
 
 class PlaygroundCustomProviderModelContext(_ChatContextBase):
-    """Custom provider model target available from the playground model menu."""
+    """Custom-provider playground model selection."""
 
     type: Literal["custom"] = "custom"
     custom_provider_id: str = Field(alias="customProviderId")
@@ -133,14 +133,6 @@ class PlaygroundContext(_ChatContextBase):
 
     type: Literal["playground"]
     instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
-    available_builtin_models: list[PlaygroundBuiltinModelContext] = Field(
-        default_factory=list,
-        alias="availableBuiltinModels",
-    )
-    available_custom_models: list[PlaygroundCustomProviderModelContext] = Field(
-        default_factory=list,
-        alias="availableCustomModels",
-    )
 
 
 class CodeEvaluatorContext(_ChatContextBase):

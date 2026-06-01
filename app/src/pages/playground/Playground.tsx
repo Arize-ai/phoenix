@@ -25,7 +25,9 @@ import {
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
+  createListPlaygroundModelTargetsClientAction,
   createSetPlaygroundModelClientAction,
+  LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
   SET_PLAYGROUND_MODEL_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundModel";
 import {
@@ -336,10 +338,8 @@ function PlaygroundContent() {
     () =>
       buildPlaygroundAgentContext({
         instances: playgroundInstancesForAgent,
-        availableBuiltinModels,
-        availableCustomModels,
       }),
-    [availableBuiltinModels, availableCustomModels, playgroundInstancesForAgent]
+    [playgroundInstancesForAgent]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 
@@ -438,6 +438,13 @@ function PlaygroundContent() {
       createWritePromptToolsClientAction({ playgroundStore })
     );
     registerClientAction(
+      LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+      createListPlaygroundModelTargetsClientAction({
+        availableBuiltinModels,
+        availableCustomModels,
+      })
+    );
+    registerClientAction(
       SET_PLAYGROUND_MODEL_TOOL_NAME,
       createSetPlaygroundModelClientAction({
         playgroundStore,
@@ -449,10 +456,13 @@ function PlaygroundContent() {
     return () => {
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
+      unregisterClientAction(LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME);
       unregisterClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME);
     };
   }, [
     agentStore,
+    availableBuiltinModels,
+    availableCustomModels,
     awsBedrockModelPrefix,
     modelCatalog,
     modelConfigByProvider,

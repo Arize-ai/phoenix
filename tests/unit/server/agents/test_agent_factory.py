@@ -34,7 +34,6 @@ from phoenix.server.agents.context import (
     DatasetContext,
     PlaygroundBuiltinModelContext,
     PlaygroundContext,
-    PlaygroundCustomProviderModelContext,
     PlaygroundInstanceContext,
     ProjectContext,
     ResolvedContexts,
@@ -59,6 +58,7 @@ DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
         _DEFAULT_PROMPTS.set_spans_filter_tool.render(),
         _DEFAULT_PROMPTS.set_playground_model_tool.render(),
+        _DEFAULT_PROMPTS.list_playground_model_targets_tool.render(),
         _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.read_playground_output_tool.render(),
         _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
@@ -353,7 +353,7 @@ class TestSystemBlockCacheBoundary:
 
 
 class TestUIContextInstructions:
-    async def test_playground_context_models_and_targets_are_outside_cache_boundary(
+    async def test_playground_context_selected_models_are_outside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -373,20 +373,6 @@ class TestUIContextInstructions:
                             ),
                         )
                     ],
-                    availableBuiltinModels=[
-                        PlaygroundBuiltinModelContext(
-                            provider="OPENAI",
-                            model_name="gpt-5",
-                        )
-                    ],
-                    availableCustomModels=[
-                        PlaygroundCustomProviderModelContext(
-                            custom_provider_id="custom-provider-id",
-                            custom_provider_name="Custom OpenAI",
-                            provider="OPENAI",
-                            model_name="custom-model",
-                        )
-                    ],
                 )
             ),
         )
@@ -400,8 +386,7 @@ class TestUIContextInstructions:
         uncached_text = _get_concatenated_text(uncached_blocks)
         playground_context_fragments = (
             '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>',
-            '<model provider="OPENAI" modelName="gpt-5"/>',
-            'customProviderId="custom-provider-id"',
+            "list_playground_model_targets",
             "set_playground_model",
         )
         for fragment in playground_context_fragments:
@@ -489,6 +474,7 @@ class TestPlaygroundTools:
         assert "read_playground_output" not in _get_tool_names(captured_request.body)
         assert "save_prompt" not in _get_tool_names(captured_request.body)
         assert "set_variable_values" not in _get_tool_names(captured_request.body)
+        assert "list_playground_model_targets" not in _get_tool_names(captured_request.body)
         assert "set_playground_model" not in _get_tool_names(captured_request.body)
 
     async def test_run_playground_tool_is_advertised_with_playground_context(
@@ -521,6 +507,7 @@ class TestPlaygroundTools:
         assert "read_playground_output" in _get_tool_names(captured_request.body)
         assert "save_prompt" in _get_tool_names(captured_request.body)
         assert "set_variable_values" in _get_tool_names(captured_request.body)
+        assert "list_playground_model_targets" in _get_tool_names(captured_request.body)
         assert "set_playground_model" in _get_tool_names(captured_request.body)
 
 

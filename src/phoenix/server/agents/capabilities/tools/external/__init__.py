@@ -15,6 +15,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     clone_prompt_instance,
     edit_code_evaluator_draft,
     edit_prompt_instance,
+    list_playground_model_targets,
     open_code_evaluator_form,
     read_code_evaluator_draft,
     read_playground_output,
@@ -43,6 +44,9 @@ from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft
 )
 from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance import (
     EditPromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.list_playground_model_targets import (
+    ListPlaygroundModelTargetsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.open_code_evaluator_form import (
     OpenCodeEvaluatorFormCapability,
@@ -101,6 +105,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         read_prompt_instance.TOOL_DEFINITION,
         read_prompt_tools.TOOL_DEFINITION,
         read_playground_output.TOOL_DEFINITION,
+        list_playground_model_targets.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
         run_code_evaluator_draft.TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
@@ -137,6 +142,9 @@ def get_external_tool_capability_function(
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
         SetSpansFilterCapability(instructions=prompts.set_spans_filter_tool),
         SetPlaygroundModelCapability(instructions=prompts.set_playground_model_tool),
+        ListPlaygroundModelTargetsCapability(
+            instructions=prompts.list_playground_model_targets_tool
+        ),
         ReadPromptInstanceCapability(instructions=prompts.read_prompt_instance_tool),
         ReadPromptToolsCapability(instructions=prompts.read_prompt_tools_tool),
         ReadPlaygroundOutputCapability(instructions=prompts.read_playground_output_tool),
@@ -166,6 +174,7 @@ __all__ = [
     "ClonePromptInstanceCapability",
     "EditCodeEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
+    "ListPlaygroundModelTargetsCapability",
     "OpenCodeEvaluatorFormCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",

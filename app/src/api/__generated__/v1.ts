@@ -3119,7 +3119,7 @@ export interface components {
         };
         /**
          * PlaygroundBuiltinModelContext
-         * @description Built-in model target available from the playground model menu.
+         * @description Built-in playground model selection.
          */
         PlaygroundBuiltinModelContext: {
             /**
@@ -3144,14 +3144,10 @@ export interface components {
             type: "playground";
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
-            /** Availablebuiltinmodels */
-            availableBuiltinModels?: components["schemas"]["PlaygroundBuiltinModelContext"][];
-            /** Availablecustommodels */
-            availableCustomModels?: components["schemas"]["PlaygroundCustomProviderModelContext"][];
         };
         /**
          * PlaygroundCustomProviderModelContext
-         * @description Custom provider model target available from the playground model menu.
+         * @description Custom-provider playground model selection.
          */
         PlaygroundCustomProviderModelContext: {
             /**

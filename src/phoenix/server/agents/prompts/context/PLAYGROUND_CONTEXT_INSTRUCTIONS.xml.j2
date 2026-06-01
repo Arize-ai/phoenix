@@ -6,19 +6,7 @@
     <instance label="{{ labels[loop.index0] }}" instanceId="{{ instance.instance_id }}"{% if instance.model %} provider="{{ safe_attr(instance.model.provider) }}" modelName="{{ safe_attr(instance.model.model_name) }}"{% if instance.model.type == "custom" %} customProviderId="{{ safe_attr(instance.model.custom_provider_id) }}" customProviderName="{{ safe_attr(instance.model.custom_provider_name) }}"{% endif %}{% endif %}/>
 {% endfor %}
   </instances>
-  <available_model_targets>
-    <builtin_models>
-{% for model in playground.available_builtin_models %}
-      <model provider="{{ safe_attr(model.provider) }}" modelName="{{ safe_attr(model.model_name) }}"/>
-{% endfor %}
-    </builtin_models>
-    <custom_provider_models>
-{% for model in playground.available_custom_models %}
-      <model customProviderId="{{ safe_attr(model.custom_provider_id) }}" customProviderName="{{ safe_attr(model.custom_provider_name) }}" provider="{{ safe_attr(model.provider) }}" modelName="{{ safe_attr(model.model_name) }}"/>
-{% endfor %}
-    </custom_provider_models>
-  </available_model_targets>
-  <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, `set_playground_model` to switch an instance's model immediately, `set_variable_values` when the user wants to populate manual playground variable inputs, `run_playground` when the user wants to run the mounted playground, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state. When suggesting or listing playground models for the user to choose from, including `ask_user` options, consult the `available_model_targets` above and prefer the latest available model version from each provider unless the user specifies otherwise. Do not rely on general knowledge of model lineups; use the models actually available in this playground. For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.</guidance>
+  <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, `list_playground_model_targets` before suggesting or listing available playground models, `set_playground_model` to switch an instance's model immediately, `set_variable_values` when the user wants to populate manual playground variable inputs, `run_playground` when the user wants to run the mounted playground, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state. For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.</guidance>
   <dataset_evaluator_authoring>
 {% if dataset %}
     A dataset is loaded in the playground. If the user asks to create or iterate on a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough.

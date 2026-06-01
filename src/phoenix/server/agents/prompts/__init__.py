@@ -20,6 +20,9 @@ _SET_SPANS_FILTER_TOOL_INSTRUCTIONS = get_template(
 _SET_PLAYGROUND_MODEL_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_PLAYGROUND_MODEL_TOOL_INSTRUCTIONS.xml.j2"
 )
+_LIST_PLAYGROUND_MODEL_TARGETS_TOOL_INSTRUCTIONS = get_template(
+    "tools/LIST_PLAYGROUND_MODEL_TARGETS_TOOL_INSTRUCTIONS.xml.j2"
+)
 _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -90,6 +93,7 @@ class AgentPrompts:
     render_generative_ui_tool: Template = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
     set_spans_filter_tool: Template = _SET_SPANS_FILTER_TOOL_INSTRUCTIONS
     set_playground_model_tool: Template = _SET_PLAYGROUND_MODEL_TOOL_INSTRUCTIONS
+    list_playground_model_targets_tool: Template = _LIST_PLAYGROUND_MODEL_TARGETS_TOOL_INSTRUCTIONS
     read_prompt_instance_tool: Template = _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     read_playground_output_tool: Template = _READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS
     clone_prompt_instance_tool: Template = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS

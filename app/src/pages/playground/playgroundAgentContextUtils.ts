@@ -5,21 +5,6 @@ type PlaygroundAgentContext = Extract<AgentContext, { type: "playground" }>;
 type PlaygroundAgentInstance = NonNullable<
   PlaygroundAgentContext["instances"]
 >[number];
-type PlaygroundAgentModel = NonNullable<PlaygroundAgentInstance["model"]>;
-type PlaygroundAgentBuiltinModel = Extract<
-  PlaygroundAgentModel,
-  { type: "builtin" }
->;
-type PlaygroundAgentCustomModel = Extract<
-  PlaygroundAgentModel,
-  { type: "custom" }
->;
-
-type PlaygroundAvailableBuiltinModel = Omit<
-  PlaygroundAgentBuiltinModel,
-  "type"
->;
-type PlaygroundAvailableCustomModel = Omit<PlaygroundAgentCustomModel, "type">;
 
 export function getPlaygroundInstanceForAgent(
   instance: Pick<PlaygroundInstance, "id" | "model">
@@ -94,23 +79,11 @@ export function arePlaygroundInstancesForAgentEqual(
 
 export function buildPlaygroundAgentContext({
   instances,
-  availableBuiltinModels,
-  availableCustomModels,
 }: {
   instances: PlaygroundAgentInstance[];
-  availableBuiltinModels: PlaygroundAvailableBuiltinModel[];
-  availableCustomModels: PlaygroundAvailableCustomModel[];
 }): PlaygroundAgentContext {
   return {
     type: "playground",
     instances,
-    availableBuiltinModels: availableBuiltinModels.map((model) => ({
-      type: "builtin",
-      ...model,
-    })),
-    availableCustomModels: availableCustomModels.map((model) => ({
-      type: "custom",
-      ...model,
-    })),
   };
 }

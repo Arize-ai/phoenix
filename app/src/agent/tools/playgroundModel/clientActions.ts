@@ -5,9 +5,15 @@ import {
 } from "@phoenix/components/generative/modelProviderUtils";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { parseSetPlaygroundModelInput } from "./parsers";
+import {
+  parseListPlaygroundModelTargetsInput,
+  parseSetPlaygroundModelInput,
+} from "./parsers";
 import type {
+  CreateListPlaygroundModelTargetsClientActionOptions,
   CreateSetPlaygroundModelClientActionOptions,
+  ListPlaygroundBuiltinModelTarget,
+  ListPlaygroundCustomModelTarget,
   SetPlaygroundModelInput,
 } from "./types";
 
@@ -154,6 +160,53 @@ export function createSetPlaygroundModelClientAction({
           modelName: selectedModelName,
           ...(customProvider ? { customProvider } : {}),
           message: "Playground model updated.",
+        },
+        null,
+        2
+      ),
+    };
+  };
+}
+
+export function createListPlaygroundModelTargetsClientAction({
+  availableBuiltinModels,
+  availableCustomModels,
+}: CreateListPlaygroundModelTargetsClientActionOptions) {
+  return async (input: unknown): Promise<AgentClientActionResult> => {
+    const parsed = parseListPlaygroundModelTargetsInput(input);
+    if (!parsed) {
+      return {
+        ok: false,
+        error: "Invalid list_playground_model_targets input.",
+      };
+    }
+    const builtinModels: ListPlaygroundBuiltinModelTarget[] =
+      availableBuiltinModels.map((model) => ({
+        target: {
+          type: "builtin",
+          provider: model.provider,
+          modelName: model.modelName,
+        },
+      }));
+    const customProviderModels: ListPlaygroundCustomModelTarget[] =
+      availableCustomModels.map((model) => ({
+        target: {
+          type: "custom",
+          customProviderId: model.customProviderId,
+          modelName: model.modelName,
+        },
+        customProviderName: model.customProviderName,
+        provider: model.provider,
+      }));
+
+    return {
+      ok: true,
+      output: JSON.stringify(
+        {
+          builtinModels,
+          customProviderModels,
+          message:
+            "Use the returned target payloads when calling set_playground_model.",
         },
         null,
         2

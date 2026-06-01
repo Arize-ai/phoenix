@@ -1,5 +1,7 @@
 import {
+  createListPlaygroundModelTargetsClientAction,
   createSetPlaygroundModelClientAction,
+  parseListPlaygroundModelTargetsInput,
   parseSetPlaygroundModelInput,
 } from "@phoenix/agent/tools/playgroundModel";
 import {
@@ -37,6 +39,84 @@ describe("playground model agent tools", () => {
         customProviderId: "custom-provider-id",
         modelName: "custom-model",
       },
+    });
+  });
+
+  it("parses list_playground_model_targets empty input", () => {
+    expect(parseListPlaygroundModelTargetsInput(undefined)).toEqual({});
+    expect(parseListPlaygroundModelTargetsInput({})).toEqual({});
+    expect(parseListPlaygroundModelTargetsInput({ unexpected: true })).toBe(
+      null
+    );
+  });
+
+  it("lists available built-in and custom playground model targets", async () => {
+    const action = createListPlaygroundModelTargetsClientAction({
+      availableBuiltinModels: [
+        { provider: "OPENAI", modelName: "gpt-5" },
+        { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
+      ],
+      availableCustomModels: [
+        {
+          customProviderId: "custom-provider-id",
+          customProviderName: "Custom OpenAI",
+          provider: "OPENAI",
+          modelName: "custom-model",
+        },
+      ],
+    });
+
+    const result = await action({});
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    const output = JSON.parse(result.output ?? "{}");
+    expect(output).toEqual({
+      builtinModels: [
+        {
+          target: { type: "builtin", provider: "OPENAI", modelName: "gpt-5" },
+        },
+        {
+          target: {
+            type: "builtin",
+            provider: "ANTHROPIC",
+            modelName: "claude-sonnet-4-6",
+          },
+        },
+      ],
+      customProviderModels: [
+        {
+          target: {
+            type: "custom",
+            customProviderId: "custom-provider-id",
+            modelName: "custom-model",
+          },
+          customProviderName: "Custom OpenAI",
+          provider: "OPENAI",
+        },
+      ],
+      message:
+        "Use the returned target payloads when calling set_playground_model.",
+    });
+  });
+
+  it("lists empty playground model targets", async () => {
+    const action = createListPlaygroundModelTargetsClientAction({
+      availableBuiltinModels: [],
+      availableCustomModels: [],
+    });
+
+    const result = await action({});
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    expect(JSON.parse(result.output ?? "{}")).toMatchObject({
+      builtinModels: [],
+      customProviderModels: [],
     });
   });
 

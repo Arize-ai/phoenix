@@ -1,30 +1,54 @@
 import type { z } from "zod";
 
-import type { GenerativeModelSDK } from "@phoenix/components/generative/useModelMenuData";
+import type {
+  AvailableBuiltinModel,
+  AvailableCustomModel,
+  ModelCatalog,
+} from "@phoenix/components/generative/useModelMenuData";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 import type { ModelConfigByProvider } from "@phoenix/store/preferencesStore";
 
-import type { setPlaygroundModelInputSchema } from "./schemas";
+import type {
+  listPlaygroundModelTargetsInputSchema,
+  setPlaygroundModelInputSchema,
+} from "./schemas";
+
+export type ListPlaygroundModelTargetsInput = z.output<
+  typeof listPlaygroundModelTargetsInputSchema
+>;
 
 export type SetPlaygroundModelInput = z.output<
   typeof setPlaygroundModelInputSchema
 >;
 
-export type PlaygroundModelCustomProvider = {
-  id: string;
-  name: string;
-  sdk: GenerativeModelSDK;
-  modelNames: readonly string[];
+export type SetPlaygroundModelTarget = SetPlaygroundModelInput["target"];
+export type BuiltinPlaygroundModelTarget = Extract<
+  SetPlaygroundModelTarget,
+  { type: "builtin" }
+>;
+export type CustomPlaygroundModelTarget = Extract<
+  SetPlaygroundModelTarget,
+  { type: "custom" }
+>;
+
+export type ListPlaygroundBuiltinModelTarget = {
+  target: BuiltinPlaygroundModelTarget;
 };
 
-export type PlaygroundModelCatalog = {
-  installedBuiltInProviders: ReadonlySet<ModelProvider>;
-  customProviders: readonly PlaygroundModelCustomProvider[];
+export type ListPlaygroundCustomModelTarget = {
+  target: CustomPlaygroundModelTarget;
+  customProviderName: string;
+  provider: ModelProvider;
 };
 
 export type CreateSetPlaygroundModelClientActionOptions = {
-  modelCatalog: PlaygroundModelCatalog;
+  modelCatalog: ModelCatalog;
   modelConfigByProvider: ModelConfigByProvider;
   playgroundStore: PlaygroundStore;
   awsBedrockModelPrefix?: string | null;
+};
+
+export type CreateListPlaygroundModelTargetsClientActionOptions = {
+  availableBuiltinModels: readonly AvailableBuiltinModel[];
+  availableCustomModels: readonly AvailableCustomModel[];
 };
