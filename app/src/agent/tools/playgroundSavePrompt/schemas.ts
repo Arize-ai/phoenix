@@ -27,6 +27,8 @@ export const savePromptInputSchema = z
     ...(tags !== undefined ? { tags } : {}),
   }));
 
+export const savePromptModeSchema = z.enum(["create", "update"]);
+
 /**
  * Shape of a successful save_prompt tool output. The tool output is serialized
  * to JSON for the agent transcript and re-parsed here, so it is validated
@@ -35,7 +37,7 @@ export const savePromptInputSchema = z
  */
 export const savePromptOutputSchema = z.object({
   status: z.literal("saved"),
-  mode: z.enum(["create", "update"]),
+  mode: savePromptModeSchema,
   instanceId: z.number(),
   label: z.string(),
   promptId: z.string(),

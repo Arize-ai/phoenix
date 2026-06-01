@@ -4,8 +4,8 @@ import { z } from "zod";
 
 import {
   parseSavePromptInput,
+  parseSavePromptResult,
   SAVE_PROMPT_TOOL_NAME,
-  savePromptOutputSchema,
   type PendingSavePrompt,
   type SavePromptMode,
   type SavePromptPreview,
@@ -293,8 +293,4 @@ function getOutputStatus(output: unknown): string | null {
 
 function isAutoAccepted(output: unknown): boolean {
   return autoAcceptedSchema.safeParse(output).success;
-}
-
-function parseSavePromptResult(output: unknown) {
-  return savePromptOutputSchema.safeParse(output).data ?? null;
 }

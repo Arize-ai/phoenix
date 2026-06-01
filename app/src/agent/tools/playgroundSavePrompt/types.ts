@@ -13,26 +13,19 @@ import type {
   CreateChatPromptVersionInput,
   savePlaygroundPromptCreateVersionMutation$data,
 } from "./__generated__/savePlaygroundPromptCreateVersionMutation.graphql";
-import type { savePromptInputSchema } from "./schemas";
+import type {
+  savePromptInputSchema,
+  savePromptModeSchema,
+  savePromptOutputSchema,
+} from "./schemas";
 
 export type SavePromptInput = z.output<typeof savePromptInputSchema>;
 
 export type SavePromptToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
-export type SavePromptMode = "create" | "update";
+export type SavePromptMode = z.output<typeof savePromptModeSchema>;
 
-export type SavePromptOutput = {
-  status: "saved";
-  mode: SavePromptMode;
-  instanceId: number;
-  label: string;
-  promptId: string;
-  promptName: string;
-  promptVersionId: string;
-  tag: string | null;
-  dirtyBeforeSave: boolean;
-  message: string;
-};
+export type SavePromptOutput = z.output<typeof savePromptOutputSchema>;
 
 export type SavePromptPreview = {
   mode: SavePromptMode;
