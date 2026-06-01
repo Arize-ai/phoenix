@@ -46,11 +46,6 @@ const webSearchToggleCSS = css`
     opacity: 1;
   }
 
-  &[data-selected="true"][data-hovered] {
-    color: var(--global-color-blue-700);
-    background-color: var(--hover-background);
-  }
-
   &[data-focus-visible] {
     outline: var(--global-border-size-thick) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);

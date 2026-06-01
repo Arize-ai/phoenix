@@ -17,16 +17,11 @@ describe("agent capabilities", () => {
     const debugMenuCapabilities = getAgentCapabilitiesForControlSurface(
       "experimental-settings"
     );
-    const agentSettingsCapabilities =
-      getAgentCapabilitiesForControlSurface("agent-settings");
 
     expect(debugMenuCapabilities).toEqual(
       AGENT_CAPABILITY_DEFINITIONS.filter(
         (definition) => definition.controlSurface === "experimental-settings"
       )
     );
-    // web.access moved to the chat globe toggle, so no capability is surfaced
-    // in agent settings anymore.
-    expect(agentSettingsCapabilities).toEqual([]);
   });
 });

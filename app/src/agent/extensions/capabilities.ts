@@ -18,7 +18,7 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "agent-settings" | "experimental-settings";
+  controlSurface?: "experimental-settings";
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
