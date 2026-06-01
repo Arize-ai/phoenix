@@ -1,5 +1,24 @@
 # Changelog
 
+## [16.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.4.0...arize-phoenix-v16.5.0) (2026-06-01)
+
+
+### Features
+
+* add playground save prompt tool ([#13517](https://github.com/Arize-ai/phoenix/issues/13517)) ([1641957](https://github.com/Arize-ai/phoenix/commit/164195778c58c7aaa43c0e00314045f15b3c6796))
+* **agent:** rewind, fork, and copy controls for chat messages ([#13524](https://github.com/Arize-ai/phoenix/issues/13524)) ([f5df5ec](https://github.com/Arize-ai/phoenix/commit/f5df5ecc6e719755d981c54eada3e896772ac4bc))
+* **agents:** add annotate-spans skill for the PXI agent ([#13523](https://github.com/Arize-ai/phoenix/issues/13523)) ([4b4f7a7](https://github.com/Arize-ai/phoenix/commit/4b4f7a745dc3faf587fdf9c1a0c1e4bdea762eee))
+* **agents:** add read_prompt_tools and write_prompt_tools to PXI ([#13509](https://github.com/Arize-ai/phoenix/issues/13509)) ([66a412b](https://github.com/Arize-ai/phoenix/commit/66a412b3122095d56db72713a97e3c0eb6ffb9b0))
+* **agents:** add summary argument to PXI bash tool for UI preview ([#13501](https://github.com/Arize-ai/phoenix/issues/13501)) ([16039bd](https://github.com/Arize-ai/phoenix/commit/16039bdf9b7b56811f074c8fb327e2cf86f47973))
+* **sandbox:** seed default sandbox configs for local adapters ([#13486](https://github.com/Arize-ai/phoenix/issues/13486)) ([3bf7f3d](https://github.com/Arize-ai/phoenix/commit/3bf7f3d12857164e36821367c5c35bf46e77eb80))
+
+
+### Bug Fixes
+
+* **app:** surface descriptive errors for empty or non-JSON GraphQL responses ([#13539](https://github.com/Arize-ai/phoenix/issues/13539)) ([dfe1bf8](https://github.com/Arize-ai/phoenix/commit/dfe1bf8df7671a1dafc093fa95ff7c0f3dac70d2))
+* **graphql:** return prompt label name as plain string ([#13562](https://github.com/Arize-ai/phoenix/issues/13562)) ([ebf0df7](https://github.com/Arize-ai/phoenix/commit/ebf0df78aa2f7d5d777ac6ea3014854b1721a536))
+* **ui:** pass project id to trace sparkline ([#13552](https://github.com/Arize-ai/phoenix/issues/13552)) ([cc4e50a](https://github.com/Arize-ai/phoenix/commit/cc4e50a8de96a191e7ecb5e0b1ad4bdec36a1df3))
+
 ## [16.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.3.0...arize-phoenix-v16.4.0) (2026-06-01)
 
 
