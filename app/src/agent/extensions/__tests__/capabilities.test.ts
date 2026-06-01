@@ -17,16 +17,11 @@ describe("agent capabilities", () => {
     const debugMenuCapabilities = getAgentCapabilitiesForControlSurface(
       "experimental-settings"
     );
-    const agentSettingsCapabilities =
-      getAgentCapabilitiesForControlSurface("agent-settings");
 
     expect(debugMenuCapabilities).toEqual(
       AGENT_CAPABILITY_DEFINITIONS.filter(
         (definition) => definition.controlSurface === "experimental-settings"
       )
     );
-    expect(
-      agentSettingsCapabilities.map((definition) => definition.key)
-    ).toEqual(["web.access"]);
   });
 });

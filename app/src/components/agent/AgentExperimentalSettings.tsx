@@ -1,9 +1,6 @@
 import { css } from "@emotion/react";
 
-import {
-  getAgentCapabilitiesForControlSurface,
-  getAgentCapabilityDefinition,
-} from "@phoenix/agent/extensions/capabilities";
+import { getAgentCapabilitiesForControlSurface } from "@phoenix/agent/extensions/capabilities";
 import { Alert, Flex, Switch, Text, View } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
@@ -89,40 +86,5 @@ export function AgentExperimentalSettings() {
         </Flex>
       </View>
     </details>
-  );
-}
-
-export function AgentWebAccessSettings() {
-  const store = useAgentStore();
-  const capabilities = useAgentContext((state) => state.capabilities);
-  const isWebAccessEnabled = useAgentContext(
-    (state) => state.agentsConfig.webAccessEnabled
-  );
-  const definition = getAgentCapabilityDefinition("web.access");
-
-  if (!isWebAccessEnabled) {
-    return null;
-  }
-
-  return (
-    <div css={settingsCSS}>
-      <div css={settingRowCSS}>
-        <Switch
-          isSelected={capabilities[definition.key]}
-          onChange={(enabled) => {
-            store.getState().setCapability({ key: definition.key, enabled });
-          }}
-          labelPlacement="start"
-          css={settingSwitchCSS}
-        >
-          <span className="agent-settings__label">
-            <Text weight="heavy" size="M">
-              {definition.label}
-            </Text>
-            <Text color="text-500">{definition.description}</Text>
-          </span>
-        </Switch>
-      </div>
-    </div>
   );
 }
