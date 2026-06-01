@@ -1,0 +1,463 @@
+dataset_name: debug_trace_skill_trigger
+description: >-
+  PXI server-side eval suite for debug-trace skill trigger correctness.
+  Tests whether the agent calls load_skill(skill_name="debug-trace") when the
+  user asks for explicit cross-trace diagnosis (positive cases), and correctly
+  avoids triggering the skill for advice questions, statistical queries, filter
+  intents, summarize requests, vague questions, and queries answerable without
+  a full diagnostic investigation (negative cases).
+
+  Trigger criterion (from SKILL.md): explicit cross-trace diagnosis —
+  "what's going wrong?", "were there errors?", "debug this", "where is my
+  agent struggling?". Non-trigger cases: advice questions, statistical
+  questions, summarize requests, trace-filter intents, vague diagnostic
+  questions, queries answerable with bash/filter tools directly, and
+  unrelated requests.
+
+  Negative examples use forbidden_tool_call_args rather than
+  tools.forbidden so that a legitimate load_skill call for a different skill
+  in the same turn does not cause a false failure.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - forbidden_tool_call_args_match
+
+examples:
+
+  # ===== Positive triggers: skill should fire =====
+
+  - id: what-wrong-application
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What's wrong with this application?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Explicit diagnosis request. Maps directly to the trigger phrase
+          "what's going wrong?" in the skill description.
+
+  - id: where-agent-struggling
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where is my agent struggling?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: Verbatim trigger phrase from the skill description.
+
+  - id: common-failure-modes
+    # Moved to dev: fails consistently because the model reads this as a
+    # general knowledge question answerable from the skill description text
+    # already visible in the system prompt, so it never calls load_skill.
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: What are some common failure modes?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Explicit request for failure taxonomy across traces — core purpose
+          of the skill. Moved to dev: model consistently answers from
+          skill-description context without calling load_skill.
+
+  - id: something-broken-investigate
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Something is broken in this app, help me figure out what.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Explicit diagnosis request with investigation framing. Clear
+          cross-trace debugging intent.
+
+  - id: why-agent-failing
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Why is this agent failing?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Direct failure diagnosis question. Requires multi-trace inspection
+          to answer.
+
+  - id: where-things-going-wrong
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where are things going wrong?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Broad diagnosis request. Semantically close to the verbatim trigger
+          phrase "what's going wrong?" in the skill description.
+
+  - id: investigate-rag-underperforming
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Investigate why my RAG pipeline is underperforming.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Explicit investigation request targeting retrieval quality — a core
+          failure mode category in the skill. "Investigate" makes the
+          diagnostic intent unambiguous.
+
+  - id: weird-behavior-look-into-it
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: I'm seeing weird behavior in my traces, can you look into it?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          User-reported anomaly with explicit investigation request. "Look
+          into it" combined with "weird behavior" is a clear cross-trace
+          diagnosis trigger.
+
+  - id: debug-this
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Debug this.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: Verbatim trigger phrase from the skill description.
+
+  - id: agent-context-quality
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Does my agent have proper context to answer user queries?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Context quality investigation — requires inspecting retrieval and
+          LLM input spans across traces. Cross-trace diagnosis.
+
+  # ===== Negative triggers: skill should NOT fire =====
+  # Uses forbidden_tool_call_args (not tools.forbidden) so a legitimate
+  # load_skill call for a different skill in the same turn doesn't fail.
+
+  - id: negative-errors-last-day
+    # "Were there any errors in the last day?" reads as a yes/no lookup —
+    # answerable with a single bash/filter query. Not a diagnosis request.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Were there any errors in the last day?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Yes/no error lookup answerable with bash or set_spans_filter.
+          The time qualifier and closed-form phrasing make this a data
+          query rather than a diagnostic investigation.
+
+  - id: negative-tool-errors
+    # "Have there been any tool errors?" is a yes/no lookup over tool spans —
+    # answerable with bash or set_spans_filter without a full trace diagnosis.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Have there been any tool errors?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Closed-form error query over tool spans. Can be answered directly
+          with bash (phoenix-gql) or a set_spans_filter on tool error spans.
+          Does not require a multi-trace diagnostic investigation.
+
+  - id: negative-compare-traces
+    # "Compare this trace to other older traces" could be exploratory browsing
+    # rather than failure diagnosis. No active trace in context and no
+    # explicit failure framing makes this a navigation/comparison request.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Compare this trace to other older traces.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Exploratory comparison without explicit failure framing. No active
+          trace in context. Addressable with bash queries rather than a full
+          diagnostic skill run.
+
+  - id: negative-tell-me-about-project
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Tell me about this project.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          General project information request — not a diagnosis. Falls under
+          "unrelated requests" in the skill's non-trigger list.
+
+  - id: negative-trace-structure
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Describe the structure of traces in this project.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Structural / definitional question about how traces are organized.
+          Not a request to investigate failures.
+
+  - id: negative-filter-errors
+    # Wrong-tool case: "show me traces with errors" is a filter intent,
+    # not a cross-trace diagnosis request.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Show me only traces with errors.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Trace filter intent — maps to set_spans_filter (status_code ==
+          'ERROR'). The skill description lists trace filtering as an
+          explicit non-trigger.
+
+  - id: negative-advice-what-should-i-do
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What should I do to fix my agent?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Advice question — "what should I do?" is the canonical non-trigger
+          example in the skill description.
+
+  - id: negative-stat-average-latency
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What's the average latency?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Statistical question — explicitly excluded by the skill description.
+          The agent should query metrics directly, not launch a diagnostic
+          investigation.
+
+  - id: negative-summarize-project
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Summarize the current state of this project.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Summarize request — explicitly excluded by the skill description.
+
+  - id: negative-vague-is-problem
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Is there a problem with my project?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Vague diagnostic question — explicitly excluded by the skill
+          description ("is there a problem?"). Too open-ended without user
+          narrowing the scope. Medium agreement: reads close to "what's going
+          wrong?" but the skill description draws a clear line here.
+
+  - id: negative-improve-tracing
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: How can I improve the tracing of this project?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: debug-trace
+    metadata:
+      negative: true
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Improvement / advice question. Primary intent is prescriptive
+          ("how can I improve"), placing it in the advice-question
+          non-trigger category. Medium agreement because the
+          instrumentation-gaps failure mode is real and diagnosable, but
+          triggering a full debug investigation is overreach without more
+          user signal.

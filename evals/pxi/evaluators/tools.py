@@ -504,6 +504,77 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     return _success()
 
 
+def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
+    """Fail if any observed tool call matches a forbidden tool+args combination.
+
+    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}``.
+    For each listed tool, fails if ANY observed call to that tool has ALL the
+    specified key-value pairs in its args (subset match, same as
+    :func:`evaluate_tool_call_args`). Passes vacuously when the section is
+    absent or empty.
+
+    This is the inverse of :func:`evaluate_tool_call_args`: instead of
+    asserting a call DID happen with certain args, it asserts a call did NOT.
+    The primary use case is checking that a specific skill was not triggered --
+    e.g. ``forbidden_tool_call_args: {load_skill: {skill_name: debug-trace}}``
+    -- without forbidding *all* ``load_skill`` calls (the agent may legitimately
+    load a different skill in the same turn).
+    """
+    forbidden_args_by_tool = _as_dict(_as_dict(expected).get("forbidden_tool_call_args", {}))
+    if not forbidden_args_by_tool:
+        return _success()
+
+    observed_calls = tool_calls_from_output(output)
+    violations: dict[str, Any] = {}
+
+    for tool_name, forbidden_for_tool in forbidden_args_by_tool.items():
+        if not isinstance(tool_name, str):
+            continue
+        if not isinstance(forbidden_for_tool, dict):
+            violations[tool_name] = {
+                "reason": "forbidden_tool_call_args entry must be an object",
+                "value": forbidden_for_tool,
+            }
+            continue
+        matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
+        for call in matching_calls:
+            call_args = _tool_args(call)
+            if all(
+                _pair_passes(call_args, key, value) for key, value in forbidden_for_tool.items()
+            ):
+                violations[tool_name] = {
+                    "forbidden_args": dict(forbidden_for_tool),
+                    "observed_args": dict(call_args),
+                }
+                break
+
+    if violations:
+        return _failure(
+            "Forbidden tool+args combination was called",
+            metadata={"violations": violations},
+        )
+    return _success()
+
+
+@create_evaluator(name="forbidden_tool_call_args_match", kind="code")
+def forbidden_tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
+    """Evaluator entrypoint: assert a specific tool+args combination was NOT called.
+
+    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}``.
+    Fails if any observed call to the named tool matches ALL specified arg
+    pairs. Passes vacuously when the section is absent.
+
+    Use this instead of (or alongside) ``expected.tools.forbidden`` when the
+    tool may legitimately be called with *different* args in the same turn --
+    the canonical case being ``load_skill``, which can be called for multiple
+    skills and where only one specific ``skill_name`` value should be
+    forbidden.
+
+    See :func:`evaluate_forbidden_tool_call_args` for full semantics.
+    """
+    return evaluate_forbidden_tool_call_args(output, expected)
+
+
 @create_evaluator(name="tool_call_args_match", kind="code")
 def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     """Generic tool-call arg matcher used by every PXI dataset.
