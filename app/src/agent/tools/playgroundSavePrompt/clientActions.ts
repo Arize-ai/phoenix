@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -17,25 +19,16 @@ type SavePlaygroundPrompt = (
   params: SavePlaygroundPromptParams
 ) => ReturnType<typeof savePlaygroundPrompt>;
 
-type SavePromptActionContext = {
-  toolCallId: string;
-  sessionId: string;
-  addToolOutput: SavePromptToolOutputSender;
-};
+const savePromptActionContextSchema = z.object({
+  toolCallId: z.string(),
+  sessionId: z.string(),
+  addToolOutput: z.custom<SavePromptToolOutputSender>(
+    (value) => typeof value === "function"
+  ),
+});
 
-function parseSavePromptActionContext(
-  context: unknown
-): SavePromptActionContext | null {
-  if (typeof context !== "object" || context === null) return null;
-  const candidate = context as Partial<SavePromptActionContext>;
-  if (typeof candidate.toolCallId !== "string") return null;
-  if (typeof candidate.sessionId !== "string") return null;
-  if (typeof candidate.addToolOutput !== "function") return null;
-  return {
-    toolCallId: candidate.toolCallId,
-    sessionId: candidate.sessionId,
-    addToolOutput: candidate.addToolOutput,
-  };
+function parseSavePromptActionContext(context: unknown) {
+  return savePromptActionContextSchema.safeParse(context).data ?? null;
 }
 
 /**

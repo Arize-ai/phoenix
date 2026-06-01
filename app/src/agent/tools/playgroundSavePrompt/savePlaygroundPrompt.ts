@@ -241,10 +241,14 @@ export function getSavePromptPreview({
     };
   }
 
-  const shouldCreatePrompt = input.promptId == null && input.name != null;
-  const promptId =
-    input.promptId ??
-    (shouldCreatePrompt ? null : (instance.prompt?.id ?? null));
+  // A name without a promptId means the agent wants a brand-new prompt rather
+  // than a new version of whichever prompt the instance is currently linked to,
+  // so we ignore the instance's existing prompt id in that case. `mode` is then
+  // simply derived from whether we ended up with a target prompt id to version.
+  const createsNewNamedPrompt = input.promptId == null && input.name != null;
+  const promptId = createsNewNamedPrompt
+    ? null
+    : (input.promptId ?? instance.prompt?.id ?? null);
   const mode: SavePromptMode = promptId ? "update" : "create";
   const promptName =
     mode === "update"

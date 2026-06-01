@@ -1,12 +1,13 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { z } from "zod";
 
 import {
   parseSavePromptInput,
   SAVE_PROMPT_TOOL_NAME,
+  savePromptOutputSchema,
   type PendingSavePrompt,
   type SavePromptMode,
-  type SavePromptOutput,
   type SavePromptPreview,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Button, Flex, Link, Token, View } from "@phoenix/components";
@@ -283,30 +284,17 @@ function SavePromptPreviewRow({
   );
 }
 
+const outputStatusSchema = z.object({ status: z.string() });
+const autoAcceptedSchema = z.object({ acceptedBy: z.literal("auto") });
+
 function getOutputStatus(output: unknown): string | null {
-  if (typeof output !== "object" || output === null || Array.isArray(output)) {
-    return null;
-  }
-  const status = (output as Record<string, unknown>).status;
-  return typeof status === "string" ? status : null;
+  return outputStatusSchema.safeParse(output).data?.status ?? null;
 }
 
 function isAutoAccepted(output: unknown): boolean {
-  if (typeof output !== "object" || output === null || Array.isArray(output)) {
-    return false;
-  }
-  return (output as Record<string, unknown>).acceptedBy === "auto";
+  return autoAcceptedSchema.safeParse(output).success;
 }
 
-function parseSavePromptResult(output: unknown): SavePromptOutput | null {
-  if (typeof output !== "object" || output === null || Array.isArray(output)) {
-    return null;
-  }
-  const result = output as Partial<SavePromptOutput>;
-  if (result.status !== "saved") return null;
-  if (result.mode !== "create" && result.mode !== "update") return null;
-  if (typeof result.promptId !== "string") return null;
-  if (typeof result.promptName !== "string") return null;
-  if (typeof result.promptVersionId !== "string") return null;
-  return result as SavePromptOutput;
+function parseSavePromptResult(output: unknown) {
+  return savePromptOutputSchema.safeParse(output).data ?? null;
 }

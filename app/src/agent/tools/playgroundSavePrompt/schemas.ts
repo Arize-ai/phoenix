@@ -26,3 +26,22 @@ export const savePromptInputSchema = z
     description,
     ...(tags !== undefined ? { tags } : {}),
   }));
+
+/**
+ * Shape of a successful save_prompt tool output. The tool output is serialized
+ * to JSON for the agent transcript and re-parsed here, so it is validated
+ * rather than trusted. Unknown keys (e.g. the `approvalStatus`/`acceptedBy`
+ * fields added on approval) are stripped.
+ */
+export const savePromptOutputSchema = z.object({
+  status: z.literal("saved"),
+  mode: z.enum(["create", "update"]),
+  instanceId: z.number(),
+  label: z.string(),
+  promptId: z.string(),
+  promptName: z.string(),
+  promptVersionId: z.string(),
+  tag: z.string().nullable(),
+  dirtyBeforeSave: z.boolean(),
+  message: z.string(),
+});
