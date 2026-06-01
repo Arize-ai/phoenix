@@ -193,6 +193,19 @@ export function shouldShowLocalDenoTrustWarning(
   return !window.Config.managementUrl;
 }
 
+/**
+ * Whether to show a "runtime unavailable" badge on a sandbox config row.
+ * True only for a local backend that is not currently AVAILABLE.
+ */
+export function shouldShowRuntimeUnavailableBadge(
+  backend: Pick<BackendInfo, "hostingType" | "status"> | undefined
+): boolean {
+  if (backend == null || backend.hostingType !== "LOCAL") {
+    return false;
+  }
+  return backend.status !== "AVAILABLE";
+}
+
 export function getBackendDescription(backendType: BackendInfo["backendType"]) {
   switch (backendType) {
     case "WASM":
