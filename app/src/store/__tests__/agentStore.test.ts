@@ -4,7 +4,7 @@ import { createAgentStore } from "../agentStore";
 
 describe("agentStore", () => {
   beforeEach(() => {
-    localStorage.removeItem("arize-phoenix-pxi");
+    localStorage.removeItem("arize-phoenix-assistant");
   });
 
   describe("createSession", () => {

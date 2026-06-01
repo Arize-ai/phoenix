@@ -340,7 +340,7 @@ function buildSessionRetentionPatch({
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
- * persist (to local storage under "arize-phoenix-pxi"). The `isOpen`
+ * persist (to local storage under "arize-phoenix-assistant"). The `isOpen`
  * property is excluded from persistence so the panel always starts closed.
  *
  * @param initialProps - Optional overrides for the default store properties.
@@ -811,7 +811,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
-      name: "arize-phoenix-pxi",
+      name: "arize-phoenix-assistant",
       version: 0,
       partialize: (state) => ({
         isOpen: state.isOpen,
