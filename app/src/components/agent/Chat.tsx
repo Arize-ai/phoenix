@@ -512,6 +512,9 @@ export function ChatView({
                 // stay visible; other turns reveal their toolbars on hover to
                 // cut down on stacked-toolbar clutter.
                 const pinToolbar = isLast && status === "ready";
+                // Rewinding to the last assistant turn is a no-op: nothing
+                // follows it to truncate and, once settled, it has no pending
+                // tool calls to clear. Hide the rewind control there.
                 return (
                   <AssistantMessage
                     key={message.id}
@@ -519,6 +522,7 @@ export function ChatView({
                     showActions={showActions}
                     pinToolbar={pinToolbar}
                     onRewindRequest={onRewindRequest}
+                    allowRewind={!isLast}
                   />
                 );
               })}

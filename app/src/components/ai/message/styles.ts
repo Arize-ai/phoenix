@@ -131,6 +131,15 @@ export const messageToolbarCSS = css`
     opacity: 1;
   }
 
+  /* Keep the toolbar visible while one of its actions has an open menu/popover.
+     The popover is portaled out of the message and takes focus with it, so
+     :hover and :focus-within on the message both drop — but the trigger button
+     keeps aria-expanded set, so the toolbar anchoring the open menu stays put
+     instead of fading out from under it. */
+  &:has([aria-expanded="true"]) {
+    opacity: 1;
+  }
+
   @media (hover: none) {
     /* Touch devices have no hover; keep toolbars visible so the actions remain
        reachable. */

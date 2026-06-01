@@ -95,17 +95,23 @@ export function UserMessage({
  * `pinToolbar` keeps the toolbar always visible instead of revealing it on
  * hover/focus. Callers use it for the most recent assistant turn, whose actions
  * (copy, feedback, trace) are the ones users reach for most often.
+ *
+ * `allowRewind` gates the rewind control. Callers set it to `false` for the
+ * last assistant turn, where rewinding to that response is a no-op (see
+ * {@link MessageRewindActions}); fork stays available there.
  */
 export function AssistantMessage({
   message,
   showActions = true,
   pinToolbar = false,
   onRewindRequest,
+  allowRewind = true,
 }: {
   message: AgentUIMessage;
   showActions?: boolean;
   pinToolbar?: boolean;
   onRewindRequest?: MessageRewindRequest;
+  allowRewind?: boolean;
 }) {
   const grouped = groupMessageParts(message.parts);
 
@@ -157,6 +163,7 @@ export function AssistantMessage({
               messageId={message.id}
               role="assistant"
               onRequest={onRewindRequest}
+              showRewind={allowRewind}
             />
           ) : null}
         </AssistantMessageActions>

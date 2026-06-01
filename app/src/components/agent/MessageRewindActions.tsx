@@ -1,4 +1,13 @@
-import { Icon, Icons } from "@phoenix/components";
+import type { Key } from "react";
+
+import {
+  Icon,
+  Icons,
+  Menu,
+  MenuContainer,
+  MenuItem,
+  MenuTrigger,
+} from "@phoenix/components";
 import { MessageAction } from "@phoenix/components/ai/message";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
@@ -9,19 +18,29 @@ import type {
 
 /**
  * Rewind (and, when session storage is enabled, fork) controls rendered under a
- * user or assistant message. Renders bare {@link MessageAction} buttons so
- * callers can place them inside an existing `MessageActions` row.
+ * user or assistant message. These are uncommon, mostly-destructive actions, so
+ * they are tucked behind a single "more actions" overflow button rather than
+ * sitting inline next to the everyday copy/feedback controls.
  *
- * Pressing a control reports the requested action and the target message up to
- * the chat view via `onRequest`, which owns the single confirmation dialog. The
- * dialog is intentionally NOT rendered here: mounting a React Aria modal inside
- * the scroll-managed message list triggers a remount loop with the
- * stick-to-bottom observers, so the overlay must live outside the list.
+ * Selecting an item reports the requested action and the target message up to
+ * the chat view via `onRequest`, which owns the single confirmation surface. The
+ * confirmation is intentionally NOT rendered here: it is an inline panel shown
+ * in place of the prompt input, because mounting a React Aria modal would flip
+ * the global open-modal observer and re-parent the agent panel in a loop. The
+ * overflow menu itself is a popover (not a modal overlay), so it does not trip
+ * that observer.
+ *
+ * `showRewind` gates the rewind item. Callers set it to `false` for the last
+ * assistant turn, where rewinding to that response is a no-op — there is nothing
+ * after it to truncate and the chat has settled, so no pending tool calls remain
+ * to clear. Fork stays available there because it branches a separate session.
+ * When neither item would render, the whole control is omitted.
  */
 export function MessageRewindActions({
   messageId,
   role,
   onRequest,
+  showRewind = true,
 }: {
   messageId: string;
   role: MessageRewindRole;
@@ -30,33 +49,49 @@ export function MessageRewindActions({
     messageId: string;
     role: MessageRewindRole;
   }) => void;
+  showRewind?: boolean;
 }) {
   const canFork = useAgentContext(
     (state) => state.capabilities["session.storeSessions"]
   );
 
+  if (!showRewind && !canFork) {
+    return null;
+  }
+
+  const handleAction = (key: Key) => {
+    if (key === "rewind" || key === "fork") {
+      onRequest({ mode: key, messageId, role });
+    }
+  };
+
   return (
-    <>
-      <MessageAction
-        label="Rewind to this message"
-        tooltip={
-          role === "user"
-            ? "Undo the chat to this message and restore it to the input"
-            : "Undo the chat back to this response"
-        }
-        onPress={() => onRequest({ mode: "rewind", messageId, role })}
-      >
-        <Icon svg={<Icons.RotateCcwOutline />} />
+    <MenuTrigger>
+      <MessageAction label="More actions">
+        <Icon svg={<Icons.MoreHorizontalOutline />} />
       </MessageAction>
-      {canFork ? (
-        <MessageAction
-          label="Fork from this message"
-          tooltip="Start a new chat from this message"
-          onPress={() => onRequest({ mode: "fork", messageId, role })}
-        >
-          <Icon svg={<Icons.GitBranchOutline />} />
-        </MessageAction>
-      ) : null}
-    </>
+      <MenuContainer placement="bottom end" minHeight="auto">
+        <Menu onAction={handleAction}>
+          {showRewind ? (
+            <MenuItem
+              id="rewind"
+              leadingContent={<Icon svg={<Icons.RotateCcwOutline />} />}
+            >
+              {role === "user"
+                ? "Rewind to this message"
+                : "Rewind to this response"}
+            </MenuItem>
+          ) : null}
+          {canFork ? (
+            <MenuItem
+              id="fork"
+              leadingContent={<Icon svg={<Icons.GitBranchOutline />} />}
+            >
+              Fork from this message
+            </MenuItem>
+          ) : null}
+        </Menu>
+      </MenuContainer>
+    </MenuTrigger>
   );
 }
