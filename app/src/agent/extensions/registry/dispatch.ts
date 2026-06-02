@@ -70,9 +70,18 @@ export type AgentToolDispatcher = {
 export function createAgentToolDispatcher(
   definitions: readonly AgentToolDefinition[]
 ): AgentToolDispatcher {
-  const definitionsByName = new Map<string, AgentToolDefinition>(
-    definitions.map((definition) => [definition.name, definition])
-  );
+  const definitionsByName = new Map<string, AgentToolDefinition>();
+  for (const definition of definitions) {
+    if (definitionsByName.has(definition.name)) {
+      // Fail fast rather than silently shadow the earlier tool: a copied tool
+      // module that forgot to swap its `*_TOOL_NAME` constant would otherwise
+      // make one tool unreachable with no error.
+      throw new Error(
+        `Duplicate agent tool name "${definition.name}". Each registered tool must have a unique name.`
+      );
+    }
+    definitionsByName.set(definition.name, definition);
+  }
 
   return {
     getAgentToolUIBehavior: (toolName) =>

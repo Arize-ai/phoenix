@@ -1,4 +1,5 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
+import { requireToolSession } from "@phoenix/agent/extensions/registry/requireToolSession";
 
 import { applySpanAnnotations } from "./applySpanAnnotations";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "./constants";
@@ -29,18 +30,17 @@ export const batchSpanAnnotateAgentTool = defineTool<BatchSpanAnnotateInput>({
     addToolOutput,
     agentStore,
   }) => {
-    if (!sessionId) {
-      await addToolOutput({
-        state: "output-error",
-        tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-        toolCallId: toolCall.toolCallId,
-        errorText: "Cannot propose span annotations without an active session.",
-      });
-      return;
-    }
+    const session = await requireToolSession({
+      toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
+      toolCall,
+      sessionId,
+      addToolOutput,
+      errorText: "Cannot propose span annotations without an active session.",
+    });
+    if (session == null) return;
     const context: BatchSpanAnnotateActionContext = {
       toolCallId: toolCall.toolCallId,
-      sessionId,
+      sessionId: session,
       addToolOutput,
     };
     const pendingAnnotation = bindPendingBatchSpanAnnotateActions({

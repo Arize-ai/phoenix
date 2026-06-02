@@ -1,4 +1,5 @@
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
+import { requireToolSession } from "@phoenix/agent/extensions/registry/requireToolSession";
 
 import { ASK_USER_TOOL_NAME } from "./constants";
 import { parseElicitToolInput } from "./elicitToolSchema";
@@ -17,17 +18,16 @@ export const askUserAgentTool = defineTool<ElicitToolInput>({
     addToolOutput,
     agentStore,
   }) => {
-    if (!sessionId) {
-      await addToolOutput({
-        state: "output-error",
-        tool: ASK_USER_TOOL_NAME,
-        toolCallId: toolCall.toolCallId,
-        errorText: "Cannot ask user questions without an active session.",
-      });
-      return;
-    }
+    const session = await requireToolSession({
+      toolName: ASK_USER_TOOL_NAME,
+      toolCall,
+      sessionId,
+      addToolOutput,
+      errorText: "Cannot ask user questions without an active session.",
+    });
+    if (session == null) return;
 
-    agentStore.getState().setPendingElicitation(sessionId, {
+    agentStore.getState().setPendingElicitation(session, {
       toolCallId: toolCall.toolCallId,
       questions: input.questions,
     });

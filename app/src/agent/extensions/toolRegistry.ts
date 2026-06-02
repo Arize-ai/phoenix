@@ -66,12 +66,18 @@ const pageActionTools: AgentToolDefinition[] = [
 ];
 
 /**
- * Standalone tools own their own execution and delegate to no page action
- * (built with the lower-level `defineTool`):
+ * Standalone tools are not built on the client-action helper — they delegate to
+ * no `registeredClientActions` entry and own what they do (built with the
+ * lower-level `defineTool`):
  * - `bash` executes in the browser sandbox runtime;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
  * - `ask_user` and `batch_span_annotate` write a pending-approval store entry and
  *   defer their output to a later accept/reject.
+ *
+ * Requiring an active session is orthogonal to this split: the session-gated
+ * tools here (`ask_user`, `batch_span_annotate`) compose the same
+ * `requireToolSession` guard that `defineClientActionTool` uses for its
+ * `requireSession` knob, so the guard lives in one place rather than per tool.
  */
 const standaloneTools: AgentToolDefinition[] = [
   bashAgentTool,

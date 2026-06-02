@@ -1,4 +1,6 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
+import { createAgentToolDispatcher } from "@phoenix/agent/extensions/registry/dispatch";
 import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
@@ -205,5 +207,19 @@ describe("registry contract", () => {
     expect(getAgentToolUIBehavior(READ_PROMPT_TOOL_NAME)).toBeUndefined();
     expect(getAgentToolUIBehavior(RUN_PLAYGROUND_TOOL_NAME)).toBeUndefined();
     expect(getAgentToolUIBehavior("not-a-tool")).toBeUndefined();
+  });
+
+  it("throws when two tools are registered under the same name", () => {
+    const makeStubTool = () =>
+      defineTool<unknown>({
+        name: "duplicate-name",
+        parseInput: (input) => input,
+        invalidInputErrorText: "invalid",
+        execute: async () => {},
+      });
+
+    expect(() =>
+      createAgentToolDispatcher([makeStubTool(), makeStubTool()])
+    ).toThrow(/Duplicate agent tool name/);
   });
 });

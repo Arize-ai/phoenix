@@ -11,6 +11,7 @@ import {
   type AgentToolUIBehavior,
   defineTool,
 } from "./defineTool";
+import { requireToolSession } from "./requireToolSession";
 
 /**
  * Emit a client action's {@link AgentClientActionResult} as tool output.
@@ -67,6 +68,10 @@ async function emitClientActionResult({
  * two terms are interchangeable. Tools that own their own execution and
  * delegate to no page action (e.g. `bash`, `render_generative_ui`) use the
  * lower-level `defineTool` instead.
+ *
+ * The `requireSession` knob composes the shared `requireToolSession` guard —
+ * the same guard the session-gated standalone tools use — so the no-session
+ * check is not duplicated per tool.
  *
  * This collapses the otherwise-identical "look up action, bail if unmounted,
  * invoke, map result" boilerplate shared by most contextual client-executed
@@ -133,16 +138,17 @@ export function defineClientActionTool<TInput, TContext = undefined>(config: {
         return;
       }
 
-      if (config.requireSession && sessionId == null) {
-        await addToolOutput({
-          state: "output-error",
-          tool: config.name,
-          toolCallId: toolCall.toolCallId,
+      if (config.requireSession) {
+        const session = await requireToolSession({
+          toolName: config.name,
+          toolCall,
+          sessionId,
+          addToolOutput,
           errorText:
             config.noSessionErrorText ??
             "Cannot run this tool without an active session.",
         });
-        return;
+        if (session == null) return;
       }
 
       // Simple client actions are called with input only; context tools (the
