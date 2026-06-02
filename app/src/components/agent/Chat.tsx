@@ -12,6 +12,8 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
+import { ChatScrollContext } from "./ChatScrollContext";
+
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
 import type {
@@ -362,10 +364,12 @@ export function ChatView({
   emptyStateQuickActions?: EmptyStateQuickAction[];
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
-    initial: "instant",
-    resize: "instant",
-  });
+  const { contentRef, scrollRef, scrollToBottom, stopScroll } =
+    useStickToBottom({
+      initial: "instant",
+      resize: "instant",
+    });
+  const chatScrollContextValue = useMemo(() => ({ stopScroll }), [stopScroll]);
   const handleScrollRef = useCallback(
     (element: HTMLElement | null) => {
       scrollRef(element);
@@ -502,9 +506,10 @@ export function ChatView({
         }
       >
         <ChatLantern isVisible={showsEmptyState} />
-        <div className="chat__scroll-frame">
-          <div className="chat__scroll" ref={handleScrollRef}>
-            <div className="chat__messages" ref={contentRef}>
+        <ChatScrollContext.Provider value={chatScrollContextValue}>
+          <div className="chat__scroll-frame">
+            <div className="chat__scroll" ref={handleScrollRef}>
+              <div className="chat__messages" ref={contentRef}>
               {showsEmptyState && (
                 <ChatEmptyState
                   key={theme}
@@ -558,6 +563,7 @@ export function ChatView({
             </div>
           </div>
         </div>
+        </ChatScrollContext.Provider>
         <div className="chat__input">
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">

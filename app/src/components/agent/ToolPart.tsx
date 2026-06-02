@@ -2,6 +2,8 @@ import { css } from "@emotion/react";
 import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
+import { useChatScrollContext } from "./ChatScrollContext";
+
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -75,6 +77,7 @@ import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
   ToolPartCodeBlock,
+  ToolPartExpandableSection,
   ToolPartLabel,
   ToolPartStatus,
 } from "./ToolPartPrimitives";
@@ -440,8 +443,8 @@ function getScrollableParent(element: HTMLElement): HTMLElement | null {
 }
 
 /**
- * Smoothly scrolls `element` to the vertical center of its nearest scrollable
- * ancestor, scrolling only that container.
+ * Smoothly scrolls `element` to the top of its nearest scrollable ancestor,
+ * scrolling only that container.
  *
  * Unlike the native `Element.scrollIntoView`, which scrolls every scrollable
  * ancestor (and can move the whole page/layout), this confines the scroll to
@@ -459,11 +462,10 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   }
   const parentRect = scrollParent.getBoundingClientRect();
   const elementRect = element.getBoundingClientRect();
-  // Distance to scroll so the element sits centered in the scroll viewport.
-  const delta =
-    elementRect.top -
-    parentRect.top -
-    (scrollParent.clientHeight - elementRect.height) / 2;
+  // Distance to scroll so the element's top sits near the top of the viewport
+  // with a small margin for context.
+  const topMargin = 16;
+  const delta = elementRect.top - parentRect.top - topMargin;
   scrollParent.scrollBy({ top: delta, behavior: "smooth" });
 }
 
@@ -480,6 +482,7 @@ function ToolInvocationPartDetails({
   const hasAutoOpenedRef = useRef(false);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
+  const chatScrollContext = useChatScrollContext();
   const {
     preview,
     stateLabel,
@@ -529,7 +532,20 @@ function ToolInvocationPartDetails({
           // natively can race the auto-open/manual override state during tool
           // streaming updates and make the disclosure feel stuck.
           event.preventDefault();
+          const wasOpen = isRenderedOpen;
           setManualOpen(!isRenderedOpen);
+
+          // When manually expanding a tool, stop the stick-to-bottom library
+          // from scrolling, then scroll the tool header into view so the user
+          // can read from the top.
+          if (!wasOpen) {
+            chatScrollContext?.stopScroll();
+            requestAnimationFrame(() => {
+              if (detailsRef.current) {
+                scrollElementIntoViewWithinScrollParent(detailsRef.current);
+              }
+            });
+          }
         }}
       >
         <div className="tool-part__summary">
@@ -837,6 +853,7 @@ function getToolPresentation(
         part.state === "output-available"
           ? JSON.stringify(part.output, null, 2)
           : "";
+      const errorStr = part.errorText ?? "";
       return {
         preview: getNativeWebToolPreview(toolName, part),
         stateLabel: formatToolState(part.state),
@@ -844,17 +861,23 @@ function getToolPresentation(
         details: (
           <div className="tool-part__body">
             <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            <ToolPartExpandableSection>
+              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            </ToolPartExpandableSection>
             {part.state === "output-available" ? (
               <>
                 <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+                </ToolPartExpandableSection>
               </>
             ) : null}
             {part.state === "output-error" ? (
               <>
                 <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
+                </ToolPartExpandableSection>
               </>
             ) : null}
           </div>
@@ -875,6 +898,7 @@ function getToolPresentation(
         part.state === "output-available"
           ? JSON.stringify(part.output, null, 2)
           : "";
+      const errorStr = part.errorText ?? "";
       return {
         preview: "",
         stateLabel: formatToolState(part.state),
@@ -882,17 +906,23 @@ function getToolPresentation(
         details: (
           <div className="tool-part__body">
             <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            <ToolPartExpandableSection>
+              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            </ToolPartExpandableSection>
             {part.state === "output-available" ? (
               <>
                 <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+                </ToolPartExpandableSection>
               </>
             ) : null}
             {part.state === "output-error" ? (
               <>
                 <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
+                </ToolPartExpandableSection>
               </>
             ) : null}
           </div>

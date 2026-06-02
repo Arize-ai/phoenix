@@ -8,7 +8,11 @@ import {
   parseDocsSearchInput,
 } from "@phoenix/agent/tools/docs";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartCodeBlock,
+  ToolPartExpandableSection,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart, ToolUIPartState } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -67,22 +71,29 @@ export function DocsToolDetails({ part }: { part: ToolInvocationPart }) {
 
   const inputLabel = isSearch ? "Query" : "Command";
   const inputText = getInputText(part, isSearch);
-  const outputText = getOutputText(part);
+  const outputText = getOutputText(part) || "(no output)";
+  const errorText = part.errorText ?? "";
 
   return (
     <div className="tool-part__body">
       <ToolPartLabel>{inputLabel}</ToolPartLabel>
-      <ToolPartCodeBlock>{inputText}</ToolPartCodeBlock>
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{inputText}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>{isSearch ? "Results" : "Output"}</ToolPartLabel>
-          <ToolPartCodeBlock>{outputText || "(no output)"}</ToolPartCodeBlock>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{outputText}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
         </>
       ) : null}
       {part.state === "output-error" ? (
         <>
           <ToolPartLabel variant="danger">Error</ToolPartLabel>
-          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{errorText}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
         </>
       ) : null}
     </div>

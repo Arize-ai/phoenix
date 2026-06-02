@@ -6,6 +6,7 @@ import {
 
 import {
   ToolPartCodeBlock,
+  ToolPartExpandableSection,
   ToolPartLabel,
   ToolPartMeta,
 } from "./ToolPartPrimitives";
@@ -44,13 +45,17 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
   return (
     <div className="tool-part__body">
       <ToolPartLabel>Command</ToolPartLabel>
-      <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
       {part.state === "output-available" ? (
         <>
           {stdout ? (
             <>
               <ToolPartLabel>Output</ToolPartLabel>
-              <ToolPartCodeBlock>{stdout}</ToolPartCodeBlock>
+              <ToolPartExpandableSection>
+                <ToolPartCodeBlock>{stdout}</ToolPartCodeBlock>
+              </ToolPartExpandableSection>
             </>
           ) : null}
           <ToolPartMeta items={metaItems} />
@@ -59,7 +64,9 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
       {part.state === "output-error" ? (
         <>
           <ToolPartLabel variant="danger">Error</ToolPartLabel>
-          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
         </>
       ) : null}
     </div>
