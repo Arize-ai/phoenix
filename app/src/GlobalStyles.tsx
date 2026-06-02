@@ -599,7 +599,7 @@ export const darkThemeCSS = css`
     --global-color-success-700: rgba(var(--global-color-success-rgb), 0.7);
     --global-color-success-500: rgba(var(--global-color-success-rgb), 0.5);
     --global-color-success-100: rgba(var(--global-color-success-rgb), 0.1);
-    --global-color-warning-rgb: var(--global-color-yellow-800-rgb);
+    --global-color-warning-rgb: var(--global-color-orange-1000-rgb);
     --global-color-warning: rgb(var(--global-color-warning-rgb));
     --global-color-warning-900: rgba(var(--global-color-warning-rgb), 0.9);
     --global-color-warning-700: rgba(var(--global-color-warning-rgb), 0.7);
@@ -868,11 +868,11 @@ export const lightThemeCSS = css`
     --global-color-success-700: rgba(0, 143, 93, 0.7);
     --global-color-success-500: rgba(0, 143, 93, 0.5);
     --global-color-success-100: rgba(0, 143, 93, 0.1);
-    // yellow-800: #9b7800
-    --global-color-warning: var(--global-color-yellow-800);
-    --global-color-warning-900: rgba(155, 120, 0, 0.9);
-    --global-color-warning-700: rgba(155, 120, 0, 0.7);
-    --global-color-warning-500: rgba(155, 120, 0, 0.5);
+    // orange-700: #e46f00
+    --global-color-warning: var(--global-color-orange-700);
+    --global-color-warning-900: rgba(228, 111, 0, 0.9);
+    --global-color-warning-700: rgba(228, 111, 0, 0.7);
+    --global-color-warning-500: rgba(228, 111, 0, 0.5);
     // orange-600: #f68511
     --global-color-severe: var(--global-color-orange-600);
     --global-color-severe-900: rgba(246, 133, 17, 0.9);

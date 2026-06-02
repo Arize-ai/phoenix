@@ -226,7 +226,7 @@ export const toolPartCSS = css`
   }
 
   .tool-part__status[data-variant="warning"] {
-    color: var(--global-color-orange-600);
+    color: var(--global-color-warning);
   }
 
   .tool-part__status[data-variant="success"] {
@@ -295,7 +295,7 @@ export const toolPartCSS = css`
   }
 
   .tool-part__label[data-variant="warning"] {
-    color: var(--global-color-orange-600);
+    color: var(--global-color-warning);
   }
 
   .tool-part__label[data-variant="success"] {
