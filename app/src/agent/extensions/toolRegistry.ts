@@ -34,6 +34,14 @@ import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import {
+  LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+  parseListPlaygroundModelTargetsInput,
+  parseSetPlaygroundModelInput,
+  SET_PLAYGROUND_MODEL_TOOL_NAME,
+  type ListPlaygroundModelTargetsInput,
+  type SetPlaygroundModelInput,
+} from "@phoenix/agent/tools/playgroundModel";
+import {
   parseReadPlaygroundOutputInput,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
   type ReadPlaygroundOutputInput,
@@ -509,6 +517,84 @@ const clonePromptInstanceAgentTool =
         await addToolOutput({
           state: "output-error",
           tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const setPlaygroundModelAgentTool =
+  createRegisteredAgentTool<SetPlaygroundModelInput>({
+    name: SET_PLAYGROUND_MODEL_TOOL_NAME,
+    parseInput: parseSetPlaygroundModelInput,
+    invalidInputErrorText: `Invalid ${SET_PLAYGROUND_MODEL_TOOL_NAME} input. Expected { instanceId?: number, target: { type: "builtin", provider: string, modelName: string } | { type: "custom", customProviderId: string, modelName: string } }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          SET_PLAYGROUND_MODEL_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_PLAYGROUND_MODEL_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground model selector is not mounted; cannot switch models.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: SET_PLAYGROUND_MODEL_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Playground model updated.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_PLAYGROUND_MODEL_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const listPlaygroundModelTargetsAgentTool =
+  createRegisteredAgentTool<ListPlaygroundModelTargetsInput>({
+    name: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+    parseInput: parseListPlaygroundModelTargetsInput,
+    invalidInputErrorText: `Invalid ${LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME} input. Expected {}.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground model selector is not mounted; cannot list available models.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Playground model targets listed.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
           errorText: result.error,
         });
@@ -1055,6 +1141,8 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
+  listPlaygroundModelTargetsAgentTool as RegisteredAgentTool<unknown>,
+  setPlaygroundModelAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
   savePromptAgentTool as RegisteredAgentTool<unknown>,
   readPromptToolsAgentTool as RegisteredAgentTool<unknown>,

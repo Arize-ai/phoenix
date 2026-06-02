@@ -2,13 +2,17 @@ import { Flex, Text, View } from "@phoenix/components";
 import { BashBlock } from "@phoenix/components/code";
 import { Empty } from "@phoenix/components/core/Empty";
 
-import type { PlaygroundQuery$data } from "./__generated__/PlaygroundQuery.graphql";
-
 // The playground is disabled if no LLM provider client is installed on the server.
 // This message is displayed until the user installs a provider for the server to use, and then restarts the server.
 const NO_PROVIDER_MESSAGE = `
 The playground is not available until an LLM provider client is installed on the server.
 `;
+
+type AvailableProvider = {
+  readonly dependencies: readonly string[];
+  readonly dependenciesInstalled: boolean;
+  readonly name: string;
+};
 
 const makeInstallString = (
   providers: NoInstalledProviderProps["availableProviders"]
@@ -25,7 +29,7 @@ ${Array.from(
 `;
 
 type NoInstalledProviderProps = {
-  availableProviders: PlaygroundQuery$data["modelProviders"];
+  availableProviders: readonly AvailableProvider[];
 };
 
 export const NoInstalledProvider = (props: NoInstalledProviderProps) => {

@@ -3118,6 +3118,21 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PlaygroundBuiltinModelContext
+         * @description Built-in playground model selection.
+         */
+        PlaygroundBuiltinModelContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "builtin";
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /**
          * PlaygroundContext
          * @description Playground prompt editor state mounted in the current browser route.
          */
@@ -3127,8 +3142,37 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
-            /** Instanceids */
-            instanceIds: number[];
+            /** Instances */
+            instances?: components["schemas"]["PlaygroundInstanceContext"][];
+        };
+        /**
+         * PlaygroundCustomProviderModelContext
+         * @description Custom-provider playground model selection.
+         */
+        PlaygroundCustomProviderModelContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
+            /** Customproviderid */
+            customProviderId: string;
+            /** Customprovidername */
+            customProviderName: string;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /**
+         * PlaygroundInstanceContext
+         * @description One mounted playground instance and its current model selection.
+         */
+        PlaygroundInstanceContext: {
+            /** Instanceid */
+            instanceId: number;
+            /** Model */
+            model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
         };
         /** Project */
         Project: {

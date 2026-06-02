@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { GenerativeProviderKey } from "@phoenix/components/generative/__generated__/ModelMenuQuery.graphql";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
 
 export const AGENT_MODEL_LOCAL_STORAGE_KEY =
   "__experimental__arize-phoenix-agent-config";

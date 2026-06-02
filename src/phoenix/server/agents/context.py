@@ -97,11 +97,42 @@ class AppContext(_ChatContextBase):
     time_zone: str = Field(alias="timeZone")
 
 
+class PlaygroundBuiltinModelContext(_ChatContextBase):
+    """Built-in playground model selection."""
+
+    type: Literal["builtin"] = "builtin"
+    provider: str
+    model_name: str = Field(alias="modelName")
+
+
+class PlaygroundCustomProviderModelContext(_ChatContextBase):
+    """Custom-provider playground model selection."""
+
+    type: Literal["custom"] = "custom"
+    custom_provider_id: str = Field(alias="customProviderId")
+    custom_provider_name: str = Field(alias="customProviderName")
+    provider: str
+    model_name: str = Field(alias="modelName")
+
+
+PlaygroundModelContext = Annotated[
+    PlaygroundBuiltinModelContext | PlaygroundCustomProviderModelContext,
+    Field(discriminator="type"),
+]
+
+
+class PlaygroundInstanceContext(_ChatContextBase):
+    """One mounted playground instance and its current model selection."""
+
+    instance_id: int = Field(alias="instanceId")
+    model: PlaygroundModelContext | None = None
+
+
 class PlaygroundContext(_ChatContextBase):
     """Playground prompt editor state mounted in the current browser route."""
 
     type: Literal["playground"]
-    instance_ids: list[int] = Field(alias="instanceIds")
+    instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
 
 
 class CodeEvaluatorContext(_ChatContextBase):
