@@ -73,8 +73,6 @@ export function createWritePromptToolsClientAction({
     if (!parsed) {
       return { ok: false, error: "Invalid write_prompt_tools input." };
     }
-    // Validate (and compute the after-state) before showing the diff so an
-    // invalid batch fails fast with its indexed error.
     const plan = planWritePromptTools({ playgroundStore, input: parsed });
     if (!plan.ok) return plan;
 

@@ -1,5 +1,6 @@
 import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
+  type CanonicalToolChoice,
   type CanonicalToolDefinition,
   generateToolId,
   type PlaygroundStore,
@@ -128,16 +129,6 @@ export function planWritePromptTools({
     }
   }
 
-  const forcedChoice = playgroundInstance.toolChoice;
-  const forcedFunctionName =
-    forcedChoice?.type === "SPECIFIC_FUNCTION"
-      ? forcedChoice.functionName
-      : undefined;
-  // If a deleted tool is the prompt's forced tool choice, deleting it would
-  // orphan that choice. Rather than reject (the user would just clear the
-  // choice and retry, ending here anyway), reset the choice to auto
-  // (ZERO_OR_MORE — the instance default) and disclose it in the result.
-  let resetToolChoiceFrom: string | undefined;
   for (const deleteId of deleteIds) {
     const existing = playgroundInstance.tools.find(
       (candidate) => candidate.id === deleteId
@@ -147,13 +138,6 @@ export function planWritePromptTools({
         ok: false,
         error: `deleteToolIds: prompt tool ${deleteId} was not found on instance ${playgroundInstance.id}.`,
       };
-    }
-    if (
-      forcedFunctionName != null &&
-      existing.kind === "function" &&
-      existing.definition.name === forcedFunctionName
-    ) {
-      resetToolChoiceFrom = forcedFunctionName;
     }
   }
 
@@ -188,6 +172,40 @@ export function planWritePromptTools({
     }
   }
 
+  const forcedChoice = playgroundInstance.toolChoice;
+  const forcedFunctionName =
+    forcedChoice?.type === "SPECIFIC_FUNCTION"
+      ? forcedChoice.functionName
+      : undefined;
+  let toolChoicePatch: CanonicalToolChoice | undefined;
+  let resetToolChoiceFrom: string | undefined;
+  let renamedToolChoiceTo: string | undefined;
+  if (forcedFunctionName != null) {
+    const forcedTool = playgroundInstance.tools.find(
+      (candidate) =>
+        candidate.kind === "function" &&
+        candidate.definition.name === forcedFunctionName
+    );
+    if (forcedTool) {
+      const survivor = workingTools.find(
+        (candidate) => candidate.id === forcedTool.id
+      );
+      if (!survivor) {
+        resetToolChoiceFrom = forcedFunctionName;
+        toolChoicePatch = { type: "ZERO_OR_MORE" };
+      } else if (
+        survivor.kind === "function" &&
+        survivor.definition.name !== forcedFunctionName
+      ) {
+        renamedToolChoiceTo = survivor.definition.name;
+        toolChoicePatch = {
+          type: "SPECIFIC_FUNCTION",
+          functionName: survivor.definition.name,
+        };
+      }
+    }
+  }
+
   return {
     ok: true,
     output: {
@@ -198,7 +216,9 @@ export function planWritePromptTools({
       afterTools: workingTools,
       results,
       deletedToolIds: [...deleteIds],
+      ...(toolChoicePatch != null ? { toolChoicePatch } : {}),
       ...(resetToolChoiceFrom != null ? { resetToolChoiceFrom } : {}),
+      ...(renamedToolChoiceTo != null ? { renamedToolChoiceTo } : {}),
     },
   };
 }
@@ -218,8 +238,8 @@ export function commitWritePromptToolsPlan({
     instanceId: plan.instanceId,
     patch: {
       tools: plan.afterTools,
-      ...(plan.resetToolChoiceFrom != null
-        ? { toolChoice: { type: "ZERO_OR_MORE" } }
+      ...(plan.toolChoicePatch != null
+        ? { toolChoice: plan.toolChoicePatch }
         : {}),
     },
     dirty: true,
@@ -244,6 +264,9 @@ export function commitWritePromptToolsPlan({
       deletedToolIds: plan.deletedToolIds,
       ...(plan.resetToolChoiceFrom != null
         ? { resetToolChoiceFrom: plan.resetToolChoiceFrom }
+        : {}),
+      ...(plan.renamedToolChoiceTo != null
+        ? { renamedToolChoiceTo: plan.renamedToolChoiceTo }
         : {}),
       revision: afterSnapshot.output.revision,
     },

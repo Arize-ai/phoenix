@@ -593,6 +593,75 @@ describe("playground prompt tools agent tools", () => {
         functionName: "get_weather",
       });
     });
+
+    it("follows the rename when the forced-choice tool is renamed via an update", () => {
+      const playgroundStore = newStore();
+      seedTools(playgroundStore, [functionTool(101, "get_weather")]);
+      playgroundStore.getState().updateInstance({
+        instanceId: 0,
+        patch: {
+          toolChoice: {
+            type: "SPECIFIC_FUNCTION",
+            functionName: "get_weather",
+          },
+        },
+        dirty: false,
+      });
+
+      const result = applyWritePromptTools({
+        playgroundStore,
+        input: {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ id: 101, name: "fetch_weather" }],
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.output.renamedToolChoiceTo).toBe("fetch_weather");
+      expect(result.output.resetToolChoiceFrom).toBeUndefined();
+      expect(playgroundStore.getState().instances[0]!.toolChoice).toEqual({
+        type: "SPECIFIC_FUNCTION",
+        functionName: "fetch_weather",
+      });
+    });
+
+    it("leaves the forced tool choice untouched when renaming a different tool", () => {
+      const playgroundStore = newStore();
+      seedTools(playgroundStore, [
+        functionTool(101, "get_weather"),
+        functionTool(102, "get_forecast"),
+      ]);
+      playgroundStore.getState().updateInstance({
+        instanceId: 0,
+        patch: {
+          toolChoice: {
+            type: "SPECIFIC_FUNCTION",
+            functionName: "get_weather",
+          },
+        },
+        dirty: false,
+      });
+
+      const result = applyWritePromptTools({
+        playgroundStore,
+        input: {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ id: 102, name: "weekly_forecast" }],
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.output.renamedToolChoiceTo).toBeUndefined();
+      expect(result.output.resetToolChoiceFrom).toBeUndefined();
+      expect(playgroundStore.getState().instances[0]!.toolChoice).toEqual({
+        type: "SPECIFIC_FUNCTION",
+        functionName: "get_weather",
+      });
+    });
   });
 
   describe("input parsing", () => {
@@ -651,10 +720,6 @@ describe("playground prompt tools agent tools", () => {
     });
   });
 
-  // write_prompt_tools is gated behind the same accept/reject approval flow as
-  // edit_prompt_instance: the batch is validated up front and proposed as a
-  // before/after diff, then applied only when the user accepts (or immediately
-  // when auto-accept is on).
   describe("write_prompt_tools client action — approval flow", () => {
     const makeWriteAction = (
       playgroundStore: PlaygroundStore,
@@ -684,15 +749,12 @@ describe("playground prompt tools agent tools", () => {
       );
 
       expect(result.ok).toBe(true);
-      // Nothing applied or reported yet — it is awaiting approval.
       expect(addToolOutput).not.toHaveBeenCalled();
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(0);
       const pending =
         agentStore.getState().pendingPromptToolWritesByToolCallId["tc-1"];
       expect(pending).toBeDefined();
       expect(pending!.summary.created).toEqual(["get_weather"]);
-      // The diff operands are materialized in provider-display format, paired
-      // and labeled by tool name.
       expect(pending!.before.entries).toHaveLength(0);
       expect(pending!.after.entries).toHaveLength(1);
       expect(pending!.after.entries[0]!.name).toBe("get_weather");
@@ -735,7 +797,6 @@ describe("playground prompt tools agent tools", () => {
 
       await pending!.reject!();
 
-      // The delete was discarded — the tool is still there.
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
       expect(addToolOutput).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -798,7 +859,6 @@ describe("playground prompt tools agent tools", () => {
       if (result.ok) return;
       expect(result.error).toContain("tools[1]");
       expect(result.error).toContain("9999");
-      // No diff registered, nothing emitted, nothing mutated.
       expect(
         agentStore.getState().pendingPromptToolWritesByToolCallId["tc-bad"]
       ).toBeUndefined();
@@ -820,7 +880,6 @@ describe("playground prompt tools agent tools", () => {
         },
         { toolCallId: "tc-stale", sessionId: "s-1", addToolOutput }
       );
-      // The tool list changes out from under the proposed diff.
       seedTools(playgroundStore, [functionTool(101, "added_later")]);
 
       const pending =
@@ -835,7 +894,6 @@ describe("playground prompt tools agent tools", () => {
           errorText: expect.stringContaining("has changed"),
         })
       );
-      // The drift-time tool list is untouched (the stale batch was not applied).
       expect(
         playgroundStore
           .getState()

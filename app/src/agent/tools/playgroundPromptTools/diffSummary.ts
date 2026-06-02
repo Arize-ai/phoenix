@@ -98,6 +98,9 @@ export function computePromptToolsWriteSummary(
     ...(plan.resetToolChoiceFrom != null
       ? { resetToolChoiceFrom: plan.resetToolChoiceFrom }
       : {}),
+    ...(plan.renamedToolChoiceTo != null
+      ? { renamedToolChoiceTo: plan.renamedToolChoiceTo }
+      : {}),
   };
 }
 
@@ -121,6 +124,9 @@ export function formatPromptToolsSummaryText(
   }
   if (summary.resetToolChoiceFrom != null) {
     parts.push(`reset tool choice from ${summary.resetToolChoiceFrom}`);
+  }
+  if (summary.renamedToolChoiceTo != null) {
+    parts.push(`forced tool choice now ${summary.renamedToolChoiceTo}`);
   }
   if (parts.length === 0) return "no tool changes";
   return parts.join(", ");

@@ -1,7 +1,11 @@
 import type { z } from "zod";
 
 import type { ApprovalSource } from "@phoenix/agent/tools/approval";
-import type { PlaygroundStore, Tool } from "@phoenix/store/playground";
+import type {
+  CanonicalToolChoice,
+  PlaygroundStore,
+  Tool,
+} from "@phoenix/store/playground";
 
 import type {
   promptToolsActionContextSchema,
@@ -70,6 +74,11 @@ export type WritePromptToolsResult = {
    * that tool's name, and the tool choice was reset to auto (ZERO_OR_MORE).
    */
   resetToolChoiceFrom?: string;
+  /**
+   * Set when a renamed tool was the prompt's forced tool choice: its value is
+   * the tool's new name, and the forced tool choice was updated to follow it.
+   */
+  renamedToolChoiceTo?: string;
   revision: string;
 };
 
@@ -90,7 +99,12 @@ export type WritePromptToolsPlan = {
   afterTools: Tool[];
   results: WritePromptToolResult[];
   deletedToolIds: number[];
+  /** The tool choice to apply on commit, when the batch changes it. */
+  toolChoicePatch?: CanonicalToolChoice;
+  /** Forced-choice tool was deleted; its (old) name. */
   resetToolChoiceFrom?: string;
+  /** Forced-choice tool was renamed; its new name. */
+  renamedToolChoiceTo?: string;
 };
 
 /**
@@ -128,6 +142,8 @@ export type PromptToolsWriteSummary = {
   deleted: string[];
   /** Name of the forced-tool-choice tool reset to auto, if any. */
   resetToolChoiceFrom?: string;
+  /** New name the forced tool choice was updated to follow, if any. */
+  renamedToolChoiceTo?: string;
 };
 
 /**
