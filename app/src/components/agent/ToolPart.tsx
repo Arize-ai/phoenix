@@ -370,7 +370,7 @@ export const toolPartCSS = css`
     }
 
     .tool-part__title-text {
-      color: var(--agent-subdued-text-color);
+      color: var(--tool-call-quiet-color);
     }
 
     .tool-part__body {
@@ -532,7 +532,7 @@ function ToolInvocationPartDetails({
             {showQuietSummary ? (
               <span
                 css={css`
-                  color: var(--agent-subdued-text-color);
+                  color: var(--tool-call-quiet-color);
                   font-size: var(--global-font-size-s);
                 `}
               >
