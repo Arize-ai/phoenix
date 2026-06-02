@@ -38,6 +38,20 @@ For detailed API documentation, consult the respective documentation sites.
 <Card title="Phoenix TypeScript API" href="https://arize-ai.github.io/phoenix" icon="js" description="TypeScript API docs"/>
 <Card title="OpenInference JavaScript API" href="https://arize-ai.github.io/openinference/js/" icon="brackets-curly" description="OpenInference JS docs"/>
 </Tab>
+
+<Tab title="Go" icon="golang">
+Phoenix does not ship a `phoenix-otel-go` wrapper. Install the OpenInference Go semconv + instrumentation packages plus the stock OpenTelemetry Go SDK:
+
+```bash
+go get github.com/Arize-ai/openinference/go/openinference-semantic-conventions
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk
+```
+
+The `semconv` package provides typed constants for the wire-format-stable attribute keys; `instrumentation` provides context-attribute helpers (session, user, metadata, tags, suppression).
+</Tab>
 </Tabs>
 
 ## Setting Up Tracing
@@ -61,6 +75,59 @@ const tracerProvider = register({
   url: "https://your-phoenix.com",
   apiKey: process.env.PHOENIX_API_KEY,
 });
+```
+</Tab>
+
+<Tab title="Go" icon="golang">
+Configure the OpenTelemetry Go SDK with an OTLP/HTTP exporter pointed at Phoenix, then obtain a tracer. For Phoenix Cloud, set `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`.
+
+```go
+import (
+    "context"
+    "os"
+    "strings"
+
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+    "go.opentelemetry.io/otel/sdk/resource"
+    sdktrace "go.opentelemetry.io/otel/sdk/trace"
+    semconvotel "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+func phoenixTraceEndpoint(endpoint string) string {
+    endpoint = strings.TrimRight(endpoint, "/")
+    if strings.HasSuffix(endpoint, "/v1/traces") {
+        return endpoint
+    }
+    return endpoint + "/v1/traces"
+}
+
+ctx := context.Background()
+opts := []otlptracehttp.Option{
+    otlptracehttp.WithEndpoint("localhost:6006"),
+    otlptracehttp.WithURLPath("/v1/traces"),
+    otlptracehttp.WithInsecure(),
+}
+if endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"); endpoint != "" {
+    opts = []otlptracehttp.Option{
+        otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
+        otlptracehttp.WithHeaders(map[string]string{
+            "Authorization": "Bearer " + os.Getenv("PHOENIX_API_KEY"),
+        }),
+    }
+}
+
+exporter, _ := otlptracehttp.New(ctx, opts...)
+res, _ := resource.New(ctx, resource.WithAttributes(
+    semconvotel.ServiceName("your project name"),
+))
+tp := sdktrace.NewTracerProvider(
+    sdktrace.WithBatcher(exporter),
+    sdktrace.WithResource(res),
+)
+otel.SetTracerProvider(tp)
+
+tracer := otel.Tracer("your project name")
 ```
 </Tab>
 </Tabs>
@@ -93,6 +160,39 @@ const myFunc = (input: string): string => {
 const tracedFunc = traceChain(myFunc, { name: "my-func" });
 
 tracedFunc("input");
+```
+</Tab>
+
+<Tab title="Go" icon="golang">
+Go has no decorator syntax. Wrap the function body in a `tracer.Start` span and set input / output / span-kind attributes manually using the OpenInference Go semconv constants:
+
+```go
+import (
+    "context"
+
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/codes"
+    "go.opentelemetry.io/otel/trace"
+
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+)
+
+func myFunc(ctx context.Context, input string) (string, error) {
+    tracer := otel.Tracer("my-app")
+    ctx, span := tracer.Start(ctx, "my-func",
+        trace.WithAttributes(
+            attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindChain),
+            attribute.String(semconv.InputValue, input),
+        ),
+    )
+    defer span.End()
+
+    output := "output"
+    span.SetAttributes(attribute.String(semconv.OutputValue, output))
+    span.SetStatus(codes.Ok, "")
+    return output, nil
+}
 ```
 </Tab>
 </Tabs>
@@ -134,6 +234,35 @@ await withSpan(
     kind: "CHAIN",
   }
 );
+```
+</Tab>
+
+<Tab title="Go" icon="golang">
+Go does not have a `with` statement; use `tracer.Start` + `defer span.End()` to scope a span to a block:
+
+```go
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/codes"
+    "go.opentelemetry.io/otel/trace"
+
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+)
+
+tracer := otel.Tracer("my-app")
+ctx, span := tracer.Start(ctx, "my-span-name",
+    trace.WithAttributes(
+        attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindChain),
+    ),
+)
+defer span.End()
+
+span.SetAttributes(
+    attribute.String(semconv.InputValue, "input"),
+    attribute.String(semconv.OutputValue, "output"),
+)
+span.SetStatus(codes.Ok, "")
 ```
 </Tab>
 </Tabs>
@@ -276,6 +405,33 @@ const thisNameShouldBeOverridden = traceChain(
 thisNameShouldBeOverridden("input");
 ```
 </Tab>
+
+<Tab title="Go" icon="golang">
+Set the OpenInference span kind to `CHAIN` on any span that represents a step or glue point in your application. Inputs and outputs go on the same span via the semconv constants:
+
+```go
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/trace"
+
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+)
+
+tracer := otel.Tracer("my-app")
+ctx, span := tracer.Start(ctx, "my-chain",
+    trace.WithAttributes(
+        attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindChain),
+        attribute.String(semconv.InputValue, "input"),
+    ),
+)
+defer span.End()
+
+// ... do work ...
+
+span.SetAttributes(attribute.String(semconv.OutputValue, "output"))
+```
+</Tab>
 </Tabs>
 
 ***
@@ -344,6 +500,34 @@ const decoratedAgent = traceAgent(
 );
 
 decoratedAgent("input");
+```
+</Tab>
+
+<Tab title="Go" icon="golang">
+Use the `AGENT` span kind for spans that wrap an LLM-driven reasoning loop. Set `agent.name` to identify the agent across calls:
+
+```go
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/trace"
+
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+)
+
+tracer := otel.Tracer("my-app")
+ctx, span := tracer.Start(ctx, "my-agent",
+    trace.WithAttributes(
+        attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindAgent),
+        attribute.String(semconv.AgentName, "research-agent"),
+        attribute.String(semconv.InputValue, userQuery),
+    ),
+)
+defer span.End()
+
+// ... run agent loop, calling tools and LLMs (those produce child spans) ...
+
+span.SetAttributes(attribute.String(semconv.OutputValue, finalAnswer))
 ```
 </Tab>
 </Tabs>
@@ -437,6 +621,38 @@ const thisToolNameShouldBeOverridden = traceTool(
 );
 
 thisToolNameShouldBeOverridden("input1", 1);
+```
+</Tab>
+
+<Tab title="Go" icon="golang">
+Use the `TOOL` span kind for spans that wrap calls to external functions, APIs, or any tool the agent invokes. The tool name and inputs are conventionally attached to the same span:
+
+```go
+import (
+    "encoding/json"
+
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/trace"
+
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+)
+
+tracer := otel.Tracer("my-app")
+toolArgs := map[string]any{"city": "Johannesburg"}
+toolArgsJSON, _ := json.Marshal(toolArgs)
+
+ctx, span := tracer.Start(ctx, "lookup_weather",
+    trace.WithAttributes(
+        attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindTool),
+        attribute.String(semconv.InputValue, string(toolArgsJSON)),
+        attribute.String(semconv.InputMimeType, semconv.MimeTypeJSON),
+    ),
+)
+defer span.End()
+
+result := lookupWeather(toolArgs["city"].(string))
+span.SetAttributes(attribute.String(semconv.OutputValue, result))
 ```
 </Tab>
 </Tabs>
@@ -1102,6 +1318,41 @@ const invokeLLM = withSpan(
 await invokeLLM([{ role: "user", content: "Hello, world!" }], "gpt-4", 0.5);
 ```
 </Tab>
+
+<Tab title="Go" icon="golang">
+For SDKs with OpenInference Go auto-instrumentation, see [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) — no manual span code required. For SDKs without auto-instrumentation, attach model and token attributes directly using `semconv`:
+
+```go
+import (
+    "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/attribute"
+    "go.opentelemetry.io/otel/trace"
+
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
+)
+
+tracer := otel.Tracer("my-app")
+ctx, span := tracer.Start(ctx, "invoke_llm",
+    trace.WithAttributes(
+        attribute.String(semconv.OpenInferenceSpanKind, semconv.SpanKindLLM),
+        attribute.String(semconv.LLMProvider, semconv.LLMProviderOpenAI),
+        attribute.String(semconv.LLMSystem, semconv.LLMSystemOpenAI),
+        attribute.String(semconv.LLMModelName, "gpt-4"),
+        attribute.String(semconv.InputValue, "Hello, world!"),
+    ),
+)
+defer span.End()
+
+// ... make the LLM call ...
+
+span.SetAttributes(
+    attribute.String(semconv.OutputValue, completionText),
+    attribute.Int(semconv.LLMTokenCountPrompt, promptTokens),
+    attribute.Int(semconv.LLMTokenCountCompletion, completionTokens),
+    attribute.Int(semconv.LLMTokenCountTotal, totalTokens),
+)
+```
+</Tab>
 </Tabs>
 
 
@@ -1153,6 +1404,21 @@ await context.with(suppressTracing(context.active()), async () => {
 });
 ```
 </Tab>
+
+<Tab title="Go" icon="golang">
+Use `instrumentation.WithSuppression` to mark a context such that any OpenInference-aware Go instrumentor (e.g. the OpenAI and Anthropic Go transports / middlewares) skips span emission for calls descended from it. Typical use: evaluator or grader code that itself calls an LLM but should not appear in the customer's product trace.
+
+```go
+import (
+    "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+)
+
+ctx := instrumentation.WithSuppression(ctx)
+resp, _ := client.CreateChatCompletion(ctx, req)  // no LLM span emitted
+```
+
+For manual spans you author yourself, check the context before calling `tracer.Start` if you want to honor suppression in your own code.
+</Tab>
 </Tabs>
 
 ### Using Context Attributes
@@ -1203,6 +1469,32 @@ await context.with(
   }
 );
 ```
+</Tab>
+
+<Tab title="Go" icon="golang">
+Use the helpers in [`github.com/Arize-ai/openinference/go/openinference-instrumentation`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation) to store session, user, metadata, and tags on `context.Context`. Auto-instrumentors (OpenAI Go, Anthropic Go) automatically apply these to every LLM span descended from the context:
+
+```go
+import (
+    "encoding/json"
+
+    "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+)
+
+metadata := map[string]any{"key-1": "value_1", "key-2": "value_2"}
+metadataJSON, _ := json.Marshal(metadata)
+
+ctx = instrumentation.WithSession(ctx, "my-session-id")
+ctx = instrumentation.WithUser(ctx, "my-user-id")
+ctx = instrumentation.WithMetadata(ctx, string(metadataJSON))
+ctx = instrumentation.WithTags(ctx, "tag_1", "tag_2")
+
+// All LLM spans descended from ctx now carry session.id, user.id,
+// metadata, and tag.tags — no per-span code needed.
+resp, _ := client.CreateChatCompletion(ctx, req)
+```
+
+For manual spans you author yourself, set the same attributes directly via the `semconv` keys (`SessionID`, `UserID`, `Metadata`, `TagTags`) after `tracer.Start`.
 </Tab>
 </Tabs>
 
@@ -1311,5 +1603,10 @@ await withSpan(
 );
 ```
 </Tab>
-</Tabs>
 
+<Tab title="Go" icon="golang">
+For SDKs with OpenInference Go auto-instrumentation (OpenAI Go, Anthropic Go), multimodal content is captured automatically when you call the SDK with image-containing messages — no per-span code required.
+
+For manual spans, attach image content using the indexed `llm.input_messages.{i}.message.contents.{j}.*` attributes from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions`. The Python `openinference.instrumentation` message-builder helpers do not yet have a Go equivalent — refer to the [OpenInference spec](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) for the full multimodal attribute taxonomy.
+</Tab>
+</Tabs>

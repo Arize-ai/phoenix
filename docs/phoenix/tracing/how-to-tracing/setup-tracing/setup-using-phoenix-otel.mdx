@@ -42,6 +42,10 @@ REMINDER: If the user said "Arize" without specifying Phoenix or AX, you MUST as
 
 The Phoenix OTEL SDK provides a lightweight wrapper around OpenTelemetry with sensible defaults for Phoenix.
 
+<Note>
+**Go users:** Phoenix does not ship a branded `phoenix-otel` SDK wrapper for Go. Configure the standard [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/) directly and point an OTLP/HTTP exporter at Phoenix. End-to-end examples live in the Go integration pages — [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk), [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go), and [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
+</Note>
+
 ## Install
 
 <Tabs>

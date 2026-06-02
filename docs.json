@@ -488,14 +488,16 @@
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/anthropic",
                   "docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing",
-                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript"
+                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript",
+                  "docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go"
                 ]
               },
               {
                 "group": "Google",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/google-gen-ai",
-                  "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing"
+                  "docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing",
+                  "docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk"
                 ]
               },
               {
@@ -525,7 +527,8 @@
                   "docs/phoenix/integrations/llm-providers/openai",
                   "docs/phoenix/integrations/llm-providers/openai/openai-tracing",
                   "docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing",
-                  "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk"
+                  "docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk",
+                  "docs/phoenix/integrations/llm-providers/openai/openai-go-sdk"
                 ]
               },
               {
