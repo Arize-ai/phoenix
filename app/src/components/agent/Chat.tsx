@@ -661,13 +661,7 @@ function Loading() {
   return (
     <div css={loadingCSS}>
       <PxiGlyph animation="wave-hold" size={12} />
-      <Shimmer
-        size="S"
-        css={css`
-          color: var(--agent-subdued-text-color);
-          font-style: italic;
-        `}
-      >
+      <Shimmer size="S" color="text-500" fontStyle="italic">
         Thinking...
       </Shimmer>
     </div>

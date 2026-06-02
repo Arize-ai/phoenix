@@ -5,7 +5,7 @@ import { textBaseCSS } from "../../core/content/styles";
 /**
  * Two-layer background-clip:text shimmer effect:
  * - Top layer: a narrow transparent→background→transparent spotlight that sweeps across
- * - Bottom layer: solid muted text color as the base appearance
+ * - Bottom layer: the solid `--shimmer-color` text color as the base appearance
  *
  * The spotlight uses the page background color, creating a high-contrast
  * "wipe" effect (text momentarily flashes to the background color).
@@ -29,12 +29,12 @@ export const shimmerBaseCSS = css`
       var(--global-background-color-default),
       transparent calc(50% + var(--shimmer-spread))
     ),
-    linear-gradient(var(--global-text-color-700), var(--global-text-color-700));
+    linear-gradient(var(--shimmer-color), var(--shimmer-color));
 
   @media (prefers-reduced-motion: reduce) {
     background: none;
     -webkit-background-clip: initial;
     background-clip: initial;
-    color: var(--global-text-color-900);
+    color: var(--shimmer-color);
   }
 `;

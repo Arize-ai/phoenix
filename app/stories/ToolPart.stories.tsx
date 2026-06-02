@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import {
   DOCS_FILESYSTEM_QUERY_TOOL_NAME,
@@ -42,25 +42,6 @@ const storyNoteCSS = css`
     font-weight: 600;
   }
 `;
-
-function OpenByDefault({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.querySelector("details")?.setAttribute("open", "");
-  }, []);
-  return <div ref={ref}>{children}</div>;
-}
-
-function ClosedByDefault({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // Run after OpenByDefault (which runs in parent decorator)
-    requestAnimationFrame(() => {
-      ref.current?.querySelector("details")?.removeAttribute("open");
-    });
-  }, []);
-  return <div ref={ref}>{children}</div>;
-}
 
 function withElicitationDraft(draft: PendingElicitationDraft) {
   return (Story: () => React.ReactNode) => (
@@ -635,13 +616,14 @@ const savePromptErrorPart = makePart({
 const toolPartMeta = {
   title: "Agent/ToolPart",
   component: ToolPart,
+  // Open by default so the expanded body is visible; individual stories can
+  // override with `defaultOpen: false`.
+  args: { defaultOpen: true },
   decorators: [
     (Story) => (
-      <OpenByDefault>
-        <div css={containerCSS}>
-          <Story />
-        </div>
-      </OpenByDefault>
+      <div css={containerCSS}>
+        <Story />
+      </div>
     ),
   ],
   parameters: {
@@ -866,21 +848,17 @@ export const LoadSkillRunning: Story = {
  * Shows minimal chrome with just "Loaded skill phoenix-frontend" label.
  */
 export const LoadSkillCollapsed: Story = {
-  args: { part: loadSkillCompletedPart },
-  decorators: [
-    (Story) => (
-      <ClosedByDefault>
-        <div css={containerCSS}>
-          <ToolPartStoryNote title="Collapsed State">
-            When collapsed, the quiet variant shows minimal chrome with a
-            subdued label. Click to expand and see the quiet-expanded variant
-            with the lefthand border style.
-          </ToolPartStoryNote>
-          <Story />
-        </div>
-      </ClosedByDefault>
-    ),
-  ],
+  args: { part: loadSkillCompletedPart, defaultOpen: false },
+  render: (args) => (
+    <>
+      <ToolPartStoryNote title="Collapsed State">
+        When collapsed, the quiet variant shows minimal chrome with a subdued
+        label. Click to expand and see the quiet-expanded variant with the
+        lefthand border style.
+      </ToolPartStoryNote>
+      <ToolPart {...args} />
+    </>
+  ),
 };
 
 /**

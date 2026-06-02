@@ -383,12 +383,22 @@ export const toolPartCSS = css`
  * message. Dispatches to tool-specific sub-components for the preview text,
  * state label, and expanded body.
  */
-export function ToolPart({ part }: { part: MessagePart }) {
+export function ToolPart({
+  part,
+  defaultOpen,
+}: {
+  part: MessagePart;
+  /**
+   * Forces the initial open/closed state, overriding the per-tool auto-open
+   * heuristic. The user can still toggle it afterwards.
+   */
+  defaultOpen?: boolean;
+}) {
   if (!isToolUIPart(part)) {
     return null;
   }
 
-  return <ToolInvocationPartDetails part={part} />;
+  return <ToolInvocationPartDetails part={part} defaultOpen={defaultOpen} />;
 }
 
 /**
@@ -441,7 +451,13 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   scrollParent.scrollBy({ top: delta, behavior: "smooth" });
 }
 
-function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
+function ToolInvocationPartDetails({
+  part,
+  defaultOpen,
+}: {
+  part: ToolInvocationPart;
+  defaultOpen?: boolean;
+}) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -458,7 +474,7 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
     quietLabel,
   } = getToolPresentation(toolName, part);
   const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
-  const isRenderedOpen = manualOpen ?? shouldAutoOpen;
+  const isRenderedOpen = manualOpen ?? defaultOpen ?? shouldAutoOpen;
 
   useEffect(() => {
     if (!shouldAutoOpen || hasAutoOpenedRef.current) {
