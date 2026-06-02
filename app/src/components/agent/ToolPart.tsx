@@ -332,11 +332,12 @@ export const toolPartCSS = css`
     color: var(--tool-call-secondary-color);
   }
 
-  /* Quiet variant: no chrome when collapsed, standard when open */
-  &[data-variant="quiet"]:not([open]) {
+  /* Quiet variant: minimal chrome, responds to actual [open] state */
+  &[data-variant="quiet"] {
     border-color: transparent;
     background: none;
     overflow: visible;
+    transition: border-color 150ms ease;
 
     summary {
       background: none;
@@ -346,6 +347,33 @@ export const toolPartCSS = css`
       flex: none;
       min-width: 0;
       max-width: none;
+    }
+  }
+
+  /* Quiet expanded: lefthand line style like tool groups */
+  &[data-variant="quiet"][open] {
+    border-left-color: var(--tool-call-body-border-color);
+    border-radius: 0;
+
+    &[data-header-active="true"] {
+      border-left-color: var(--tool-call-border-color-hover);
+      transition: none;
+    }
+
+    summary {
+      border-bottom: none;
+    }
+
+    .tool-part__summary {
+      font-size: var(--global-font-size-s);
+    }
+
+    .tool-part__title-text {
+      color: var(--agent-subdued-text-color);
+    }
+
+    .tool-part__body {
+      background: none;
     }
   }
 `;
@@ -419,6 +447,7 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
+  const [isHeaderActive, setIsHeaderActive] = useState(false);
   const {
     preview,
     stateLabel,
@@ -456,8 +485,13 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
       css={toolPartCSS}
       open={isRenderedOpen}
       data-variant={variant}
+      data-header-active={isQuiet ? isHeaderActive : undefined}
     >
       <summary
+        onMouseEnter={() => setIsHeaderActive(true)}
+        onMouseLeave={() => setIsHeaderActive(false)}
+        onFocus={() => setIsHeaderActive(true)}
+        onBlur={() => setIsHeaderActive(false)}
         onClick={(event) => {
           // Keep <details> fully React-controlled. Letting the browser toggle
           // natively can race the auto-open/manual override state during tool

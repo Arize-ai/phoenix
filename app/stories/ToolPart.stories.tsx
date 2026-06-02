@@ -51,6 +51,17 @@ function OpenByDefault({ children }: { children: React.ReactNode }) {
   return <div ref={ref}>{children}</div>;
 }
 
+function ClosedByDefault({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Run after OpenByDefault (which runs in parent decorator)
+    requestAnimationFrame(() => {
+      ref.current?.querySelector("details")?.removeAttribute("open");
+    });
+  }, []);
+  return <div ref={ref}>{children}</div>;
+}
+
 function withElicitationDraft(draft: PendingElicitationDraft) {
   return (Story: () => React.ReactNode) => (
     <ElicitationDraftProvider draft={draft}>
@@ -818,4 +829,69 @@ export const SavePromptRejected: Story = {
 export const SavePromptError: Story = {
   args: { part: savePromptErrorPart },
   decorators: [withAgentStore()],
+};
+
+// ---------------------------------------------------------------------------
+// Load skill tool mocks
+// ---------------------------------------------------------------------------
+
+const loadSkillRunningPart = makePart({
+  toolName: "load_skill",
+  state: "input-available",
+  input: { skill_name: "phoenix-frontend" },
+});
+
+const loadSkillCompletedPart = makePart({
+  toolName: "load_skill",
+  state: "output-available",
+  input: { skill_name: "phoenix-frontend" },
+  output:
+    "# Phoenix Frontend Development Guide\n\nThis skill provides guidance for working with the Phoenix frontend codebase...\n\n## Key Concepts\n\n- Components live in `src/components`\n- Use Emotion for styling\n- Follow the design system tokens",
+});
+
+const loadSkillErrorPart = makePart({
+  toolName: "load_skill",
+  state: "output-error",
+  input: { skill_name: "unknown-skill" },
+  errorText: "Skill 'unknown-skill' not found in the skill registry.",
+});
+
+/** A load_skill tool currently running (shows standard chrome). */
+export const LoadSkillRunning: Story = {
+  args: { part: loadSkillRunningPart },
+};
+
+/**
+ * A completed load_skill tool collapsed (quiet variant).
+ * Shows minimal chrome with just "Loaded skill phoenix-frontend" label.
+ */
+export const LoadSkillCollapsed: Story = {
+  args: { part: loadSkillCompletedPart },
+  decorators: [
+    (Story) => (
+      <ClosedByDefault>
+        <div css={containerCSS}>
+          <ToolPartStoryNote title="Collapsed State">
+            When collapsed, the quiet variant shows minimal chrome with a subdued
+            label. Click to expand and see the quiet-expanded variant with the
+            lefthand border style.
+          </ToolPartStoryNote>
+          <Story />
+        </div>
+      </ClosedByDefault>
+    ),
+  ],
+};
+
+/**
+ * A completed load_skill tool expanded (quiet-expanded variant).
+ * Shows lefthand line style like tool groups instead of full chrome.
+ */
+export const LoadSkillExpanded: Story = {
+  args: { part: loadSkillCompletedPart },
+};
+
+/** A load_skill tool that failed to find the skill. */
+export const LoadSkillError: Story = {
+  args: { part: loadSkillErrorPart },
 };
