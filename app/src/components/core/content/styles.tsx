@@ -36,16 +36,6 @@ export const textBaseCSS = css`
   }
 `;
 
-/**
- * Muted italic text style for secondary/status information.
- * Used for quiet tool labels, thinking indicators, etc.
- */
-export const mutedTextCSS = css`
-  color: var(--global-text-color-500);
-  font-style: italic;
-  font-weight: 400;
-`;
-
 export const headingBaseCSS = css`
   color: var(--global-text-color-900);
   &[data-level="1"] {

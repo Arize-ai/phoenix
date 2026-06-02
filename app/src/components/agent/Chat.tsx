@@ -654,7 +654,6 @@ const loadingCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
-  color: var(--global-text-color-700);
 `;
 
 /** Loading affordance shown while the assistant response is pending. */
@@ -662,7 +661,13 @@ function Loading() {
   return (
     <div css={loadingCSS}>
       <PxiGlyph animation="wave-hold" size={12} />
-      <Shimmer size="S" weight="heavy">
+      <Shimmer
+        size="S"
+        css={css`
+          color: var(--agent-subdued-text-color);
+          font-style: italic;
+        `}
+      >
         Thinking...
       </Shimmer>
     </div>

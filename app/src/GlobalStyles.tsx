@@ -1053,6 +1053,7 @@ const toolCallCSS = (theme: Theme) => css`
     --tool-call-title-color: var(--global-text-color-700);
     --tool-call-secondary-color: var(--global-text-color-400);
     --tool-call-error-color: var(--global-color-danger-700);
+    --agent-subdued-text-color: var(--global-text-color-500);
   }
 `;
 
