@@ -1,9 +1,8 @@
-import { keyframes } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import type { ReactNode } from "react";
 
 import { CopyToClipboardButton } from "@phoenix/components";
-// TODO: Re-enable after scroll fix is complete
-// import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
+import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
   from {
@@ -111,27 +110,24 @@ export function ToolPartMeta({
   );
 }
 
-// TODO: Re-enable after scroll fix is complete
-// const COLLAPSED_HEIGHT_PX = 320;
+const COLLAPSED_HEIGHT_PX = 320;
 
-// const expandableSectionCSS = css`
-//   --expandable-content-overlay-background-color: var(
-//     --tool-call-body-background-color
-//   );
-// `;
+const expandableSectionCSS = css`
+  --expandable-content-overlay-background-color: var(
+    --tool-call-body-background-color
+  );
+`;
 
 /**
  * Wrapper for tool part input/output sections. Automatically collapses content
  * that exceeds the collapsed height, showing an expand/collapse button.
  */
 export function ToolPartExpandableSection({ children }: { children: ReactNode }) {
-  // TODO: Re-enable after scroll fix is complete
-  return <>{children}</>;
-  // return (
-  //   <div css={expandableSectionCSS}>
-  //     <ExpandableContent height={COLLAPSED_HEIGHT_PX} expandedBehavior="grow">
-  //       {children}
-  //     </ExpandableContent>
-  //   </div>
-  // );
+  return (
+    <div css={expandableSectionCSS}>
+      <ExpandableContent height={COLLAPSED_HEIGHT_PX} expandedBehavior="grow">
+        {children}
+      </ExpandableContent>
+    </div>
+  );
 }

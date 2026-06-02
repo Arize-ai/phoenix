@@ -533,16 +533,36 @@ function ToolInvocationPartDetails({
           // streaming updates and make the disclosure feel stuck.
           event.preventDefault();
           const wasOpen = isRenderedOpen;
-          setManualOpen(!isRenderedOpen);
 
-          // When manually expanding a tool, stop the stick-to-bottom library
-          // from scrolling, then scroll the tool header into view so the user
-          // can read from the top.
+          // Record the tool's visual position before expanding so we can
+          // restore it after the content grows.
+          const scrollParent = getScrollableParent(event.currentTarget);
+          const elementRect = detailsRef.current?.getBoundingClientRect();
+          const parentRect = scrollParent?.getBoundingClientRect();
+          const offsetFromParentTop =
+            elementRect && parentRect
+              ? elementRect.top - parentRect.top
+              : null;
+
+          // Stop the stick-to-bottom library from fighting our scroll restore.
           if (!wasOpen) {
             chatScrollContext?.stopScroll();
+          }
+
+          setManualOpen(!isRenderedOpen);
+
+          // After React renders the expanded/collapsed content, restore the
+          // tool header to its original visual position.
+          if (scrollParent && offsetFromParentTop !== null) {
             requestAnimationFrame(() => {
-              if (detailsRef.current) {
-                scrollElementIntoViewWithinScrollParent(detailsRef.current);
+              const newElementRect =
+                detailsRef.current?.getBoundingClientRect();
+              const newParentRect = scrollParent.getBoundingClientRect();
+              if (newElementRect) {
+                const newOffsetFromParentTop =
+                  newElementRect.top - newParentRect.top;
+                const delta = newOffsetFromParentTop - offsetFromParentTop;
+                scrollParent.scrollTop += delta;
               }
             });
           }
