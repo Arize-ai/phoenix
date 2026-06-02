@@ -14,7 +14,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [101]
+          instances:
+            - instanceId: 101
       messages:
         - role: user
           content: This prompt is ready. Save it.
@@ -39,7 +40,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [102]
+          instances:
+            - instanceId: 102
       messages:
         - role: user
           content: Save this as "Customer Escalation Router"; note that it adds stricter handoff criteria.
@@ -66,7 +68,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [201]
+          instances:
+            - instanceId: 201
       messages:
         - role: user
           content: Check prompt A before I save it.
@@ -125,7 +128,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [202]
+          instances:
+            - instanceId: 202
       messages:
         - role: user
           content: Save the current playground state as a new version on prompt UHJvbXB0Ojk5 with note "adds retrieval citations".
@@ -152,7 +156,9 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [301, 302]
+          instances:
+            - instanceId: 301
+            - instanceId: 302
       messages:
         - role: user
           content: Save comparison B as the new version. Do not create a separate prompt.
@@ -178,7 +184,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [401]
+          instances:
+            - instanceId: 401
       messages:
         - role: user
           content: Publish this prompt and tag it production and v3.
@@ -203,7 +210,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [402]
+          instances:
+            - instanceId: 402
       messages:
         - role: user
           content: Save this version with no tags.
@@ -230,7 +238,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [501]
+          instances:
+            - instanceId: 501
       messages:
         - role: user
           content: Try it on the current inputs; don't save anything yet.
@@ -250,7 +259,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [601]
+          instances:
+            - instanceId: 601
       messages:
         - role: user
           content: Make the system message more concise, but don't save it yet.
@@ -270,7 +280,8 @@ examples:
     input:
       contexts:
         - type: playground
-          instanceIds: [701]
+          instances:
+            - instanceId: 701
       messages:
         - role: user
           content: "Save me from typing these in manually: set topic to refunds and tone to concise."

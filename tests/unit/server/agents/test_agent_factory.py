@@ -591,7 +591,10 @@ class TestCodeEvaluatorFormToolGates:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                ),
                 dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
             sandbox_availability=self._sandbox_availability(),
@@ -613,7 +616,10 @@ class TestCodeEvaluatorFormToolGates:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                ),
                 dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
             is_viewer=True,
@@ -633,7 +639,10 @@ class TestCodeEvaluatorFormToolGates:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                ),
                 dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
             sandbox_availability=SandboxAvailability(),
