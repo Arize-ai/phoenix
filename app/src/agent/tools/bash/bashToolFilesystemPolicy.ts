@@ -43,6 +43,17 @@ export const BASH_TOOL_READONLY_ROOT = "/phoenix";
 export const BASH_TOOL_WORKSPACE_ROOT = "/home/user/workspace";
 
 /**
+ * Null-sink device paths. just-bash has no real device files, so a redirect
+ * like `cmd >/dev/null 2>&1` resolves to an ordinary `writeFile("/dev/null")`.
+ * That idiom is ubiquitous in model-authored commands, so rather than block it
+ * (which aborts the whole command), we treat writes to these paths as silent
+ * discards — matching POSIX `/dev/null` semantics.
+ */
+export const BASH_TOOL_DISCARD_DEVICE_PATHS: ReadonlySet<string> = new Set([
+  "/dev/null",
+]);
+
+/**
  * Captures the current writable filesystem methods so internal setup code can
  * temporarily bypass policy wrappers and then restore them.
  */
@@ -63,6 +74,14 @@ function normalizeVirtualPath(fs: IFileSystem, path: string) {
 
 function isWithinRoot(path: string, root: string) {
   return path === root || path.startsWith(`${root}/`);
+}
+
+/**
+ * Returns true when `path` resolves to a null-sink device whose writes should
+ * be discarded rather than enforced against the workspace policy.
+ */
+function isDiscardDevicePath(fs: IFileSystem, path: string) {
+  return BASH_TOOL_DISCARD_DEVICE_PATHS.has(normalizeVirtualPath(fs, path));
 }
 
 function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
@@ -109,23 +128,31 @@ export function applyBashToolFilesystemPolicy(fs: IFileSystem) {
     path: string,
     content: FileContent,
     options?: WriteFileOptions | BufferEncoding
-  ) =>
-    originalWriteFile(
+  ) => {
+    if (isDiscardDevicePath(fs, path)) {
+      return Promise.resolve();
+    }
+    return originalWriteFile(
       assertWritablePath(fs, path, "writeFile"),
       content,
       options
     );
+  };
 
   fs.appendFile = (
     path: string,
     content: FileContent,
     options?: WriteFileOptions | BufferEncoding
-  ) =>
-    originalAppendFile(
+  ) => {
+    if (isDiscardDevicePath(fs, path)) {
+      return Promise.resolve();
+    }
+    return originalAppendFile(
       assertWritablePath(fs, path, "appendFile"),
       content,
       options
     );
+  };
 
   fs.mkdir = (path: string, options?: MkdirOptions) =>
     originalMkdir(assertWritablePath(fs, path, "mkdir"), options);
