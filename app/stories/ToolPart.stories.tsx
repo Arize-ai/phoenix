@@ -872,9 +872,9 @@ export const LoadSkillCollapsed: Story = {
       <ClosedByDefault>
         <div css={containerCSS}>
           <ToolPartStoryNote title="Collapsed State">
-            When collapsed, the quiet variant shows minimal chrome with a subdued
-            label. Click to expand and see the quiet-expanded variant with the
-            lefthand border style.
+            When collapsed, the quiet variant shows minimal chrome with a
+            subdued label. Click to expand and see the quiet-expanded variant
+            with the lefthand border style.
           </ToolPartStoryNote>
           <Story />
         </div>
