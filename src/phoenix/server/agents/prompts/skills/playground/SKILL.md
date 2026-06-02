@@ -1,6 +1,6 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground. Load before any playground tool call, including single-shot prompt rewrites.
+description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground tool call, including single-shot prompt rewrites.
 ---
 
 # Prompt Playground
@@ -44,26 +44,29 @@ dataset-backed evaluation loop is in scope.
 Use this workflow when the user wants evidence that a prompt is improving across a dataset, or when
 they are comparing prompt variants using evaluator results.
 
-1. Confirm the dataset represents the task the prompt is meant to solve, including the important
+1. Load the dataset with `load_dataset` if it isn't already loaded. If the user named a dataset but
+   no split and the dataset has splits, name them and ask whether to scope to one or load the whole
+   dataset — then load once.
+2. Confirm the dataset represents the task the prompt is meant to solve, including the important
    input fields, expected outputs, and failure modes.
-2. Make sure the starting prompt is well formed before running it: it should define the task,
+3. Make sure the starting prompt is well formed before running it: it should define the task,
    relevant variables, output format, and any constraints needed for consistent evaluation.
-3. Run the playground over the dataset. Each prompt instance run over a dataset is captured as an
+4. Run the playground over the dataset. Each prompt instance run over a dataset is captured as an
    experiment, with outputs and evaluator annotations available for review.
-4. Review the experiment outputs and annotations to find recurring failure patterns. Use `bash` with
+5. Review the experiment outputs and annotations to find recurring failure patterns. Use `bash` with
    `phoenix-gql` to inspect dataset-backed experiment results when needed; `read_playground_output`
    only reads manual playground runs. Separate model randomness from prompt issues when possible.
-5. Use or add evaluators when they make issue detection more systematic, especially for failures
+6. Use or add evaluators when they make issue detection more systematic, especially for failures
    that are hard to spot by manual review alone.
-6. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance` or
+7. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance` or
    `clone_prompt_instance` to create the next candidate.
-7. Rerun the playground and compare experiments. Look for evaluator improvements, fewer repeated
+8. Rerun the playground and compare experiments. Look for evaluator improvements, fewer repeated
    failure modes, and acceptable tradeoffs in output quality.
-8. Use `save_prompt` to save a prompt as a new version only after the evidence shows an
+9. Use `save_prompt` to save a prompt as a new version only after the evidence shows an
    improvement or the user explicitly accepts the tradeoff. For unsaved prompts, the tool can
    create the Phoenix prompt directly without asking for a name unless the user cares about the
    exact name.
-9. Continue the hypothesis, edit, run, compare loop until the dataset-backed results satisfy the
+10. Continue the hypothesis, edit, run, compare loop until the dataset-backed results satisfy the
    user's goal.
 
 ## Workflow: Author, Refine, Or Remove A Function Tool

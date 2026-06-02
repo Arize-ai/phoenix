@@ -17,11 +17,9 @@ NAME = "load_dataset"
 DESCRIPTION = (
     "Load a dataset into the currently mounted playground, optionally scoped to a single "
     "split, so the prompt runs over the dataset's examples. Use this when the user asks to "
-    "load, open, switch to, or run against a dataset (or one split of it) in the "
-    "playground. This only switches the playground's dataset selection; it does not edit "
-    "prompts, set variables, or run the playground. In manual approval mode an inline "
-    "accept/reject card applies the change on approval (skipped when edit_permission is "
-    "bypass)."
+    "load, open, switch to, run against, or run an experiment over a dataset (or one split "
+    "of it) in the playground. This only switches the playground's dataset selection; it "
+    "does not edit prompts, set variables, or run the playground."
 )
 
 PARAMETERS: dict[str, Any] = {

@@ -1,7 +1,7 @@
 <tool name="load_dataset">
   <description>Load a dataset (optionally scoped to one split) into the mounted playground. In manual approval mode the browser renders an inline accept/reject card and the user approves the change; this tool does not switch the playground immediately. Approval is skipped only when edit_permission is bypass.</description>
   <when_to_use>
-    - The user asks to load, open, switch to, or run against a dataset in the playground.
+    - The user asks to load, open, switch to, run against, or run an experiment over a dataset in the playground.
     - The user wants to scope a playground run to a single split of a dataset.
   </when_to_use>
   <preflight>
@@ -9,10 +9,7 @@
     - When the user names a dataset directly and you are confident it exists, you may pass that name without a discovery query.
   </preflight>
   <rules>
-    - `datasetName` is required. `splitName` is optional and scopes the run to one split; use null or omit it to load the whole dataset. Only a single split is supported.
-    - Propose the load by calling this tool directly. The inline accept/reject card is the approval surface — do not ask the user a separate yes/no question (or call `ask_user`) to confirm before calling it.
-    - Approval is skipped only when edit_permission is bypass; in that mode the load applies immediately without a card.
-    - This tool only switches the playground dataset selection. It does not edit prompt messages, set variable values, or run the playground.
-    - After the load is applied (the user accepts, or it is auto-approved under bypass), call `run_playground` if the user wants to see results over the loaded dataset.
+    - Propose the load by calling this tool directly. The inline accept/reject card is the approval surface — do not ask the user a separate yes/no question (or call `ask_user`) to confirm before calling it. Asking which split to scope to is a content question and is fine.
+    - After the load is applied, call `run_playground` if the user wants to see results over the loaded dataset.
   </rules>
 </tool>
