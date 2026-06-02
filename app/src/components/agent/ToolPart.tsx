@@ -9,7 +9,7 @@ import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEval
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
-import { Icon, Icons } from "@phoenix/components";
+import { Icon, Icons, mutedTextCSS } from "@phoenix/components";
 
 import {
   AskUserToolDetails,
@@ -38,6 +38,11 @@ import {
   formatEditLlmEvaluatorDraftState,
   getEditLlmEvaluatorDraftToolPreview,
 } from "./EditLLMEvaluatorDraftToolDetails";
+import {
+  getLoadSkillToolPreview,
+  LOAD_SKILL_TOOL_NAME,
+  LoadSkillToolDetails,
+} from "./LoadSkillToolDetails";
 import {
   EditPromptToolDetails,
   formatEditPromptState,
@@ -328,6 +333,143 @@ export const toolPartCSS = css`
   }
 `;
 
+const quietToolPartCSS = css`
+  margin-top: var(--global-dimension-size-150);
+  opacity: 0;
+  transform: translateY(-2px);
+  animation: ${TOOL_PART_ENTRY_KEYFRAMES} 250ms ease-out forwards;
+
+  &:has(+ :not(.tool-part--quiet)) {
+    margin-bottom: var(--global-dimension-size-150);
+  }
+
+  summary {
+    cursor: pointer;
+    list-style: none;
+
+    &:focus-visible {
+      outline: 2px solid var(--global-color-primary);
+      outline-offset: -2px;
+    }
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  &[open] summary {
+    margin-bottom: var(--global-dimension-size-100);
+  }
+
+  &[open] .tool-part__chevron {
+    transform: rotate(0deg);
+  }
+
+  .tool-part__body {
+    background: var(--tool-call-body-background-color);
+    border: 1px solid var(--tool-call-border-color);
+    border-radius: var(--global-rounding-small);
+    font-family: var(--ac-global-font-family-code);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    padding-top: var(--global-dimension-size-125);
+    padding-bottom: var(--global-dimension-size-75);
+  }
+
+  .tool-part__line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250) 0;
+
+    &:last-child {
+      padding-bottom: var(--global-dimension-size-125);
+    }
+  }
+
+  .tool-part__line--copyable {
+    position: relative;
+    padding-bottom: var(--global-dimension-size-150);
+    padding-right: calc(var(--global-dimension-size-250) + 28px);
+
+    .copy-to-clipboard-button {
+      position: absolute;
+      top: 0;
+      right: var(--global-dimension-size-250);
+      opacity: 0;
+      transition: opacity 150ms ease;
+
+      &:focus-within {
+        opacity: 1;
+      }
+    }
+
+    &:hover .copy-to-clipboard-button {
+      opacity: 1;
+    }
+  }
+
+  .tool-part__code {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tool-part__label {
+    color: var(--tool-call-secondary-color);
+    text-transform: uppercase;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+
+  .tool-part__summary {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+  }
+
+  .tool-part__icon-slot {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+  }
+
+  .tool-part__icon-slot .tool-part__chevron,
+  .tool-part__icon-slot .tool-part__tool-icon {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tool-part__chevron {
+    font-size: 18px;
+    transition: transform 150ms ease;
+    transform: rotate(-90deg);
+    opacity: 0;
+  }
+
+  .tool-part__tool-icon {
+    font-size: 0.75rem;
+    opacity: 1;
+  }
+
+  summary:hover .tool-part__chevron {
+    opacity: 1;
+  }
+
+  summary:hover .tool-part__tool-icon {
+    opacity: 0;
+  }
+`;
+
 /**
  * Collapsible detail view for a single tool invocation within an assistant
  * message. Dispatches to tool-specific sub-components for the preview text,
@@ -397,10 +539,8 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
-  const { preview, stateLabel, statusVariant, details } = getToolPresentation(
-    toolName,
-    part
-  );
+  const { preview, stateLabel, statusVariant, details, icon, variant, quietLabel } =
+    getToolPresentation(toolName, part);
   const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
   const isRenderedOpen = manualOpen ?? shouldAutoOpen;
 
@@ -418,6 +558,39 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
       }
     });
   }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
+
+  if (variant === "quiet") {
+    return (
+      <details
+        ref={detailsRef}
+        className="tool-part--quiet"
+        css={quietToolPartCSS}
+        open={isRenderedOpen}
+      >
+        <summary
+          onClick={(event) => {
+            event.preventDefault();
+            setManualOpen(!isRenderedOpen);
+          }}
+        >
+          <div className="tool-part__summary">
+            <span className="tool-part__icon-slot">
+              <Icon
+                svg={<Icons.ChevronDown />}
+                className="tool-part__chevron"
+              />
+              <Icon
+                svg={icon ?? <Icons.WrenchOutline />}
+                className="tool-part__tool-icon"
+              />
+            </span>
+            <span css={mutedTextCSS}>{quietLabel}</span>
+          </div>
+        </summary>
+        <div>{details}</div>
+      </details>
+    );
+  }
 
   return (
     <details
@@ -443,7 +616,7 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
                 className="tool-part__chevron"
               />
               <Icon
-                svg={<Icons.WrenchOutline />}
+                svg={icon ?? <Icons.WrenchOutline />}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -615,6 +788,8 @@ function getNativeWebToolPreview(
   return "";
 }
 
+type ToolVariant = "standard" | "quiet";
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -623,6 +798,9 @@ function getToolPresentation(
   stateLabel: string;
   statusVariant?: StatusVariant;
   details: React.ReactNode;
+  icon?: React.ReactNode;
+  variant?: ToolVariant;
+  quietLabel?: string;
 } {
   const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
@@ -685,6 +863,18 @@ function getToolPresentation(
         statusVariant,
         details: <EditLLMEvaluatorDraftToolDetails part={part} />,
       };
+    case LOAD_SKILL_TOOL_NAME: {
+      const skillName = getLoadSkillToolPreview(part);
+      return {
+        preview: skillName,
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <LoadSkillToolDetails part={part} />,
+        icon: <Icons.GraduationCapOutline />,
+        variant: part.state === "output-available" ? "quiet" : "standard",
+        quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
+      };
+    }
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME: {
       const inputStr = JSON.stringify(part.input, null, 2);
