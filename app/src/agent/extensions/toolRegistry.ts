@@ -34,6 +34,12 @@ import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import {
+  LOAD_DATASET_TOOL_NAME,
+  parseLoadDatasetInput,
+  type LoadDatasetActionContext,
+  type LoadDatasetInput,
+} from "@phoenix/agent/tools/playgroundLoadDataset";
+import {
   LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
   parseListPlaygroundModelTargetsInput,
   parseSetPlaygroundModelInput,
@@ -41,12 +47,6 @@ import {
   type ListPlaygroundModelTargetsInput,
   type SetPlaygroundModelInput,
 } from "@phoenix/agent/tools/playgroundModel";
-import {
-  LOAD_DATASET_TOOL_NAME,
-  parseLoadDatasetInput,
-  type LoadDatasetActionContext,
-  type LoadDatasetInput,
-} from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   parseReadPlaygroundOutputInput,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,

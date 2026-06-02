@@ -26,15 +26,15 @@ import {
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
+  createLoadDatasetClientAction,
+  LOAD_DATASET_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundLoadDataset";
+import {
   createListPlaygroundModelTargetsClientAction,
   createSetPlaygroundModelClientAction,
   LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
   SET_PLAYGROUND_MODEL_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundModel";
-import {
-  createLoadDatasetClientAction,
-  LOAD_DATASET_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   createReadPlaygroundOutputClientAction,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
