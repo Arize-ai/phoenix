@@ -41,12 +41,14 @@ import { createAgentToolDispatcher } from "./registry/dispatch";
 
 export type { AgentToolCall, AgentToolUIBehavior } from "./registry/defineTool";
 
-/** Ordered registry of all frontend-executable tools. */
-const agentToolDefinitions: AgentToolDefinition[] = [
-  bashAgentTool,
-  askUserAgentTool,
+/**
+ * Page-action tools delegate to a client action that a mounted React component
+ * registers in `registeredClientActions` (built with `defineClientActionTool`).
+ * Each only works while its page surface is mounted; off that surface it returns
+ * a "not mounted" error. Registration order is cosmetic — dispatch is by name.
+ */
+const pageActionTools: AgentToolDefinition[] = [
   setTimeRangeAgentTool,
-  renderGenerativeUIAgentTool,
   setSpansFilterAgentTool,
   readPromptAgentTool,
   clonePromptInstanceAgentTool,
@@ -57,11 +59,31 @@ const agentToolDefinitions: AgentToolDefinition[] = [
   runPlaygroundAgentTool,
   readPlaygroundOutputAgentTool,
   setVariableValuesAgentTool,
-  batchSpanAnnotateAgentTool,
   openCodeEvaluatorFormAgentTool,
   readCodeEvaluatorDraftAgentTool,
   editCodeEvaluatorDraftAgentTool,
   testCodeEvaluatorDraftAgentTool,
+];
+
+/**
+ * Standalone tools own their own execution and delegate to no page action
+ * (built with the lower-level `defineTool`):
+ * - `bash` executes in the browser sandbox runtime;
+ * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
+ * - `ask_user` and `batch_span_annotate` write a pending-approval store entry and
+ *   defer their output to a later accept/reject.
+ */
+const standaloneTools: AgentToolDefinition[] = [
+  bashAgentTool,
+  renderGenerativeUIAgentTool,
+  askUserAgentTool,
+  batchSpanAnnotateAgentTool,
+];
+
+/** Ordered registry of all frontend-executable tools. */
+const agentToolDefinitions: AgentToolDefinition[] = [
+  ...pageActionTools,
+  ...standaloneTools,
 ];
 
 const dispatcher = createAgentToolDispatcher(agentToolDefinitions);

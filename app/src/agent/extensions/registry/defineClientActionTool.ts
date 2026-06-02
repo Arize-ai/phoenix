@@ -60,8 +60,13 @@ async function emitClientActionResult({
 }
 
 /**
- * Define a tool that delegates to a page-registered client action looked up by
- * name in `agentStore.registeredClientActions`.
+ * Define a "page-action" tool: one that delegates to a client action looked up
+ * by name in `agentStore.registeredClientActions`. A *client action* here is
+ * the same thing as a *page action* — the callable a mounted React component
+ * registers (via `registerClientAction`) to expose its page surface to PXI; the
+ * two terms are interchangeable. Tools that own their own execution and
+ * delegate to no page action (e.g. `bash`, `render_generative_ui`) use the
+ * lower-level `defineTool` instead.
  *
  * This collapses the otherwise-identical "look up action, bail if unmounted,
  * invoke, map result" boilerplate shared by most contextual client-executed
