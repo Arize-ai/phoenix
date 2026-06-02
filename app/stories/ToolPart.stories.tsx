@@ -813,10 +813,6 @@ export const SavePromptError: Story = {
   decorators: [withAgentStore()],
 };
 
-// ---------------------------------------------------------------------------
-// Load skill tool mocks
-// ---------------------------------------------------------------------------
-
 const loadSkillRunningPart = makePart({
   toolName: "load_skill",
   state: "input-available",

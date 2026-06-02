@@ -10,6 +10,7 @@ import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDatas
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
+import type { Variant } from "@phoenix/components/core/types";
 
 import {
   AskUserToolDetails,
@@ -711,7 +712,8 @@ function getNativeWebToolPreview(
   return "";
 }
 
-type ToolVariant = "standard" | "quiet";
+/** A subset of the global {@link Variant} type used for tool part chrome. */
+type ToolVariant = Extract<Variant, "default" | "quiet">;
 
 function getToolPresentation(
   toolName: string,
@@ -794,7 +796,7 @@ function getToolPresentation(
         statusVariant,
         details: <LoadSkillToolDetails part={part} />,
         icon: <Icons.GraduationCapOutline />,
-        variant: part.state === "output-available" ? "quiet" : "standard",
+        variant: part.state === "output-available" ? "quiet" : "default",
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
