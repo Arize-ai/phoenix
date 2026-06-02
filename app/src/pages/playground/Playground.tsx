@@ -19,12 +19,20 @@ import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
-import { OPEN_CODE_EVALUATOR_FORM_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
+import {
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
+} from "@phoenix/agent/extensions/toolRegistry";
 import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import {
+  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
   createLoadDatasetClientAction,
   LOAD_DATASET_TOOL_NAME,
@@ -282,9 +290,6 @@ function PlaygroundContent() {
   const playgroundStore = usePlaygroundStore();
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
-  // The load_dataset client action reads the live URL selection outside React
-  // (drift recheck), so keep the latest search params in a ref the
-  // mount-scoped registration effect can read without re-registering.
   const searchParamsRef = useRef(searchParams);
   searchParamsRef.current = searchParams;
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
@@ -308,6 +313,11 @@ function PlaygroundContent() {
   >(null);
   const isCodeEvaluatorFormOpen =
     datasetId != null && codeEvaluatorFormDatasetId === datasetId;
+  const [llmEvaluatorFormDatasetId, setLlmEvaluatorFormDatasetId] = useState<
+    string | null
+  >(null);
+  const isLlmEvaluatorFormOpen =
+    datasetId != null && llmEvaluatorFormDatasetId === datasetId;
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
@@ -538,8 +548,42 @@ function PlaygroundContent() {
         };
       }
     );
+    registerClientAction(
+      OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
+      async (): Promise<AgentClientActionResult> => {
+        if (isRunning) {
+          return {
+            ok: false,
+            error:
+              "The playground is running an experiment; wait for it to finish before opening the LLM-evaluator form.",
+          };
+        }
+        setLlmEvaluatorFormDatasetId(datasetId);
+        const isReady = await waitForRegisteredClientActions({
+          agentStore,
+          names: [
+            READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+            EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+            TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+          ],
+        });
+        if (!isReady) {
+          return {
+            ok: false,
+            error:
+              "The LLM-evaluator form opened, but its draft tools did not finish loading. Try opening the form again before reading the draft.",
+          };
+        }
+        return {
+          ok: true,
+          output:
+            "LLM-evaluator form opened for the current playground dataset; draft tools are ready.",
+        };
+      }
+    );
     return () => {
       unregisterClientAction(OPEN_CODE_EVALUATOR_FORM_TOOL_NAME);
+      unregisterClientAction(OPEN_LLM_EVALUATOR_FORM_TOOL_NAME);
     };
   }, [agentStore, datasetId, isRunning]);
 
@@ -679,6 +723,10 @@ function PlaygroundContent() {
                 isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
                 onCodeEvaluatorFormOpenChange={(isOpen) =>
                   setCodeEvaluatorFormDatasetId(isOpen ? datasetId : null)
+                }
+                isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+                onLlmEvaluatorFormOpenChange={(isOpen) =>
+                  setLlmEvaluatorFormDatasetId(isOpen ? datasetId : null)
                 }
               />
             </Suspense>

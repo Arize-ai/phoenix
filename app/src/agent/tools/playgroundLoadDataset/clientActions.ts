@@ -28,7 +28,6 @@ function getUrlSelection(searchParams: URLSearchParams): ExpectedSelection {
   };
 }
 
-// Mirrors PlaygroundDatasetSelect.onSelectionChange: the URL write (not the store) flips the rendered mode.
 function applyDatasetSelection({
   snapshot,
   playgroundStore,

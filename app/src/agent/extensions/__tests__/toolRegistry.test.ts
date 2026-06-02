@@ -3,6 +3,7 @@ import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
   OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
   SET_TIME_RANGE_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
@@ -235,6 +236,32 @@ describe("toolRegistry", () => {
         state: "output-error",
         tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
         toolCallId: "tool-call-open-evaluator-form-missing",
+        errorText:
+          "The dataset-backed playground is not mounted; cannot open the evaluator form.",
+      })
+    );
+  });
+
+  it("returns an error when open_llm_evaluator_form has no mounted action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-open-llm-evaluator-form-missing",
+        toolName: OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
+        toolCallId: "tool-call-open-llm-evaluator-form-missing",
         errorText:
           "The dataset-backed playground is not mounted; cannot open the evaluator form.",
       })

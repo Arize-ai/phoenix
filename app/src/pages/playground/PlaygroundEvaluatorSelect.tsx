@@ -40,6 +40,8 @@ type PlaygroundEvaluatorSelectProps = {
   isDisabled?: boolean;
   isCodeEvaluatorFormOpen: boolean;
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  isLlmEvaluatorFormOpen: boolean;
+  onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
 };
 
 export function PlaygroundEvaluatorSelect(
@@ -56,6 +58,8 @@ export function PlaygroundEvaluatorSelect(
     isDisabled,
     isCodeEvaluatorFormOpen,
     onCodeEvaluatorFormOpenChange,
+    isLlmEvaluatorFormOpen,
+    onLlmEvaluatorFormOpenChange,
   } = props;
 
   const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
@@ -228,8 +232,13 @@ export function PlaygroundEvaluatorSelect(
         onEvaluatorCreated={onEvaluatorCreated}
       />
       <CreateLLMDatasetEvaluatorSlideover
-        isOpen={!!createLLMEvaluatorDialogInitialState}
-        onOpenChange={setCreateLLMEvaluatorDialogInitialState}
+        isOpen={
+          !!createLLMEvaluatorDialogInitialState || isLlmEvaluatorFormOpen
+        }
+        onOpenChange={(isOpen) => {
+          setCreateLLMEvaluatorDialogInitialState(isOpen);
+          onLlmEvaluatorFormOpenChange(isOpen);
+        }}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
         initialState={

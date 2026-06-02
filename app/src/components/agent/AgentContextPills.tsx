@@ -44,6 +44,8 @@ function contextLabel(context: AgentContext): string {
       return "Span";
     case "code_evaluator":
       return "Code Evaluator";
+    case "llm_evaluator":
+      return "LLM Evaluator";
     case "dataset":
       return "Dataset";
   }
@@ -62,7 +64,7 @@ function contextDetail(context: AgentContext): string | undefined {
       return truncateId(spanId);
     }
     case "code_evaluator":
-      // Labeled by action, not entity, so it reads distinctly from surface pills.
+    case "llm_evaluator":
       return context.evaluatorNodeId
         ? `Editing evaluator: ${truncateId(context.evaluatorNodeId)}`
         : "New evaluator";
@@ -83,10 +85,6 @@ function toAttachmentData(context: AgentContext): AttachmentContextData {
   };
 }
 
-/**
- * Renders a project's span filter as its own pill, though the filter rides as a
- * field on the project context rather than a context type of its own.
- */
 function spanFilterAttachmentData(
   context: AgentContext
 ): AttachmentContextData | null {
@@ -103,7 +101,6 @@ function spanFilterAttachmentData(
   };
 }
 
-/** Renders the active agent contexts as non-removable pills above the chat input. */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
 

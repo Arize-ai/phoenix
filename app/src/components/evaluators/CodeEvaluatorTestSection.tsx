@@ -144,7 +144,6 @@ export type CodeEvaluatorTestSectionProps = {
   language: CodeEvaluatorLanguage;
   /** The sandbox config Relay ID if selected */
   sandboxConfigId: string | null;
-  /** Whether the code-evaluator draft form is currently mounted. */
   isDraftMounted: () => boolean;
 };
 

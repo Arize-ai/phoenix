@@ -58,12 +58,7 @@ export type EvaluatorInputMapping = {
   pathMapping: Record<string, string>;
 };
 
-/**
- * The directions to optimize the numeric evaluation score.
- *
- * Declared as a runtime tuple so the Zod enum in the code-evaluator draft
- * schema can derive its values from the same source as the type below.
- */
+// Runtime tuple so the code-evaluator draft Zod schema derives its enum from this same source.
 export const EVALUATOR_OPTIMIZATION_DIRECTIONS = [
   "MAXIMIZE",
   "MINIMIZE",
@@ -146,12 +141,7 @@ export type FreeformEvaluatorAnnotationConfig = {
  */
 export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
 
-/**
- * The languages a code evaluator may be authored in.
- *
- * Declared as a runtime tuple so the Zod enum in the code-evaluator draft
- * schema can derive its values from the same source as the type below.
- */
+// Runtime tuple so the code-evaluator draft Zod schema derives its enum from this same source.
 export const CODE_EVALUATOR_LANGUAGES = ["PYTHON", "TYPESCRIPT"] as const;
 
 export type CodeEvaluatorLanguage = (typeof CODE_EVALUATOR_LANGUAGES)[number];

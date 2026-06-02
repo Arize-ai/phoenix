@@ -22,11 +22,15 @@ export function PlaygroundDatasetSection({
   splitIds,
   isCodeEvaluatorFormOpen,
   onCodeEvaluatorFormOpenChange,
+  isLlmEvaluatorFormOpen,
+  onLlmEvaluatorFormOpenChange,
 }: {
   datasetId: string;
   splitIds?: string[];
   isCodeEvaluatorFormOpen: boolean;
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  isLlmEvaluatorFormOpen: boolean;
+  onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
 }) {
   const data = useLazyLoadQuery<PlaygroundDatasetSectionQuery>(
     graphql`
@@ -175,6 +179,8 @@ export function PlaygroundDatasetSection({
         query={data}
         isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
         onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
+        isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+        onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
       />
       <PlaygroundDatasetExamplesTableProvider key={key}>
         <PlaygroundDatasetExamplesTable

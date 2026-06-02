@@ -52,13 +52,6 @@ const webSearchToggleCSS = css`
   }
 `;
 
-/**
- * Globe toggle rendered next to the agent model selector. Flips the
- * `web.access` capability so the agent can use provider-native web search for
- * the current chat. Renders as a quiet icon when off and turns blue with a
- * "Search" label when on. Hidden when the deployment has not enabled web
- * access.
- */
 export function AgentWebSearchToggle() {
   const store = useAgentStore();
   const isWebSearchEnabled = useAgentContext(

@@ -15,7 +15,6 @@ function getMissingCreateSandboxConfigError(
   return `Creating a code evaluator requires a non-null sandboxConfigId. Choose an available sandbox config whose language is ${language}.`;
 }
 
-/** Applies operations to a draft snapshot; rejects mode/language-incoherent ops. */
 export function applyDraftOperations({
   snapshot,
   operations,

@@ -31,8 +31,7 @@ export function bindPendingLoadDatasetActions({
         return;
       }
 
-      // Dataset/split are separately deletable, so drift detection alone is insufficient:
-      // re-resolve the target before writing its ids to the URL.
+      // Dataset or split may have been deleted since the proposal — re-resolve before writing ids.
       const resolution = await resolveDatasetTarget(pendingLoad.input);
       if (!resolution.ok) {
         await addToolOutput({

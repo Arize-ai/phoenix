@@ -56,6 +56,10 @@ export function agentContextKey(context: AgentContext): string {
       return context.evaluatorNodeId
         ? `code_evaluator:${context.evaluatorNodeId}`
         : "code_evaluator:create";
+    case "llm_evaluator":
+      return context.evaluatorNodeId
+        ? `llm_evaluator:${context.evaluatorNodeId}`
+        : "llm_evaluator:create";
     case "dataset":
       return context.datasetVersionNodeId
         ? `dataset:${context.datasetNodeId}:${context.datasetVersionNodeId}`

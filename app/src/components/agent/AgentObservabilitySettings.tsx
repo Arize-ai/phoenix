@@ -101,9 +101,6 @@ export function AgentObservabilitySettings() {
   const setObservability = useAgentContext((state) => state.setObservability);
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
 
-  // User-side preference is effectively off whenever the admin ceiling is off,
-  // regardless of stored value. We don't reset the stored preference so the
-  // user's prior opt-in returns if the admin re-enables.
   const localTracesDisabledByAdmin = !agentsConfig.allowLocalTraces;
   const remoteExportDisabledByAdmin = !agentsConfig.allowRemoteExport;
 

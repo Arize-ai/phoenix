@@ -20,6 +20,7 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
+import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
@@ -186,8 +187,6 @@ export function useAgentChat({
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     unresolvedToolCalls.forEach((toolCall) => {
-      // The generic interruption output resolves the AI SDK tool call; clear
-      // the live approval state too so stale Accept/Reject actions disappear.
       if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
         store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
       }
@@ -199,6 +198,9 @@ export function useAgentChat({
       }
       if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
         store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME) {
+        store.getState().setPendingLlmEvaluatorEdit(toolCall.toolCallId, null);
       }
       if (toolCall.tool === LOAD_DATASET_TOOL_NAME) {
         store.getState().setPendingLoadDataset(toolCall.toolCallId, null);

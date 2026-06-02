@@ -51,7 +51,6 @@ type ResolvedDatasetRow = {
   splits: ReadonlyArray<{ id: string; name: string }>;
 };
 
-// Emptiness is split-scoped: a supplied split's example count is checked, not the dataset total.
 export async function resolveLoadDatasetTarget(
   input: LoadDatasetInput
 ): Promise<DatasetTargetResolution> {
@@ -143,7 +142,6 @@ async function resolveDatasetRowByName(
     }
     return null;
   }
-  // Dataset names are unique, so an exact-name match is singular.
   return {
     id: exactMatches[0]!.id,
     name: exactMatches[0]!.name,
@@ -188,7 +186,6 @@ export function buildDatasetSelectionSnapshot(
 export function buildSelectionRevision(selection: ExpectedSelection): string {
   const serialized = JSON.stringify({
     datasetId: selection.datasetId,
-    // Sorted so the revision is order-independent.
     splitIds: [...selection.splitIds].sort(),
   });
   let hash = 5381;
