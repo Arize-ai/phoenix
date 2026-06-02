@@ -10,6 +10,7 @@ import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDatas
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
+import type { Variant } from "@phoenix/components/core/types";
 
 import {
   AskUserToolDetails,
@@ -49,6 +50,11 @@ import {
   getLoadDatasetToolPreview,
   LoadDatasetToolDetails,
 } from "./LoadDatasetToolDetails";
+import {
+  getLoadSkillToolPreview,
+  LOAD_SKILL_TOOL_NAME,
+  LoadSkillToolDetails,
+} from "./LoadSkillToolDetails";
 import {
   formatSavePromptState,
   getSavePromptStatusVariant,
@@ -326,6 +332,51 @@ export const toolPartCSS = css`
   .tool-part__meta-value {
     color: var(--tool-call-secondary-color);
   }
+
+  /* Quiet variant: minimal chrome, responds to actual [open] state */
+  &[data-variant="quiet"] {
+    border-color: transparent;
+    background: none;
+    overflow: visible;
+    transition: border-color 150ms ease;
+
+    summary {
+      background: none;
+    }
+
+    .tool-part__title {
+      flex: none;
+      min-width: 0;
+      max-width: none;
+    }
+  }
+
+  /* Quiet expanded: lefthand line style like tool groups */
+  &[data-variant="quiet"][open] {
+    border-left-color: var(--tool-call-body-border-color);
+    border-radius: 0;
+
+    &[data-header-active="true"] {
+      border-left-color: var(--tool-call-border-color-hover);
+      transition: none;
+    }
+
+    summary {
+      border-bottom: none;
+    }
+
+    .tool-part__summary {
+      font-size: var(--global-font-size-s);
+    }
+
+    .tool-part__title-text {
+      color: var(--tool-call-quiet-color);
+    }
+
+    .tool-part__body {
+      background: none;
+    }
+  }
 `;
 
 /**
@@ -333,12 +384,22 @@ export const toolPartCSS = css`
  * message. Dispatches to tool-specific sub-components for the preview text,
  * state label, and expanded body.
  */
-export function ToolPart({ part }: { part: MessagePart }) {
+export function ToolPart({
+  part,
+  defaultOpen,
+}: {
+  part: MessagePart;
+  /**
+   * Forces the initial open/closed state, overriding the per-tool auto-open
+   * heuristic. The user can still toggle it afterwards.
+   */
+  defaultOpen?: boolean;
+}) {
   if (!isToolUIPart(part)) {
     return null;
   }
 
-  return <ToolInvocationPartDetails part={part} />;
+  return <ToolInvocationPartDetails part={part} defaultOpen={defaultOpen} />;
 }
 
 /**
@@ -391,18 +452,30 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   scrollParent.scrollBy({ top: delta, behavior: "smooth" });
 }
 
-function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
+function ToolInvocationPartDetails({
+  part,
+  defaultOpen,
+}: {
+  part: ToolInvocationPart;
+  defaultOpen?: boolean;
+}) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
-  const { preview, stateLabel, statusVariant, details } = getToolPresentation(
-    toolName,
-    part
-  );
+  const [isHeaderActive, setIsHeaderActive] = useState(false);
+  const {
+    preview,
+    stateLabel,
+    statusVariant,
+    details,
+    icon,
+    variant,
+    quietLabel,
+  } = getToolPresentation(toolName, part);
   const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
-  const isRenderedOpen = manualOpen ?? shouldAutoOpen;
+  const isRenderedOpen = manualOpen ?? defaultOpen ?? shouldAutoOpen;
 
   useEffect(() => {
     if (!shouldAutoOpen || hasAutoOpenedRef.current) {
@@ -419,14 +492,23 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
     });
   }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
 
+  const isQuiet = variant === "quiet";
+  const showQuietSummary = isQuiet && !isRenderedOpen;
+
   return (
     <details
       ref={detailsRef}
       className="tool-part"
       css={toolPartCSS}
       open={isRenderedOpen}
+      data-variant={variant}
+      data-header-active={isQuiet ? isHeaderActive : undefined}
     >
       <summary
+        onMouseEnter={() => setIsHeaderActive(true)}
+        onMouseLeave={() => setIsHeaderActive(false)}
+        onFocus={() => setIsHeaderActive(true)}
+        onBlur={() => setIsHeaderActive(false)}
         onClick={(event) => {
           // Keep <details> fully React-controlled. Letting the browser toggle
           // natively can race the auto-open/manual override state during tool
@@ -443,16 +525,31 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
                 className="tool-part__chevron"
               />
               <Icon
-                svg={<Icons.WrenchOutline />}
+                svg={icon ?? <Icons.WrenchOutline />}
                 className="tool-part__tool-icon"
               />
             </span>
-            <span className="tool-part__title-text">{toolName}</span>
+            {showQuietSummary ? (
+              <span
+                css={css`
+                  color: var(--tool-call-quiet-color);
+                  font-size: var(--global-font-size-s);
+                `}
+              >
+                {quietLabel}
+              </span>
+            ) : (
+              <span className="tool-part__title-text">{toolName}</span>
+            )}
           </span>
-          {preview ? (
+          {showQuietSummary ? null : preview ? (
             <span className="tool-part__preview">{preview}</span>
           ) : null}
-          <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
+          {showQuietSummary ? null : (
+            <ToolPartStatus variant={statusVariant}>
+              {stateLabel}
+            </ToolPartStatus>
+          )}
         </div>
       </summary>
       <div>{details}</div>
@@ -615,6 +712,9 @@ function getNativeWebToolPreview(
   return "";
 }
 
+/** A subset of the global {@link Variant} type used for tool part chrome. */
+type ToolVariant = Extract<Variant, "default" | "quiet">;
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -623,6 +723,9 @@ function getToolPresentation(
   stateLabel: string;
   statusVariant?: StatusVariant;
   details: React.ReactNode;
+  icon?: React.ReactNode;
+  variant?: ToolVariant;
+  quietLabel?: string;
 } {
   const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
@@ -685,6 +788,18 @@ function getToolPresentation(
         statusVariant,
         details: <EditLLMEvaluatorDraftToolDetails part={part} />,
       };
+    case LOAD_SKILL_TOOL_NAME: {
+      const skillName = getLoadSkillToolPreview(part);
+      return {
+        preview: skillName,
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <LoadSkillToolDetails part={part} />,
+        icon: <Icons.GraduationCapOutline />,
+        variant: part.state === "output-available" ? "quiet" : "default",
+        quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
+      };
+    }
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME: {
       const inputStr = JSON.stringify(part.input, null, 2);

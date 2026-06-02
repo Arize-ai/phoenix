@@ -1,8 +1,9 @@
-import type { HTMLAttributes } from "react";
+import type { CSSProperties, HTMLAttributes } from "react";
 
 import type { TextElementType, Weight } from "../../core/content/types";
 import type { DOMProps } from "../../core/types/dom";
 import type { TextSize } from "../../core/types/sizing";
+import type { TextColorValue } from "../../core/types/style";
 
 export interface ShimmerProps extends HTMLAttributes<HTMLElement>, DOMProps {
   /**
@@ -25,6 +26,16 @@ export interface ShimmerProps extends HTMLAttributes<HTMLElement>, DOMProps {
    * @default "normal"
    */
   weight?: Weight;
+  /**
+   * The base text color of the shimmer.
+   * @default "text-700"
+   */
+  color?: TextColorValue;
+  /**
+   * The font style.
+   * @default "normal"
+   */
+  fontStyle?: CSSProperties["fontStyle"];
   /**
    * Animation cycle duration in seconds.
    * @default 2

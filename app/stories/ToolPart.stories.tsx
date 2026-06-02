@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import {
   DOCS_FILESYSTEM_QUERY_TOOL_NAME,
@@ -42,14 +42,6 @@ const storyNoteCSS = css`
     font-weight: 600;
   }
 `;
-
-function OpenByDefault({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.querySelector("details")?.setAttribute("open", "");
-  }, []);
-  return <div ref={ref}>{children}</div>;
-}
 
 function withElicitationDraft(draft: PendingElicitationDraft) {
   return (Story: () => React.ReactNode) => (
@@ -624,13 +616,14 @@ const savePromptErrorPart = makePart({
 const toolPartMeta = {
   title: "Agent/ToolPart",
   component: ToolPart,
+  // Open by default so the expanded body is visible; individual stories can
+  // override with `defaultOpen: false`.
+  args: { defaultOpen: true },
   decorators: [
     (Story) => (
-      <OpenByDefault>
-        <div css={containerCSS}>
-          <Story />
-        </div>
-      </OpenByDefault>
+      <div css={containerCSS}>
+        <Story />
+      </div>
     ),
   ],
   parameters: {
@@ -818,4 +811,61 @@ export const SavePromptRejected: Story = {
 export const SavePromptError: Story = {
   args: { part: savePromptErrorPart },
   decorators: [withAgentStore()],
+};
+
+const loadSkillRunningPart = makePart({
+  toolName: "load_skill",
+  state: "input-available",
+  input: { skill_name: "phoenix-frontend" },
+});
+
+const loadSkillCompletedPart = makePart({
+  toolName: "load_skill",
+  state: "output-available",
+  input: { skill_name: "phoenix-frontend" },
+  output:
+    "# Phoenix Frontend Development Guide\n\nThis skill provides guidance for working with the Phoenix frontend codebase...\n\n## Key Concepts\n\n- Components live in `src/components`\n- Use Emotion for styling\n- Follow the design system tokens",
+});
+
+const loadSkillErrorPart = makePart({
+  toolName: "load_skill",
+  state: "output-error",
+  input: { skill_name: "unknown-skill" },
+  errorText: "Skill 'unknown-skill' not found in the skill registry.",
+});
+
+/** A load_skill tool currently running (shows standard chrome). */
+export const LoadSkillRunning: Story = {
+  args: { part: loadSkillRunningPart },
+};
+
+/**
+ * A completed load_skill tool collapsed (quiet variant).
+ * Shows minimal chrome with just "Loaded skill phoenix-frontend" label.
+ */
+export const LoadSkillCollapsed: Story = {
+  args: { part: loadSkillCompletedPart, defaultOpen: false },
+  render: (args) => (
+    <>
+      <ToolPartStoryNote title="Collapsed State">
+        When collapsed, the quiet variant shows minimal chrome with a subdued
+        label. Click to expand and see the quiet-expanded variant with the
+        lefthand border style.
+      </ToolPartStoryNote>
+      <ToolPart {...args} />
+    </>
+  ),
+};
+
+/**
+ * A completed load_skill tool expanded (quiet-expanded variant).
+ * Shows lefthand line style like tool groups instead of full chrome.
+ */
+export const LoadSkillExpanded: Story = {
+  args: { part: loadSkillCompletedPart },
+};
+
+/** A load_skill tool that failed to find the skill. */
+export const LoadSkillError: Story = {
+  args: { part: loadSkillErrorPart },
 };

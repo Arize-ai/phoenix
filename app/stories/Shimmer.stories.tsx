@@ -51,6 +51,24 @@ export const Speeds: Story = {
   ),
 };
 
+export const Colors: Story = {
+  render: () => (
+    <Flex direction="column" gap="size-100">
+      <Shimmer color="text-900">Prominent shimmer (text-900)</Shimmer>
+      <Shimmer color="text-700">Default shimmer (text-700)</Shimmer>
+      <Shimmer color="text-500">Subdued shimmer (text-500)</Shimmer>
+    </Flex>
+  ),
+};
+
+export const Italic: Story = {
+  args: {
+    children: "Thinking...",
+    color: "text-500",
+    fontStyle: "italic",
+  },
+};
+
 export const LongText: Story = {
   args: {
     children:
