@@ -30,6 +30,7 @@ from phoenix.server.api.mutations.prompt_version_tag_mutations import PromptVers
 from phoenix.server.api.mutations.sandbox_config_mutations import SandboxConfigMutationMixin
 from phoenix.server.api.mutations.secret_mutations import SecretMutationMixin
 from phoenix.server.api.mutations.span_annotations_mutations import SpanAnnotationMutationMixin
+from phoenix.server.api.mutations.system_settings_mutations import SystemSettingsMutationMixin
 from phoenix.server.api.mutations.trace_annotations_mutations import TraceAnnotationMutationMixin
 from phoenix.server.api.mutations.trace_mutations import TraceMutationMixin
 from phoenix.server.api.mutations.user_mutations import UserMutationMixin
@@ -56,6 +57,7 @@ class Mutation(
     SandboxConfigMutationMixin,
     SecretMutationMixin,
     SpanAnnotationMutationMixin,
+    SystemSettingsMutationMixin,
     ProjectSessionAnnotationMutationMixin,
     TraceAnnotationMutationMixin,
     TraceMutationMixin,

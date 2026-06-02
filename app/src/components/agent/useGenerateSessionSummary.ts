@@ -4,6 +4,7 @@ import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
 
 const SUMMARIZE_PATH =
   "/agents/{agent_id}/sessions/{session_id}/summary" as const satisfies keyof paths;
@@ -69,15 +70,17 @@ export function useGenerateSessionSummary() {
 
       requestedSessionsRef.current.add(sessionId);
 
-      const hasRemoteCollector = Boolean(state.agentsConfig.collectorEndpoint);
+      const traceRecording = getEffectiveTraceRecordingSettings({
+        agentsConfig: state.agentsConfig,
+        observability: state.observability,
+      });
 
       void fetchSummary({
         sessionId,
         modelSelection,
         messages: session.messages,
-        ingestTraces: state.observability.storeLocalTraces,
-        exportRemoteTraces:
-          state.observability.exportRemoteTraces && hasRemoteCollector,
+        ingestTraces: traceRecording.ingestTraces,
+        exportRemoteTraces: traceRecording.exportRemoteTraces,
       })
         .then((summary) => {
           if (summary) {

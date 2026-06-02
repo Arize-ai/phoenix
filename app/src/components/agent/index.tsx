@@ -1,7 +1,10 @@
 export { AgentSettingsForm } from "./AgentSettingsForm";
-export type { AgentSettingsFormValues } from "./AgentSettingsForm";
 export { AgentObservabilitySettings } from "./AgentObservabilitySettings";
-export { AgentExperimentalSettings } from "./AgentExperimentalSettings";
+export {
+  AgentExperimentalSettings,
+  AgentWebAccessSettings,
+} from "./AgentExperimentalSettings";
+export { SystemSettingsWarning } from "./SystemSettingsWarning";
 export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";

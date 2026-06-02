@@ -45,21 +45,40 @@ export type AgentServerConfig = {
   assistantProjectName: string;
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
+  /** Admin ceiling: whether the agent assistant feature is enabled for this workspace. */
+  assistantEnabled: boolean;
+  /** Admin ceiling: whether users may persist PXI traces locally. */
+  allowLocalTraces: boolean;
+  /** Admin ceiling: whether users may export PXI traces to the remote collector. */
+  allowRemoteExport: boolean;
+};
+
+export type AgentTraceConsentSettings = Pick<
+  AgentServerConfig,
+  "allowLocalTraces" | "allowRemoteExport"
+>;
+
+/** The resolved trace flags sent on an agent request. */
+export type AgentTraceRecordingSettings = {
+  /** Whether traces should be ingested by this Phoenix instance. */
+  ingestTraces: boolean;
+  /** Whether traces should also be exported to the remote collector. */
+  exportRemoteTraces: boolean;
 };
 
 /**
  * Per-user PXI observability preferences persisted in local storage.
  *
  * These settings control where PXI traces are sent for the current browser
- * user and whether the one-time consent gate has been acknowledged.
+ * user and which server trace settings the consent gate has acknowledged.
  */
 export type AgentObservabilitySettings = {
   /** Whether PXI traces should be persisted in the current Phoenix instance. */
   storeLocalTraces: boolean;
   /** Whether PXI traces should also be exported to a remote collector. */
   exportRemoteTraces: boolean;
-  /** Whether the user has acknowledged the PXI consent gate. */
-  hasAcknowledgedConsent: boolean;
+  /** Trace recording ceilings visible when consent was acknowledged; null means unacknowledged. */
+  acknowledgedTraceConsent: AgentTraceConsentSettings | null;
 };
 
 export type AgentEditPermissionMode = "manual" | "bypass";
@@ -117,12 +136,15 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
   webAccessEnabled: false,
+  assistantEnabled: false,
+  allowLocalTraces: false,
+  allowRemoteExport: false,
 };
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
   storeLocalTraces: true,
   exportRemoteTraces: false,
-  hasAcknowledgedConsent: false,
+  acknowledgedTraceConsent: null,
 };
 
 const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
@@ -165,6 +187,70 @@ function buildForkSummary(source: AgentSession): string {
     return base;
   }
   return base ? `${FORK_SUMMARY_PREFIX}${base}` : FORK_SUMMARY_PREFIX.trim();
+}
+
+/**
+ * The trace-recording capabilities the user is asked to consent to. Consent is
+ * about whether local persistence and/or remote export are allowed, not the
+ * current destination names/endpoints. Remote export is only on offer when a
+ * collector is actually configured. This is the shape snapshotted at
+ * acknowledgement so we can later detect when the server broadens recording
+ * beyond what the user agreed to.
+ */
+export function getCurrentTraceConsentSettings(
+  agentsConfig: AgentServerConfig
+): AgentTraceConsentSettings {
+  return {
+    allowLocalTraces: agentsConfig.allowLocalTraces,
+    allowRemoteExport:
+      Boolean(agentsConfig.collectorEndpoint) && agentsConfig.allowRemoteExport,
+  };
+}
+
+/**
+ * Whether the consent the user previously acknowledged still covers the current
+ * server ceilings. Re-consent is required only when the server *broadens*
+ * recording (enables a dimension the user never agreed to); narrowing leaves
+ * prior consent intact.
+ */
+export function hasAcknowledgedCurrentTraceConsent({
+  agentsConfig,
+  observability,
+}: {
+  agentsConfig: AgentServerConfig;
+  observability: AgentObservabilitySettings;
+}): boolean {
+  const acknowledgedTraceConsent = observability.acknowledgedTraceConsent;
+  if (!acknowledgedTraceConsent) {
+    return false;
+  }
+  const currentTraceConsent = getCurrentTraceConsentSettings(agentsConfig);
+  return (
+    (!currentTraceConsent.allowLocalTraces ||
+      acknowledgedTraceConsent.allowLocalTraces) &&
+    (!currentTraceConsent.allowRemoteExport ||
+      acknowledgedTraceConsent.allowRemoteExport)
+  );
+}
+
+/**
+ * The trace flags actually sent on a request: the server ceiling AND the user's
+ * preference must both allow a dimension for it to be recorded. Keeps the
+ * "remote requires a collector" rule in sync with {@link getCurrentTraceConsentSettings}.
+ */
+export function getEffectiveTraceRecordingSettings({
+  agentsConfig,
+  observability,
+}: {
+  agentsConfig: AgentServerConfig;
+  observability: AgentObservabilitySettings;
+}): AgentTraceRecordingSettings {
+  const ceiling = getCurrentTraceConsentSettings(agentsConfig);
+  return {
+    ingestTraces: ceiling.allowLocalTraces && observability.storeLocalTraces,
+    exportRemoteTraces:
+      ceiling.allowRemoteExport && observability.exportRemoteTraces,
+  };
 }
 
 /**
@@ -224,6 +310,20 @@ export interface AgentState extends AgentProps {
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
+  /**
+   * Updates the admin-controlled fields of {@link AgentServerConfig} after a
+   * successful workspace-settings mutation. Only the admin ceiling slots are
+   * patchable; env-derived fields (collectorEndpoint, assistantProjectName,
+   * webAccessEnabled) stay sourced from the initial loader query.
+   */
+  setAgentsConfig: (
+    patch: Partial<
+      Pick<
+        AgentServerConfig,
+        "assistantEnabled" | "allowLocalTraces" | "allowRemoteExport"
+      >
+    >
+  ) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
   setCapability: (params: {
@@ -678,12 +778,23 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setPermissions" }
       );
     },
+    setAgentsConfig: (patch) => {
+      set(
+        (state) => ({
+          agentsConfig: { ...state.agentsConfig, ...patch },
+        }),
+        false,
+        { type: "setAgentsConfig" }
+      );
+    },
     acknowledgeConsent: () => {
       set(
         (state) => ({
           observability: {
             ...state.observability,
-            hasAcknowledgedConsent: true,
+            acknowledgedTraceConsent: getCurrentTraceConsentSettings(
+              state.agentsConfig
+            ),
           },
         }),
         false,

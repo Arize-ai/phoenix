@@ -1,8 +1,7 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
 
-import { Alert, Button, Flex, Label } from "@phoenix/components";
+import { Alert, Label } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -21,10 +20,6 @@ function defaultModelConfigToMenuValue(config: ModelConfig): ModelMenuValue {
   };
 }
 
-export type AgentSettingsFormValues = {
-  model: ModelMenuValue;
-};
-
 export function AgentSettingsForm({ children }: { children?: ReactNode }) {
   const store = useAgentStore();
   const defaultModelConfig = useAgentContext(
@@ -34,29 +29,21 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
     (state) => state.setDefaultModelConfig
   );
 
-  const { control, handleSubmit, formState, reset } =
-    useForm<AgentSettingsFormValues>({
-      defaultValues: {
-        model: defaultModelConfigToMenuValue(defaultModelConfig),
-      },
-    });
-  const selectedModel = useWatch({ control, name: "model" });
+  const selectedModel = defaultModelConfigToMenuValue(defaultModelConfig);
   const isRecommendedModel = isAgentCuratedModelSelection(selectedModel);
 
-  const onSubmit = (data: AgentSettingsFormValues) => {
+  const handleModelChange = (model: ModelMenuValue) => {
     const { defaultModelConfig: current } = store.getState();
     setDefaultModelConfig({
       ...current,
-      provider: data.model.provider,
-      modelName: data.model.modelName,
-      customProvider: data.model.customProvider ?? null,
+      provider: model.provider,
+      modelName: model.modelName,
+      customProvider: model.customProvider ?? null,
     });
-    reset(data);
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
+    <div
       css={css`
         display: flex;
         flex-direction: column;
@@ -64,17 +51,11 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
       `}
     >
       <div css={fieldBaseCSS}>
-        <Label>Agent Model</Label>
-        <Controller
-          name="model"
-          control={control}
-          render={({ field }) => (
-            <AgentModelMenu
-              value={field.value}
-              onChange={field.onChange}
-              limitToCuratedModels={false}
-            />
-          )}
+        <Label>Assistant model</Label>
+        <AgentModelMenu
+          value={selectedModel}
+          onChange={handleModelChange}
+          limitToCuratedModels={false}
         />
         {!isRecommendedModel && (
           <Alert
@@ -83,17 +64,12 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
               margin-top: var(--global-dimension-size-100);
             `}
           >
-            This model has not been verified with PXI and may fail or behave
-            poorly.
+            This model has not been verified with the assistant and may fail or
+            behave poorly.
           </Alert>
         )}
       </div>
       {children}
-      <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
-        <Button type="submit" variant="primary" isDisabled={!formState.isDirty}>
-          Save
-        </Button>
-      </Flex>
-    </form>
+    </div>
   );
 }

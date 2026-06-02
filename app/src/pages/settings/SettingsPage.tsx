@@ -6,7 +6,6 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
 import { useViewerCanManageSandboxes } from "@phoenix/contexts";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
   overflow-y: auto;
@@ -33,7 +32,7 @@ const TABS: { id: string; label: string }[] = [
   { id: "annotations", label: "Annotations" },
   { id: "prompts", label: "Prompts" },
   { id: "data", label: "Data Retention" },
-  { id: "agents", label: "Agents" },
+  { id: "agents", label: "Assistant" },
 ];
 
 export function SettingsPage() {
@@ -48,11 +47,11 @@ export function SettingsPage() {
     },
     [navigate]
   );
-  const isAgentsEnabled = useFeatureFlag("agents");
+  const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
   const canManageSecrets = useViewerCanManageSandboxes();
   const canManageSandboxes = useViewerCanManageSandboxes();
   const tabs = TABS.filter((tab) => {
-    if (tab.id === "agents" && !isAgentsEnabled) {
+    if (tab.id === "agents" && !isAgentAssistantEnabled) {
       return false;
     }
     if (tab.id === "secrets" && !canManageSecrets) {

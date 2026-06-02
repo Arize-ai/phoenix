@@ -72,13 +72,14 @@ Provider credentials are read from the normal provider env vars, such as
 `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
 
 The docs MCP toolset follows the same production gates as the Phoenix server:
+the agent assistant must not be disabled, and external resources must be
+allowed. The assistant is on by default; external resources must be opted in:
 
 ```bash
-export PHOENIX_DANGEROUSLY_ENABLE_AGENTS=true
 export PHOENIX_ALLOW_EXTERNAL_RESOURCES=true
 ```
 
-If either gate is disabled, the experiment still runs but the agent does not
+If either gate fails, the experiment still runs but the agent does not
 receive docs MCP tools.
 
 ## Datasets

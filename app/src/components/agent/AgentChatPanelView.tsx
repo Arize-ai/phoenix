@@ -182,7 +182,7 @@ export function AgentChatHeader({
           variant="quiet"
           size="S"
           to="/settings/agents"
-          aria-label="Agent settings"
+          aria-label="Assistant settings"
           leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
         />
         {position != null && onPositionChange != null ? (
@@ -213,7 +213,7 @@ export function AgentChatHeader({
         <Button
           variant="quiet"
           size="S"
-          aria-label="Close agent chat"
+          aria-label="Close assistant"
           onPress={onClose}
           leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
         />

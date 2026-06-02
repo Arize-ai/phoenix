@@ -8,6 +8,7 @@ import {
   AgentChatPanel,
   AgentChatWidget,
   FloatingAgentChatPanel,
+  useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
   Brand,
@@ -26,7 +27,6 @@ import {
   TopNavbar,
 } from "@phoenix/components/nav";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
@@ -92,19 +92,19 @@ const sideLinksCSS = css`
 
 export function Layout() {
   const contentRef = useRef<HTMLDivElement>(null);
-  const isAgentsEnabled = useFeatureFlag("agents");
+  const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const agentPosition = useAgentContext((state) => state.position);
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
-    isAgentsEnabled &&
+    isAgentAssistantEnabled &&
     isAgentPanelOpen &&
     agentPosition === "pinned" &&
     !shouldForceFloatingAgentPanel;
   const shouldShowFloatingAgentPanel =
-    isAgentsEnabled &&
+    isAgentAssistantEnabled &&
     isAgentPanelOpen &&
     (agentPosition === "detached" || shouldForceFloatingAgentPanel);
   const panelIds = shouldShowDockedAgentPanel

@@ -37,6 +37,8 @@ CREATE UNIQUE INDEX ix_generative_models_match_criteria ON public.generative_mod
     USING btree (name_pattern, provider, is_built_in) WHERE (deleted_at IS NULL);
 CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON public.generative_models
     USING btree (name, is_built_in) WHERE (deleted_at IS NULL);
+CREATE INDEX ix_generative_models_updated_at ON public.generative_models
+    USING btree (updated_at);
 
 
 -- Table: languages
@@ -1554,6 +1556,24 @@ CREATE TABLE public.span_annotations (
 
 CREATE INDEX ix_span_annotations_span_rowid ON public.span_annotations
     USING btree (span_rowid);
+
+
+-- Table: system_settings
+-- ----------------------
+CREATE TABLE public.system_settings (
+    key VARCHAR NOT NULL,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_by BIGINT,
+    CONSTRAINT pk_system_settings PRIMARY KEY (key),
+    CONSTRAINT fk_system_settings_updated_by_users FOREIGN KEY
+        (updated_by)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_system_settings_updated_at ON public.system_settings
+    USING btree (updated_at);
 
 
 -- Table: trace_annotations

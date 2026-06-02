@@ -434,7 +434,6 @@ def _env_agents() -> dict[str, str]:
     provide a fake key to keep those requests on the authenticated code path.
     """
     return {
-        "PHOENIX_DANGEROUSLY_ENABLE_AGENTS": "true",
         "ANTHROPIC_API_KEY": "sk-fake-anthropic-key",
     }
 

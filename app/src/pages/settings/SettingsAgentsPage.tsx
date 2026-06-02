@@ -2,48 +2,79 @@ import { css } from "@emotion/react";
 
 import {
   Card,
-  CopyField,
-  CopyInput,
-  ExternalLink,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   Flex,
-  Label,
   Switch,
   Text,
-  View,
 } from "@phoenix/components";
 import {
   AgentExperimentalSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
+  AgentWebAccessSettings,
+  SystemSettingsWarning,
 } from "@phoenix/components/agent";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 
-const traceDetailsCSS = css`
-  summary {
-    cursor: pointer;
+import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
+
+const ADMIN_SECTION_ID = "admin-settings";
+const PERSONAL_SECTION_ID = "personal-settings";
+const EXPERIMENTAL_SECTION_ID = "experimental-settings";
+
+const sectionPanelCSS = css`
+  padding: var(--global-dimension-size-200);
+`;
+
+const settingsListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-150);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+`;
+
+const settingRowCSS = css`
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  background: var(--global-background-color-primary);
+`;
+
+const settingSwitchCSS = css`
+  width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--global-dimension-size-150);
+  gap: var(--global-dimension-size-200);
+
+  .assistant-personal-settings__label {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--global-dimension-size-75);
+    min-width: 0;
   }
 `;
 
-function getProjectRedirectUrl(
-  collectorEndpoint: string,
-  projectName: string
-): string | null {
-  try {
-    const url = new URL(collectorEndpoint);
-    url.pathname = url.pathname
-      .replace(/\/v1\/traces\/?$/, "")
-      .replace(/\/$/, "");
-    url.pathname = `${url.pathname}/redirects/projects/${encodeURIComponent(projectName)}`;
-    url.search = "";
-    url.hash = "";
-    return url.toString();
-  } catch {
-    return null;
-  }
+function useIsAdmin() {
+  const { viewer } = useViewer();
+  // Match IsAdminIfAuthEnabled server-side: no viewer => auth disabled => treat as admin
+  return !viewer || viewer.role?.name === "ADMIN";
 }
 
-function AssistantAgentEnabledSwitch() {
+function AssistantAgentEnabledSetting() {
+  const adminAssistantEnabled = useAgentContext(
+    (state) => state.agentsConfig.assistantEnabled
+  );
   const isAssistantAgentEnabled = usePreferencesContext(
     (state) => state.isAssistantAgentEnabled
   );
@@ -51,88 +82,111 @@ function AssistantAgentEnabledSwitch() {
     (state) => state.setIsAssistantAgentEnabled
   );
   return (
-    <Switch
-      labelPlacement="start"
-      isSelected={isAssistantAgentEnabled}
-      onChange={setIsAssistantAgentEnabled}
-    >
-      Enabled
-    </Switch>
+    <ul css={settingsListCSS}>
+      <li css={settingRowCSS}>
+        <Switch
+          labelPlacement="start"
+          isSelected={adminAssistantEnabled && isAssistantAgentEnabled}
+          isDisabled={!adminAssistantEnabled}
+          onChange={setIsAssistantAgentEnabled}
+          css={settingSwitchCSS}
+        >
+          <span className="assistant-personal-settings__label">
+            <Text weight="heavy">Use assistant</Text>
+            <Text color="text-500" size="S">
+              Shows the assistant in this browser.
+            </Text>
+          </span>
+        </Switch>
+        {!adminAssistantEnabled ? <SystemSettingsWarning /> : null}
+      </li>
+    </ul>
   );
 }
 
-function AssistantTraceCollectionInfo() {
-  const { collectorEndpoint, assistantProjectName } = useAgentContext(
-    (state) => state.agentsConfig
+function AssistantSettingsSectionTrigger({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <DisclosureTrigger direction="column" alignItems="start">
+      <Text weight="heavy" size="S">
+        {title}
+      </Text>
+      <Text color="text-500" size="XS">
+        {description}
+      </Text>
+    </DisclosureTrigger>
   );
-  const projectRedirectUrl = collectorEndpoint
-    ? getProjectRedirectUrl(collectorEndpoint, assistantProjectName)
-    : null;
+}
 
+function PersonalSettingsSection() {
   return (
     <Flex direction="column" gap="size-200">
-      <AgentObservabilitySettings />
-      <details css={traceDetailsCSS}>
-        <summary>Tracing Details</summary>
-        <View paddingTop="size-150">
-          <Flex direction="column" gap="size-200">
-            <CopyField value={assistantProjectName}>
-              <Label>Assistant Project Name</Label>
-              <CopyInput />
-              <Text slot="description">
-                {projectRedirectUrl ? (
-                  <>
-                    View traces in{" "}
-                    <ExternalLink href={projectRedirectUrl}>
-                      {assistantProjectName}
-                    </ExternalLink>
-                  </>
-                ) : (
-                  "The project where assistant agent traces are recorded"
-                )}
-              </Text>
-            </CopyField>
-            <CopyField value={collectorEndpoint ?? ""}>
-              <Label>Collector Endpoint</Label>
-              <CopyInput />
-              <Text slot="description">
-                {collectorEndpoint
-                  ? "This is the sharing destination used when trace sharing is turned on."
-                  : "Trace sharing is not configured for this Phoenix app."}
-              </Text>
-            </CopyField>
-          </Flex>
-        </View>
-      </details>
+      <Text color="text-500">
+        These settings apply only to this browser. System settings control which
+        options are available.
+      </Text>
+      <AssistantAgentEnabledSetting />
+      <AgentSettingsForm>
+        <AgentWebAccessSettings />
+        <AgentObservabilitySettings />
+      </AgentSettingsForm>
     </Flex>
   );
 }
 
 export function SettingsAgentsPage() {
-  const isAssistantAgentEnabled = usePreferencesContext(
-    (state) => state.isAssistantAgentEnabled
+  const isAdmin = useIsAdmin();
+  const isExperimentalSettingsEnabled = useFeatureFlag(
+    "agent-experimental-settings"
   );
   return (
-    <Card
-      title="Assistant"
-      collapsible
-      defaultOpen={isAssistantAgentEnabled}
-      extra={<AssistantAgentEnabledSwitch />}
-    >
-      <View padding="size-200">
-        <Flex
-          direction="column"
-          gap="size-300"
-          css={css`
-            width: 100%;
-          `}
-        >
-          <AssistantTraceCollectionInfo />
-          <AgentSettingsForm>
-            <AgentExperimentalSettings />
-          </AgentSettingsForm>
-        </Flex>
-      </View>
-    </Card>
+    <Flex direction="column" gap="size-200">
+      <Card title="Assistant settings - PXI">
+        <DisclosureGroup defaultExpandedKeys={[PERSONAL_SECTION_ID]}>
+          {isAdmin ? (
+            <Disclosure id={ADMIN_SECTION_ID}>
+              <AssistantSettingsSectionTrigger
+                title="System settings"
+                description="Settings that apply to everyone using this Phoenix instance."
+              />
+              <DisclosurePanel>
+                <div css={sectionPanelCSS}>
+                  <SettingsAgentsAdminSettingsSection />
+                </div>
+              </DisclosurePanel>
+            </Disclosure>
+          ) : null}
+          <Disclosure id={PERSONAL_SECTION_ID}>
+            <AssistantSettingsSectionTrigger
+              title="Personal settings"
+              description="Your assistant preferences for this browser."
+            />
+            <DisclosurePanel>
+              <div css={sectionPanelCSS}>
+                <PersonalSettingsSection />
+              </div>
+            </DisclosurePanel>
+          </Disclosure>
+          {isExperimentalSettingsEnabled ? (
+            <Disclosure id={EXPERIMENTAL_SECTION_ID}>
+              <AssistantSettingsSectionTrigger
+                title="Experimental settings"
+                description="Early assistant capabilities that may change."
+              />
+              <DisclosurePanel>
+                <div css={sectionPanelCSS}>
+                  <AgentExperimentalSettings />
+                </div>
+              </DisclosurePanel>
+            </Disclosure>
+          ) : null}
+        </DisclosureGroup>
+      </Card>
+    </Flex>
   );
 }

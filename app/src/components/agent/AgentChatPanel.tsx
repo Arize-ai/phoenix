@@ -3,7 +3,6 @@ import { Suspense, useState, type ReactNode, type RefObject } from "react";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 
 import {
@@ -19,6 +18,7 @@ import {
 } from "./sessionSummaryUtils";
 import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
+import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 type AgentChatPanelLayer = "content" | "modal";
@@ -114,7 +114,7 @@ function AgentChatSurface({
   positionOverride,
   isPositionChangeDisabled = false,
 }: AgentChatSurfaceProps) {
-  const isAgentsEnabled = useFeatureFlag("agents");
+  const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const {
     isOpen,
     position,
@@ -139,7 +139,7 @@ function AgentChatSurface({
     ? getSessionDisplayName(activeSession)
     : EMPTY_SESSION_DISPLAY_NAME;
 
-  if (!isAgentsEnabled) {
+  if (!isAgentAssistantEnabled) {
     return null;
   }
 

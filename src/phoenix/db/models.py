@@ -184,6 +184,10 @@ GenerativeModelSDK: TypeAlias = Literal[
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
+SystemSettingKey: TypeAlias = Literal[
+    "agent.assistant.trace_recording",
+    "agent.assistant.enabled",
+]
 
 
 class JSONB(JSON):
@@ -2098,6 +2102,25 @@ class User(HasId):
     )
 
 
+class SystemSetting(Base):
+    """Server-wide key/value settings (JSON object per key)."""
+
+    __tablename__ = "system_settings"
+
+    key: Mapped[SystemSettingKey] = mapped_column(primary_key=True)
+    value: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+        onupdate=func.now(),
+        index=True,
+    )
+    updated_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
 class LocalUser(User):
     __mapper_args__ = {
         "polymorphic_identity": "LOCAL",
@@ -2266,6 +2289,7 @@ class GenerativeModel(HasId):
         UtcTimeStamp,
         server_default=func.now(),
         onupdate=func.now(),
+        index=True,
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 

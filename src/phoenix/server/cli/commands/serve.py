@@ -23,9 +23,9 @@ from phoenix.config import (
     get_env_allowed_origins,
     get_env_allowed_sandbox_providers,
     get_env_auth_settings,
-    get_env_dangerously_enable_agents,
     get_env_database_connection_str,
     get_env_database_schema,
+    get_env_disable_agent_assistant,
     get_env_enable_prometheus,
     get_env_grpc_port,
     get_env_host,
@@ -131,10 +131,9 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 {%- for provider in sandbox_providers %}
 |  - {{ provider.name }}: {{ "✅ Allowed" if provider.enabled else "❌ Disabled" }}
 {%- endfor %}
-{%- if agents_enabled %}
+{%- if agent_assistant_disabled %}
 |
-|  🧪 Experimental Features 🧪
-|  Agents: Enabled
+|  Agent Assistant: Disabled
 {%- endif %}
 """)
 
@@ -305,7 +304,7 @@ def run(args: Namespace) -> None:
         tls_enabled_for_grpc=tls_enabled_for_grpc,
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
-        agents_enabled=get_env_dangerously_enable_agents(),
+        agent_assistant_disabled=get_env_disable_agent_assistant(),
         sandbox_providers=_get_sandbox_provider_statuses(),
     )
 

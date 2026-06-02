@@ -53,21 +53,21 @@ export function AgentConsentGate() {
     <div css={consentCSS}>
       <div css={consentHeaderCSS}>
         <Text elementType="h3" size="L" weight="heavy">
-          Before you use PXI
+          Before you use the assistant
         </Text>
         <Text color="text-700">
-          PXI can and will make mistakes. What it can do may vary a lot
-          depending on the task and the context it has, so it should be used
+          The assistant can and will make mistakes. What it can do may vary a
+          lot depending on the task and the context it has, so it should be used
           with care.
         </Text>
       </div>
       <ul css={consentListCSS}>
         <li>
           {hasRemoteCollector
-            ? "Review how your PXI session traces are saved and shared before you continue."
-            : "Review how your PXI session traces are saved before you continue."}
+            ? "Review how your assistant session traces are saved and shared before you continue."
+            : "Review how your assistant session traces are saved before you continue."}
         </li>
-        <li>You can change these settings later from Agent Settings.</li>
+        <li>You can change these settings later in Assistant settings.</li>
       </ul>
       <div css={consentSectionCSS}>
         <Text elementType="h4" size="M" weight="heavy">
@@ -77,7 +77,7 @@ export function AgentConsentGate() {
       <AgentObservabilitySettings />
       <Flex direction="row" css={consentActionsCSS}>
         <LinkButton to="/settings/agents" variant="default">
-          Agent Settings
+          Assistant settings
         </LinkButton>
         <Button
           variant="primary"

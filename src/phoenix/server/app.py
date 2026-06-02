@@ -63,9 +63,9 @@ from phoenix.config import (
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_csrf_trusted_origins,
-    get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
+    get_env_disable_agent_assistant,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
@@ -186,6 +186,7 @@ from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
@@ -199,6 +200,7 @@ from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -308,6 +310,8 @@ class AppConfig(NamedTuple):
     """ Whether the database has a threshold for usage """
     allow_external_resources: bool = True
     """ Whether to allow external resources like Google Fonts in the web interface """
+    agent_assistant_disabled: bool = False
+    """ Whether the agent assistant feature is disabled at the deployment level"""
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -372,6 +376,7 @@ class Static(StaticFiles):
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
+                    "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -650,6 +655,7 @@ def _lifespan(
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
+    system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
@@ -673,6 +679,7 @@ def _lifespan(
             if isinstance((res := callback()), Awaitable):
                 await res
         db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        await system_settings.bootstrap()
         async with AsyncExitStack() as stack:
             (
                 enqueue_annotations,
@@ -702,6 +709,7 @@ def _lifespan(
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
             # ``sandbox_session_manager`` must enter before ``experiment_runner``
             # so ``AsyncExitStack`` tears them down in reverse and the runner
@@ -758,6 +766,7 @@ def create_graphql_router(
     *,
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
+    system_settings: SystemSettings,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
@@ -796,6 +805,7 @@ def create_graphql_router(
     def get_context() -> Context:
         return Context(
             db=db,
+            settings=system_settings,
             allowed_provider_names=allowed_provider_names,
             last_updated_at=last_updated_at,
             event_queue=event_queue,
@@ -1156,6 +1166,7 @@ def create_app(
     )
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
@@ -1200,6 +1211,7 @@ def create_app(
     )
     graphql_router = create_graphql_router(
         db=db,
+        system_settings=system_settings,
         graphql_schema=build_graphql_schema(graphql_schema_extensions),
         authentication_enabled=authentication_enabled,
         last_updated_at=last_updated_at,
@@ -1223,7 +1235,7 @@ def create_app(
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     docs_mcp_server = (
         MintlifyDocsMCPServer()
-        if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
+        if not get_env_disable_agent_assistant() and get_env_allow_external_resources()
         else None
     )
     app = FastAPI(
@@ -1240,6 +1252,7 @@ def create_app(
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
@@ -1263,7 +1276,7 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    if get_env_dangerously_enable_agents():
+    if not get_env_disable_agent_assistant():
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
@@ -1336,6 +1349,7 @@ def create_app(
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
+                    agent_assistant_disabled=get_env_disable_agent_assistant(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),
@@ -1354,6 +1368,7 @@ def create_app(
 
         app.state.ldap_authenticator = LDAPAuthenticator(ldap_config)
     app.state.db = db
+    app.state.system_settings = system_settings
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
