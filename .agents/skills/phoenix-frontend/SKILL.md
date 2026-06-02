@@ -25,6 +25,16 @@ Read the relevant file(s) based on the task:
 
 After visual changes, use `agent-browser` to verify the UI looks correct. When modifying a shared component, check its usages across the app.
 
+## Route Metadata
+
+When adding, removing, renaming, or materially changing what a page contains, update the route's `handle.agentRoute` metadata in `app/src/Routes.tsx` if PXI should be able to link users to that destination. Keep metadata small and search-oriented:
+
+- `label`: human page name.
+- `description`: concise page purpose based on what the page now contains.
+- `keywords`: user phrases PXI might hear when looking for that page.
+
+If a content change makes an existing route easier or harder to find by natural language, adjust `description` or `keywords` in the same change.
+
 ## URL State
 
 Significant view state must be recreatable from the URL. If a user can select a tab, sub-view, or detail state that should survive reloads, sharing, or adjacent-record pagination, encode it in route params or search params and preserve the relevant URL state during navigation.

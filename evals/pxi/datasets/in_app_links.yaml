@@ -1,28 +1,52 @@
 dataset_name: in_app_links
-description: PXI server-side eval suite for root-relative Phoenix UI markdown links.
+description: PXI server-side eval suite for root-relative Phoenix UI markdown links after route-info lookup.
 evaluators:
   - in_app_links_valid
   - correct_tools_called
 examples:
-  - id: agent-settings-link
+  - id: route-info-agent-settings-link
     splits: [regression]
     input:
       messages:
         - role: user
           content: Link me to the Phoenix agent settings page.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: agent settings
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"agent settings","matches":[{"path":"/settings/agents","label":"Agent Settings","description":"Configure PXI and agent behavior.","keywords":["agent settings","PXI settings"],"link":"/settings/agents","missingParams":[]}]}
     expected:
       tools:
         required: []
+        forbidden: [bash]
       links:
         required_in_app:
           - /settings/agents
-    metadata: {}
-  - id: ai-provider-settings-link
+    metadata:
+      route_info_case: static_settings_route
+  - id: route-info-ai-provider-settings-link
     splits: [regression]
     input:
       messages:
         - role: user
           content: Where can I configure AI providers in Phoenix? Include a link.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: AI provider settings
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"AI provider settings","matches":[{"path":"/settings/providers","label":"AI Providers","description":"Configure AI provider credentials and provider settings.","keywords":["AI providers","provider credentials","model provider"],"link":"/settings/providers","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -30,22 +54,87 @@ examples:
       links:
         required_in_app:
           - /settings/providers
-    metadata: {}
-  - id: general-settings-link
+    metadata:
+      route_info_case: static_settings_route
+  - id: route-info-general-retention-link
     splits: [regression]
     input:
       messages:
         - role: user
-          content: Link me to the Phoenix general settings page.
+          content: Link me to where I configure the default retention policy for new projects.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: default retention policy
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"default retention policy","matches":[{"path":"/settings/general","label":"General Settings","description":"Configure workspace settings, default project retention policies, and project creation defaults.","keywords":["general settings","default retention policy","project retention"],"link":"/settings/general","missingParams":[]}]}
     expected:
       tools:
         required: []
+        forbidden: [bash]
       links:
         required_in_app:
           - /settings/general
-    metadata: {}
-  - id: dataset-resource-link
-    # Page context provides the dataset relay id needed to compose the URL.
+    metadata:
+      route_info_case: retention_settings
+  - id: route-info-data-retention-policy-link
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Link me to where I can configure data retention policy.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: data retention policy
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"data retention policy","matches":[{"path":"/settings/data","label":"Data Retention","description":"Manage trace retention policies and retention policy configuration.","keywords":["data retention","retention policy","trace retention","purge traces","delete old traces","storage retention"],"link":"/settings/data","missingParams":[]}]}
+    expected:
+      tools:
+        required: []
+        forbidden: [bash]
+      links:
+        required_in_app:
+          - /settings/data
+    metadata:
+      route_info_case: retention_settings
+  - id: route-info-profile-time-zone-link
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where can I change my time zone settings? Send me the Phoenix link.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: time zone settings
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"time zone settings","matches":[{"path":"/profile","label":"Profile","description":"Manage your user profile, API keys, and local time zone display settings.","keywords":["profile","time zone","timezone","local time","API keys"],"link":"/profile","missingParams":[]}]}
+    expected:
+      tools:
+        required: []
+        forbidden: [bash]
+      links:
+        required_in_app:
+          - /profile
+    metadata:
+      route_info_case: profile_route
+  - id: route-info-dataset-experiments-link
     splits: [regression]
     input:
       messages:
@@ -53,26 +142,47 @@ examples:
           content: Link me to where I can see experiments for my PXI link evals dataset.
         - role: assistant
           tool_calls:
-            - id: t1
-              name: bash
+            - id: route_info
+              name: get_route_info
               args:
-                command: cat /phoenix/page-context.json
+                query: dataset experiments
         - role: tool
-          tool_call_id: t1
-          name: bash
+          tool_call_id: route_info
+          name: get_route_info
           content: |
-            {
-              "page": "dataset_details",
-              "dataset": {
-                "id": "RGF0YXNldDox",
-                "name": "PXI link evals",
-                "exampleCount": 12
-              }
-            }
+            {"query":"dataset experiments","matches":[{"path":"/datasets/:datasetId/experiments","label":"Dataset Experiments","description":"Review experiment runs for a dataset.","keywords":["dataset experiments","experiment runs","dataset runs"],"link":"/datasets/RGF0YXNldDox/experiments","missingParams":[]}]}
     expected:
       tools:
         required: []
+        forbidden: [bash]
       links:
         required_in_app:
           - /datasets/RGF0YXNldDox/experiments
-    metadata: {}
+    metadata:
+      route_info_case: parameterized_dataset_route
+  - id: route-info-project-config-link
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Link me to this project's configuration page.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: project configuration
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"project configuration","matches":[{"path":"/projects/:projectId/config","label":"Project Configuration","description":"Configure project-specific settings, retention policy, and project metadata.","keywords":["project configuration","project settings","project retention"],"link":"/projects/UHJvamVjdDo0Nw==/config","missingParams":[]}]}
+    expected:
+      tools:
+        required: []
+        forbidden: [bash]
+      links:
+        required_in_app:
+          - /projects/UHJvamVjdDo0Nw==/config
+    metadata:
+      route_info_case: parameterized_project_route

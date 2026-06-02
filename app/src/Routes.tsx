@@ -835,7 +835,6 @@ export const appRouteObjects = createRoutesFromElements(
                   "default project retention policy",
                   "maximum trace retention",
                   "trace retention days",
-                  "retention policy",
                 ],
               },
             }}
@@ -999,8 +998,10 @@ export const appRouteObjects = createRoutesFromElements(
                   "Manage trace retention policies, including policy names, schedules, maximum days, maximum trace counts, and assigned projects.",
                 keywords: [
                   "data retention",
+                  "data retention policy settings",
                   "retention policies",
                   "retention policy",
+                  "retention policy configuration",
                   "all retention policies",
                   "new retention policy",
                   "create retention policy",

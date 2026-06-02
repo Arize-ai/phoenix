@@ -51,7 +51,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
         "arize-phoenix-feature-flags",
         JSON.stringify({ agents: true, tracing_ux: false })
       );
-      // Write the canonical v9 partialize shape directly so the fixture does
+      // Write the canonical v0 partialize shape directly so the fixture does
       // not depend on the store's migrate path. The store's version is
       // tracked in app/src/store/agentStore.ts (`persist({ version })`); keep
       // this fixture in sync when bumping the schema version, otherwise the
@@ -81,9 +81,11 @@ async function installAgentDefaults({ page }: { page: Page }) {
             capabilities: {
               "bash.retainInactiveSessions": false,
               "graphql.mutations": false,
+              "session.storeSessions": false,
+              "web.access": false,
             },
           },
-          version: 9,
+          version: 0,
         })
       );
     },
@@ -113,7 +115,7 @@ export class PxiDriver {
   async open() {
     await installAgentDefaults({ page: this.page });
     await this.page.goto("/projects");
-    await this.page.getByRole("button", { name: "Open agent chat" }).click();
+    await this.page.getByRole("button", { name: "Open assistant" }).click();
     await expect(
       this.page.getByRole("heading", {
         name: "Meet PXI, your Phoenix assistant",

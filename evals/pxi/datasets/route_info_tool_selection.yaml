@@ -1,0 +1,162 @@
+dataset_name: route_info_tool_selection
+description: PXI server-side eval suite for choosing get_route_info before generating Phoenix UI links.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+examples:
+  - id: route-info-call-data-retention-policy
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Link me to where I can configure data retention policy.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_all: [retention, policy]
+    metadata:
+      route_info_case: retention_settings
+  - id: route-info-call-default-retention-policy
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where do I set the default retention policy for new projects? Link me there.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_all: [retention, policy]
+    metadata:
+      route_info_case: retention_settings
+  - id: route-info-call-time-zone-settings
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Send me the Phoenix link for changing my time zone settings.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_all: [time, zone]
+    metadata:
+      route_info_case: profile_route
+  - id: route-info-call-ai-provider-settings
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where can I configure my OpenAI provider credentials in Phoenix?
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_any: [provider, OpenAI, credentials]
+    metadata:
+      route_info_case: provider_settings
+  - id: route-info-call-custom-model-pricing
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Link me to where Phoenix lets me configure custom model pricing.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_all: [model]
+    metadata:
+      route_info_case: model_settings
+  - id: route-info-call-sandbox-dependencies
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where do I configure sandbox dependencies for code evaluators?
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_any: [sandbox, dependencies, evaluator]
+    metadata:
+      route_info_case: sandbox_settings
+  - id: route-info-call-dataset-labels
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Link me to the page for dataset label configuration.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_all: [dataset]
+    metadata:
+      route_info_case: dataset_settings
+  - id: route-info-call-prompt-labels
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Where can I manage prompt labels?
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_any: [prompt, label]
+    metadata:
+      route_info_case: prompt_settings
+  - id: route-info-call-graphql-api
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Send me a link to the GraphQL API explorer.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          query:
+            contains_any: [GraphQL, API, explorer]
+    metadata:
+      route_info_case: api_route
+  - id: route-info-call-current-project-config
+    splits: [regression]
+    input:
+      contexts:
+        - type: project
+          projectNodeId: UHJvamVjdDo0Nw==
+          spanFilter: ""
+          rootSpansOnly: false
+      messages:
+        - role: user
+          content: Link me to this project's configuration page.
+    expected:
+      tools:
+        required: [get_route_info]
+      tool_call_args:
+        get_route_info:
+          - query:
+              contains_all: [project]
+          - path: /projects/:projectId/config
+    metadata:
+      route_info_case: parameterized_project_route

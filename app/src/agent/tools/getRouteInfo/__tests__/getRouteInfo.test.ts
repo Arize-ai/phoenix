@@ -31,7 +31,9 @@ const appRouteObjects: RouteObject[] = [
                   "Manage trace retention policies and retention policy configuration.",
                 keywords: [
                   "data retention",
+                  "data retention policy settings",
                   "retention policy",
+                  "retention policy configuration",
                   "trace retention",
                   "purge traces",
                   "delete old traces",
