@@ -38,7 +38,7 @@ describe("deriveRouteContexts", () => {
     ]);
   });
 
-  it("falls back to the route span id (OTel hex) when no selected span param exists", () => {
+  it("falls back to the route span node id when no selected span param exists", () => {
     const contexts = deriveRouteContexts(
       [match({ projectId: "P1" }), match({ spanId: "S1" })],
       new URLSearchParams()
@@ -46,7 +46,7 @@ describe("deriveRouteContexts", () => {
 
     expect(contexts).toEqual([
       { type: "project", projectNodeId: "P1" },
-      { type: "span", projectNodeId: "P1", otelSpanId: "S1" },
+      { type: "span", projectNodeId: "P1", spanNodeId: "S1" },
     ]);
   });
 

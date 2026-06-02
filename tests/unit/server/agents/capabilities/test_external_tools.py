@@ -1,5 +1,6 @@
 from phoenix.server.agents.capabilities.tools.external import (
     _EXTERNAL_TOOL_DEFINITIONS_BY_NAME,
+    get_external_tool_definition,
     load_dataset,
 )
 from phoenix.server.agents.prompts import AgentPrompts
@@ -54,3 +55,10 @@ def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> N
         assert "anyOf" not in schema
         assert "allOf" not in schema
         assert "not" not in schema
+
+
+def test_get_route_info_is_registered_as_external_tool() -> None:
+    tool_definition = get_external_tool_definition("get_route_info")
+
+    assert tool_definition is not None
+    assert tool_definition.kind == "external"

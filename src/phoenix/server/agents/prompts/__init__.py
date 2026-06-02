@@ -11,6 +11,7 @@ _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
 _BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
 _ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
 _SET_TIME_RANGE_TOOL_INSTRUCTIONS = get_template("tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml.j2")
+_GET_ROUTE_INFO_TOOL_INSTRUCTIONS = get_template("tools/GET_ROUTE_INFO_TOOL_INSTRUCTIONS.xml.j2")
 _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS = get_template(
     "tools/RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -104,6 +105,7 @@ class AgentPrompts:
     bash_tool: Template = _BASH_TOOL_INSTRUCTIONS
     ask_user_tool: Template = _ASK_USER_TOOL_INSTRUCTIONS
     set_time_range_tool: Template = _SET_TIME_RANGE_TOOL_INSTRUCTIONS
+    get_route_info_tool: Template = _GET_ROUTE_INFO_TOOL_INSTRUCTIONS
     render_generative_ui_tool: Template = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
     set_spans_filter_tool: Template = _SET_SPANS_FILTER_TOOL_INSTRUCTIONS
     set_playground_model_tool: Template = _SET_PLAYGROUND_MODEL_TOOL_INSTRUCTIONS

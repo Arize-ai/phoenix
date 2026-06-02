@@ -1,3 +1,43 @@
+const mockAppRouteObjects = vi.hoisted(() => [
+  {
+    path: "/",
+    children: [
+      {
+        path: "/projects",
+        handle: {
+          agentRoute: {
+            label: "Projects",
+            description:
+              "Browse Phoenix projects and open project-specific observability views.",
+            keywords: ["projects", "project list", "observability projects"],
+          },
+        },
+        children: [
+          {
+            path: ":projectId",
+            children: [
+              {
+                path: "traces",
+                handle: {
+                  agentRoute: {
+                    label: "Project Traces",
+                    description: "Inspect traces for a project.",
+                    keywords: ["traces", "project traces", "trace table"],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+]);
+
+vi.mock("@phoenix/Routes", () => ({
+  appRouteObjects: mockAppRouteObjects,
+}));
+
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   getAgentToolUIBehavior,
@@ -7,6 +47,7 @@ import {
   SET_TIME_RANGE_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
+import { GET_ROUTE_INFO_TOOL_NAME } from "@phoenix/agent/tools/getRouteInfo";
 import {
   LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
   SET_PLAYGROUND_MODEL_TOOL_NAME,
@@ -212,6 +253,73 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_TIME_RANGE_TOOL_NAME,
         output: "updated",
+      })
+    );
+  });
+
+  it("returns route info for valid get_route_info input", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    store.getState().setRouteContexts([
+      {
+        type: "project",
+        projectNodeId: "UHJvamVjdDox",
+      },
+    ]);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-route-info",
+        toolName: GET_ROUTE_INFO_TOOL_NAME,
+        input: { query: "project traces" },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: GET_ROUTE_INFO_TOOL_NAME,
+        toolCallId: "tool-call-route-info",
+      })
+    );
+    const output = addToolOutput.mock.calls[0]?.[0]?.output;
+    expect(JSON.parse(output as string)).toEqual(
+      expect.objectContaining({
+        matches: expect.arrayContaining([
+          expect.objectContaining({
+            path: "/projects/:projectId/traces",
+            link: "/projects/UHJvamVjdDox/traces",
+            missingParams: [],
+          }),
+        ]),
+      })
+    );
+  });
+
+  it("returns an error for invalid get_route_info input", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-route-info-invalid",
+        toolName: GET_ROUTE_INFO_TOOL_NAME,
+        input: { query: 123 },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: GET_ROUTE_INFO_TOOL_NAME,
+        toolCallId: "tool-call-route-info-invalid",
+        errorText: expect.stringContaining("Invalid get_route_info input"),
       })
     );
   });

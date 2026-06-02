@@ -16,6 +16,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     edit_code_evaluator_draft,
     edit_llm_evaluator_draft,
     edit_prompt_instance,
+    get_route_info,
     list_playground_model_targets,
     load_dataset,
     open_code_evaluator_form,
@@ -52,6 +53,9 @@ from phoenix.server.agents.capabilities.tools.external.edit_llm_evaluator_draft 
 )
 from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance import (
     EditPromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.get_route_info import (
+    GetRouteInfoCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.list_playground_model_targets import (
     ListPlaygroundModelTargetsCapability,
@@ -121,6 +125,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_llm_evaluator_draft.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
+        get_route_info.TOOL_DEFINITION,
         load_dataset.TOOL_DEFINITION,
         open_code_evaluator_form.TOOL_DEFINITION,
         open_llm_evaluator_form.TOOL_DEFINITION,
@@ -162,6 +167,7 @@ def get_external_tool_capability_function(
         AskUserCapability(instructions=prompts.ask_user_tool),
         BatchSpanAnnotateCapability(instructions=prompts.batch_span_annotate_tool),
         SetTimeRangeCapability(instructions=prompts.set_time_range_tool),
+        GetRouteInfoCapability(instructions=prompts.get_route_info_tool),
         RenderGenerativeUICapability(instructions=prompts.render_generative_ui_tool),
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
@@ -205,6 +211,7 @@ __all__ = [
     "EditCodeEvaluatorDraftCapability",
     "EditLlmEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
+    "GetRouteInfoCapability",
     "ListPlaygroundModelTargetsCapability",
     "LoadDatasetCapability",
     "OpenCodeEvaluatorFormCapability",

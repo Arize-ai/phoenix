@@ -1,6 +1,7 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
+import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 /**
  * Frontend registry for executing PXI tools whose model-facing definitions are
  * advertised by the server.
@@ -33,6 +34,12 @@ import {
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
+import {
+  getRouteInfo,
+  GET_ROUTE_INFO_TOOL_NAME,
+  parseGetRouteInfoInput,
+  type GetRouteInfoInput,
+} from "@phoenix/agent/tools/getRouteInfo";
 import {
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
@@ -469,6 +476,24 @@ const renderGenerativeUIAgentTool =
       });
     },
   });
+
+const getRouteInfoAgentTool = createRegisteredAgentTool<GetRouteInfoInput>({
+  name: GET_ROUTE_INFO_TOOL_NAME,
+  parseInput: parseGetRouteInfoInput,
+  invalidInputErrorText: `Invalid ${GET_ROUTE_INFO_TOOL_NAME} input. Expected { query?: string, path?: string, limit?: number }.`,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const result = await getRouteInfo({
+      input,
+      contexts: selectActiveContexts(agentStore.getState()),
+    });
+    await addToolOutput({
+      state: "output-available",
+      tool: GET_ROUTE_INFO_TOOL_NAME,
+      toolCallId: toolCall.toolCallId,
+      output: JSON.stringify(result, null, 2),
+    });
+  },
+});
 
 const readPromptAgentTool = createRegisteredAgentTool<ReadPromptInput>({
   name: READ_PROMPT_TOOL_NAME,
@@ -1378,6 +1403,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
   setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
+  getRouteInfoAgentTool as RegisteredAgentTool<unknown>,
   renderGenerativeUIAgentTool as RegisteredAgentTool<unknown>,
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
