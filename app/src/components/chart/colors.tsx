@@ -155,7 +155,7 @@ export type SemanticChartColor = "danger" | "success" | "warning" | "info";
 const semanticChartColors: Record<SemanticChartColor, string> = {
   danger: "var(--global-color-red-700)",
   success: "var(--global-color-celery-700)",
-  warning: "var(--global-color-orange-700)",
+  warning: "var(--global-color-warning)",
   info: "var(--global-color-blue-700)",
 };
 

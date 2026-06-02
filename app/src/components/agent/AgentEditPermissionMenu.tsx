@@ -72,9 +72,18 @@ const triggerCSS = css`
   font-size: var(--global-font-size-xs);
   line-height: var(--global-line-height-xs);
 
+  .theme--light & {
+    color: var(--global-text-color-500);
+  }
+
   /* Surface a warning treatment when approvals are bypassed. */
   &[data-permission-mode="bypass"] {
     color: var(--global-color-warning);
+  }
+
+  /* Menu close returns focus to trigger; suppress outline for mouse interactions */
+  &[data-focused]:not([data-focus-visible]) {
+    outline: none;
   }
 `;
 
