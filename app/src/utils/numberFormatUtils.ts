@@ -86,8 +86,11 @@ export function formatCost(cost: number): string {
   if (cost === 0) {
     return "$0";
   }
+  // Show exact decimal value for sub-cent costs (e.g. embedding calls at $0.00002).
+  // toPrecision(3) gives 3 significant figures in decimal notation; strip trailing zeros.
+  // e.g. $0.00000253, $0.00002, $0.00169
   if (cost < 0.01) {
-    return "<$0.01";
+    return `$${cost.toPrecision(3).replace(/0+$/, "").replace(/\.$/, "")}`;
   }
   // Show 2 decimal places for small costs under 100
   if (cost < 100) return `$${format("0.2f")(cost)}`;

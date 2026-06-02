@@ -4,7 +4,7 @@ import {
   ONE_SECOND_MS,
 } from "@phoenix/constants/timeConstants";
 
-import { formatFloat, formatInt, formatLatencyMs } from "../numberFormatUtils";
+import { formatCost, formatFloat, formatInt, formatLatencyMs } from "../numberFormatUtils";
 
 describe("formatInt", () => {
   it("formats integers cleanly", () => {
@@ -33,6 +33,26 @@ describe("formatFloat", () => {
     expect(formatFloat(0.5555)).toEqual("0.55");
     expect(formatFloat(0.1111)).toEqual("0.11");
     expect(formatFloat(0.9999)).toEqual("0.99");
+  });
+});
+
+describe("formatCost", () => {
+  it("returns $0 for zero cost", () => {
+    expect(formatCost(0)).toEqual("$0");
+  });
+
+  it("shows decimal with 3 significant figures for sub-cent costs", () => {
+    expect(formatCost(0.00000253)).toEqual("$0.00000253");
+    expect(formatCost(0.00002)).toEqual("$0.00002");
+    expect(formatCost(0.000169)).toEqual("$0.000169");
+    expect(formatCost(0.001)).toEqual("$0.001");
+    expect(formatCost(0.009876)).toEqual("$0.00988");
+  });
+
+  it("uses decimal for costs >= $0.01", () => {
+    expect(formatCost(0.01)).toEqual("$0.01");
+    expect(formatCost(1.5)).toEqual("$1.50");
+    expect(formatCost(99.99)).toEqual("$99.99");
   });
 });
 

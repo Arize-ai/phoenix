@@ -115,7 +115,7 @@ def _get_stmt(
         # propagate token counts up through wrapping agent/tool spans,
         # so summing every span multi-counts the same tokens (e.g. the
         # dashboard reported 3x the detailed-trace total in #12768).
-        .where(func.upper(models.Span.span_kind) == "LLM")
+        .where(func.upper(models.Span.span_kind).in_(["LLM", "EMBEDDING"]))
         .group_by(pid)
     )
     if start_time:

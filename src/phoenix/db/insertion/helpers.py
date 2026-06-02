@@ -107,7 +107,7 @@ def should_calculate_span_cost(
     return bool(
         (span_kind := get_attribute_value(attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND))
         and isinstance(span_kind, str)
-        and span_kind == OpenInferenceSpanKindValues.LLM.value
+        and span_kind in (OpenInferenceSpanKindValues.LLM.value, OpenInferenceSpanKindValues.EMBEDDING.value)
         and (llm_name := get_attribute_value(attributes, SpanAttributes.LLM_MODEL_NAME))
         and isinstance(llm_name, str)
         and llm_name.strip()

@@ -106,7 +106,7 @@ async def insert_span(
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
     llm_token_count_prompt: Optional[int] = None
     llm_token_count_completion: Optional[int] = None
-    if span.span_kind is SpanKind.LLM:
+    if span.span_kind in (SpanKind.LLM, SpanKind.EMBEDDING):
         try:
             llm_token_count_prompt = int(
                 get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
