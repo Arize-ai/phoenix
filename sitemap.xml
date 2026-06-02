@@ -773,12 +773,20 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go</loc>
+    <lastmod>2026-06-02T15:33:22+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk</loc>
+    <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/groq</loc>
@@ -819,6 +827,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk</loc>
+    <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openrouter</loc>
