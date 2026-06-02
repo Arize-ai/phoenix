@@ -1403,7 +1403,11 @@ export const GitHub = () => (
 );
 
 export const GlobeOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
     <path
       fillRule="evenodd"
       clipRule="evenodd"
@@ -1413,7 +1417,11 @@ export const GlobeOutline = () => (
 );
 
 export const GlobeOffOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
     <path
       fillRule="evenodd"
       clipRule="evenodd"
