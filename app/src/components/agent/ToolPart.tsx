@@ -2,8 +2,6 @@ import { css } from "@emotion/react";
 import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
-import { useChatScrollContext } from "./ChatScrollContext";
-
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -29,6 +27,7 @@ import {
   formatBatchSpanAnnotateState,
   getBatchSpanAnnotateToolPreview,
 } from "./BatchSpanAnnotateToolDetails";
+import { useChatScrollContext } from "./ChatScrollContext";
 import {
   DocsToolDetails,
   formatDocsToolState,
@@ -540,9 +539,7 @@ function ToolInvocationPartDetails({
           const elementRect = detailsRef.current?.getBoundingClientRect();
           const parentRect = scrollParent?.getBoundingClientRect();
           const offsetFromParentTop =
-            elementRect && parentRect
-              ? elementRect.top - parentRect.top
-              : null;
+            elementRect && parentRect ? elementRect.top - parentRect.top : null;
 
           // Stop the stick-to-bottom library from fighting our scroll restore.
           if (!wasOpen) {

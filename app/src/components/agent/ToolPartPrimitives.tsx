@@ -122,7 +122,11 @@ const expandableSectionCSS = css`
  * Wrapper for tool part input/output sections. Automatically collapses content
  * that exceeds the collapsed height, showing an expand/collapse button.
  */
-export function ToolPartExpandableSection({ children }: { children: ReactNode }) {
+export function ToolPartExpandableSection({
+  children,
+}: {
+  children: ReactNode;
+}) {
   return (
     <div css={expandableSectionCSS}>
       <ExpandableContent height={COLLAPSED_HEIGHT_PX} expandedBehavior="grow">
