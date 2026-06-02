@@ -719,7 +719,17 @@ def _lifespan(
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
             if docs_mcp_server is not None:
-                await stack.enter_async_context(docs_mcp_server)
+                # The docs MCP server connects to an external host during
+                # startup. Never let its initialization (which can hang until a
+                # deadline when egress is blocked) abort server startup; degrade
+                # to the assistant running without docs tools instead.
+                try:
+                    await stack.enter_async_context(docs_mcp_server)
+                except Exception:
+                    logger.warning(
+                        "Failed to initialize docs MCP server; continuing without docs capability.",
+                        exc_info=True,
+                    )
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
