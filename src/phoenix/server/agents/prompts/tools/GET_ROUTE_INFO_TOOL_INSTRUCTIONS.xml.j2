@@ -8,7 +8,7 @@
   <guidelines>
     - Prefer this tool over inventing Phoenix UI routes. Use the returned `link` value when present.
     - Returned links are root-relative app paths. Do not add the origin, localhost, or deployment basename.
-    - If a match has `missingParams`, do not fabricate those params. Ask for the missing resource or choose the closest non-param route when that satisfies the request.
+    - If a match has `missingParams`, do not fabricate those params and do not render its `path` as a markdown link. Ask for the missing resource or choose the closest non-param route when that satisfies the request. If you need to mention the unresolved route pattern, show it as inline code only.
     - Do not call this tool for documentation links; use the documentation tools for docs.
   </guidelines>
 </tool>

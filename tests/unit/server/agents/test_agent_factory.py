@@ -477,6 +477,7 @@ class TestRouteInfoTool:
         assert "get_route_info" in _get_tool_names(captured_request.body)
         joined_system = "\n".join(_get_system_texts(captured_request.body))
         assert '<tool name="get_route_info">' in joined_system
+        assert "do not render its `path` as a markdown link" in joined_system
 
 
 class TestPlaygroundTools:
