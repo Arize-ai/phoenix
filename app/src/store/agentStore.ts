@@ -16,6 +16,7 @@ import {
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
@@ -46,11 +47,8 @@ export type AgentServerConfig = {
   assistantProjectName: string;
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
-  /** Admin ceiling: whether the agent assistant feature is enabled for this workspace. */
   assistantEnabled: boolean;
-  /** Admin ceiling: whether users may persist PXI traces locally. */
   allowLocalTraces: boolean;
-  /** Admin ceiling: whether users may export PXI traces to the remote collector. */
   allowRemoteExport: boolean;
 };
 
@@ -59,26 +57,16 @@ export type AgentTraceConsentSettings = Pick<
   "allowLocalTraces" | "allowRemoteExport"
 >;
 
-/** The resolved trace flags sent on an agent request. */
 export type AgentTraceRecordingSettings = {
-  /** Whether traces should be ingested by this Phoenix instance. */
   ingestTraces: boolean;
-  /** Whether traces should also be exported to the remote collector. */
   exportRemoteTraces: boolean;
 };
 
-/**
- * Per-user PXI observability preferences persisted in local storage.
- *
- * These settings control where PXI traces are sent for the current browser
- * user and which server trace settings the consent gate has acknowledged.
- */
 export type AgentObservabilitySettings = {
   /** Whether PXI traces should be persisted in the current Phoenix instance. */
   storeLocalTraces: boolean;
   /** Whether PXI traces should also be exported to a remote collector. */
   exportRemoteTraces: boolean;
-  /** Trace recording ceilings visible when consent was acknowledged; null means unacknowledged. */
   acknowledgedTraceConsent: AgentTraceConsentSettings | null;
 };
 
@@ -190,14 +178,6 @@ function buildForkSummary(source: AgentSession): string {
   return base ? `${FORK_SUMMARY_PREFIX}${base}` : FORK_SUMMARY_PREFIX.trim();
 }
 
-/**
- * The trace-recording capabilities the user is asked to consent to. Consent is
- * about whether local persistence and/or remote export are allowed, not the
- * current destination names/endpoints. Remote export is only on offer when a
- * collector is actually configured. This is the shape snapshotted at
- * acknowledgement so we can later detect when the server broadens recording
- * beyond what the user agreed to.
- */
 export function getCurrentTraceConsentSettings(
   agentsConfig: AgentServerConfig
 ): AgentTraceConsentSettings {
@@ -208,12 +188,6 @@ export function getCurrentTraceConsentSettings(
   };
 }
 
-/**
- * Whether the consent the user previously acknowledged still covers the current
- * server ceilings. Re-consent is required only when the server *broadens*
- * recording (enables a dimension the user never agreed to); narrowing leaves
- * prior consent intact.
- */
 export function hasAcknowledgedCurrentTraceConsent({
   agentsConfig,
   observability,
@@ -234,11 +208,6 @@ export function hasAcknowledgedCurrentTraceConsent({
   );
 }
 
-/**
- * The trace flags actually sent on a request: the server ceiling AND the user's
- * preference must both allow a dimension for it to be recorded. Keeps the
- * "remote requires a collector" rule in sync with {@link getCurrentTraceConsentSettings}.
- */
 export function getEffectiveTraceRecordingSettings({
   agentsConfig,
   observability,
@@ -311,12 +280,6 @@ export interface AgentState extends AgentProps {
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
-  /**
-   * Updates the admin-controlled fields of {@link AgentServerConfig} after a
-   * successful workspace-settings mutation. Only the admin ceiling slots are
-   * patchable; env-derived fields (collectorEndpoint, assistantProjectName,
-   * webAccessEnabled) stay sourced from the initial loader query.
-   */
   setAgentsConfig: (
     patch: Partial<
       Pick<
@@ -424,6 +387,15 @@ export interface AgentState extends AgentProps {
   setPendingCodeEvaluatorEdit: (
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null
+  ) => void;
+
+  // -- LLM-evaluator draft edit approvals advertised by edit_llm_evaluator_draft tool calls --
+  pendingLlmEvaluatorEditsByToolCallId: Partial<
+    Record<string, PendingLlmEvaluatorEdit>
+  >;
+  setPendingLlmEvaluatorEdit: (
+    toolCallId: string,
+    edit: PendingLlmEvaluatorEdit | null
   ) => void;
   pendingLoadDatasetsByToolCallId: Partial<Record<string, PendingLoadDataset>>;
   setPendingLoadDataset: (
@@ -539,6 +511,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
+    pendingLlmEvaluatorEditsByToolCallId: {},
     pendingLoadDatasetsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
@@ -1092,6 +1065,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingLlmEvaluatorEdit: (toolCallId, edit) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingLlmEvaluatorEditsByToolCallId };
+          if (edit) {
+            next[toolCallId] = edit;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingLlmEvaluatorEditsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingLlmEvaluatorEdit" }
+      );
+    },
     setPendingLoadDataset: (toolCallId, pendingLoad) => {
       set(
         (state) => {

@@ -33,6 +33,8 @@ type PlaygroundExperimentToolbarProps = {
   query: PlaygroundEvaluatorSelect_query$key;
   isCodeEvaluatorFormOpen: boolean;
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  isLlmEvaluatorFormOpen: boolean;
+  onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
 };
 
 export function PlaygroundExperimentToolbar({
@@ -45,6 +47,8 @@ export function PlaygroundExperimentToolbar({
   query,
   isCodeEvaluatorFormOpen,
   onCodeEvaluatorFormOpenChange,
+  isLlmEvaluatorFormOpen,
+  onLlmEvaluatorFormOpenChange,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const recordExperiments = usePlaygroundContext(
@@ -118,6 +122,8 @@ export function PlaygroundExperimentToolbar({
             isDisabled={isRunning}
             isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
             onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
+            isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
+            onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
           <PlaygroundExperimentSettingsButton

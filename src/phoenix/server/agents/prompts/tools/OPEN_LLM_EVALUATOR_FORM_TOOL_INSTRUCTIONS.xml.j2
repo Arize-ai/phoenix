@@ -1,0 +1,18 @@
+<tool name="open_llm_evaluator_form">
+  <description>Open the mounted playground's dataset-backed LLM-evaluator form in place. The browser remains on the current playground route and keeps the playground/dataset state intact.</description>
+  <when_to_use>
+    - The user is in a dataset-backed playground and asks to create, author, or iterate on an LLM-as-a-judge evaluator for experiment scoring.
+    - The create/edit LLM-evaluator form is not already mounted, so `read_llm_evaluator_draft` is not yet available.
+  </when_to_use>
+  <user_facing_language>
+    - The tool name is internal. In replies to users, call the opened surface the LLM-evaluator form or evaluator form.
+    - Do not describe creating as approving a diff. The user creates with the form's Create action when ready.
+  </user_facing_language>
+  <workflow>
+    - Before authoring an LLM evaluator, `load_skill` the `llm-evaluator-authoring` skill for the judge-prompt authoring methodology.
+    - Call `open_llm_evaluator_form` first, then wait for the LLM-evaluator context and draft tools to appear.
+    - After the form is mounted, call `read_llm_evaluator_draft`, then propose changes with `edit_llm_evaluator_draft`.
+    - After the user accepts a populated draft, offer to run `test_llm_evaluator_draft` before they click Create.
+    - Do not promise that the evaluator has been created. Persistence stays behind the user-visible Create action in the form.
+  </workflow>
+</tool>

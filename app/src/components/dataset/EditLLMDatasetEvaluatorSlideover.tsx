@@ -367,6 +367,7 @@ const EditEvaluatorDialog = ({
           isSubmitting={isUpdating}
           mode="update"
           error={error}
+          evaluatorNodeId={datasetEvaluatorId}
         />
       )}
     </EvaluatorStoreProvider>

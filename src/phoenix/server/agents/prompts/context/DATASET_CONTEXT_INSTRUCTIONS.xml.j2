@@ -4,7 +4,7 @@
 {% if dataset.dataset_version_node_id %}
   <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id | sanitize(enclosing_tag="dataset_version_node_id", max_chars=128) | e }}</dataset_version_node_id>
 {% endif %}
-  <evaluator_authoring>
+  <code_evaluator_authoring>
 {% if is_code_evaluator_form_mounted %}
     The create/edit code-evaluator form is mounted. Defer to the `<phoenix_code_evaluator_context>` guidance for how to use the draft-read / draft-edit tools, propose accept/reject diffs, and whether to offer to run the draft-test tool before the user clicks the form's Create or Update action.
 {% elif has_usable_sandbox and not is_viewer %}
@@ -18,10 +18,30 @@
 {% else %}
     Do not offer a create-form handoff until a usable sandbox configuration is enabled.
 {% endif %}
-  </evaluator_authoring>
+  </code_evaluator_authoring>
+  <llm_evaluator_authoring>
+{% if is_llm_evaluator_form_mounted %}
+    The create/edit LLM-evaluator form is mounted. Defer to the `<phoenix_llm_evaluator_context>` guidance for how to use the draft-read / draft-edit tools, propose accept/reject diffs, and whether to offer to run the draft-test tool before the user clicks the form's Create or Update action.
+{% elif has_usable_model_provider and not is_viewer %}
+    To author a new LLM evaluator for this dataset, first `load_skill` the `llm-evaluator-authoring` skill for the judge-prompt authoring methodology. The user needs the Create LLM evaluator form mounted. If the user is in a dataset-backed playground, call `open_llm_evaluator_form` to open the form in place. Otherwise, hand off to the dataset Evaluators create surface:
+    1. Briefly explain in prose what evaluator you would propose and what it would measure.
+    2. Give the user this markdown link to the target surface: [Create LLM evaluator](/datasets/{{ dataset.dataset_node_id | urlencode }}/evaluators?createLlmEvaluator=true).
+    3. Ask the user to open the link, then reply once the Create LLM evaluator form is open.
+    4. Stop. Do NOT continue with manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after the form is mounted, then read the draft and propose evaluator form edits with the draft-edit tool available on that surface.
+{% elif is_viewer %}
+    The user has view-only access. Do not offer to create or edit evaluators.
+{% else %}
+    Do not offer a create-form handoff until a model provider for the judge is installed.
+{% endif %}
+  </llm_evaluator_authoring>
 {% if not has_usable_sandbox %}
   <sandbox_unavailable>
     No usable sandbox configuration is currently enabled for this Phoenix instance, so creating a code evaluator on this dataset is not possible right now. If the user asks to create one, direct them to visit `/settings/sandboxes` to enable a sandbox provider first.
   </sandbox_unavailable>
+{% endif %}
+{% if not has_usable_model_provider %}
+  <model_provider_unavailable>
+    No model provider for the judge is installed for this Phoenix instance, so creating an LLM evaluator on this dataset is not possible right now. If the user asks to create one, direct them to visit `/settings/providers` to add model-provider credentials first.
+  </model_provider_unavailable>
 {% endif %}
 </phoenix_dataset_context>

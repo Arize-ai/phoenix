@@ -43,7 +43,13 @@ def get_skills_capability_function(
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
         return SkillsCapability(
             toolset=SkillsToolset(
-                skills=build_skills(include_playground=ctx.deps.contexts.playground is not None),
+                skills=build_skills(
+                    include_playground=ctx.deps.contexts.playground is not None,
+                    include_llm_evaluator_authoring=(
+                        ctx.deps.contexts.dataset is not None
+                        or ctx.deps.contexts.llm_evaluator is not None
+                    ),
+                ),
                 load_skill_template=prompts.load_skill,
                 load_skill_tool_template=prompts.load_skill_tool,
                 read_skill_resource_tool_template=prompts.read_skill_resource_tool,

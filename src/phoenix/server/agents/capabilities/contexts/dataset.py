@@ -22,10 +22,13 @@ class DatasetContextCapability(AbstractDynamicCapability[AgentDependencies]):
             if dataset is None:
                 return None
             code_evaluator = ctx.deps.contexts.code_evaluator
+            llm_evaluator = ctx.deps.contexts.llm_evaluator
             return instructions.render(
                 dataset=dataset,
                 is_code_evaluator_form_mounted=code_evaluator is not None,
+                is_llm_evaluator_form_mounted=llm_evaluator is not None,
                 has_usable_sandbox=ctx.deps.sandbox_availability.has_usable,
+                has_usable_model_provider=ctx.deps.model_provider_availability.has_usable,
                 is_viewer=ctx.deps.is_viewer,
             )
 

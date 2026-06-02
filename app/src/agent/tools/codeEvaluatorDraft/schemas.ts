@@ -88,8 +88,6 @@ const freeformOutputConfigDraftSchema = z.object({
   upperBound: z.number().nullish(),
 });
 
-// `satisfies` ties the runtime validator to the canonical-derived draft type so
-// the two cannot drift (a missing/renamed field fails to compile here).
 const outputConfigDraftUnionSchema = z.discriminatedUnion("kind", [
   classificationOutputConfigDraftSchema,
   continuousOutputConfigDraftSchema,

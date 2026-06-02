@@ -39,10 +39,6 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 `;
 
-/**
- * The accept/reject contract every pending-edit kind satisfies; domain data
- * lives on `T`, reached via `snapshotToText`.
- */
 type PendingDiffEdit<T> = {
   before: T;
   after: T;
@@ -52,32 +48,16 @@ type PendingDiffEdit<T> = {
 
 type DiffAcceptRejectToolDetailsProps<T, P extends PendingDiffEdit<T>> = {
   part: ToolInvocationPart;
-  /** The pending edit read from the owning tool's zustand slice, or null. */
   pending: P | null;
-  /** Serializes a snapshot to the plain text the diff is computed over. */
   snapshotToText: (snapshot: T) => string;
-  /** Diff file name (drives the `before`/`after` blobs handed to the differ). */
   fileName: string;
-  /** The proposed-diff header content for the pending edit. */
   renderHeader: (pending: P) => ReactNode;
-  /** Label shown above the placeholder while the diff is still preparing. */
   preparingLabel: string;
-  /** Placeholder text shown while the diff is still preparing. */
   preparingText: string;
-  /** Message shown when the edit can no longer be accepted/rejected. */
   staleSessionMessage: string;
-  /**
-   * Whether to show the preparing placeholder for an in-flight call. Wrappers
-   * can add their own guards (e.g. waiting on parsed input) before this is set.
-   */
   showPreparing: boolean;
 };
 
-/**
- * Shared renderer for pending-edit tool details: a proposed diff with
- * accept/reject controls. Wrappers inject the domain content; the `pending`
- * edit is passed in and this component never reads context or the store.
- */
 export function DiffAcceptRejectToolDetails<T, P extends PendingDiffEdit<T>>({
   part,
   pending,

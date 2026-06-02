@@ -45,15 +45,8 @@ export type EditCodeEvaluatorDraftActionContext = z.output<
 
 export type CodeEvaluatorFormMode = "create" | "edit";
 
-/** `open_code_evaluator_form` takes no arguments. */
 export type OpenCodeEvaluatorFormInput = Record<string, never>;
 
-/**
- * JSON-safe wire shape for one output config: the canonical `@phoenix/types`
- * element of `CodeEvaluator.output_configs` plus an explicit `kind` (the
- * canonical union is undiscriminated). Optional numerics accept `null` because
- * the converter normalizes absent values to JSON-`null`.
- */
 export type ClassificationOutputConfigDraft = Omit<
   ClassificationEvaluatorAnnotationConfig,
   "values"
@@ -76,7 +69,6 @@ export type OutputConfigDraft =
   | ContinuousOutputConfigDraft
   | FreeformOutputConfigDraft;
 
-/** Snapshot of the open code-evaluator form. */
 export type CodeEvaluatorDraftSnapshot = {
   mode: CodeEvaluatorFormMode;
   evaluatorNodeId: string | null;
@@ -94,13 +86,11 @@ export type CodeEvaluatorActionResult<TOutput> =
   | { ok: true; output: TOutput }
   | { ok: false; error: string };
 
-/** Bridge from the open code-evaluator form to the agent. */
 export type CodeEvaluatorDraftHost = {
   getSnapshot: () => CodeEvaluatorDraftSnapshot;
   applyOperations: (
     operations: EditCodeEvaluatorDraftOperation[]
   ) => CodeEvaluatorActionResult<CodeEvaluatorDraftSnapshot>;
-  /** Pure preview — does not mutate the form. */
   previewOperations: (
     snapshot: CodeEvaluatorDraftSnapshot,
     operations: EditCodeEvaluatorDraftOperation[]

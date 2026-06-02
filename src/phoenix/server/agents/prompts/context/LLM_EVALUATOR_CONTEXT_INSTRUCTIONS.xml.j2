@@ -1,0 +1,32 @@
+<phoenix_llm_evaluator_context>
+  <description>An LLM-evaluator create/edit form is mounted. The user is authoring a Phoenix LLM-as-a-judge evaluator: a judge prompt (a sequence of messages) sent to a model that produces one or more named classification annotations over the run input, output, reference, and metadata.</description>
+  <mode>{% if llm_evaluator.evaluator_node_id %}edit{% else %}create{% endif %}</mode>
+{% if llm_evaluator.evaluator_node_id %}
+  <evaluator_node_id>{{ llm_evaluator.evaluator_node_id | sanitize(enclosing_tag="evaluator_node_id", max_chars=128) | e }}</evaluator_node_id>
+{% endif %}
+  <draft_contract>
+    - The draft fields are: name, description, the judge prompt (messages, model, provider, invocationParameters), outputConfigs (the named classification annotation configs the judge produces), inputMapping (literal + path), includeExplanation, and testPayload (the JSON mapping source used by the preview/test section: input, output, reference, and metadata).
+    - The judge prompt `messages` reference the run fields via template variables. For dataset-backed evaluators, `output` is the new experiment run output at runtime; the dataset `output` shape is evidence for what future run outputs may look like and is passed as `reference` when evaluating a new run.
+    - Treat the dataset example shape as evidence for which fields carry the signal, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
+  </draft_contract>
+  <available_model_providers>
+    The installed model providers are not inlined here. When you need to set the judge `model` and `provider`, fetch the inventory on-demand with the `bash` tool's `phoenix-gql` command: query `modelProviders { key name dependenciesInstalled credentialsSet }`. Only providers where `dependenciesInstalled` is true can run the judge, and the `provider` value is the provider `key` (for example `OPENAI`). Prefer a provider where `credentialsSet` is also true so the draft test and the saved evaluator run without further setup. If the user asks for a provider whose `credentialsSet` is false — or if no installed provider has credentials configured — you may still propose it, but tell the user that provider needs credentials added at `/settings/providers` before the evaluator (or its preview test) will run, and name the provider.
+  </available_model_providers>
+  <guidance>
+    Before authoring or revising this judge, `load_skill` the `llm-evaluator-authoring` skill for the judge-prompt authoring methodology.
+    Call `read_llm_evaluator_draft` before proposing edits to capture the latest draft snapshot and `testPayload`.
+{% if can_edit_draft %}
+    Call `edit_llm_evaluator_draft` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
+{% elif is_viewer %}
+    The user has view-only access. Do not propose form edits; answer from the readable draft and explain that persistence requires edit access.
+{% else %}
+    This create-mode form has no installed model provider for the judge. Do not propose form edits; direct the user to /settings/providers to add model-provider credentials first.
+{% endif %}
+{% if can_test_draft %}
+    After the user accepts a populated draft, offer to run `test_llm_evaluator_draft` before they click {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
+{% else %}
+    Do not offer a draft test unless `test_llm_evaluator_draft` is available.
+{% endif %}
+    Do not claim the evaluator is persisted; persistence remains the user's {% if llm_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} action in the form.
+  </guidance>
+</phoenix_llm_evaluator_context>

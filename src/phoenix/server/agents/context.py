@@ -142,6 +142,13 @@ class CodeEvaluatorContext(_ChatContextBase):
     evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
 
 
+class LlmEvaluatorContext(_ChatContextBase):
+    """LLM-evaluator create/edit form mounted in the current browser route."""
+
+    type: Literal["llm_evaluator"]
+    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
+
+
 class DatasetContext(_ChatContextBase):
     """Dataset the user is currently viewing or has bound to a workflow.
 
@@ -179,6 +186,7 @@ class ChatContext(
             | AgentSpanContext
             | PlaygroundContext
             | CodeEvaluatorContext
+            | LlmEvaluatorContext
             | DatasetContext
             | GraphQLContext
             | WebAccessContext,
@@ -197,6 +205,7 @@ class ResolvedContexts:
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
+    llm_evaluator: LlmEvaluatorContext | None = None
     dataset: DatasetContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
@@ -212,6 +221,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.playground = context_value
         elif isinstance(context_value, CodeEvaluatorContext):
             resolved.code_evaluator = context_value
+        elif isinstance(context_value, LlmEvaluatorContext):
+            resolved.llm_evaluator = context_value
         elif isinstance(context_value, DatasetContext):
             resolved.dataset = context_value
         elif isinstance(context_value, ProjectContext):

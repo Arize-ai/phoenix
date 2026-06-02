@@ -56,7 +56,12 @@ from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
     AgentOutput,
+    ModelProviderAvailability,
     SandboxAvailability,
+)
+from phoenix.server.api.helpers.playground_registry import (
+    PLAYGROUND_CLIENT_REGISTRY,
+    PROVIDER_DEFAULT,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -402,6 +407,29 @@ def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
     return contexts.dataset is not None or contexts.code_evaluator is not None
 
 
+def _load_model_provider_availability() -> ModelProviderAvailability:
+    """Compute the pre-turn ``has_usable`` gate for model-provider-backed capabilities.
+
+    ``has_usable`` is true when at least one generative provider has its SDK
+    installed. This is env-independent (it checks installed packages, not
+    credentials), so it is computed over the provider registry rather than the
+    database. Per-request credentials can arrive at run time, so the gate
+    deliberately ignores ``credentials_set`` to avoid hiding the tool."""
+    has_usable = any(
+        (client := PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, PROVIDER_DEFAULT))
+        is not None
+        and client.dependencies_are_installed()
+        for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+    )
+    return ModelProviderAvailability(has_usable=has_usable)
+
+
+def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bool:
+    # ``open_llm_evaluator_form`` gates on model-provider availability with no
+    # ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
+    return contexts.dataset is not None or contexts.llm_evaluator is not None
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -542,6 +570,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         session,
                         available_backend_types=available_backend_types,
                     )
+                model_provider_availability = ModelProviderAvailability()
+                if _contexts_need_model_provider_availability(resolved_contexts):
+                    model_provider_availability = _load_model_provider_availability()
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -578,6 +609,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             edit_permission=body.edit_permission,
             is_viewer=is_viewer,
             sandbox_availability=sandbox_availability,
+            model_provider_availability=model_provider_availability,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
