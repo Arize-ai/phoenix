@@ -213,17 +213,6 @@ class ExperimentRunMetricComparisons:
 
 
 @strawberry.type
-class AgentTraceRecording:
-    allow_local_traces: bool
-    allow_remote_export: bool
-
-
-@strawberry.type
-class AgentAssistantEnabled:
-    enabled: bool
-
-
-@strawberry.type
 class Query:
     @strawberry.field
     async def model_providers(self, info: Info[Context, None]) -> list[GenerativeProvider]:

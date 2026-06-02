@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import strawberry
-from starlette.requests import Request
 from strawberry.types import Info
 
 from phoenix.server.api.auth import (
@@ -11,19 +10,21 @@ from phoenix.server.api.auth import (
     IsNotViewer,
 )
 from phoenix.server.api.context import Context
-from phoenix.server.api.queries import AgentAssistantEnabled, AgentTraceRecording
-from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.settings.registry import (
     AgentAssistantEnabledSetting,
     AgentTraceRecordingSetting,
 )
 
 
-def _viewer_user_id(info: Info[Context, None]) -> int | None:
-    assert isinstance(request := info.context.request, Request)
-    if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
-        return int(user.identity)
-    return None
+@strawberry.type
+class AgentTraceRecording:
+    allow_local_traces: bool
+    allow_remote_export: bool
+
+
+@strawberry.type
+class AgentAssistantEnabled:
+    enabled: bool
 
 
 @strawberry.input
@@ -49,10 +50,10 @@ class SystemSettingsMutationMixin:
     ) -> AgentAssistantEnabled:
         await info.context.settings.update_agent_assistant_enabled(
             AgentAssistantEnabledSetting(enabled=input.enabled),
-            user_id=_viewer_user_id(info),
+            user_id=info.context.user_id,
         )
-        s = info.context.settings.agent_assistant_enabled
-        return AgentAssistantEnabled(enabled=s.enabled)
+        setting = info.context.settings.agent_assistant_enabled
+        return AgentAssistantEnabled(enabled=setting.enabled)
 
     @strawberry.mutation(
         permission_classes=[IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer, IsLocked]
@@ -67,7 +68,7 @@ class SystemSettingsMutationMixin:
                 allow_local_traces=input.allow_local_traces,
                 allow_remote_export=input.allow_remote_export,
             ),
-            user_id=_viewer_user_id(info),
+            user_id=info.context.user_id,
         )
         recording = info.context.settings.agent_trace_recording
         return AgentTraceRecording(

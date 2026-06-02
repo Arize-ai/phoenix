@@ -77,8 +77,6 @@ allowed. The assistant is on by default; external resources must be opted in:
 
 ```bash
 export PHOENIX_ALLOW_EXTERNAL_RESOURCES=true
-# Optionally disable the assistant entirely:
-# export PHOENIX_DISABLE_AGENT_ASSISTANT=true
 ```
 
 If either gate fails, the experiment still runs but the agent does not

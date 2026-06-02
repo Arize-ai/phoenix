@@ -61,7 +61,9 @@ export function AgentExperimentalSettings() {
             <Switch
               isSelected={capabilities[definition.key]}
               onChange={(enabled) => {
-                store.getState().setCapability({ key: definition.key, enabled });
+                store
+                  .getState()
+                  .setCapability({ key: definition.key, enabled });
               }}
               labelPlacement="start"
               css={settingSwitchCSS}
