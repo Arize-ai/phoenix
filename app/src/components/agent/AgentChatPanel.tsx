@@ -18,6 +18,7 @@ import {
 } from "./sessionSummaryUtils";
 import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
+import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 type AgentChatPanelLayer = "content" | "modal";
@@ -113,7 +114,7 @@ function AgentChatSurface({
   positionOverride,
   isPositionChangeDisabled = false,
 }: AgentChatSurfaceProps) {
-  const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
+  const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const {
     isOpen,
     position,

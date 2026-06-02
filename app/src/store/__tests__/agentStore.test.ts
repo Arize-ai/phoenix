@@ -1,7 +1,10 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
-import { createAgentStore } from "../agentStore";
+import {
+  createAgentStore,
+  hasAcknowledgedCurrentTraceConsent,
+} from "../agentStore";
 
 installTestStorage();
 
@@ -345,13 +348,22 @@ describe("agentStore", () => {
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,
         exportRemoteTraces: false,
-        hasAcknowledgedConsent: false,
+        acknowledgedTraceConsent: null,
       });
       expect(store.getState().fabPlacement).toBe("bottom-end");
     });
 
-    it("acknowledges consent without changing trace toggles", () => {
-      const store = createAgentStore();
+    it("acknowledges consent for the current server trace settings", () => {
+      const store = createAgentStore({
+        agentsConfig: {
+          collectorEndpoint: "https://collector.example.com",
+          assistantProjectName: "assistant_agent",
+          webAccessEnabled: false,
+          assistantEnabled: true,
+          allowLocalTraces: true,
+          allowRemoteExport: true,
+        },
+      });
 
       store.getState().setObservability({
         storeLocalTraces: false,
@@ -362,8 +374,32 @@ describe("agentStore", () => {
       expect(store.getState().observability).toEqual({
         storeLocalTraces: false,
         exportRemoteTraces: true,
-        hasAcknowledgedConsent: true,
+        acknowledgedTraceConsent: {
+          allowLocalTraces: true,
+          allowRemoteExport: true,
+        },
       });
+    });
+
+    it("requires renewed consent when server trace settings broaden", () => {
+      const store = createAgentStore();
+
+      store.getState().acknowledgeConsent();
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
+
+      store.getState().setAgentsConfig({ allowLocalTraces: true });
+
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(false);
     });
   });
 

@@ -32,6 +32,7 @@ import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
@@ -376,8 +377,11 @@ export function ChatView({
 
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
-  const hasAcknowledgedConsent = useAgentContext(
-    (state) => state.observability.hasAcknowledgedConsent
+  const hasAcknowledgedConsent = useAgentContext((state) =>
+    hasAcknowledgedCurrentTraceConsent({
+      agentsConfig: state.agentsConfig,
+      observability: state.observability,
+    })
   );
   const editPermissionMode = useAgentContext(
     (state) => state.permissions.edits

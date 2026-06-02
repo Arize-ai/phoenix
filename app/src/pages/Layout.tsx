@@ -8,6 +8,7 @@ import {
   AgentChatPanel,
   AgentChatWidget,
   FloatingAgentChatPanel,
+  useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
   Brand,
@@ -91,7 +92,7 @@ const sideLinksCSS = css`
 
 export function Layout() {
   const contentRef = useRef<HTMLDivElement>(null);
-  const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
+  const isAgentAssistantEnabled = useAssistantAgentEnabled();
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const agentPosition = useAgentContext((state) => state.position);
   const hasOpenModal = useHasOpenModal();

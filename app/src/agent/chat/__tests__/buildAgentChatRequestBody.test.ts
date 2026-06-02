@@ -5,6 +5,15 @@ import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabi
 import { buildAgentChatRequestBody } from "../buildAgentChatRequestBody";
 import type { AgentUIMessage } from "../types";
 
+const agentsConfig = {
+  collectorEndpoint: null,
+  assistantProjectName: "assistant_agent",
+  webAccessEnabled: false,
+  assistantEnabled: true,
+  allowLocalTraces: false,
+  allowRemoteExport: false,
+};
+
 describe("buildAgentChatRequestBody", () => {
   it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {
     const body = buildAgentChatRequestBody({
@@ -17,10 +26,10 @@ describe("buildAgentChatRequestBody", () => {
       observability: {
         storeLocalTraces: true,
         exportRemoteTraces: false,
-        hasAcknowledgedConsent: false,
+        acknowledgedTraceConsent: null,
       },
+      agentsConfig,
       permissions: { edits: "manual" },
-      hasRemoteCollector: false,
       contexts: [],
       modelSelection: {
         providerType: "builtin",
@@ -62,10 +71,10 @@ describe("buildAgentChatRequestBody", () => {
       observability: {
         storeLocalTraces: false,
         exportRemoteTraces: false,
-        hasAcknowledgedConsent: false,
+        acknowledgedTraceConsent: null,
       },
+      agentsConfig,
       permissions: { edits: "bypass" },
-      hasRemoteCollector: false,
       contexts: [],
       modelSelection: {
         providerType: "builtin",
@@ -78,5 +87,40 @@ describe("buildAgentChatRequestBody", () => {
       type: "web_access",
       enabled: true,
     });
+  });
+
+  it("applies server trace ceilings to trace request flags", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [] as AgentUIMessage[],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: true,
+        exportRemoteTraces: true,
+        acknowledgedTraceConsent: {
+          allowLocalTraces: true,
+          allowRemoteExport: true,
+        },
+      },
+      agentsConfig: {
+        ...agentsConfig,
+        collectorEndpoint: "https://collector.example.com",
+        allowLocalTraces: false,
+        allowRemoteExport: true,
+      },
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.ingestTraces).toBe(false);
+    expect(body.exportRemoteTraces).toBe(true);
   });
 });

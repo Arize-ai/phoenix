@@ -106,10 +106,8 @@ export function useAgentChat({
                     messageId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
+                    agentsConfig: store.getState().agentsConfig,
                     permissions: store.getState().permissions,
-                    hasRemoteCollector: Boolean(
-                      store.getState().agentsConfig.collectorEndpoint
-                    ),
                     contexts: selectActiveContexts(store.getState()),
                     modelSelection: modelSelectionRef.current,
                   }),
