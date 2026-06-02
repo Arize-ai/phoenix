@@ -20,6 +20,7 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
+import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
@@ -198,6 +199,9 @@ export function useAgentChat({
       }
       if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
         store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === LOAD_DATASET_TOOL_NAME) {
+        store.getState().setPendingLoadDataset(toolCall.toolCallId, null);
       }
     });
 

@@ -1,0 +1,15 @@
+<tool name="load_dataset">
+  <description>Load a dataset (optionally scoped to one split) into the mounted playground. In manual approval mode the browser renders an inline accept/reject card and the user approves the change; this tool does not switch the playground immediately. Approval is skipped only when edit_permission is bypass.</description>
+  <when_to_use>
+    - The user asks to load, open, switch to, run against, or run an experiment over a dataset in the playground.
+    - The user wants to scope a playground run to a single split of a dataset.
+  </when_to_use>
+  <preflight>
+    - If you are unsure the dataset or split exists, or which exact name to pass, discover it first with `bash` and `phoenix-gql` rather than guessing. Pass `datasetName` (and `splitName`) exactly as Phoenix reports them; the browser resolves names to IDs.
+    - When the user names a dataset directly and you are confident it exists, you may pass that name without a discovery query.
+  </preflight>
+  <rules>
+    - Propose the load by calling this tool directly. The inline accept/reject card is the approval surface — do not ask the user a separate yes/no question (or call `ask_user`) to confirm before calling it. Asking which split to scope to is a content question and is fine.
+    - After the load is applied, call `run_playground` if the user wants to see results over the loaded dataset.
+  </rules>
+</tool>

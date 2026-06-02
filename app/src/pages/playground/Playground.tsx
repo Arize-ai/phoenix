@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
@@ -24,6 +25,10 @@ import {
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import {
+  createLoadDatasetClientAction,
+  LOAD_DATASET_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   createListPlaygroundModelTargetsClientAction,
   createSetPlaygroundModelClientAction,
@@ -277,6 +282,11 @@ function PlaygroundContent() {
   const playgroundStore = usePlaygroundStore();
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
+  // The load_dataset client action reads the live URL selection outside React
+  // (drift recheck), so keep the latest search params in a ref the
+  // mount-scoped registration effect can read without re-registering.
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
   const experimentId = searchParams.get("experimentId");
   const datasetId = experimentId
@@ -362,6 +372,7 @@ function PlaygroundContent() {
       unregisterClientAction,
       setPendingPromptEdit,
       setPendingSavePrompt,
+      setPendingLoadDataset,
     } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOL_NAME,
@@ -401,6 +412,17 @@ function PlaygroundContent() {
       SET_VARIABLE_VALUES_TOOL_NAME,
       createSetVariableValuesClientAction({ playgroundStore })
     );
+    registerClientAction(
+      LOAD_DATASET_TOOL_NAME,
+      createLoadDatasetClientAction({
+        playgroundStore,
+        setSearchParams,
+        getSearchParams: () => searchParamsRef.current,
+        setPendingLoadDataset,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
@@ -409,6 +431,7 @@ function PlaygroundContent() {
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
+      unregisterClientAction(LOAD_DATASET_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {
@@ -423,8 +446,15 @@ function PlaygroundContent() {
           void pendingSave.cancel?.();
         }
       }
+      for (const pendingLoad of Object.values(
+        agentStore.getState().pendingLoadDatasetsByToolCallId
+      )) {
+        if (pendingLoad) {
+          void pendingLoad.cancel?.();
+        }
+      }
     };
-  }, [agentStore, playgroundStore]);
+  }, [agentStore, playgroundStore, setSearchParams]);
 
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =

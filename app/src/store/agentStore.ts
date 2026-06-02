@@ -16,6 +16,7 @@ import {
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
@@ -424,6 +425,11 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null
   ) => void;
+  pendingLoadDatasetsByToolCallId: Partial<Record<string, PendingLoadDataset>>;
+  setPendingLoadDataset: (
+    toolCallId: string,
+    pendingLoad: PendingLoadDataset | null
+  ) => void;
 }
 
 /**
@@ -533,6 +539,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
+    pendingLoadDatasetsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -1082,6 +1089,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingCodeEvaluatorEdit" }
+      );
+    },
+
+    setPendingLoadDataset: (toolCallId, pendingLoad) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingLoadDatasetsByToolCallId };
+          if (pendingLoad) {
+            next[toolCallId] = pendingLoad;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingLoadDatasetsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingLoadDataset" }
       );
     },
 

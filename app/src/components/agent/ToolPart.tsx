@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
@@ -36,6 +37,12 @@ import {
   formatEditPromptState,
   getEditPromptToolPreview,
 } from "./EditPromptToolDetails";
+import {
+  formatLoadDatasetState,
+  getLoadDatasetStatusVariant,
+  getLoadDatasetToolPreview,
+  LoadDatasetToolDetails,
+} from "./LoadDatasetToolDetails";
 import {
   formatSavePromptState,
   getSavePromptStatusVariant,
@@ -643,6 +650,13 @@ function getToolPresentation(
         stateLabel: formatSavePromptState(part),
         statusVariant: getSavePromptStatusVariant(part) ?? statusVariant,
         details: <SavePromptToolDetails part={part} />,
+      };
+    case LOAD_DATASET_TOOL_NAME:
+      return {
+        preview: getLoadDatasetToolPreview(part),
+        stateLabel: formatLoadDatasetState(part),
+        statusVariant: getLoadDatasetStatusVariant(part) ?? statusVariant,
+        details: <LoadDatasetToolDetails part={part} />,
       };
     case BATCH_SPAN_ANNOTATE_TOOL_NAME:
       return {

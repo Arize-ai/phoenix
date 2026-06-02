@@ -66,6 +66,7 @@ DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.save_prompt_tool.render(),
         _DEFAULT_PROMPTS.run_playground_tool.render(),
         _DEFAULT_PROMPTS.set_variable_values_tool.render(),
+        _DEFAULT_PROMPTS.load_dataset_tool.render(),
     }
 )
 
@@ -476,6 +477,7 @@ class TestPlaygroundTools:
         assert "set_variable_values" not in _get_tool_names(captured_request.body)
         assert "list_playground_model_targets" not in _get_tool_names(captured_request.body)
         assert "set_playground_model" not in _get_tool_names(captured_request.body)
+        assert "load_dataset" not in _get_tool_names(captured_request.body)
 
     async def test_run_playground_tool_is_advertised_with_playground_context(
         self,
@@ -509,6 +511,7 @@ class TestPlaygroundTools:
         assert "set_variable_values" in _get_tool_names(captured_request.body)
         assert "list_playground_model_targets" in _get_tool_names(captured_request.body)
         assert "set_playground_model" in _get_tool_names(captured_request.body)
+        assert "load_dataset" in _get_tool_names(captured_request.body)
 
 
 class TestDocsMCPToolset:
