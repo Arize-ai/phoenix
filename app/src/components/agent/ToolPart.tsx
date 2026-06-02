@@ -39,11 +39,6 @@ import {
   getEditLlmEvaluatorDraftToolPreview,
 } from "./EditLLMEvaluatorDraftToolDetails";
 import {
-  getLoadSkillToolPreview,
-  LOAD_SKILL_TOOL_NAME,
-  LoadSkillToolDetails,
-} from "./LoadSkillToolDetails";
-import {
   EditPromptToolDetails,
   formatEditPromptState,
   getEditPromptToolPreview,
@@ -54,6 +49,11 @@ import {
   getLoadDatasetToolPreview,
   LoadDatasetToolDetails,
 } from "./LoadDatasetToolDetails";
+import {
+  getLoadSkillToolPreview,
+  LOAD_SKILL_TOOL_NAME,
+  LoadSkillToolDetails,
+} from "./LoadSkillToolDetails";
 import {
   formatSavePromptState,
   getSavePromptStatusVariant,
@@ -419,8 +419,15 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
-  const { preview, stateLabel, statusVariant, details, icon, variant, quietLabel } =
-    getToolPresentation(toolName, part);
+  const {
+    preview,
+    stateLabel,
+    statusVariant,
+    details,
+    icon,
+    variant,
+    quietLabel,
+  } = getToolPresentation(toolName, part);
   const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
   const isRenderedOpen = manualOpen ?? shouldAutoOpen;
 
@@ -488,7 +495,9 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
             <span className="tool-part__preview">{preview}</span>
           ) : null}
           {showQuietSummary ? null : (
-            <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
+            <ToolPartStatus variant={statusVariant}>
+              {stateLabel}
+            </ToolPartStatus>
           )}
         </div>
       </summary>

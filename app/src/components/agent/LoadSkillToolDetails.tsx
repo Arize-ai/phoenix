@@ -1,7 +1,4 @@
-import {
-  ToolPartCodeBlock,
-  ToolPartLabel,
-} from "./ToolPartPrimitives";
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
