@@ -1,5 +1,16 @@
 # Changelog
 
+## [17.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.6.0...arize-phoenix-v17.0.0) (2026-06-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** add system settings with admin-managed assistant enablement and trace recording policy ([#13254](https://github.com/Arize-ai/phoenix/issues/13254))
+
+### Features
+
+* **server:** add system settings with admin-managed assistant enablement and trace recording policy ([#13254](https://github.com/Arize-ai/phoenix/issues/13254)) ([7f41cb4](https://github.com/Arize-ai/phoenix/commit/7f41cb4bcf88d3852946f76fbf9b542bc95daea7))
+
 ## [16.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.5.0...arize-phoenix-v16.6.0) (2026-06-02)
 
 
