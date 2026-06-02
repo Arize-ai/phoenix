@@ -1,5 +1,4 @@
 export { AgentSettingsForm } from "./AgentSettingsForm";
-export type { AgentSettingsFormValues } from "./AgentSettingsForm";
 export { AgentObservabilitySettings } from "./AgentObservabilitySettings";
 export {
   AgentExperimentalSettings,
