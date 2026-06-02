@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
@@ -11,25 +12,37 @@ import {
 } from "@phoenix/components/core/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
+import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
-/**
- * Embed this DialogContent component within a DatasetEvaluatorSlideover or an EvaluatorSlideover.
- * The mutation code is agnostic towards evaluator mutation, therefor this component can be used for both.
- */
 export const EditLLMEvaluatorDialogContent = ({
   onSubmit,
   isSubmitting,
   mode,
   error,
+  evaluatorNodeId,
 }: {
   onClose: () => void;
   onSubmit: () => void;
   isSubmitting: boolean;
   mode: "create" | "update";
   error?: string;
+  evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
+
+  useAdvertiseAgentContext(
+    useMemo(
+      () => ({
+        type: "llm_evaluator" as const,
+        evaluatorNodeId: evaluatorNodeId ?? null,
+      }),
+      [evaluatorNodeId]
+    )
+  );
+
+  useLlmEvaluatorDraftRegistration({ mode, evaluatorNodeId });
+
   const [showValidationError, setShowValidationError] = useState(false);
   const handleSubmit = async () => {
     const isValid = await store.getState().validateAll();

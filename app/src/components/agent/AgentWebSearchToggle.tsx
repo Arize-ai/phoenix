@@ -1,7 +1,13 @@
 import { css } from "@emotion/react";
 import { ToggleButton as AriaToggleButton } from "react-aria-components";
 
-import { Icon, Icons } from "@phoenix/components";
+import {
+  Icon,
+  Icons,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 const webSearchToggleCSS = css`
@@ -29,27 +35,15 @@ const webSearchToggleCSS = css`
     font-size: var(--global-font-size-l);
   }
 
-  .web-search-toggle__label {
-    display: none;
-  }
-
   &[data-hovered] {
     background-color: var(--hover-background);
     color: var(--global-text-color-700);
     opacity: 1;
-
-    .web-search-toggle__label {
-      display: inline;
-    }
   }
 
   &[data-selected="true"] {
     color: var(--global-color-blue-700);
     opacity: 1;
-
-    .web-search-toggle__label {
-      display: inline;
-    }
   }
 
   &[data-focus-visible] {
@@ -58,13 +52,6 @@ const webSearchToggleCSS = css`
   }
 `;
 
-/**
- * Globe toggle rendered next to the agent model selector. Flips the
- * `web.access` capability so the agent can use provider-native web search for
- * the current chat. Renders as a quiet icon when off (with slash-through globe)
- * and turns blue with a "Search" label when on. Shows "Search off" on hover
- * when disabled. Hidden when the deployment has not enabled web access.
- */
 export function AgentWebSearchToggle() {
   const store = useAgentStore();
   const isWebSearchEnabled = useAgentContext(
@@ -79,28 +66,24 @@ export function AgentWebSearchToggle() {
   }
 
   return (
-    <AriaToggleButton
-      aria-label={isWebSearchEnabled ? "Web search on" : "Search the web"}
-      isSelected={isWebSearchEnabled}
-      onChange={(enabled) =>
-        store.getState().setCapability({ key: "web.access", enabled })
-      }
-      css={webSearchToggleCSS}
-    >
-      <span className="web-search-toggle__icon">
-        <Icon
-          svg={
-            isWebSearchEnabled ? (
-              <Icons.GlobeOutline />
-            ) : (
-              <Icons.GlobeOffOutline />
-            )
-          }
-        />
-      </span>
-      <span className="web-search-toggle__label">
-        {isWebSearchEnabled ? "Search" : "Search off"}
-      </span>
-    </AriaToggleButton>
+    <TooltipTrigger delay={500} closeDelay={0}>
+      <AriaToggleButton
+        aria-label="Search the web"
+        isSelected={isWebSearchEnabled}
+        onChange={(enabled) =>
+          store.getState().setCapability({ key: "web.access", enabled })
+        }
+        css={webSearchToggleCSS}
+      >
+        <span className="web-search-toggle__icon">
+          <Icon svg={<Icons.GlobeOutline />} />
+        </span>
+        {isWebSearchEnabled ? <span>Search</span> : null}
+      </AriaToggleButton>
+      <Tooltip placement="top" offset={6}>
+        <TooltipArrow />
+        {isWebSearchEnabled ? "Web search on" : "Search the web"}
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

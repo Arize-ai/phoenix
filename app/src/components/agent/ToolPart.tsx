@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
@@ -32,6 +33,11 @@ import {
   formatEditCodeEvaluatorDraftState,
   getEditCodeEvaluatorDraftToolPreview,
 } from "./EditCodeEvaluatorDraftToolDetails";
+import {
+  EditLLMEvaluatorDraftToolDetails,
+  formatEditLlmEvaluatorDraftState,
+  getEditLlmEvaluatorDraftToolPreview,
+} from "./EditLLMEvaluatorDraftToolDetails";
 import {
   EditPromptToolDetails,
   formatEditPromptState,
@@ -671,6 +677,13 @@ function getToolPresentation(
         stateLabel: formatEditCodeEvaluatorDraftState(part),
         statusVariant,
         details: <EditCodeEvaluatorDraftToolDetails part={part} />,
+      };
+    case EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME:
+      return {
+        preview: getEditLlmEvaluatorDraftToolPreview(part),
+        stateLabel: formatEditLlmEvaluatorDraftState(part),
+        statusVariant,
+        details: <EditLLMEvaluatorDraftToolDetails part={part} />,
       };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME: {

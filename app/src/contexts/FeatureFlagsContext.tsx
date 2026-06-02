@@ -11,7 +11,6 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-// Add a new flag by extending the union, then add a default below.
 type FeatureFlag = "agent-experimental-settings";
 
 export type FeatureFlagsContextType = {

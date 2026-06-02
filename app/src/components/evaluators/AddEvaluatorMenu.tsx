@@ -29,7 +29,10 @@ import {
 import type { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
-import { CREATE_CODE_EVALUATOR_PARAM } from "@phoenix/constants/searchParams";
+import {
+  CREATE_CODE_EVALUATOR_PARAM,
+  CREATE_LLM_EVALUATOR_PARAM,
+} from "@phoenix/constants/searchParams";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -52,6 +55,8 @@ export const AddEvaluatorMenu = ({
   const [searchParams, setSearchParams] = useSearchParams();
   const shouldOpenCreateCodeEvaluator =
     searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
+  const shouldOpenCreateLLMEvaluator =
+    searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
   const [isCreateCodeEvaluatorOpen, setIsCreateCodeEvaluatorOpen] =
     useState(false);
   const isCreateCodeEvaluatorSlideoverOpen =
@@ -68,6 +73,21 @@ export const AddEvaluatorMenu = ({
         (prev) => {
           const next = new URLSearchParams(prev);
           next.delete(CREATE_CODE_EVALUATOR_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  };
+  const setCreateLLMEvaluatorOpen = (
+    nextState: CreateLLMDatasetEvaluatorInitialState | boolean | null
+  ) => {
+    setCreateLLMEvaluatorDialogInitialState(nextState);
+    if (!nextState && shouldOpenCreateLLMEvaluator) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(CREATE_LLM_EVALUATOR_PARAM);
           return next;
         },
         { replace: true }
@@ -109,8 +129,10 @@ export const AddEvaluatorMenu = ({
         </MenuContainer>
       </MenuTrigger>
       <CreateLLMDatasetEvaluatorSlideover
-        isOpen={!!createLLMEvaluatorDialogInitialState}
-        onOpenChange={setCreateLLMEvaluatorDialogInitialState}
+        isOpen={
+          !!createLLMEvaluatorDialogInitialState || shouldOpenCreateLLMEvaluator
+        }
+        onOpenChange={setCreateLLMEvaluatorOpen}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
         initialState={

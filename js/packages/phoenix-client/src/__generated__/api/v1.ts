@@ -1610,7 +1610,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -2795,6 +2795,19 @@ export interface components {
             data: components["schemas"]["Experiment"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /**
+         * LlmEvaluatorContext
+         * @description LLM-evaluator create/edit form mounted in the current browser route.
+         */
+        LlmEvaluatorContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm_evaluator";
+            /** Evaluatornodeid */
+            evaluatorNodeId?: string | null;
         };
         /** LocalUser */
         LocalUser: {

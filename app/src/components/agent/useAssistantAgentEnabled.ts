@@ -1,10 +1,7 @@
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
-/**
- * Three layered gates: deploy ceiling (env var) → admin ceiling (system_settings.agent.assistant.enabled)
- * → user preference (LocalStorage). All three must be on for the agent UI to render.
- */
+// Agent UI renders only when all three gates are on: deploy env var, admin system-setting, and user preference.
 export function useAssistantAgentEnabled() {
   const adminAgentEnabled = useAgentContext(
     (state) => state.agentsConfig.assistantEnabled

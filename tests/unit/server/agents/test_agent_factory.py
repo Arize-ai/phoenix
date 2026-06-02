@@ -32,6 +32,7 @@ from phoenix.server.agents.capabilities import (
 from phoenix.server.agents.context import (
     CodeEvaluatorContext,
     DatasetContext,
+    LlmEvaluatorContext,
     PlaygroundBuiltinModelContext,
     PlaygroundContext,
     PlaygroundInstanceContext,
@@ -41,6 +42,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     AgentDependencies,
+    ModelProviderAvailability,
     SandboxAvailability,
 )
 
@@ -749,6 +751,283 @@ class TestCodeEvaluatorFormToolGates:
         assert "read_code_evaluator_draft" in tool_names
         assert "edit_code_evaluator_draft" not in tool_names
         assert "test_code_evaluator_draft" not in tool_names
+
+
+class TestLlmEvaluatorFormToolGates:
+    async def test_open_form_advertised_for_dataset_backed_playground(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" in tool_names
+        assert "read_llm_evaluator_draft" not in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+
+    async def test_open_form_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_without_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_without_playground(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_when_llm_evaluator_form_mounted(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+        assert "read_llm_evaluator_draft" in tool_names
+
+    async def test_form_tools_absent_without_llm_evaluator_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" not in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+
+    async def test_edit_form_advertises_edit_but_hides_test_without_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id="TGxtRXZhbHVhdG9yOjE=",
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+
+    async def test_create_form_hides_write_tools_without_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+
+    async def test_create_form_advertises_write_tools_with_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" in tool_names
+        assert "test_llm_evaluator_draft" in tool_names
+
+    async def test_write_tools_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id="TGxtRXZhbHVhdG9yOjE=",
+                ),
+            ),
+            is_viewer=True,
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+
+
+class TestLlmEvaluatorAuthoringSkillLoadContract:
+    """The authoring skill is only reachable if a live surface both advertises
+    it in the catalog and directs the agent to ``load_skill`` it. These assert
+    that contract so the skill cannot silently become inert."""
+
+    async def test_llm_evaluator_context_directs_load_skill(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "load_skill" in all_text
+        assert "llm-evaluator-authoring" in all_text
+
+    async def test_authoring_skill_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>llm-evaluator-authoring</name>" in all_text
+
+    async def test_authoring_skill_absent_without_authoring_surface(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>llm-evaluator-authoring</name>" not in all_text
 
 
 class TestCapabilityInstructionsOverride:

@@ -138,7 +138,6 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode: string;
   sandboxConfigs: SandboxConfigOption[];
   initialSandboxConfigId?: string | null;
-  /** Relay node ID of the evaluator being edited; null in `create` mode. */
   evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();

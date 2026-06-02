@@ -7308,6 +7308,9 @@
             "$ref": "#/components/schemas/CodeEvaluatorContext"
           },
           {
+            "$ref": "#/components/schemas/LlmEvaluatorContext"
+          },
+          {
             "$ref": "#/components/schemas/DatasetContext"
           },
           {
@@ -7326,6 +7329,7 @@
             "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
             "dataset": "#/components/schemas/DatasetContext",
             "graphql": "#/components/schemas/GraphQLContext",
+            "llm_evaluator": "#/components/schemas/LlmEvaluatorContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
             "span": "#/components/schemas/AgentSpanContext",
@@ -10323,6 +10327,32 @@
           "next_cursor"
         ],
         "title": "ListExperimentsResponseBody"
+      },
+      "LlmEvaluatorContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "llm_evaluator",
+            "title": "Type"
+          },
+          "evaluatorNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluatornodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "LlmEvaluatorContext",
+        "description": "LLM-evaluator create/edit form mounted in the current browser route."
       },
       "LocalUser": {
         "properties": {

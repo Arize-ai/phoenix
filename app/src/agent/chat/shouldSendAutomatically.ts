@@ -10,6 +10,10 @@ import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
+  EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/llmEvaluatorDraft";
+import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
@@ -18,11 +22,7 @@ export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
 export const SYSTEM_INTERRUPT_ERROR =
   "This tool call has been interrupted by unexpected system conditions.";
 
-/**
- * Gate AI SDK's automatic tool-result continuation: most completed tool calls
- * continue, but terminal results that are local lifecycle cleanups (not model
- * input) update the transcript without continuing unprompted.
- */
+// The AI SDK auto-continues after completed tool calls; suppress that when the last result is a local lifecycle cleanup, not model input.
 export function shouldSendAutomaticallyAfterToolOutput({
   messages,
 }: {
@@ -61,10 +61,6 @@ function hasInterruptedToolCall({
   });
 }
 
-/**
- * A pending-edit cancellation (owning route unmounted before accept/reject)
- * must not trigger an automatic follow-up — the user gave no decision.
- */
 function hasPendingEditNavigationCancel(messages: UIMessage[]): boolean {
   const message = messages[messages.length - 1];
   if (!message || message.role !== "assistant") {
@@ -82,7 +78,9 @@ function hasPendingEditNavigationCancel(messages: UIMessage[]): boolean {
       (toolName === EDIT_PROMPT_TOOL_NAME &&
         part.errorText === EDIT_PROMPT_NAVIGATION_CANCEL_ERROR) ||
       (toolName === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME &&
-        part.errorText === EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR)
+        part.errorText === EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR) ||
+      (toolName === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME &&
+        part.errorText === EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR)
     );
   });
 }

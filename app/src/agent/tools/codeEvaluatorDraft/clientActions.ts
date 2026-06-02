@@ -13,9 +13,6 @@ import type {
   PendingCodeEvaluatorEdit,
 } from "./types";
 
-/**
- * Returns the current draft snapshot as a JSON string for `read_code_evaluator_draft`.
- */
 export function createReadCodeEvaluatorDraftClientAction({
   getDraftHost,
 }: {
@@ -40,9 +37,6 @@ export function createReadCodeEvaluatorDraftClientAction({
   };
 }
 
-/**
- * Previews the proposed edit and registers a pending edit for accept/reject.
- */
 export function createEditCodeEvaluatorDraftClientAction({
   getDraftHost,
   setPendingCodeEvaluatorEdit,
@@ -98,8 +92,6 @@ export function createEditCodeEvaluatorDraftClientAction({
       setPendingCodeEvaluatorEdit,
     });
 
-    // Auto-mode ("bypass" edit permission): apply immediately without surfacing
-    // the accept/reject confirmation dialog.
     if (shouldAutoAccept()) {
       await pendingEdit.accept?.({ approvalSource: "auto" });
       return { ok: true };
@@ -110,10 +102,6 @@ export function createEditCodeEvaluatorDraftClientAction({
   };
 }
 
-/**
- * Runs the mounted draft against its test payload for `test_code_evaluator_draft`,
- * returning the preview result as a JSON string.
- */
 export function createTestCodeEvaluatorDraftClientAction({
   isDraftMounted,
   runEvaluatorPreview,

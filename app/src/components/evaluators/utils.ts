@@ -16,6 +16,47 @@ import type {
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
 
+// Single source of judge tools, shared by Save and preview so the two can't diverge.
+export const buildJudgeToolFunctions = ({
+  outputConfigs,
+  includeExplanation,
+  description,
+}: {
+  outputConfigs: AnnotationConfig[];
+  includeExplanation: boolean;
+  description?: string;
+}) => {
+  const categoricalConfigs = outputConfigs.filter(
+    (c): c is ClassificationEvaluatorAnnotationConfig => "values" in c
+  );
+  return categoricalConfigs.map((config) => ({
+    function: {
+      name: config.name,
+      description: description ?? null,
+      parameters: {
+        type: "object",
+        properties: {
+          label: {
+            type: "string",
+            enum: config.values.map((value) => value.label),
+            description: config.name,
+          },
+          ...(includeExplanation
+            ? {
+                explanation: {
+                  type: "string",
+                  description: `Explanation for choosing the label "${config.name}"`,
+                },
+              }
+            : {}),
+        },
+        required: ["label", ...(includeExplanation ? ["explanation"] : [])],
+      },
+      strict: null,
+    },
+  }));
+};
+
 const createPromptVersionInput = ({
   playgroundStore,
   instanceId,
@@ -52,36 +93,11 @@ const createPromptVersionInput = ({
     playgroundStore
   );
 
-  // Build one tool per categorical output config
-  const categoricalConfigs = outputConfigs.filter(
-    (c): c is ClassificationEvaluatorAnnotationConfig => "values" in c
-  );
-  const toolFunctions = categoricalConfigs.map((config) => ({
-    function: {
-      name: config.name,
-      description: description ?? null,
-      parameters: {
-        type: "object",
-        properties: {
-          label: {
-            type: "string",
-            enum: config.values.map((value) => value.label),
-            description: config.name,
-          },
-          ...(includeExplanation
-            ? {
-                explanation: {
-                  type: "string",
-                  description: `Explanation for choosing the label "${config.name}"`,
-                },
-              }
-            : {}),
-        },
-        required: ["label", ...(includeExplanation ? ["explanation"] : [])],
-      },
-      strict: null,
-    },
-  }));
+  const toolFunctions = buildJudgeToolFunctions({
+    outputConfigs,
+    includeExplanation,
+    description,
+  });
 
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,

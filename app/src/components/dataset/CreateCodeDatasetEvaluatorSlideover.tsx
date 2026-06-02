@@ -32,12 +32,6 @@ import {
 } from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-/**
- * Slideover that authors a new code evaluator and binds it to a dataset.
- *
- * The form registers the code-evaluator draft context while mounted, allowing
- * PXI to fill the draft with read/edit proposal tools after the user opens it.
- */
 export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,

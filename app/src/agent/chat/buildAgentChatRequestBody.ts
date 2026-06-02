@@ -27,7 +27,6 @@ type BuildAgentChatRequestBodyOptions = {
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
   observability: AgentObservabilitySettings;
-  /** Server PXI configuration for this request. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI approval permission settings for this request. */
   permissions: AgentPermissions;
