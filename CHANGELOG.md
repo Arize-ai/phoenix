@@ -1,5 +1,20 @@
 # Changelog
 
+## [17.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.0.0...arize-phoenix-v17.1.0) (2026-06-02)
+
+
+### Features
+
+* **playground:** add PXI load_dataset tool ([#13558](https://github.com/Arize-ai/phoenix/issues/13558)) ([96678ef](https://github.com/Arize-ai/phoenix/commit/96678efd16ec9675e048caceba1308b6ed138e2e))
+* **pxi:** LLM-evaluator authoring for the PXI agent ([#13579](https://github.com/Arize-ai/phoenix/issues/13579)) ([1ead013](https://github.com/Arize-ai/phoenix/commit/1ead0136a771cbb10d87de11e4c4be083bcc67e0))
+* skill loading display ([#13576](https://github.com/Arize-ai/phoenix/issues/13576)) ([73185b4](https://github.com/Arize-ai/phoenix/commit/73185b42711042e11cbe64fb42344097f50237b3))
+* warning colors, search off icon ([#13593](https://github.com/Arize-ai/phoenix/issues/13593)) ([7ec6ace](https://github.com/Arize-ai/phoenix/commit/7ec6acee68e795e8ae34de607848a8f821ed30ad))
+
+
+### Bug Fixes
+
+* **server:** don't let docs MCP init failure abort server startup ([#13595](https://github.com/Arize-ai/phoenix/issues/13595)) ([c31598d](https://github.com/Arize-ai/phoenix/commit/c31598da294f7ef438e826bbd55c200b10f68316))
+
 ## [17.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.6.0...arize-phoenix-v17.0.0) (2026-06-02)
 
 
