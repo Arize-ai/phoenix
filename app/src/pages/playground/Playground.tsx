@@ -467,15 +467,23 @@ function PlaygroundContent() {
   }, [agentStore, playgroundStore, setSearchParams]);
 
   useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
+    const {
+      registerClientAction,
+      unregisterClientAction,
+      setPendingPromptToolWrite,
+    } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOLS_TOOL_NAME,
       createReadPromptToolsClientAction({ playgroundStore })
     );
     registerClientAction(
       WRITE_PROMPT_TOOLS_TOOL_NAME,
-      createWritePromptToolsClientAction({ playgroundStore })
+      createWritePromptToolsClientAction({
+        playgroundStore,
+        setPendingPromptToolWrite,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
     );
     registerClientAction(
       LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
@@ -498,6 +506,13 @@ function PlaygroundContent() {
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME);
       unregisterClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME);
+      for (const pendingWrite of Object.values(
+        agentStore.getState().pendingPromptToolWritesByToolCallId
+      )) {
+        if (pendingWrite) {
+          void pendingWrite.cancel?.();
+        }
+      }
     };
   }, [
     agentStore,

@@ -88,6 +88,7 @@ import {
 import {
   parseReadPromptToolsInput,
   parseWritePromptToolsInput,
+  type PromptToolsActionContext,
   READ_PROMPT_TOOLS_TOOL_NAME,
   type ReadPromptToolsInput,
   WRITE_PROMPT_TOOLS_TOOL_NAME,
@@ -1016,7 +1017,17 @@ const writePromptToolsAgentTool =
     name: WRITE_PROMPT_TOOLS_TOOL_NAME,
     parseInput: parseWritePromptToolsInput,
     invalidInputErrorText: `Invalid ${WRITE_PROMPT_TOOLS_TOOL_NAME} input. Expected { instanceId: number, expectedRevision: string, tools?: Array<{ id?: number | null, name: string, description?: string | null, parameters?: object | null, strict?: boolean | null }>, deleteToolIds?: number[] } with at least one tool to write or delete.`,
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    uiBehavior: {
+      autoOpen: true,
+      scrollIntoViewOnMount: true,
+    },
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
       const action =
         agentStore.getState().registeredClientActions[
           WRITE_PROMPT_TOOLS_TOOL_NAME
@@ -1031,15 +1042,23 @@ const writePromptToolsAgentTool =
         });
         return;
       }
-      const result = await action(input);
-      if (result.ok) {
+      if (!sessionId) {
         await addToolOutput({
-          state: "output-available",
+          state: "output-error",
           tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
-          output: result.output ?? "Prompt tools written.",
+          errorText:
+            "Cannot propose prompt tool changes without an active session.",
         });
-      } else {
+        return;
+      }
+      const context: PromptToolsActionContext = {
+        toolCallId: toolCall.toolCallId,
+        sessionId,
+        addToolOutput,
+      };
+      const result = await action(input, context);
+      if (!result.ok) {
         await addToolOutput({
           state: "output-error",
           tool: WRITE_PROMPT_TOOLS_TOOL_NAME,

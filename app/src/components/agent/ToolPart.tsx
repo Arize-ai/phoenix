@@ -8,6 +8,7 @@ import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEv
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
@@ -70,6 +71,11 @@ import {
 } from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, isToolUIPart } from "./toolPartTypes";
+import {
+  formatWritePromptToolsState,
+  getWritePromptToolsToolPreview,
+  WritePromptToolsToolDetails,
+} from "./WritePromptToolsToolDetails";
 
 /**
  * Re-export the message part type for consumers that need it for grouping.
@@ -752,6 +758,13 @@ function getToolPresentation(
         stateLabel: formatEditPromptState(part),
         statusVariant,
         details: <EditPromptToolDetails part={part} />,
+      };
+    case WRITE_PROMPT_TOOLS_TOOL_NAME:
+      return {
+        preview: getWritePromptToolsToolPreview(part),
+        stateLabel: formatWritePromptToolsState(part),
+        statusVariant,
+        details: <WritePromptToolsToolDetails part={part} />,
       };
     case SAVE_PROMPT_TOOL_NAME:
       return {

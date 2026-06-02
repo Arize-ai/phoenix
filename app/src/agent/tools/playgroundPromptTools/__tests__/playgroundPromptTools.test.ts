@@ -5,8 +5,9 @@ import {
   getPromptToolsSnapshot,
   parseWritePromptToolsInput,
   type PromptToolsSnapshot,
-  type WritePromptToolsResult,
+  WRITE_PROMPT_TOOLS_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPromptTools";
+import { createAgentStore } from "@phoenix/store/agentStore";
 import {
   _resetInstanceId,
   _resetToolId,
@@ -650,10 +651,204 @@ describe("playground prompt tools agent tools", () => {
     });
   });
 
-  describe("write_prompt_tools client action", () => {
-    it("returns the batch results and a fresh revision as JSON", async () => {
+  // write_prompt_tools is gated behind the same accept/reject approval flow as
+  // edit_prompt_instance: the batch is validated up front and proposed as a
+  // before/after diff, then applied only when the user accepts (or immediately
+  // when auto-accept is on).
+  describe("write_prompt_tools client action — approval flow", () => {
+    const makeWriteAction = (
+      playgroundStore: PlaygroundStore,
+      agentStore: ReturnType<typeof createAgentStore>,
+      shouldAutoAccept?: () => boolean
+    ) =>
+      createWritePromptToolsClientAction({
+        playgroundStore,
+        setPendingPromptToolWrite:
+          agentStore.getState().setPendingPromptToolWrite,
+        ...(shouldAutoAccept ? { shouldAutoAccept } : {}),
+      });
+
+    it("queues the batch as a pending diff and applies it on accept", async () => {
       const playgroundStore = newStore();
-      const write = createWritePromptToolsClientAction({ playgroundStore });
+      const agentStore = createAgentStore();
+      const write = makeWriteAction(playgroundStore, agentStore);
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      const result = await write(
+        {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ name: "get_weather" }],
+        },
+        { toolCallId: "tc-1", sessionId: "s-1", addToolOutput }
+      );
+
+      expect(result.ok).toBe(true);
+      // Nothing applied or reported yet — it is awaiting approval.
+      expect(addToolOutput).not.toHaveBeenCalled();
+      expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(0);
+      const pending =
+        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-1"];
+      expect(pending).toBeDefined();
+      expect(pending!.summary.created).toEqual(["get_weather"]);
+      // The diff operands are materialized in provider-display format, paired
+      // and labeled by tool name.
+      expect(pending!.before.entries).toHaveLength(0);
+      expect(pending!.after.entries).toHaveLength(1);
+      expect(pending!.after.entries[0]!.name).toBe("get_weather");
+
+      await pending!.accept!();
+
+      expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
+      expect(addToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: "output-available",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: "tc-1",
+          output: expect.objectContaining({ status: "accepted" }),
+        })
+      );
+      expect(
+        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-1"]
+      ).toBeUndefined();
+    });
+
+    it("discards the batch on reject, leaving the tools untouched", async () => {
+      const playgroundStore = newStore();
+      const agentStore = createAgentStore();
+      seedTools(playgroundStore, [functionTool(101, "get_weather")]);
+      const write = makeWriteAction(playgroundStore, agentStore);
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      await write(
+        {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          deleteToolIds: [101],
+        },
+        { toolCallId: "tc-reject", sessionId: "s-1", addToolOutput }
+      );
+      const pending =
+        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-reject"];
+      expect(pending).toBeDefined();
+      expect(pending!.summary.deleted).toEqual(["get_weather"]);
+
+      await pending!.reject!();
+
+      // The delete was discarded — the tool is still there.
+      expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
+      expect(addToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: "output-available",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: "tc-reject",
+          output: expect.objectContaining({ status: "rejected" }),
+        })
+      );
+    });
+
+    it("applies immediately and reports auto-approval when auto-accept is on", async () => {
+      const playgroundStore = newStore();
+      const agentStore = createAgentStore();
+      const write = makeWriteAction(playgroundStore, agentStore, () => true);
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      const result = await write(
+        {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ name: "get_weather" }],
+        },
+        { toolCallId: "tc-auto", sessionId: "s-1", addToolOutput }
+      );
+
+      expect(result.ok).toBe(true);
+      expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
+      expect(
+        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-auto"]
+      ).toBeUndefined();
+      expect(addToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          output: expect.objectContaining({
+            status: "accepted",
+            acceptedBy: "auto",
+          }),
+        })
+      );
+    });
+
+    it("fails fast with the indexed error for an invalid batch, registering no diff", async () => {
+      const playgroundStore = newStore();
+      const agentStore = createAgentStore();
+      seedTools(playgroundStore, [functionTool(101, "existing")]);
+      const write = makeWriteAction(playgroundStore, agentStore);
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      const result = await write(
+        {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ name: "would_be_created" }, { id: 9999, name: "missing" }],
+        },
+        { toolCallId: "tc-bad", sessionId: "s-1", addToolOutput }
+      );
+
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error).toContain("tools[1]");
+      expect(result.error).toContain("9999");
+      // No diff registered, nothing emitted, nothing mutated.
+      expect(
+        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-bad"]
+      ).toBeUndefined();
+      expect(addToolOutput).not.toHaveBeenCalled();
+      expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
+    });
+
+    it("rejects the accept if the tool list drifted after the diff was proposed", async () => {
+      const playgroundStore = newStore();
+      const agentStore = createAgentStore();
+      const write = makeWriteAction(playgroundStore, agentStore);
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      await write(
+        {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ name: "get_weather" }],
+        },
+        { toolCallId: "tc-stale", sessionId: "s-1", addToolOutput }
+      );
+      // The tool list changes out from under the proposed diff.
+      seedTools(playgroundStore, [functionTool(101, "added_later")]);
+
+      const pending =
+        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-stale"];
+      await pending!.accept!();
+
+      expect(addToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: "output-error",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: "tc-stale",
+          errorText: expect.stringContaining("has changed"),
+        })
+      );
+      // The drift-time tool list is untouched (the stale batch was not applied).
+      expect(
+        playgroundStore
+          .getState()
+          .instances[0]!.tools.map((tool) =>
+            tool.kind === "function" ? tool.definition.name : tool.kind
+          )
+      ).toEqual(["added_later"]);
+    });
+
+    it("requires tool call context", async () => {
+      const playgroundStore = newStore();
+      const agentStore = createAgentStore();
+      const write = makeWriteAction(playgroundStore, agentStore);
 
       const result = await write({
         instanceId: 0,
@@ -661,20 +856,23 @@ describe("playground prompt tools agent tools", () => {
         tools: [{ name: "get_weather" }],
       });
 
-      expect(result.ok).toBe(true);
-      if (!result.ok) return;
-      const output = JSON.parse(result.output ?? "") as WritePromptToolsResult;
-      expect(output.results).toEqual([
-        { status: "created", toolId: expect.any(Number) },
-      ]);
-      expect(output.revision).toMatch(/^prompt-tools-/);
+      expect(result).toEqual(
+        expect.objectContaining({
+          ok: false,
+          error: expect.stringContaining("without tool call context"),
+        })
+      );
     });
 
     it("reports invalid input", async () => {
       const playgroundStore = newStore();
-      const write = createWritePromptToolsClientAction({ playgroundStore });
+      const agentStore = createAgentStore();
+      const write = makeWriteAction(playgroundStore, agentStore);
 
-      const result = await write({ instanceId: 0, tools: [] });
+      const result = await write(
+        { instanceId: 0, tools: [] },
+        { toolCallId: "tc-x", sessionId: "s-1", addToolOutput: vi.fn() }
+      );
 
       expect(result).toEqual(
         expect.objectContaining({
