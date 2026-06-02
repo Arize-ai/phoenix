@@ -50,6 +50,12 @@ if (!fs.existsSync(wasmCachedBinary)) {
 
 if (process.env["PXI_E2E"] === "true") {
   process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "True";
+} else {
+  // The PXI assistant is enabled by default, which renders a floating action
+  // button that overlaps and intercepts clicks in unrelated specs. Disable it
+  // for the standard e2e suite; PXI specs run with PXI_E2E=true and rely on the
+  // assistant being enabled.
+  process.env["PHOENIX_DISABLE_AGENT_ASSISTANT"] = "True";
 }
 
 console.log("Phoenix test server starting...");

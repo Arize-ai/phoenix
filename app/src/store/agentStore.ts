@@ -190,10 +190,12 @@ function buildForkSummary(source: AgentSession): string {
 }
 
 /**
- * The trace-recording ceilings the user is asked to consent to. Remote export
- * is only on offer when a collector is actually configured. This is the shape
- * snapshotted at acknowledgement so we can later detect when the server
- * broadens recording beyond what the user agreed to.
+ * The trace-recording capabilities the user is asked to consent to. Consent is
+ * about whether local persistence and/or remote export are allowed, not the
+ * current destination names/endpoints. Remote export is only on offer when a
+ * collector is actually configured. This is the shape snapshotted at
+ * acknowledgement so we can later detect when the server broadens recording
+ * beyond what the user agreed to.
  */
 export function getCurrentTraceConsentSettings(
   agentsConfig: AgentServerConfig
