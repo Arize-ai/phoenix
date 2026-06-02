@@ -10,7 +10,7 @@ import React, {
 import {
   SET_TIME_RANGE_TOOL_NAME,
   type SetTimeRangeInput,
-} from "@phoenix/agent/extensions/toolRegistry";
+} from "@phoenix/agent/tools/timeRange";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";

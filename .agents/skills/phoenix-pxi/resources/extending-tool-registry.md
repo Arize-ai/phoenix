@@ -26,7 +26,10 @@ A PXI tool has up to four moving parts; which apply depends on the tool type:
 
 ### Browser
 
-- `app/src/agent/extensions/toolRegistry.ts` — the dispatch table. Each entry has a `name` (must match the server name), a `parseInput`, optional `requiredCapabilities`, and an `execute` function.
+- `app/src/agent/extensions/toolRegistry.ts` — the aggregator. It imports each tool's co-located definition and lists them in the ordered `agentToolDefinitions` array; it contains no per-tool logic.
+- `app/src/agent/extensions/registry/defineTool.ts` — the kernel. `defineTool({ name, parseInput, invalidInputErrorText, requiredCapabilities?, uiBehavior?, execute })` returns a sealed `AgentToolDefinition` (the input type is captured in a closure, so the registry holds a homogeneous array with no casts). The tool `name` must match the server name.
+- `app/src/agent/extensions/registry/defineClientActionTool.ts` — the helper for contextual client-executed tools. `defineClientActionTool({ name, parseInput, invalidInputErrorText, notMountedErrorText, defaultSuccessOutput?, requireSession?, noSessionErrorText?, buildContext?, emitSuccess?, uiBehavior?, requiredCapabilities? })` looks up the action in `registeredClientActions`, bails with `notMountedErrorText` when unmounted, invokes it, and maps the `{ ok, output | error }` result to tool output. Use `requireSession` + `buildContext` + `emitSuccess: false` for approval tools whose success is deferred to an accept/reject flow.
+- `app/src/agent/extensions/registry/dispatch.ts` — the tool-agnostic kernel (`createAgentToolDispatcher`): server-environment guard, name lookup, capability gate, then delegation to the definition's `dispatch`.
 - `app/src/agent/extensions/capabilities.ts` — the runtime capability catalog used by the UI and the dispatcher gate.
 - `app/src/agent/chat/buildAgentChatRequestBody.ts` — assembles the chat request body, including the `capabilities` payload sent on every turn.
 - `app/src/agent/chat/handleAgentToolCall.ts` — thin AI SDK adapter over `handleRegisteredAgentToolCall`.
@@ -37,7 +40,7 @@ A PXI tool has up to four moving parts; which apply depends on the tool type:
 ### External (always advertised, browser-executed)
 
 1. **Server**: add `src/phoenix/server/agents/tools/external/<tool>.py` exporting a top-level `<TOOL_NAME>_TOOL_DEFINITION = ToolDefinition(..., kind="external")`. Import it in `src/phoenix/server/agents/tools/registry.py` and append it to `EXTERNAL_TOOLS`.
-2. **Browser**: add a registry entry in `app/src/agent/extensions/toolRegistry.ts` matching the server `name`, with a `parseInput` and an `execute` that calls the runtime handler. Place runtime, types, and parser under `app/src/agent/tools/<tool-name>/`.
+2. **Browser**: in `app/src/agent/tools/<tool-name>/`, export a tool definition built with `defineTool({ name, parseInput, invalidInputErrorText, execute })` (the `execute` calls the runtime handler), alongside the tool's runtime, types, parser, and `*_TOOL_NAME` constant. Re-export the definition from the module `index.ts`, then import it into `toolRegistry.ts` and add it to the `agentToolDefinitions` array.
 3. **Capabilities** (only if the tool depends on runtime policy): add the capability key to `AgentCapabilityKey` and `AGENT_CAPABILITY_DEFINITIONS` on the frontend, mirror the field in `AgentCapabilities` on the server, and add a `_CAPABILITY_PROMPT_RULE` (use a no-op `lambda _: None` if it should not affect the model). The server enforces exhaustiveness.
 4. **System prompt** (if the model needs guidance): add a `<tool name="...">` block per the system-prompt XML conventions resource. (This will move server-side soon; until then, it is fine to update `app/src/agent/chat/systemPrompt.ts`.)
 
@@ -45,7 +48,7 @@ A PXI tool has up to four moving parts; which apply depends on the tool type:
 
 1. **Server**: add `src/phoenix/server/agents/tools/<tool>.py` with a builder that returns `ContextualTool(executes_on="client", build_callable=None)`. Set `required_contexts` to the names recognised by `_available_context_types`; if you need a new name, add it there. Append the builder result to `CONTEXTUAL_TOOLS` in `registry.py`.
 2. **Browser**:
-   - Add a registry entry in `toolRegistry.ts` whose `execute` looks up a callable from `agentStore.registeredClientActions[<tool-name>]`. If no action is registered, return a clear `output-error` so the model knows the page surface is unavailable.
+   - In `app/src/agent/tools/<tool-name>/`, export a definition built with `defineClientActionTool({ name, parseInput, invalidInputErrorText, notMountedErrorText, defaultSuccessOutput })`; the helper handles the unmounted-action `output-error` and result mapping. Re-export it from the module `index.ts` and add it to `agentToolDefinitions` in `toolRegistry.ts`. For approval tools, add `requireSession`, `noSessionErrorText`, `buildContext`, and `emitSuccess: false`.
    - In the React component that owns the relevant UI surface, register the action via `useAdvertiseAgentContext` (for context advertisement) and the agent store's `registerClientAction` / `unregisterClientAction` (for the dispatch callable). Keep the registration scoped to the component's mount lifecycle.
 3. **System prompt**: usually no extra prompt block is needed because the tool is already gated by context; add one only if the model needs orientation when the tool appears.
 
@@ -65,7 +68,7 @@ A PXI tool has up to four moving parts; which apply depends on the tool type:
 ## Remove A Tool
 
 1. **Server**: delete the tool file and remove it from `EXTERNAL_TOOLS` or `CONTEXTUAL_TOOLS` in `registry.py`.
-2. **Browser**: remove the entry from `toolRegistry.ts`. Delete the tool module under `app/src/agent/tools/` if it is no longer used. Remove any `registerClientAction` calls.
+2. **Browser**: remove the definition from the `agentToolDefinitions` array (and its import) in `toolRegistry.ts`. Delete the tool module under `app/src/agent/tools/` if it is no longer used. Remove any `registerClientAction` calls.
 3. **Capabilities**: if the tool was the only consumer of a capability, remove the field from `AgentCapabilities` and `AgentCapabilityKey`, and remove the corresponding `_CAPABILITY_PROMPT_RULE`.
 4. Run typecheck and lint to catch stale references on both sides.
 

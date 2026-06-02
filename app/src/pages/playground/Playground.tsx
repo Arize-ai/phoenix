@@ -20,16 +20,14 @@ import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
-  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
-  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
-} from "@phoenix/agent/extensions/toolRegistry";
-import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
   READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";

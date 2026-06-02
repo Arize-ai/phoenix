@@ -2,20 +2,11 @@ import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
-  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
-  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
-  SET_TIME_RANGE_TOOL_NAME,
-  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
 import {
-  buildRouteInfoCatalog,
-  GET_ROUTE_INFO_TOOL_NAME,
-  registerRouteInfoCatalog,
-} from "@phoenix/agent/tools/getRouteInfo";
-import {
-  LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
-  SET_PLAYGROUND_MODEL_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundModel";
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
 import {
   ADD_PROMPT_INSTANCE_TOOL_NAME,
@@ -32,45 +23,12 @@ import {
   SAVE_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
+import { SET_TIME_RANGE_TOOL_NAME } from "@phoenix/agent/tools/timeRange";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
 installTestStorage();
-
-const routeInfoTestRouteObjects = [
-  {
-    path: "/",
-    children: [
-      {
-        path: "/projects",
-        handle: {
-          agentRoute: {
-            label: "Projects",
-            description:
-              "Browse Phoenix projects and open project-specific observability views.",
-          },
-        },
-        children: [
-          {
-            path: ":projectId",
-            children: [
-              {
-                path: "traces",
-                handle: {
-                  agentRoute: {
-                    label: "Project Traces",
-                    description: "Inspect traces for a project.",
-                  },
-                },
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
 
 describe("toolRegistry", () => {
   beforeEach(() => {
@@ -260,76 +218,6 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("returns route info for valid get_route_info input", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    registerRouteInfoCatalog({
-      catalog: buildRouteInfoCatalog(routeInfoTestRouteObjects),
-    });
-    store.getState().setRouteContexts([
-      {
-        type: "project",
-        projectNodeId: "UHJvamVjdDox",
-      },
-    ]);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-route-info",
-        toolName: GET_ROUTE_INFO_TOOL_NAME,
-        input: { query: "project traces" },
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-available",
-        tool: GET_ROUTE_INFO_TOOL_NAME,
-        toolCallId: "tool-call-route-info",
-      })
-    );
-    const output = addToolOutput.mock.calls[0]?.[0]?.output;
-    expect(JSON.parse(output as string)).toEqual(
-      expect.objectContaining({
-        matches: expect.arrayContaining([
-          expect.objectContaining({
-            path: "/projects/:projectId/traces",
-            link: "/projects/UHJvamVjdDox/traces",
-            missingParams: [],
-          }),
-        ]),
-      })
-    );
-  });
-
-  it("returns an error for invalid get_route_info input", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-route-info-invalid",
-        toolName: GET_ROUTE_INFO_TOOL_NAME,
-        input: { query: 123 },
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-error",
-        tool: GET_ROUTE_INFO_TOOL_NAME,
-        toolCallId: "tool-call-route-info-invalid",
-        errorText: expect.stringContaining("Invalid get_route_info input"),
-      })
-    );
-  });
-
   it("returns an error when open_code_evaluator_form has no mounted action", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
@@ -350,32 +238,6 @@ describe("toolRegistry", () => {
         state: "output-error",
         tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
         toolCallId: "tool-call-open-evaluator-form-missing",
-        errorText:
-          "The dataset-backed playground is not mounted; cannot open the evaluator form.",
-      })
-    );
-  });
-
-  it("returns an error when open_llm_evaluator_form has no mounted action", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-open-llm-evaluator-form-missing",
-        toolName: OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
-        input: {},
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-error",
-        tool: OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
-        toolCallId: "tool-call-open-llm-evaluator-form-missing",
         errorText:
           "The dataset-backed playground is not mounted; cannot open the evaluator form.",
       })
@@ -754,84 +616,6 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_VARIABLE_VALUES_TOOL_NAME,
         output: "updated",
-      })
-    );
-  });
-
-  it("dispatches set_playground_model to the registered client action", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi.fn().mockResolvedValue({
-      ok: true,
-      output: "model updated",
-    });
-    store
-      .getState()
-      .registerClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME, action);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-set-playground-model",
-        toolName: SET_PLAYGROUND_MODEL_TOOL_NAME,
-        input: {
-          instanceId: 0,
-          target: {
-            type: "builtin",
-            provider: "OPENAI",
-            modelName: "gpt-5",
-          },
-        },
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(action).toHaveBeenCalledWith({
-      instanceId: 0,
-      target: {
-        type: "builtin",
-        provider: "OPENAI",
-        modelName: "gpt-5",
-      },
-    });
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-available",
-        tool: SET_PLAYGROUND_MODEL_TOOL_NAME,
-        output: "model updated",
-      })
-    );
-  });
-
-  it("dispatches list_playground_model_targets to the registered client action", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi.fn().mockResolvedValue({
-      ok: true,
-      output: "model targets",
-    });
-    store
-      .getState()
-      .registerClientAction(LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME, action);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-list-model-targets",
-        toolName: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
-        input: {},
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(action).toHaveBeenCalledWith({});
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-available",
-        tool: LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
-        output: "model targets",
       })
     );
   });
