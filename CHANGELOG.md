@@ -1,5 +1,19 @@
 # Changelog
 
+## [16.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.5.0...arize-phoenix-v16.6.0) (2026-06-02)
+
+
+### Features
+
+* add PXI playground model switching tool ([#13499](https://github.com/Arize-ai/phoenix/issues/13499)) ([ad2013a](https://github.com/Arize-ai/phoenix/commit/ad2013a2103681501d53827417094c0a68cfe03e))
+* **agents:** add web search globe toggle to agent chat ([#13564](https://github.com/Arize-ai/phoenix/issues/13564)) ([1fed5aa](https://github.com/Arize-ai/phoenix/commit/1fed5aa37858ed2adbdb2060e12f3ddfa5810344))
+* **pxi:** code-evaluator authoring ([#13397](https://github.com/Arize-ai/phoenix/issues/13397)) ([cef8f13](https://github.com/Arize-ai/phoenix/commit/cef8f131dcca2e3c81b5f83bca403959c0d7b95f))
+
+
+### Documentation
+
+* add Go LLM provider integration docs ([#13373](https://github.com/Arize-ai/phoenix/issues/13373)) ([352cb3c](https://github.com/Arize-ai/phoenix/commit/352cb3ceebda7bd6ad062cdd0f9f991c76d053d6))
+
 ## [16.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.4.0...arize-phoenix-v16.5.0) (2026-06-01)
 
 
