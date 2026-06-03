@@ -1221,6 +1221,12 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "06.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent"
+                ]
+              },
+              {
                 "group": "05.2026",
                 "pages": [
                   "docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom",
