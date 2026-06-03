@@ -30,6 +30,7 @@ import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
+import { useInterval } from "@phoenix/hooks/useInterval";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 
 import type { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
@@ -38,6 +39,7 @@ import { PromptActionMenu } from "./PromptActionMenu";
 import { PromptsEmpty } from "./PromptsEmpty";
 
 const PAGE_SIZE = 100;
+const PROMPTS_POLL_INTERVAL_MS = 60_000;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
@@ -105,6 +107,14 @@ export function PromptsTable(props: PromptsTableProps) {
       });
     });
   }, [refetch, queryArgs]);
+
+  useInterval(() => {
+    startTransition(() => {
+      refetch(queryArgs, {
+        fetchPolicy: "store-and-network",
+      });
+    });
+  }, PROMPTS_POLL_INTERVAL_MS);
 
   const tableData = useMemo(
     () =>
