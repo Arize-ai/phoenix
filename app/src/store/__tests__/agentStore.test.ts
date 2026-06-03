@@ -4,6 +4,7 @@ import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabi
 import {
   createAgentStore,
   hasAcknowledgedCurrentTraceConsent,
+  resolveAssistantStorageKey,
 } from "../agentStore";
 
 installTestStorage();
@@ -11,6 +12,32 @@ installTestStorage();
 describe("agentStore", () => {
   beforeEach(() => {
     localStorage.removeItem("arize-phoenix-assistant");
+  });
+
+  describe("resolveAssistantStorageKey", () => {
+    const originalBasename = window.Config.basename;
+    afterEach(() => {
+      window.Config.basename = originalBasename;
+    });
+
+    it("uses the base unscoped key when there is no root path", () => {
+      window.Config.basename = "/";
+      expect(resolveAssistantStorageKey()).toBe("arize-phoenix-assistant");
+      window.Config.basename = "";
+      expect(resolveAssistantStorageKey()).toBe("arize-phoenix-assistant");
+    });
+
+    it("scopes the key to the deployment root path", () => {
+      window.Config.basename = "/s/phoenix-devs";
+      expect(resolveAssistantStorageKey()).toBe(
+        "arize-phoenix-assistant:/s/phoenix-devs"
+      );
+      // Trailing slashes are normalized so the key is stable.
+      window.Config.basename = "/s/phoenix-devs/";
+      expect(resolveAssistantStorageKey()).toBe(
+        "arize-phoenix-assistant:/s/phoenix-devs"
+      );
+    });
   });
 
   describe("createSession", () => {
