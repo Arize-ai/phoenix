@@ -3180,12 +3180,18 @@ export interface components {
         /**
          * PlaygroundInstanceContext
          * @description One mounted playground instance and its current model selection.
+         *
+         *     ``experiment_id`` carries the relay node id of the experiment produced by
+         *     this instance's last dataset-backed run, set only when that experiment is
+         *     non-ephemeral (durably queryable); ``None`` otherwise.
          */
         PlaygroundInstanceContext: {
             /** Instanceid */
             instanceId: number;
             /** Model */
             model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
+            /** Experimentid */
+            experimentId?: string | null;
         };
         /** Project */
         Project: {
