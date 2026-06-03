@@ -53,6 +53,7 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.bash_tool.render(),
         _DEFAULT_PROMPTS.ask_user_tool.render(),
         _DEFAULT_PROMPTS.set_time_range_tool.render(),
+        _DEFAULT_PROMPTS.get_route_info_tool.render(),
     }
 )
 
@@ -460,6 +461,23 @@ class TestUIContextInstructions:
         )
         assert "<phoenix_gql_mutations_policy>" in uncached_texts
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
+
+
+class TestRouteInfoTool:
+    async def test_get_route_info_tool_is_advertised_by_default(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "get_route_info" in _get_tool_names(captured_request.body)
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool name="get_route_info">' in joined_system
+        assert "do not render its `path` as a markdown link" in joined_system
 
 
 class TestPlaygroundTools:
