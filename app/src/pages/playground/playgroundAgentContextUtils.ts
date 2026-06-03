@@ -7,17 +7,25 @@ type PlaygroundAgentInstance = NonNullable<
 >[number];
 
 export function getPlaygroundInstanceForAgent(
-  instance: Pick<PlaygroundInstance, "id" | "model">
+  instance: Pick<PlaygroundInstance, "id" | "model" | "experiment">
 ): PlaygroundAgentInstance {
+  // Only durably queryable (non-ephemeral) experiments are surfaced; ephemeral
+  // ones are cleaned up by the server and would yield dangling phoenix-gql reads.
+  const experimentId =
+    instance.experiment != null && !instance.experiment.isEphemeral
+      ? instance.experiment.id
+      : undefined;
   const { modelName } = instance.model;
   if (modelName == null) {
     return {
       instanceId: instance.id,
+      experimentId,
     };
   }
   if (instance.model.customProvider) {
     return {
       instanceId: instance.id,
+      experimentId,
       model: {
         type: "custom",
         customProviderId: instance.model.customProvider.id,
@@ -29,6 +37,7 @@ export function getPlaygroundInstanceForAgent(
   }
   return {
     instanceId: instance.id,
+    experimentId,
     model: {
       type: "builtin",
       provider: instance.model.provider,
@@ -71,6 +80,7 @@ export function arePlaygroundInstancesForAgentEqual(
       return (
         rightInstance != null &&
         leftInstance.instanceId === rightInstance.instanceId &&
+        leftInstance.experimentId === rightInstance.experimentId &&
         arePlaygroundAgentModelsEqual(leftInstance.model, rightInstance.model)
       );
     })

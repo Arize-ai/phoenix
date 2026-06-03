@@ -392,6 +392,41 @@ class TestPlaygroundContextCapabilityRender:
         content = _render(capability, ctx)
         assert '<instance label="A" instanceId="1"/>' in content
 
+    def test_renders_experiment_id_when_set(self) -> None:
+        capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[
+                        PlaygroundInstanceContext(
+                            instance_id=1,
+                            experiment_id="RXhwZXJpbWVudDox",
+                        ),
+                    ],
+                )
+            )
+        )
+        content = _render(capability, ctx)
+        assert 'experimentId="RXhwZXJpbWVudDox"' in content
+        # The experiment-results read routes through the phoenix-gql seam.
+        assert "phoenix-gql" in content
+
+    def test_omits_experiment_id_when_unset(self) -> None:
+        capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[
+                        PlaygroundInstanceContext(instance_id=1),
+                    ],
+                )
+            )
+        )
+        content = _render(capability, ctx)
+        assert "experimentId=" not in content
+
     def test_sanitizes_model_fields(self) -> None:
         capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
         ctx = _get_run_context(

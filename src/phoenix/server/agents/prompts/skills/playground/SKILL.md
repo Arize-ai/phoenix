@@ -53,9 +53,9 @@ they are comparing prompt variants using evaluator results.
    relevant variables, output format, and any constraints needed for consistent evaluation.
 4. Run the playground over the dataset. Each prompt instance run over a dataset is captured as an
    experiment, with outputs and evaluator annotations available for review.
-5. Review the experiment outputs and annotations to find recurring failure patterns. Use `bash` with
-   `phoenix-gql` to inspect dataset-backed experiment results when needed; `read_playground_output`
-   only reads manual playground runs. Separate model randomness from prompt issues when possible.
+5. Review the experiment outputs and annotations to find recurring failure patterns (see *Reading
+   experiment results* below for the `phoenix-gql` query); `read_playground_output` only reads
+   manual playground runs. Separate model randomness from prompt issues when possible.
 6. Use or add evaluators when they make issue detection more systematic, especially for failures
    that are hard to spot by manual review alone.
 7. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance` or
@@ -68,6 +68,18 @@ they are comparing prompt variants using evaluator results.
    exact name.
 10. Continue the hypothesis, edit, run, compare loop until the dataset-backed results satisfy the
    user's goal.
+
+### Reading experiment results
+
+When an instance carries an `experimentId`, read its cost and evaluator scores with `phoenix-gql`:
+
+```
+phoenix-gql --vars '{"experimentId":"<id>"}' 'query($experimentId: ID!){ node(id:$experimentId){ ...on Experiment { runCount expectedRunCount job{status} costSummary{total{cost tokens}} annotationSummaries{annotationName meanScore count errorCount} } } }'
+```
+
+An `experimentId` only means the experiment is queryable, not that the run finished — trust the
+summaries as final only when `job.status` is `COMPLETED` or `runCount == expectedRunCount`. To
+compare reruns, re-query earlier experiment IDs from the conversation and diff their summaries.
 
 ## Workflow: Author, Refine, Or Remove A Function Tool
 

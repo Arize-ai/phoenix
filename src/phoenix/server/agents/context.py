@@ -122,10 +122,16 @@ PlaygroundModelContext = Annotated[
 
 
 class PlaygroundInstanceContext(_ChatContextBase):
-    """One mounted playground instance and its current model selection."""
+    """One mounted playground instance and its current model selection.
+
+    ``experiment_id`` carries the relay node id of the experiment produced by
+    this instance's last dataset-backed run, set only when that experiment is
+    non-ephemeral (durably queryable); ``None`` otherwise.
+    """
 
     instance_id: int = Field(alias="instanceId")
     model: PlaygroundModelContext | None = None
+    experiment_id: str | None = Field(default=None, alias="experimentId")
 
 
 class PlaygroundContext(_ChatContextBase):
