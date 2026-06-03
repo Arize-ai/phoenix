@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Drawer } from "@phoenix/components";
+import { Modal, ModalOverlay } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
-import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { OPEN_ANNOTATION_CONFIG_FORM_TOOL_NAME } from "@phoenix/agent/tools/annotationConfigDraft/constants";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -81,9 +79,6 @@ export const AnnotationConfigSlideover = ({
   const [formState, setFormState] = useState<AnnotationConfigFormState | null>(
     null
   );
-  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
-    id: "annotation-config",
-  });
 
   // Advertise the form context only while open so the read/edit draft tools
   // are gated to the open dialog; null clears the advertisement when closed.
@@ -199,22 +194,21 @@ export const AnnotationConfigSlideover = ({
     });
   };
 
-  // Non-modal Drawer (like the trace detail panel): overlaps the project page
-  // while it stays interactive behind, resizable with persisted width. The
-  // Drawer unmounts its children when closed, so the dialog re-seeds per open.
   return (
-    <Drawer
+    <ModalOverlay
       isOpen={formState != null}
-      onClose={() => setFormState(null)}
-      defaultSize={defaultSize}
-      minSize={DRAWER_DEFAULT_MIN_SIZE}
-      onResize={onSizeChange}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setFormState(null);
+        }
+      }}
     >
-      <AnnotationConfigDialog
-        fillContainer
-        initialAnnotationConfig={formState?.config}
-        onAddAnnotationConfig={handleSubmit}
-      />
-    </Drawer>
+      <Modal variant="slideover" size="L">
+        <AnnotationConfigDialog
+          initialAnnotationConfig={formState?.config}
+          onAddAnnotationConfig={handleSubmit}
+        />
+      </Modal>
+    </ModalOverlay>
   );
 };

@@ -21,7 +21,6 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { DialogCloseButton } from "@phoenix/components/core/dialog";
 import { useNotifySuccess } from "@phoenix/contexts";
 import {
   AnnotationConfigDraftProvider,
@@ -65,15 +64,9 @@ type OnAddAnnotationConfig = (
 export const AnnotationConfigDialog = ({
   onAddAnnotationConfig,
   initialAnnotationConfig,
-  fillContainer = false,
 }: {
   onAddAnnotationConfig: OnAddAnnotationConfig;
   initialAnnotationConfig?: Partial<AnnotationConfig>;
-  /**
-   * Fill the parent's width instead of the fixed 700px centered-modal width.
-   * Set when rendering inside a resizable container such as a Drawer.
-   */
-  fillContainer?: boolean;
 }) => {
   const initialProps = initialDraftPropsFromConfig(initialAnnotationConfig);
   return (
@@ -83,20 +76,15 @@ export const AnnotationConfigDialog = ({
       key={initialAnnotationConfig?.id ?? "new"}
       {...initialProps}
     >
-      <AnnotationConfigDialogForm
-        onAddAnnotationConfig={onAddAnnotationConfig}
-        fillContainer={fillContainer}
-      />
+      <AnnotationConfigDialogForm onAddAnnotationConfig={onAddAnnotationConfig} />
     </AnnotationConfigDraftProvider>
   );
 };
 
 const AnnotationConfigDialogForm = ({
   onAddAnnotationConfig,
-  fillContainer,
 }: {
   onAddAnnotationConfig: OnAddAnnotationConfig;
-  fillContainer: boolean;
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [showErrors, setShowErrors] = useState(false);
@@ -135,28 +123,17 @@ const AnnotationConfigDialogForm = ({
 
   return (
     <Dialog
-      css={
-        fillContainer
-          ? css`
-              border: none;
-              width: 100%;
-              height: 100%;
-            `
-          : css`
-              border: none;
-              width: 700px;
-              max-width: 90%;
-            `
-      }
+      css={css`
+        border: none;
+        width: 700px;
+        max-width: 90%;
+      `}
     >
       {({ close }) => (
         <Card
           title={
             mode === "create" ? "New Annotation Config" : "Edit Annotation Config"
           }
-          // In the drawer, surface the minimize control in the header like the
-          // trace drawer (the button renders the collapse arrow in a Drawer).
-          extra={fillContainer ? <DialogCloseButton close={close} /> : undefined}
         >
           <Form
             onSubmit={(e) => {
