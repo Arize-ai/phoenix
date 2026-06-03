@@ -231,7 +231,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the span tree, spans, and trace view details for a single trace.",
+                        "Inspect the span tree, spans, and trace view details for a single trace. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -254,7 +254,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the span tree, spans, and trace view details for a single trace.",
+                        "Inspect the span tree, spans, and trace view details for a single trace. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -279,7 +279,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Session Details",
                       description:
-                        "Inspect session traces, turns, and details for a single session.",
+                        "Inspect session traces, turns, and details for a single session. Supports selecting a session trace span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -480,7 +480,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Evaluator Trace",
                       description:
-                        "Inspect an evaluator trace, eval trace, and trace details associated with a dataset evaluator.",
+                        "Inspect an evaluator trace, eval trace, and trace details associated with a dataset evaluator. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
