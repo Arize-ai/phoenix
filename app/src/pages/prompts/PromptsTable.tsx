@@ -99,20 +99,32 @@ export function PromptsTable(props: PromptsTableProps) {
       props.query
     );
 
+  const refreshPrompts = useCallback(
+    (variables?: Partial<PromptsTablePromptsQuery["variables"]>) => {
+      startTransition(() => {
+        refetch(
+          {
+            ...queryArgs,
+            ...variables,
+          },
+          {
+            fetchPolicy: "store-and-network",
+          }
+        );
+      });
+    },
+    [refetch, queryArgs]
+  );
+
   // Refetch when searchFilter changes
   useEffect(() => {
-    startTransition(() => {
-      refetch(queryArgs, {
-        fetchPolicy: "store-and-network",
-      });
-    });
-  }, [refetch, queryArgs]);
+    refreshPrompts();
+  }, [refreshPrompts]);
 
   useInterval(() => {
-    startTransition(() => {
-      refetch(queryArgs, {
-        fetchPolicy: "store-and-network",
-      });
+    const loadedPromptCount = data.prompts.edges.length;
+    refreshPrompts({
+      first: Math.max(PAGE_SIZE, loadedPromptCount),
     });
   }, PROMPTS_POLL_INTERVAL_MS);
 

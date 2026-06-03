@@ -172,7 +172,7 @@ async def test_prompts_without_filter(
     gql_client: AsyncGraphQLClient,
     prompts_for_filtering: Any,
 ) -> None:
-    """Test that prompts query returns all prompts when no filter is applied."""
+    """Test that prompts query returns all prompts by most recent creation."""
     query = """
       query {
         prompts {
@@ -191,9 +191,11 @@ async def test_prompts_without_filter(
     assert (data := response.data) is not None
     assert len(data["prompts"]["edges"]) == 3
     prompt_names = [edge["prompt"]["name"] for edge in data["prompts"]["edges"]]
-    assert "test_prompt_one" in prompt_names
-    assert "test_prompt_two" in prompt_names
-    assert "production_prompt" in prompt_names
+    assert prompt_names == [
+        "production_prompt",
+        "test_prompt_one",
+        "test_prompt_two",
+    ]
 
 
 async def test_prompt_version_is_latest(
@@ -571,16 +573,19 @@ async def prompts_for_filtering(
                 name=Identifier(root="test_prompt_one"),
                 description="First test prompt",
                 metadata_={"type": "test"},
+                created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
             ),
             models.Prompt(
                 name=Identifier(root="test_prompt_two"),
                 description="Second test prompt",
                 metadata_={"type": "test"},
+                created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
             ),
             models.Prompt(
                 name=Identifier(root="production_prompt"),
                 description="Production prompt",
                 metadata_={"type": "production"},
+                created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
             ),
         ]
 

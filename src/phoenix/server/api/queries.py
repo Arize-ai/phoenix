@@ -1111,15 +1111,16 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Prompt)
+        stmt = select(models.Prompt).order_by(
+            models.Prompt.created_at.desc(),
+            models.Prompt.id.desc(),
+        )
         if filter:
             column = getattr(models.Prompt, filter.col.value)
             # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
                 column = cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
-                models.Prompt.updated_at.desc()
-            )
+            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if labelIds:
             stmt = stmt.join(models.PromptPromptLabel).where(
                 models.PromptPromptLabel.prompt_label_id.in_(
