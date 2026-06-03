@@ -481,11 +481,41 @@ function buildSessionRetentionPatch({
 }
 
 /**
+ * Base local-storage key for the persisted assistant state. Used verbatim for
+ * single-tenant deployments and as a prefix when scoping by root path.
+ */
+const BASE_ASSISTANT_STORAGE_KEY = "arize-phoenix-assistant";
+
+/**
+ * Resolves the local-storage key for the persisted assistant state, scoped to
+ * the deployment's root path.
+ *
+ * `localStorage` is origin-scoped and path-blind. In multi-tenant deployments
+ * (e.g. Phoenix Cloud) many workspaces are served from distinct root paths on
+ * the SAME browser origin, so a single shared key would let one workspace's
+ * chat history load in another. Scoping by the root-path basename aligns this
+ * with the per-deployment isolation boundary already enforced server-side by
+ * PHOENIX_COOKIES_PATH (which is set to the same root path).
+ *
+ * Deployments without a root path (the common single-tenant case, e.g. OSS)
+ * use the base key unchanged so existing history is preserved on upgrade.
+ * Under a root path the new scoped key simply leaves the old unscoped blob
+ * untouched; nothing reads it once the key changes.
+ */
+export function resolveAssistantStorageKey(): string {
+  const basename = (window.Config?.basename ?? "").replace(/\/+$/, "");
+  return basename
+    ? `${BASE_ASSISTANT_STORAGE_KEY}:${basename}`
+    : BASE_ASSISTANT_STORAGE_KEY;
+}
+
+/**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
- * persist (to local storage under "arize-phoenix-assistant"). The `isOpen`
- * property is excluded from persistence so the panel always starts closed.
+ * persist (to local storage under a per-deployment key derived from the root
+ * path; see {@link resolveAssistantStorageKey}). The `isOpen` property is
+ * excluded from persistence so the panel always starts closed.
  *
  * @param initialProps - Optional overrides for the default store properties.
  */
@@ -1101,7 +1131,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
-      name: "arize-phoenix-assistant",
+      name: resolveAssistantStorageKey(),
       version: 0,
       partialize: (state) => ({
         isOpen: state.isOpen,
