@@ -2,6 +2,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     _EXTERNAL_TOOL_DEFINITIONS_BY_NAME,
     get_external_tool_definition,
     load_dataset,
+    set_appended_messages_path,
     set_template_variables_path,
 )
 from phoenix.server.agents.prompts import AgentPrompts
@@ -52,6 +53,25 @@ def test_set_template_variables_path_parameters_expose_only_nullable_path() -> N
     schema = set_template_variables_path.TOOL_DEFINITION.parameters_json_schema
 
     assert set_template_variables_path.NAME == "set_template_variables_path"
+    assert set(schema["properties"]) == {"path"}
+    assert schema["required"] == ["path"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["path"]["type"] == ["string", "null"]
+
+
+def test_set_appended_messages_path_instructions_expose_tool_tag_and_load_dataset_nudge() -> None:
+    """Pin the rendered ``set_appended_messages_path`` instruction structure."""
+    rendered = AgentPrompts().set_appended_messages_path_tool.render()
+
+    assert '<tool name="set_appended_messages_path">' in rendered
+    assert "load_dataset" in rendered
+
+
+def test_set_appended_messages_path_parameters_expose_only_nullable_required_path() -> None:
+    """Pin the model-facing parameter contract; must agree with the frontend zod ``.strict()`` parser."""
+    schema = set_appended_messages_path.TOOL_DEFINITION.parameters_json_schema
+
+    assert set_appended_messages_path.NAME == "set_appended_messages_path"
     assert set(schema["properties"]) == {"path"}
     assert schema["required"] == ["path"]
     assert schema["additionalProperties"] is False

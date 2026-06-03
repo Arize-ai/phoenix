@@ -56,6 +56,9 @@ _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS = get_template(
 _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS.xml.j2"
 )
+_SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS = get_template(
+    "tools/SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS.xml.j2"
+)
 _LOAD_DATASET_TOOL_INSTRUCTIONS = get_template("tools/LOAD_DATASET_TOOL_INSTRUCTIONS.xml.j2")
 _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
     "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
@@ -131,6 +134,7 @@ class AgentPrompts:
     run_playground_tool: Template = _RUN_PLAYGROUND_TOOL_INSTRUCTIONS
     set_variable_values_tool: Template = _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS
     set_template_variables_path_tool: Template = _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS
+    set_appended_messages_path_tool: Template = _SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS
     load_dataset_tool: Template = _LOAD_DATASET_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
     read_code_evaluator_draft_tool: Template = _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS

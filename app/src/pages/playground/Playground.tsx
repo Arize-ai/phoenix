@@ -34,6 +34,10 @@ import {
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
+  createSetAppendedMessagesPathClientAction,
+  SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import {
   createLoadDatasetClientAction,
   LOAD_DATASET_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundLoadDataset";
@@ -476,6 +480,13 @@ function PlaygroundContent() {
           agentStore.getState().permissions.edits === "bypass",
       })
     );
+    registerClientAction(
+      SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+      createSetAppendedMessagesPathClientAction({
+        playgroundStore,
+        getSearchParams: () => searchParamsRef.current,
+      })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
@@ -490,6 +501,7 @@ function PlaygroundContent() {
       unregisterClientAction(LOAD_DATASET_TOOL_NAME);
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
+      unregisterClientAction(SET_APPENDED_MESSAGES_PATH_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {
