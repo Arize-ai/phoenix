@@ -9,12 +9,11 @@ type PlaygroundAgentInstance = NonNullable<
 export function getPlaygroundInstanceForAgent(
   instance: Pick<PlaygroundInstance, "id" | "model" | "experiment">
 ): PlaygroundAgentInstance {
-  // Only durably queryable (non-ephemeral) experiments are surfaced; ephemeral
-  // ones are cleaned up by the server and would yield dangling phoenix-gql reads.
-  const experimentId =
-    instance.experiment != null && !instance.experiment.isEphemeral
-      ? instance.experiment.id
-      : undefined;
+  // Surface the experiment id whenever a run produced one, including ephemeral
+  // experiments: those persist in the DB for ~24h (the server sweeps them only
+  // after EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS), so they stay queryable via
+  // phoenix-gql within the window the agent reads this context.
+  const experimentId = instance.experiment?.id;
   const { modelName } = instance.model;
   if (modelName == null) {
     return {

@@ -80,6 +80,9 @@ phoenix-gql --vars '{"experimentId":"<id>"}' 'query($experimentId: ID!){ node(id
 An `experimentId` only means the experiment is queryable, not that the run finished — trust the
 summaries as final only when `job.status` is `COMPLETED` or `runCount == expectedRunCount`. To
 compare reruns, re-query earlier experiment IDs from the conversation and diff their summaries.
+Experiments from unrecorded runs are ephemeral and the server sweeps them ~24h after their last
+update; a freshly surfaced `experimentId` is well within that window, but an id re-queried from
+much earlier in a long session may no longer resolve.
 
 ## Workflow: Author, Refine, Or Remove A Function Tool
 

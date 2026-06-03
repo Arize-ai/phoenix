@@ -3182,8 +3182,9 @@ export interface components {
          * @description One mounted playground instance and its current model selection.
          *
          *     ``experiment_id`` carries the relay node id of the experiment produced by
-         *     this instance's last dataset-backed run, set only when that experiment is
-         *     non-ephemeral (durably queryable); ``None`` otherwise.
+         *     this instance's last dataset-backed run, or ``None`` when the instance has
+         *     not produced one. Ephemeral experiments are included: they remain queryable
+         *     until the server sweeps them ~24h after their last update.
          */
         PlaygroundInstanceContext: {
             /** Instanceid */

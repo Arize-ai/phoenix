@@ -36,13 +36,15 @@ describe("getPlaygroundInstanceForAgent", () => {
     expect(result.experimentId).toBe("RXhwZXJpbWVudDox");
   });
 
-  it("excludes an ephemeral experiment id", () => {
+  it("includes an ephemeral experiment id", () => {
+    // Ephemeral experiments persist in the DB for ~24h, so they stay queryable
+    // and should be surfaced to the agent like any other run.
     const result = getPlaygroundInstanceForAgent(
       makeInstance({
         experiment: { id: "RXhwZXJpbWVudDoy", isEphemeral: true },
       })
     );
-    expect(result.experimentId).toBeUndefined();
+    expect(result.experimentId).toBe("RXhwZXJpbWVudDoy");
   });
 
   it("omits the experiment id when no experiment is present", () => {
