@@ -383,6 +383,7 @@ function PlaygroundContent() {
       setPendingPromptEdit,
       setPendingSavePrompt,
       setPendingLoadDataset,
+      setPendingPromptToolWrite,
     } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOL_NAME,
@@ -433,6 +434,19 @@ function PlaygroundContent() {
           agentStore.getState().permissions.edits === "bypass",
       })
     );
+    registerClientAction(
+      READ_PROMPT_TOOLS_TOOL_NAME,
+      createReadPromptToolsClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      WRITE_PROMPT_TOOLS_TOOL_NAME,
+      createWritePromptToolsClientAction({
+        playgroundStore,
+        setPendingPromptToolWrite,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
@@ -442,6 +456,8 @@ function PlaygroundContent() {
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
       unregisterClientAction(LOAD_DATASET_TOOL_NAME);
+      unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
+      unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {
@@ -463,20 +479,19 @@ function PlaygroundContent() {
           void pendingLoad.cancel?.();
         }
       }
+      for (const pendingWrite of Object.values(
+        agentStore.getState().pendingPromptToolWritesByToolCallId
+      )) {
+        if (pendingWrite) {
+          void pendingWrite.cancel?.();
+        }
+      }
     };
   }, [agentStore, playgroundStore, setSearchParams]);
 
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
-    registerClientAction(
-      READ_PROMPT_TOOLS_TOOL_NAME,
-      createReadPromptToolsClientAction({ playgroundStore })
-    );
-    registerClientAction(
-      WRITE_PROMPT_TOOLS_TOOL_NAME,
-      createWritePromptToolsClientAction({ playgroundStore })
-    );
     registerClientAction(
       LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
       createListPlaygroundModelTargetsClientAction({
@@ -494,8 +509,6 @@ function PlaygroundContent() {
       })
     );
     return () => {
-      unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
-      unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME);
       unregisterClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME);
     };

@@ -19,6 +19,7 @@ import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
+import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
@@ -374,6 +375,13 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     annotation: PendingBatchSpanAnnotate | null
   ) => void;
+  pendingPromptToolWritesByToolCallId: Partial<
+    Record<string, PendingPromptToolWrite>
+  >;
+  setPendingPromptToolWrite: (
+    toolCallId: string,
+    write: PendingPromptToolWrite | null
+  ) => void;
   pendingSavePromptsByToolCallId: Partial<Record<string, PendingSavePrompt>>;
   setPendingSavePrompt: (
     toolCallId: string,
@@ -539,6 +547,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
+    pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
     pendingLlmEvaluatorEditsByToolCallId: {},
@@ -1060,6 +1069,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingBatchSpanAnnotate" }
+      );
+    },
+
+    setPendingPromptToolWrite: (toolCallId, write) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPromptToolWritesByToolCallId };
+          if (write) {
+            next[toolCallId] = write;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPromptToolWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPromptToolWrite" }
       );
     },
 

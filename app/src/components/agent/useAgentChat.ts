@@ -23,6 +23,7 @@ import type {
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
@@ -193,6 +194,9 @@ export function useAgentChat({
       if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
         store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
       }
+      if (toolCall.tool === WRITE_PROMPT_TOOLS_TOOL_NAME) {
+        store.getState().setPendingPromptToolWrite(toolCall.toolCallId, null);
+      }
       if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
         store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
       }
@@ -317,6 +321,8 @@ export function useAgentChat({
             state.setPendingPromptEdit(part.toolCallId, null);
           } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
             state.setPendingBatchSpanAnnotate(part.toolCallId, null);
+          } else if (toolName === WRITE_PROMPT_TOOLS_TOOL_NAME) {
+            state.setPendingPromptToolWrite(part.toolCallId, null);
           } else if (pendingElicitation?.toolCallId === part.toolCallId) {
             state.setPendingElicitation(sessionId, null);
           }

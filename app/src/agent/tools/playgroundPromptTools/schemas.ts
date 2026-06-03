@@ -1,6 +1,10 @@
+import type { Chat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
 import { z } from "zod";
 
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
+
+export type PromptToolsWriteToolOutputSender = Chat<UIMessage>["addToolOutput"];
 
 export const readPromptToolsInputSchema = z
   .preprocess(
@@ -57,3 +61,17 @@ export const writePromptToolsInputSchema = z
       (value.tools?.length ?? 0) > 0 || (value.deleteToolIds?.length ?? 0) > 0,
     { message: "Provide at least one tool to create/update or delete." }
   );
+
+/**
+ * Runtime context the tool registry hands to the write_prompt_tools client
+ * action so it can register a pending approval bound to the live tool call.
+ */
+export const promptToolsActionContextSchema = z
+  .object({
+    toolCallId: z.string(),
+    sessionId: z.string(),
+    addToolOutput: z.custom<PromptToolsWriteToolOutputSender>(
+      (value) => typeof value === "function"
+    ),
+  })
+  .transform((context) => context);

@@ -1,5 +1,6 @@
 import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
+  type CanonicalToolChoice,
   type CanonicalToolDefinition,
   generateToolId,
   type PlaygroundStore,
@@ -13,6 +14,7 @@ import type {
   WritePromptToolEntry,
   WritePromptToolResult,
   WritePromptToolsInput,
+  WritePromptToolsPlan,
   WritePromptToolsResult,
 } from "./types";
 
@@ -48,32 +50,37 @@ export function getPromptToolsSnapshot({
 }
 
 /**
- * Applies a `write_prompt_tools` batch to the playground store: each `tools`
- * entry patches an existing function tool when its `id` is provided, or creates
- * a new one otherwise, and every id in `deleteToolIds` is removed. Verifies the
- * input's `expectedRevision` against the current snapshot before mutating;
- * rejects on mismatch.
+ * Validates a `write_prompt_tools` batch against the current instance snapshot
+ * and computes the resulting tool list **without mutating the store**. Each
+ * `tools` entry patches an existing function tool when its `id` is provided, or
+ * creates a new one otherwise, and every id in `deleteToolIds` is removed.
+ * Verifies the input's `expectedRevision` against the current snapshot; rejects
+ * on mismatch.
  *
  * The batch is all-or-nothing: every entry and delete id is validated against
- * the snapshot read before anything is mutated, so a single bad entry (missing
- * id, a raw passthrough tool on the write path, an update/delete conflict, or a
- * delete that would orphan the forced tool choice) rejects the whole batch and
- * leaves the playground untouched. Unlike writes, deletes may target raw vendor
- * tools — removing a tool needs no knowledge of its shape.
+ * the snapshot before anything is computed, so a single bad entry (missing id,
+ * a raw passthrough tool on the write path, an update/delete conflict, or a
+ * delete that references a missing id) rejects the whole batch. Unlike writes,
+ * deletes may target raw vendor tools — removing a tool needs no knowledge of
+ * its shape.
+ *
+ * Separating planning from committing lets the approval flow validate the batch
+ * and materialize a before/after diff at *propose* time, then re-plan and commit
+ * the same input when the user accepts (re-checking the revision then too).
  */
-export function applyWritePromptTools({
+export function planWritePromptTools({
   playgroundStore,
   input,
 }: {
   playgroundStore: PlaygroundStore;
   input: WritePromptToolsInput;
-}): PromptToolsActionResult<WritePromptToolsResult> {
+}): PromptToolsActionResult<WritePromptToolsPlan> {
   const instance = resolveInstance({
     playgroundStore,
     instanceId: input.instanceId,
   });
   if (!instance.ok) return instance;
-  const { playgroundInstance } = instance.output;
+  const { playgroundInstance, index } = instance.output;
 
   const beforeSnapshot = getPromptToolsSnapshot({
     playgroundStore,
@@ -93,7 +100,7 @@ export function applyWritePromptTools({
 
   // Validation pass — all-or-nothing. Update entries must reference an existing
   // function tool from the snapshot we just read; ids assigned to tools created
-  // earlier in the same batch are not addressable here. Nothing is mutated
+  // earlier in the same batch are not addressable here. Nothing is computed
   // until every entry and delete id is known to be applicable.
   for (let index = 0; index < writeEntries.length; index++) {
     const entry = writeEntries[index]!;
@@ -122,16 +129,6 @@ export function applyWritePromptTools({
     }
   }
 
-  const forcedChoice = playgroundInstance.toolChoice;
-  const forcedFunctionName =
-    forcedChoice?.type === "SPECIFIC_FUNCTION"
-      ? forcedChoice.functionName
-      : undefined;
-  // If a deleted tool is the prompt's forced tool choice, deleting it would
-  // orphan that choice. Rather than reject (the user would just clear the
-  // choice and retry, ending here anyway), reset the choice to auto
-  // (ZERO_OR_MORE — the instance default) and disclose it in the result.
-  let resetToolChoiceFrom: string | undefined;
   for (const deleteId of deleteIds) {
     const existing = playgroundInstance.tools.find(
       (candidate) => candidate.id === deleteId
@@ -142,16 +139,9 @@ export function applyWritePromptTools({
         error: `deleteToolIds: prompt tool ${deleteId} was not found on instance ${playgroundInstance.id}.`,
       };
     }
-    if (
-      forcedFunctionName != null &&
-      existing.kind === "function" &&
-      existing.definition.name === forcedFunctionName
-    ) {
-      resetToolChoiceFrom = forcedFunctionName;
-    }
   }
 
-  // Apply pass — drop deleted tools first, then fold each write entry over the
+  // Compute pass — drop deleted tools first, then fold each write entry over the
   // working copy so multiple entries (including repeated patches to the same
   // id) compose in order.
   let workingTools: Tool[] = playgroundInstance.tools.filter(
@@ -182,12 +172,74 @@ export function applyWritePromptTools({
     }
   }
 
+  const forcedChoice = playgroundInstance.toolChoice;
+  const forcedFunctionName =
+    forcedChoice?.type === "SPECIFIC_FUNCTION"
+      ? forcedChoice.functionName
+      : undefined;
+  let toolChoicePatch: CanonicalToolChoice | undefined;
+  let resetToolChoiceFrom: string | undefined;
+  let renamedToolChoiceTo: string | undefined;
+  if (forcedFunctionName != null) {
+    const forcedTool = playgroundInstance.tools.find(
+      (candidate) =>
+        candidate.kind === "function" &&
+        candidate.definition.name === forcedFunctionName
+    );
+    if (forcedTool) {
+      const survivor = workingTools.find(
+        (candidate) => candidate.id === forcedTool.id
+      );
+      if (!survivor) {
+        resetToolChoiceFrom = forcedFunctionName;
+        toolChoicePatch = { type: "ZERO_OR_MORE" };
+      } else if (
+        survivor.kind === "function" &&
+        survivor.definition.name !== forcedFunctionName
+      ) {
+        renamedToolChoiceTo = survivor.definition.name;
+        toolChoicePatch = {
+          type: "SPECIFIC_FUNCTION",
+          functionName: survivor.definition.name,
+        };
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    output: {
+      instanceId: playgroundInstance.id,
+      index,
+      provider: playgroundInstance.model.provider,
+      beforeTools: playgroundInstance.tools,
+      afterTools: workingTools,
+      results,
+      deletedToolIds: [...deleteIds],
+      ...(toolChoicePatch != null ? { toolChoicePatch } : {}),
+      ...(resetToolChoiceFrom != null ? { resetToolChoiceFrom } : {}),
+      ...(renamedToolChoiceTo != null ? { renamedToolChoiceTo } : {}),
+    },
+  };
+}
+
+/**
+ * Commits a previously computed {@link WritePromptToolsPlan} to the playground
+ * store and returns the result PXI sees, including a fresh revision token.
+ */
+export function commitWritePromptToolsPlan({
+  playgroundStore,
+  plan,
+}: {
+  playgroundStore: PlaygroundStore;
+  plan: WritePromptToolsPlan;
+}): PromptToolsActionResult<WritePromptToolsResult> {
   playgroundStore.getState().updateInstance({
-    instanceId: playgroundInstance.id,
+    instanceId: plan.instanceId,
     patch: {
-      tools: workingTools,
-      ...(resetToolChoiceFrom != null
-        ? { toolChoice: { type: "ZERO_OR_MORE" } }
+      tools: plan.afterTools,
+      ...(plan.toolChoicePatch != null
+        ? { toolChoice: plan.toolChoicePatch }
         : {}),
     },
     dirty: true,
@@ -197,23 +249,45 @@ export function applyWritePromptTools({
   // and shows the new definition instead of its stale initial value.
   playgroundStore
     .getState()
-    .markToolsExternallyUpdated(results.map((result) => result.toolId));
+    .markToolsExternallyUpdated(plan.results.map((result) => result.toolId));
 
   const afterSnapshot = getPromptToolsSnapshot({
     playgroundStore,
-    instanceId: playgroundInstance.id,
+    instanceId: plan.instanceId,
   });
   if (!afterSnapshot.ok) return afterSnapshot;
 
   return {
     ok: true,
     output: {
-      results,
-      deletedToolIds: [...deleteIds],
-      ...(resetToolChoiceFrom != null ? { resetToolChoiceFrom } : {}),
+      results: plan.results,
+      deletedToolIds: plan.deletedToolIds,
+      ...(plan.resetToolChoiceFrom != null
+        ? { resetToolChoiceFrom: plan.resetToolChoiceFrom }
+        : {}),
+      ...(plan.renamedToolChoiceTo != null
+        ? { renamedToolChoiceTo: plan.renamedToolChoiceTo }
+        : {}),
       revision: afterSnapshot.output.revision,
     },
   };
+}
+
+/**
+ * Plans and immediately commits a `write_prompt_tools` batch. Used by the
+ * approval flow on accept (re-planning against the current store so the
+ * revision is re-checked) and by tests that apply directly.
+ */
+export function applyWritePromptTools({
+  playgroundStore,
+  input,
+}: {
+  playgroundStore: PlaygroundStore;
+  input: WritePromptToolsInput;
+}): PromptToolsActionResult<WritePromptToolsResult> {
+  const plan = planWritePromptTools({ playgroundStore, input });
+  if (!plan.ok) return plan;
+  return commitWritePromptToolsPlan({ playgroundStore, plan: plan.output });
 }
 
 /**
