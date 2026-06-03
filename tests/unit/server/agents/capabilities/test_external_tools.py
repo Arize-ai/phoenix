@@ -1,6 +1,7 @@
 from phoenix.server.agents.capabilities.tools.external import (
     _EXTERNAL_TOOL_DEFINITIONS_BY_NAME,
     load_dataset,
+    set_template_variables_path,
 )
 from phoenix.server.agents.prompts import AgentPrompts
 
@@ -36,6 +37,24 @@ def test_load_dataset_parameters_expose_only_dataset_name_and_optional_split_nam
     assert schema["additionalProperties"] is False
     assert schema["properties"]["datasetName"]["type"] == "string"
     assert schema["properties"]["splitName"]["type"] == ["string", "null"]
+
+
+def test_set_template_variables_path_instructions_expose_structure_and_load_dataset_nudge() -> None:
+    rendered = AgentPrompts().set_template_variables_path_tool.render()
+
+    assert '<tool name="set_template_variables_path">' in rendered
+    assert "load_dataset" in rendered
+
+
+def test_set_template_variables_path_parameters_expose_only_nullable_path() -> None:
+    # The browser dispatch resolves ``path`` against the active dataset; this schema is the contract.
+    schema = set_template_variables_path.TOOL_DEFINITION.parameters_json_schema
+
+    assert set_template_variables_path.NAME == "set_template_variables_path"
+    assert set(schema["properties"]) == {"path"}
+    assert schema["required"] == ["path"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["path"]["type"] == ["string", "null"]
 
 
 def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> None:

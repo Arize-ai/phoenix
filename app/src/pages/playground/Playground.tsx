@@ -70,6 +70,10 @@ import {
   SAVE_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
+  createSetTemplateVariablesPathClientAction,
+  SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
+import {
   createSetVariableValuesClientAction,
   SET_VARIABLE_VALUES_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundVariableValues";
@@ -423,6 +427,13 @@ function PlaygroundContent() {
       createSetVariableValuesClientAction({ playgroundStore })
     );
     registerClientAction(
+      SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+      createSetTemplateVariablesPathClientAction({
+        playgroundStore,
+        getSearchParams: () => searchParamsRef.current,
+      })
+    );
+    registerClientAction(
       LOAD_DATASET_TOOL_NAME,
       createLoadDatasetClientAction({
         playgroundStore,
@@ -441,6 +452,7 @@ function PlaygroundContent() {
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
+      unregisterClientAction(SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME);
       unregisterClientAction(LOAD_DATASET_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
