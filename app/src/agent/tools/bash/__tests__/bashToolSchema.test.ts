@@ -22,11 +22,11 @@ describe("getBashToolSummary", () => {
 describe("getBashToolInput", () => {
   it("requires command to be a string", () => {
     expect(getBashToolInput({ summary: "Listing files" })).toBeNull();
-    expect(getBashToolInput({ command: "ls", summary: "Listing files" })).toEqual(
-      {
-        command: "ls",
-        summary: "Listing files",
-      }
-    );
+    expect(
+      getBashToolInput({ command: "ls", summary: "Listing files" })
+    ).toEqual({
+      command: "ls",
+      summary: "Listing files",
+    });
   });
 });
