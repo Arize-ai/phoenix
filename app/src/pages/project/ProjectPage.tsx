@@ -11,6 +11,7 @@ import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
 import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
+import { AnnotationConfigSlideover } from "@phoenix/components/annotation/AnnotationConfigSlideover";
 import {
   ConnectedTimeRangeSelector,
   useTimeRange,
@@ -265,6 +266,7 @@ function ProjectPageContentBody({
           </LazyTabPanel>
         </Tabs>
       </ProjectPageQueryReferenceContext.Provider>
+      <AnnotationConfigSlideover projectId={projectId} />
     </main>
   );
 }

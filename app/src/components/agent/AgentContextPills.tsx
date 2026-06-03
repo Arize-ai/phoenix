@@ -53,6 +53,8 @@ function contextLabel(context: AgentContext): string {
       return "Code Evaluator";
     case "llm_evaluator":
       return "LLM Evaluator";
+    case "annotation_config":
+      return "Annotation Config";
     case "dataset":
       return "Dataset";
   }
@@ -81,6 +83,10 @@ function contextDetail(context: AgentContext): string | undefined {
       return context.evaluatorNodeId
         ? `Editing evaluator: ${truncateId(context.evaluatorNodeId)}`
         : "New evaluator";
+    case "annotation_config":
+      return context.annotationConfigNodeId
+        ? `Editing config: ${truncateId(context.annotationConfigNodeId)}`
+        : "New config";
     case "dataset":
       return truncateId(context.datasetNodeId);
     default:

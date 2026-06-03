@@ -70,6 +70,8 @@ function getContextCategoryIcon(category: string | undefined): ReactNode {
       return <Icon svg={<Icons.Edit />} />;
     case "llm_evaluator":
       return <Icon svg={<Icons.Scale />} />;
+    case "annotation_config":
+      return <Icon svg={<Icons.PriceTagsOutline />} />;
     default:
       return <Icon svg={<Icons.Info />} />;
   }

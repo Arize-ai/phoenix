@@ -221,6 +221,17 @@ class LlmEvaluatorContext(_ChatContextBase):
     evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
 
 
+class AnnotationConfigContext(_ChatContextBase):
+    """Annotation-config create/edit form mounted in the current browser route.
+
+    ``annotation_config_node_id`` is ``None`` when the form is creating a new
+    config and carries the config's relay node id when editing an existing one.
+    """
+
+    type: Literal["annotation_config"]
+    annotation_config_node_id: str | None = Field(default=None, alias="annotationConfigNodeId")
+
+
 class DatasetContext(_ChatContextBase):
     """Dataset the user is currently viewing or has bound to a workflow.
 
@@ -269,6 +280,7 @@ class ChatContext(
             | PlaygroundContext
             | CodeEvaluatorContext
             | LlmEvaluatorContext
+            | AnnotationConfigContext
             | DatasetContext
             | GraphQLContext
             | WebAccessContext
@@ -292,6 +304,7 @@ class ResolvedContexts:
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
     llm_evaluator: LlmEvaluatorContext | None = None
+    annotation_config: AnnotationConfigContext | None = None
     dataset: DatasetContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
@@ -310,6 +323,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.code_evaluator = context_value
         elif isinstance(context_value, LlmEvaluatorContext):
             resolved.llm_evaluator = context_value
+        elif isinstance(context_value, AnnotationConfigContext):
+            resolved.annotation_config = context_value
         elif isinstance(context_value, DatasetContext):
             resolved.dataset = context_value
         elif isinstance(context_value, ProjectContext):

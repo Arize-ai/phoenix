@@ -31,6 +31,7 @@ from phoenix.server.agents.capabilities import (
 )
 from phoenix.server.agents.context import (
     AgentSpanContext,
+    AnnotationConfigContext,
     CodeEvaluatorContext,
     DatasetContext,
     LlmEvaluatorContext,
@@ -1415,6 +1416,86 @@ class TestLlmEvaluatorFormToolGates:
         assert "edit_llm_evaluator_draft" not in tool_names
         assert "test_llm_evaluator_draft" not in tool_names
         assert "submit_llm_evaluator_draft" not in tool_names
+
+
+class TestAnnotationConfigFormToolGates:
+    async def test_open_form_advertised_for_project(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                project=ProjectContext(
+                    type="project",
+                    project_node_id="UHJvamVjdDox",
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_annotation_config_form" in tool_names
+
+    async def test_open_form_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                project=ProjectContext(
+                    type="project",
+                    project_node_id="UHJvamVjdDox",
+                ),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_annotation_config_form" not in tool_names
+
+    async def test_open_form_hidden_without_project(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_annotation_config_form" not in tool_names
+
+    async def test_open_form_hidden_when_annotation_config_form_mounted(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                project=ProjectContext(
+                    type="project",
+                    project_node_id="UHJvamVjdDox",
+                ),
+                annotation_config=AnnotationConfigContext(
+                    type="annotation_config",
+                    annotation_config_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_annotation_config_form" not in tool_names
 
 
 class TestEvaluatorsSkillLoadContract:

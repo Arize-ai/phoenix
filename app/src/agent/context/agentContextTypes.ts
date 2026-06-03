@@ -60,6 +60,10 @@ export function agentContextKey(context: AgentContext): string {
       return context.evaluatorNodeId
         ? `llm_evaluator:${context.evaluatorNodeId}`
         : "llm_evaluator:create";
+    case "annotation_config":
+      return context.annotationConfigNodeId
+        ? `annotation_config:${context.annotationConfigNodeId}`
+        : "annotation_config:create";
     case "dataset":
       return context.datasetVersionNodeId
         ? `dataset:${context.datasetNodeId}:${context.datasetVersionNodeId}`

@@ -6909,6 +6909,32 @@
         ],
         "title": "AnnotateTracesResponseBody"
       },
+      "AnnotationConfigContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "annotation_config",
+            "title": "Type"
+          },
+          "annotationConfigNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annotationconfignodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "AnnotationConfigContext",
+        "description": "Annotation-config create/edit form mounted in the current browser route.\n\n``annotation_config_node_id`` is ``None`` when the form is creating a new\nconfig and carries the config's relay node id when editing an existing one."
+      },
       "AnnotationResult": {
         "properties": {
           "label": {
@@ -7391,6 +7417,9 @@
             "$ref": "#/components/schemas/LlmEvaluatorContext"
           },
           {
+            "$ref": "#/components/schemas/AnnotationConfigContext"
+          },
+          {
             "$ref": "#/components/schemas/DatasetContext"
           },
           {
@@ -7408,6 +7437,7 @@
         "discriminator": {
           "propertyName": "type",
           "mapping": {
+            "annotation_config": "#/components/schemas/AnnotationConfigContext",
             "app": "#/components/schemas/AppContext",
             "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
             "dataset": "#/components/schemas/DatasetContext",

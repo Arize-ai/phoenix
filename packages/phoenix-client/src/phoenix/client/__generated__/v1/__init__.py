@@ -15,6 +15,11 @@ class AgentSpanContext(TypedDict):
     otelSpanId: NotRequired[str]
 
 
+class AnnotationConfigContext(TypedDict):
+    type: Literal["annotation_config"]
+    annotationConfigNodeId: NotRequired[str]
+
+
 class AnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -1570,6 +1575,7 @@ class ChatRegenerateMessage(TypedDict):
                 PlaygroundContext,
                 CodeEvaluatorContext,
                 LlmEvaluatorContext,
+                AnnotationConfigContext,
                 DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
@@ -1601,6 +1607,7 @@ class ChatSubmitMessage(TypedDict):
                 PlaygroundContext,
                 CodeEvaluatorContext,
                 LlmEvaluatorContext,
+                AnnotationConfigContext,
                 DatasetContext,
                 GraphQLContext,
                 WebAccessContext,

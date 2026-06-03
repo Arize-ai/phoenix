@@ -1,0 +1,15 @@
+<tool name="open_annotation_config_form">
+  <description>Open the annotation-config form on the current project page in place. The browser stays on the project route; the form mounts as a slideover. A config created from this form is attached to the focused project.</description>
+  <when_to_use>
+    - The user is viewing a project and asks to create or define an annotation config — a categorical, continuous, or freeform schema used to label spans.
+    - The annotation-config form is not already mounted.
+  </when_to_use>
+  <user_facing_language>
+    - The tool name is internal. In replies to users, call the opened surface the annotation-config form.
+    - Do not describe creating as approving a diff. The user creates with the form's Create action when ready.
+  </user_facing_language>
+  <workflow>
+    - Call open_annotation_config_form to mount the form, then let the user fill it in.
+    - Do not promise that the config has been created. Persistence stays behind the user-visible Create action in the form.
+  </workflow>
+</tool>

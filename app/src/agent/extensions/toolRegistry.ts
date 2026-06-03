@@ -12,6 +12,7 @@ import { bashAgentTool } from "@phoenix/agent/tools/bash";
  * in `./registry/defineTool` or `./registry/defineClientActionTool`, then list
  * it in the appropriate array below.
  */
+import { openAnnotationConfigFormAgentTool } from "@phoenix/agent/tools/annotationConfigDraft";
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   editCodeEvaluatorDraftAgentTool,
@@ -128,6 +129,7 @@ const clientActionTools: AgentToolDefinition[] = [
   setDatasetEvaluatorSelectionAgentTool,
   openDatasetEvaluatorForEditAgentTool,
   readDatasetEvaluatorDefinitionAgentTool,
+  openAnnotationConfigFormAgentTool,
   openCodeEvaluatorFormAgentTool,
   readCodeEvaluatorDraftAgentTool,
   editCodeEvaluatorDraftAgentTool,
