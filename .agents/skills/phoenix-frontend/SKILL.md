@@ -30,10 +30,9 @@ After visual changes, use `agent-browser` to verify the UI looks correct. When m
 When adding, removing, renaming, or materially changing what a page contains, update the route's `handle.agentRoute` metadata in `app/src/Routes.tsx` if an assistant agent should be able to link users to that destination. Keep metadata small and search-oriented:
 
 - `label`: human page name.
-- `description`: concise page purpose based on what the page now contains.
-- `keywords`: user phrases PXI might hear when looking for that page.
+- `description`: concise page purpose based on what the page now contains, including user phrases PXI might hear when looking for that page.
 
-If a content change makes an existing route easier or harder to find by natural language, adjust `description` or `keywords` in the same change.
+If a content change makes an existing route easier or harder to find by natural language, adjust `description` in the same change.
 
 ## URL State
 
