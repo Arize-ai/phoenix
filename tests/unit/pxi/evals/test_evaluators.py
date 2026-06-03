@@ -180,7 +180,19 @@ def _link_expected(*required: str) -> dict[str, Any]:
     return {"tools": {"required": []}, "links": {"required_in_app": list(required)}}
 
 
+def _route_info_before_links_expected() -> dict[str, Any]:
+    return {"links": {"route_info_before_in_app_links": True}}
+
+
 class TestInAppLinksValid:
+    def test_no_link_expectations_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output={"messages": []},
+            expected={"links": {}},
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+
     def test_required_root_relative_markdown_link_passes(self) -> None:
         result = evaluate_in_app_links(
             output=_link_output("Open [Agent settings](/settings/agents)."),
@@ -228,6 +240,57 @@ class TestInAppLinksValid:
         )
         assert result["label"] == "fail"
         assert result["metadata"]["bare_urls"] == ["http://localhost:6006/settings/agents."]
+
+    def test_in_app_link_before_route_info_fails(self) -> None:
+        result = evaluate_in_app_links(
+            output={
+                "messages": [
+                    {
+                        "parts": [
+                            {
+                                "part_kind": "text",
+                                "content": "Try [Playground](/playground/datasets/abc).",
+                            },
+                            {
+                                "part_kind": "tool-call",
+                                "tool_name": "get_route_info",
+                                "args": {},
+                            },
+                        ]
+                    }
+                ]
+            },
+            expected=_route_info_before_links_expected(),
+        )
+        assert result["score"] == 0.0
+        assert result["label"] == "fail"
+        assert result["metadata"]["observed_in_app_hrefs_before_get_route_info"] == [
+            "/playground/datasets/abc"
+        ]
+
+    def test_in_app_link_after_route_info_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output={
+                "messages": [
+                    {
+                        "parts": [
+                            {
+                                "part_kind": "tool-call",
+                                "tool_name": "get_route_info",
+                                "args": {},
+                            },
+                            {
+                                "part_kind": "text",
+                                "content": "Use [Playground](/playground?datasetId=abc).",
+                            },
+                        ]
+                    }
+                ]
+            },
+            expected=_route_info_before_links_expected(),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
 
 
 class TestToolCallArgsMatch:

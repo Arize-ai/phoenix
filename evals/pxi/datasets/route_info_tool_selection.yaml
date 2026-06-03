@@ -2,6 +2,7 @@ dataset_name: route_info_tool_selection
 description: PXI server-side eval suite for choosing get_route_info before generating Phoenix UI links.
 evaluators:
   - correct_tools_called
+  - in_app_links_valid
   - tool_call_args_match
 examples:
   - id: route-info-call-data-retention-policy
@@ -160,3 +161,16 @@ examples:
           - path: /projects/:projectId/config
     metadata:
       route_info_case: parameterized_project_route
+  - id: route-info-call-playground-dataset-before-link
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: I am on the in_app_links dataset page. Send me a link to open Playground with this dataset loaded.
+    expected:
+      tools:
+        required: [get_route_info]
+      links:
+        route_info_before_in_app_links: true
+    metadata:
+      route_info_case: playground_dataset_link

@@ -6,7 +6,8 @@
     - You are unsure whether a Phoenix UI route exists or what the valid root-relative path is.
   </when_to_use>
   <guidelines>
-    - Prefer this tool over inventing Phoenix UI routes. Use the returned `link` value when present.
+    - Use this tool before generating a Phoenix UI link when the exact route shape is not already in context or tool output. Use the returned `link` value when present.
+    - If you call this tool to verify a Phoenix UI destination, wait for the tool result before rendering a markdown link to that destination.
     - Returned links are root-relative app paths. Do not add the origin, localhost, or deployment basename.
     - If a match has `missingParams`, do not fabricate those params and do not render its `path` as a markdown link. Ask for the missing resource or choose the closest non-param route when that satisfies the request. If you need to mention the unresolved route pattern, show it as inline code only.
     - Do not call this tool for documentation links; use the documentation tools for docs.

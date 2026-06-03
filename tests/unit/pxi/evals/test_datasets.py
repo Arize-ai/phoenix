@@ -292,8 +292,9 @@ examples:
     def test_loads_route_info_tool_selection_dataset(self) -> None:
         dataset = load_dataset("route_info_tool_selection")
         assert dataset.dataset_name == "route_info_tool_selection"
-        assert len(dataset.examples) == 10
+        assert len(dataset.examples) == 11
         assert "correct_tools_called" in dataset.evaluators
+        assert "in_app_links_valid" in dataset.evaluators
         assert "tool_call_args_match" in dataset.evaluators
 
     def test_save_prompt_dataset_requires_descriptions_for_save_calls(self) -> None:
