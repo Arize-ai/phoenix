@@ -38,6 +38,8 @@ import {
   validateAnnotationConfigDraft,
 } from "@phoenix/store/annotationConfigDraftStore";
 
+import { useAnnotationConfigDraftRegistration } from "./useAnnotationConfigDraftRegistration";
+
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const optimizationDirections = [
@@ -92,6 +94,9 @@ const AnnotationConfigDialogForm = ({
     number | null
   >(null);
   const notifySuccess = useNotifySuccess();
+
+  // Register the agent read/edit draft client actions for the form's lifetime.
+  useAnnotationConfigDraftRegistration();
 
   const store = useAnnotationConfigDraftStoreInstance();
   const mode = useAnnotationConfigDraftStore((s) => s.mode);

@@ -166,6 +166,12 @@ _SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
 _OPEN_ANNOTATION_CONFIG_FORM_TOOL_INSTRUCTIONS = get_template(
     "tools/OPEN_ANNOTATION_CONFIG_FORM_TOOL_INSTRUCTIONS.xml.j2"
 )
+_READ_ANNOTATION_CONFIG_DRAFT_TOOL_INSTRUCTIONS = get_template(
+    "tools/READ_ANNOTATION_CONFIG_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
+)
+_EDIT_ANNOTATION_CONFIG_DRAFT_TOOL_INSTRUCTIONS = get_template(
+    "tools/EDIT_ANNOTATION_CONFIG_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
+)
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -269,6 +275,8 @@ class AgentPrompts:
     open_llm_evaluator_form_tool: Template = _OPEN_LLM_EVALUATOR_FORM_TOOL_INSTRUCTIONS
     submit_llm_evaluator_draft_tool: Template = _SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     open_annotation_config_form_tool: Template = _OPEN_ANNOTATION_CONFIG_FORM_TOOL_INSTRUCTIONS
+    read_annotation_config_draft_tool: Template = _READ_ANNOTATION_CONFIG_DRAFT_TOOL_INSTRUCTIONS
+    edit_annotation_config_draft_tool: Template = _EDIT_ANNOTATION_CONFIG_DRAFT_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE

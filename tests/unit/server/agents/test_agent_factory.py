@@ -1473,6 +1473,72 @@ class TestAnnotationConfigFormToolGates:
         tool_names = _get_tool_names(captured_request.body)
         assert "open_annotation_config_form" not in tool_names
 
+    async def test_draft_tools_advertised_for_mounted_annotation_config_form(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                annotation_config=AnnotationConfigContext(
+                    type="annotation_config",
+                    annotation_config_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_annotation_config_form" not in tool_names
+        assert "read_annotation_config_draft" in tool_names
+        assert "edit_annotation_config_draft" in tool_names
+
+    async def test_draft_tools_absent_without_annotation_config_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                project=ProjectContext(
+                    type="project",
+                    project_node_id="UHJvamVjdDox",
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_annotation_config_draft" not in tool_names
+        assert "edit_annotation_config_draft" not in tool_names
+
+    async def test_edit_draft_tool_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                annotation_config=AnnotationConfigContext(
+                    type="annotation_config",
+                    annotation_config_node_id=None,
+                ),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        # Reading the draft stays available to viewers; editing does not.
+        assert "read_annotation_config_draft" in tool_names
+        assert "edit_annotation_config_draft" not in tool_names
+
     async def test_open_form_hidden_when_annotation_config_form_mounted(
         self,
         anthropic_model: AnthropicModel,

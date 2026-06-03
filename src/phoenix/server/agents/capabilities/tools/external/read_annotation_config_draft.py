@@ -12,30 +12,19 @@ from pydantic_ai.toolsets.external import ExternalToolset
 from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.types import AgentDependencies
 
-NAME = "open_annotation_config_form"
+NAME = "read_annotation_config_draft"
 
 DESCRIPTION = (
-    "Open the annotation-config form on the current project page without navigating "
-    "away. Use this when a project is focused and the user wants to define a new "
-    "annotation config (categorical, continuous, or freeform) for labeling spans, or "
-    "to edit an existing one. Omit `annotationConfigId` to open the create form; pass "
-    "an existing config's node id to open it for editing. Resolve a config's node id "
-    "from the project's annotation configs (e.g. the project-annotation-configs "
-    "recipe). This only opens the form; it does not persist, create, or update a "
-    "config."
+    "Read the open annotation-config draft. Returns the draft's mode "
+    "(`create` or `edit`), annotationType (CATEGORICAL, CONTINUOUS, or "
+    "FREEFORM), name, description, optimizationDirection, categorical values, "
+    "and continuous lowerBound/upperBound. Call this before "
+    "`edit_annotation_config_draft` to see the current draft."
 )
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
-    "properties": {
-        "annotationConfigId": {
-            "type": "string",
-            "description": (
-                "Relay node id of an existing annotation config to open for editing. "
-                "Omit to open the create form instead."
-            ),
-        },
-    },
+    "properties": {},
     "additionalProperties": False,
 }
 
@@ -48,7 +37,7 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class OpenAnnotationConfigFormCapability(AbstractDynamicCapability[AgentDependencies]):
+class ReadAnnotationConfigDraftCapability(AbstractDynamicCapability[AgentDependencies]):
     instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
@@ -63,8 +52,4 @@ class OpenAnnotationConfigFormCapability(AbstractDynamicCapability[AgentDependen
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        return (
-            ctx.deps.contexts.project is not None
-            and ctx.deps.contexts.annotation_config is None
-            and not ctx.deps.is_viewer
-        )
+        return ctx.deps.contexts.annotation_config is not None

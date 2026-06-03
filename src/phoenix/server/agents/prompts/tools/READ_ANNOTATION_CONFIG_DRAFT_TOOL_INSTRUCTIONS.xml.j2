@@ -1,0 +1,11 @@
+<tool name="read_annotation_config_draft">
+  <description>Read the current state of the open annotation-config form draft, including its mode, annotation type, name, description, optimization direction, categorical values, and continuous bounds.</description>
+  <when_to_use>
+    - Before calling `edit_annotation_config_draft` — to see the current draft contents before proposing edits.
+    - Whenever the user asks what the draft currently contains or wants a review of the in-progress annotation config.
+  </when_to_use>
+  <guidelines>
+    - The `mode` field is either `create` (a new config is being authored) or `edit` (an existing config is being modified). In `edit` mode, `annotationType` is immutable and a `set_annotation_type` op will be rejected.
+    - `values` apply only to CATEGORICAL configs; `lowerBound`/`upperBound` apply only to CONTINUOUS configs.
+  </guidelines>
+</tool>

@@ -1,0 +1,17 @@
+<tool name="edit_annotation_config_draft">
+  <description>Apply edits to the open annotation-config form draft. Each operation updates one field of the draft and takes effect in the form immediately.</description>
+  <when_to_use>
+    - The user asks you to fill in or change the annotation config (its name, description, type, optimization direction, categories, or score bounds).
+    - Call `read_annotation_config_draft` first to see the current draft before proposing edits.
+  </when_to_use>
+  <user_facing_language>
+    - The tool name is internal. In replies to users, describe this as updating the annotation-config form.
+    - Editing the draft does not create or save the config. The user persists it with the form's own Create/Update action.
+  </user_facing_language>
+  <guidelines>
+    - Use `set_values` (whole-list replace) for CATEGORICAL configs; each category has a label and an optional numeric score.
+    - Use `set_lower_bound` and `set_upper_bound` for CONTINUOUS configs.
+    - `set_annotation_type` only works in `create` mode; the type is immutable once a config exists.
+    - Do not promise the config has been created or saved — that stays behind the form's Create/Update action.
+  </guidelines>
+</tool>

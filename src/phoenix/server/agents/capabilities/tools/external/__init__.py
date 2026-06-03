@@ -24,6 +24,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     delete_dataset_examples,
     delete_dataset_labels,
     delete_dataset_splits,
+    edit_annotation_config_draft,
     edit_code_evaluator_draft,
     edit_llm_evaluator_draft,
     edit_prompt_instance,
@@ -44,6 +45,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     patch_dataset_examples,
     patch_dataset_split,
     patch_experiment,
+    read_annotation_config_draft,
     read_code_evaluator_draft,
     read_dataset_evaluator_definition,
     read_llm_evaluator_draft,
@@ -112,6 +114,9 @@ from phoenix.server.agents.capabilities.tools.external.delete_dataset_labels imp
 from phoenix.server.agents.capabilities.tools.external.delete_dataset_splits import (
     DeleteDatasetSplitsCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.edit_annotation_config_draft import (
+    EditAnnotationConfigDraftCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
     EditCodeEvaluatorDraftCapability,
 )
@@ -171,6 +176,9 @@ from phoenix.server.agents.capabilities.tools.external.patch_dataset_split impor
 )
 from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
     PatchExperimentCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.read_annotation_config_draft import (
+    ReadAnnotationConfigDraftCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
@@ -280,6 +288,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         bash.TOOL_DEFINITION,
         cancel_playground_run.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
+        edit_annotation_config_draft.TOOL_DEFINITION,
         edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_llm_evaluator_draft.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
@@ -290,6 +299,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         open_dataset_evaluator_for_edit.TOOL_DEFINITION,
         open_llm_evaluator_form.TOOL_DEFINITION,
         patch_experiment.TOOL_DEFINITION,
+        read_annotation_config_draft.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
         read_dataset_evaluator_definition.TOOL_DEFINITION,
         read_llm_evaluator_draft.TOOL_DEFINITION,
@@ -396,6 +406,8 @@ def get_external_tool_capability_function(
         ),
         PatchExperimentCapability(instructions=prompts.patch_experiment_tool),
         OpenAnnotationConfigFormCapability(instructions=prompts.open_annotation_config_form_tool),
+        ReadAnnotationConfigDraftCapability(instructions=prompts.read_annotation_config_draft_tool),
+        EditAnnotationConfigDraftCapability(instructions=prompts.edit_annotation_config_draft_tool),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
@@ -442,6 +454,7 @@ __all__ = [
     "BashCapability",
     "CancelPlaygroundRunCapability",
     "ClonePromptInstanceCapability",
+    "EditAnnotationConfigDraftCapability",
     "EditCodeEvaluatorDraftCapability",
     "EditLlmEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
@@ -453,6 +466,7 @@ __all__ = [
     "OpenDatasetEvaluatorForEditCapability",
     "OpenLlmEvaluatorFormCapability",
     "PatchExperimentCapability",
+    "ReadAnnotationConfigDraftCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadDatasetEvaluatorDefinitionCapability",
     "ReadLlmEvaluatorDraftCapability",

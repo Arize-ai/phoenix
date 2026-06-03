@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { graphql, useMutation } from "react-relay";
+import { fetchQuery, graphql, useMutation } from "react-relay";
 
 import { Modal, ModalOverlay } from "@phoenix/components";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { OPEN_ANNOTATION_CONFIG_FORM_TOOL_NAME } from "@phoenix/agent/tools/annotationConfigDraft/constants";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
+import type { AnnotationConfigSlideoverConfigQuery } from "./__generated__/AnnotationConfigSlideoverConfigQuery.graphql";
 import type { AnnotationConfigSlideoverCreateMutation } from "./__generated__/AnnotationConfigSlideoverCreateMutation.graphql";
 import type { AnnotationConfigSlideoverUpdateMutation } from "./__generated__/AnnotationConfigSlideoverUpdateMutation.graphql";
 import type { AnnotationConfigSlideoverAddToProjectMutation } from "./__generated__/AnnotationConfigSlideoverAddToProjectMutation.graphql";
@@ -17,6 +19,129 @@ import type { AnnotationConfigSlideoverAddToProjectMutation } from "./__generate
 type AnnotationConfigFormState = {
   mode: "create" | "edit";
   config?: AnnotationConfig;
+};
+
+// Annotation-config nodes are not resolvable through the top-level `node(id:)`
+// field, so we read them through the project's `annotationConfigs` connection
+// (the same path the settings table uses) and match by id. This also scopes the
+// edit flow to configs associated with the focused project.
+const projectAnnotationConfigsQuery = graphql`
+  query AnnotationConfigSlideoverConfigQuery($projectId: ID!) {
+    node(id: $projectId) {
+      __typename
+      ... on Project {
+        annotationConfigs {
+          edges {
+            annotationConfig: node {
+              __typename
+              ... on CategoricalAnnotationConfig {
+                id
+                name
+                description
+                annotationType
+                optimizationDirection
+                values {
+                  label
+                  score
+                }
+              }
+              ... on ContinuousAnnotationConfig {
+                id
+                name
+                description
+                annotationType
+                optimizationDirection
+                lowerBound
+                upperBound
+              }
+              ... on FreeformAnnotationConfig {
+                id
+                name
+                description
+                annotationType
+                optimizationDirection
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+type ProjectNode = Extract<
+  AnnotationConfigSlideoverConfigQuery["response"]["node"],
+  { readonly __typename: "Project" }
+>;
+type AnnotationConfigNode =
+  ProjectNode["annotationConfigs"]["edges"][number]["annotationConfig"];
+
+/**
+ * Map a config node from the project's `annotationConfigs` connection into the
+ * discriminated {@link AnnotationConfig} shape the dialog seeds its draft from.
+ * Returns null for an unrecognized node type.
+ */
+const toAnnotationConfig = (
+  node: AnnotationConfigNode
+): AnnotationConfig | null => {
+  switch (node.__typename) {
+    case "CategoricalAnnotationConfig":
+      return {
+        id: node.id,
+        annotationType: "CATEGORICAL",
+        name: node.name,
+        description: node.description,
+        optimizationDirection: node.optimizationDirection,
+        values: node.values.map((value) => ({
+          label: value.label,
+          score: value.score,
+        })),
+      };
+    case "ContinuousAnnotationConfig":
+      return {
+        id: node.id,
+        annotationType: "CONTINUOUS",
+        name: node.name,
+        description: node.description,
+        optimizationDirection: node.optimizationDirection,
+        lowerBound: node.lowerBound,
+        upperBound: node.upperBound,
+      };
+    case "FreeformAnnotationConfig":
+      return {
+        id: node.id,
+        annotationType: "FREEFORM",
+        name: node.name,
+        description: node.description,
+        optimizationDirection: node.optimizationDirection,
+      };
+    default:
+      return null;
+  }
+};
+
+/**
+ * Resolve an annotation config associated with the project by its node id.
+ * Returns null when no config on the project matches.
+ */
+const fetchAnnotationConfigById = async (
+  projectId: string,
+  annotationConfigId: string
+): Promise<AnnotationConfig | null> => {
+  const data = await fetchQuery<AnnotationConfigSlideoverConfigQuery>(
+    RelayEnvironment,
+    projectAnnotationConfigsQuery,
+    { projectId }
+  ).toPromise();
+  const project =
+    data?.node?.__typename === "Project" ? data.node : null;
+  for (const edge of project?.annotationConfigs.edges ?? []) {
+    const config = toAnnotationConfig(edge.annotationConfig);
+    if (config?.id === annotationConfigId) {
+      return config;
+    }
+  }
+  return null;
 };
 
 /**
@@ -96,12 +221,43 @@ export const AnnotationConfigSlideover = ({
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =
       agentStore.getState();
-    registerClientAction(OPEN_ANNOTATION_CONFIG_FORM_TOOL_NAME, async () => {
-      setFormState({ mode: "create" });
-      return { ok: true, output: "Annotation-config form opened." };
+    registerClientAction(OPEN_ANNOTATION_CONFIG_FORM_TOOL_NAME, async (input) => {
+      const annotationConfigId =
+        (input as { annotationConfigId?: string | null } | null)
+          ?.annotationConfigId ?? null;
+      if (annotationConfigId == null) {
+        setFormState({ mode: "create" });
+        return {
+          ok: true,
+          output: "Annotation-config form opened to create a new config.",
+        };
+      }
+      try {
+        const config = await fetchAnnotationConfigById(
+          projectId,
+          annotationConfigId
+        );
+        if (!config) {
+          return {
+            ok: false,
+            error: `No annotation config found for id ${annotationConfigId}.`,
+          };
+        }
+        setFormState({ mode: "edit", config });
+        return {
+          ok: true,
+          output: `Annotation-config form opened to edit "${config.name}".`,
+        };
+      } catch (error) {
+        const messages = getErrorMessagesFromRelayMutationError(error as Error);
+        return {
+          ok: false,
+          error: messages?.[0] ?? "Failed to load the annotation config.",
+        };
+      }
     });
     return () => unregisterClientAction(OPEN_ANNOTATION_CONFIG_FORM_TOOL_NAME);
-  }, [agentStore]);
+  }, [agentStore, projectId]);
 
   const [createConfig] =
     useMutation<AnnotationConfigSlideoverCreateMutation>(graphql`
@@ -203,7 +359,7 @@ export const AnnotationConfigSlideover = ({
         }
       }}
     >
-      <Modal variant="slideover" size="L">
+      <Modal>
         <AnnotationConfigDialog
           initialAnnotationConfig={formState?.config}
           onAddAnnotationConfig={handleSubmit}
