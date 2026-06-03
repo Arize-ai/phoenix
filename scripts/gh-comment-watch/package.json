@@ -1,0 +1,37 @@
+{
+  "name": "gh-comment-watch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Surface GitHub issue/PR comments from outside users that nobody on the team has replied to or reacted to.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "dev:web": "pnpm --filter gh-comment-watch-web dev",
+    "start": "tsx src/server.ts",
+    "build": "pnpm --filter gh-comment-watch-web build",
+    "typecheck": "tsc --noEmit && pnpm --filter gh-comment-watch-web typecheck",
+    "lint": "oxlint src && pnpm --filter gh-comment-watch-web lint",
+    "lint:fix": "oxlint --fix src && pnpm --filter gh-comment-watch-web lint:fix",
+    "fmt": "oxfmt --config ../../.oxfmtrc.jsonc src && pnpm --filter gh-comment-watch-web fmt",
+    "fmt:check": "oxfmt --check --config ../../.oxfmtrc.jsonc src && pnpm --filter gh-comment-watch-web fmt:check",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.1",
+    "oxfmt": "^0.51.0",
+    "oxlint": "~1.66.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@11.3.0"
+}

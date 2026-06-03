@@ -1,0 +1,479 @@
+import { useEffect, useRef, useState } from "react";
+
+import {
+  ageDays,
+  api,
+  relativeTime,
+  type Item,
+  type ItemFilters,
+  type MineFilter,
+  type Status,
+  type TypeFilter,
+} from "./api.ts";
+
+function useStatusPolling() {
+  const [status, setStatus] = useState<Status | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const next = await api.status();
+        if (!cancelled) {
+          setStatus(next);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setError(errorMessage(err));
+      }
+    };
+    void tick();
+    const id = setInterval(() => void tick(), 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+  return { status, error };
+}
+
+const TYPES: TypeFilter[] = ["all", "issue", "pr", "discussion"];
+const TYPE_LABEL: Record<TypeFilter, string> = {
+  all: "All",
+  issue: "Issues",
+  pr: "PRs",
+  discussion: "Discussions",
+};
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+export function App() {
+  const { status, error: statusError } = useStatusPolling();
+  const [items, setItems] = useState<Item[]>([]);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<ItemFilters>({
+    tab: "needs",
+    mine: "all",
+    type: "all",
+    repo: "Arize-ai/phoenix", // default view; self-heals below if not monitored
+    q: "",
+    sort: "newest",
+  });
+  const [reloadKey, setReloadKey] = useState(0);
+  const [isSyncStarting, setIsSyncStarting] = useState(false);
+  const remoteSyncing = status?.sync.running ?? false;
+  const syncing = remoteSyncing || isSyncStarting;
+  const wasSyncing = useRef(false);
+
+  // If the chosen repo isn't actually monitored (the default before status
+  // loads, or a changed REPOS), fall back to the first — derived, no effect.
+  const repos = status?.repos ?? [];
+  const { tab, mine, type, q, sort } = filters;
+  const effectiveRepo =
+    filters.repo === "all" || repos.length === 0 || repos.includes(filters.repo)
+      ? filters.repo
+      : repos[0];
+
+  // Every count on screen (tab badges, stats, sub-filter labels) follows the
+  // repo filter — pick a repo and all the numbers scope to it; "all" is global.
+  const repoCounts =
+    effectiveRepo === "all"
+      ? null
+      : status?.byRepo.find((x) => x.repo === effectiveRepo);
+  const scoped =
+    effectiveRepo === "all"
+      ? {
+          tracked: status?.counts.tracked ?? 0,
+          needs: status?.counts.needs ?? 0,
+          mine: status?.personal.mine ?? 0,
+          assigned: status?.personal.assigned ?? 0,
+          review: status?.personal.review ?? 0,
+        }
+      : {
+          tracked: repoCounts?.tracked ?? 0,
+          needs: repoCounts?.needs ?? 0,
+          mine: repoCounts?.mine ?? 0,
+          assigned: repoCounts?.assigned ?? 0,
+          review: repoCounts?.review ?? 0,
+        };
+
+  // One banner for whatever's currently wrong, instead of a stack.
+  const errors = [
+    status?.sync.error && `Sync: ${status.sync.error}`,
+    statusError && `Status: ${statusError}`,
+    itemsError && `Items: ${itemsError}`,
+    actionError && `Action: ${actionError}`,
+  ].filter(Boolean) as string[];
+
+  const hasListFilters =
+    effectiveRepo !== "all" ||
+    q.trim() !== "" ||
+    (tab === "mine" ? mine !== "all" : type !== "all");
+  const emptyMessage = !status?.lastSyncAt
+    ? "No data yet. Click Sync now to pull from GitHub."
+    : hasListFilters
+      ? "No matching items for the current filters."
+      : tab === "mine"
+        ? "Nothing assigned to you or awaiting your review."
+        : tab === "needs"
+          ? "Nothing here - all caught up."
+          : "No tracked items.";
+
+  // Reload the list when the (effective) filters change, or after a sync ends.
+  // setState lives in an async callback, so it never cascades synchronously.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await api.items({
+          tab,
+          mine,
+          type,
+          repo: effectiveRepo,
+          q,
+          sort,
+        });
+        if (!cancelled) {
+          setItems(r.items);
+          setItemsError(null);
+        }
+      } catch (err) {
+        if (!cancelled) setItemsError(errorMessage(err));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, mine, type, effectiveRepo, q, sort, reloadKey]);
+
+  useEffect(() => {
+    if (wasSyncing.current && !remoteSyncing) setReloadKey((key) => key + 1);
+    wasSyncing.current = remoteSyncing;
+  }, [remoteSyncing]);
+
+  async function triggerSync() {
+    setActionError(null);
+    setIsSyncStarting(true);
+    try {
+      await api.sync();
+      window.setTimeout(() => setIsSyncStarting(false), 2000);
+    } catch (err) {
+      setActionError(errorMessage(err));
+      setIsSyncStarting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100">
+      <header className="sticky top-0 z-10 border-b border-white/10 bg-slate-900/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-6 py-4">
+          <div>
+            <h1 className="text-xl font-semibold">GH Comment Watch</h1>
+            <p className="text-sm text-slate-400">
+              {status?.repos.join(", ") ?? "…"}
+            </p>
+          </div>
+          <div className="ml-auto flex items-center gap-3 text-sm text-slate-400">
+            <span>
+              Last sync:{" "}
+              <span className="text-slate-200">
+                {relativeTime(status?.lastSyncAt ?? null)}
+              </span>
+            </span>
+            <button
+              className="rounded-lg bg-sky-600 px-4 py-2 font-medium text-white hover:bg-sky-500 disabled:opacity-60"
+              onClick={triggerSync}
+              disabled={syncing}
+            >
+              {remoteSyncing
+                ? `Syncing ${status?.sync.done}/${status?.sync.total}…`
+                : isSyncStarting
+                  ? "Starting sync…"
+                  : "Sync now"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mx-auto flex max-w-6xl gap-1 px-6">
+          <TabButton
+            label="Needs reply"
+            count={status ? scoped.needs : undefined}
+            active={tab === "needs"}
+            onClick={() => setFilters((f) => ({ ...f, tab: "needs" }))}
+          />
+          <TabButton
+            label="All tracked"
+            count={status ? scoped.tracked : undefined}
+            active={tab === "all"}
+            onClick={() => setFilters((f) => ({ ...f, tab: "all" }))}
+          />
+          <TabButton
+            label="My queue"
+            count={status ? scoped.mine : undefined}
+            highlight
+            active={tab === "mine"}
+            onClick={() => setFilters((f) => ({ ...f, tab: "mine" }))}
+          />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-6 py-6">
+        {errors.length > 0 && (
+          <div className="mb-4 space-y-1 rounded-lg bg-red-950 px-4 py-3 text-sm text-red-300 ring-1 ring-red-500/30">
+            {errors.map((e) => (
+              <div key={e}>{e}</div>
+            ))}
+          </div>
+        )}
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {tab === "mine" ? (
+            <Segmented
+              options={[
+                { v: "all", label: `All ${scoped.mine}` },
+                { v: "assigned", label: `Assigned ${scoped.assigned}` },
+                { v: "review", label: `Review ${scoped.review}` },
+              ]}
+              value={mine}
+              onChange={(v) =>
+                setFilters((f) => ({ ...f, mine: v as MineFilter }))
+              }
+            />
+          ) : (
+            <Segmented
+              options={TYPES.map((t) => ({ v: t, label: TYPE_LABEL[t] }))}
+              value={type}
+              onChange={(v) =>
+                setFilters((f) => ({ ...f, type: v as TypeFilter }))
+              }
+            />
+          )}
+          {status && status.repos.length > 1 && (
+            <Segmented
+              options={[
+                { v: "all", label: "All repos" },
+                ...status.repos.map((r) => ({
+                  v: r,
+                  label: r.split("/")[1] ?? r,
+                })),
+              ]}
+              value={effectiveRepo}
+              onChange={(v) => setFilters((f) => ({ ...f, repo: v }))}
+            />
+          )}
+          <input
+            aria-label="Search title, author, or number"
+            className="rounded-lg bg-slate-800 px-3 py-2 text-sm ring-1 ring-white/10 outline-none focus:ring-sky-500"
+            placeholder="Search title / author / #"
+            value={q}
+            onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+          />
+          <button
+            className="ml-auto text-sm text-slate-400 hover:text-slate-200"
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                sort: f.sort === "oldest" ? "newest" : "oldest",
+              }))
+            }
+          >
+            Sort: {sort === "oldest" ? "oldest first" : "newest first"}
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {items.length === 0 ? (
+            <div className="rounded-xl bg-slate-800 px-6 py-16 text-center text-slate-400 ring-1 ring-white/5">
+              {emptyMessage}
+            </div>
+          ) : (
+            items.map((it) => <Row key={it.uid} item={it} />)
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function TabButton({
+  label,
+  count,
+  active,
+  highlight,
+  onClick,
+}: {
+  label: string;
+  count: number | undefined;
+  active: boolean;
+  highlight?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      className={`relative -mb-px flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition ${
+        active
+          ? "border-sky-500 text-white"
+          : "border-transparent text-slate-400 hover:text-slate-200"
+      }`}
+    >
+      {label}
+      {count != null && (
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs ${
+            highlight && count > 0
+              ? "bg-sky-500/20 text-sky-300"
+              : active
+                ? "bg-white/10 text-slate-200"
+                : "bg-slate-800 text-slate-400"
+          }`}
+        >
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<{ v: T; label: string }>;
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex rounded-lg bg-slate-800 p-1 ring-1 ring-white/10">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          aria-pressed={value === o.v}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+            value === o.v
+              ? "bg-sky-600 text-white"
+              : "text-slate-300 hover:text-white"
+          }`}
+          onClick={() => onChange(o.v)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Row({ item }: { item: Item }) {
+  const labels: string[] = (() => {
+    try {
+      return JSON.parse(item.labels);
+    } catch {
+      return [];
+    }
+  })();
+  const days = ageDays(item.last_entry_at);
+  const stale = item.needs_attention === 1 && days >= 7;
+
+  return (
+    <div className="flex gap-4 rounded-xl bg-slate-800 px-5 py-4 ring-1 ring-white/5 hover:ring-white/15">
+      <div className="flex flex-col items-center pt-1">
+        <span
+          className={`rounded px-1.5 py-0.5 text-[11px] font-bold ${
+            item.type === "pr"
+              ? "bg-purple-500/20 text-purple-300"
+              : item.type === "discussion"
+                ? "bg-amber-500/20 text-amber-300"
+                : "bg-emerald-500/20 text-emerald-300"
+          }`}
+        >
+          {item.type === "pr"
+            ? "PR"
+            : item.type === "discussion"
+              ? "DISC"
+              : "ISS"}
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="shrink-0 rounded bg-slate-700 px-1.5 py-0.5 text-xs text-slate-300">
+            {item.repo.split("/")[1] ?? item.repo}
+          </span>
+          <a
+            href={item.html_url}
+            target="_blank"
+            rel="noreferrer"
+            className="truncate font-medium text-slate-100 hover:text-sky-400"
+          >
+            #{item.number} {item.title}
+          </a>
+        </div>
+
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-400">
+          {item.assigned_to_me === 1 && (
+            <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-300">
+              Assigned to me
+            </span>
+          )}
+          {item.review_requested_from_me === 1 && (
+            <span className="rounded bg-teal-500/20 px-2 py-0.5 text-xs font-medium text-teal-300">
+              Review requested
+            </span>
+          )}
+          <span
+            className={`rounded px-2 py-0.5 text-xs font-medium ${
+              item.needs_attention
+                ? "bg-amber-500/15 text-amber-300"
+                : "bg-slate-700 text-slate-300"
+            }`}
+          >
+            {item.reason}
+          </span>
+          <span>
+            <span className="text-slate-300">{item.last_actor ?? "?"}</span>
+            {item.last_actor_is_org_member === 1 && (
+              <span
+                className="ml-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-300"
+                title="Arize-ai org member, but not on the on-call team allowlist"
+              >
+                Arize-ai org
+              </span>
+            )}
+            {item.last_actor_is_bot ? " (bot)" : ""} ·{" "}
+            <span className={stale ? "text-amber-400" : ""}>
+              {relativeTime(item.last_entry_at)}
+            </span>
+          </span>
+          {labels.slice(0, 3).map((l) => (
+            <span
+              key={l}
+              className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300"
+            >
+              {l}
+            </span>
+          ))}
+        </div>
+
+        {item.last_entry_excerpt && (
+          <p className="mt-2 line-clamp-2 text-sm text-slate-400">
+            {item.last_entry_excerpt}
+          </p>
+        )}
+      </div>
+
+      <a
+        href={item.last_entry_url ?? item.html_url}
+        target="_blank"
+        rel="noreferrer"
+        className="self-center rounded-lg px-3 py-2 text-sm font-medium text-sky-400 hover:bg-white/5"
+      >
+        Open →
+      </a>
+    </div>
+  );
+}
