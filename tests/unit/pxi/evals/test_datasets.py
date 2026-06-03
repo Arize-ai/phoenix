@@ -283,7 +283,7 @@ examples:
     def test_loads_in_app_links_dataset(self) -> None:
         dataset = load_dataset("in_app_links")
         assert dataset.dataset_name == "in_app_links"
-        assert len(dataset.examples) == 7
+        assert len(dataset.examples) == 8
         assert "in_app_links_valid" in dataset.evaluators
         assert any(
             example["id"] == "route-info-dataset-experiments-link" for example in dataset.examples

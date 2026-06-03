@@ -231,7 +231,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the span tree, spans, and trace view details for a single trace. Supports selecting a span with selectedSpanNodeId.",
+                        "Inspect the span tree, spans, and trace view details for a single trace. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -254,7 +254,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the span tree, spans, and trace view details for a single trace. Supports selecting a span with selectedSpanNodeId.",
+                        "Inspect the span tree, spans, and trace view details for a single trace. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -279,7 +279,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Session Details",
                       description:
-                        "Inspect session traces, turns, and details for a single session. Supports selecting a session trace span with selectedSpanNodeId.",
+                        "Inspect session traces, turns, and details for a single session. The sessionId route param uses the GraphQL ProjectSession.id Relay node ID, not ProjectSession.sessionId. Supports selecting a session trace span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -469,7 +469,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Evaluator Details",
                     description:
-                      "Inspect dataset evaluator details, evaluator configuration, and eval traces.",
+                      "Inspect dataset evaluator details, evaluator configuration, and eval traces. The evaluatorId route param uses the GraphQL DatasetEvaluator.id, not the nested Evaluator.id.",
                   },
                 }}
               >
@@ -480,7 +480,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Evaluator Trace",
                       description:
-                        "Inspect an evaluator trace, eval trace, and trace details associated with a dataset evaluator. Supports selecting a span with selectedSpanNodeId.",
+                        "Inspect an evaluator trace, eval trace, and trace details associated with a dataset evaluator. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.",
                     },
                   }}
                 />
@@ -537,7 +537,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Span Playground",
                 description:
-                  "Open a span in the prompt playground for span replay, prompt testing, and prompt experimentation.",
+                  "Open a span in the prompt playground for span replay, prompt testing, and prompt experimentation. The spanId route param uses the GraphQL Span.id Relay node ID, not Span.spanId.",
               },
             }}
           />

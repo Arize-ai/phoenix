@@ -186,3 +186,40 @@ examples:
           - /projects/UHJvamVjdDo0Nw==/config
     metadata:
       route_info_case: parameterized_project_route
+  - id: route-info-trace-detail-uses-otel-trace-id
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Link to my most expensive trace.
+        - role: assistant
+          tool_calls:
+            - id: route_info
+              name: get_route_info
+              args:
+                query: project trace detail
+        - role: tool
+          tool_call_id: route_info
+          name: get_route_info
+          content: |
+            {"query":"project trace detail","matches":[{"path":"/projects/:projectId/traces/:traceId","label":"Trace Details","description":"Inspect the span tree, spans, and trace view details for a single trace. The traceId route param uses the GraphQL Trace.traceId OpenTelemetry trace ID, not Trace.id. Supports selecting a span with selectedSpanNodeId.","link":null,"missingParams":["projectId","traceId"]}]}
+        - role: assistant
+          tool_calls:
+            - id: bash_call
+              name: bash
+              args:
+                command: phoenix-gql query.graphql --data-only
+        - role: tool
+          tool_call_id: bash_call
+          name: bash
+          content: |
+            {"data":{"node":{"name":"pxi_dev","id":"UHJvamVjdDo0Nw==","spans":{"edges":[{"node":{"name":"pxiAgent Turn","cumulativeTokenCountTotal":617245,"trace":{"id":"VHJhY2U6NDQy","traceId":"66a8042a448b757ed73e3ab80dd83db1"}}}]}}}}
+    expected:
+      tools:
+        required: []
+        forbidden: [bash]
+      links:
+        required_in_app:
+          - /projects/UHJvamVjdDo0Nw==/traces/66a8042a448b757ed73e3ab80dd83db1
+    metadata:
+      route_info_case: trace_detail_identifier_format
