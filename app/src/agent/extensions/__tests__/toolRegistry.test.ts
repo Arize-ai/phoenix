@@ -1,4 +1,39 @@
-const mockAppRouteObjects = vi.hoisted(() => [
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import {
+  getAgentToolUIBehavior,
+  handleRegisteredAgentToolCall,
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
+  SET_TIME_RANGE_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/extensions/toolRegistry";
+import {
+  buildRouteInfoCatalog,
+  GET_ROUTE_INFO_TOOL_NAME,
+  registerRouteInfoCatalog,
+} from "@phoenix/agent/tools/getRouteInfo";
+import {
+  LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
+  SET_PLAYGROUND_MODEL_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundModel";
+import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
+import {
+  CLONE_PROMPT_INSTANCE_TOOL_NAME,
+  EDIT_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
+import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
+import {
+  createSavePromptClientAction,
+  SAVE_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
+import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
+import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
+import { createAgentStore } from "@phoenix/store/agentStore";
+import { createPlaygroundStore } from "@phoenix/store/playground";
+
+installTestStorage();
+
+const routeInfoTestRouteObjects = [
   {
     path: "/",
     children: [
@@ -30,42 +65,7 @@ const mockAppRouteObjects = vi.hoisted(() => [
       },
     ],
   },
-]);
-
-vi.mock("@phoenix/Routes", () => ({
-  appRouteObjects: mockAppRouteObjects,
-}));
-
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import {
-  getAgentToolUIBehavior,
-  handleRegisteredAgentToolCall,
-  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
-  OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
-  SET_TIME_RANGE_TOOL_NAME,
-  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "@phoenix/agent/extensions/toolRegistry";
-import { GET_ROUTE_INFO_TOOL_NAME } from "@phoenix/agent/tools/getRouteInfo";
-import {
-  LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
-  SET_PLAYGROUND_MODEL_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundModel";
-import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
-import {
-  CLONE_PROMPT_INSTANCE_TOOL_NAME,
-  EDIT_PROMPT_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
-import {
-  createSavePromptClientAction,
-  SAVE_PROMPT_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundSavePrompt";
-import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
-import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
-import { createAgentStore } from "@phoenix/store/agentStore";
-import { createPlaygroundStore } from "@phoenix/store/playground";
-
-installTestStorage();
+];
 
 describe("toolRegistry", () => {
   beforeEach(() => {
@@ -258,6 +258,9 @@ describe("toolRegistry", () => {
   it("returns route info for valid get_route_info input", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    registerRouteInfoCatalog({
+      catalog: buildRouteInfoCatalog(routeInfoTestRouteObjects),
+    });
     store.getState().setRouteContexts([
       {
         type: "project",

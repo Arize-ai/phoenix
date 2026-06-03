@@ -1,7 +1,7 @@
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 
-import { buildRouteInfoCatalog } from "./catalog";
 import { normalizeInputPath } from "./parsers";
+import { getRegisteredRouteInfoCatalog } from "./routeCatalogRegistry";
 import { buildMatch, buildParamsFromContexts } from "./routeParams";
 import { scoreEntry } from "./scoring";
 import type {
@@ -79,11 +79,8 @@ export async function getRouteInfo({
   input: GetRouteInfoInput;
   contexts: AgentContext[];
 }): Promise<RouteInfoResult> {
-  // Import lazily so normal PXI chat requests do not load or serialize the
-  // route catalog unless the browser-executed tool is actually called.
-  const { appRouteObjects } = await import("@phoenix/Routes");
   return getRouteInfoFromCatalog({
-    catalog: buildRouteInfoCatalog(appRouteObjects),
+    catalog: getRegisteredRouteInfoCatalog(),
     input,
     contexts,
   });

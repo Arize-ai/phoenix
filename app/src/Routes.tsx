@@ -7,6 +7,8 @@ import {
 } from "react-router";
 import { RouterProvider } from "react-router/dom";
 
+import { buildRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/catalog";
+import { registerRouteInfoCatalog } from "@phoenix/agent/tools/getRouteInfo/routeCatalogRegistry";
 import type { DatasetEvaluatorDetailsLoaderData } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorDetailsPage } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorDetailsPage";
@@ -879,6 +881,10 @@ export const appRouteObjects = createRoutesFromElements(
     </Route>
   </Route>
 );
+
+registerRouteInfoCatalog({
+  catalog: buildRouteInfoCatalog(appRouteObjects),
+});
 
 const router = createBrowserRouter(appRouteObjects, {
   basename: window.Config.basename,

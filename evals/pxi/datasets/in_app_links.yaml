@@ -189,6 +189,11 @@ examples:
   - id: route-info-trace-detail-uses-otel-trace-id
     splits: [regression]
     input:
+      contexts:
+        - type: project
+          projectNodeId: UHJvamVjdDo0Nw==
+          spanFilter: ""
+          rootSpansOnly: false
       messages:
         - role: user
           content: Link to my most expensive trace.
