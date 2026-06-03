@@ -167,23 +167,6 @@ export const appRouteObjects = createRoutesFromElements(
               label: "Profile",
               description:
                 "Manage the current user's profile, API keys, password, and display preferences including timezone and code snippet defaults.",
-              keywords: [
-                "profile",
-                "user profile",
-                "account",
-                "personal api keys",
-                "user api keys",
-                "reset password",
-                "change password",
-                "timezone",
-                "time zone",
-                "display timezone",
-                "timestamp timezone",
-                "theme",
-                "dark mode",
-                "code snippets",
-                "package manager",
-              ],
             },
           }}
           element={<ProfilePage />}
@@ -196,8 +179,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Projects",
               description:
-                "Browse Phoenix projects and open project-specific observability views.",
-              keywords: ["projects", "project list", "observability projects"],
+                "Browse the project list and open project-specific observability views.",
             },
           }}
           element={<ProjectsRoot />}
@@ -211,8 +193,8 @@ export const appRouteObjects = createRoutesFromElements(
               crumb: (data: ProjectLoaderData) => data?.project?.name,
               agentRoute: {
                 label: "Project Overview",
-                description: "Open a project's default overview page.",
-                keywords: ["project", "project overview", "project home"],
+                description:
+                  "Open a project's default overview, project home, and summary page.",
               },
               copy: (data: ProjectLoaderData) => [
                 {
@@ -237,8 +219,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Project Traces",
-                    description: "Inspect traces for a project.",
-                    keywords: ["traces", "project traces", "trace table"],
+                    description:
+                      "Inspect project traces in the trace table and open trace details.",
                   },
                 }}
               >
@@ -249,8 +231,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the spans and details for a single trace.",
-                      keywords: ["trace details", "trace view", "span tree"],
+                        "Inspect the span tree, spans, and trace view details for a single trace.",
                     },
                   }}
                 />
@@ -261,13 +242,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Project Spans",
-                    description: "Inspect and filter spans for a project.",
-                    keywords: [
-                      "spans",
-                      "project spans",
-                      "span table",
-                      "span filter",
-                    ],
+                    description:
+                      "Inspect the project span table and filter spans for a project.",
                   },
                 }}
               >
@@ -278,8 +254,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Trace Details",
                       description:
-                        "Inspect the spans and details for a single trace.",
-                      keywords: ["trace details", "trace view", "span tree"],
+                        "Inspect the span tree, spans, and trace view details for a single trace.",
                     },
                   }}
                 />
@@ -291,8 +266,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Sessions",
                     description:
-                      "Browse user or application sessions for a project.",
-                    keywords: ["sessions", "project sessions", "session list"],
+                      "Browse user or application sessions and the session list for a project.",
                   },
                 }}
               >
@@ -305,12 +279,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Session Details",
                       description:
-                        "Inspect the traces and turns for a single session.",
-                      keywords: [
-                        "session details",
-                        "session trace",
-                        "session turns",
-                      ],
+                        "Inspect session traces, turns, and details for a single session.",
                     },
                   }}
                 />
@@ -323,17 +292,6 @@ export const appRouteObjects = createRoutesFromElements(
                     label: "Project Configuration",
                     description:
                       "Configure project settings including display details, default tab, and data retention policy assignment.",
-                    keywords: [
-                      "project config",
-                      "project settings",
-                      "project name",
-                      "project description",
-                      "default project tab",
-                      "default tab",
-                      "data retention",
-                      "project retention policy",
-                      "assign retention policy",
-                    ],
                   },
                 }}
               />
@@ -345,12 +303,6 @@ export const appRouteObjects = createRoutesFromElements(
                     label: "Project Metrics",
                     description:
                       "View time-series metrics and observability charts for a project.",
-                    keywords: [
-                      "metrics",
-                      "project metrics",
-                      "charts",
-                      "dashboard",
-                    ],
                   },
                 }}
               />
@@ -363,8 +315,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "Dashboards",
             agentRoute: {
               label: "Dashboards",
-              description: "Browse dashboard-style project metric views.",
-              keywords: ["dashboards", "metrics dashboards", "charts"],
+              description:
+                "Browse dashboard-style metric views, charts, and project dashboards.",
             },
           }}
           element={<DashboardsRoot />}
@@ -378,8 +330,8 @@ export const appRouteObjects = createRoutesFromElements(
             handle={{
               agentRoute: {
                 label: "Project Dashboard",
-                description: "View dashboard metrics for a project.",
-                keywords: ["project dashboard", "project metrics", "charts"],
+                description:
+                  "View project dashboard metrics, charts, and observability panels.",
               },
             }}
           />
@@ -391,8 +343,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Datasets",
               description:
-                "Browse datasets used for experiments and evaluations.",
-              keywords: ["datasets", "dataset list", "experiments data"],
+                "Browse the dataset list used for experiments, evaluations, and eval data.",
             },
           }}
         >
@@ -403,8 +354,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Datasets",
                 description:
-                  "Browse datasets used for experiments and evaluations.",
-                keywords: ["datasets", "dataset list", "experiments data"],
+                  "Browse the dataset list used for experiments, evaluations, and eval data.",
               },
             }}
           />
@@ -415,8 +365,8 @@ export const appRouteObjects = createRoutesFromElements(
               crumb: (data: DatasetLoaderData) => data?.dataset?.name,
               agentRoute: {
                 label: "Dataset Experiments",
-                description: "View experiments for a dataset.",
-                keywords: ["dataset", "dataset experiments", "experiments"],
+                description:
+                  "View dataset experiments, experiment runs, and evaluation results.",
               },
               copy: (data: DatasetLoaderData) => [
                 {
@@ -440,8 +390,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Dataset Experiments",
-                    description: "View experiments for a dataset.",
-                    keywords: ["dataset experiments", "experiments", "runs"],
+                    description:
+                      "View dataset experiments, experiment runs, and evaluation results.",
                   },
                 }}
               >
@@ -451,12 +401,8 @@ export const appRouteObjects = createRoutesFromElements(
                   handle={{
                     agentRoute: {
                       label: "Experiment Details",
-                      description: "Inspect a single experiment and its runs.",
-                      keywords: [
-                        "experiment details",
-                        "experiment runs",
-                        "runs",
-                      ],
+                      description:
+                        "Inspect a single experiment, experiment run, and run details.",
                     },
                   }}
                 />
@@ -468,8 +414,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Dataset Examples",
-                    description: "Browse examples for a dataset.",
-                    keywords: ["dataset examples", "examples", "dataset rows"],
+                    description:
+                      "Browse dataset examples, rows, and example records.",
                   },
                 }}
               >
@@ -482,8 +428,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Dataset Versions",
-                    description: "View dataset versions.",
-                    keywords: ["dataset versions", "versions"],
+                    description:
+                      "View dataset versions, dataset history, and version records.",
                   },
                 }}
               />
@@ -495,8 +441,8 @@ export const appRouteObjects = createRoutesFromElements(
                   crumb: () => "evaluators",
                   agentRoute: {
                     label: "Dataset Evaluators",
-                    description: "View evaluators attached to a dataset.",
-                    keywords: ["dataset evaluators", "evaluators", "evals"],
+                    description:
+                      "View dataset evaluators, evals, and evaluation configuration attached to a dataset.",
                   },
                 }}
               />
@@ -507,8 +453,8 @@ export const appRouteObjects = createRoutesFromElements(
                 crumb: () => "evaluators",
                 agentRoute: {
                   label: "Dataset Evaluators",
-                  description: "View evaluators attached to a dataset.",
-                  keywords: ["dataset evaluators", "evaluators", "evals"],
+                  description:
+                    "View dataset evaluators, evals, and evaluation configuration attached to a dataset.",
                 },
               }}
             >
@@ -522,12 +468,8 @@ export const appRouteObjects = createRoutesFromElements(
                     data?.evaluatorDisplayName || "evaluator",
                   agentRoute: {
                     label: "Dataset Evaluator Details",
-                    description: "Inspect evaluator configuration and traces.",
-                    keywords: [
-                      "evaluator details",
-                      "dataset evaluator",
-                      "eval traces",
-                    ],
+                    description:
+                      "Inspect dataset evaluator details, evaluator configuration, and eval traces.",
                   },
                 }}
               >
@@ -538,12 +480,7 @@ export const appRouteObjects = createRoutesFromElements(
                     agentRoute: {
                       label: "Evaluator Trace",
                       description:
-                        "Inspect a trace associated with a dataset evaluator.",
-                      keywords: [
-                        "evaluator trace",
-                        "eval trace",
-                        "trace details",
-                      ],
+                        "Inspect an evaluator trace, eval trace, and trace details associated with a dataset evaluator.",
                     },
                   }}
                 />
@@ -556,12 +493,8 @@ export const appRouteObjects = createRoutesFromElements(
                 crumb: () => "compare",
                 agentRoute: {
                   label: "Compare Experiments",
-                  description: "Compare experiment results for a dataset.",
-                  keywords: [
-                    "compare experiments",
-                    "experiment comparison",
-                    "compare runs",
-                  ],
+                  description:
+                    "Compare experiment results, runs, and evaluation metrics for a dataset.",
                 },
               }}
             />
@@ -574,13 +507,7 @@ export const appRouteObjects = createRoutesFromElements(
             agentRoute: {
               label: "Playground",
               description:
-                "Experiment with prompts, models, variables, and prompt runs.",
-              keywords: [
-                "playground",
-                "prompt playground",
-                "prompt testing",
-                "models",
-              ],
+                "Experiment in the prompt playground with prompts, models, variables, and prompt runs.",
             },
           }}
         >
@@ -592,13 +519,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Playground",
                 description:
-                  "Experiment with prompts, models, variables, and prompt runs.",
-                keywords: [
-                  "playground",
-                  "prompt playground",
-                  "prompt testing",
-                  "models",
-                ],
+                  "Experiment in the prompt playground with prompts, models, variables, and prompt runs.",
               },
             }}
           />
@@ -616,12 +537,7 @@ export const appRouteObjects = createRoutesFromElements(
               agentRoute: {
                 label: "Span Playground",
                 description:
-                  "Open a span in the playground for prompt experimentation.",
-                keywords: [
-                  "span playground",
-                  "playground span",
-                  "prompt from span",
-                ],
+                  "Open a span in the prompt playground for span replay, prompt testing, and prompt experimentation.",
               },
             }}
           />
@@ -632,8 +548,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "Evaluators",
             agentRoute: {
               label: "Evaluators",
-              description: "Browse and manage evaluators.",
-              keywords: ["evaluators", "evals", "evaluation"],
+              description:
+                "Browse and manage evaluators, evals, and evaluation metrics.",
             },
           }}
         >
@@ -644,8 +560,8 @@ export const appRouteObjects = createRoutesFromElements(
             handle={{
               agentRoute: {
                 label: "Evaluators",
-                description: "Browse and manage evaluators.",
-                keywords: ["evaluators", "evals", "evaluation"],
+                description:
+                  "Browse and manage evaluators, evals, and evaluation metrics.",
               },
             }}
           />
@@ -656,8 +572,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "Prompts",
             agentRoute: {
               label: "Prompts",
-              description: "Browse saved prompts and prompt versions.",
-              keywords: ["prompts", "prompt registry", "saved prompts"],
+              description:
+                "Browse the prompt registry, saved prompts, and prompt versions.",
             },
           }}
         >
@@ -668,8 +584,8 @@ export const appRouteObjects = createRoutesFromElements(
             handle={{
               agentRoute: {
                 label: "Prompts",
-                description: "Browse saved prompts and prompt versions.",
-                keywords: ["prompts", "prompt registry", "saved prompts"],
+                description:
+                  "Browse the prompt registry, saved prompts, and prompt versions.",
               },
             }}
           />
@@ -688,8 +604,8 @@ export const appRouteObjects = createRoutesFromElements(
               },
               agentRoute: {
                 label: "Prompt Details",
-                description: "View a saved prompt and its versions.",
-                keywords: ["prompt details", "saved prompt", "prompt versions"],
+                description:
+                  "View prompt details for a saved prompt, prompt versions, and prompt history.",
               },
               copy: (data: PromptLoaderData) => {
                 if (data?.prompt?.__typename === "Prompt") {
@@ -719,8 +635,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Prompt Versions",
-                    description: "Browse versions for a saved prompt.",
-                    keywords: ["prompt versions", "versions", "prompt history"],
+                    description:
+                      "Browse prompt versions, prompt history, and saved prompt revisions.",
                   },
                 }}
               >
@@ -731,12 +647,8 @@ export const appRouteObjects = createRoutesFromElements(
                   handle={{
                     agentRoute: {
                       label: "Prompt Version Details",
-                      description: "Inspect a specific prompt version.",
-                      keywords: [
-                        "prompt version details",
-                        "prompt version",
-                        "version details",
-                      ],
+                      description:
+                        "Inspect a specific prompt version, revision, and prompt history entry.",
                     },
                   }}
                 />
@@ -748,12 +660,8 @@ export const appRouteObjects = createRoutesFromElements(
                 handle={{
                   agentRoute: {
                     label: "Prompt Configuration",
-                    description: "Configure a saved prompt.",
-                    keywords: [
-                      "prompt config",
-                      "prompt settings",
-                      "configure prompt",
-                    ],
+                    description:
+                      "Configure a saved prompt, prompt settings, labels, and prompt metadata.",
                   },
                 }}
               />
@@ -767,8 +675,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "REST API",
             agentRoute: {
               label: "REST API",
-              description: "Open the Phoenix REST API reference.",
-              keywords: ["rest api", "api docs", "openapi"],
+              description:
+                "Open the Phoenix REST API reference, API docs, and OpenAPI documentation.",
             },
           }}
         />
@@ -779,8 +687,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "GraphQL",
             agentRoute: {
               label: "GraphQL",
-              description: "Open the Phoenix GraphQL explorer.",
-              keywords: ["graphql", "graphql api", "graphql explorer"],
+              description:
+                "Open the Phoenix GraphQL API explorer and GraphQL schema browser.",
             },
           }}
         />
@@ -791,8 +699,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "Support",
             agentRoute: {
               label: "Support",
-              description: "Find Phoenix support resources.",
-              keywords: ["support", "help", "contact support"],
+              description:
+                "Find Phoenix support resources, help, contact support, and troubleshooting links.",
             },
           }}
         />
@@ -803,8 +711,8 @@ export const appRouteObjects = createRoutesFromElements(
             crumb: () => "Settings",
             agentRoute: {
               label: "Settings",
-              description: "Open Phoenix instance settings.",
-              keywords: ["settings", "configuration", "admin settings"],
+              description:
+                "Open Phoenix instance settings, configuration, and admin settings.",
             },
           }}
         >
@@ -818,24 +726,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "General Settings",
                 description:
                   "Configure general Phoenix instance settings including hostname, platform version, database usage, users, system API keys, and the default project retention policy.",
-                keywords: [
-                  "general settings",
-                  "settings",
-                  "instance settings",
-                  "hostname",
-                  "platform version",
-                  "server version",
-                  "database usage",
-                  "storage usage",
-                  "users",
-                  "user management",
-                  "system api keys",
-                  "api keys",
-                  "default retention policy",
-                  "default project retention policy",
-                  "maximum trace retention",
-                  "trace retention days",
-                ],
               },
             }}
           />
@@ -849,16 +739,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Secrets",
                 description:
                   "Manage write-only secrets used by Phoenix integrations, custom providers, sandboxes, and tools.",
-                keywords: [
-                  "secrets",
-                  "secret values",
-                  "api keys",
-                  "credentials",
-                  "environment variables",
-                  "provider secrets",
-                  "sandbox secrets",
-                  "tokens",
-                ],
               },
             }}
           />
@@ -872,22 +752,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "AI Providers",
                 description:
                   "Configure AI providers, custom providers, provider credentials, base URLs, default model, and provider headers.",
-                keywords: [
-                  "ai providers",
-                  "model providers",
-                  "provider credentials",
-                  "custom provider",
-                  "custom ai provider",
-                  "openai",
-                  "azure openai",
-                  "anthropic",
-                  "aws bedrock",
-                  "google genai",
-                  "api key",
-                  "base url",
-                  "default model",
-                  "provider headers",
-                ],
               },
             }}
           />
@@ -901,18 +765,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Sandboxes",
                 description:
                   "Configure sandbox providers and sandbox configurations for code execution, dependencies, environment variables, internet access, and timeouts.",
-                keywords: [
-                  "sandboxes",
-                  "sandbox settings",
-                  "sandbox providers",
-                  "sandbox configurations",
-                  "code execution",
-                  "code interpreter",
-                  "dependencies",
-                  "environment variables",
-                  "internet access",
-                  "timeout",
-                ],
               },
             }}
           />
@@ -926,21 +778,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Models",
                 description:
                   "Configure saved model settings including provider, model name patterns, start dates, and token pricing.",
-                keywords: [
-                  "models",
-                  "model settings",
-                  "saved models",
-                  "model name",
-                  "model pattern",
-                  "name pattern",
-                  "token prices",
-                  "token pricing",
-                  "cost per million tokens",
-                  "prompt tokens",
-                  "completion tokens",
-                  "custom models",
-                  "built-in models",
-                ],
               },
             }}
           />
@@ -951,15 +788,8 @@ export const appRouteObjects = createRoutesFromElements(
               crumb: () => "Datasets",
               agentRoute: {
                 label: "Dataset Settings",
-                description: "Configure dataset labels and dataset settings.",
-                keywords: [
-                  "dataset settings",
-                  "datasets",
-                  "settings datasets",
-                  "dataset labels",
-                  "labels",
-                  "new dataset label",
-                ],
+                description:
+                  "Configure dataset labels, dataset settings, and labeling options.",
               },
             }}
           />
@@ -973,17 +803,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Annotations",
                 description:
                   "Configure annotation configs including categorical, continuous, and freeform annotation settings.",
-                keywords: [
-                  "annotations",
-                  "annotation configs",
-                  "annotation settings",
-                  "categorical annotations",
-                  "continuous annotations",
-                  "freeform annotations",
-                  "annotation labels",
-                  "annotation scores",
-                  "optimization direction",
-                ],
               },
             }}
           />
@@ -996,26 +815,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Data Retention",
                 description:
                   "Manage trace retention policies, including policy names, schedules, maximum days, maximum trace counts, and assigned projects.",
-                keywords: [
-                  "data retention",
-                  "data retention policy settings",
-                  "retention policies",
-                  "retention policy",
-                  "retention policy configuration",
-                  "all retention policies",
-                  "new retention policy",
-                  "create retention policy",
-                  "edit retention policy",
-                  "trace retention",
-                  "maximum trace retention",
-                  "number of days",
-                  "number of traces",
-                  "retention schedule",
-                  "assigned projects",
-                  "purge traces",
-                  "delete old traces",
-                  "storage retention",
-                ],
               },
             }}
             loader={settingsDataPageLoader}
@@ -1028,15 +827,8 @@ export const appRouteObjects = createRoutesFromElements(
               crumb: () => "Prompts",
               agentRoute: {
                 label: "Prompt Settings",
-                description: "Configure prompt labels and prompt settings.",
-                keywords: [
-                  "prompt settings",
-                  "prompts",
-                  "settings prompts",
-                  "prompt labels",
-                  "labels",
-                  "new prompt label",
-                ],
+                description:
+                  "Configure prompt labels, prompt settings, and saved prompt labeling options.",
               },
             }}
           />
@@ -1049,22 +841,6 @@ export const appRouteObjects = createRoutesFromElements(
                 label: "Agent Settings",
                 description:
                   "Configure the assistant, PXI enablement, agent model, edit approvals, experiment flags, and assistant trace collection.",
-                keywords: [
-                  "agent settings",
-                  "assistant settings",
-                  "agents",
-                  "pxi settings",
-                  "pxi",
-                  "assistant",
-                  "agent model",
-                  "edit approvals",
-                  "tool approvals",
-                  "experimental agent settings",
-                  "assistant traces",
-                  "trace sharing",
-                  "collector endpoint",
-                  "assistant project name",
-                ],
               },
             }}
           />

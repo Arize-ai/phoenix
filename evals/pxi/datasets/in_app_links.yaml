@@ -20,7 +20,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"agent settings","matches":[{"path":"/settings/agents","label":"Agent Settings","description":"Configure PXI and agent behavior.","keywords":["agent settings","PXI settings"],"link":"/settings/agents","missingParams":[]}]}
+            {"query":"agent settings","matches":[{"path":"/settings/agents","label":"Agent Settings","description":"Configure PXI and agent behavior.","link":"/settings/agents","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -46,7 +46,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"AI provider settings","matches":[{"path":"/settings/providers","label":"AI Providers","description":"Configure AI provider credentials and provider settings.","keywords":["AI providers","provider credentials","model provider"],"link":"/settings/providers","missingParams":[]}]}
+            {"query":"AI provider settings","matches":[{"path":"/settings/providers","label":"AI Providers","description":"Configure AI provider credentials and provider settings.","link":"/settings/providers","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -72,7 +72,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"default retention policy","matches":[{"path":"/settings/general","label":"General Settings","description":"Configure workspace settings, default project retention policies, and project creation defaults.","keywords":["general settings","default retention policy","project retention"],"link":"/settings/general","missingParams":[]}]}
+            {"query":"default retention policy","matches":[{"path":"/settings/general","label":"General Settings","description":"Configure workspace settings, default project retention policies, and project creation defaults.","link":"/settings/general","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -98,7 +98,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"data retention policy","matches":[{"path":"/settings/data","label":"Data Retention","description":"Manage trace retention policies and retention policy configuration.","keywords":["data retention","retention policy","trace retention","purge traces","delete old traces","storage retention"],"link":"/settings/data","missingParams":[]}]}
+            {"query":"data retention policy","matches":[{"path":"/settings/data","label":"Data Retention","description":"Manage trace retention policies and retention policy configuration.","link":"/settings/data","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -124,7 +124,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"time zone settings","matches":[{"path":"/profile","label":"Profile","description":"Manage your user profile, API keys, and local time zone display settings.","keywords":["profile","time zone","timezone","local time","API keys"],"link":"/profile","missingParams":[]}]}
+            {"query":"time zone settings","matches":[{"path":"/profile","label":"Profile","description":"Manage your user profile, API keys, and local time zone display settings.","link":"/profile","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -150,7 +150,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"dataset experiments","matches":[{"path":"/datasets/:datasetId/experiments","label":"Dataset Experiments","description":"Review experiment runs for a dataset.","keywords":["dataset experiments","experiment runs","dataset runs"],"link":"/datasets/RGF0YXNldDox/experiments","missingParams":[]}]}
+            {"query":"dataset experiments","matches":[{"path":"/datasets/:datasetId/experiments","label":"Dataset Experiments","description":"Review experiment runs for a dataset.","link":"/datasets/RGF0YXNldDox/experiments","missingParams":[]}]}
     expected:
       tools:
         required: []
@@ -176,7 +176,7 @@ examples:
           tool_call_id: route_info
           name: get_route_info
           content: |
-            {"query":"project configuration","matches":[{"path":"/projects/:projectId/config","label":"Project Configuration","description":"Configure project-specific settings, retention policy, and project metadata.","keywords":["project configuration","project settings","project retention"],"link":"/projects/UHJvamVjdDo0Nw==/config","missingParams":[]}]}
+            {"query":"project configuration","matches":[{"path":"/projects/:projectId/config","label":"Project Configuration","description":"Configure project-specific settings, retention policy, and project metadata.","link":"/projects/UHJvamVjdDo0Nw==/config","missingParams":[]}]}
     expected:
       tools:
         required: []

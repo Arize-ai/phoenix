@@ -9,7 +9,6 @@ const mockAppRouteObjects = vi.hoisted(() => [
             label: "Projects",
             description:
               "Browse Phoenix projects and open project-specific observability views.",
-            keywords: ["projects", "project list", "observability projects"],
           },
         },
         children: [
@@ -22,7 +21,6 @@ const mockAppRouteObjects = vi.hoisted(() => [
                   agentRoute: {
                     label: "Project Traces",
                     description: "Inspect traces for a project.",
-                    keywords: ["traces", "project traces", "trace table"],
                   },
                 },
               },

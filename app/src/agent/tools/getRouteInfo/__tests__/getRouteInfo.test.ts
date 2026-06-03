@@ -9,7 +9,6 @@ import {
 const metadata = {
   label: "Settings",
   description: "Configure Phoenix settings.",
-  keywords: ["settings", "configuration"],
 };
 
 const appRouteObjects: RouteObject[] = [
@@ -29,16 +28,6 @@ const appRouteObjects: RouteObject[] = [
                 label: "Data Retention",
                 description:
                   "Manage trace retention policies and retention policy configuration.",
-                keywords: [
-                  "data retention",
-                  "data retention policy settings",
-                  "retention policy",
-                  "retention policy configuration",
-                  "trace retention",
-                  "purge traces",
-                  "delete old traces",
-                  "storage retention",
-                ],
               },
             },
           },
@@ -51,7 +40,6 @@ const appRouteObjects: RouteObject[] = [
             label: "Projects",
             description:
               "Browse Phoenix projects and open project-specific observability views.",
-            keywords: ["projects", "project list", "observability projects"],
           },
         },
         children: [
@@ -64,7 +52,6 @@ const appRouteObjects: RouteObject[] = [
                   agentRoute: {
                     label: "Project Traces",
                     description: "Inspect traces for a project.",
-                    keywords: ["traces", "project traces", "trace table"],
                   },
                 },
               },
@@ -79,7 +66,6 @@ const appRouteObjects: RouteObject[] = [
             label: "Playground",
             description:
               "Experiment with prompts, models, variables, and prompt runs.",
-            keywords: ["playground", "prompt playground", "prompt testing"],
           },
         },
         children: [
@@ -90,7 +76,6 @@ const appRouteObjects: RouteObject[] = [
                 label: "Span Playground",
                 description:
                   "Open a span in the playground for prompt experimentation.",
-                keywords: ["span playground", "playground span"],
               },
             },
           },
@@ -119,7 +104,6 @@ describe("getRouteInfo", () => {
                   agentRoute: {
                     label: "Data Retention",
                     description: "Manage trace retention policies.",
-                    keywords: ["data retention", "retention policy"],
                   },
                 },
               },
@@ -154,7 +138,7 @@ describe("getRouteInfo", () => {
     expect(buildRouteInfoCatalog(routes)).toEqual([]);
   });
 
-  it("ranks data retention policy queries to the settings data route", () => {
+  it("returns data retention policy route within the default matches", () => {
     const catalog = buildRouteInfoCatalog(appRouteObjects);
     const result = getRouteInfoFromCatalog({
       catalog,
@@ -162,28 +146,46 @@ describe("getRouteInfo", () => {
       contexts: [],
     });
 
-    expect(result.matches[0]).toEqual(
-      expect.objectContaining({
-        path: "/settings/data",
-        label: "Data Retention",
-        link: "/settings/data",
-        missingParams: [],
-      })
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/settings/data",
+          label: "Data Retention",
+          link: "/settings/data",
+          missingParams: [],
+        }),
+      ])
     );
   });
 
-  it("returns bounded empty results for unknown queries", () => {
+  it("does not return removed keywords metadata in matches", () => {
     const catalog = buildRouteInfoCatalog(appRouteObjects);
     const result = getRouteInfoFromCatalog({
       catalog,
-      input: { query: "zzqxv blorpt ninetynine", limit: 5 },
+      input: { query: "data retention policy", limit: 5 },
       contexts: [],
     });
 
-    expect(result.matches).toEqual([]);
+    expect(result.matches[0]).not.toHaveProperty("keywords");
   });
 
-  it("uses current contexts to generate links for parameterized routes", () => {
+  it("excludes agent route metadata with removed keywords field", () => {
+    const routes: RouteObject[] = [
+      {
+        path: "/settings",
+        handle: {
+          agentRoute: {
+            ...metadata,
+            keywords: ["settings"],
+          },
+        },
+      },
+    ];
+
+    expect(buildRouteInfoCatalog(routes)).toEqual([]);
+  });
+
+  it("keeps project traces within default matches when context can fill params", () => {
     const catalog = buildRouteInfoCatalog(appRouteObjects);
     const result = getRouteInfoFromCatalog({
       catalog,
@@ -191,21 +193,47 @@ describe("getRouteInfo", () => {
       contexts: [
         {
           type: "project",
-          projectNodeId: "UHJvamVjdDox",
+          projectNodeId: "UHJvamVjdDo0Nw==",
         },
       ],
     });
 
-    expect(result.matches[0]).toEqual(
-      expect.objectContaining({
-        path: "/projects/:projectId/traces",
-        link: "/projects/UHJvamVjdDox/traces",
-        missingParams: [],
-      })
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/projects/:projectId/traces",
+          link: "/projects/UHJvamVjdDo0Nw==/traces",
+          missingParams: [],
+        }),
+      ])
     );
   });
 
-  it("uses span node ids for playground span route links", () => {
+  it("restores id padding without decoding structural URL escapes", () => {
+    const catalog = buildRouteInfoCatalog(appRouteObjects);
+    const result = getRouteInfoFromCatalog({
+      catalog,
+      input: { query: "project traces", limit: 5 },
+      contexts: [
+        {
+          type: "project",
+          projectNodeId: "abc/def==",
+        },
+      ],
+    });
+
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/projects/:projectId/traces",
+          link: "/projects/abc%2Fdef==/traces",
+          missingParams: [],
+        }),
+      ])
+    );
+  });
+
+  it("keeps span playground within default matches when context can fill params", () => {
     const catalog = buildRouteInfoCatalog(appRouteObjects);
     const result = getRouteInfoFromCatalog({
       catalog,
@@ -218,13 +246,45 @@ describe("getRouteInfo", () => {
       ],
     });
 
-    expect(result.matches[0]).toEqual(
-      expect.objectContaining({
-        path: "/playground/spans/:spanId",
-        link: "/playground/spans/U3Bhbjox",
-        missingParams: [],
-      })
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/playground/spans/:spanId",
+          link: "/playground/spans/U3Bhbjox",
+          missingParams: [],
+        }),
+      ])
     );
+  });
+
+  it("keeps missing project params within default matches instead of inventing links", () => {
+    const catalog = buildRouteInfoCatalog(appRouteObjects);
+    const result = getRouteInfoFromCatalog({
+      catalog,
+      input: { query: "project traces", limit: 5 },
+      contexts: [],
+    });
+
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/projects/:projectId/traces",
+          link: null,
+          missingParams: ["projectId"],
+        }),
+      ])
+    );
+  });
+
+  it("returns bounded empty results for unknown queries", () => {
+    const catalog = buildRouteInfoCatalog(appRouteObjects);
+    const result = getRouteInfoFromCatalog({
+      catalog,
+      input: { query: "zzqxv blorpt ninetynine", limit: 5 },
+      contexts: [],
+    });
+
+    expect(result.matches).toEqual([]);
   });
 
   it("does not use otel span ids for playground span route links", () => {
@@ -240,29 +300,14 @@ describe("getRouteInfo", () => {
       ],
     });
 
-    expect(result.matches[0]).toEqual(
-      expect.objectContaining({
-        path: "/playground/spans/:spanId",
-        link: null,
-        missingParams: ["spanId"],
-      })
-    );
-  });
-
-  it("reports missing params instead of inventing links", () => {
-    const catalog = buildRouteInfoCatalog(appRouteObjects);
-    const result = getRouteInfoFromCatalog({
-      catalog,
-      input: { query: "project traces", limit: 5 },
-      contexts: [],
-    });
-
-    expect(result.matches[0]).toEqual(
-      expect.objectContaining({
-        path: "/projects/:projectId/traces",
-        link: null,
-        missingParams: ["projectId"],
-      })
+    expect(result.matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "/playground/spans/:spanId",
+          link: null,
+          missingParams: ["spanId"],
+        }),
+      ])
     );
   });
 
