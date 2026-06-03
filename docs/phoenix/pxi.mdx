@@ -12,375 +12,266 @@ description: >-
 </Frame>
 
 <Warning>
-PXI is in **beta**. It can and will make mistakes, its behavior may change
-between releases, and it should be used with care — especially on production
-data. Review the [Privacy and observability](#privacy-and-observability) and
-[Safety](#safety) sections before turning it on.
+PXI is in **beta**. It can and will make mistakes, and it should be used with
+care — especially on production data. Agent assistance is **opt-in and
+controllable**: see [You stay in control](#you-stay-in-control).
 </Warning>
 
-## What PXI is
-
-PXI (pronounced *"pixie"*) is an agent built into Phoenix. It sees what you
-are looking at and acts on your behalf:
-
-- **Drives the product.** PXI navigates, filters, and pivots through your
-  Phoenix data the same way you would — only faster.
-- **Iterates with you on prompts and traces.** It reads, edits, and explores
-  prompts, spans, and traces directly in context.
-- **Investigates failures.** Built-in skills walk failing traces and propose
-  root causes instead of leaving you to grep through spans.
-- **Reasons over your data.** A sandboxed runtime lets PXI query your
-  Phoenix instance to answer questions evals and dashboards cannot.
-- **Knows the product.** Phoenix's own documentation is wired in as a
-  first-class source, so answers are grounded rather than guessed.
-
-Because PXI is grounded in your current context, what it can do adapts to the
-page you are on — its capabilities on a trace are different from its
-capabilities in the prompt playground.
+PXI (pronounced *"pixie"*) is an agent built into Phoenix, modeled after a
+coding agent but pointed at your observability data instead of a code editor. It
+sees what you are looking at and acts on your behalf — driving the product,
+investigating failures, and iterating on prompts and traces in context.
 
 {/* VIDEO PLACEHOLDER: end-to-end demo of PXI driving Phoenix — opening a failing trace, proposing a root cause, then jumping to the playground to fix the prompt. */}
 
-## When to use it
+## What it does
 
-- **Debugging.** Hand off a failing trace and get a root-cause hypothesis,
-  not a list of spans to read.
-- **Exploring data.** Describe the view you want and let PXI set up the
-  filters, time range, and pivots.
-- **Sharpening prompts.** Co-iterate on playground prompts with diffs you
-  review before anything lands.
-- **Learning Phoenix.** Ask product questions and get answers grounded in
-  the live docs, not in training-data folklore.
+- **Drives the product** — navigates, filters, and pivots through your Phoenix
+  data the same way you would, only faster.
+- **Investigates failures** — walks failing traces and proposes root causes
+  instead of leaving you to grep through spans.
+- **Iterates on prompts** — reads, edits, and tests playground prompts, with
+  every change shown as a diff you approve.
+- **Reasons over your data** — a sandboxed runtime lets PXI query your Phoenix
+  instance to answer questions evals and dashboards cannot.
+- **Knows the product** — Phoenix's own documentation is wired in as a
+  first-class source, so answers are grounded rather than guessed.
 
-PXI accelerates the loop you already run. Evals, experiments, and human
-review still belong at the end of it — PXI just gets you there faster.
+Because PXI is grounded in your current context, what it can do adapts to the
+page you are on — its capabilities on a trace differ from those in the prompt
+playground.
 
 ## Skills
 
 Skills are PXI's superpower. A **skill** is a reusable, multi-step playbook that
 teaches PXI how to do one Phoenix workflow *well* — what to look at, in what
-order, and what good output looks like. Instead of hoping a general model
-stumbles into the right method, PXI loads the matching skill on demand and
-follows a curated procedure built by the Phoenix team.
+order, and what good output looks like. PXI loads the matching skill on demand
+and follows a curated procedure built by the Phoenix team.
 
-The skill library is **under active development** and growing every release.
-Track progress and upcoming skills on the
+The library is **under active development** and grows every release — track
+progress on the
 [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13).
-The headline skills:
 
 <CardGroup cols={2}>
   <Card title="Trace debugging" icon="bug">
     Hand PXI a failing trace — or a whole project — and it walks the spans
     against a failure-mode checklist (errors, retrieval quality, hallucination,
-    tool-use mistakes, runaway trajectories) and returns prioritized,
-    actionable root-cause hypotheses instead of a wall of spans. *Available
-    today.*
+    tool-use mistakes, runaway trajectories) and returns prioritized root-cause
+    hypotheses. *Available today.*
   </Card>
   <Card title="Prompt playground" icon="wand-magic-sparkles">
-    Co-author and optimize prompts in the playground — fast manual iteration,
-    or dataset-backed experimentation with evaluators and experiments. Every
-    proposed edit comes back as a diff you review before it lands. *Available
-    today.*
+    Co-author and optimize prompts — fast manual iteration, or dataset-backed
+    experimentation with evaluators and experiments. Every edit comes back as a
+    diff you review before it lands. *Available today.*
   </Card>
   <Card title="Dataset curation" icon="layer-group">
-    Turn the failures you find while debugging into curated datasets — pull
-    failing spans into a dataset, organize examples, and feed them straight into
-    experiments and evals. *Under development — follow the milestone above.*
+    Turn the failures you find while debugging into curated datasets that feed
+    straight into experiments and evals. *Under development — follow the
+    milestone above.*
   </Card>
 </CardGroup>
 
-PXI ships with additional skills today, including **span annotation** (writing
-consistent, filterable feedback and building failure taxonomies) and
-**LLM-as-a-judge evaluator authoring** (designing judge prompts, labels, and
-input mappings). Because skills are loaded by context, PXI surfaces the right
-one for the page and task you are on.
+PXI ships with additional skills today, including **span annotation** and
+**LLM-as-a-judge evaluator authoring**. Because skills are context-aware, PXI
+surfaces the right one for the page and task you are on.
 
 {/* IMAGE PLACEHOLDER: short clip of PXI loading the trace-debugging skill on a failing trace and returning a ranked list of root-cause hypotheses. */}
 
 ## You stay in control
 
-PXI is built so that agent assistance is **something you opt into, not
-something that happens to you.** Unlike most embedded AI assistants, PXI can be
-turned off completely, runs under an explicit permission model, and only
-reaches the internet when you let it.
+PXI is built so that agent assistance is something you **opt into, not something
+that happens to you.** It can be turned off completely, runs under an explicit
+permission model, and only reaches the internet when you let it.
 
 <Frame caption="Settings → Assistant — system, personal, and web-access controls in one place.">
   ![PXI assistant settings](https://storage.googleapis.com/arize-phoenix-assets/assets/images/pxi/assistant_settings.png)
 </Frame>
 
-### Turn it fully off
+- **Turn it fully off.** PXI is the only agent in its class you can switch *all
+  the way off* — there is no always-on mode you cannot escape. Disable it per
+  deployment (`PHOENIX_DISABLE_AGENT_ASSISTANT=true`), per instance
+  (**Settings → Assistant → System settings**), or per browser
+  (**Settings → Assistant → Personal settings → Use assistant**).
+- **Nothing changes without your approval.** Any state-changing action — editing
+  a prompt, saving a prompt, annotating spans — is gated by an edit-approval
+  mode you pick from the chat input (or cycle with `Ctrl+T`). Read-only actions
+  run freely.
+- **Add web grounding when you want it.** Toggle **web access** with the globe
+  button in the chat input to let PXI consult the live internet for additional
+  grounding. The toggle is per session and only appears when an administrator
+  allows it; leave it off to keep the session entirely inside your Phoenix
+  instance.
 
-PXI is the only agent in this class you can switch **all the way off** — there
-is no always-on background mode you cannot escape. Control is layered, so you
-can disable it at whatever scope you need:
-
-- **Deployment setting.** To turn PXI off for the whole deployment, set the
-  following environment variable on the Phoenix server and restart. The chat
-  surface, tools, and skills are never loaded:
-
-  ```bash
-  PHOENIX_DISABLE_AGENT_ASSISTANT=true
-  ```
-
-- **System settings.** Administrators can open **Settings → Assistant →
-  System settings** and turn **Assistant access** off for everyone using the
-  Phoenix instance. This does not require a restart.
-- **Personal settings.** Each user can open **Settings → Assistant →
-  Personal settings** and turn **Use assistant** off for their browser — even
-  when an administrator leaves it on for the instance.
-
-<Note>
-PXI gives an LLM the ability to read Phoenix data the signed-in user can
-already see, and to call tools that modify UI state. If that trade-off is
-not acceptable for your deployment, disable PXI with
-`PHOENIX_DISABLE_AGENT_ASSISTANT=true`.
-</Note>
-
-The old `PHOENIX_DANGEROUSLY_ENABLE_AGENTS` opt-in flag is no longer used.
-
-### Nothing changes without your approval
-
-PXI has a **permission model** so that no modification lands without a control
-in front of it. Any tool that changes state — editing a prompt, saving a
-prompt, annotating spans — is gated by an **edit-approval mode** you choose from
-the chat input (or cycle with `Ctrl+T`):
-
-| Mode | Behavior |
+| Edit-approval mode | Behavior |
 | --- | --- |
 | **Manual Approval** *(default)* | PXI proposes the change as a reviewable diff and waits. Nothing is applied until you click **Accept**. |
-| **Bypass Approval** | Edits are applied without asking. The selector shows a warning treatment while this is active. |
-
-Read-only actions (reading a span, applying a filter you can undo, looking up
-docs) run freely; state-changing actions stop at the approval boundary unless
-you have explicitly switched to Bypass.
+| **Bypass Approval** | Edits are applied without asking. The selector shows a warning treatment while active. |
 
 {/* IMAGE PLACEHOLDER: short clip of PXI proposing a prompt edit as a diff, the user reviewing it, and clicking Accept under Manual Approval. */}
 
-### Add web grounding when you want it
-
-By default PXI reasons over your Phoenix data only. When you want it to consult
-the live internet for additional grounding — checking a framework's current
-behavior, a provider's error code, or recent docs — toggle **web access** with
-the globe button in the chat input.
-
-- The toggle is **per session** and only appears when an administrator has
-  allowed web access for the instance.
-- It controls PXI's native web **search** and **fetch** tools. Turn it on to let
-  the agent ground its answers in external sources; leave it off to keep the
-  session entirely inside your Phoenix instance.
-- Operators can govern this globally with
-  `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` (disables web search/fetch) or
-  `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` (disables web access *and* external
-  docs lookups).
-
-{/* IMAGE PLACEHOLDER: the chat input showing the web-access globe toggle in its off and on states. */}
-
-## Connect a model
+## Setup
 
 PXI needs a model to talk to. Configure credentials for at least one provider
-via environment variables or Phoenix secrets:
+via environment variables or Phoenix secrets (`OPENAI_API_KEY`,
+`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, AWS Bedrock credentials, or a custom
+provider under **Settings → Models**).
 
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `GEMINI_API_KEY`
-- AWS Bedrock credentials
-- Or a custom provider configured under **Settings → Models**.
+The first time you open PXI you are shown a consent gate to review the assistant
+session trace settings. Acknowledging it enables the chat surface for that
+browser; it does not override system settings.
 
-### Use a recommended model
-
-PXI relies heavily on **tool calling** — almost every action it takes is a
-tool call (set a filter, edit a prompt, read a span, run a debug skill). Models
-that are weak at tool use will produce broken sessions, even if they handle
-free-form chat well.
-
-We curate a short list of models that PXI has been validated against. **Pick
-one of these unless you have a specific reason not to:**
+<Accordion title="Pick a recommended model">
+PXI relies heavily on **tool calling** — almost every action it takes is a tool
+call. Models that are weak at tool use produce broken sessions even if they
+handle free-form chat well. Pick one of these validated models unless you have a
+specific reason not to:
 
 - **Anthropic** — `claude-opus-4-8`, `claude-opus-4-6`, `claude-sonnet-4-6`
 - **OpenAI** — `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`
 - **Google** — `gemini-3.1-pro-preview`, `gemini-3.5-flash`
 
 Other built-in or custom-provider models can be selected from the model menu,
-but they are untested with PXI and may fail to invoke tools correctly. If you
-swap in a non-curated model, expect rougher behavior.
-
-The first time a user opens PXI, they are shown a consent gate that asks them
-to review the available assistant session trace settings. Acknowledging the
-gate enables the chat surface for that browser; it does not override system
-settings.
+but they are untested with PXI and may fail to invoke tools correctly.
+</Accordion>
 
 ## How it works
 
-PXI is modeled after a **coding agent** — the same shape as Claude Code,
-Cursor, or Codex — but pointed at Phoenix instead of a code editor. It has:
+PXI is split between the Phoenix server, which owns everything the model sees
+(tool definitions, system prompt, skills, capability guidance), and the browser,
+which executes tool calls that touch the page. Capabilities are gated by
+**context** — PXI only advertises a tool when the required Phoenix UI context is
+present, so it never offers an action that cannot succeed on your current page.
 
-- A **harness of tools** for taking action in the product (set the time range,
-  apply a spans filter, read a span, edit a playground prompt, render
-  generative UI, ask the user a question).
-- An **MCP server** that exposes the Phoenix docs to the agent when external
-  resources are allowed — served by Mintlify, the same provider that hosts the
-  public Phoenix documentation — so PXI can look up product behavior the same
-  way a coding agent looks up library docs.
-- **Skills** — reusable, multi-step playbooks that teach PXI how to perform a
-  specific Phoenix workflow well. PXI loads the right skill on demand for the
-  task at hand (see [Skills](#skills)).
-- A **sandboxed bash tool** for running ad-hoc queries, scripting against the
-  Phoenix API, and storing intermediate files inside the agent's working
-  directory.
+<AccordionGroup>
+  <Accordion title="Architecture">
 
-PXI is split between the Phoenix server and the browser:
+  ```mermaid
+  flowchart LR
+      User((User))
 
-- The **server** owns everything the model sees — tool definitions, system
-  prompt, skills, and capability guidance. This is the source of truth for
-  what PXI can do.
-- The **browser** executes tool calls that need to touch the page (filters,
-  navigation, prompt edits) and dispatches server-side tools through the data
-  stream.
+      subgraph Browser["Browser"]
+          direction TB
+          ChatUI["Chat UI"]
+          Bash["bash sandbox"]
+          PhoenixGQL["phoenix-gql CLI"]
+          ChatUI ~~~ Bash
+          Bash --> PhoenixGQL
+      end
 
-Capabilities are gated by **context**. PXI only advertises a tool when the
-required Phoenix UI context is present — for example, the prompt-edit tool is
-only offered while you are on a playground page with a selected prompt. This
-keeps the model from offering actions that cannot succeed on the page you are
-viewing.
+      subgraph Server["Phoenix Server"]
+          direction TB
+          GraphQL["GraphQL API"]
+          Agent["PXI Agent"]
+          Tools["Tools"]
+          Skills["Skills"]
+          MCP["MCP"]
+          Agent --> Tools
+          Agent --> Skills
+          Agent --> MCP
+      end
 
-### Extensible by design
+      LLM["LLM Provider"]
+      Docs["Mintlify Docs MCP"]
 
-Because PXI is built like a coding agent, its capabilities grow the same way a
-coding agent's do — by adding to a registry, not by retraining a model. There
-are three independent extension points, each owned by the Phoenix server as the
-single source of truth for what the model can do:
+      User <--> ChatUI
+      ChatUI <--> Agent
+      PhoenixGQL --> GraphQL
+      Agent <--> LLM
+      MCP --> Docs
+  ```
 
-- **Tools** — the actions PXI can take. New tools come in three flavors:
-  *external* tools that always run in the browser, *contextual client* tools
-  gated on the page you are viewing, and *contextual server* tools that read or
-  compute over data the server already has authenticated access to. Each tool is
-  declared once on the server and advertised to the model only when it can
-  actually succeed.
-- **Skills** — the playbooks above. Adding a skill is as simple as authoring a
-  `SKILL.md` procedure; PXI discovers it and loads it on demand for matching
-  tasks. This is how new workflows like dataset curation ship without changing
-  the core agent.
-- **MCP** — PXI is an MCP client. Today it connects to the Mintlify-hosted
-  Phoenix docs server for grounded product knowledge, and the same client path
-  is how PXI reaches additional context sources over time.
+  The browser owns the chat UI and a sandboxed **bash** environment. Inside it,
+  PXI uses the **phoenix-gql** CLI to query the Phoenix **GraphQL API** — the
+  same authenticated endpoint a logged-in user hits. The server hosts the agent
+  and its model-facing surface (**tools**, **skills**, an **MCP** client) and
+  calls your LLM provider with your API key. When external resources are
+  allowed, the server also reaches the Mintlify-hosted Phoenix docs MCP.
+  </Accordion>
 
-Every new tool or skill inherits the same guarantees automatically: it is
-context-gated, it runs under the [permission model](#nothing-changes-without-your-approval),
-and it is captured in [traces](#privacy-and-observability) when recording is on.
+  <Accordion title="Extending PXI">
+  Because PXI is built like a coding agent, its capabilities grow by adding to a
+  registry, not by retraining a model. There are three extension points, all
+  owned by the server as the single source of truth:
 
-### Architecture
+  - **Tools** — the actions PXI can take, in three flavors: *external* (always
+    run in the browser), *contextual client* (gated on the page you are
+    viewing), and *contextual server* (read or compute over data the server has
+    authenticated access to).
+  - **Skills** — the playbooks above. Adding one is as simple as authoring a
+    `SKILL.md`; PXI discovers and loads it on demand. This is how new workflows
+    ship without changing the core agent.
+  - **MCP** — PXI is an MCP client. Today it connects to the Phoenix docs server
+    for grounded product knowledge; the same path reaches new context sources
+    over time.
 
-```mermaid
-flowchart LR
-    User((User))
+  Every new tool or skill inherits the same guarantees automatically: it is
+  context-gated, runs under the permission model, and is captured in traces when
+  recording is on.
+  </Accordion>
 
-    subgraph Browser["Browser"]
-        direction TB
-        ChatUI["Chat UI"]
-        Bash["bash sandbox"]
-        PhoenixGQL["phoenix-gql CLI"]
-        ChatUI ~~~ Bash
-        Bash --> PhoenixGQL
-    end
+  <Accordion title="Runs entirely on your Phoenix">
+  PXI runs **inside the Phoenix process you are already running**:
 
-    subgraph Server["Phoenix Server"]
-        direction TB
-        GraphQL["GraphQL API"]
-        Agent["PXI Agent"]
-        Tools["Tools"]
-        Skills["Skills"]
-        MCP["MCP"]
-        Agent --> Tools
-        Agent --> Skills
-        Agent --> MCP
-    end
+  - Tool calls execute against your Phoenix server and your data — no separate
+    Arize service is involved.
+  - The LLM is **your model provider**, called with **your API key**. Arize is
+    not in the request path.
+  - Documentation lookups go to the **Mintlify-hosted Phoenix docs MCP server**
+    when external resources are allowed — the same public docs you can read in a
+    browser, serving docs only.
+  - Remote trace export happens **only if every gate is enabled**: a remote
+    collector is configured, an administrator allows export in system settings,
+    and the user enables it in personal settings.
+  </Accordion>
+</AccordionGroup>
 
-    LLM["LLM Provider"]
-    Docs["Mintlify Docs MCP"]
+## Privacy, safety & configuration
 
-    User <--> ChatUI
-    ChatUI <--> Agent
-    PhoenixGQL --> GraphQL
-    Agent <--> LLM
-    MCP --> Docs
-```
+<AccordionGroup>
+  <Accordion title="Trace recording & observability">
+  PXI can capture conversations as Phoenix traces, controlled by both system
+  settings and per-browser preferences. From **Settings → Assistant**,
+  administrators can turn assistant access on or off for everyone, allow users to
+  save session traces locally, and allow export to a configured remote collector;
+  each user can show or hide the assistant and opt into local or remote trace
+  recording when allowed.
 
-The browser owns the chat UI and a sandboxed **bash** environment. Inside that
-sandbox, PXI uses the **phoenix-gql** CLI to query the Phoenix **GraphQL API**
-on the server, the same authenticated endpoint a logged-in user hits from the
-UI. The server hosts the PXI agent along with its model-facing surface —
-**tools**, **skills**, and an **MCP** client — and calls your LLM provider
-with your API key. When external resources are allowed, the server also reaches
-the Mintlify-hosted Phoenix docs MCP through its MCP client.
+  By default the system settings allow **neither** local persistence nor remote
+  export. Local traces are written to the `assistant_agent` project (override
+  with `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME`). When recording is enabled, tool
+  inputs and outputs are recorded on the corresponding spans, so you can audit
+  what PXI did and evaluate it like any other agent in Phoenix.
+  </Accordion>
 
-### Runs entirely on your Phoenix
+  <Accordion title="Safety limits">
+  - **Verify before you act.** PXI can apply filters, edit prompts, and run
+    bash. Review proposed changes — especially prompt edits — before accepting.
+  - **Don't point it at sensitive production data without controls.** PXI sees
+    whatever the signed-in user can see; use scoped or staging projects while it
+    is in beta.
+  - **Treat outputs as suggestions.** PXI hallucinates, especially on long
+    traces or unfamiliar frameworks.
+  </Accordion>
 
-PXI runs **inside the Phoenix process you are already running**. Concretely:
+  <Accordion title="Configuration reference">
+  | Environment variable | Effect |
+  | --- | --- |
+  | `PHOENIX_DISABLE_AGENT_ASSISTANT=true` | Disable PXI for the whole deployment (requires restart). |
+  | `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` | Disable web access *and* external docs lookups. |
+  | `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` | Disable PXI's web search/fetch tools while leaving other external resources available. |
+  | `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` | Remote collector endpoint for assistant trace export. |
+  | `PHOENIX_AGENTS_COLLECTOR_API_KEY` | API key for the remote collector, if required. |
+  | `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` | Project name for locally recorded assistant traces (default `assistant_agent`). |
 
-- Tool calls execute against your Phoenix server and your data — no separate
-  Arize service is involved.
-- The LLM behind PXI is **your model provider**, called with **your API key**
-  (OpenAI, Anthropic, Google, Bedrock, or a custom provider you configured).
-  Arize is not in the request path.
-- Documentation lookups go to the **Mintlify-hosted Phoenix docs MCP server**
-  when external resources are allowed. It is the same public docs surface you
-  can read in a browser, and it serves docs only. Set
-  `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` to disable external docs lookups and
-  web access, or set `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` to disable PXI's
-  native web search and fetch tools while leaving other external resources
-  available.
-- Remote trace export happens **only if all required gates are enabled**: a
-  remote collector is configured for the instance, an administrator allows
-  trace export in **Settings → Assistant → System settings**, and the user
-  enables trace export in **Settings → Assistant → Personal settings**. If any
-  gate is off, PXI traces, prompts, and tool outputs are not exported.
-  Configure the collector with `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` and,
-  if needed, `PHOENIX_AGENTS_COLLECTOR_API_KEY`.
-
-## Privacy and observability
-
-PXI can capture conversations as Phoenix traces. Trace recording is controlled
-by both system settings and per-browser user preferences.
-
-From **Settings → Assistant**, administrators can:
-
-- Turn **Assistant access** on or off for everyone.
-- Allow users to save assistant session traces in this Phoenix instance.
-- Allow users to export assistant session traces to the configured remote
-  collector, when one is configured.
-
-From **Settings → Assistant**, each user can:
-
-- Show or hide the assistant in their browser.
-- Save assistant session traces in this Phoenix instance when an administrator
-  allows local trace recording.
-- Export assistant session traces to the configured remote collector when an
-  administrator allows remote export.
-
-By default, the system trace-recording settings do not allow local persistence
-or remote export. Local traces are written to the
-`assistant_agent` project unless `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` is set
-to a different project name.
-
-When trace recording is enabled, tool inputs and outputs are recorded on the
-corresponding spans. This makes it easy to audit what PXI did during a session
-and to evaluate PXI the same way you evaluate any other agent in Phoenix.
-
-## Safety
-
-PXI is a beta feature. Keep these limits in mind:
-
-- **Verify before you act.** PXI can apply filters, edit prompts, and run
-  bash. Review proposed changes — especially prompt edits — before accepting
-  them.
-- **Don't point it at sensitive production data without controls.** PXI sees
-  whatever the signed-in user can see. Use it against scoped projects or
-  staging data while it is in beta.
-- **Treat outputs as suggestions.** PXI hallucinates, especially on long
-  traces or unfamiliar frameworks.
+  The old `PHOENIX_DANGEROUSLY_ENABLE_AGENTS` opt-in flag is no longer used.
+  </Accordion>
+</AccordionGroup>
 
 ## Feedback
 
-PXI is early and we are actively looking for improvements and ideas. If you
-have feedback, run into a rough edge, or want to suggest new capabilities,
-please open an issue or start a discussion on
+PXI is early and we are actively looking for improvements and ideas. If you have
+feedback, run into a rough edge, or want to suggest new capabilities, please open
+an issue or start a discussion on
 [GitHub](https://github.com/Arize-ai/phoenix). We read everything.
+</content>
+</invoke>
