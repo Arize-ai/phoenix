@@ -19,6 +19,17 @@ import {
   testCodeEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
+import {
+  editLlmEvaluatorDraftAgentTool,
+  openLlmEvaluatorFormAgentTool,
+  readLlmEvaluatorDraftAgentTool,
+  testLlmEvaluatorDraftAgentTool,
+} from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { loadDatasetAgentTool } from "@phoenix/agent/tools/playgroundLoadDataset";
+import {
+  listPlaygroundModelTargetsAgentTool,
+  setPlaygroundModelAgentTool,
+} from "@phoenix/agent/tools/playgroundModel";
 import { readPlaygroundOutputAgentTool } from "@phoenix/agent/tools/playgroundOutput";
 import {
   clonePromptInstanceAgentTool,
@@ -56,6 +67,9 @@ const pageActionTools: AgentToolDefinition[] = [
   savePromptAgentTool,
   readPromptToolsAgentTool,
   writePromptToolsAgentTool,
+  setPlaygroundModelAgentTool,
+  listPlaygroundModelTargetsAgentTool,
+  loadDatasetAgentTool,
   runPlaygroundAgentTool,
   readPlaygroundOutputAgentTool,
   setVariableValuesAgentTool,
@@ -63,6 +77,10 @@ const pageActionTools: AgentToolDefinition[] = [
   readCodeEvaluatorDraftAgentTool,
   editCodeEvaluatorDraftAgentTool,
   testCodeEvaluatorDraftAgentTool,
+  openLlmEvaluatorFormAgentTool,
+  readLlmEvaluatorDraftAgentTool,
+  editLlmEvaluatorDraftAgentTool,
+  testLlmEvaluatorDraftAgentTool,
 ];
 
 /**
