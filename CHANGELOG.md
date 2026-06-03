@@ -1,5 +1,23 @@
 # Changelog
 
+## [17.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.1.0...arize-phoenix-v17.2.0) (2026-06-03)
+
+
+### Features
+
+* add PXI route info tool ([#13591](https://github.com/Arize-ai/phoenix/issues/13591)) ([f51fbfa](https://github.com/Arize-ai/phoenix/commit/f51fbfa40ca4340e7282f405c0b5002f7cad58e8))
+
+
+### Bug Fixes
+
+* **app:** scope assistant chat history to deployment root path ([#13615](https://github.com/Arize-ai/phoenix/issues/13615)) ([e6a10f2](https://github.com/Arize-ai/phoenix/commit/e6a10f2bee405430ed4433157bb6da207b6dce09))
+* refresh prompts table periodically ([#13614](https://github.com/Arize-ai/phoenix/issues/13614)) ([df105ec](https://github.com/Arize-ai/phoenix/commit/df105ec7c6cfa697f8abe3d731a4ddcc85f4952f))
+
+
+### Documentation
+
+* expand PXI guide with skills, controls, and extensibility ([#13611](https://github.com/Arize-ai/phoenix/issues/13611)) ([d40e340](https://github.com/Arize-ai/phoenix/commit/d40e3406368c43c53ebf799c8ff7f465986297b3))
+
 ## [17.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.0.0...arize-phoenix-v17.1.0) (2026-06-02)
 
 
