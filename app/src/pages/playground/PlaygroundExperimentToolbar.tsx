@@ -64,6 +64,7 @@ export function PlaygroundExperimentToolbar({
       borderBottomColor={"default"}
       borderBottomWidth={"thin"}
       height={50}
+      overflow="hidden"
     >
       <Flex justifyContent="space-between" alignItems="center" height="100%">
         <Flex gap="size-200" alignItems="center">

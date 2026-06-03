@@ -1,7 +1,7 @@
-import { css } from "@emotion/react";
 import { useCallback, useMemo, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
+import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
@@ -156,14 +156,7 @@ export function PlaygroundDatasetSection({
   // We want to re-mount the context when the dataset or the splits change
   const key = `${datasetId}-${splitIds?.join("-")}`;
   return (
-    <div
-      css={css`
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
-      `}
-    >
+    <Flex direction={"column"} height={"100%"}>
       <PlaygroundExperimentToolbar
         datasetId={datasetId}
         datasetEvaluators={datasetEvaluators}
@@ -185,6 +178,6 @@ export function PlaygroundDatasetSection({
           evaluatorOutputConfigs={evaluatorOutputConfigs}
         />
       </PlaygroundDatasetExamplesTableProvider>
-    </div>
+    </Flex>
   );
 }
