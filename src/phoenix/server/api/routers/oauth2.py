@@ -47,7 +47,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.server.api.auth_messages import AuthErrorCode
 from phoenix.server.bearer_auth import create_access_and_refresh_tokens
-from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client
+from phoenix.server.oauth2 import DEFAULT_EMAIL_PATH, OAuth2Client, search_claim_path
 from phoenix.server.rate_limiters import (
     ServerRateLimiter,
     fastapi_ip_rate_limiter,
@@ -438,7 +438,7 @@ def _parse_user_info(
         raise InvalidUserInfo("The 'sub' claim cannot be empty.")
 
     # Extract 'email' claim using JMESPath (application requirement)
-    email_value = email_path.search(user_info)
+    email_value = search_claim_path(email_path, user_info, "EMAIL_ATTRIBUTE_PATH")
 
     if not isinstance(email_value, str) or not email_value.strip():
         # Get the expression string for the error message

@@ -8,6 +8,7 @@ from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
+from jmespath.exceptions import JMESPathError, JMESPathTypeError, ParseError
 
 from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
 
@@ -15,6 +16,32 @@ logger = logging.getLogger(__name__)
 
 # Pre-compiled default JMESPath for email extraction (standard OIDC "email" claim)
 DEFAULT_EMAIL_PATH = jmespath.compile("email")
+
+
+def search_claim_path(
+    compiled: jmespath.parser.ParsedResult,
+    claims: dict[str, Any],
+    attribute_name: str,
+) -> Any:
+    """Evaluate a compiled JMESPath expression against claims, tolerating type errors.
+
+    A syntactically valid expression can still raise at evaluation time when a claim is
+    absent or has an unexpected shape. For example, ``contains(groups[*], 'x')`` raises
+    JMESPathTypeError when the ``groups`` claim is missing, because ``groups[*]`` projects
+    to null and ``contains`` rejects a null subject. That outcome means the claim simply
+    isn't present in these claims, so it is treated as None and the caller falls back
+    (fetch UserInfo, or apply the default/strict role behavior) rather than failing login.
+    """
+    try:
+        return compiled.search(claims)
+    except JMESPathTypeError as e:
+        logger.debug(
+            "JMESPath expression for %s could not be evaluated against the current "
+            "claims (%s); treating the claim as absent.",
+            attribute_name,
+            e,
+        )
+        return None
 
 
 class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[misc]
@@ -111,7 +138,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
 
         try:
             return jmespath.compile(path)
-        except (jmespath.exceptions.JMESPathError, jmespath.exceptions.ParseError) as e:
+        except (JMESPathError, ParseError) as e:
             raise ValueError(
                 f"Invalid JMESPath expression in {attribute_name}: '{path}'. Error: {e}. "
                 "Hint: Claim keys with special characters (colons, dots, slashes, hyphens) "
@@ -165,7 +192,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         """
         # Check for email claim (required by application)
         # Use configured email_path (defaults to "email" claim)
-        email = self._compiled_email_path.search(claims)
+        email = search_claim_path(self._compiled_email_path, claims, "EMAIL_ATTRIBUTE_PATH")
         if not email or not isinstance(email, str) or not email.strip():
             # Email missing or invalid, need UserInfo
             return False
@@ -181,7 +208,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         if self._compiled_role_path:
             # Check if role claim EXISTS (not whether it maps successfully)
             # Optimization: If the claim exists but doesn't map, UserInfo won't help
-            result = self._compiled_role_path.search(claims)
+            result = search_claim_path(self._compiled_role_path, claims, "ROLE_ATTRIBUTE_PATH")
             role_value = self._normalize_to_single_string(result)
             if not role_value:
                 # Role claim missing - UserInfo might have a mappable role
@@ -223,7 +250,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         if not self._compiled_groups_path:
             return []
 
-        result = self._compiled_groups_path.search(claims)
+        result = search_claim_path(self._compiled_groups_path, claims, "GROUPS_ATTRIBUTE_PATH")
         return self._normalize_to_string_list(result)
 
     @staticmethod
@@ -298,7 +325,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
             return None
 
         # Extract role from claims
-        result = self._compiled_role_path.search(user_claims)
+        result = search_claim_path(self._compiled_role_path, user_claims, "ROLE_ATTRIBUTE_PATH")
         role_value = self._normalize_to_single_string(result)
 
         # If role claim is missing or empty
