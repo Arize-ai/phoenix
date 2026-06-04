@@ -19,6 +19,7 @@ import {
   testCodeEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
+import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
 import {
   editLlmEvaluatorDraftAgentTool,
   openLlmEvaluatorFormAgentTool,
@@ -88,6 +89,7 @@ const pageActionTools: AgentToolDefinition[] = [
  * no `registeredClientActions` entry and own what they do (built with the
  * lower-level `defineTool`):
  * - `bash` executes in the browser sandbox runtime;
+ * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
  * - `ask_user` and `batch_span_annotate` write a pending-approval store entry and
  *   defer their output to a later accept/reject.
@@ -99,6 +101,7 @@ const pageActionTools: AgentToolDefinition[] = [
  */
 const standaloneTools: AgentToolDefinition[] = [
   bashAgentTool,
+  getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
   askUserAgentTool,
   batchSpanAnnotateAgentTool,
