@@ -11215,6 +11215,17 @@
               }
             ],
             "title": "Model"
+          },
+          "experimentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Experimentid"
           }
         },
         "type": "object",
@@ -11222,7 +11233,7 @@
           "instanceId"
         ],
         "title": "PlaygroundInstanceContext",
-        "description": "One mounted playground instance and its current model selection."
+        "description": "One mounted playground instance and its current model selection.\n\n``experiment_id`` carries the relay node id of the experiment produced by\nthis instance's last dataset-backed run, or ``None`` when the instance has\nnot produced one. Ephemeral experiments are included: they remain queryable\nuntil the server sweeps them ~24h after their last update."
       },
       "Project": {
         "properties": {
