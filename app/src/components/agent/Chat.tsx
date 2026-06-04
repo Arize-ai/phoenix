@@ -1,6 +1,7 @@
 import { css, keyframes } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import {
+  useCallback,
   type CSSProperties,
   type ReactNode,
   useMemo,
@@ -363,7 +364,20 @@ export function ChatView({
   const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
     initial: "instant",
+    resize: "instant",
   });
+  const handleScrollRef = useCallback(
+    (element: HTMLElement | null) => {
+      scrollRef(element);
+      if (!element) {
+        return;
+      }
+      // Align restored chat history before first paint; useStickToBottom handles later
+      // resize/follow behavior once its observers are attached.
+      element.scrollTop = element.scrollHeight - element.clientHeight;
+    },
+    [scrollRef]
+  );
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Seed the input from any prompt staged for this session (e.g. forked from a
@@ -489,7 +503,7 @@ export function ChatView({
       >
         <ChatLantern isVisible={showsEmptyState} />
         <div className="chat__scroll-frame">
-          <div className="chat__scroll" ref={scrollRef}>
+          <div className="chat__scroll" ref={handleScrollRef}>
             <div className="chat__messages" ref={contentRef}>
               {showsEmptyState && (
                 <ChatEmptyState
