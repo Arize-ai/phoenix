@@ -1,6 +1,7 @@
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
+  getBashToolSummary,
 } from "@phoenix/agent/tools/bash";
 
 import {
@@ -15,11 +16,11 @@ import { stringifyToolValue } from "./toolPartTypes";
  * Returns the preview text for the collapsed bash tool summary.
  */
 export function getBashToolPreview(part: ToolInvocationPart): string {
-  const input = getBashToolInput(part.input);
-  if (input?.summary) {
-    return input.summary;
+  const summary = getBashToolSummary(part.input);
+  if (summary) {
+    return summary;
   }
-  const command = input?.command ?? stringifyToolValue(part.input);
+  const command = getBashToolInput(part.input)?.command;
   return command ? command.split("\n")[0] : "";
 }
 
