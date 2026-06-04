@@ -7,7 +7,10 @@ import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnn
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
@@ -56,6 +59,12 @@ import {
   LOAD_SKILL_TOOL_NAME,
   LoadSkillToolDetails,
 } from "./LoadSkillToolDetails";
+import {
+  formatRemovePromptInstanceState,
+  getRemovePromptInstanceStatusVariant,
+  getRemovePromptInstanceToolPreview,
+  RemovePromptInstanceToolDetails,
+} from "./RemovePromptInstanceToolDetails";
 import {
   formatSavePromptState,
   getSavePromptStatusVariant,
@@ -772,6 +781,14 @@ function getToolPresentation(
         stateLabel: formatSavePromptState(part),
         statusVariant: getSavePromptStatusVariant(part) ?? statusVariant,
         details: <SavePromptToolDetails part={part} />,
+      };
+    case REMOVE_PROMPT_INSTANCE_TOOL_NAME:
+      return {
+        preview: getRemovePromptInstanceToolPreview(part),
+        stateLabel: formatRemovePromptInstanceState(part),
+        statusVariant:
+          getRemovePromptInstanceStatusVariant(part) ?? statusVariant,
+        details: <RemovePromptInstanceToolDetails part={part} />,
       };
     case LOAD_DATASET_TOOL_NAME:
       return {

@@ -22,7 +22,10 @@ import type {
 } from "@phoenix/agent/tools/elicit";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
@@ -191,6 +194,11 @@ export function useAgentChat({
       if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
         store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
       }
+      if (toolCall.tool === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
+        store
+          .getState()
+          .setPendingPromptInstanceRemoval(toolCall.toolCallId, null);
+      }
       if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
         store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
       }
@@ -319,6 +327,8 @@ export function useAgentChat({
           const toolName = getToolName(part);
           if (toolName === EDIT_PROMPT_TOOL_NAME) {
             state.setPendingPromptEdit(part.toolCallId, null);
+          } else if (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
+            state.setPendingPromptInstanceRemoval(part.toolCallId, null);
           } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
             state.setPendingBatchSpanAnnotate(part.toolCallId, null);
           } else if (toolName === WRITE_PROMPT_TOOLS_TOOL_NAME) {

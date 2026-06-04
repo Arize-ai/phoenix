@@ -48,12 +48,16 @@ import {
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundOutput";
 import {
+  ADD_PROMPT_INSTANCE_TOOL_NAME,
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
+  createAddPromptInstanceClientAction,
   createClonePromptInstanceClientAction,
   createEditPromptClientAction,
   createReadPromptClientAction,
+  createRemovePromptInstanceClientAction,
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   createReadPromptToolsClientAction,
@@ -385,6 +389,7 @@ function PlaygroundContent() {
       registerClientAction,
       unregisterClientAction,
       setPendingPromptEdit,
+      setPendingPromptInstanceRemoval,
       setPendingSavePrompt,
       setPendingLoadDataset,
       setPendingPromptToolWrite,
@@ -396,6 +401,19 @@ function PlaygroundContent() {
     registerClientAction(
       CLONE_PROMPT_INSTANCE_TOOL_NAME,
       createClonePromptInstanceClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      ADD_PROMPT_INSTANCE_TOOL_NAME,
+      createAddPromptInstanceClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+      createRemovePromptInstanceClientAction({
+        playgroundStore,
+        setPendingPromptInstanceRemoval,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
     );
     registerClientAction(
       EDIT_PROMPT_TOOL_NAME,
@@ -461,6 +479,8 @@ function PlaygroundContent() {
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
+      unregisterClientAction(ADD_PROMPT_INSTANCE_TOOL_NAME);
+      unregisterClientAction(REMOVE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
       unregisterClientAction(SAVE_PROMPT_TOOL_NAME);
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
@@ -475,6 +495,13 @@ function PlaygroundContent() {
       )) {
         if (pendingEdit) {
           void pendingEdit.cancel?.();
+        }
+      }
+      for (const pendingRemoval of Object.values(
+        agentStore.getState().pendingPromptInstanceRemovalsByToolCallId
+      )) {
+        if (pendingRemoval) {
+          void pendingRemoval.cancel?.();
         }
       }
       for (const pendingSave of Object.values(

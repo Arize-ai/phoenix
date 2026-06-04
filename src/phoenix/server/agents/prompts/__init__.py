@@ -33,6 +33,12 @@ _READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS = get_template(
 _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
 )
+_ADD_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
+    "tools/ADD_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
+)
+_REMOVE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
+    "tools/REMOVE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
+)
 _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -116,6 +122,8 @@ class AgentPrompts:
     read_prompt_instance_tool: Template = _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     read_playground_output_tool: Template = _READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS
     clone_prompt_instance_tool: Template = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    add_prompt_instance_tool: Template = _ADD_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    remove_prompt_instance_tool: Template = _REMOVE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     edit_prompt_instance_tool: Template = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     save_prompt_tool: Template = _SAVE_PROMPT_TOOL_INSTRUCTIONS
     read_prompt_tools_tool: Template = _READ_PROMPT_TOOLS_TOOL_INSTRUCTIONS

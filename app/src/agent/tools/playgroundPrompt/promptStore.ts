@@ -4,6 +4,7 @@ import type {
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground";
 import {
+  createNormalizedPlaygroundInstance,
   generateInstanceId,
   generateMessageId,
   type PlaygroundStore,
@@ -193,6 +194,151 @@ export function clonePromptInstance({
       clonedLabel: cloned.ok ? cloned.output.label : "",
       revision: cloned.ok ? cloned.output.revision : source.output.revision,
       message: "Prompt instance cloned for comparison.",
+    },
+  };
+}
+
+/**
+ * Adds a fresh default chat prompt instance while inheriting runnable
+ * playground configuration from the first mounted instance.
+ */
+export function addPromptInstance({
+  playgroundStore,
+}: {
+  playgroundStore: PlaygroundStore;
+}): PromptActionResult<{
+  status: "added";
+  addedInstanceId: number;
+  addedLabel: string;
+  revision: string;
+  message: string;
+}> {
+  const state = playgroundStore.getState();
+  if (state.instances.length >= NUM_MAX_PLAYGROUND_INSTANCES) {
+    return {
+      ok: false,
+      error: `Cannot add prompt instance: the playground supports at most ${NUM_MAX_PLAYGROUND_INSTANCES} comparison instances. Delete an existing instance before adding another.`,
+    };
+  }
+  if (state.instances.some((instance) => instance.activeRunId != null)) {
+    return {
+      ok: false,
+      error: "Cannot add prompt instance while the playground is running.",
+    };
+  }
+  const firstInstance = state.instances[0];
+  if (!firstInstance) {
+    return {
+      ok: false,
+      error:
+        "Cannot add prompt instance because the playground has no source configuration.",
+    };
+  }
+
+  const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
+  const addedInstance = {
+    ...instance,
+    model: firstInstance.model,
+    tools: firstInstance.tools,
+    toolChoice: firstInstance.toolChoice,
+    prompt: null,
+  };
+  playgroundStore.setState(
+    (currentState) => ({
+      ...currentState,
+      allInstanceMessages: {
+        ...currentState.allInstanceMessages,
+        ...instanceMessages,
+      },
+      instances: [...currentState.instances, addedInstance],
+    }),
+    false,
+    { type: "addPromptInstance/agent" }
+  );
+
+  const snapshot = getPromptSnapshot({
+    playgroundStore,
+    instanceId: addedInstance.id,
+  });
+  if (!snapshot.ok) return snapshot;
+
+  return {
+    ok: true,
+    output: {
+      status: "added",
+      addedInstanceId: snapshot.output.instanceId,
+      addedLabel: snapshot.output.label,
+      revision: snapshot.output.revision,
+      message: "Default prompt instance added for comparison.",
+    },
+  };
+}
+
+/**
+ * Removes one prompt instance using the same minimum-instance guard as the UI.
+ */
+export function removePromptInstance({
+  playgroundStore,
+  instanceId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId: number;
+}): PromptActionResult<{
+  status: "removed";
+  instanceId: number;
+  label: string;
+  message: string;
+}> {
+  const removableInstance = resolveRemovablePromptInstance({
+    playgroundStore,
+    instanceId,
+  });
+  if (!removableInstance.ok) return removableInstance;
+
+  playgroundStore.getState().deleteInstance(instanceId);
+  return {
+    ok: true,
+    output: {
+      status: "removed",
+      instanceId: removableInstance.output.instanceId,
+      label: removableInstance.output.label,
+      message: "Prompt instance removed.",
+    },
+  };
+}
+
+export function resolveRemovablePromptInstance({
+  playgroundStore,
+  instanceId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId: number;
+}): PromptActionResult<{
+  instanceId: number;
+  label: string;
+}> {
+  const state = playgroundStore.getState();
+  if (state.instances.length <= 1) {
+    return {
+      ok: false,
+      error:
+        "Cannot remove prompt instance because the playground must keep at least one instance.",
+    };
+  }
+  const instanceIndex = state.instances.findIndex(
+    (candidate) => candidate.id === instanceId
+  );
+  if (instanceIndex === -1) {
+    return {
+      ok: false,
+      error: `Playground instance ${instanceId} was not found.`,
+    };
+  }
+  return {
+    ok: true,
+    output: {
+      instanceId,
+      label: getInstanceLabel(instanceIndex),
     },
   };
 }
