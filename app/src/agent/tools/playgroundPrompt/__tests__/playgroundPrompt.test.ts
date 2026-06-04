@@ -142,7 +142,6 @@ describe("playground prompt agent tools", () => {
       },
       dirty: false,
     });
-    const readAction = createReadPromptClientAction({ playgroundStore });
     const addAction = createAddPromptInstanceClientAction({ playgroundStore });
 
     const addResult = await addAction({});
@@ -151,17 +150,17 @@ describe("playground prompt agent tools", () => {
     if (!addResult.ok) return;
     const addOutput = JSON.parse(addResult.output ?? "") as {
       status: "added";
-      addedInstanceId: number;
-      addedLabel: string;
-      revision: string;
+      addedInstance: PromptSnapshot;
     };
     expect(addOutput.status).toBe("added");
-    expect(addOutput.addedLabel).toBe("B");
-    expect(addOutput.revision).toMatch(/^prompt-/);
+    expect(addOutput.addedInstance.label).toBe("B");
+    expect(addOutput.addedInstance.revision).toMatch(/^prompt-/);
     expect(playgroundStore.getState().instances).toHaveLength(2);
     const addedInstance = playgroundStore
       .getState()
-      .instances.find((instance) => instance.id === addOutput.addedInstanceId);
+      .instances.find(
+        (instance) => instance.id === addOutput.addedInstance.instanceId
+      );
     expect(addedInstance?.model.modelName).toBe("configured-model");
     expect(addedInstance?.tools).toEqual([functionTool(7, "lookup_account")]);
     expect(addedInstance?.toolChoice).toEqual({
@@ -169,14 +168,8 @@ describe("playground prompt agent tools", () => {
       functionName: "lookup_account",
     });
     expect(addedInstance?.prompt).toBeNull();
-
-    const addedRead = await readAction({
-      instanceId: addOutput.addedInstanceId,
-    });
-    expect(addedRead.ok).toBe(true);
-    if (!addedRead.ok) return;
-    const addedSnapshot = JSON.parse(addedRead.output ?? "") as PromptSnapshot;
-    expect(addedSnapshot.messages).toEqual([
+    expect(addOutput.addedInstance.prompt).toBeNull();
+    expect(addOutput.addedInstance.messages).toEqual([
       expect.objectContaining({ role: "system", content: "You are a chatbot" }),
       expect.objectContaining({ role: "user", content: "{{question}}" }),
     ]);

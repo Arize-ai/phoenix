@@ -26,7 +26,8 @@ dataset-backed evaluation loop is in scope.
 5. Use `add_prompt_instance` when the user wants a fresh comparison instance that starts from the
    default prompt messages. Use `clone_prompt_instance` when comparing alternatives should preserve
    existing prompt content as the starting point. Discuss variants by their alphabetic labels, but
-   pass numeric instance IDs to tools.
+   pass numeric instance IDs to tools. After adding, use the returned `addedInstance` snapshot for
+   follow-up edits.
 6. Use `set_variable_values` when the user provides manual values for prompt template variables.
 7. Call `run_playground` only when the user asks to run, try, test, or compare the current prompt.
    Treat the output as qualitative feedback rather than dataset-backed evidence.

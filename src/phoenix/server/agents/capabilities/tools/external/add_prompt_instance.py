@@ -20,9 +20,9 @@ DESCRIPTION = (
     "chat prompt messages instead of copying existing prompt messages. The new "
     "instance inherits runnable playground configuration from the current playground "
     "but has no saved prompt association. The playground supports at most 4 comparison "
-    "instances; this tool is rejected when 4 instances already exist. After adding "
-    "an instance, call `read_prompt_instance` on the returned instance ID before "
-    "editing it."
+    "instances; this tool is rejected when 4 instances already exist. The output "
+    "includes an `addedInstance` snapshot with the instance ID, message IDs, and "
+    "revision needed to edit the new instance."
 )
 
 PARAMETERS: dict[str, Any] = {

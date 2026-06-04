@@ -208,9 +208,7 @@ export function addPromptInstance({
   playgroundStore: PlaygroundStore;
 }): PromptActionResult<{
   status: "added";
-  addedInstanceId: number;
-  addedLabel: string;
-  revision: string;
+  addedInstance: PromptSnapshot;
   message: string;
 }> {
   const state = playgroundStore.getState();
@@ -266,9 +264,7 @@ export function addPromptInstance({
     ok: true,
     output: {
       status: "added",
-      addedInstanceId: snapshot.output.instanceId,
-      addedLabel: snapshot.output.label,
-      revision: snapshot.output.revision,
+      addedInstance: snapshot.output,
       message: "Default prompt instance added for comparison.",
     },
   };

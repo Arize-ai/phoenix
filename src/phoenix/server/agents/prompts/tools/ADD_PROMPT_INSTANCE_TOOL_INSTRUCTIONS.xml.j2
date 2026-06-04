@@ -8,6 +8,6 @@
     - This creates a prompt instance with the playground default chat messages, fresh message IDs, and no saved prompt association, while inheriting runnable model and tool configuration from the playground.
     - Use `clone_prompt_instance` instead when the user wants to keep the existing prompt content as the starting point for a variant.
     - The playground supports at most 4 comparison instances; if the limit is reached, ask the user which instance to remove before retrying.
-    - After adding, call `read_prompt_instance` on the returned numeric `addedInstanceId` before calling `edit_prompt_instance`.
+    - After adding, use the returned `addedInstance` snapshot for the instance ID, message IDs, and revision needed by `edit_prompt_instance`.
   </guidelines>
 </tool>
