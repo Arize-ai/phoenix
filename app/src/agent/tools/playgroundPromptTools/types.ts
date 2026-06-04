@@ -156,6 +156,8 @@ export type PendingPromptToolWrite = {
   /** Agent session that owns the unresolved write_prompt_tools tool call. */
   sessionId: string;
   instanceId: number;
+  /** Provider used to render the approval diff. */
+  provider: ModelProvider;
   expectedRevision: string;
   /** The validated batch re-applied on accept. */
   input: WritePromptToolsInput;

@@ -25,6 +25,22 @@ export function bindPendingPromptToolWriteActions({
     ...pendingWrite,
     accept: async ({ approvalSource = "user" } = {}) => {
       setPendingPromptToolWrite(pendingWrite.toolCallId, null);
+      const currentInstance = playgroundStore
+        .getState()
+        .instances.find((instance) => instance.id === pendingWrite.instanceId);
+      if (
+        currentInstance != null &&
+        currentInstance.model.provider !== pendingWrite.provider
+      ) {
+        await addToolOutput({
+          state: "output-error",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: pendingWrite.toolCallId,
+          errorText:
+            "The playground provider changed since PXI proposed these prompt tool changes. Ask PXI to re-read the prompt tools and propose the change again.",
+        });
+        return;
+      }
       const result = applyWritePromptTools({
         playgroundStore,
         input: pendingWrite.input,

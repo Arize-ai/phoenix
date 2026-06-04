@@ -903,6 +903,53 @@ describe("playground prompt tools agent tools", () => {
       ).toEqual(["added_later"]);
     });
 
+    it("rejects the accept if the provider changed after the diff was proposed", async () => {
+      const playgroundStore = newStore();
+      const agentStore = createAgentStore();
+      const write = makeWriteAction(playgroundStore, agentStore);
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      await write(
+        {
+          instanceId: 0,
+          expectedRevision: revisionOf(playgroundStore),
+          tools: [{ name: "get_weather" }],
+        },
+        {
+          toolCallId: "tc-stale-provider",
+          sessionId: "s-1",
+          addToolOutput,
+        }
+      );
+      const model = playgroundStore.getState().instances[0]!.model;
+      playgroundStore.getState().updateInstance({
+        instanceId: 0,
+        patch: { model: { ...model, provider: "ANTHROPIC" } },
+        dirty: false,
+      });
+
+      const pending =
+        agentStore.getState().pendingPromptToolWritesByToolCallId[
+          "tc-stale-provider"
+        ];
+      await pending!.accept!();
+
+      expect(addToolOutput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          state: "output-error",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: "tc-stale-provider",
+          errorText: expect.stringContaining("provider changed"),
+        })
+      );
+      expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(0);
+      expect(
+        agentStore.getState().pendingPromptToolWritesByToolCallId[
+          "tc-stale-provider"
+        ]
+      ).toBeUndefined();
+    });
+
     it("requires tool call context", async () => {
       const playgroundStore = newStore();
       const agentStore = createAgentStore();
