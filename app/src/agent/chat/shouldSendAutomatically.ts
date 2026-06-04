@@ -16,6 +16,8 @@ import {
 import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
 export const USER_INTERRUPT_ERROR = "The user has interrupted this tool call.";
@@ -36,7 +38,7 @@ export function shouldSendAutomaticallyAfterToolOutput({
   if (hasInterruptedToolCall({ messages, errorText: SYSTEM_INTERRUPT_ERROR })) {
     return false;
   }
-  if (hasPendingEditNavigationCancel(messages)) {
+  if (hasApprovalNavigationCancel(messages)) {
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
@@ -61,7 +63,7 @@ function hasInterruptedToolCall({
   });
 }
 
-function hasPendingEditNavigationCancel(messages: UIMessage[]): boolean {
+function hasApprovalNavigationCancel(messages: UIMessage[]): boolean {
   const message = messages[messages.length - 1];
   if (!message || message.role !== "assistant") {
     return false;
@@ -77,6 +79,8 @@ function hasPendingEditNavigationCancel(messages: UIMessage[]): boolean {
     return (
       (toolName === EDIT_PROMPT_TOOL_NAME &&
         part.errorText === EDIT_PROMPT_NAVIGATION_CANCEL_ERROR) ||
+      (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME &&
+        part.errorText === REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR) ||
       (toolName === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME &&
         part.errorText === EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR) ||
       (toolName === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME &&

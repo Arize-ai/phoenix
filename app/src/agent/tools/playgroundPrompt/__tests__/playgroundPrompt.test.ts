@@ -6,6 +6,8 @@ import {
   createReadPromptClientAction,
   createRemovePromptInstanceClientAction,
   EDIT_PROMPT_TOOL_NAME,
+  parseRemovePromptInstanceOutput,
+  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
   type PromptSnapshot,
 } from "@phoenix/agent/tools/playgroundPrompt";
@@ -25,6 +27,10 @@ const functionTool = (id: number, name: string): Tool => ({
   editorType: "json",
   definition: { name },
 });
+
+function getFirstToolOutput(addToolOutput: ReturnType<typeof vi.fn>) {
+  return addToolOutput.mock.calls[0]?.[0].output;
+}
 
 describe("playground prompt agent tools", () => {
   beforeEach(() => {
@@ -310,6 +316,17 @@ describe("playground prompt agent tools", () => {
         }),
       })
     );
+    expect(
+      parseRemovePromptInstanceOutput(getFirstToolOutput(addToolOutput))
+    ).toEqual(
+      expect.objectContaining({
+        status: "removed",
+        instanceId,
+        label: "B",
+        acceptedBy: "user",
+        message: "Prompt instance removed.",
+      })
+    );
   });
 
   it("preserves the instance when remove_prompt_instance is rejected", async () => {
@@ -350,6 +367,16 @@ describe("playground prompt agent tools", () => {
           instanceId,
           label: "B",
         }),
+      })
+    );
+    expect(
+      parseRemovePromptInstanceOutput(getFirstToolOutput(addToolOutput))
+    ).toEqual(
+      expect.objectContaining({
+        status: "rejected",
+        instanceId,
+        label: "B",
+        message: "User rejected the prompt instance removal.",
       })
     );
   });
@@ -393,6 +420,17 @@ describe("playground prompt agent tools", () => {
         }),
       })
     );
+    expect(
+      parseRemovePromptInstanceOutput(getFirstToolOutput(addToolOutput))
+    ).toEqual(
+      expect.objectContaining({
+        status: "removed",
+        instanceId,
+        label: "B",
+        acceptedBy: "auto",
+        message: "Prompt instance removal auto-approved.",
+      })
+    );
   });
 
   it("fails stale remove_prompt_instance approvals when the instance can no longer be removed", async () => {
@@ -429,6 +467,62 @@ describe("playground prompt agent tools", () => {
         tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
         toolCallId: "tool-call-stale",
         errorText: expect.stringContaining("at least one instance"),
+      })
+    );
+  });
+
+  it("cancels a pending remove_prompt_instance approval when the playground becomes unavailable", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().addInstance();
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+    });
+    let resolveToolOutput: (() => void) | undefined;
+    const toolOutputPromise = new Promise<void>((resolve) => {
+      resolveToolOutput = resolve;
+    });
+    const addToolOutput = vi.fn().mockReturnValue(toolOutputPromise);
+    const instanceId = playgroundStore.getState().instances[1]!.id;
+
+    const result = await removeAction(
+      { instanceId },
+      {
+        toolCallId: "tool-call-remove-cancel",
+        sessionId: "session-1",
+        addToolOutput,
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    const pendingRemoval =
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-remove-cancel"
+      ];
+    expect(pendingRemoval).toBeDefined();
+
+    const cancelPromise = pendingRemoval!.cancel!();
+
+    expect(
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-remove-cancel"
+      ]
+    ).toBeUndefined();
+    expect(playgroundStore.getState().instances).toHaveLength(2);
+    resolveToolOutput?.();
+    await cancelPromise;
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-remove-cancel",
+        errorText: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
       })
     );
   });

@@ -489,7 +489,37 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("rejects invalid add_prompt_instance input", async () => {
+  it("normalizes empty add_prompt_instance inputs", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "added" });
+    store
+      .getState()
+      .registerClientAction(ADD_PROMPT_INSTANCE_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-add-extra",
+        toolName: ADD_PROMPT_INSTANCE_TOOL_NAME,
+        input: { instanceId: 1 },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({});
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: ADD_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-add-extra",
+        output: "added",
+      })
+    );
+  });
+
+  it("rejects malformed add_prompt_instance input", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const action = vi.fn();
@@ -499,9 +529,9 @@ describe("toolRegistry", () => {
 
     await handleRegisteredAgentToolCall({
       toolCall: {
-        toolCallId: "tool-call-add-invalid",
+        toolCallId: "tool-call-add-malformed",
         toolName: ADD_PROMPT_INSTANCE_TOOL_NAME,
-        input: { instanceId: 1 },
+        input: "bad input",
       },
       sessionId: "session-1",
       addToolOutput,
@@ -513,7 +543,7 @@ describe("toolRegistry", () => {
       expect.objectContaining({
         state: "output-error",
         tool: ADD_PROMPT_INSTANCE_TOOL_NAME,
-        toolCallId: "tool-call-add-invalid",
+        toolCallId: "tool-call-add-malformed",
         errorText: `Invalid ${ADD_PROMPT_INSTANCE_TOOL_NAME} input. Expected {}.`,
       })
     );

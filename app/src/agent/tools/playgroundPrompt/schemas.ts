@@ -2,6 +2,7 @@ import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import {
   chatMessageRolesSchema,
   chatMessageSchema,
@@ -30,7 +31,7 @@ export const clonePromptInstanceInputSchema = z
     return typeof instanceId === "number" ? { instanceId } : {};
   });
 
-export const addPromptInstanceInputSchema = z.object({}).strict();
+export const addPromptInstanceInputSchema = emptyToolInputSchema;
 
 export const removePromptInstanceInputSchema = z
   .preprocess(
