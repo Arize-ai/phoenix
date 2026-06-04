@@ -7,7 +7,7 @@
   <guidelines>
     - This tool has no arguments. The browser decides what to run from the current playground UI state.
     - It runs all currently visible comparison instances together. If the user asks for only one instance, explain that the current UI action runs all visible instances.
-    - Do not call this while a playground run is already active; wait for the current run to finish or ask the user whether to stop it.
+    - Do not call this while a playground run is already active; wait for the current run to finish or ask the user whether to stop it. If the user asks to stop it, call `cancel_playground_run`.
     - After the run finishes, call `read_playground_output` to inspect the raw output and retrieve traceId values.
   </guidelines>
 </tool>

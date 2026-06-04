@@ -49,6 +49,9 @@ _WRITE_PROMPT_TOOLS_TOOL_INSTRUCTIONS = get_template(
     "tools/WRITE_PROMPT_TOOLS_TOOL_INSTRUCTIONS.xml.j2"
 )
 _RUN_PLAYGROUND_TOOL_INSTRUCTIONS = get_template("tools/RUN_PLAYGROUND_TOOL_INSTRUCTIONS.xml.j2")
+_CANCEL_PLAYGROUND_RUN_TOOL_INSTRUCTIONS = get_template(
+    "tools/CANCEL_PLAYGROUND_RUN_TOOL_INSTRUCTIONS.xml.j2"
+)
 _SAVE_PROMPT_TOOL_INSTRUCTIONS = get_template("tools/SAVE_PROMPT_TOOL_INSTRUCTIONS.xml.j2")
 _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS.xml.j2"
@@ -132,6 +135,7 @@ class AgentPrompts:
     read_prompt_tools_tool: Template = _READ_PROMPT_TOOLS_TOOL_INSTRUCTIONS
     write_prompt_tools_tool: Template = _WRITE_PROMPT_TOOLS_TOOL_INSTRUCTIONS
     run_playground_tool: Template = _RUN_PLAYGROUND_TOOL_INSTRUCTIONS
+    cancel_playground_run_tool: Template = _CANCEL_PLAYGROUND_RUN_TOOL_INSTRUCTIONS
     set_variable_values_tool: Template = _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS
     set_template_variables_path_tool: Template = _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS
     set_appended_messages_path_tool: Template = _SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS

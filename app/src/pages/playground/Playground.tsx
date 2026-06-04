@@ -70,6 +70,8 @@ import {
   WRITE_PROMPT_TOOLS_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import {
+  CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+  createCancelPlaygroundRunClientAction,
   createRunPlaygroundClientAction,
   RUN_PLAYGROUND_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundRun";
@@ -140,6 +142,7 @@ import { PlaygroundOutput } from "./PlaygroundOutput";
 import { PlaygroundRunButton } from "./PlaygroundRunButton";
 import { PlaygroundTemplate } from "./PlaygroundTemplate";
 import { TemplateFormatRadioGroup } from "./TemplateFormatRadioGroup";
+import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 const playgroundWrapCSS = css`
   display: flex;
@@ -303,6 +306,7 @@ const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 function PlaygroundContent() {
   const agentStore = useAgentStore();
   const playgroundStore = usePlaygroundStore();
+  const cancelPlaygroundRun = useCancelPlaygroundRun();
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
   const searchParamsRef = useRef(searchParams);
@@ -542,6 +546,21 @@ function PlaygroundContent() {
       }
     };
   }, [agentStore, playgroundStore, setSearchParams]);
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    registerClientAction(
+      CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+      createCancelPlaygroundRunClientAction({
+        playgroundStore,
+        cancelRun: cancelPlaygroundRun,
+      })
+    );
+    return () => {
+      unregisterClientAction(CANCEL_PLAYGROUND_RUN_TOOL_NAME);
+    };
+  }, [agentStore, cancelPlaygroundRun, playgroundStore]);
 
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =

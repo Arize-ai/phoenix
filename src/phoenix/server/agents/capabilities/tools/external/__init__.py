@@ -13,6 +13,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     ask_user,
     bash,
     batch_span_annotate,
+    cancel_playground_run,
     clone_prompt_instance,
     edit_code_evaluator_draft,
     edit_llm_evaluator_draft,
@@ -48,6 +49,9 @@ from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCa
 from phoenix.server.agents.capabilities.tools.external.bash import BashCapability
 from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
     BatchSpanAnnotateCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.cancel_playground_run import (
+    CancelPlaygroundRunCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.clone_prompt_instance import (
     ClonePromptInstanceCapability,
@@ -138,6 +142,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         add_prompt_instance.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
         bash.TOOL_DEFINITION,
+        cancel_playground_run.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
         edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_llm_evaluator_draft.TOOL_DEFINITION,
@@ -206,6 +211,7 @@ def get_external_tool_capability_function(
         SavePromptCapability(instructions=prompts.save_prompt_tool),
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
+        CancelPlaygroundRunCapability(instructions=prompts.cancel_playground_run_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
         SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
         SetAppendedMessagesPathCapability(instructions=prompts.set_appended_messages_path_tool),
@@ -232,6 +238,7 @@ __all__ = [
     "AddPromptInstanceCapability",
     "BatchSpanAnnotateCapability",
     "BashCapability",
+    "CancelPlaygroundRunCapability",
     "ClonePromptInstanceCapability",
     "EditCodeEvaluatorDraftCapability",
     "EditLlmEvaluatorDraftCapability",

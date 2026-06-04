@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { graphql, useMutation } from "react-relay";
 
 import {
   Button,
@@ -12,11 +11,11 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
-import type { PlaygroundRunButtonDismissMutation } from "./__generated__/PlaygroundRunButtonDismissMutation.graphql";
-import type { PlaygroundRunButtonStopMutation } from "./__generated__/PlaygroundRunButtonStopMutation.graphql";
+import { useCancelPlaygroundRun } from "./useCancelPlaygroundRun";
 
 export function PlaygroundRunButton() {
   const modifierKey = useModifierKey();
+  const cancelPlaygroundRun = useCancelPlaygroundRun();
   const { runPlaygroundInstances, cancelPlaygroundInstances, instances } =
     usePlaygroundContext((state) => ({
       runPlaygroundInstances: state.runPlaygroundInstances,
@@ -27,51 +26,18 @@ export function PlaygroundRunButton() {
     state.instances.some((instance) => instance.activeRunId != null)
   );
 
-  const [stopExperiment] = useMutation<PlaygroundRunButtonStopMutation>(graphql`
-    mutation PlaygroundRunButtonStopMutation($experimentId: ID!) {
-      stopExperiment(experimentId: $experimentId) {
-        job {
-          id
-          status
-        }
-      }
-    }
-  `);
-
-  const [dismissExperiment] =
-    useMutation<PlaygroundRunButtonDismissMutation>(graphql`
-      mutation PlaygroundRunButtonDismissMutation($experimentId: ID!) {
-        dismissExperiment(experimentId: $experimentId) {
-          experiment {
-            id
-          }
-        }
-      }
-    `);
-
   const toggleRunning = useCallback(() => {
     if (isRunning) {
-      for (const instance of instances) {
-        if (instance.experiment) {
-          stopExperiment({
-            variables: { experimentId: instance.experiment.id },
-          });
-          dismissExperiment({
-            variables: { experimentId: instance.experiment.id },
-          });
-        }
-      }
-      cancelPlaygroundInstances();
+      cancelPlaygroundRun({ instances, cancelPlaygroundInstances });
     } else {
       runPlaygroundInstances();
     }
   }, [
     isRunning,
     cancelPlaygroundInstances,
+    cancelPlaygroundRun,
     runPlaygroundInstances,
     instances,
-    stopExperiment,
-    dismissExperiment,
   ]);
   useHotkeys(
     "mod+enter",

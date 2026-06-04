@@ -1,0 +1,13 @@
+<tool name="cancel_playground_run">
+  <description>Cancel the active playground run using the current browser UI state.</description>
+  <when_to_use>
+    - The user asks to stop, cancel, interrupt, or abort an active playground run.
+    - A playground run is already active and the user wants to start over or make edits before running again.
+  </when_to_use>
+  <guidelines>
+    - This tool has no arguments. The browser decides what to cancel from the current playground UI state.
+    - It cancels all currently visible comparison instances together, matching the playground Stop button.
+    - Do not call this when no playground run is active; tell the user there is no active run to cancel.
+    - After cancellation, only call `run_playground` again if the user asks to rerun.
+  </guidelines>
+</tool>
