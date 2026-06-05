@@ -9,6 +9,7 @@ from phoenix.server.agents.capabilities.base import (
     AbstractStaticCapability,
 )
 from phoenix.server.agents.capabilities.tools.external import (
+    add_prompt_instance,
     ask_user,
     bash,
     batch_span_annotate,
@@ -26,6 +27,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     read_playground_output,
     read_prompt_instance,
     read_prompt_tools,
+    remove_prompt_instance,
     render_generative_ui,
     run_code_evaluator_draft,
     run_llm_evaluator_draft,
@@ -37,6 +39,9 @@ from phoenix.server.agents.capabilities.tools.external import (
     set_time_range,
     set_variable_values,
     write_prompt_tools,
+)
+from phoenix.server.agents.capabilities.tools.external.add_prompt_instance import (
+    AddPromptInstanceCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
 from phoenix.server.agents.capabilities.tools.external.bash import BashCapability
@@ -85,6 +90,9 @@ from phoenix.server.agents.capabilities.tools.external.read_prompt_instance impo
 from phoenix.server.agents.capabilities.tools.external.read_prompt_tools import (
     ReadPromptToolsCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.remove_prompt_instance import (
+    RemovePromptInstanceCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
     RenderGenerativeUICapability,
 )
@@ -123,6 +131,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
     tool_def.name: tool_def
     for tool_def in (
         ask_user.TOOL_DEFINITION,
+        add_prompt_instance.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
         bash.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
@@ -140,6 +149,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         read_playground_output.TOOL_DEFINITION,
         list_playground_model_targets.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
+        remove_prompt_instance.TOOL_DEFINITION,
         run_code_evaluator_draft.TOOL_DEFINITION,
         run_llm_evaluator_draft.TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
@@ -185,6 +195,8 @@ def get_external_tool_capability_function(
         ReadPromptToolsCapability(instructions=prompts.read_prompt_tools_tool),
         ReadPlaygroundOutputCapability(instructions=prompts.read_playground_output_tool),
         ClonePromptInstanceCapability(instructions=prompts.clone_prompt_instance_tool),
+        AddPromptInstanceCapability(instructions=prompts.add_prompt_instance_tool),
+        RemovePromptInstanceCapability(instructions=prompts.remove_prompt_instance_tool),
         EditPromptInstanceCapability(instructions=prompts.edit_prompt_instance_tool),
         SavePromptCapability(instructions=prompts.save_prompt_tool),
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
@@ -211,6 +223,7 @@ def get_external_tool_capability_function(
 
 __all__ = [
     "AskUserCapability",
+    "AddPromptInstanceCapability",
     "BatchSpanAnnotateCapability",
     "BashCapability",
     "ClonePromptInstanceCapability",
@@ -227,6 +240,7 @@ __all__ = [
     "ReadPromptInstanceCapability",
     "ReadPromptToolsCapability",
     "ReadPlaygroundOutputCapability",
+    "RemovePromptInstanceCapability",
     "RenderGenerativeUICapability",
     "RunPlaygroundCapability",
     "SavePromptCapability",

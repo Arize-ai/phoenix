@@ -18,7 +18,10 @@ import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluato
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
-import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
+import type {
+  PendingPromptEdit,
+  PendingPromptInstanceRemoval,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
@@ -368,6 +371,13 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     edit: PendingPromptEdit | null
   ) => void;
+  pendingPromptInstanceRemovalsByToolCallId: Partial<
+    Record<string, PendingPromptInstanceRemoval>
+  >;
+  setPendingPromptInstanceRemoval: (
+    toolCallId: string,
+    removal: PendingPromptInstanceRemoval | null
+  ) => void;
   pendingBatchSpanAnnotatesByToolCallId: Partial<
     Record<string, PendingBatchSpanAnnotate>
   >;
@@ -546,6 +556,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
+    pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
@@ -1053,6 +1064,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingPromptEdit" }
+      );
+    },
+
+    setPendingPromptInstanceRemoval: (toolCallId, removal) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPromptInstanceRemovalsByToolCallId };
+          if (removal) {
+            next[toolCallId] = removal;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPromptInstanceRemovalsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPromptInstanceRemoval" }
       );
     },
 

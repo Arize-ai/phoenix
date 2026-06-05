@@ -4,12 +4,15 @@ import type { ApprovalSource } from "@phoenix/agent/tools/approval";
 import type { ChatMessage, PlaygroundStore } from "@phoenix/store/playground";
 
 import type {
+  addPromptInstanceInputSchema,
   clonePromptInstanceInputSchema,
   editPromptActionContextSchema,
   editPromptInputSchema,
   editPromptOperationSchema,
   PromptEditToolOutputSender,
   readPromptInputSchema,
+  removePromptInstanceInputSchema,
+  removePromptInstanceOutputSchema,
 } from "./schemas";
 
 export type { PromptEditToolOutputSender } from "./schemas";
@@ -20,6 +23,18 @@ export type ReadPromptInput = z.output<typeof readPromptInputSchema>;
 
 export type ClonePromptInstanceInput = z.output<
   typeof clonePromptInstanceInputSchema
+>;
+
+export type AddPromptInstanceInput = z.output<
+  typeof addPromptInstanceInputSchema
+>;
+
+export type RemovePromptInstanceInput = z.output<
+  typeof removePromptInstanceInputSchema
+>;
+
+export type RemovePromptInstanceOutput = z.output<
+  typeof removePromptInstanceOutputSchema
 >;
 
 export type PromptMessageSnapshot = {
@@ -108,6 +123,17 @@ export type PendingPromptEdit = {
   cancel?: () => Promise<void>;
 };
 
+export type PendingPromptInstanceRemoval = {
+  toolCallId: string;
+  /** Agent session that owns the unresolved remove_prompt_instance tool call. */
+  sessionId: string;
+  instanceId: number;
+  label: string;
+  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
+  reject?: () => Promise<void>;
+  cancel?: () => Promise<void>;
+};
+
 export type EditPromptActionContext = z.output<
   typeof editPromptActionContextSchema
 >;
@@ -122,6 +148,16 @@ export type BindPendingPromptEditOptions = {
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
+  ) => void;
+};
+
+export type BindPendingPromptInstanceRemovalOptions = {
+  pendingRemoval: PendingPromptInstanceRemoval;
+  playgroundStore: PlaygroundStore;
+  addToolOutput: PromptEditToolOutputSender;
+  setPendingPromptInstanceRemoval: (
+    toolCallId: string,
+    removal: PendingPromptInstanceRemoval | null
   ) => void;
 };
 

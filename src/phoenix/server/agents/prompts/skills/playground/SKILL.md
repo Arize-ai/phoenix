@@ -23,9 +23,11 @@ dataset-backed evaluation loop is in scope.
    success criteria. Keep the prompt directly tied to the user's stated goal.
 4. Use `edit_prompt_instance` for changes to the mounted prompt so the user can review the diff
    before accepting it.
-5. Use `clone_prompt_instance` when comparing alternatives would help the user choose between
-   prompt variants. Discuss variants by their alphabetic labels, but pass numeric instance IDs to
-   tools.
+5. Use `add_prompt_instance` when the user wants a fresh comparison instance that starts from the
+   default prompt messages. Use `clone_prompt_instance` when comparing alternatives should preserve
+   existing prompt content as the starting point. Discuss variants by their alphabetic labels, but
+   pass numeric instance IDs to tools. After adding, use the returned `addedInstance` snapshot for
+   follow-up edits.
 6. Use `set_variable_values` when the user provides manual values for prompt template variables.
 7. Call `run_playground` only when the user asks to run, try, test, or compare the current prompt.
    Treat the output as qualitative feedback rather than dataset-backed evidence.
@@ -58,8 +60,10 @@ they are comparing prompt variants using evaluator results.
    manual playground runs. Separate model randomness from prompt issues when possible.
 6. Use or add evaluators when they make issue detection more systematic, especially for failures
    that are hard to spot by manual review alone.
-7. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance` or
-   `clone_prompt_instance` to create the next candidate.
+7. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance`,
+   `add_prompt_instance`, or `clone_prompt_instance` to create the next candidate. Choose
+   `add_prompt_instance` for a candidate that starts from the default prompt messages and
+   `clone_prompt_instance` for a candidate that should start from existing prompt content.
 8. Rerun the playground and compare experiments. Look for evaluator improvements, fewer repeated
    failure modes, and acceptable tradeoffs in output quality.
 9. Use `save_prompt` to save a prompt as a new version only after the evidence shows an

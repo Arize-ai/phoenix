@@ -74,16 +74,22 @@ import {
   type ReadPlaygroundOutputInput,
 } from "@phoenix/agent/tools/playgroundOutput";
 import {
+  ADD_PROMPT_INSTANCE_TOOL_NAME,
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
+  parseAddPromptInstanceInput,
   parseClonePromptInstanceInput,
   parseEditPromptInput,
   parseReadPromptInput,
+  parseRemovePromptInstanceInput,
+  type AddPromptInstanceInput,
   type ClonePromptInstanceInput,
   READ_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
   type EditPromptActionContext,
   type EditPromptInput,
   type ReadPromptInput,
+  type RemovePromptInstanceInput,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   parseReadPromptToolsInput,
@@ -569,6 +575,102 @@ const clonePromptInstanceAgentTool =
         await addToolOutput({
           state: "output-error",
           tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const addPromptInstanceAgentTool =
+  createRegisteredAgentTool<AddPromptInstanceInput>({
+    name: ADD_PROMPT_INSTANCE_TOOL_NAME,
+    parseInput: parseAddPromptInstanceInput,
+    invalidInputErrorText: `Invalid ${ADD_PROMPT_INSTANCE_TOOL_NAME} input. Expected {}.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          ADD_PROMPT_INSTANCE_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: ADD_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground prompt editor is not mounted; cannot add prompt instances.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: ADD_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Prompt instance added.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: ADD_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const removePromptInstanceAgentTool =
+  createRegisteredAgentTool<RemovePromptInstanceInput>({
+    name: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+    parseInput: parseRemovePromptInstanceInput,
+    invalidInputErrorText: `Invalid ${REMOVE_PROMPT_INSTANCE_TOOL_NAME} input. Expected { instanceId: number }.`,
+    uiBehavior: {
+      autoOpen: true,
+      scrollIntoViewOnMount: true,
+    },
+    execute: async ({
+      toolCall,
+      input,
+      sessionId,
+      addToolOutput,
+      agentStore,
+    }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          REMOVE_PROMPT_INSTANCE_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground prompt editor is not mounted; cannot remove prompt instances.",
+        });
+        return;
+      }
+      if (!sessionId) {
+        await addToolOutput({
+          state: "output-error",
+          tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "Cannot remove prompt instances without an active session.",
+        });
+        return;
+      }
+      const context: EditPromptActionContext = {
+        toolCallId: toolCall.toolCallId,
+        sessionId,
+        addToolOutput,
+      };
+      const result = await action(input, context);
+      if (!result.ok) {
+        await addToolOutput({
+          state: "output-error",
+          tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
           errorText: result.error,
         });
@@ -1471,6 +1573,8 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
+  addPromptInstanceAgentTool as RegisteredAgentTool<unknown>,
+  removePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
   listPlaygroundModelTargetsAgentTool as RegisteredAgentTool<unknown>,
   setPlaygroundModelAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
