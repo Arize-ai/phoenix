@@ -33,6 +33,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     save_prompt,
     set_playground_model,
     set_spans_filter,
+    set_template_variables_path,
     set_time_range,
     set_variable_values,
     write_prompt_tools,
@@ -103,6 +104,9 @@ from phoenix.server.agents.capabilities.tools.external.set_playground_model impo
 from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
     SetSpansFilterCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.set_template_variables_path import (
+    SetTemplateVariablesPathCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.set_time_range import (
     SetTimeRangeCapability,
 )
@@ -142,6 +146,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         save_prompt.TOOL_DEFINITION,
         set_playground_model.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
+        set_template_variables_path.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
         set_variable_values.TOOL_DEFINITION,
         write_prompt_tools.TOOL_DEFINITION,
@@ -185,6 +190,7 @@ def get_external_tool_capability_function(
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
+        SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
         LoadDatasetCapability(instructions=prompts.load_dataset_tool),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
@@ -226,6 +232,7 @@ __all__ = [
     "SavePromptCapability",
     "SetPlaygroundModelCapability",
     "SetSpansFilterCapability",
+    "SetTemplateVariablesPathCapability",
     "SetTimeRangeCapability",
     "SetVariableValuesCapability",
     "WritePromptToolsCapability",

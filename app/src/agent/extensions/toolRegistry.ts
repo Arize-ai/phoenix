@@ -105,6 +105,11 @@ import {
   type SavePromptInput,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
+  parseSetTemplateVariablesPathInput,
+  SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+  type SetTemplateVariablesPathInput,
+} from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
+import {
   parseSetVariableValuesInput,
   SET_VARIABLE_VALUES_TOOL_NAME,
   type SetVariableValuesInput,
@@ -920,6 +925,45 @@ const setVariableValuesAgentTool =
     },
   });
 
+const setTemplateVariablesPathAgentTool =
+  createRegisteredAgentTool<SetTemplateVariablesPathInput>({
+    name: SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+    parseInput: parseSetTemplateVariablesPathInput,
+    invalidInputErrorText: `Invalid ${SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME} input. Expected { path: string | null }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground is not mounted; cannot set the template variables path.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Template variables path updated.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 const batchSpanAnnotateAgentTool =
   createRegisteredAgentTool<BatchSpanAnnotateInput>({
     name: BATCH_SPAN_ANNOTATE_TOOL_NAME,
@@ -1437,6 +1481,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
+  setTemplateVariablesPathAgentTool as RegisteredAgentTool<unknown>,
   batchSpanAnnotateAgentTool as RegisteredAgentTool<unknown>,
   openCodeEvaluatorFormAgentTool as RegisteredAgentTool<unknown>,
   readCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
