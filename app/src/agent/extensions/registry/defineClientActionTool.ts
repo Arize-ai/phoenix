@@ -25,7 +25,9 @@ import { requireToolSession } from "./requireToolSession";
  * @param params.toolCallId - id of the originating tool call
  * @param params.addToolOutput - AI SDK callback used to surface output
  * @param params.defaultSuccessOutput - fallback message when the action omits one
- * @param params.emitSuccess - whether to emit on success (default true)
+ * @param params.emitSuccess - when `false`, the success branch is skipped (the
+ *   approval-tool case: success output is deferred to the accept/reject flow);
+ *   failures still surface either way
  */
 async function emitClientActionResult({
   result,
@@ -91,7 +93,13 @@ async function emitClientActionResult({
  * @param config.requireSession - require an active session before dispatching
  * @param config.noSessionErrorText - error when a session is required but absent
  * @param config.buildContext - builds the action's second-argument context
- * @param config.emitSuccess - whether to emit output on success (default true)
+ * @param config.emitSuccess - whether dispatch reports this tool's success
+ *   (default `true`). When `true`, a successful action immediately emits
+ *   `output-available` and the call resolves in one shot. Set it to `false` for
+ *   approval tools, whose action only *stages* a pending change: the real
+ *   success output ("accepted"/"rejected") is emitted later by the accept/reject
+ *   flow, so emitting here too would produce a duplicate output. Failures always
+ *   surface synchronously regardless of this flag.
  */
 export function defineClientActionTool<TInput, TContext = undefined>(config: {
   name: string;
