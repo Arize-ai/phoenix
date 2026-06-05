@@ -1,10 +1,14 @@
 import copy from "copy-to-clipboard";
 import { useState } from "react";
 
-import { Icon, Icons } from "@phoenix/components";
-import { MessageAction } from "@phoenix/components/ai/message";
+import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 
 const SHOW_COPIED_TIMEOUT_MS = 2000;
+
+type MessageCopyActionProps = {
+  text: string;
+};
 
 /**
  * Copy-to-clipboard control for a chat message, rendered as a bare
@@ -14,7 +18,7 @@ const SHOW_COPIED_TIMEOUT_MS = 2000;
  * checkmark briefly after copying. Renders nothing when there is no text to
  * copy.
  */
-export function MessageCopyAction({ text }: { text: string }) {
+export function MessageCopyAction({ text }: MessageCopyActionProps) {
   const [isCopied, setIsCopied] = useState(false);
 
   if (text.trim().length === 0) {

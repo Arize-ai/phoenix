@@ -1,14 +1,14 @@
+import copy from "copy-to-clipboard";
 import type { Key } from "react";
 
+import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 import {
-  Icon,
-  Icons,
   Menu,
   MenuContainer,
   MenuItem,
   MenuTrigger,
-} from "@phoenix/components";
-import { MessageAction } from "@phoenix/components/ai/message";
+} from "@phoenix/components/core/menu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import type {
@@ -41,6 +41,7 @@ export function MessageRewindActions({
   role,
   onRequest,
   showRewind = true,
+  traceId,
 }: {
   messageId: string;
   role: MessageRewindRole;
@@ -50,16 +51,22 @@ export function MessageRewindActions({
     role: MessageRewindRole;
   }) => void;
   showRewind?: boolean;
+  traceId?: string;
 }) {
   const canFork = useAgentContext(
     (state) => state.capabilities["session.storeSessions"]
   );
+  const canCopyTraceId = traceId != null;
 
-  if (!showRewind && !canFork) {
+  if (!showRewind && !canFork && !canCopyTraceId) {
     return null;
   }
 
   const handleAction = (key: Key) => {
+    if (key === "copy-trace-id" && traceId != null) {
+      copy(traceId);
+      return;
+    }
     if (key === "rewind" || key === "fork") {
       onRequest({ mode: key, messageId, role });
     }
@@ -88,6 +95,14 @@ export function MessageRewindActions({
               leadingContent={<Icon svg={<Icons.GitBranchOutline />} />}
             >
               Fork from this message
+            </MenuItem>
+          ) : null}
+          {canCopyTraceId ? (
+            <MenuItem
+              id="copy-trace-id"
+              leadingContent={<Icon svg={<Icons.IDOutline />} />}
+            >
+              Copy trace ID
             </MenuItem>
           ) : null}
         </Menu>
