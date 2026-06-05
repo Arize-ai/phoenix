@@ -68,6 +68,30 @@ describe("playground template variables path agent tool", () => {
     ).toBeNull();
   });
 
+  it("falls back to the store datasetId when the URL lags after load_dataset (non-experiment)", async () => {
+    // load_dataset writes the store synchronously but the URL only after a React
+    // Router re-render. An immediate call must not see a stale, empty URL and report
+    // "no dataset"; it falls back to the store.
+    const storeDatasetId = "store-dataset";
+    const playgroundStore = createPlaygroundStore({
+      datasetId: storeDatasetId,
+      modelConfigByProvider: {},
+    });
+    const action = createSetTemplateVariablesPathClientAction({
+      playgroundStore,
+      // URL has not caught up yet (no datasetId param).
+      getSearchParams: () => new URLSearchParams(),
+    });
+
+    const result = await action({ path: "input.context" });
+
+    expect(result.ok).toBe(true);
+    expect(
+      playgroundStore.getState().stateByDatasetId[storeDatasetId]
+        .templateVariablesPath
+    ).toBe("input.context");
+  });
+
   it("returns a load-a-dataset nudge when no dataset is resolved", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,

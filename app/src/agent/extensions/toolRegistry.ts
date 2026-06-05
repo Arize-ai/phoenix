@@ -55,6 +55,11 @@ import {
   type TestLlmEvaluatorDraftInput,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
+  parseSetAppendedMessagesPathInput,
+  SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+  type SetAppendedMessagesPathInput,
+} from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import {
   LOAD_DATASET_TOOL_NAME,
   parseLoadDatasetInput,
   type LoadDatasetActionContext,
@@ -1066,6 +1071,45 @@ const setTemplateVariablesPathAgentTool =
     },
   });
 
+const setAppendedMessagesPathAgentTool =
+  createRegisteredAgentTool<SetAppendedMessagesPathInput>({
+    name: SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+    parseInput: parseSetAppendedMessagesPathInput,
+    invalidInputErrorText: `Invalid ${SET_APPENDED_MESSAGES_PATH_TOOL_NAME} input. Expected { path: string | null }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          SET_APPENDED_MESSAGES_PATH_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground is not mounted; cannot set the appended messages path.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Appended messages path updated.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 const batchSpanAnnotateAgentTool =
   createRegisteredAgentTool<BatchSpanAnnotateInput>({
     name: BATCH_SPAN_ANNOTATE_TOOL_NAME,
@@ -1586,6 +1630,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
   setTemplateVariablesPathAgentTool as RegisteredAgentTool<unknown>,
+  setAppendedMessagesPathAgentTool as RegisteredAgentTool<unknown>,
   batchSpanAnnotateAgentTool as RegisteredAgentTool<unknown>,
   openCodeEvaluatorFormAgentTool as RegisteredAgentTool<unknown>,
   readCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,

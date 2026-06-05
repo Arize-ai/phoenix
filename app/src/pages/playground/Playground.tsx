@@ -34,6 +34,10 @@ import {
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import {
+  createSetAppendedMessagesPathClientAction,
+  SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import {
   createLoadDatasetClientAction,
   LOAD_DATASET_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundLoadDataset";
@@ -109,7 +113,10 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import { setPromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import {
+  resolvePlaygroundDatasetId,
+  setPromptParams,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { PlaygroundProps } from "@phoenix/store";
 import {
   type AgentClientActionResult,
@@ -148,10 +155,10 @@ export function Playground(
   }
 ) {
   const [searchParams] = useSearchParams();
-  const experimentId = searchParams.get("experimentId");
-  const datasetId = experimentId
-    ? (props.datasetId ?? null)
-    : searchParams.get("datasetId");
+  const datasetId = resolvePlaygroundDatasetId({
+    searchParams,
+    storeDatasetId: props.datasetId ?? null,
+  });
 
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
@@ -301,10 +308,10 @@ function PlaygroundContent() {
   const searchParamsRef = useRef(searchParams);
   searchParamsRef.current = searchParams;
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
-  const experimentId = searchParams.get("experimentId");
-  const datasetId = experimentId
-    ? storeDatasetId
-    : searchParams.get("datasetId");
+  const datasetId = resolvePlaygroundDatasetId({
+    searchParams,
+    storeDatasetId,
+  });
   // Only depend on the split-id subset of query params.
   const serializedSplitIds = searchParams.getAll("splitId").join("\0");
   // Keep splitIds referentially stable unless split-id values actually change.
@@ -476,6 +483,13 @@ function PlaygroundContent() {
           agentStore.getState().permissions.edits === "bypass",
       })
     );
+    registerClientAction(
+      SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
+      createSetAppendedMessagesPathClientAction({
+        playgroundStore,
+        getSearchParams: () => searchParamsRef.current,
+      })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
@@ -490,6 +504,7 @@ function PlaygroundContent() {
       unregisterClientAction(LOAD_DATASET_TOOL_NAME);
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
+      unregisterClientAction(SET_APPENDED_MESSAGES_PATH_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {

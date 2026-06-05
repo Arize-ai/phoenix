@@ -2,9 +2,9 @@ import { resolvePlaygroundDatasetId } from "@phoenix/pages/playground/playground
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
-import { parseSetTemplateVariablesPathInput } from "./parsers";
+import { parseSetAppendedMessagesPathInput } from "./parsers";
 
-export function createSetTemplateVariablesPathClientAction({
+export function createSetAppendedMessagesPathClientAction({
   playgroundStore,
   getSearchParams,
 }: {
@@ -12,9 +12,9 @@ export function createSetTemplateVariablesPathClientAction({
   getSearchParams: () => URLSearchParams;
 }) {
   return async (input: unknown): Promise<AgentClientActionResult> => {
-    const parsed = parseSetTemplateVariablesPathInput(input);
+    const parsed = parseSetAppendedMessagesPathInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid set_template_variables_path input." };
+      return { ok: false, error: "Invalid set_appended_messages_path input." };
     }
 
     // Resolve like the playground page (shared helper), then fall back to the store.
@@ -30,29 +30,27 @@ export function createSetTemplateVariablesPathClientAction({
     const datasetId =
       resolvePlaygroundDatasetId({ searchParams, storeDatasetId }) ??
       storeDatasetId;
-
-    if (!datasetId) {
+    if (datasetId == null) {
       return {
         ok: false,
-        error:
-          "No dataset is loaded in the playground. Load a dataset first, then set the template variables path.",
+        error: "No dataset is loaded; call load_dataset first.",
       };
     }
 
-    const templateVariablesPath = parsed.path || null;
-    playgroundStore
-      .getState()
-      .setTemplateVariablesPath({ templateVariablesPath, datasetId });
+    const path = parsed.path === "" ? null : parsed.path;
+    playgroundStore.getState().setAppendedMessagesPath({ path, datasetId });
 
     return {
       ok: true,
       output: JSON.stringify(
         {
           status: "updated",
-          templateVariablesPath,
-          message: templateVariablesPath
-            ? `Set template variables path to "${templateVariablesPath}".`
-            : "Set template variables path to the example root.",
+          datasetId,
+          appendedMessagesPath: path,
+          message:
+            path === null
+              ? "Disabled appending dataset messages."
+              : `Set appended dataset messages path to "${path}".`,
         },
         null,
         2

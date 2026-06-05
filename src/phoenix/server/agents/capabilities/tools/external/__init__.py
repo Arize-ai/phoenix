@@ -33,6 +33,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     run_llm_evaluator_draft,
     run_playground,
     save_prompt,
+    set_appended_messages_path,
     set_playground_model,
     set_spans_filter,
     set_template_variables_path,
@@ -106,6 +107,9 @@ from phoenix.server.agents.capabilities.tools.external.run_playground import (
     RunPlaygroundCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.save_prompt import SavePromptCapability
+from phoenix.server.agents.capabilities.tools.external.set_appended_messages_path import (
+    SetAppendedMessagesPathCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.set_playground_model import (
     SetPlaygroundModelCapability,
 )
@@ -154,6 +158,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         run_llm_evaluator_draft.TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
         save_prompt.TOOL_DEFINITION,
+        set_appended_messages_path.TOOL_DEFINITION,
         set_playground_model.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_template_variables_path.TOOL_DEFINITION,
@@ -203,6 +208,7 @@ def get_external_tool_capability_function(
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
         SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
+        SetAppendedMessagesPathCapability(instructions=prompts.set_appended_messages_path_tool),
         LoadDatasetCapability(instructions=prompts.load_dataset_tool),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
@@ -244,6 +250,7 @@ __all__ = [
     "RenderGenerativeUICapability",
     "RunPlaygroundCapability",
     "SavePromptCapability",
+    "SetAppendedMessagesPathCapability",
     "SetPlaygroundModelCapability",
     "SetSpansFilterCapability",
     "SetTemplateVariablesPathCapability",
