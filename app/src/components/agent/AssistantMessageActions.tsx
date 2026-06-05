@@ -3,14 +3,12 @@ import { type ReactNode, useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
-import { Icon, Icons } from "@phoenix/components";
-import {
-  MessageAction,
-  MessageActions,
-  MessageToolbar,
-} from "@phoenix/components/ai/message";
-import { useViewer } from "@phoenix/contexts";
+import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
+import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
+import { MessageToolbar } from "@phoenix/components/ai/message/MessageToolbar";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import { MessageCopyAction } from "./MessageCopyAction";
