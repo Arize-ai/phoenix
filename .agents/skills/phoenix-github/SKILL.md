@@ -4,7 +4,7 @@ description: Manage GitHub issues, labels, and project boards for the Arize-ai/p
 license: Apache-2.0
 metadata:
   author: oss@arize.com
-  version: "1.0.0"
+  version: "1.1.0"
   internal: true
 ---
 
@@ -47,11 +47,16 @@ Every issue should have at least one component label.
 | `c/annotations` | Human annotations and queues |
 | `c/prompts` | Prompt management and prompt SDK |
 | `c/playground` | LLM playground and provider support |
-| `c/agents` | In-browser or terminal AI agents for Phoenix |
+| `c/agents` | In-browser or terminal AI agents for Phoenix (PXI) |
 | `c/client` | Python/TypeScript SDK and REST client |
+| `c/cli` | `@arizeai/phoenix-cli` |
+| `c/api` | REST API surface |
+| `c/sessions` | Sessions and session tracking |
+| `c/otel` | OpenTelemetry / OTel ingestion |
 | `c/rbac` | Role-based access control |
 | `c/auth` | Authentication |
 | `c/infra` | Infrastructure, jobs, storage connectors |
+| `c/helm` | Helm chart / Kubernetes deployment |
 | `c/mcp` | MCP (Model Context Protocol) integration |
 | `c/filters` | Filter UI and filter logic |
 | `c/metrics` | Metrics and aggregations |
@@ -78,9 +83,12 @@ Every issue should have at least one component label.
 | `blocked` | Blocked on external dependency |
 | `backlog` | Acknowledged but not scheduled |
 | `needs information` | Awaiting info from the reporter |
-| `design` | Needs design work before engineering |
+| `design` / `needs design` | Needs design work before engineering |
 | `onboarding` | Related to new-user onboarding flows |
 | `phoenix-cloud` | Arize-hosted Phoenix (cloud) specific |
+| `user request` | Requested by a user |
+| `good-agent-issue` | Well-scoped enough for an AI agent to pick up |
+| `agent-in-progress` | An agent is currently working on this issue |
 
 ---
 
@@ -94,24 +102,31 @@ Roadmap issues are high-level epics representing product initiatives.
 🗺️ [category] Title
 ```
 
-**Categories:** `ui/ux`, `agents`, `infrastructure`, `datasets/experiments`, `tracing`, `enterprise`, `server-evals`, `annotations`, `evals`, `prompts`, `sdk/connectors`
+The `🗺️` prefix marks an epic. Sub-issues that roll up under an epic use the same `[category]` bracket but drop the emoji (e.g. `[agents] dataset tools`).
+
+**Categories:** `ui/ux`, `agents`, `tools`, `tracing`/`traces`, `sessions`, `evals`, `server-evals`, `sandboxes`, `annotations`, `prompts`, `datasets/experiments`, `infrastructure`, `enterprise`, `sdk/connectors`. A few standalone epics use a product name instead of a bracket (e.g. `@arizeai/phoenix-cli`, `REST API`).
 
 ### Labels per Category
 
-| Category | Labels |
+Every roadmap epic gets `roadmap` + `enhancement`. Add `priority: highest` for actively-prioritized epics, plus the relevant component label(s):
+
+| Category | Component labels |
 |---|---|
-| `ui/ux` | `roadmap`, `priority: highest`, `c/ui` |
-| `agents` | `roadmap`, `priority: highest`, `c/agents` |
-| `infrastructure` | `roadmap`, `priority: highest`, `c/infra` |
-| `datasets/experiments` | `roadmap`, `priority: highest`, `c/datasets`, `c/experiments` |
-| `tracing` | `roadmap`, `priority: highest`, `c/traces` |
-| `enterprise` | `roadmap`, `priority: highest`, `c/rbac`, `c/auth` |
-| `server-evals` | `roadmap`, `priority: highest`, `c/evals`, `c/server` |
-| `annotations` | `roadmap`, `priority: highest`, `c/annotations` |
-| `evals` | `roadmap`, `priority: highest`, `c/evals` |
-| `evals` (with playground) | `roadmap`, `priority: highest`, `c/evals`, `c/playground` |
-| `prompts` | `roadmap`, `priority: highest`, `c/prompts`, `c/playground` |
-| `sdk/connectors` | `roadmap`, `priority: highest`, `c/client` |
+| `ui/ux` | `c/ui` |
+| `agents` | `c/agents` |
+| `tools` | `c/agents` (often none beyond `roadmap`) |
+| `tracing` / `traces` | `c/traces` |
+| `sessions` | `c/sessions`, `c/ui` |
+| `evals` | `c/evals` (add `c/playground` when playground-related) |
+| `server-evals` / `sandboxes` | `c/evals`, `c/server` |
+| `annotations` | `c/annotations` |
+| `prompts` | `c/prompts`, `c/playground` |
+| `datasets/experiments` | `c/datasets`, `c/experiments` |
+| `infrastructure` | `c/infra` |
+| `enterprise` | `c/rbac`, `c/auth` |
+| `sdk/connectors` | `c/client` |
+| `@arizeai/phoenix-cli` | `c/cli`, `c/dx` |
+| `REST API` | `c/api`, `c/server` |
 
 ### Body Template
 
@@ -280,58 +295,24 @@ gh issue create \
 
 ---
 
-## Existing Roadmap Issues (Q2 2026)
+## Querying the Roadmap
 
-Issues #11618–#11666 on the Phoenix roadmap project (Start: 2026-02-20, Target: 2026-08-31):
+The roadmap is large and changes constantly, so query it live rather than relying on a snapshot. The current epics seed from #11618–#11666 (Start: 2026-02-20, Target: 2026-08-31), with newer epics in the #12xxx–#13xxx range.
 
-| # | Category | Title |
-|---|---|---|
-| #11618 | ui/ux | Onboarding Tracing |
-| #11619 | ui/ux | Onboarding for Evals / Datasets |
-| #11620 | ui/ux | Home page |
-| #11621 | ui/ux | Recents / Favorites |
-| #11622 | ui/ux | AI Components |
-| #11623 | ui/ux | Agent Sidebar |
-| #11624 | ui/ux | File Drag-Drop |
-| #11625 | ui/ux | Command K |
-| #11626 | agents | Agent API |
-| #11627 | agents | Routing |
-| #11628 | agents | Tools |
-| #11629 | infrastructure | Jobs |
-| #11630 | infrastructure | Blob Store Connector |
-| #11631 | infrastructure | Web Hooks |
-| #11632 | datasets/experiments | External ID / Patch Declarative Datasets |
-| #11633 | datasets/experiments | Schemas |
-| #11634 | datasets/experiments | Files / Images |
-| #11635 | datasets/experiments | Dataset as a Spreadsheet UX |
-| #11636 | datasets/experiments | Annotations / Corrections on Experiments |
-| #11637 | datasets/experiments | Experiment Charts |
-| #11638 | datasets/experiments | Multi-User Support |
-| #11639 | tracing | Attribute Filters |
-| #11640 | tracing | Attribute Columns |
-| #11641 | tracing | AI Search |
-| #11642 | tracing | Online Evals |
-| #11643 | tracing | Triggers |
-| #11644 | tracing | Custom Trace Views |
-| #11645 | tracing | Resource Tags |
-| #11646 | enterprise | Custom RBAC |
-| #11647 | enterprise | Custom Roles |
-| #11648 | server-evals | Code Evaluators |
-| #11649 | server-evals | Code Evaluator Packages |
-| #11650 | server-evals | Project Evaluators |
-| #11651 | annotations | Annotation Queues |
-| #11652 | annotations | Optimization Direction UX |
-| #11653 | annotations | Numeric Thresholding |
-| #11654 | evals | Trajectory Evals |
-| #11655 | evals | Multimodal Evals |
-| #11656 | evals | Pairwise Evals |
-| #11657 | evals | Agent as a Judge |
-| #11658 | evals | Evals UX |
-| #11659 | prompts | Model Configs |
-| #11660 | prompts | Model Profiles |
-| #11661 | prompts | Vendor Tools / Web Search |
-| #11662 | prompts | Multiple Playgrounds |
-| #11663 | prompts | Chat with Your Prompt |
-| #11664 | prompts | Edit / Append to Dataset on Playground |
-| #11665 | sdk/connectors | Session APIs |
-| #11666 | sdk/connectors | Vitest / Pytest Integration |
+```bash
+# All open roadmap epics, newest first
+gh issue list --repo Arize-ai/phoenix --label roadmap --state open \
+  --limit 100 --json number,title,labels \
+  --jq '.[] | "\(.number)\t\(.title)"'
+
+# Filter to a category (e.g. agents)
+gh issue list --repo Arize-ai/phoenix --label roadmap --state open \
+  --search "in:title [agents]" --json number,title \
+  --jq '.[] | "\(.number)\t\(.title)"'
+
+# Roadmap epics for a component (e.g. evals)
+gh issue list --repo Arize-ai/phoenix --label "roadmap,c/evals" --state open \
+  --json number,title --jq '.[] | "\(.number)\t\(.title)"'
+```
+
+Epics group their child issues as a markdown checklist in the body (often bucketed by Phoenix surface — Datasets, Prompts, Playground, Experiments, Evals — with a `## ✅ Completed` section). When filing a sub-issue, link it back from the parent's checklist.
