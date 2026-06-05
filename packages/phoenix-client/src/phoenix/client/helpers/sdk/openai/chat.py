@@ -355,8 +355,9 @@ class _InvocationParametersConversion:
                 ans["temperature"] = google_params["temperature"]
             if "top_p" in google_params:
                 ans["top_p"] = google_params["top_p"]
-            if "top_k" in google_params:
-                ans["top_logprobs"] = google_params["top_k"]
+            # Google `top_k` is a sampling parameter with no OpenAI chat-completion
+            # equivalent; it must not be written to `top_logprobs` (an unrelated
+            # output-formatting field). Drop it, like the other reverse converters.
             if "presence_penalty" in google_params:
                 ans["presence_penalty"] = google_params["presence_penalty"]
             if "frequency_penalty" in google_params:
