@@ -33,9 +33,11 @@ import {
 } from "@phoenix/agent/tools/playgroundModel";
 import { readPlaygroundOutputAgentTool } from "@phoenix/agent/tools/playgroundOutput";
 import {
+  addPromptInstanceAgentTool,
   clonePromptInstanceAgentTool,
   editPromptAgentTool,
   readPromptAgentTool,
+  removePromptInstanceAgentTool,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   readPromptToolsAgentTool,
@@ -65,6 +67,8 @@ const pageActionTools: AgentToolDefinition[] = [
   setSpansFilterAgentTool,
   readPromptAgentTool,
   clonePromptInstanceAgentTool,
+  addPromptInstanceAgentTool,
+  removePromptInstanceAgentTool,
   editPromptAgentTool,
   savePromptAgentTool,
   readPromptToolsAgentTool,
