@@ -104,3 +104,15 @@ def test_get_route_info_is_registered_as_external_tool() -> None:
 
     assert tool_definition is not None
     assert tool_definition.kind == "external"
+
+
+def test_cancel_playground_run_is_registered_as_external_tool() -> None:
+    tool_definition = get_external_tool_definition("cancel_playground_run")
+
+    assert tool_definition is not None
+    assert tool_definition.kind == "external"
+    assert tool_definition.parameters_json_schema == {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    }

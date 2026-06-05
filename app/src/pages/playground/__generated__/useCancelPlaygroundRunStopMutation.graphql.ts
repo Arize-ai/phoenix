@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80c4fcff0552e6ff249a71cad6fcddf3>>
+ * @generated SignedSource<<5946bcd63e5d378e8000eca49f9b7a18>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,19 +9,21 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type PlaygroundRunButtonDismissMutation$variables = {
+export type ExperimentJobStatus = "COMPLETED" | "ERROR" | "RUNNING" | "STOPPED";
+export type useCancelPlaygroundRunStopMutation$variables = {
   experimentId: string;
 };
-export type PlaygroundRunButtonDismissMutation$data = {
-  readonly dismissExperiment: {
-    readonly experiment: {
+export type useCancelPlaygroundRunStopMutation$data = {
+  readonly stopExperiment: {
+    readonly job: {
       readonly id: string;
+      readonly status: ExperimentJobStatus;
     };
   };
 };
-export type PlaygroundRunButtonDismissMutation = {
-  response: PlaygroundRunButtonDismissMutation$data;
-  variables: PlaygroundRunButtonDismissMutation$variables;
+export type useCancelPlaygroundRunStopMutation = {
+  response: useCancelPlaygroundRunStopMutation$data;
+  variables: useCancelPlaygroundRunStopMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -42,17 +44,17 @@ v1 = [
         "variableName": "experimentId"
       }
     ],
-    "concreteType": "DismissExperimentPayload",
+    "concreteType": "StopExperimentPayload",
     "kind": "LinkedField",
-    "name": "dismissExperiment",
+    "name": "stopExperiment",
     "plural": false,
     "selections": [
       {
         "alias": null,
         "args": null,
-        "concreteType": "Experiment",
+        "concreteType": "ExperimentJob",
         "kind": "LinkedField",
-        "name": "experiment",
+        "name": "job",
         "plural": false,
         "selections": [
           {
@@ -60,6 +62,13 @@ v1 = [
             "args": null,
             "kind": "ScalarField",
             "name": "id",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "status",
             "storageKey": null
           }
         ],
@@ -74,7 +83,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "PlaygroundRunButtonDismissMutation",
+    "name": "useCancelPlaygroundRunStopMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -83,20 +92,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "PlaygroundRunButtonDismissMutation",
+    "name": "useCancelPlaygroundRunStopMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "fea3dfb13d99315ec07f1ace2e3516f3",
+    "cacheID": "21427c0b5fcee3ff3ea41551d135465c",
     "id": null,
     "metadata": {},
-    "name": "PlaygroundRunButtonDismissMutation",
+    "name": "useCancelPlaygroundRunStopMutation",
     "operationKind": "mutation",
-    "text": "mutation PlaygroundRunButtonDismissMutation(\n  $experimentId: ID!\n) {\n  dismissExperiment(experimentId: $experimentId) {\n    experiment {\n      id\n    }\n  }\n}\n"
+    "text": "mutation useCancelPlaygroundRunStopMutation(\n  $experimentId: ID!\n) {\n  stopExperiment(experimentId: $experimentId) {\n    job {\n      id\n      status\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9afc3acd6a16e476b6956838b70b8be6";
+(node as any).hash = "f8903b30174b7366bf3207e627fb645f";
 
 export default node;

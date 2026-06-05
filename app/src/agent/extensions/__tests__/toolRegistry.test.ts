@@ -23,7 +23,10 @@ import {
   EDIT_PROMPT_TOOL_NAME,
   REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
-import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
+import {
+  CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+  RUN_PLAYGROUND_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundRun";
 import {
   createSavePromptClientAction,
   SAVE_PROMPT_TOOL_NAME,
@@ -658,6 +661,35 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: RUN_PLAYGROUND_TOOL_NAME,
         output: "started",
+      })
+    );
+  });
+
+  it("dispatches cancel_playground_run to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "cancelled" });
+    store
+      .getState()
+      .registerClientAction(CANCEL_PLAYGROUND_RUN_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-cancel-playground-run",
+        toolName: CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({});
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+        output: "cancelled",
       })
     );
   });

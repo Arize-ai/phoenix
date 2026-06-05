@@ -106,6 +106,9 @@ import {
   type WritePromptToolsInput,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import {
+  CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+  type CancelPlaygroundRunInput,
+  parseCancelPlaygroundRunInput,
   parseRunPlaygroundInput,
   RUN_PLAYGROUND_TOOL_NAME,
   type RunPlaygroundInput,
@@ -954,6 +957,45 @@ const runPlaygroundAgentTool = createRegisteredAgentTool<RunPlaygroundInput>({
   },
 });
 
+const cancelPlaygroundRunAgentTool =
+  createRegisteredAgentTool<CancelPlaygroundRunInput>({
+    name: CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+    parseInput: parseCancelPlaygroundRunInput,
+    invalidInputErrorText: `Invalid ${CANCEL_PLAYGROUND_RUN_TOOL_NAME} input. Expected {}.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          CANCEL_PLAYGROUND_RUN_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground is not mounted; cannot cancel a playground run.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Playground run cancelled.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: CANCEL_PLAYGROUND_RUN_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 const readPlaygroundOutputAgentTool =
   createRegisteredAgentTool<ReadPlaygroundOutputInput>({
     name: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
@@ -1627,6 +1669,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   writePromptToolsAgentTool as RegisteredAgentTool<unknown>,
   loadDatasetAgentTool as RegisteredAgentTool<unknown>,
   runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
+  cancelPlaygroundRunAgentTool as RegisteredAgentTool<unknown>,
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
   setTemplateVariablesPathAgentTool as RegisteredAgentTool<unknown>,
