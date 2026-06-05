@@ -289,6 +289,53 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "testPayload" in content
         assert "test_code_evaluator_draft" in content
 
+    def test_names_fixed_playground_output_schema_when_playground_mounted(self) -> None:
+        capability = CodeEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=0)],
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        # The fixed playground output shape names the real `output` field paths.
+        assert "messages" in content
+        assert "tool_calls" in content
+        assert "function" in content
+        assert "arguments" in content
+        assert "available_tools" in content
+        # The shape binds the fabricated test payload, not just the runtime output.
+        assert "set_test_payload" in content
+        assert "testPayload" in content
+        # The precise block supersedes the vague guessing prose for this case.
+        assert "do not assume the signal is at a top-level key" not in content
+
+    def test_omits_playground_output_schema_without_playground(self) -> None:
+        capability = CodeEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        # Without a playground the fixed-shape block is omitted and the
+        # arbitrary-run guessing guidance stands.
+        assert "available_tools" not in content
+        assert "do not assume the signal is at a top-level key" in content
+
     def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
         capability = CodeEvaluatorContextCapability(
             instructions=_DEFAULT_PROMPTS.code_evaluator_context,

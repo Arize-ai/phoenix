@@ -23,6 +23,7 @@ class CodeEvaluatorContextCapability(AbstractDynamicCapability[AgentDependencies
                 return None
             return instructions.render(
                 code_evaluator=code_evaluator,
+                playground=ctx.deps.contexts.playground,
                 can_edit_draft=(
                     not ctx.deps.is_viewer
                     and (
