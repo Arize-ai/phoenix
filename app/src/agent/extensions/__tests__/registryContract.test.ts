@@ -38,6 +38,7 @@ import {
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
 import { SET_SPANS_FILTER_TOOL_NAME } from "@phoenix/agent/tools/spansFilter";
 import { SET_TIME_RANGE_TOOL_NAME } from "@phoenix/agent/tools/timeRange";
@@ -72,6 +73,7 @@ const EXPECTED_TOOL_NAMES = [
   RUN_PLAYGROUND_TOOL_NAME,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
   SET_VARIABLE_VALUES_TOOL_NAME,
+  SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
   BATCH_SPAN_ANNOTATE_TOOL_NAME,
   OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,

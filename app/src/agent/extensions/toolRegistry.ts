@@ -43,6 +43,7 @@ import {
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import { runPlaygroundAgentTool } from "@phoenix/agent/tools/playgroundRun";
 import { savePromptAgentTool } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { setTemplateVariablesPathAgentTool } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { setVariableValuesAgentTool } from "@phoenix/agent/tools/playgroundVariableValues";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
 import { setSpansFilterAgentTool } from "@phoenix/agent/tools/spansFilter";
@@ -74,6 +75,7 @@ const pageActionTools: AgentToolDefinition[] = [
   runPlaygroundAgentTool,
   readPlaygroundOutputAgentTool,
   setVariableValuesAgentTool,
+  setTemplateVariablesPathAgentTool,
   openCodeEvaluatorFormAgentTool,
   readCodeEvaluatorDraftAgentTool,
   editCodeEvaluatorDraftAgentTool,
