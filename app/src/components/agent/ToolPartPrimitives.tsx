@@ -1,6 +1,11 @@
-import { keyframes } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
+import type { ReactNode } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { CopyToClipboardButton } from "@phoenix/components";
+import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
+
+import { useScrollAnchor } from "./scrollAnchor";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
   from {
@@ -56,7 +61,9 @@ export function ToolPartCodeBlock({
 }) {
   return (
     <div
-      className={`tool-part__line${allowCopy ? " tool-part__line--copyable" : ""}`}
+      className={`tool-part__line${
+        allowCopy ? " tool-part__line--copyable" : ""
+      }`}
     >
       <code className="tool-part__code">{children || "(empty)"}</code>
       {allowCopy ? (
@@ -104,6 +111,55 @@ export function ToolPartMeta({
           <code className="tool-part__meta-value">{value}</code>
         </span>
       ))}
+    </div>
+  );
+}
+
+const COLLAPSED_HEIGHT_PX = 320;
+
+const expandableSectionCSS = css`
+  --expandable-content-overlay-background-color: var(
+    --tool-call-body-background-color
+  );
+`;
+
+/**
+ * Wrapper for tool part input/output sections. Automatically collapses content
+ * that exceeds the collapsed height, showing an expand/collapse button.
+ *
+ * Drives `ExpandableContent` in controlled mode so we can bracket each toggle
+ * with scroll anchoring — recording the section's position before it grows or
+ * shrinks and restoring it afterward — without `ExpandableContent` needing to
+ * know anything about the surrounding scroll container.
+ */
+export function ToolPartExpandableSection({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const scrollAnchor = useScrollAnchor();
+
+  const handleExpandedChange = useCallback(
+    (nextIsExpanded: boolean) => {
+      scrollAnchor.capture(containerRef.current);
+      setIsExpanded(nextIsExpanded);
+      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+    },
+    [scrollAnchor]
+  );
+
+  return (
+    <div ref={containerRef} css={expandableSectionCSS}>
+      <ExpandableContent
+        height={COLLAPSED_HEIGHT_PX}
+        expandedBehavior="grow"
+        isExpanded={isExpanded}
+        onExpandedChange={handleExpandedChange}
+      >
+        {children}
+      </ExpandableContent>
     </div>
   );
 }

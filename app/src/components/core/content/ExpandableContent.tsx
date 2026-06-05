@@ -169,7 +169,7 @@ export function ExpandableContent({
           aria-label="Show more"
           aria-expanded={false}
         >
-          <span>expand</span>
+          <span>Expand</span>
           <Icon svg={<Icons.ArrowIosDownwardOutline />} />
         </button>
       )}
@@ -181,7 +181,7 @@ export function ExpandableContent({
           aria-label="Show less"
           aria-expanded={true}
         >
-          <span>collapse</span>
+          <span>Collapse</span>
           <Icon svg={<Icons.ArrowIosUpwardOutline />} />
         </button>
       )}

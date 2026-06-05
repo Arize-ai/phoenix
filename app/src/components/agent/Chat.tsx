@@ -54,6 +54,7 @@ import {
   type MessageRewindRequest,
   UserMessage,
 } from "./ChatMessage";
+import { ChatScrollContext } from "./ChatScrollContext";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -362,10 +363,12 @@ export function ChatView({
   emptyStateQuickActions?: EmptyStateQuickAction[];
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
-    initial: "instant",
-    resize: "instant",
-  });
+  const { contentRef, scrollRef, scrollToBottom, stopScroll } =
+    useStickToBottom({
+      initial: "instant",
+      resize: "instant",
+    });
+  const chatScrollContextValue = useMemo(() => ({ stopScroll }), [stopScroll]);
   const handleScrollRef = useCallback(
     (element: HTMLElement | null) => {
       scrollRef(element);
@@ -502,62 +505,64 @@ export function ChatView({
         }
       >
         <ChatLantern isVisible={showsEmptyState} />
-        <div className="chat__scroll-frame">
-          <div className="chat__scroll" ref={handleScrollRef}>
-            <div className="chat__messages" ref={contentRef}>
-              {showsEmptyState && (
-                <ChatEmptyState
-                  key={theme}
-                  subtext={emptyStateSubtext}
-                  quickActions={quickActions}
-                  onQuickAction={handleQuickAction}
-                >
-                  {missingCredentialsProvider ? (
-                    <AgentModelCredentialForm
-                      modelName={modelMenuValue.modelName}
-                      onCredentialsUpdated={refreshCredentialStatus}
-                      provider={missingCredentialsProvider}
-                    />
-                  ) : undefined}
-                </ChatEmptyState>
-              )}
-              {messages.map((message, index) => {
-                if (message.role === "user") {
+        <ChatScrollContext.Provider value={chatScrollContextValue}>
+          <div className="chat__scroll-frame">
+            <div className="chat__scroll" ref={handleScrollRef}>
+              <div className="chat__messages" ref={contentRef}>
+                {showsEmptyState && (
+                  <ChatEmptyState
+                    key={theme}
+                    subtext={emptyStateSubtext}
+                    quickActions={quickActions}
+                    onQuickAction={handleQuickAction}
+                  >
+                    {missingCredentialsProvider ? (
+                      <AgentModelCredentialForm
+                        modelName={modelMenuValue.modelName}
+                        onCredentialsUpdated={refreshCredentialStatus}
+                        provider={missingCredentialsProvider}
+                      />
+                    ) : undefined}
+                  </ChatEmptyState>
+                )}
+                {messages.map((message, index) => {
+                  if (message.role === "user") {
+                    return (
+                      <UserMessage
+                        key={message.id}
+                        message={message}
+                        onRewindRequest={onRewindRequest}
+                      />
+                    );
+                  }
+                  // Only the last assistant message can still be streaming — hide
+                  // its actions until the chat reports it is settled.
+                  const isLast = index === messages.length - 1;
+                  const showActions = !isLast || status === "ready";
+                  // Pin the most recent assistant turn's toolbar so its actions
+                  // stay visible; other turns reveal their toolbars on hover to
+                  // cut down on stacked-toolbar clutter.
+                  const pinToolbar = isLast && status === "ready";
+                  // Rewinding to the last assistant turn is a no-op: nothing
+                  // follows it to truncate and, once settled, it has no pending
+                  // tool calls to clear. Hide the rewind control there.
                   return (
-                    <UserMessage
+                    <AssistantMessage
                       key={message.id}
                       message={message}
+                      showActions={showActions}
+                      pinToolbar={pinToolbar}
                       onRewindRequest={onRewindRequest}
+                      allowRewind={!isLast}
                     />
                   );
-                }
-                // Only the last assistant message can still be streaming — hide
-                // its actions until the chat reports it is settled.
-                const isLast = index === messages.length - 1;
-                const showActions = !isLast || status === "ready";
-                // Pin the most recent assistant turn's toolbar so its actions
-                // stay visible; other turns reveal their toolbars on hover to
-                // cut down on stacked-toolbar clutter.
-                const pinToolbar = isLast && status === "ready";
-                // Rewinding to the last assistant turn is a no-op: nothing
-                // follows it to truncate and, once settled, it has no pending
-                // tool calls to clear. Hide the rewind control there.
-                return (
-                  <AssistantMessage
-                    key={message.id}
-                    message={message}
-                    showActions={showActions}
-                    pinToolbar={pinToolbar}
-                    onRewindRequest={onRewindRequest}
-                    allowRewind={!isLast}
-                  />
-                );
-              })}
-              {showThinkingIndicator && <Loading />}
-              {error && <ErrorMessage error={error} />}
+                })}
+                {showThinkingIndicator && <Loading />}
+                {error && <ErrorMessage error={error} />}
+              </div>
             </div>
           </div>
-        </div>
+        </ChatScrollContext.Provider>
         <div className="chat__input">
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
