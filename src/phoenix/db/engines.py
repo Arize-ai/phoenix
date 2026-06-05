@@ -4,6 +4,7 @@ import asyncio
 import logging
 from enum import Enum
 from sqlite3 import Connection
+from threading import Thread
 from typing import Any
 
 import aiosqlite
@@ -141,12 +142,7 @@ def aio_sqlite_engine(
     if not migrate:
         return engine
     if database.startswith(":memory:"):
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            asyncio.run(init_models(engine))
-        else:
-            asyncio.create_task(init_models(engine))
+        _init_memory_models(engine)
     else:
         migration_engine = create_async_engine(
             url=url,
@@ -157,6 +153,29 @@ def aio_sqlite_engine(
         )
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
+
+
+def _init_memory_models(engine: AsyncEngine) -> None:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(init_models(engine))
+        return
+
+    exc: BaseException | None = None
+
+    def run() -> None:
+        nonlocal exc
+        try:
+            asyncio.run(init_models(engine))
+        except BaseException as error:
+            exc = error
+
+    thread = Thread(target=run)
+    thread.start()
+    thread.join()
+    if exc is not None:
+        raise exc
 
 
 def aio_postgresql_engine(
