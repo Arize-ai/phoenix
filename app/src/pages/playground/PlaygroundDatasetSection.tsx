@@ -1,8 +1,19 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import {
+  createOpenDatasetEvaluatorForEditClientAction,
+  OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetEvaluatorForEdit";
+import {
+  createSetDatasetEvaluatorSelectionClientAction,
+  SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import { Flex } from "@phoenix/components";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { EvaluatorInputMappingInput } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetExamplesTableSubscription.graphql";
 import type {
@@ -10,6 +21,7 @@ import type {
   PlaygroundDatasetSection_evaluator$key,
 } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundDatasetSectionQuery } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSectionQuery.graphql";
+import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import type { Mutable } from "@phoenix/typeUtils";
 import { datasetEvaluatorsToAnnotationConfigs } from "@phoenix/utils/datasetEvaluatorUtils";
 
@@ -134,6 +146,59 @@ export function PlaygroundDatasetSection({
   const onEvaluatorCreated = useCallback((datasetEvaluatorId: string) => {
     setSelectedDatasetEvaluatorIds((prev) => [...prev, datasetEvaluatorId]);
   }, []);
+
+  const [editingEvaluator, setEditingEvaluator] =
+    useState<EditingEvaluator | null>(null);
+
+  // The agent client actions register once on mount (the stable effect below) but
+  // must read the latest roster, so the live array is held in a ref rather than a
+  // dep — re-registering on every roster change would tear down in-flight calls.
+  const agentStore = useAgentStore();
+  const evaluatorsRef = useRef<EvaluatorItem[]>(datasetEvaluators);
+  evaluatorsRef.current = datasetEvaluators;
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    registerClientAction(
+      SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME,
+      createSetDatasetEvaluatorSelectionClientAction({
+        getEvaluators: () => evaluatorsRef.current,
+        setSelectedDatasetEvaluatorIds,
+      })
+    );
+    registerClientAction(
+      OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME,
+      createOpenDatasetEvaluatorForEditClientAction({
+        agentStore,
+        getEvaluators: () => evaluatorsRef.current,
+        openEvaluatorForEdit: setEditingEvaluator,
+      })
+    );
+    return () => {
+      unregisterClientAction(SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME);
+      unregisterClientAction(OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME);
+    };
+  }, [agentStore]);
+
+  // Advertise the roster onto the playground context so the agent can resolve
+  // an evaluator name to its id. selectActiveContexts merges this partial
+  // playground context with the instances-bearing one from Playground.tsx.
+  const advertisedEvaluatorRoster = useMemo<AgentContext>(
+    () => ({
+      type: "playground" as const,
+      evaluators: datasetEvaluators.map((evaluator) => ({
+        datasetEvaluatorId: evaluator.id,
+        name: evaluator.name,
+        kind: evaluator.kind,
+        isBuiltin: evaluator.isBuiltIn,
+        isApplied: selectedDatasetEvaluatorIds.includes(evaluator.id),
+      })),
+    }),
+    [datasetEvaluators, selectedDatasetEvaluatorIds]
+  );
+  useAdvertiseAgentContext(advertisedEvaluatorRoster);
+
   const selectedEvaluatorWithInputMapping = useMemo(() => {
     return datasetEvaluators
       .filter((datasetEvaluator) =>
@@ -181,6 +246,8 @@ export function PlaygroundDatasetSection({
         onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
         isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
         onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+        editingEvaluator={editingEvaluator}
+        onEditingEvaluatorChange={setEditingEvaluator}
       />
       <PlaygroundDatasetExamplesTableProvider key={key}>
         <PlaygroundDatasetExamplesTable

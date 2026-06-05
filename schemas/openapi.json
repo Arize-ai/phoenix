@@ -11167,6 +11167,13 @@
             },
             "type": "array",
             "title": "Instances"
+          },
+          "evaluators": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundEvaluatorContext"
+            },
+            "type": "array",
+            "title": "Evaluators"
           }
         },
         "type": "object",
@@ -11174,7 +11181,7 @@
           "type"
         ],
         "title": "PlaygroundContext",
-        "description": "Playground prompt editor state mounted in the current browser route."
+        "description": "Playground prompt editor state mounted in the current browser route.\n\n``evaluators`` carries the dataset's evaluator roster when a dataset-backed\nplayground is mounted; it is the resolution substrate the select/edit-open\ntools use to map an evaluator name to its id. It is model-resolution context\nonly \u2014 each tool execution re-resolves ids against the live browser roster\nbefore acting."
       },
       "PlaygroundCustomProviderModelContext": {
         "properties": {
@@ -11210,6 +11217,45 @@
         ],
         "title": "PlaygroundCustomProviderModelContext",
         "description": "Custom-provider playground model selection."
+      },
+      "PlaygroundEvaluatorContext": {
+        "properties": {
+          "datasetEvaluatorId": {
+            "type": "string",
+            "title": "Datasetevaluatorid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "BUILTIN"
+            ],
+            "title": "Kind"
+          },
+          "isBuiltin": {
+            "type": "boolean",
+            "title": "Isbuiltin"
+          },
+          "isApplied": {
+            "type": "boolean",
+            "title": "Isapplied"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasetEvaluatorId",
+          "name",
+          "kind",
+          "isBuiltin",
+          "isApplied"
+        ],
+        "title": "PlaygroundEvaluatorContext",
+        "description": "One dataset evaluator on the mounted playground's roster.\n\n``kind`` mirrors the GraphQL ``EvaluatorKind`` enum (``LLM``/``CODE``/\n``BUILTIN``); ``is_builtin`` is the orthogonal built-in flag the UI uses\nalongside ``kind`` to gate editability. ``name`` is user-controlled and is\nsanitized at every model-visible boundary before rendering."
       },
       "PlaygroundInstanceContext": {
         "properties": {

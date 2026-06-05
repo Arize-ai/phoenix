@@ -69,6 +69,12 @@ _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS = get_template(
 _SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS.xml.j2"
 )
+_SET_DATASET_EVALUATOR_SELECTION_TOOL_INSTRUCTIONS = get_template(
+    "tools/SET_DATASET_EVALUATOR_SELECTION_TOOL_INSTRUCTIONS.xml.j2"
+)
+_OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_INSTRUCTIONS = get_template(
+    "tools/OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_INSTRUCTIONS.xml.j2"
+)
 _LOAD_DATASET_TOOL_INSTRUCTIONS = get_template("tools/LOAD_DATASET_TOOL_INSTRUCTIONS.xml.j2")
 _ADD_DATASET_EXAMPLES_TOOL_INSTRUCTIONS = get_template(
     "tools/ADD_DATASET_EXAMPLES_TOOL_INSTRUCTIONS.xml.j2"
@@ -208,6 +214,12 @@ class AgentPrompts:
     set_playground_repetitions_tool: Template = _SET_PLAYGROUND_REPETITIONS_TOOL_INSTRUCTIONS
     set_template_variables_path_tool: Template = _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS
     set_appended_messages_path_tool: Template = _SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS
+    set_dataset_evaluator_selection_tool: Template = (
+        _SET_DATASET_EVALUATOR_SELECTION_TOOL_INSTRUCTIONS
+    )
+    open_dataset_evaluator_for_edit_tool: Template = (
+        _OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_INSTRUCTIONS
+    )
     load_dataset_tool: Template = _LOAD_DATASET_TOOL_INSTRUCTIONS
     add_dataset_examples_tool: Template = _ADD_DATASET_EXAMPLES_TOOL_INSTRUCTIONS
     list_dataset_examples_tool: Template = _LIST_DATASET_EXAMPLES_TOOL_INSTRUCTIONS

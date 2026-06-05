@@ -21,10 +21,10 @@ import { CreateLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
-import type { EvaluatorKind } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import { AddEvaluatorMenuContents } from "@phoenix/components/evaluators/AddEvaluatorMenu";
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
 import { EvaluatorSelectMenuItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
+import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { isStringArray } from "@phoenix/typeUtils";
 
 import type { PlaygroundEvaluatorSelect_query$key } from "./__generated__/PlaygroundEvaluatorSelect_query.graphql";
@@ -42,6 +42,10 @@ type PlaygroundEvaluatorSelectProps = {
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
   isLlmEvaluatorFormOpen: boolean;
   onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  // Owned by PlaygroundDatasetSection so the agent's open-for-edit action and the
+  // per-item Edit affordance drive the same slideover.
+  editingEvaluator: EditingEvaluator | null;
+  onEditingEvaluatorChange: (editing: EditingEvaluator | null) => void;
 };
 
 export function PlaygroundEvaluatorSelect(
@@ -60,6 +64,8 @@ export function PlaygroundEvaluatorSelect(
     onCodeEvaluatorFormOpenChange,
     isLlmEvaluatorFormOpen,
     onLlmEvaluatorFormOpenChange,
+    editingEvaluator,
+    onEditingEvaluatorChange,
   } = props;
 
   const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
@@ -72,11 +78,6 @@ export function PlaygroundEvaluatorSelect(
     query
   );
 
-  const [editingEvaluator, setEditingEvaluator] = useState<{
-    datasetEvaluatorId: string;
-    kind: EvaluatorKind;
-    isBuiltIn: boolean;
-  } | null>(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
   const associateBuiltinEvaluatorDialogOpen =
@@ -91,16 +92,8 @@ export function PlaygroundEvaluatorSelect(
     setCreateLLMEvaluatorDialogInitialState,
   ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
 
-  const onEdit = ({
-    datasetEvaluatorId,
-    kind,
-    isBuiltIn,
-  }: {
-    datasetEvaluatorId: string;
-    kind: EvaluatorKind;
-    isBuiltIn: boolean;
-  }) => {
-    setEditingEvaluator({ datasetEvaluatorId, kind, isBuiltIn });
+  const onEdit = (editing: EditingEvaluator) => {
+    onEditingEvaluatorChange(editing);
     setEvaluatorMenuOpen(false);
   };
 
@@ -183,7 +176,7 @@ export function PlaygroundEvaluatorSelect(
         }
         onOpenChange={(open) => {
           if (!open) {
-            setEditingEvaluator(null);
+            onEditingEvaluatorChange(null);
           }
         }}
         updateConnectionIds={updateConnectionIds}
@@ -196,7 +189,7 @@ export function PlaygroundEvaluatorSelect(
         }
         onOpenChange={(open) => {
           if (!open) {
-            setEditingEvaluator(null);
+            onEditingEvaluatorChange(null);
           }
         }}
         updateConnectionIds={updateConnectionIds}
@@ -207,7 +200,7 @@ export function PlaygroundEvaluatorSelect(
         isOpen={editingEvaluator !== null && editingEvaluator.kind === "CODE"}
         onOpenChange={(open) => {
           if (!open) {
-            setEditingEvaluator(null);
+            onEditingEvaluatorChange(null);
           }
         }}
         updateConnectionIds={updateConnectionIds}

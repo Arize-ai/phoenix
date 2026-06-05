@@ -3158,6 +3158,12 @@ export interface components {
         /**
          * PlaygroundContext
          * @description Playground prompt editor state mounted in the current browser route.
+         *
+         *     ``evaluators`` carries the dataset's evaluator roster when a dataset-backed
+         *     playground is mounted; it is the resolution substrate the select/edit-open
+         *     tools use to map an evaluator name to its id. It is model-resolution context
+         *     only — each tool execution re-resolves ids against the live browser roster
+         *     before acting.
          */
         PlaygroundContext: {
             /**
@@ -3177,6 +3183,8 @@ export interface components {
             repetitions?: number;
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            /** Evaluators */
+            evaluators?: components["schemas"]["PlaygroundEvaluatorContext"][];
         };
         /**
          * PlaygroundCustomProviderModelContext
@@ -3196,6 +3204,30 @@ export interface components {
             provider: string;
             /** Modelname */
             modelName: string;
+        };
+        /**
+         * PlaygroundEvaluatorContext
+         * @description One dataset evaluator on the mounted playground's roster.
+         *
+         *     ``kind`` mirrors the GraphQL ``EvaluatorKind`` enum (``LLM``/``CODE``/
+         *     ``BUILTIN``); ``is_builtin`` is the orthogonal built-in flag the UI uses
+         *     alongside ``kind`` to gate editability. ``name`` is user-controlled and is
+         *     sanitized at every model-visible boundary before rendering.
+         */
+        PlaygroundEvaluatorContext: {
+            /** Datasetevaluatorid */
+            datasetEvaluatorId: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE" | "BUILTIN";
+            /** Isbuiltin */
+            isBuiltin: boolean;
+            /** Isapplied */
+            isApplied: boolean;
         };
         /**
          * PlaygroundInstanceContext

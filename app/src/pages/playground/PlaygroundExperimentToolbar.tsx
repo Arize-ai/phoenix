@@ -19,6 +19,7 @@ import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playgro
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
+import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
@@ -35,6 +36,8 @@ type PlaygroundExperimentToolbarProps = {
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
   isLlmEvaluatorFormOpen: boolean;
   onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  editingEvaluator: EditingEvaluator | null;
+  onEditingEvaluatorChange: (editing: EditingEvaluator | null) => void;
 };
 
 export function PlaygroundExperimentToolbar({
@@ -49,6 +52,8 @@ export function PlaygroundExperimentToolbar({
   onCodeEvaluatorFormOpenChange,
   isLlmEvaluatorFormOpen,
   onLlmEvaluatorFormOpenChange,
+  editingEvaluator,
+  onEditingEvaluatorChange,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const recordExperiments = usePlaygroundContext(
@@ -124,6 +129,8 @@ export function PlaygroundExperimentToolbar({
             onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
             isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
             onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+            editingEvaluator={editingEvaluator}
+            onEditingEvaluatorChange={onEditingEvaluatorChange}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
           <PlaygroundExperimentSettingsButton
