@@ -157,6 +157,8 @@ export type PendingPromptToolWrite = {
   sessionId: string;
   instanceId: number;
   expectedRevision: string;
+  /** Provider whose display format the user reviewed in the diff. */
+  provider: ModelProvider;
   /** The validated batch re-applied on accept. */
   input: WritePromptToolsInput;
   before: PromptToolsDisplaySnapshot;
