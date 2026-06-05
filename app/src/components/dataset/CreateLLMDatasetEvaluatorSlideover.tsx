@@ -3,6 +3,7 @@ import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
@@ -163,7 +164,7 @@ const CreateEvaluatorDialog = ({
     } satisfies EvaluatorStoreProps;
   }, [datasetId, _initialState]);
   const onSubmit = useCallback(
-    (store: EvaluatorStoreInstance) => {
+    (store: EvaluatorStoreInstance): Promise<EvaluatorSubmitResult> => {
       const {
         evaluator: {
           globalName,
@@ -183,8 +184,9 @@ const CreateEvaluatorDialog = ({
       // Validate output configs before submitting
       const validationErrors = getOutputConfigValidationErrors(outputConfigs);
       if (validationErrors.length > 0) {
-        setError(validationErrors.join("\n"));
-        return;
+        const message = validationErrors.join("\n");
+        setError(message);
+        return Promise.resolve({ ok: false, error: message });
       }
 
       const input = createLLMEvaluatorPayload({
@@ -197,23 +199,37 @@ const CreateEvaluatorDialog = ({
         inputMapping,
         includeExplanation,
       });
-      createLlmEvaluator({
-        variables: {
-          input,
-          connectionIds: updateConnectionIds ?? [],
-        },
-        onCompleted: (response) => {
-          const createdId = response.createDatasetLlmEvaluator.evaluator.id;
-          onEvaluatorCreated?.(createdId);
-          onClose();
-          notifySuccess({
-            title: "Evaluator created",
-          });
-        },
-        onError: (error) => {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          setError(errorMessages?.join("\n") ?? undefined);
-        },
+      return new Promise<EvaluatorSubmitResult>((resolve) => {
+        createLlmEvaluator({
+          variables: {
+            input,
+            connectionIds: updateConnectionIds ?? [],
+          },
+          onCompleted: (response) => {
+            const createdEvaluator =
+              response.createDatasetLlmEvaluator.evaluator;
+            onEvaluatorCreated?.(createdEvaluator.id);
+            onClose();
+            notifySuccess({
+              title: "Evaluator created",
+            });
+            resolve({
+              ok: true,
+              acceptedBy: "user",
+              evaluator: {
+                id: createdEvaluator.id,
+                name: createdEvaluator.name,
+              },
+            });
+          },
+          onError: (error) => {
+            const message =
+              getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+              error.message;
+            setError(message);
+            resolve({ ok: false, error: message });
+          },
+        });
       });
     },
     [

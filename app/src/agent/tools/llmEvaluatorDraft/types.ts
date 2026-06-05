@@ -1,6 +1,9 @@
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type {
+  ApprovalSource,
+  EvaluatorSubmitResult,
+} from "@phoenix/agent/tools/approval";
 import type { OutputConfigDraft } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
@@ -8,7 +11,7 @@ import type {
   EvaluatorMappingSource,
 } from "@phoenix/types";
 
-export type { ApprovalSource };
+export type { ApprovalSource, EvaluatorSubmitResult };
 
 import type {
   editLlmEvaluatorDraftActionContextSchema,
@@ -80,6 +83,12 @@ export type LlmEvaluatorDraftHost = {
     snapshot: LLMEvaluatorDraftSnapshot,
     operations: EditLlmEvaluatorDraftOperation[]
   ) => LlmEvaluatorActionResult<LLMEvaluatorDraftSnapshot>;
+  // Drives the dialog's validated create/patch mutation — the same path the
+  // manual Create/Update button runs. Only the terminal save tool calls this;
+  // draft edits never persist.
+  submit: (options: {
+    approvalSource: ApprovalSource;
+  }) => Promise<EvaluatorSubmitResult>;
 };
 
 export type PendingLlmEvaluatorEdit = {

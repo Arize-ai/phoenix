@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   fromOutputConfigDraft,
   toOutputConfigDrafts,
@@ -10,6 +11,7 @@ import {
   createReadLlmEvaluatorDraftClientAction,
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   type EditLlmEvaluatorDraftOperation,
+  type EvaluatorSubmitResult,
   type LLMEvaluatorDraftSnapshot,
   type LlmEvaluatorDraftHost,
   READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
@@ -34,9 +36,13 @@ import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/play
 export const useLlmEvaluatorDraftRegistration = ({
   mode,
   evaluatorNodeId,
+  handleSubmitRef,
 }: {
   mode: "create" | "update";
   evaluatorNodeId?: string | null;
+  // The dialog's current validated submit, threaded through a ref so the
+  // long-lived host registration drives it without re-registering per edit.
+  handleSubmitRef: RefObject<() => Promise<EvaluatorSubmitResult>>;
 }) => {
   const store = useEvaluatorStoreInstance();
   const agentStore = useAgentStore();
@@ -142,6 +148,10 @@ export const useLlmEvaluatorDraftRegistration = ({
       getSnapshot: buildSnapshot,
       previewOperations,
       applyOperations,
+      submit: createEvaluatorHostSubmit({
+        getHandleSubmit: () => handleSubmitRef.current,
+        unmountedError: "The LLM-evaluator form is not mounted; cannot submit.",
+      }),
     };
     draftHostRef.current = host;
 
@@ -176,5 +186,13 @@ export const useLlmEvaluatorDraftRegistration = ({
         }
       }
     };
-  }, [agentStore, store, playgroundStore, instanceId, mode, evaluatorNodeId]);
+  }, [
+    agentStore,
+    store,
+    playgroundStore,
+    instanceId,
+    mode,
+    evaluatorNodeId,
+    handleSubmitRef,
+  ]);
 };

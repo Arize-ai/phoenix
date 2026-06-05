@@ -3,6 +3,7 @@ import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   Dialog,
   Empty,
@@ -258,54 +259,60 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   const initialSandboxConfigId = evaluator.sandboxConfig?.id ?? null;
 
   const [patchCodeEvaluator, isPatchingCodeEvaluator] =
-    useMutation<EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation>(graphql`
-      mutation EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation(
-        $input: PatchCodeEvaluatorInput!
-      ) {
-        patchCodeEvaluator(input: $input) {
-          evaluator {
-            id
+    useMutation<EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation>(
+      graphql`
+        mutation EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation(
+          $input: PatchCodeEvaluatorInput!
+        ) {
+          patchCodeEvaluator(input: $input) {
+            evaluator {
+              id
+            }
           }
         }
-      }
-    `);
+      `
+    );
   const [createCodeEvaluatorVersion, isCreatingCodeEvaluatorVersion] =
-    useMutation<EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation>(graphql`
-      mutation EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation(
-        $input: CreateCodeEvaluatorVersionInput!
-      ) {
-        createCodeEvaluatorVersion(input: $input) {
-          evaluator {
-            id
-            ... on CodeEvaluator {
-              currentVersion {
-                id
+    useMutation<EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation>(
+      graphql`
+        mutation EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation(
+          $input: CreateCodeEvaluatorVersionInput!
+        ) {
+          createCodeEvaluatorVersion(input: $input) {
+            evaluator {
+              id
+              ... on CodeEvaluator {
+                currentVersion {
+                  id
+                }
               }
             }
           }
         }
-      }
-    `);
+      `
+    );
   const [updateDatasetCodeEvaluator, isUpdatingDatasetCodeEvaluator] =
-    useMutation<EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation>(graphql`
-      mutation EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation(
-        $input: UpdateDatasetCodeEvaluatorInput!
-        $connectionIds: [ID!]!
-      ) {
-        updateDatasetCodeEvaluator(input: $input) {
-          evaluator
-            @appendNode(
-              connections: $connectionIds
-              edgeTypeName: "DatasetEvaluatorEdge"
-            ) {
-            ...DatasetEvaluatorsTable_row
-            ...PlaygroundDatasetSection_evaluator
-            ...CodeDatasetEvaluatorDetails_datasetEvaluator
-            id
+    useMutation<EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation>(
+      graphql`
+        mutation EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation(
+          $input: UpdateDatasetCodeEvaluatorInput!
+          $connectionIds: [ID!]!
+        ) {
+          updateDatasetCodeEvaluator(input: $input) {
+            evaluator
+              @appendNode(
+                connections: $connectionIds
+                edgeTypeName: "DatasetEvaluatorEdge"
+              ) {
+              ...DatasetEvaluatorsTable_row
+              ...PlaygroundDatasetSection_evaluator
+              ...CodeDatasetEvaluatorDetails_datasetEvaluator
+              id
+            }
           }
         }
-      }
-    `);
+      `
+    );
 
   // currentVersion is nullable on the schema (a CodeEvaluator can exist
   // without any version: fixtures, backfills, partial-commit recovery.
@@ -365,7 +372,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       sourceCode: string;
       sandboxConfigId?: string | null;
     }
-  ) => {
+  ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
     const {
       evaluator: { name, description, inputMapping, id: evaluatorId },
@@ -375,71 +382,68 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     const normalizedName = name.trim();
     const normalizedDescription = description.trim() || undefined;
 
-    // Sandbox rebinding lives exclusively on patchCodeEvaluator; the version
-    // row carries no sandbox snapshot.
-    patchCodeEvaluator({
-      variables: {
-        input: {
-          id: evaluatorId,
-          name: normalizedName,
-          description: normalizedDescription,
-          outputConfigs: buildOutputConfigsInput(outputConfigs),
-          inputMapping,
-          ...(payload.sandboxConfigId !== undefined
-            ? { sandboxConfigId: payload.sandboxConfigId }
-            : {}),
-        },
-      },
-      onCompleted: () => {
-        createCodeEvaluatorVersion({
-          variables: {
-            input: {
-              codeEvaluatorId: evaluatorId,
-              sourceCode: payload.sourceCode,
-            },
-          },
-          onCompleted: () => {
-            updateDatasetCodeEvaluator({
-              variables: {
-                input: {
-                  datasetEvaluatorId,
-                  name: normalizedName,
-                  description: normalizedDescription,
-                  outputConfigs: buildOutputConfigsInput(outputConfigs),
-                  inputMapping,
-                },
-                connectionIds: updateConnectionIds ?? [],
-              },
-              onCompleted: () => {
-                notifySuccess({ title: "Evaluator updated" });
-                onDirtyChange?.(false);
-                onClose();
-                onUpdate?.();
-              },
-              onError: (mutationError) => {
-                setError(
-                  getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                    "\n"
-                  ) ?? mutationError.message
-                );
-              },
-            });
-          },
-          onError: (mutationError) => {
-            setError(
-              getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                "\n"
-              ) ?? mutationError.message
-            );
-          },
-        });
-      },
-      onError: (mutationError) => {
-        setError(
+    return new Promise<EvaluatorSubmitResult>((resolve) => {
+      const fail = (mutationError: Error) => {
+        const flattened =
           getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
-            mutationError.message
-        );
-      },
+          mutationError.message;
+        setError(flattened);
+        resolve({ ok: false, error: flattened });
+      };
+      // Sandbox rebinding lives exclusively on patchCodeEvaluator; the version
+      // row carries no sandbox snapshot.
+      patchCodeEvaluator({
+        variables: {
+          input: {
+            id: evaluatorId,
+            name: normalizedName,
+            description: normalizedDescription,
+            outputConfigs: buildOutputConfigsInput(outputConfigs),
+            inputMapping,
+            ...(payload.sandboxConfigId !== undefined
+              ? { sandboxConfigId: payload.sandboxConfigId }
+              : {}),
+          },
+        },
+        onCompleted: () => {
+          createCodeEvaluatorVersion({
+            variables: {
+              input: {
+                codeEvaluatorId: evaluatorId,
+                sourceCode: payload.sourceCode,
+              },
+            },
+            onCompleted: () => {
+              updateDatasetCodeEvaluator({
+                variables: {
+                  input: {
+                    datasetEvaluatorId,
+                    name: normalizedName,
+                    description: normalizedDescription,
+                    outputConfigs: buildOutputConfigsInput(outputConfigs),
+                    inputMapping,
+                  },
+                  connectionIds: updateConnectionIds ?? [],
+                },
+                onCompleted: () => {
+                  notifySuccess({ title: "Evaluator updated" });
+                  onDirtyChange?.(false);
+                  onClose();
+                  onUpdate?.();
+                  resolve({
+                    ok: true,
+                    acceptedBy: "user",
+                    evaluator: { id: evaluatorId, name: normalizedName },
+                  });
+                },
+                onError: fail,
+              });
+            },
+            onError: fail,
+          });
+        },
+        onError: fail,
+      });
     });
   };
 

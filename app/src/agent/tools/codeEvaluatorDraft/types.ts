@@ -1,6 +1,9 @@
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type {
+  ApprovalSource,
+  EvaluatorSubmitResult,
+} from "@phoenix/agent/tools/approval";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   CodeEvaluatorLanguage,
@@ -10,7 +13,7 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 
-export type { ApprovalSource };
+export type { ApprovalSource, EvaluatorSubmitResult };
 
 import type {
   CodeEvaluatorEditToolOutputSender,
@@ -95,6 +98,12 @@ export type CodeEvaluatorDraftHost = {
     snapshot: CodeEvaluatorDraftSnapshot,
     operations: EditCodeEvaluatorDraftOperation[]
   ) => CodeEvaluatorActionResult<CodeEvaluatorDraftSnapshot>;
+  // Drives the dialog's validated create/patch mutation — the same path the
+  // manual Create/Update button runs. Only the terminal save tool calls this;
+  // draft edits never persist.
+  submit: (options: {
+    approvalSource: ApprovalSource;
+  }) => Promise<EvaluatorSubmitResult>;
 };
 
 export type PendingCodeEvaluatorEdit = {
