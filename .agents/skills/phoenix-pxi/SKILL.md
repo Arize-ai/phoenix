@@ -18,7 +18,8 @@ The model-facing surface (tool definitions, system-prompt assembly, capability g
 - **Server-owned, model-facing**:
   - All tool `ToolDefinition`s sent to the LLM.
   - Capability prompt guidance.
-  - System prompt assembly will live here in the next iteration.
+  - System prompt templates under `src/phoenix/server/agents/prompts/`, including
+    the base prompt at `src/phoenix/server/agents/prompts/base/BASE_INSTRUCTIONS.xml.j2`.
 - **Browser-owned, execution-only**:
   - Tool runtime handlers and input parsers.
   - UI state, capabilities snapshot, and per-turn UI context payload.

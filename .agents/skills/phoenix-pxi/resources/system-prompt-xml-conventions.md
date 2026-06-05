@@ -10,22 +10,24 @@ The PXI agent system prompt follows this convention. Tool guidance, role definit
 
 ## Files To Know
 
-- `app/src/agent/chat/systemPrompt.ts` — top-level assembly; owns `<role>`, the `<tools>` wrapper, and `<link_formatting>`. Also currently inlines the `bash` tool block.
-- `app/src/agent/tools/<tool>/...ToolCapabilities.ts` — some tool modules export a `*_SYSTEM_PROMPT_LINES` constant that contributes one or more `<tool name="...">` blocks.
+- `src/phoenix/server/agents/prompts/base/BASE_INSTRUCTIONS.xml.j2` — base prompt template; owns the top-level `<role>` and `<link_formatting>` blocks.
+- `src/phoenix/server/agents/prompts/tools/*.xml.j2` — server-side tool guidance templates. These are passed into the matching capability classes.
+- `src/phoenix/server/agents/prompts/__init__.py` — loads the Jinja templates into the `AgentPrompts` bundle.
+- `src/phoenix/server/agents/agent_factory.py` — renders the base instructions and wires the prompt templates into the agent capabilities.
+- `src/phoenix/server/agents/capabilities/` — tool and context capabilities that expose `ToolDefinition`s and render per-run guidance.
 
 ## Top-Level Structure
 
-The system prompt is composed of three top-level XML sections, in order:
+The base prompt is composed of two top-level XML sections, in order:
 
 1. `<role>` — identity and high-level behavior for the agent.
-2. `<tools>` — a wrapper that contains one `<tool name="...">` block per registered tool. Each tool block is contributed by its capability module.
-3. `<link_formatting>` — output rules for documentation links, including the canonical docs domain (`https://arize.com/docs/phoenix`) and the rules for rewriting relative paths.
+2. `<link_formatting>` — output rules for documentation links, including the canonical docs domain (`https://arize.com/docs/phoenix`) and the rules for rewriting relative paths.
 
-Additional top-level sections (e.g. `<output_format>`, `<examples>`) may be added when new cross-cutting guidance is introduced. Keep each section single-purpose.
+Tool, context, skill, and documentation guidance is assembled through server-side capabilities, not through a browser-owned `<tools>` wrapper. Additional top-level base sections (e.g. `<output_format>`, `<examples>`) may be added when new cross-cutting guidance is introduced. Keep each section single-purpose.
 
 ## Tool Block Shape
 
-A tool capability module contributes one `<tool>` block per tool it advertises. The standard child tags are:
+A server-side tool guidance template contributes one `<tool>` block per tool it describes. The standard child tags are:
 
 ```xml
 <tool name="search_phoenix">
@@ -49,21 +51,21 @@ Tools with sandbox constraints or privileged state use additional nested blocks:
 </tool>
 ```
 
-Tools with behavioural rules use a `<guidelines>` block (see `elicitToolCapabilities.ts`).
+Tools with behavioural rules use a `<guidelines>` block in the relevant server-side tool template.
 
 ## Rules
 
 - **One XML block per concern.** Do not mix tool definitions, output rules, and role content inside a single block.
 - **Descriptive tag names.** Use `<canonical_docs_domain>` rather than `<domain>`. Claude is trained to respect XML structure regardless of the exact vocabulary, so favour readability.
 - **Indent nested tags two spaces** so the assembled prompt stays human-readable when printed. This is cosmetic for the model but valuable when debugging prompt output.
-- **Keep capability modules self-contained.** A tool capability module should export lines that are valid XML on their own; do not rely on the top-level assembly to open or close tags on its behalf.
-- **Cross-cutting output rules live in `systemPrompt.ts`.** If a rule applies to more than one tool's output (for example, how to format documentation links), put it in a top-level XML section in `systemPrompt.ts`, not inside a tool module.
+- **Keep capability templates self-contained.** A tool capability template should render XML that is valid on its own; do not rely on the base prompt to open or close tags on its behalf.
+- **Cross-cutting output rules live in the base prompt.** If a rule applies to more than one tool's output (for example, how to format documentation links), put it in a top-level XML section in `BASE_INSTRUCTIONS.xml.j2`, not inside a tool template.
 - **Never emit free-form markdown headings (`##`, `###`) in prompt lines.** Use XML tags instead so tool-contributed blocks compose consistently.
 
 ## Verification
 
-After changing any `*_SYSTEM_PROMPT_LINES` constant or the top-level assembly:
+After changing the base prompt or a capability prompt template:
 
-1. Run `pnpm typecheck` in `app/`.
-2. Print `AGENT_SYSTEM_PROMPT` (for example via a Vitest snapshot or a scratch script) and confirm XML blocks are well-formed: every `<tag>` has a matching `</tag>` and indentation is consistent.
-3. If you have an eval harness under `app/evals/`, re-run the relevant experiment to confirm the new prompt produces the intended output format.
+1. Render the touched Jinja template, or run the nearest agent/prompt unit test, and confirm XML blocks are well-formed: every `<tag>` has a matching `</tag>` and indentation is consistent.
+2. Run the nearest Python test that exercises the touched capability or agent factory path.
+3. If the change is behavior-sensitive, re-run the relevant agent eval or add a focused regression test before changing expected output.
