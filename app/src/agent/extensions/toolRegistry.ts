@@ -26,6 +26,7 @@ import {
   readLlmEvaluatorDraftAgentTool,
   testLlmEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { setAppendedMessagesPathAgentTool } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
 import { loadDatasetAgentTool } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   listPlaygroundModelTargetsAgentTool,
@@ -43,7 +44,10 @@ import {
   readPromptToolsAgentTool,
   writePromptToolsAgentTool,
 } from "@phoenix/agent/tools/playgroundPromptTools";
-import { runPlaygroundAgentTool } from "@phoenix/agent/tools/playgroundRun";
+import {
+  cancelPlaygroundRunAgentTool,
+  runPlaygroundAgentTool,
+} from "@phoenix/agent/tools/playgroundRun";
 import { savePromptAgentTool } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { setTemplateVariablesPathAgentTool } from "@phoenix/agent/tools/playgroundTemplateVariablesPath";
 import { setVariableValuesAgentTool } from "@phoenix/agent/tools/playgroundVariableValues";
@@ -77,9 +81,11 @@ const pageActionTools: AgentToolDefinition[] = [
   listPlaygroundModelTargetsAgentTool,
   loadDatasetAgentTool,
   runPlaygroundAgentTool,
+  cancelPlaygroundRunAgentTool,
   readPlaygroundOutputAgentTool,
   setVariableValuesAgentTool,
   setTemplateVariablesPathAgentTool,
+  setAppendedMessagesPathAgentTool,
   openCodeEvaluatorFormAgentTool,
   readCodeEvaluatorDraftAgentTool,
   editCodeEvaluatorDraftAgentTool,
