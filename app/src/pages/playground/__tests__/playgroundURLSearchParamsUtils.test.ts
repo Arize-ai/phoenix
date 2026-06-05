@@ -175,19 +175,14 @@ describe("resolvePlaygroundDatasetId", () => {
     ).toBe("ds-url");
   });
 
-  it("outside experiment mode: falls back to the store when the URL has no datasetId (post-load_dataset race)", () => {
-    // load_dataset writes the store synchronously but the URL only after a React
-    // Router re-render, so a caller can observe a stale, empty URL with a set store.
+  it("outside experiment mode: is URL-primary — returns null when the URL has no datasetId even if the store has one", () => {
+    // The page store is never re-synced from the URL, so the helper must NOT fall
+    // back to a (possibly stale) store value here; that would keep the page wrongly
+    // in dataset mode after a back/forward nav that clears the URL datasetId. The
+    // post-load_dataset race fallback lives at the imperative tool call site instead.
     const searchParams = new URLSearchParams();
     expect(
       resolvePlaygroundDatasetId({ searchParams, storeDatasetId: "ds-store" })
-    ).toBe("ds-store");
-  });
-
-  it("outside experiment mode: returns null when neither the URL nor the store has a datasetId", () => {
-    const searchParams = new URLSearchParams();
-    expect(
-      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
     ).toBeNull();
   });
 

@@ -86,15 +86,18 @@ export function setPromptParams({
  *
  * In experiment mode (an `experimentId` param is present) the playground store is
  * the source of truth for the datasetId — pass the store copy as `storeDatasetId`.
+ * Outside experiment mode the URL `datasetId` param is authoritative; the store
+ * copy is null for a URL-deep-linked dataset, so reading it instead would silently
+ * no-op.
  *
- * Outside experiment mode the URL `datasetId` param is authoritative (the store
- * copy is null for a URL-deep-linked dataset), but we fall back to the store when
- * the URL has no datasetId. Every dataset mutation writes the store synchronously
- * and the URL via `setSearchParams`, so the URL lags the store by a React Router
- * re-render: a caller reading immediately after `load_dataset` (e.g. the
- * `set_appended_messages_path` agent tool) would otherwise see a stale, empty URL
- * and incorrectly conclude no dataset is loaded. The fallback never overrides a
- * present URL datasetId, so the URL-primary deep-link behavior is unchanged.
+ * This is intentionally URL-primary (not URL-with-store-fallback): the page store
+ * is created once and is never re-synced from the URL, so on a navigation that
+ * clears the URL `datasetId` without going through `setDatasetId` (e.g. browser
+ * back/forward), a store fallback would keep the page wrongly in dataset mode.
+ * An imperative caller that needs the synchronously-fresh store value right after a
+ * `setDatasetId` (e.g. the `set_appended_messages_path` agent tool, which can run
+ * before the URL catches up) should apply its own `?? storeDatasetId` fallback at
+ * the call site rather than baking it in here.
  *
  * This is the single source of truth for the resolution — both the playground page
  * and the `set_appended_messages_path` agent tool depend on it staying in sync.
@@ -107,8 +110,5 @@ export function resolvePlaygroundDatasetId({
   storeDatasetId: string | null;
 }): string | null {
   const experimentId = searchParams.get("experimentId");
-  if (experimentId) {
-    return storeDatasetId;
-  }
-  return searchParams.get("datasetId") ?? storeDatasetId;
+  return experimentId ? storeDatasetId : searchParams.get("datasetId");
 }
