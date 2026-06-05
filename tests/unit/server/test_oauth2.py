@@ -1,11 +1,14 @@
 """Unit tests for OAuth2Client."""
 
+import logging
 from typing import Any
 
+import jmespath
 import pytest
 
 from phoenix.config import OAuth2ClientConfig
-from phoenix.server.oauth2 import OAuth2Client, OAuth2Clients
+from phoenix.server.api.routers.oauth2 import MissingEmailScope, _parse_user_info
+from phoenix.server.oauth2 import OAuth2Client, OAuth2Clients, search_claim_path
 
 # Common test configuration constants
 # Note: Optional features (groups, roles) are excluded - tests add them explicitly
@@ -1024,6 +1027,41 @@ class TestOAuth2ClientRoleMapping:
         assert client_non_strict.extract_and_map_role(claims_normal) == "VIEWER"
         assert client_strict.extract_and_map_role(claims_normal) == "VIEWER"
 
+    def test_conditional_role_expression_with_groups_claim_absent(self) -> None:
+        """Regression: a contains()-based role expression must not crash when the
+        referenced claim is entirely absent (e.g. a thin ID token whose groups arrive
+        only via UserInfo).
+
+        ``contains(groups[*], 'admin')`` raises JMESPathTypeError when ``groups`` is
+        missing, because ``groups[*]`` projects to null and ``contains`` rejects a null
+        subject. Extraction must treat that as "claim absent" rather than propagating the
+        error and failing login.
+        """
+        expr = (
+            "contains(groups[*], 'admin') && 'ADMIN' || "
+            "contains(groups[*], 'editor') && 'MEMBER' || 'VIEWER'"
+        )
+
+        # Non-strict: an absent claim degrades to the default VIEWER instead of crashing.
+        client_non_strict = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path=expr,
+            role_mapping={},
+            role_attribute_strict=False,
+        )
+        claims_thin = {"email": "user@example.com"}  # no "groups" claim at all
+        assert client_non_strict.extract_and_map_role(claims_thin) == "VIEWER"
+
+        # Strict: an absent claim is treated as "no role determined" -> deny, not crash.
+        client_strict = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path=expr,
+            role_mapping={},
+            role_attribute_strict=True,
+        )
+        with pytest.raises(PermissionError, match="Role claim not found"):
+            client_strict.extract_and_map_role(claims_thin)
+
 
 class TestHasSufficientClaimsWithRoles:
     """Test has_sufficient_claims method with role mapping."""
@@ -1239,5 +1277,100 @@ class TestOAuth2ClientRoleValidation:
 
         claims = {"email": "user@example.com", "groups": ["guest"], "role": "Owner"}
         # Should raise - group validation fails even though role is valid
+        with pytest.raises(PermissionError, match="Access denied"):
+            client.validate_access(claims)
+
+
+class TestRuntimeJMESPathErrorHandling:
+    """Claim extraction must tolerate runtime JMESPath errors (claim absent / wrong shape).
+
+    Compilation validates syntax at startup, but a syntactically valid expression can still
+    raise when evaluated against claims that lack the referenced key. Such an outcome means
+    the claim is simply not present, so it is treated as None rather than failing login.
+    """
+
+    def test_search_claim_path_passes_through_normal_result(self) -> None:
+        compiled = jmespath.compile("groups")
+        result = search_claim_path(compiled, {"groups": ["a", "b"]}, "GROUPS_ATTRIBUTE_PATH")
+        assert result == ["a", "b"]
+
+    def test_search_claim_path_returns_none_on_runtime_type_error(self) -> None:
+        # contains() over a projection of an absent claim raises JMESPathTypeError.
+        compiled = jmespath.compile("contains(groups[*], 'admin')")
+        result = search_claim_path(compiled, {"email": "user@example.com"}, "ROLE_ATTRIBUTE_PATH")
+        assert result is None
+
+    def test_search_claim_path_softens_unknown_function_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # A typo'd function name passes compilation (function names are resolved only at
+        # evaluation) and raises UnknownFunctionError on search. This is config-shaped, not
+        # claim-shaped, but it must degrade to None with a warning rather than 500 the login.
+        compiled = jmespath.compile("contians(groups[*], 'admin')")
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.oauth2"):
+            result = search_claim_path(compiled, {"groups": ["admin"]}, "ROLE_ATTRIBUTE_PATH")
+        assert result is None
+        assert "ROLE_ATTRIBUTE_PATH" in caplog.text
+        assert "UnknownFunctionError" in caplog.text
+
+    def test_search_claim_path_softens_arity_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        # Arity errors also surface only at evaluation; like other config-shaped failures they
+        # now degrade to None with a warning instead of propagating and failing login.
+        compiled = jmespath.compile("contains(groups[*])")
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.oauth2"):
+            result = search_claim_path(compiled, {"groups": ["admin"]}, "GROUPS_ATTRIBUTE_PATH")
+        assert result is None
+        assert "GROUPS_ATTRIBUTE_PATH" in caplog.text
+
+    def test_has_sufficient_claims_false_when_conditional_email_claim_absent(self) -> None:
+        """Regression: email expressions can raise the same runtime type errors as roles.
+
+        A thin ID token should trigger UserInfo fetching instead of failing the callback.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            email_attribute_path="contains(email_aliases[*], 'primary') && email || alternate_email",
+        )
+
+        claims = {"sub": "user123"}  # no "email_aliases" claim
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_parse_user_info_treats_conditional_email_runtime_error_as_missing_email(self) -> None:
+        """Regression: final email parsing should raise the normal missing-email error."""
+        email_path = jmespath.compile(
+            "contains(email_aliases[*], 'primary') && email || alternate_email"
+        )
+
+        with pytest.raises(MissingEmailScope, match="Missing or invalid"):
+            _parse_user_info({"sub": "user123"}, email_path=email_path)
+
+    def test_has_sufficient_claims_false_when_conditional_role_claim_absent(self) -> None:
+        """Regression: with a contains()-based role expression and the referenced claim
+        absent from the ID token, has_sufficient_claims must report False (so Phoenix
+        fetches UserInfo) instead of raising JMESPathTypeError and failing login.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            role_attribute_path="contains(groups[*], 'admin') && 'ADMIN' || 'VIEWER'",
+            role_mapping={},
+        )
+
+        # Thin ID token: groups claim not present yet (would arrive via UserInfo).
+        claims = {"sub": "user123", "email": "user@example.com"}
+        assert client.has_sufficient_claims(claims) is False
+
+    def test_group_extraction_tolerates_runtime_error_for_sign_in_gating(self) -> None:
+        """Regression: a groups expression that errors at evaluation time yields no groups,
+        producing a clean access denial rather than an unhandled exception during login.
+        """
+        client = OAuth2Client(
+            **_OAUTH2_CLIENT_DEFAULTS,
+            # contains() returns a boolean and raises when 'groups' is absent; an unusual
+            # but valid path chosen here to exercise the runtime-error guard.
+            groups_attribute_path="contains(groups[*], 'admin')",
+            allowed_groups=["admin"],
+        )
+
+        claims = {"email": "user@example.com"}  # no "groups" claim
         with pytest.raises(PermissionError, match="Access denied"):
             client.validate_access(claims)
