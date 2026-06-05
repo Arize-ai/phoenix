@@ -1,10 +1,10 @@
 """Unit tests for OAuth2Client."""
 
+import logging
 from typing import Any
 
 import jmespath
 import pytest
-from jmespath.exceptions import ArityError
 
 from phoenix.config import OAuth2ClientConfig
 from phoenix.server.api.routers.oauth2 import MissingEmailScope, _parse_user_info
@@ -1300,15 +1300,27 @@ class TestRuntimeJMESPathErrorHandling:
         result = search_claim_path(compiled, {"email": "user@example.com"}, "ROLE_ATTRIBUTE_PATH")
         assert result is None
 
-    def test_search_claim_path_reraises_runtime_configuration_errors(self) -> None:
-        # Arity errors indicate an invalid expression, not a missing or malformed claim.
+    def test_search_claim_path_softens_unknown_function_error(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # A typo'd function name passes compilation (function names are resolved only at
+        # evaluation) and raises UnknownFunctionError on search. This is config-shaped, not
+        # claim-shaped, but it must degrade to None with a warning rather than 500 the login.
+        compiled = jmespath.compile("contians(groups[*], 'admin')")
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.oauth2"):
+            result = search_claim_path(compiled, {"groups": ["admin"]}, "ROLE_ATTRIBUTE_PATH")
+        assert result is None
+        assert "ROLE_ATTRIBUTE_PATH" in caplog.text
+        assert "UnknownFunctionError" in caplog.text
+
+    def test_search_claim_path_softens_arity_error(self, caplog: pytest.LogCaptureFixture) -> None:
+        # Arity errors also surface only at evaluation; like other config-shaped failures they
+        # now degrade to None with a warning instead of propagating and failing login.
         compiled = jmespath.compile("contains(groups[*])")
-        with pytest.raises(ArityError):
-            search_claim_path(
-                compiled,
-                {"groups": ["admin"]},
-                "GROUPS_ATTRIBUTE_PATH",
-            )
+        with caplog.at_level(logging.WARNING, logger="phoenix.server.oauth2"):
+            result = search_claim_path(compiled, {"groups": ["admin"]}, "GROUPS_ATTRIBUTE_PATH")
+        assert result is None
+        assert "GROUPS_ATTRIBUTE_PATH" in caplog.text
 
     def test_has_sufficient_claims_false_when_conditional_email_claim_absent(self) -> None:
         """Regression: email expressions can raise the same runtime type errors as roles.

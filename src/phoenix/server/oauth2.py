@@ -8,7 +8,7 @@ from authlib.integrations.base_client import BaseApp
 from authlib.integrations.base_client.async_app import AsyncOAuth2Mixin
 from authlib.integrations.base_client.async_openid import AsyncOpenIDMixin
 from authlib.integrations.httpx_client import AsyncOAuth2Client as AsyncHttpxOAuth2Client
-from jmespath.exceptions import JMESPathError, JMESPathTypeError, ParseError
+from jmespath.exceptions import JMESPathError, ParseError
 
 from phoenix.config import AssignableUserRoleName, OAuth2ClientConfig
 
@@ -23,23 +23,30 @@ def search_claim_path(
     claims: dict[str, Any],
     attribute_name: str,
 ) -> Any:
-    """Evaluate a compiled JMESPath expression against claims, tolerating type errors.
+    """Evaluate a compiled JMESPath expression against claims, tolerating evaluation errors.
 
-    A syntactically valid expression can still raise at evaluation time when a claim is
-    absent or has an unexpected shape. For example, ``contains(groups[*], 'x')`` raises
-    JMESPathTypeError when the ``groups`` claim is missing, because ``groups[*]`` projects
-    to null and ``contains`` rejects a null subject. That outcome means the claim simply
-    isn't present in these claims, so it is treated as None and the caller falls back
-    (fetch UserInfo, or apply the default/strict role behavior) rather than failing login.
+    A syntactically valid expression can still raise at evaluation time. The common case is a
+    type mismatch when a claim is absent or has an unexpected shape: ``contains(groups[*], 'x')``
+    raises JMESPathTypeError when the ``groups`` claim is missing, because ``groups[*]`` projects
+    to null and ``contains`` rejects a null subject. Other evaluation-time failures are
+    config-shaped rather than claim-shaped — most notably a typo'd function name, which raises
+    UnknownFunctionError only at evaluation (function names are not resolved at compile time, so
+    such expressions pass the startup validation in ``_compile_jmespath_expression``).
+
+    All of these are caught here: rather than 500-ing the login, the claim is treated as None so
+    the caller falls back (fetch UserInfo, or apply the default/strict role behavior). A warning is
+    logged so an operator can spot a silently degrading role/group mapping (e.g. SSO users landing
+    as VIEWER instead of ADMIN) that previously surfaced as a loud login failure.
     """
     try:
         return compiled.search(claims)
-    except JMESPathTypeError as e:
-        logger.debug(
+    except JMESPathError as e:
+        logger.warning(
             "JMESPath expression for %s could not be evaluated against the current "
-            "claims (%s); treating the claim as absent.",
+            "claims (%s); treating the claim as absent. If this is unexpected, the "
+            "configured expression or the claim shape may be misconfigured.",
             attribute_name,
-            e,
+            type(e).__name__,
         )
         return None
 
