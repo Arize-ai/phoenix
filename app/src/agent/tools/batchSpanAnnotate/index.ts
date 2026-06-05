@@ -1,4 +1,5 @@
 export * from "./applySpanAnnotations";
+export * from "./batchSpanAnnotateAgentTool";
 export * from "./constants";
 export * from "./parsers";
 export * from "./pendingBatchSpanAnnotate";

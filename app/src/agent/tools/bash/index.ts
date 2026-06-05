@@ -1,4 +1,6 @@
 // --- Bash tool ---
+export { BASH_TOOL_NAME } from "./constants";
+export { bashAgentTool } from "./bashAgentTool";
 export { getBashToolInput, getBashToolSummary } from "./bashToolSchema";
 export {
   applyBashToolFilesystemPolicy,
