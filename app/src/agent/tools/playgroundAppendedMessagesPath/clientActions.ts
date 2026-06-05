@@ -1,3 +1,4 @@
+import { resolvePlaygroundDatasetId } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
@@ -16,13 +17,15 @@ export function createSetAppendedMessagesPathClientAction({
       return { ok: false, error: "Invalid set_appended_messages_path input." };
     }
 
-    // Resolve like PlaygroundContent: outside experiment mode the URL is the source
-    // of truth; store.datasetId is a secondary copy that is null for URL-deep-linked datasets.
-    const searchParams = getSearchParams();
-    const experimentId = searchParams.get("experimentId");
-    const datasetId = experimentId
-      ? playgroundStore.getState().datasetId
-      : searchParams.get("datasetId");
+    // Resolve like the playground page (shared helper). Outside experiment mode the
+    // URL is authoritative, but it falls back to the store so a call right after an
+    // accepted load_dataset still resolves: load_dataset writes the store
+    // synchronously while the URL only updates after a React Router re-render, so the
+    // search params read here can still be stale.
+    const datasetId = resolvePlaygroundDatasetId({
+      searchParams: getSearchParams(),
+      storeDatasetId: playgroundStore.getState().datasetId,
+    });
     if (datasetId == null) {
       return {
         ok: false,

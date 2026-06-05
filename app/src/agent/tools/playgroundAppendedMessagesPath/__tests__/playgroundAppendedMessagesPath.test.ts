@@ -49,6 +49,29 @@ describe("playground appended messages path agent tool", () => {
     ).toBeUndefined();
   });
 
+  it("(b2) non-experiment: falls back to the store when the URL lags after load_dataset", async () => {
+    // load_dataset writes the store synchronously but the URL only after a React
+    // Router re-render. An immediate set_appended_messages_path call must not see a
+    // stale, empty URL and report "no dataset"; it falls back to the store.
+    const playgroundStore = createPlaygroundStore({
+      datasetId: "ds-store",
+      modelConfigByProvider: {},
+    });
+    const action = createSetAppendedMessagesPathClientAction({
+      playgroundStore,
+      // URL has not caught up yet (no datasetId param).
+      getSearchParams: () => new URLSearchParams(),
+    });
+
+    const result = await action({ path: "messages" });
+
+    expect(result.ok).toBe(true);
+    expect(
+      playgroundStore.getState().stateByDatasetId["ds-store"]
+        ?.appendedMessagesPath
+    ).toBe("messages");
+  });
+
   it("(c) no resolved dataset: returns the load-dataset nudge", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,

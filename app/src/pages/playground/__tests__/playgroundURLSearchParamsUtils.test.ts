@@ -1,6 +1,7 @@
 import type { PromptParam } from "../playgroundURLSearchParamsUtils";
 import {
   parsePromptParams,
+  resolvePlaygroundDatasetId,
   setPromptParams,
 } from "../playgroundURLSearchParamsUtils";
 
@@ -163,5 +164,46 @@ describe("setPromptParams", () => {
     const searchParams = new URLSearchParams("datasetId=DS1");
     const changed = setPromptParams({ searchParams, prompts: [] });
     expect(changed).toBe(false);
+  });
+});
+
+describe("resolvePlaygroundDatasetId", () => {
+  it("outside experiment mode: prefers the URL datasetId over the store copy", () => {
+    const searchParams = new URLSearchParams("datasetId=ds-url");
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
+    ).toBe("ds-url");
+  });
+
+  it("outside experiment mode: falls back to the store when the URL has no datasetId (post-load_dataset race)", () => {
+    // load_dataset writes the store synchronously but the URL only after a React
+    // Router re-render, so a caller can observe a stale, empty URL with a set store.
+    const searchParams = new URLSearchParams();
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: "ds-store" })
+    ).toBe("ds-store");
+  });
+
+  it("outside experiment mode: returns null when neither the URL nor the store has a datasetId", () => {
+    const searchParams = new URLSearchParams();
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
+    ).toBeNull();
+  });
+
+  it("in experiment mode: resolves from the store, ignoring the URL datasetId", () => {
+    const searchParams = new URLSearchParams(
+      "experimentId=exp-1&datasetId=ds-url"
+    );
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: "ds-store" })
+    ).toBe("ds-store");
+  });
+
+  it("in experiment mode: returns null when the store datasetId is null", () => {
+    const searchParams = new URLSearchParams("experimentId=exp-1");
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
+    ).toBeNull();
   });
 });

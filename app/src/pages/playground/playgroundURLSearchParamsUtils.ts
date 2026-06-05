@@ -80,3 +80,35 @@ export function setPromptParams({
 
   return true;
 }
+
+/**
+ * Resolves the active playground datasetId.
+ *
+ * In experiment mode (an `experimentId` param is present) the playground store is
+ * the source of truth for the datasetId — pass the store copy as `storeDatasetId`.
+ *
+ * Outside experiment mode the URL `datasetId` param is authoritative (the store
+ * copy is null for a URL-deep-linked dataset), but we fall back to the store when
+ * the URL has no datasetId. Every dataset mutation writes the store synchronously
+ * and the URL via `setSearchParams`, so the URL lags the store by a React Router
+ * re-render: a caller reading immediately after `load_dataset` (e.g. the
+ * `set_appended_messages_path` agent tool) would otherwise see a stale, empty URL
+ * and incorrectly conclude no dataset is loaded. The fallback never overrides a
+ * present URL datasetId, so the URL-primary deep-link behavior is unchanged.
+ *
+ * This is the single source of truth for the resolution — both the playground page
+ * and the `set_appended_messages_path` agent tool depend on it staying in sync.
+ */
+export function resolvePlaygroundDatasetId({
+  searchParams,
+  storeDatasetId,
+}: {
+  searchParams: URLSearchParams;
+  storeDatasetId: string | null;
+}): string | null {
+  const experimentId = searchParams.get("experimentId");
+  if (experimentId) {
+    return storeDatasetId;
+  }
+  return searchParams.get("datasetId") ?? storeDatasetId;
+}

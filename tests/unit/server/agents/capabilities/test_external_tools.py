@@ -65,6 +65,9 @@ def test_set_appended_messages_path_instructions_expose_tool_tag_and_load_datase
 
     assert '<tool name="set_appended_messages_path">' in rendered
     assert "load_dataset" in rendered
+    # The path is resolved relative to the example's ``input`` object, so the guidance
+    # must steer the model away from prefixing the path with ``input.`` (PR 13623 review).
+    assert "relative to a dataset example's `input` object" in rendered
 
 
 def test_set_appended_messages_path_parameters_expose_only_nullable_required_path() -> None:

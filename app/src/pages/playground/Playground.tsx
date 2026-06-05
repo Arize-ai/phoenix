@@ -113,7 +113,10 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
 import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamplePage";
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
-import { setPromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
+import {
+  resolvePlaygroundDatasetId,
+  setPromptParams,
+} from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { PlaygroundProps } from "@phoenix/store";
 import {
   type AgentClientActionResult,
@@ -152,10 +155,10 @@ export function Playground(
   }
 ) {
   const [searchParams] = useSearchParams();
-  const experimentId = searchParams.get("experimentId");
-  const datasetId = experimentId
-    ? (props.datasetId ?? null)
-    : searchParams.get("datasetId");
+  const datasetId = resolvePlaygroundDatasetId({
+    searchParams,
+    storeDatasetId: props.datasetId ?? null,
+  });
 
   const { modelProviders } = useLazyLoadQuery<PlaygroundQuery>(
     graphql`
@@ -305,10 +308,10 @@ function PlaygroundContent() {
   const searchParamsRef = useRef(searchParams);
   searchParamsRef.current = searchParams;
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
-  const experimentId = searchParams.get("experimentId");
-  const datasetId = experimentId
-    ? storeDatasetId
-    : searchParams.get("datasetId");
+  const datasetId = resolvePlaygroundDatasetId({
+    searchParams,
+    storeDatasetId,
+  });
   // Only depend on the split-id subset of query params.
   const serializedSplitIds = searchParams.getAll("splitId").join("\0");
   // Keep splitIds referentially stable unless split-id values actually change.
