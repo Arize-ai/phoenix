@@ -57,7 +57,7 @@ installTestStorage();
  * Every frontend-executable PXI tool the registry is expected to dispatch,
  * keyed by its server-advertised name constant. Sourced from each tool module
  * so the test asserts against the same constants the registry and the
- * page-level action registrations both consume — a rename that desynchronizes
+ * client-action registrations both consume — a rename that desynchronizes
  * the registry from a tool module breaks this list at compile time.
  */
 const EXPECTED_TOOL_NAMES = [

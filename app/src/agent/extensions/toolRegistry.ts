@@ -61,12 +61,12 @@ import { createAgentToolDispatcher } from "./registry/dispatch";
 export type { AgentToolCall, AgentToolUIBehavior } from "./registry/defineTool";
 
 /**
- * Page-action tools delegate to a client action that a mounted React component
+ * Client-action tools delegate to a client action that a mounted React component
  * registers in `registeredClientActions` (built with `defineClientActionTool`).
- * Each only works while its page surface is mounted; off that surface it returns
+ * Each only works while its UI surface is mounted; off that surface it returns
  * a "not mounted" error. Registration order is cosmetic — dispatch is by name.
  */
-const pageActionTools: AgentToolDefinition[] = [
+const clientActionTools: AgentToolDefinition[] = [
   setTimeRangeAgentTool,
   setSpansFilterAgentTool,
   readPromptAgentTool,
@@ -97,8 +97,8 @@ const pageActionTools: AgentToolDefinition[] = [
 ];
 
 /**
- * Standalone tools are not built on the client-action helper — they delegate to
- * no `registeredClientActions` entry and own what they do (built with the
+ * The remaining tools are not built on the client-action helper — they delegate
+ * to no `registeredClientActions` entry and own what they do (built with the
  * lower-level `defineTool`):
  * - `bash` executes in the browser sandbox runtime;
  * - `get_route_info` resolves route info from the catalog and returns it directly;
@@ -111,7 +111,7 @@ const pageActionTools: AgentToolDefinition[] = [
  * `requireToolSession` guard that `defineClientActionTool` uses for its
  * `requireSession` knob, so the guard lives in one place rather than per tool.
  */
-const standaloneTools: AgentToolDefinition[] = [
+const tools: AgentToolDefinition[] = [
   bashAgentTool,
   getRouteInfoAgentTool,
   renderGenerativeUIAgentTool,
@@ -121,8 +121,8 @@ const standaloneTools: AgentToolDefinition[] = [
 
 /** Ordered registry of all frontend-executable tools. */
 const agentToolDefinitions: AgentToolDefinition[] = [
-  ...pageActionTools,
-  ...standaloneTools,
+  ...clientActionTools,
+  ...tools,
 ];
 
 const dispatcher = createAgentToolDispatcher(agentToolDefinitions);

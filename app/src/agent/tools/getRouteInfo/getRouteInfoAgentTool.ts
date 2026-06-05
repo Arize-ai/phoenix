@@ -7,9 +7,9 @@ import { parseGetRouteInfoInput } from "./parsers";
 import type { GetRouteInfoInput } from "./types";
 
 /**
- * Standalone executor: resolves route / navigation info from the route catalog
- * using the session's active contexts and returns it directly. It delegates to
- * no page action, so it is built with the lower-level `defineTool`.
+ * Resolves route / navigation info from the route catalog using the session's
+ * active contexts and returns it directly. It delegates to no client action, so
+ * it is built with the lower-level `defineTool`.
  */
 export const getRouteInfoAgentTool = defineTool<GetRouteInfoInput>({
   name: GET_ROUTE_INFO_TOOL_NAME,

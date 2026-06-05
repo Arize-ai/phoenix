@@ -63,13 +63,12 @@ async function emitClientActionResult({
 }
 
 /**
- * Define a "page-action" tool: one that delegates to a client action looked up
- * by name in `agentStore.registeredClientActions`. A *client action* here is
- * the same thing as a *page action* — the callable a mounted React component
- * registers (via `registerClientAction`) to expose its page surface to PXI; the
- * two terms are interchangeable. Tools that own their own execution and
- * delegate to no page action (e.g. `bash`, `render_generative_ui`) use the
- * lower-level `defineTool` instead.
+ * Define a client-action tool: one that delegates to a *client action* looked
+ * up by name in `agentStore.registeredClientActions` — the callable a mounted
+ * React component registers (via `registerClientAction`) to expose its UI
+ * surface to PXI. Tools that own their own execution and delegate to no client
+ * action (e.g. `bash`, `render_generative_ui`) use the lower-level `defineTool`
+ * instead.
  *
  * The `requireSession` knob composes the shared `requireToolSession` guard —
  * the same guard the session-gated standalone tools use — so the no-session
