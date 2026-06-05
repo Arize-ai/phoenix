@@ -27,7 +27,6 @@ import {
   formatBatchSpanAnnotateState,
   getBatchSpanAnnotateToolPreview,
 } from "./BatchSpanAnnotateToolDetails";
-import { useChatScrollContext } from "./ChatScrollContext";
 import {
   DocsToolDetails,
   formatDocsToolState,
@@ -72,6 +71,7 @@ import {
   getSavePromptToolPreview,
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
+import { getScrollableParent, useScrollAnchor } from "./scrollAnchor";
 import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
@@ -420,28 +420,6 @@ export function ToolPart({
 }
 
 /**
- * Walks up the DOM from `element` to find the closest ancestor that can scroll
- * vertically — i.e. one whose `overflow-y` is `auto`/`scroll` and whose content
- * actually overflows. This is the container we want to move when revealing a
- * descendant, rather than letting the browser scroll every ancestor.
- *
- * @param element - The element whose scroll container to locate.
- * @returns The nearest vertically scrollable ancestor, or `null` if none exists.
- */
-function getScrollableParent(element: HTMLElement): HTMLElement | null {
-  let current = element.parentElement;
-  while (current) {
-    const { overflowY } = getComputedStyle(current);
-    const isScrollable = overflowY === "auto" || overflowY === "scroll";
-    if (isScrollable && current.scrollHeight > current.clientHeight) {
-      return current;
-    }
-    current = current.parentElement;
-  }
-  return null;
-}
-
-/**
  * Smoothly scrolls `element` to the top of its nearest scrollable ancestor,
  * scrolling only that container.
  *
@@ -481,7 +459,7 @@ function ToolInvocationPartDetails({
   const hasAutoOpenedRef = useRef(false);
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
-  const chatScrollContext = useChatScrollContext();
+  const scrollAnchor = useScrollAnchor();
   const {
     preview,
     stateLabel,
@@ -531,38 +509,13 @@ function ToolInvocationPartDetails({
           // natively can race the auto-open/manual override state during tool
           // streaming updates and make the disclosure feel stuck.
           event.preventDefault();
-          const wasOpen = isRenderedOpen;
 
-          // Record the tool's visual position before expanding so we can
-          // restore it after the content grows.
-          const scrollParent = getScrollableParent(event.currentTarget);
-          const elementRect = detailsRef.current?.getBoundingClientRect();
-          const parentRect = scrollParent?.getBoundingClientRect();
-          const offsetFromParentTop =
-            elementRect && parentRect ? elementRect.top - parentRect.top : null;
-
-          // Stop the stick-to-bottom library from fighting our scroll restore.
-          if (!wasOpen) {
-            chatScrollContext?.stopScroll();
-          }
-
+          // Record the tool's position before it grows/shrinks, flip the open
+          // state, then restore the header to the same spot once the DOM has
+          // updated so opening a tool doesn't jump the transcript.
+          scrollAnchor.capture(detailsRef.current);
           setManualOpen(!isRenderedOpen);
-
-          // After React renders the expanded/collapsed content, restore the
-          // tool header to its original visual position.
-          if (scrollParent && offsetFromParentTop !== null) {
-            requestAnimationFrame(() => {
-              const newElementRect =
-                detailsRef.current?.getBoundingClientRect();
-              const newParentRect = scrollParent.getBoundingClientRect();
-              if (newElementRect) {
-                const newOffsetFromParentTop =
-                  newElementRect.top - newParentRect.top;
-                const delta = newOffsetFromParentTop - offsetFromParentTop;
-                scrollParent.scrollTop += delta;
-              }
-            });
-          }
+          requestAnimationFrame(() => scrollAnchor.restore(detailsRef.current));
         }}
       >
         <div className="tool-part__summary">

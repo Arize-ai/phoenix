@@ -1,11 +1,11 @@
 import { css, keyframes } from "@emotion/react";
 import type { ReactNode } from "react";
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { CopyToClipboardButton } from "@phoenix/components";
 import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
 
-import { useChatScrollContext } from "./ChatScrollContext";
+import { useScrollAnchor } from "./scrollAnchor";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
   from {
@@ -61,7 +61,9 @@ export function ToolPartCodeBlock({
 }) {
   return (
     <div
-      className={`tool-part__line${allowCopy ? " tool-part__line--copyable" : ""}`}
+      className={`tool-part__line${
+        allowCopy ? " tool-part__line--copyable" : ""
+      }`}
     >
       <code className="tool-part__code">{children || "(empty)"}</code>
       {allowCopy ? (
@@ -122,24 +124,13 @@ const expandableSectionCSS = css`
 `;
 
 /**
- * Finds the nearest scrollable parent element.
- */
-function getScrollableParent(element: HTMLElement): HTMLElement | null {
-  let current = element.parentElement;
-  while (current) {
-    const { overflowY } = getComputedStyle(current);
-    const isScrollable = overflowY === "auto" || overflowY === "scroll";
-    if (isScrollable && current.scrollHeight > current.clientHeight) {
-      return current;
-    }
-    current = current.parentElement;
-  }
-  return null;
-}
-
-/**
  * Wrapper for tool part input/output sections. Automatically collapses content
  * that exceeds the collapsed height, showing an expand/collapse button.
+ *
+ * Drives `ExpandableContent` in controlled mode so we can bracket each toggle
+ * with scroll anchoring — recording the section's position before it grows or
+ * shrinks and restoring it afterward — without `ExpandableContent` needing to
+ * know anything about the surrounding scroll container.
  */
 export function ToolPartExpandableSection({
   children,
@@ -147,51 +138,25 @@ export function ToolPartExpandableSection({
   children: ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scrollAnchorRef = useRef<{
-    scrollParent: HTMLElement;
-    offsetFromParentTop: number;
-  } | null>(null);
-  const chatScrollContext = useChatScrollContext();
+  const [isExpanded, setIsExpanded] = useState(false);
+  const scrollAnchor = useScrollAnchor();
 
-  const handleBeforeExpandedChange = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const scrollParent = getScrollableParent(container);
-    if (!scrollParent) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const parentRect = scrollParent.getBoundingClientRect();
-    const offsetFromParentTop = containerRect.top - parentRect.top;
-
-    // Stop the stick-to-bottom library from fighting our scroll restore
-    chatScrollContext?.stopScroll();
-
-    scrollAnchorRef.current = { scrollParent, offsetFromParentTop };
-  }, [chatScrollContext]);
-
-  const handleAfterExpandedChange = useCallback(() => {
-    const anchor = scrollAnchorRef.current;
-    const container = containerRef.current;
-    if (!anchor || !container) return;
-
-    const { scrollParent, offsetFromParentTop } = anchor;
-    const newContainerRect = container.getBoundingClientRect();
-    const newParentRect = scrollParent.getBoundingClientRect();
-    const newOffsetFromParentTop = newContainerRect.top - newParentRect.top;
-    const delta = newOffsetFromParentTop - offsetFromParentTop;
-
-    scrollParent.scrollTop += delta;
-    scrollAnchorRef.current = null;
-  }, []);
+  const handleExpandedChange = useCallback(
+    (nextIsExpanded: boolean) => {
+      scrollAnchor.capture(containerRef.current);
+      setIsExpanded(nextIsExpanded);
+      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+    },
+    [scrollAnchor]
+  );
 
   return (
     <div ref={containerRef} css={expandableSectionCSS}>
       <ExpandableContent
         height={COLLAPSED_HEIGHT_PX}
         expandedBehavior="grow"
-        onBeforeExpandedChange={handleBeforeExpandedChange}
-        onAfterExpandedChange={handleAfterExpandedChange}
+        isExpanded={isExpanded}
+        onExpandedChange={handleExpandedChange}
       >
         {children}
       </ExpandableContent>

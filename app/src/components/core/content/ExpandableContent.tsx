@@ -107,16 +107,6 @@ export interface ExpandableContentProps extends PropsWithChildren {
    * Use this with `isExpanded` for controlled mode.
    */
   onExpandedChange?: (isExpanded: boolean) => void;
-  /**
-   * Called before the expanded state changes. Use this to prepare for scroll
-   * anchoring by recording the current scroll position.
-   */
-  onBeforeExpandedChange?: () => void;
-  /**
-   * Called after the expanded state changes and the DOM has updated. Use this
-   * to restore scroll position for scroll anchoring.
-   */
-  onAfterExpandedChange?: () => void;
 }
 
 export function ExpandableContent({
@@ -126,8 +116,6 @@ export function ExpandableContent({
   overlayBackgroundColor = "var(--global-background-color-default)",
   isExpanded: controlledExpanded,
   onExpandedChange,
-  onBeforeExpandedChange,
-  onAfterExpandedChange,
 }: ExpandableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -144,14 +132,10 @@ export function ExpandableContent({
   const isExpanded = isControlled ? controlledExpanded : internalExpanded;
 
   const setExpanded = (nextIsExpanded: boolean) => {
-    onBeforeExpandedChange?.();
     if (!isControlled) {
       setInternalExpanded(nextIsExpanded);
     }
     onExpandedChange?.(nextIsExpanded);
-    if (onAfterExpandedChange) {
-      requestAnimationFrame(onAfterExpandedChange);
-    }
   };
   const shouldUseNaturalHeight = expandedBehavior === "grow" && isExpanded;
   const canCollapse =
