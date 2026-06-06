@@ -1,9 +1,18 @@
 import { css } from "@emotion/react";
-import { useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
-import { getTimeZoneShortName } from "@phoenix/utils/timeFormatUtils";
+import {
+  createTimeRangeFormatter,
+  getTimeZoneShortName,
+} from "@phoenix/utils/timeFormatUtils";
 import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 import { Badge } from "../core/badge";
@@ -11,7 +20,7 @@ import { Text } from "../core/content";
 import { ListBox, ListBoxItem } from "../core/listbox";
 import { Popover } from "../core/overlay";
 import type { ComponentSize } from "../core/types";
-import { LAST_N_TIME_RANGES } from "./constants";
+import { LAST_N_TIME_RANGES, LAST_N_TIME_RANGES_MAP } from "./constants";
 import { TimeRangeFields } from "./TimeRangeFields";
 import type { OpenTimeRangeWithKey } from "./types";
 import {
@@ -27,12 +36,12 @@ export type TimeRangeSelectorProps = {
 };
 
 /**
- * A Datadog-style time range control. The current window is always shown as an
- * inline, editable field: typing into the start/end dates forks the active
- * preset into a custom range, while focusing the field opens the list of quick
- * presets right below it. The leading badge surfaces the active preset's
- * shorthand and the trailing label shows the time zone the range is displayed
- * in.
+ * A Datadog-style time range control. The current window is shown as a compact
+ * preset label until the control receives focus, then swaps to inline editable
+ * start/end date fields. Typing into the dates forks the active preset into a
+ * custom range, while focusing the control opens the list of quick presets
+ * right below it. The leading badge surfaces the active preset's shorthand and
+ * the trailing label shows the time zone the range is displayed in.
  */
 const timeRangeSelectorCSS = css`
   display: inline-flex;
@@ -68,6 +77,39 @@ const timeRangeSelectorCSS = css`
     align-items: center;
     gap: var(--global-dimension-size-50);
     min-width: 0;
+  }
+
+  .time-range-selector__value-shell {
+    flex: 0 0 auto;
+    min-width: 0;
+    overflow: hidden;
+    transition: width 180ms cubic-bezier(0.2, 0.9, 0.2, 1);
+  }
+
+  .time-range-selector__value-measure {
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+  }
+
+  .time-range-selector__value {
+    flex: 0 1 auto;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--global-text-color-900);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+    }
+
+    &[disabled] {
+      cursor: not-allowed;
+    }
   }
 
   .time-range-selector__separator {
@@ -118,6 +160,16 @@ const timeRangeSelectorCSS = css`
     flex: none;
     white-space: nowrap;
   }
+
+  &[data-presets-open] .time-range-selector__value-shell {
+    transition: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .time-range-selector__value-shell {
+      transition: none;
+    }
+  }
 `;
 
 const presetListBoxCSS = css`
@@ -134,94 +186,190 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const valueMeasureRef = useRef<HTMLDivElement>(null);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
-  // Closing after a preset click can restore focus to the date field. That
-  // restored focus would otherwise retrigger `onFocus` and immediately reopen
-  // the menu; this ref lets `onFocus` swallow exactly that one reopen.
-  const skipNextFocusOpenRef = useRef(false);
-  const suppressNextFocusOpen = () => {
-    skipNextFocusOpenRef.current = true;
+  const [isEditing, setIsEditing] = useState(false);
+  const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
+  // Closing after a preset click can trigger focus restoration and delayed
+  // open requests. Suppress those briefly so a preset selection closes cleanly.
+  const suppressOpenRef = useRef(false);
+  const suppressNextOpen = () => {
+    suppressOpenRef.current = true;
     setTimeout(() => {
-      skipNextFocusOpenRef.current = false;
+      suppressOpenRef.current = false;
     }, 300);
   };
-  // Measure the field so the presets popover can span its full width. The
-  // observed content box plus the field's own padding and border reconstructs
-  // the field's outer (border-box) width.
-  const fieldDimensions = useDimensions(containerRef);
-  const popoverWidth = fieldDimensions
-    ? `calc(${fieldDimensions.width}px + 2 * var(--global-dimension-size-100) + 2 * var(--global-border-size-thin))`
-    : undefined;
+  const closePresets = useCallback(() => {
+    setIsPresetsOpen(false);
+  }, []);
+  const openPresets = useCallback(() => {
+    if (suppressOpenRef.current) {
+      return;
+    }
+    setIsPresetsOpen((isOpen) => (isOpen ? isOpen : true));
+  }, []);
+  useEffect(() => {
+    if (!isPresetsOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+      if (
+        containerRef.current?.contains(event.target) ||
+        popoverRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      closePresets();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      closePresets();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKeyDown, true);
+    };
+  }, [closePresets, isPresetsOpen]);
+
+  const valueDimensions = useDimensions(valueMeasureRef);
   const displayTimezone = usePreferencesContext(
     (state) => state.displayTimezone
   );
   const timeZone = displayTimezone ?? getTimeZone();
+  const locale = getLocale();
   const timeZoneShortName = getTimeZoneShortName({
-    locale: getLocale(),
+    locale,
     timeZone,
   });
 
   const isCustom = timeRangeKey === "custom";
   const badgeLabel = isCustom ? "Custom" : timeRangeKey;
+  const timeRangeFormatter = createTimeRangeFormatter({ locale, timeZone });
+  const valueLabel = isLastNTimeRangeKey(timeRangeKey)
+    ? (LAST_N_TIME_RANGES_MAP[timeRangeKey]?.label ?? timeRangeKey)
+    : timeRangeFormatter({ start, end });
 
   // Forces the inline fields to reset whenever the committed range or the
   // display time zone changes from the outside (e.g. selecting a preset).
   const fieldsKey = `${timeRangeKey}|${start?.getTime() ?? ""}|${end?.getTime() ?? ""}|${timeZone}`;
+  const valueWidth = valueDimensions?.width;
+  const triggerLayoutKey = `${isEditing}|${fieldsKey}|${valueLabel}|${badgeLabel}|${timeZoneShortName ?? ""}`;
+  const isPopoverReady = isPresetsOpen && popoverWidth != null;
+
+  useLayoutEffect(() => {
+    const width = isPresetsOpen ? containerRef.current?.offsetWidth : undefined;
+    const nextWidth = width ? `${width}px` : undefined;
+    // Measure after the edit fields have laid out, but before paint, so the
+    // popover mounts at the final trigger width instead of resizing from the
+    // compact-label width.
+    // eslint-disable-next-line react-hooks-js/set-state-in-effect
+    setPopoverWidth((currentWidth) =>
+      currentWidth === nextWidth ? currentWidth : nextWidth
+    );
+  }, [isPresetsOpen, triggerLayoutKey]);
 
   return (
-    <div
-      ref={containerRef}
-      className="time-range-selector"
-      css={timeRangeSelectorCSS}
-      data-size={size}
-      data-disabled={isDisabled || undefined}
-      role="group"
-      aria-label="Time range"
-      onFocus={() => {
-        if (isDisabled) {
-          return;
-        }
-        if (skipNextFocusOpenRef.current) {
-          skipNextFocusOpenRef.current = false;
-          return;
-        }
-        setIsPresetsOpen(true);
-      }}
-    >
-      <Badge size="S" variant={isCustom ? "info" : "default"} css={badgeCSS}>
-        {badgeLabel}
-      </Badge>
-      <TimeRangeFields
-        key={fieldsKey}
-        start={start}
-        end={end}
-        timeZone={timeZone}
-        isDisabled={isDisabled}
-        onCommit={(timeRange) =>
-          onChange({ timeRangeKey: "custom", ...timeRange })
-        }
-      />
-      {timeZoneShortName && (
-        <Text
-          size="XS"
-          color="text-500"
-          className="time-range-selector__timezone"
+    <>
+      <div
+        ref={containerRef}
+        className="time-range-selector"
+        css={timeRangeSelectorCSS}
+        data-size={size}
+        data-disabled={isDisabled || undefined}
+        data-presets-open={isPresetsOpen || undefined}
+        role="group"
+        aria-label="Time range"
+      >
+        <Badge size="S" variant={isCustom ? "info" : "default"} css={badgeCSS}>
+          {badgeLabel}
+        </Badge>
+        <div
+          className="time-range-selector__value-shell"
+          style={{
+            width: isPresetsOpen || valueWidth == null ? "auto" : valueWidth,
+          }}
         >
-          {timeZoneShortName}
-        </Text>
-      )}
+          <div
+            ref={valueMeasureRef}
+            className="time-range-selector__value-measure"
+          >
+            {isEditing ? (
+              <TimeRangeFields
+                key={fieldsKey}
+                start={start}
+                end={end}
+                timeZone={timeZone}
+                isDisabled={isDisabled}
+                autoFocus
+                onBlurWithin={() => setIsEditing(false)}
+                onCommit={(timeRange) =>
+                  onChange({ timeRangeKey: "custom", ...timeRange })
+                }
+              />
+            ) : (
+              <button
+                type="button"
+                className="time-range-selector__value"
+                disabled={isDisabled}
+                onFocus={() => {
+                  if (isDisabled) {
+                    return;
+                  }
+                  setIsEditing(true);
+                  openPresets();
+                }}
+              >
+                {valueLabel}
+              </button>
+            )}
+          </div>
+        </div>
+        {timeZoneShortName && (
+          <Text
+            size="XS"
+            color="text-500"
+            className="time-range-selector__timezone"
+          >
+            {timeZoneShortName}
+          </Text>
+        )}
+      </div>
       <Popover
+        ref={popoverRef}
         triggerRef={containerRef}
-        isOpen={isPresetsOpen}
-        onOpenChange={setIsPresetsOpen}
+        isOpen={isPopoverReady}
+        onOpenChange={(isOpen) => {
+          if (isOpen && suppressOpenRef.current) {
+            return;
+          }
+          setIsPresetsOpen(isOpen);
+        }}
         isNonModal
         placement="bottom start"
+        offset={2}
         style={{
           width: popoverWidth,
           // Match the focused field's active border so the open menu reads as a
           // continuation of the field rather than a separate, gray-bordered
           // surface.
           borderColor: "var(--global-input-field-border-color-active)",
+          boxShadow: "none",
+          transition: "none",
+          animation: "none",
+          transform: "translateY(0)",
+          opacity: 1,
         }}
       >
         <ListBox
@@ -241,7 +389,8 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
               : isLastNTimeRangeKey(timeRangeKey)
                 ? timeRangeKey
                 : undefined;
-            suppressNextFocusOpen();
+            suppressNextOpen();
+            setIsEditing(false);
             if (!keyToApply) {
               setIsPresetsOpen(false);
               return;
@@ -258,6 +407,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
           ))}
         </ListBox>
       </Popover>
-    </div>
+    </>
   );
 }

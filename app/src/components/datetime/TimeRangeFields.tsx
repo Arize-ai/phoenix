@@ -19,6 +19,8 @@ export type TimeRangeFieldsProps = {
    * custom range.
    */
   onCommit: (range: OpenTimeRange) => void;
+  autoFocus?: boolean;
+  onBlurWithin?: () => void;
 };
 
 function toDateValue(
@@ -41,6 +43,8 @@ export function TimeRangeFields({
   timeZone,
   isDisabled,
   onCommit,
+  autoFocus,
+  onBlurWithin,
 }: TimeRangeFieldsProps) {
   const [startValue, setStartValue] = useState<DateValue | null>(() =>
     toDateValue(start, timeZone)
@@ -72,7 +76,12 @@ export function TimeRangeFields({
     onCommit({ start: startDate, end: endDate });
   };
 
-  const { focusWithinProps } = useFocusWithin({ onBlurWithin: commit });
+  const { focusWithinProps } = useFocusWithin({
+    onBlurWithin: () => {
+      commit();
+      onBlurWithin?.();
+    },
+  });
 
   return (
     <div
@@ -92,6 +101,7 @@ export function TimeRangeFields({
         granularity="minute"
         hideTimeZone
         isDisabled={isDisabled}
+        autoFocus={autoFocus}
         value={startValue}
         onChange={(value) => {
           setStartValue(value);
