@@ -34,9 +34,8 @@ function dispatchPointerEvent(
   element.dispatchEvent(event);
 }
 
-function createBoundaryRef(bounds: Bounds): RefObject<HTMLElement | null> {
-  const boundary = document.createElement("div");
-  vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue({
+function toDOMRect(bounds: Bounds): DOMRect {
+  return {
     bottom: bounds.top + bounds.height,
     height: bounds.height,
     left: bounds.left,
@@ -46,8 +45,36 @@ function createBoundaryRef(bounds: Bounds): RefObject<HTMLElement | null> {
     x: bounds.left,
     y: bounds.top,
     toJSON: () => ({}),
-  } as DOMRect);
+  } as DOMRect;
+}
+
+function createBoundaryRef(bounds: Bounds): RefObject<HTMLElement | null> {
+  const boundary = document.createElement("div");
+  vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue(
+    toDOMRect(bounds)
+  );
   return { current: boundary };
+}
+
+/**
+ * A boundary whose reported rect can change after mount, simulating a layout
+ * reflow (e.g. the content area widening as the docked panel is removed).
+ */
+function createMutableBoundaryRef(initialBounds: Bounds): {
+  boundaryRef: RefObject<HTMLElement | null>;
+  setBounds: (bounds: Bounds) => void;
+} {
+  let current = initialBounds;
+  const boundary = document.createElement("div");
+  vi.spyOn(boundary, "getBoundingClientRect").mockImplementation(() =>
+    toDOMRect(current)
+  );
+  return {
+    boundaryRef: { current: boundary },
+    setBounds: (bounds: Bounds) => {
+      current = bounds;
+    },
+  };
 }
 
 describe("ResizableFloatingPanel", () => {
@@ -85,24 +112,29 @@ describe("ResizableFloatingPanel", () => {
   });
 
   function renderResizablePanel({
+    anchorToViewport = false,
     boundaryBounds,
+    boundaryRef: providedBoundaryRef,
     layer = "content",
     onSizeChange = vi.fn(),
     placement = "bottom-end",
   }: {
+    anchorToViewport?: boolean;
     boundaryBounds?: Bounds;
+    boundaryRef?: RefObject<HTMLElement | null>;
     layer?: "content" | "modal";
     onSizeChange?: (size: Size) => void;
     placement?: AgentFabPlacement;
   } = {}) {
-    const boundaryRef = boundaryBounds
-      ? createBoundaryRef(boundaryBounds)
-      : undefined;
+    const boundaryRef =
+      providedBoundaryRef ??
+      (boundaryBounds ? createBoundaryRef(boundaryBounds) : undefined);
 
     function ResizablePanelHarness() {
       const [size, setSize] = useState(() => ({ ...DEFAULT_SIZE }));
       return (
         <ResizableFloatingPanel
+          anchorToViewport={anchorToViewport}
           boundaryRef={boundaryRef}
           layer={layer}
           minSize={MIN_SIZE}
@@ -215,6 +247,34 @@ describe("ResizableFloatingPanel", () => {
     ).toBe("24px");
   });
 
+  it("anchors content-layer geometry to the viewport when forced to float", () => {
+    // When an overlay forces the panel to float (e.g. a drawer), the boundary
+    // can report a stale, narrower size mid-reflow. Anchoring to the viewport
+    // ignores the boundary and pins the panel to the FAB's resting corner —
+    // the same geometry the modal layer produces from the identical boundary.
+    const { panel } = renderResizablePanel({
+      anchorToViewport: true,
+      boundaryBounds: {
+        height: 850,
+        left: 128,
+        top: 64,
+        width: 960,
+      },
+      placement: "top-start",
+    });
+
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("24px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("24px");
+  });
+
   it("re-clamps the panel when the viewport changes", () => {
     const { panel } = renderResizablePanel({
       placement: "bottom-end",
@@ -243,6 +303,84 @@ describe("ResizableFloatingPanel", () => {
         "--resizable-floating-panel-y"
       )
     ).toBe("56px");
+  });
+
+  it("re-pins a pristine panel to the corner when the boundary grows", () => {
+    // Undocking the panel mounts it against a content boundary that is still
+    // mid-reflow (reserving the docked panel's width), then widens. A pristine
+    // panel must follow the boundary out to the FAB's corner rather than stay
+    // stranded in the middle.
+    const { boundaryRef, setBounds } = createMutableBoundaryRef({
+      height: 1000,
+      left: 0,
+      top: 0,
+      width: 760,
+    });
+    const { panel } = renderResizablePanel({ boundaryRef });
+
+    // Mounted against the narrow boundary: 760 - 520 - 24 = 216.
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("216px");
+
+    setBounds({ height: 1000, left: 0, top: 0, width: 1200 });
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    // Re-pinned to the widened boundary corner: 1200 - 520 - 24 = 656.
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("656px");
+  });
+
+  it("keeps a user-positioned panel put when the boundary grows", () => {
+    const { boundaryRef, setBounds } = createMutableBoundaryRef({
+      height: 1000,
+      left: 0,
+      top: 0,
+      width: 760,
+    });
+    const { panel } = renderResizablePanel({ boundaryRef });
+    Object.assign(panel, {
+      hasPointerCapture: vi.fn(() => true),
+      releasePointerCapture: vi.fn(),
+      setPointerCapture: vi.fn(),
+    });
+    const header = container.querySelector(".agent-chat-panel__header");
+    expect(header).not.toBeNull();
+
+    // Drag the panel — this marks it user-positioned so it stops auto-pinning.
+    act(() => {
+      dispatchPointerEvent(header!, "pointerdown", {
+        clientX: 200,
+        clientY: 300,
+      });
+      dispatchPointerEvent(panel, "pointermove", {
+        clientX: 160,
+        clientY: 270,
+      });
+      dispatchPointerEvent(panel, "pointerup", { clientX: 160, clientY: 270 });
+    });
+    const movedX = (panel as HTMLElement).style.getPropertyValue(
+      "--resizable-floating-panel-x"
+    );
+
+    setBounds({ height: 1000, left: 0, top: 0, width: 1200 });
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    // The widened boundary must not yank the panel back to the corner.
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe(movedX);
   });
 
   it("resizes from the panel's top-left corner", () => {
