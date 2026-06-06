@@ -139,6 +139,116 @@ describe("AgentChatHeader", () => {
     expect(onPositionChange).not.toHaveBeenCalled();
   });
 
+  it("anchors a forced-floating panel to the viewport, not a mid-reflow boundary", () => {
+    // Reproduces the docked -> drawer transition: when the panel is forced to
+    // float on the content layer, the boundary element can still report its
+    // pre-reflow (narrower) width, which used to strand the panel in the middle
+    // of the screen. Forcing the panel to anchor to the viewport pins it to the
+    // FAB's resting corner instead.
+    const PANEL_WIDTH = 520;
+    const MARGIN = 24;
+    const VIEWPORT_WIDTH = 1440;
+    const VIEWPORT_HEIGHT = 900;
+    // Simulates the content boundary before the docked panel's width reflows
+    // away — its right edge stops ~420px short of the viewport edge.
+    const NARROW_BOUNDARY_WIDTH = 1000;
+
+    const originalInnerWidth = window.innerWidth;
+    const originalInnerHeight = window.innerHeight;
+    const originalVisualViewport = window.visualViewport;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: VIEWPORT_WIDTH,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: VIEWPORT_HEIGHT,
+    });
+    // Fall back to innerWidth/innerHeight inside getViewportBounds and let the
+    // panel's `window.visualViewport?.addEventListener` calls short-circuit.
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+
+    const boundary = document.createElement("div");
+    document.body.appendChild(boundary);
+    boundary.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: NARROW_BOUNDARY_WIDTH,
+        bottom: VIEWPORT_HEIGHT,
+        width: NARROW_BOUNDARY_WIDTH,
+        height: VIEWPORT_HEIGHT,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    const boundaryRef = { current: boundary };
+
+    const readPanelX = () => {
+      const panel = container.querySelector<HTMLElement>(
+        ".resizable-floating-panel"
+      );
+      expect(panel).not.toBeNull();
+      return parseFloat(
+        panel!.style.getPropertyValue("--resizable-floating-panel-x")
+      );
+    };
+
+    try {
+      // Without forced floating the panel follows the (narrow) boundary corner.
+      act(() => {
+        root.render(
+          <FloatingAgentChatFrame
+            boundaryRef={boundaryRef}
+            layer="content"
+            placement="bottom-end"
+          >
+            <span>PXI content</span>
+          </FloatingAgentChatFrame>
+        );
+      });
+      expect(readPanelX()).toBe(NARROW_BOUNDARY_WIDTH - PANEL_WIDTH - MARGIN);
+
+      // Unmount so the next render is a fresh mount, matching the real
+      // docked -> drawer transition where the floating panel mounts anew.
+      act(() => {
+        root.render(<div />);
+      });
+
+      // Forced floating ignores the boundary and pins to the viewport corner.
+      act(() => {
+        root.render(
+          <FloatingAgentChatFrame
+            boundaryRef={boundaryRef}
+            layer="content"
+            placement="bottom-end"
+            isForcedFloating
+          >
+            <span>PXI content</span>
+          </FloatingAgentChatFrame>
+        );
+      });
+      expect(readPanelX()).toBe(VIEWPORT_WIDTH - PANEL_WIDTH - MARGIN);
+    } finally {
+      boundary.remove();
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: originalInnerWidth,
+      });
+      Object.defineProperty(window, "innerHeight", {
+        configurable: true,
+        value: originalInnerHeight,
+      });
+      Object.defineProperty(window, "visualViewport", {
+        configurable: true,
+        value: originalVisualViewport,
+      });
+    }
+  });
+
   it("portals the floating panel into the modal portal container", () => {
     const overlay = document.createElement("div");
     const modalRoot = document.createElement("div");

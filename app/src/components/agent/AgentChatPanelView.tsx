@@ -276,6 +276,7 @@ export function FloatingAgentChatFrame({
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
+  isForcedFloating = false,
 }: {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
@@ -283,6 +284,7 @@ export function FloatingAgentChatFrame({
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
+  isForcedFloating?: boolean;
 }) {
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
@@ -293,6 +295,10 @@ export function FloatingAgentChatFrame({
       placement={placement}
       size={size}
       onSizeChange={onSizeChange}
+      // When an overlay forces the panel to float (modal or drawer), anchor to
+      // the viewport so it pins to the FAB's resting corner instead of the
+      // mid-reflow content boundary, which can leave it stranded in the middle.
+      anchorToViewport={isForcedFloating}
     >
       {children}
     </ResizableFloatingPanel>

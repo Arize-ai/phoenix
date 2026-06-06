@@ -84,6 +84,14 @@ export type ResizableFloatingPanelProps = {
   placement: AgentFabPlacement;
   size: Size;
   onSizeChange?: (size: Size) => void;
+  /**
+   * Anchor the panel to the viewport instead of the boundary element, even on
+   * the content layer. Used when the panel is forced to float over a non-modal
+   * overlay (e.g. a drawer): the boundary element can be mid-reflow at mount,
+   * so anchoring to the viewport pins the panel to the FAB's resting corner
+   * deterministically instead of the stale, narrower content area.
+   */
+  anchorToViewport?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -192,11 +200,13 @@ function getBoundaryBounds(
 function getPanelBounds({
   boundary,
   layer,
+  anchorToViewport = false,
 }: {
   boundary: HTMLElement | null | undefined;
   layer: FloatingPanelLayer;
+  anchorToViewport?: boolean;
 }): Bounds {
-  if (layer === "content") {
+  if (layer === "content" && !anchorToViewport) {
     return getBoundaryBounds(boundary) ?? getViewportBounds();
   }
   return getViewportBounds();
@@ -666,6 +676,7 @@ export function ResizableFloatingPanel({
   placement,
   size,
   onSizeChange,
+  anchorToViewport = false,
 }: ResizableFloatingPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -683,11 +694,19 @@ export function ResizableFloatingPanel({
     () => boundaryRef?.current ?? null
   );
   const [currentBounds, setCurrentBounds] = useState(() =>
-    getPanelBounds({ boundary: boundaryRef?.current ?? null, layer })
+    getPanelBounds({
+      boundary: boundaryRef?.current ?? null,
+      layer,
+      anchorToViewport,
+    })
   );
   const [currentGeometry, setCurrentGeometry] = useState(() =>
     getDefaultGeometry({
-      bounds: getPanelBounds({ boundary: boundaryRef?.current ?? null, layer }),
+      bounds: getPanelBounds({
+        boundary: boundaryRef?.current ?? null,
+        layer,
+        anchorToViewport,
+      }),
       minSize,
       placement,
       size,
@@ -976,6 +995,7 @@ export function ResizableFloatingPanel({
       const nextBounds = getPanelBounds({
         boundary: resolvedBoundary,
         layer,
+        anchorToViewport,
       });
       setCurrentBounds((bounds) =>
         areBoundsEqual(bounds, nextBounds) ? bounds : nextBounds
@@ -997,6 +1017,7 @@ export function ResizableFloatingPanel({
 
     const observer =
       layer === "content" &&
+      !anchorToViewport &&
       resolvedBoundary &&
       typeof ResizeObserver === "function"
         ? new ResizeObserver(syncPanelBounds)
@@ -1014,7 +1035,7 @@ export function ResizableFloatingPanel({
       window.visualViewport?.removeEventListener("resize", syncPanelBounds);
       window.visualViewport?.removeEventListener("scroll", syncPanelBounds);
     };
-  }, [layer, minSize, resolvedBoundary]);
+  }, [anchorToViewport, layer, minSize, resolvedBoundary]);
 
   useEffect(() => {
     setCurrentGeometry((geometry) =>
