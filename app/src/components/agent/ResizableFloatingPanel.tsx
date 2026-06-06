@@ -84,6 +84,12 @@ export type ResizableFloatingPanelProps = {
   placement: AgentFabPlacement;
   size: Size;
   onSizeChange?: (size: Size) => void;
+  /**
+   * Anchor the panel to the viewport instead of the boundary element, even on
+   * the content layer. Keep content-layer callers boundary-bound when their FAB
+   * is also boundary-bound.
+   */
+  anchorToViewport?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -192,11 +198,13 @@ function getBoundaryBounds(
 function getPanelBounds({
   boundary,
   layer,
+  anchorToViewport = false,
 }: {
   boundary: HTMLElement | null | undefined;
   layer: FloatingPanelLayer;
+  anchorToViewport?: boolean;
 }): Bounds {
-  if (layer === "content") {
+  if (layer === "content" && !anchorToViewport) {
     return getBoundaryBounds(boundary) ?? getViewportBounds();
   }
   return getViewportBounds();
@@ -666,6 +674,7 @@ export function ResizableFloatingPanel({
   placement,
   size,
   onSizeChange,
+  anchorToViewport = false,
 }: ResizableFloatingPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -676,6 +685,12 @@ export function ResizableFloatingPanel({
   const animationFrameIdRef = useRef<number | null>(null);
   const previousLayerRef = useRef(layer);
   const previousPlacementRef = useRef(placement);
+  // Until the user drags or resizes the panel it stays "pristine" and tracks
+  // the default corner as the boundary changes. This keeps the panel pinned to
+  // the FAB's corner when it first floats out of a docked layout, where the
+  // boundary is briefly mid-reflow (still reserving the docked panel's width)
+  // and would otherwise strand the panel in the middle of the screen.
+  const hasUserPositionedRef = useRef(false);
   const [resizingEdge, setResizingEdge] = useState<ResizeEdge | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const [isResizeHandleHovered, setIsResizeHandleHovered] = useState(false);
@@ -683,11 +698,19 @@ export function ResizableFloatingPanel({
     () => boundaryRef?.current ?? null
   );
   const [currentBounds, setCurrentBounds] = useState(() =>
-    getPanelBounds({ boundary: boundaryRef?.current ?? null, layer })
+    getPanelBounds({
+      boundary: boundaryRef?.current ?? null,
+      layer,
+      anchorToViewport,
+    })
   );
   const [currentGeometry, setCurrentGeometry] = useState(() =>
     getDefaultGeometry({
-      bounds: getPanelBounds({ boundary: boundaryRef?.current ?? null, layer }),
+      bounds: getPanelBounds({
+        boundary: boundaryRef?.current ?? null,
+        layer,
+        anchorToViewport,
+      }),
       minSize,
       placement,
       size,
@@ -712,6 +735,7 @@ export function ResizableFloatingPanel({
     });
   };
   const scheduleGeometryUpdate = (nextGeometry: FloatingPanelGeometry) => {
+    hasUserPositionedRef.current = true;
     const clampedGeometry = clampGeometry({
       bounds: currentBounds,
       geometry: nextGeometry,
@@ -736,6 +760,7 @@ export function ResizableFloatingPanel({
     nextGeometry: FloatingPanelGeometry;
     shouldCommitSize: boolean;
   }) => {
+    hasUserPositionedRef.current = true;
     const clampedGeometry = clampGeometry({
       bounds: currentBounds,
       geometry: nextGeometry,
@@ -976,20 +1001,28 @@ export function ResizableFloatingPanel({
       const nextBounds = getPanelBounds({
         boundary: resolvedBoundary,
         layer,
+        anchorToViewport,
       });
       setCurrentBounds((bounds) =>
         areBoundsEqual(bounds, nextBounds) ? bounds : nextBounds
       );
       setCurrentGeometry((geometry) => {
-        const clampedGeometry = clampGeometry({
-          bounds: nextBounds,
-          geometry,
-          minSize,
-        });
-        latestGeometryRef.current = clampedGeometry;
-        return areGeometriesEqual(geometry, clampedGeometry)
+        // While pristine, re-pin to the default corner for the new bounds so a
+        // mid-reflow boundary (e.g. just after undocking) can't leave the panel
+        // stranded. Once the user has moved or resized it, only clamp so their
+        // chosen position is preserved.
+        const nextGeometry = hasUserPositionedRef.current
+          ? clampGeometry({ bounds: nextBounds, geometry, minSize })
+          : getDefaultGeometry({
+              bounds: nextBounds,
+              minSize,
+              placement,
+              size: { height: geometry.height, width: geometry.width },
+            });
+        latestGeometryRef.current = nextGeometry;
+        return areGeometriesEqual(geometry, nextGeometry)
           ? geometry
-          : clampedGeometry;
+          : nextGeometry;
       });
     };
 
@@ -997,6 +1030,7 @@ export function ResizableFloatingPanel({
 
     const observer =
       layer === "content" &&
+      !anchorToViewport &&
       resolvedBoundary &&
       typeof ResizeObserver === "function"
         ? new ResizeObserver(syncPanelBounds)
@@ -1014,7 +1048,7 @@ export function ResizableFloatingPanel({
       window.visualViewport?.removeEventListener("resize", syncPanelBounds);
       window.visualViewport?.removeEventListener("scroll", syncPanelBounds);
     };
-  }, [layer, minSize, resolvedBoundary]);
+  }, [anchorToViewport, layer, minSize, placement, resolvedBoundary]);
 
   useEffect(() => {
     setCurrentGeometry((geometry) =>

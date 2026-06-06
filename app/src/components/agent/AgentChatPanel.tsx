@@ -101,6 +101,7 @@ export function FloatingAgentChatPanel({
           placement={fabPlacement}
           size={panelSize}
           onSizeChange={setPanelSize}
+          isForcedFloating={isForcedFloating}
         >
           {children}
         </FloatingAgentChatFrame>
