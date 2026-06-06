@@ -247,11 +247,9 @@ describe("ResizableFloatingPanel", () => {
     ).toBe("24px");
   });
 
-  it("anchors content-layer geometry to the viewport when forced to float", () => {
-    // When an overlay forces the panel to float (e.g. a drawer), the boundary
-    // can report a stale, narrower size mid-reflow. Anchoring to the viewport
-    // ignores the boundary and pins the panel to the FAB's resting corner —
-    // the same geometry the modal layer produces from the identical boundary.
+  it("can anchor content-layer geometry to the viewport when requested", () => {
+    // This escape hatch intentionally ignores a provided boundary. Production
+    // callers should use it only when the matching FAB is also viewport-bound.
     const { panel } = renderResizablePanel({
       anchorToViewport: true,
       boundaryBounds: {

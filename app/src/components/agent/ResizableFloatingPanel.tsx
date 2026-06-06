@@ -86,10 +86,8 @@ export type ResizableFloatingPanelProps = {
   onSizeChange?: (size: Size) => void;
   /**
    * Anchor the panel to the viewport instead of the boundary element, even on
-   * the content layer. Used when the panel is forced to float over a non-modal
-   * overlay (e.g. a drawer): the boundary element can be mid-reflow at mount,
-   * so anchoring to the viewport pins the panel to the FAB's resting corner
-   * deterministically instead of the stale, narrower content area.
+   * the content layer. Keep content-layer callers boundary-bound when their FAB
+   * is also boundary-bound.
    */
   anchorToViewport?: boolean;
 };

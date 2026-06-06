@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +9,35 @@ import {
 } from "@phoenix/components/core/overlay/constants";
 
 import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
+
+type TestBounds = {
+  height: number;
+  left: number;
+  top: number;
+  width: number;
+};
+
+function toDOMRect(bounds: TestBounds): DOMRect {
+  return {
+    bottom: bounds.top + bounds.height,
+    height: bounds.height,
+    left: bounds.left,
+    right: bounds.left + bounds.width,
+    top: bounds.top,
+    width: bounds.width,
+    x: bounds.left,
+    y: bounds.top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function createBoundaryRef(bounds: TestBounds): RefObject<HTMLElement | null> {
+  const boundary = document.createElement("div");
+  vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue(
+    toDOMRect(bounds)
+  );
+  return { current: boundary };
+}
 
 describe("AgentChatHeader", () => {
   let container: HTMLDivElement;
@@ -158,5 +187,40 @@ describe("AgentChatHeader", () => {
     const panel = modalRoot.querySelector(".resizable-floating-panel");
     expect(panel).not.toBeNull();
     expect(panel?.getAttribute("data-layer")).toBe("modal");
+  });
+
+  it("keeps forced content-layer panels anchored to the content boundary", () => {
+    const boundaryRef = createBoundaryRef({
+      height: 850,
+      left: 128,
+      top: 64,
+      width: 960,
+    });
+
+    act(() => {
+      root.render(
+        <FloatingAgentChatFrame
+          boundaryRef={boundaryRef}
+          isForcedFloating
+          layer="content"
+          placement="top-start"
+        >
+          <span>PXI content</span>
+        </FloatingAgentChatFrame>
+      );
+    });
+
+    const panel = container.querySelector(".resizable-floating-panel");
+    expect(panel).not.toBeNull();
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("152px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("88px");
   });
 });

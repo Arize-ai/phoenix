@@ -295,10 +295,10 @@ export function FloatingAgentChatFrame({
       placement={placement}
       size={size}
       onSizeChange={onSizeChange}
-      // When an overlay forces the panel to float (modal or drawer), anchor to
-      // the viewport so it pins to the FAB's resting corner instead of the
-      // mid-reflow content boundary, which can leave it stranded in the middle.
-      anchorToViewport={isForcedFloating}
+      // Modal-layer surfaces share the modal-layer FAB's viewport positioning.
+      // Drawer-forced content-layer panels stay content-bound so they remain
+      // aligned with the content-layer FAB.
+      anchorToViewport={isForcedFloating && layer === "modal"}
     >
       {children}
     </ResizableFloatingPanel>
