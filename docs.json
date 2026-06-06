@@ -35,10 +35,6 @@
       "canonical": "https://arize.com"
     }
   },
-  "banner": {
-      "content": "[**Registration is open for Arize:Observe 2026**](https://arize.com/observe)",
-      "dismissible": true
-  },
   "navigation": {
     "tabs": [
       {
