@@ -489,6 +489,8 @@ def test_google_top_k_is_not_mapped_to_openai_top_logprobs() -> None:
     }
     result = _InvocationParametersConversion.to_openai(obj)
     assert "top_logprobs" not in result
-    # The other fields still convert correctly.
-    assert result["temperature"] == 0.5
-    assert result["max_completion_tokens"] == 128
+    # The other fields still convert correctly. Use .get() because temperature /
+    # max_completion_tokens are NotRequired keys on the _InvocationParameters
+    # TypedDict (direct subscript trips pyright's reportTypedDictNotRequiredAccess).
+    assert result.get("temperature") == 0.5
+    assert result.get("max_completion_tokens") == 128
