@@ -2,6 +2,7 @@ node_modules/
 web/node_modules/
 web/dist/
 *.tsbuildinfo
+data/
 
 # Excluded for SBOM reasons — this standalone tool's transitive deps shouldn't
 # show up in the repo's dependency/SBOM scans. Run `pnpm install` to regenerate.

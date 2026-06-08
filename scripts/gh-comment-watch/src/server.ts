@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import express from "express";
+import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { Hono } from "hono";
 
 import { PORT, REPOS, SYNC_INTERVAL_MINUTES } from "./config.ts";
 import {
   counts,
   countsByRepo,
-  db,
   getMeta,
   personalCounts,
   queryItems,
@@ -18,14 +19,10 @@ import { getStatus, runSync } from "./sync.ts";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webDist = path.resolve(here, "../web/dist");
 
-const app = express();
-app.use(express.json());
-// Treat any non-JSON body as raw text, so `curl --data-binary 'SELECT …'`
-// (which defaults to form-urlencoded) reaches /api/debug/sql as a string.
-app.use(express.text({ type: "*/*" }));
+const app = new Hono();
 
-app.get("/api/status", (_req, res) => {
-  res.json({
+app.get("/api/status", (context) => {
+  return context.json({
     repos: REPOS,
     lastSyncAt: getMeta("last_sync_at"),
     counts: counts(),
@@ -37,92 +34,44 @@ app.get("/api/status", (_req, res) => {
 
 const MINE_VALUES = ["all", "assigned", "review"] as const;
 
-app.get("/api/items", (req, res) => {
-  const mine = MINE_VALUES.find((v) => v === req.query.mine);
+app.get("/api/items", (context) => {
+  const query = context.req.query();
+  const mine = MINE_VALUES.find((value) => value === query.mine);
   const opts: ItemQuery = {
-    filter: req.query.filter === "all" ? "all" : "needs",
-    type: (req.query.type as ItemQuery["type"]) ?? "all",
-    repo: typeof req.query.repo === "string" ? req.query.repo : "all",
-    q: typeof req.query.q === "string" ? req.query.q : undefined,
-    sort: req.query.sort === "newest" ? "newest" : "oldest",
+    filter: query.filter === "all" ? "all" : "needs",
+    type: getTypeFilter(query.type),
+    repo: query.repo ?? "all",
+    q: query.q,
+    sort: query.sort === "newest" ? "newest" : "oldest",
     mine,
   };
-  res.json({ items: queryItems(opts) });
+  return context.json({ items: queryItems(opts) });
 });
 
-/**
- * Debug: run one arbitrary SQL statement against the in-memory DB and stream
- * the result as JSONL (one JSON object per line). SELECT-style statements
- * stream their rows; anything else returns a single `{changes, lastInsertRowid}`
- * line. SQL comes from `?sql=`, a raw text body, or a JSON `{ "sql": "…" }`.
- * Local dev tool over a throwaway cache of public GitHub data — no auth.
- *
- *   curl -s --data-binary 'SELECT type, COUNT(*) n FROM items GROUP BY type' \
- *     localhost:PORT/api/debug/sql
- */
-app.all("/api/debug/sql", (req, res) => {
-  const sql =
-    typeof req.query.sql === "string"
-      ? req.query.sql
-      : typeof req.body === "string"
-        ? req.body
-        : typeof req.body?.sql === "string"
-          ? req.body.sql
-          : "";
-  if (!sql.trim()) {
-    res.status(400).json({
-      error: 'Provide SQL via ?sql=, a text body, or {"sql":"…"}.',
-    });
-    return;
-  }
-  try {
-    const stmt = db.prepare(sql);
-    res.type("application/x-ndjson");
-    if (stmt.reader) {
-      for (const row of stmt.iterate()) {
-        res.write(JSON.stringify(row) + "\n");
-      }
-    } else {
-      const info = stmt.run();
-      res.write(
-        JSON.stringify({
-          changes: info.changes,
-          lastInsertRowid: Number(info.lastInsertRowid),
-        }) + "\n"
-      );
-    }
-    res.end();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // If we've already started streaming rows, we can't change the status — just
-    // append the error as a final JSONL line and close.
-    if (res.headersSent) {
-      res.write(JSON.stringify({ error: msg }) + "\n");
-      res.end();
-    } else {
-      res.status(400).json({ error: msg });
-    }
-  }
-});
-
-app.post("/api/sync", (req, res) => {
+app.post("/api/sync", (context) => {
   if (getStatus().running) {
-    res.status(409).json({ error: "Sync already running", sync: getStatus() });
-    return;
+    return context.json(
+      { error: "Sync already running", sync: getStatus() },
+      409
+    );
   }
-  const full = req.query.full === "1" || req.query.full === "true";
+  const full =
+    context.req.query("full") === "1" || context.req.query("full") === "true";
   void runSync({ full }); // fire-and-forget; clients poll /api/status
-  res.status(202).json({ sync: getStatus() });
+  return context.json({ sync: getStatus() }, 202);
 });
 
 if (fs.existsSync(webDist)) {
-  app.use(express.static(webDist));
-  app.get(/^(?!\/api).*/, (_req, res) => {
-    res.sendFile(path.join(webDist, "index.html"));
+  app.use("/*", serveStatic({ root: webDist }));
+  app.get("*", (context) => {
+    if (context.req.path.startsWith("/api/")) return context.notFound();
+    return context.html(
+      fs.readFileSync(path.join(webDist, "index.html"), "utf8")
+    );
   });
 }
 
-app.listen(PORT, () => {
+const server = serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(
     `gh-comment-watch monitoring ${REPOS.join(", ")} → http://localhost:${PORT}` +
       (fs.existsSync(webDist) ? "" : "\n(web not built yet — run `pnpm build`)")
@@ -136,4 +85,25 @@ app.listen(PORT, () => {
       if (!getStatus().running) void runSync();
     }, SYNC_INTERVAL_MINUTES * 60_000);
   }
+});
+
+function getTypeFilter(value: string | undefined): ItemQuery["type"] {
+  if (value === "issue" || value === "pr" || value === "discussion")
+    return value;
+  return "all";
+}
+
+process.on("SIGINT", () => {
+  server.close();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  server.close((err) => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
+    }
+    process.exit(0);
+  });
 });
