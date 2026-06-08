@@ -404,7 +404,10 @@ export function useAgentChat({
     forkFromMessage,
   } as {
     messages: AgentUIMessage[];
-    sendMessage: (message: { text: string }) => void;
+    sendMessage: (
+      message: { text: string },
+      options?: { body?: Record<string, unknown> }
+    ) => void;
     stop: () => Promise<void>;
     status: ChatStatus;
     error: Error | undefined;

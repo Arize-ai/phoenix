@@ -26,7 +26,6 @@ import {
   PromptInputBody,
   PromptInputFooter,
   PromptInputSubmit,
-  PromptInputTextarea,
   PromptInputTools,
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
@@ -65,8 +64,11 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
+import { SkillPromptInputBoundary } from "./SkillPromptInputBoundary";
+import { parseRequestedSkills } from "./skillTokens";
 import { isToolUIPart } from "./toolPartTypes";
 import { useAgentChat } from "./useAgentChat";
+import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
@@ -343,7 +345,10 @@ export function ChatView({
 }: PropsWithChildren<{
   sessionId?: string | null;
   messages: AgentUIMessage[];
-  sendMessage: (message: { text: string }) => void;
+  sendMessage: (
+    message: { text: string },
+    options?: { body?: Record<string, unknown> }
+  ) => void;
   stop: () => Promise<void>;
   status: ChatStatus;
   error: Error | undefined;
@@ -390,6 +395,12 @@ export function ChatView({
   const [inputValue, setInputValue] = useState(
     () =>
       (sessionId ? store.getState().consumePendingInput(sessionId) : null) ?? ""
+  );
+  // The skills available for the current context, published by the prompt input
+  // boundary once the catalog resolves. Used to parse `/skill-name` tokens from
+  // the submitted text into the `requestedSkills` payload.
+  const [availableSkills, setAvailableSkills] = useState<AvailableAgentSkill[]>(
+    []
   );
 
   const [elicitationDraft, setElicitationDraft] =
@@ -611,7 +622,19 @@ export function ChatView({
             <PromptInput
               onSubmit={(text) => {
                 void scrollToBottom();
-                sendMessage({ text });
+                const availableSkillNames = new Set(
+                  availableSkills.map((skill) => skill.name)
+                );
+                const requestedSkills = parseRequestedSkills(
+                  text,
+                  availableSkillNames
+                );
+                sendMessage(
+                  { text },
+                  requestedSkills.length > 0
+                    ? { body: { requestedSkills } }
+                    : undefined
+                );
               }}
               status={status}
               value={inputValue}
@@ -619,9 +642,10 @@ export function ChatView({
             >
               <AgentContextPills />
               <PromptInputBody>
-                <PromptInputTextarea
-                  ref={textareaRef}
+                <SkillPromptInputBoundary
                   placeholder="Send a message..."
+                  onSkillsChange={setAvailableSkills}
+                  textareaRef={textareaRef}
                 />
               </PromptInputBody>
               <PromptInputFooter>

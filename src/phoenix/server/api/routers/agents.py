@@ -24,6 +24,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     MessageMetadataChunk,
     ProviderMetadata,
+    StartChunk,
     ToolInputAvailableChunk,
 )
 from sqlalchemy import Insert, exists, func, select
@@ -44,6 +45,7 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
+from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
@@ -52,7 +54,14 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.skill_requests import (
+    inject_requested_skills,
+    iter_requested_skill_response_chunks,
+    resolve_requested_skills,
+)
+from phoenix.server.agents.skills import select_skills_for_contexts
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -182,6 +191,16 @@ class _ChatMessageMixin(_ObservabilityMixin):
     edit_permission: Literal["manual", "bypass"] = Field(
         default="manual",
         alias="editPermission",
+    )
+    requested_skills: list[str] = Field(
+        default_factory=list,
+        alias="requestedSkills",
+        description=(
+            "Skills the user explicitly requested via the prompt's slash-command "
+            "affordance. The server force-loads each available skill by injecting a "
+            "synthetic load_skill tool call/result at the tail of the message history. "
+            "Unknown or context-unavailable names are ignored."
+        ),
     )
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
@@ -607,6 +626,23 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             tracer_provider=tracer_provider,
             server_agent=server_agent,
         )
+        agent_prompts = AgentPrompts()
+        forced_skills: list[Skill] = []
+        if body.requested_skills:
+            available_skills = select_skills_for_contexts(resolved_contexts)
+            forced_skills = resolve_requested_skills(
+                messages=body.messages,
+                requested_skill_names=body.requested_skills,
+                available_skills=available_skills,
+            )
+            if forced_skills:
+                body.messages = inject_requested_skills(
+                    messages=body.messages,
+                    requested_skill_names=body.requested_skills,
+                    available_skills=available_skills,
+                    load_skill_template=agent_prompts.load_skill,
+                    message_factory=AssistantMetadataUIMessage,
+                )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
@@ -633,6 +669,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 with detached_otel_context(), using_session(session_id=session_id):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
+                    # Forced skills are streamed as their own `load_skill` steps so
+                    # the browser transcript matches what the model received. They
+                    # are emitted once, right after the stream's opening `start`
+                    # chunk and before the model's own output.
+                    forced_skills_streamed = not forced_skills
                     async with aclosing(raw_stream) as stream:
                         async for chunk in stream:
                             if isinstance(chunk, ToolInputAvailableChunk):
@@ -641,6 +682,21 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     tool_name=chunk.tool_name,
                                 )
                             yield chunk
+                            if not forced_skills_streamed and isinstance(chunk, StartChunk):
+                                for forced_chunk in iter_requested_skill_response_chunks(
+                                    skills=forced_skills,
+                                    load_skill_template=agent_prompts.load_skill,
+                                ):
+                                    if isinstance(forced_chunk, ToolInputAvailableChunk):
+                                        forced_chunk.provider_metadata = (
+                                            _get_updated_provider_metadata(
+                                                provider_metadata=forced_chunk.provider_metadata
+                                                or {},
+                                                tool_name=forced_chunk.tool_name,
+                                            )
+                                        )
+                                    yield forced_chunk
+                                forced_skills_streamed = True
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
