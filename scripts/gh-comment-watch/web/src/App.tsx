@@ -435,6 +435,11 @@ function Row({ item }: { item: Item }) {
             {item.reason}
           </span>
           <span>
+            <span className="text-slate-500">by </span>
+            <span className="text-slate-300">{item.author ?? "?"}</span>
+          </span>
+          <span>
+            <span className="text-slate-500">last </span>
             <span className="text-slate-300">{item.last_actor ?? "?"}</span>
             {item.last_actor_is_org_member === 1 && (
               <span
