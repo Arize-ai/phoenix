@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { findSkillTokens } from "./skillTokens";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 
 /**
@@ -80,15 +81,37 @@ export function isSameActiveQuery(
 
 function filterSkills(
   skills: AvailableAgentSkill[],
-  query: string
+  query: string,
+  selectedSkillNames: ReadonlySet<string>
 ): AvailableAgentSkill[] {
-  if (query === "") {
-    return skills;
-  }
   const lowerQuery = query.toLowerCase();
-  return skills.filter((skill) =>
-    skill.name.toLowerCase().includes(lowerQuery)
+  return skills.filter(
+    (skill) =>
+      !selectedSkillNames.has(skill.name) &&
+      (query === "" || skill.name.toLowerCase().includes(lowerQuery))
   );
+}
+
+/**
+ * Return selected skill names from existing prompt tokens, excluding the active
+ * token being edited so users can still refine or replace it from the menu.
+ */
+export function getSelectedSkillNames(
+  value: string,
+  availableSkillNames: ReadonlySet<string>,
+  activeQuery: ActiveQuery | null
+): Set<string> {
+  const selected = new Set<string>();
+  for (const token of findSkillTokens(value)) {
+    if (
+      token.start === activeQuery?.slashIndex ||
+      !availableSkillNames.has(token.name)
+    ) {
+      continue;
+    }
+    selected.add(token.name);
+  }
+  return selected;
 }
 
 export type PromptSkillCommandState = {
@@ -129,6 +152,9 @@ export function usePromptSkillCommand(
 ): PromptSkillCommandState {
   const [activeQuery, setActiveQuery] = useState<ActiveQuery | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(
+    () => new Set()
+  );
   // Tracks the active query so we can decide when to reset the highlight: the
   // index resets only when the *query string* changes, not on caret-only syncs
   // (e.g. arrow-key navigation), which would otherwise snap back to the top.
@@ -142,12 +168,16 @@ export function usePromptSkillCommand(
   } | null>(null);
 
   const filteredSkills = activeQuery
-    ? filterSkills(skills, activeQuery.query)
+    ? filterSkills(skills, activeQuery.query, selectedSkillNames)
     : [];
   const isOpen = activeQuery !== null && filteredSkills.length > 0;
 
   const syncFromInput = (value: string, caret: number) => {
     const next = getActiveQuery(value, caret);
+    const availableSkillNames = new Set(skills.map((skill) => skill.name));
+    setSelectedSkillNames(
+      getSelectedSkillNames(value, availableSkillNames, next)
+    );
     if (next === null) {
       setActiveQuery(null);
       dismissedQueryRef.current = null;

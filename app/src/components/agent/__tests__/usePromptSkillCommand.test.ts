@@ -1,4 +1,8 @@
-import { getActiveQuery, isSameActiveQuery } from "../usePromptSkillCommand";
+import {
+  getActiveQuery,
+  getSelectedSkillNames,
+  isSameActiveQuery,
+} from "../usePromptSkillCommand";
 
 describe("getActiveQuery", () => {
   it("detects a query when the caret is right after a leading slash", () => {
@@ -97,5 +101,44 @@ describe("isSameActiveQuery", () => {
         null
       )
     ).toBe(false);
+  });
+});
+
+describe("getSelectedSkillNames", () => {
+  const availableSkillNames = new Set(["debug-trace", "annotate-spans"]);
+
+  it("returns known skill tokens already present in the prompt", () => {
+    expect(
+      getSelectedSkillNames(
+        "/debug-trace compare this",
+        availableSkillNames,
+        null
+      )
+    ).toEqual(new Set(["debug-trace"]));
+  });
+
+  it("ignores unknown slash tokens", () => {
+    expect(
+      getSelectedSkillNames(
+        "/unknown /annotate-spans",
+        availableSkillNames,
+        null
+      )
+    ).toEqual(new Set(["annotate-spans"]));
+  });
+
+  it("excludes the active token being edited", () => {
+    expect(
+      getSelectedSkillNames(
+        "/debug-trace /annotate-spans",
+        availableSkillNames,
+        {
+          slashIndex: 13,
+          caret: 17,
+          replacementEnd: 28,
+          query: "ann",
+        }
+      )
+    ).toEqual(new Set(["debug-trace"]));
   });
 });
