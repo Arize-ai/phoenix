@@ -309,6 +309,18 @@ examples:
         assert any(example["id"] == "record-next-run" for example in dataset.examples)
         assert any(example["id"] == "save-prompt-not-run" for example in dataset.examples)
 
+    def test_loads_playground_repetitions_dataset(self) -> None:
+        dataset = load_dataset("playground_repetitions")
+        assert dataset.dataset_name == "playground_repetitions"
+        assert len(dataset.examples) == 6
+        assert dataset.evaluators == [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ]
+        assert any(example["id"] == "run-five-times" for example in dataset.examples)
+        assert any(example["id"] == "over-maximum-request" for example in dataset.examples)
+
     def test_save_prompt_dataset_requires_descriptions_for_save_calls(self) -> None:
         dataset = load_dataset("save_prompt")
         assert dataset.dataset_name == "save_prompt"
