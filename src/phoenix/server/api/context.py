@@ -329,3 +329,58 @@ class Context(BaseContext):
             return int(self.user.identity)
         except Exception:
             return None
+
+
+def build_context(
+    *,
+    db: DbSessionFactory,
+    settings: SystemSettings,
+    span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
+    cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
+    last_updated_at: CanGetLastUpdatedAt = _NoOp(),
+    event_queue: CanPutItem[DmlEvent] = _NoOp(),
+    allowed_provider_names: Optional[frozenset[str]] = None,
+    read_only: bool = False,
+    auth_enabled: bool = False,
+    secret: Optional[SecretStr] = None,
+    token_store: Optional[TokenStore] = None,
+    email_sender: Optional[EmailSender] = None,
+    request: Optional[StarletteRequest] = None,
+) -> Context:
+    """Assemble a GraphQL ``Context`` with a fresh set of dataloaders.
+
+    This is the single source of truth for building a ``Context``, used both by the
+    per-request HTTP ``context_getter`` and by networkless callers (e.g. the agents
+    server agent) that run ``schema.execute`` outside an HTTP request. The caller is
+    responsible for identity: pass a ``request`` whose scope carries the authenticated
+    user when one is required; on the HTTP path ``request`` is left ``None`` and
+    Strawberry assigns it after this returns.
+    """
+    from phoenix.server.api.dataloaders import build_data_loaders
+
+    context = Context(
+        db=db,
+        settings=settings,
+        data_loaders=build_data_loaders(db, cache_for_dataloaders),
+        cache_for_dataloaders=cache_for_dataloaders,
+        span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
+        encrypt=encrypt,
+        decrypt=decrypt,
+        last_updated_at=last_updated_at,
+        event_queue=event_queue,
+        allowed_provider_names=allowed_provider_names,
+        read_only=read_only,
+        auth_enabled=auth_enabled,
+        secret=secret,
+        token_store=token_store,
+        email_sender=email_sender,
+    )
+    if request is not None:
+        context.request = request
+    return context

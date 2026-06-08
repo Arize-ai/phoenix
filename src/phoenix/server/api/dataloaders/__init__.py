@@ -1,5 +1,9 @@
-from dataclasses import dataclass, field
+from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+from phoenix.db import models
 from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_session import (
     SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
 )
@@ -216,4 +220,186 @@ class CacheForDataLoaders:
     )
     token_cost: SpanCostSummaryCache = field(
         default_factory=SpanCostSummaryCache,
+    )
+
+
+if TYPE_CHECKING:
+    from phoenix.server.api.context import DataLoaders
+    from phoenix.server.types import DbSessionFactory
+
+
+def build_data_loaders(
+    db: DbSessionFactory,
+    cache_for_dataloaders: CacheForDataLoaders | None = None,
+) -> DataLoaders:
+    """Construct a fresh set of GraphQL dataloaders bound to ``db``.
+
+    Dataloaders batch and cache within a single request/operation, so a new set
+    must be built per GraphQL execution rather than shared.
+    """
+    from phoenix.server.api.context import DataLoaders
+
+    return DataLoaders(
+        annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
+        average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
+            db
+        ),
+        average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
+        code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
+        code_evaluator_version_count=CodeEvaluatorVersionCountDataLoader(db),
+        code_evaluator_version_sequence_number=CodeEvaluatorVersionSequenceNumberDataLoader(db),
+        dataset_evaluator_fields=TableFieldsDataLoader(db, models.DatasetEvaluators),
+        dataset_evaluators_by_evaluator=DatasetEvaluatorsByEvaluatorDataLoader(db),
+        dataset_evaluators_by_id=DatasetEvaluatorsByIdDataLoader(db),
+        dataset_evaluators=DatasetEvaluatorsDataLoader(db),
+        datasets_by_evaluator=DatasetsByEvaluatorDataLoader(db),
+        dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
+        dataset_example_fields=TableFieldsDataLoader(db, models.DatasetExample),
+        dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
+        dataset_example_spans=DatasetExampleSpansDataLoader(db),
+        dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
+            db
+        ),
+        dataset_example_splits=DatasetExampleSplitsDataLoader(db),
+        dataset_fields=TableFieldsDataLoader(db, models.Dataset),
+        dataset_split_fields=TableFieldsDataLoader(db, models.DatasetSplit),
+        dataset_version_fields=TableFieldsDataLoader(db, models.DatasetVersion),
+        dataset_labels=DatasetLabelsDataLoader(db),
+        dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
+        document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
+            db,
+            cache_map=(
+                cache_for_dataloaders.document_evaluation_summary if cache_for_dataloaders else None
+            ),
+        ),
+        document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
+        document_evaluations=DocumentEvaluationsDataLoader(db),
+        document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+        evaluator_by_id=EvaluatorByIdDataLoader(db),
+        annotation_summaries=AnnotationSummaryDataLoader(
+            db,
+            cache_map=(cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None),
+        ),
+        experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
+        experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
+        experiment_error_rates=ExperimentErrorRatesDataLoader(db),
+        experiment_job_fields=TableFieldsDataLoader(db, models.ExperimentJob),
+        experiment_jobs=ExperimentJobsDataLoader(db),
+        experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
+        last_experiment_errors=LastExperimentErrorsDataLoader(db),
+        experiment_fields=TableFieldsDataLoader(db, models.Experiment),
+        experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
+            db
+        ),
+        experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
+        experiment_run_annotation_fields=TableFieldsDataLoader(db, models.ExperimentRunAnnotation),
+        experiment_run_annotations=ExperimentRunAnnotations(db),
+        experiment_run_counts=ExperimentRunCountsDataLoader(db),
+        experiment_run_fields=TableFieldsDataLoader(db, models.ExperimentRun),
+        experiment_runs_by_experiment_and_example=ExperimentRunsByExperimentAndExampleDataLoader(
+            db
+        ),
+        experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
+        generative_model_fields=TableFieldsDataLoader(db, models.GenerativeModel),
+        generative_model_custom_provider_fields=TableFieldsDataLoader(
+            db, models.GenerativeModelCustomProvider
+        ),
+        last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(db),
+        latency_ms_quantile=LatencyMsQuantileDataLoader(
+            db,
+            cache_map=(
+                cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
+            ),
+        ),
+        llm_evaluator_fields=TableFieldsDataLoader(db, models.LLMEvaluator),
+        min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
+            db,
+            cache_map=(
+                cache_for_dataloaders.min_start_or_max_end_time if cache_for_dataloaders else None
+            ),
+        ),
+        num_child_spans=NumChildSpansDataLoader(db),
+        num_spans_per_trace=NumSpansPerTraceDataLoader(db),
+        project_fields=TableFieldsDataLoader(db, models.Project),
+        projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
+        prompt_fields=TableFieldsDataLoader(db, models.Prompt),
+        prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
+        prompt_versions=PromptVersionDataLoader(db),
+        prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
+        prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
+        latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
+        latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
+        project_session_annotation_fields=TableFieldsDataLoader(
+            db, models.ProjectSessionAnnotation
+        ),
+        project_session_fields=TableFieldsDataLoader(db, models.ProjectSession),
+        record_counts=RecordCountDataLoader(
+            db,
+            cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
+        ),
+        sandbox_configs_by_provider=SandboxConfigsByProviderDataLoader(db),
+        sandbox_provider=SandboxProviderDataLoader(db),
+        secret_fields=TableFieldsDataLoader(db, models.Secret),
+        secrets=SecretsDataLoader(db),
+        session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
+        session_first_inputs=SessionIODataLoader(db, "first_input"),
+        session_last_outputs=SessionIODataLoader(db, "last_output"),
+        session_num_traces=SessionNumTracesDataLoader(db),
+        session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
+        session_token_usages=SessionTokenUsagesDataLoader(db),
+        session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
+        span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
+        span_annotations=SpanAnnotationsDataLoader(db),
+        span_fields=TableFieldsDataLoader(db, models.Span),
+        span_by_id=SpanByIdDataLoader(db),
+        span_cost_by_span=SpanCostBySpanDataLoader(db),
+        span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
+            db
+        ),
+        span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(
+            db
+        ),
+        span_cost_detail_summary_entries_by_span=SpanCostDetailSummaryEntriesBySpanDataLoader(db),
+        span_cost_detail_summary_entries_by_trace=SpanCostDetailSummaryEntriesByTraceDataLoader(db),
+        span_cost_details_by_span_cost=SpanCostDetailsBySpanCostDataLoader(db),
+        span_cost_detail_fields=TableFieldsDataLoader(db, models.SpanCostDetail),
+        span_cost_fields=TableFieldsDataLoader(db, models.SpanCost),
+        span_cost_summary_by_experiment=SpanCostSummaryByExperimentDataLoader(db),
+        span_cost_summary_by_experiment_repeated_run_group=SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(
+            db
+        ),
+        span_cost_summary_by_experiment_run=SpanCostSummaryByExperimentRunDataLoader(db),
+        span_cost_summary_by_generative_model=SpanCostSummaryByGenerativeModelDataLoader(db),
+        span_cost_summary_by_project=SpanCostSummaryByProjectDataLoader(
+            db,
+            cache_map=cache_for_dataloaders.token_cost if cache_for_dataloaders else None,
+        ),
+        span_cost_summary_by_project_session=SpanCostSummaryByProjectSessionDataLoader(db),
+        span_cost_summary_by_trace=SpanCostSummaryByTraceDataLoader(db),
+        span_dataset_examples=SpanDatasetExamplesDataLoader(db),
+        span_descendants=SpanDescendantsDataLoader(db),
+        span_projects=SpanProjectsDataLoader(db),
+        token_counts=TokenCountDataLoader(
+            db,
+            cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
+        ),
+        token_prices_by_model=TokenPricesByModelDataLoader(db),
+        trace_annotation_fields=TableFieldsDataLoader(db, models.TraceAnnotation),
+        trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
+        trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
+        trace_error_count=TraceErrorCountDataLoader(db),
+        trace_errors_by_type=TraceErrorsByTypeDataLoader(db),
+        trace_fields=TableFieldsDataLoader(db, models.Trace),
+        trace_span_counts_by_kind=TraceSpanCountsByKindDataLoader(db),
+        trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(db),
+        project_trace_retention_policy_fields=TableFieldsDataLoader(
+            db, models.ProjectTraceRetentionPolicy
+        ),
+        trace_root_spans=TraceRootSpansDataLoader(db),
+        project_by_name=ProjectByNameDataLoader(db),
+        project_has_traces=ProjectHasTracesDataLoader(db),
+        users=UsersDataLoader(db),
+        user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
+        user_fields=TableFieldsDataLoader(db, models.User),
+        user_roles=UserRolesDataLoader(db),
     )

@@ -30,6 +30,7 @@ from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.authentication import AuthCredentials
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
@@ -50,6 +51,7 @@ from phoenix.server.agents.context import (
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
+from phoenix.server.agents.graphql import build_server_agent
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
@@ -77,6 +79,25 @@ from phoenix.tracers import Tracer, detached_otel_context
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
 ToolExecutionEnvironment = Literal["client", "server"]
+
+
+def _request_with_user(user: PhoenixUser) -> Request:
+    """Build a minimal authenticated request scope carrying ``user``.
+
+    Used to inject the real authenticated identity into a networkless ``Context`` so
+    GraphQL resolvers resolve ``info.context.user``/``user_id`` with the user's true role.
+    """
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/graphql",
+            "headers": [],
+            "query_string": b"",
+            "user": user,
+            "auth": AuthCredentials(),
+        }
+    )
 
 
 @register_openapi_schema
@@ -588,22 +609,28 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        server_agent = build_server_agent(
+            model=model,
+            schema=request.app.state.graphql_schema,
+            build_context=request.app.state.build_graphql_context,
+            request=_request_with_user(phoenix_user) if phoenix_user is not None else None,
+            tracer_provider=tracer_provider,
+        )
         agent = build_agent(
             model=model,
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
+            server_agent=server_agent,
         )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
             accept=request.headers.get("accept"),
         )
-        is_viewer = False
-        if "user" in request.scope:
-            user = request.user
-            if isinstance(user, PhoenixUser):
-                is_viewer = user.is_viewer
         deps = AgentDependencies(
             contexts=resolved_contexts,
             edit_permission=body.edit_permission,
