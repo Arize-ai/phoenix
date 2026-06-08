@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import { useLayoutEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/PromptInputContext";
 
@@ -61,6 +62,8 @@ export type SkillPromptInputProps = {
   skills: AvailableAgentSkill[];
   /** Forwarded to the underlying textarea so callers can focus it. */
   textareaRef?: React.Ref<HTMLTextAreaElement>;
+  /** Optional layer outside the prompt surface where the menu can be stacked. */
+  menuPortalTarget?: HTMLElement | null;
 };
 
 /**
@@ -77,6 +80,7 @@ export function SkillPromptInput({
   placeholder = "Send a message...",
   skills,
   textareaRef: forwardedTextareaRef,
+  menuPortalTarget,
 }: SkillPromptInputProps) {
   const { value, setValue, onSubmit, isDisabled } = usePromptInputContext();
   const skillCommand = usePromptSkillCommand(skills);
@@ -191,8 +195,22 @@ export function SkillPromptInput({
     }
   };
 
+  const menu = skillCommand.isOpen ? (
+    <SkillMenu
+      skills={skillCommand.filteredSkills}
+      activeIndex={skillCommand.activeIndex}
+      onSelect={(skill) =>
+        commitSelection(skillCommand.filteredSkills.indexOf(skill))
+      }
+      onActiveIndexChange={skillCommand.setActiveIndex}
+      listboxId={LISTBOX_ID}
+      getOptionId={getOptionId}
+    />
+  ) : null;
+
   return (
     <div css={wrapperCSS}>
+      {menuPortalTarget ? createPortal(menu, menuPortalTarget) : menu}
       <SkillHighlightOverlay
         ref={overlayRef}
         value={value}
@@ -220,18 +238,6 @@ export function SkillPromptInput({
             : undefined
         }
       />
-      {skillCommand.isOpen ? (
-        <SkillMenu
-          skills={skillCommand.filteredSkills}
-          activeIndex={skillCommand.activeIndex}
-          onSelect={(skill) =>
-            commitSelection(skillCommand.filteredSkills.indexOf(skill))
-          }
-          onActiveIndexChange={skillCommand.setActiveIndex}
-          listboxId={LISTBOX_ID}
-          getOptionId={getOptionId}
-        />
-      ) : null}
     </div>
   );
 }

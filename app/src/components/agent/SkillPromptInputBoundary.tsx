@@ -19,12 +19,15 @@ type SkillPromptInputBoundaryProps = {
   onSkillsChange: (skills: AvailableAgentSkill[]) => void;
   /** Forwarded to the underlying textarea so callers can focus it. */
   textareaRef?: React.Ref<HTMLTextAreaElement>;
+  /** Optional layer outside the prompt surface where the menu can be stacked. */
+  menuPortalTarget?: HTMLElement | null;
 };
 
 function SkillPromptInputLoader({
   placeholder,
   onSkillsChange,
   textareaRef,
+  menuPortalTarget,
 }: SkillPromptInputBoundaryProps) {
   const skills = useAvailableAgentSkills();
   // Publish the resolved catalog to the parent for the submit-time parse.
@@ -37,6 +40,7 @@ function SkillPromptInputLoader({
       placeholder={placeholder}
       skills={skills}
       textareaRef={textareaRef}
+      menuPortalTarget={menuPortalTarget}
     />
   );
 }
@@ -53,6 +57,7 @@ export function SkillPromptInputBoundary({
   placeholder,
   onSkillsChange,
   textareaRef,
+  menuPortalTarget,
 }: SkillPromptInputBoundaryProps) {
   const fallback = (
     <PromptInputTextarea ref={textareaRef} placeholder={placeholder} />
@@ -64,6 +69,7 @@ export function SkillPromptInputBoundary({
           placeholder={placeholder}
           onSkillsChange={onSkillsChange}
           textareaRef={textareaRef}
+          menuPortalTarget={menuPortalTarget}
         />
       </Suspense>
     </ErrorBoundary>

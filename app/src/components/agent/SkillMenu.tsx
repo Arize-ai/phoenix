@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { useLayoutEffect } from "react";
 
 import { Flex, Text } from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
@@ -7,17 +8,19 @@ import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 
 const skillMenuCSS = css`
   position: absolute;
-  bottom: calc(100% + var(--global-dimension-size-50));
+  bottom: calc(100% - var(--global-dimension-size-150));
   left: 0;
   right: 0;
-  z-index: 1;
   max-height: 240px;
   overflow-y: auto;
-  background-color: var(--global-menu-background-color);
+  scroll-padding-bottom: var(--global-dimension-size-150);
+  overscroll-behavior: none;
+  background-color: var(--prompt-input-background-color);
   border: var(--global-border-size-thin) solid var(--global-menu-border-color);
   border-radius: var(--global-rounding-medium);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  // box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   padding: var(--global-dimension-size-50);
+  padding-bottom: var(--global-dimension-size-150);
 `;
 
 const skillMenuItemCSS = css`
@@ -74,6 +77,12 @@ export function SkillMenu({
   listboxId,
   getOptionId,
 }: SkillMenuProps) {
+  useLayoutEffect(() => {
+    document.getElementById(getOptionId(activeIndex))?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [activeIndex, getOptionId]);
+
   if (skills.length === 0) {
     return null;
   }

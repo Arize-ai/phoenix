@@ -252,6 +252,27 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  .chat__prompt-stack {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .chat__skill-menu-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
+    }
+  }
+
+  .chat__prompt-input {
+    position: relative;
+    z-index: 1;
+  }
+
   .chat__loading {
     color: var(--global-text-color-300);
   }
@@ -388,6 +409,9 @@ export function ChatView({
   );
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [skillMenuLayer, setSkillMenuLayer] = useState<HTMLDivElement | null>(
+    null
+  );
   // Seed the input from any prompt staged for this session (e.g. forked from a
   // user message). The controller remounts this view per session, so the lazy
   // initializer runs once per session and the store entry is consumed exactly
@@ -619,59 +643,64 @@ export function ChatView({
               />
             </PromptInput>
           ) : (
-            <PromptInput
-              onSubmit={(text) => {
-                void scrollToBottom();
-                const availableSkillNames = new Set(
-                  availableSkills.map((skill) => skill.name)
-                );
-                const requestedSkills = parseRequestedSkills(
-                  text,
-                  availableSkillNames
-                );
-                sendMessage(
-                  { text },
-                  requestedSkills.length > 0
-                    ? { body: { requestedSkills } }
-                    : undefined
-                );
-              }}
-              status={status}
-              value={inputValue}
-              onValueChange={setInputValue}
-            >
-              <AgentContextPills />
-              <PromptInputBody>
-                <SkillPromptInputBoundary
-                  placeholder="Send a message..."
-                  onSkillsChange={setAvailableSkills}
-                  textareaRef={textareaRef}
-                />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
-                  <AgentModelMenu
-                    value={modelMenuValue}
-                    onChange={onModelChange}
-                    placement="top start"
-                    shouldFlip
-                    variant="quiet"
+            <div className="chat__prompt-stack">
+              <div className="chat__skill-menu-layer" ref={setSkillMenuLayer} />
+              <PromptInput
+                className="chat__prompt-input"
+                onSubmit={(text) => {
+                  void scrollToBottom();
+                  const availableSkillNames = new Set(
+                    availableSkills.map((skill) => skill.name)
+                  );
+                  const requestedSkills = parseRequestedSkills(
+                    text,
+                    availableSkillNames
+                  );
+                  sendMessage(
+                    { text },
+                    requestedSkills.length > 0
+                      ? { body: { requestedSkills } }
+                      : undefined
+                  );
+                }}
+                status={status}
+                value={inputValue}
+                onValueChange={setInputValue}
+              >
+                <AgentContextPills />
+                <PromptInputBody>
+                  <SkillPromptInputBoundary
+                    placeholder="Send a message..."
+                    onSkillsChange={setAvailableSkills}
+                    textareaRef={textareaRef}
+                    menuPortalTarget={skillMenuLayer}
                   />
-                  <AgentWebSearchToggle />
-                </PromptInputTools>
+                </PromptInputBody>
+                <PromptInputFooter>
+                  <PromptInputTools>
+                    <AgentModelMenu
+                      value={modelMenuValue}
+                      onChange={onModelChange}
+                      placement="top start"
+                      shouldFlip
+                      variant="quiet"
+                    />
+                    <AgentWebSearchToggle />
+                  </PromptInputTools>
 
-                <PromptInputActions>
-                  <PromptInputSubmit
-                    isDisabled={
-                      isSendDisabledForMissingCredentials || undefined
-                    }
-                    onPress={() => {
-                      void stop();
-                    }}
-                  />
-                </PromptInputActions>
-              </PromptInputFooter>
-            </PromptInput>
+                  <PromptInputActions>
+                    <PromptInputSubmit
+                      isDisabled={
+                        isSendDisabledForMissingCredentials || undefined
+                      }
+                      onPress={() => {
+                        void stop();
+                      }}
+                    />
+                  </PromptInputActions>
+                </PromptInputFooter>
+              </PromptInput>
+            </div>
           )}
           {canToggleEditPermission ? (
             <div className="chat__input-meta">
