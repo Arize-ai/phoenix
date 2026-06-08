@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import {
   ageDays,
@@ -37,6 +37,10 @@ function useStatusPolling() {
   }, []);
   return { status, error };
 }
+
+// When sorted newest-first, draw a divider where the list crosses from "recent"
+// into threads last touched this many days ago or longer.
+const STALE_AFTER_DAYS = 2;
 
 const TYPES: TypeFilter[] = ["all", "issue", "pr", "discussion"];
 const TABS: Tab[] = ["needs", "all", "mine"];
@@ -208,6 +212,21 @@ export function App() {
         : tab === "needs"
           ? "Nothing here - all caught up."
           : "No tracked items.";
+
+  // Index of the first thread that's STALE_AFTER_DAYS old or older. Newest-first
+  // sorting makes age non-decreasing down the list, so this is the single
+  // crossover where the divider goes. Only drawn when at least one fresher
+  // thread sits above it (index > 0); -1 disables it (other sorts, or an
+  // all-fresh / all-stale list where a divider would be noise).
+  const staleBoundaryIndex =
+    sort === "newest"
+      ? (() => {
+          const i = items.findIndex(
+            (it) => ageDays(it.last_entry_at) >= STALE_AFTER_DAYS
+          );
+          return i > 0 ? i : -1;
+        })()
+      : -1;
 
   // Reload the list when the (effective) filters change, or after a sync ends.
   // setState lives in an async callback, so it never cascades synchronously.
@@ -389,7 +408,14 @@ export function App() {
               {emptyMessage}
             </div>
           ) : (
-            items.map((it) => <Row key={it.uid} item={it} />)
+            items.map((it, index) => (
+              <Fragment key={it.uid}>
+                {index === staleBoundaryIndex && (
+                  <DayDivider days={STALE_AFTER_DAYS} />
+                )}
+                <Row item={it} />
+              </Fragment>
+            ))
           )}
         </div>
       </main>
@@ -463,6 +489,19 @@ function Segmented<T extends string>({
           {o.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+function DayDivider({ days }: { days: number }) {
+  return (
+    <div
+      className="flex items-center gap-3 px-1 pt-3 pb-1 text-xs font-medium text-slate-500"
+      role="separator"
+    >
+      <div className="h-px flex-1 bg-white/10" />
+      {days} days ago or older
+      <div className="h-px flex-1 bg-white/10" />
     </div>
   );
 }
