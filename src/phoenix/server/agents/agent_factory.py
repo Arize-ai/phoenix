@@ -106,7 +106,12 @@ def build_agent(
         if (web_fetch := build_web_fetch_capability(model)) is not None:
             capabilities.append(web_fetch)
     if server_agent is not None:
-        capabilities.append(CallSubAgentCapability(server_agent=server_agent))
+        capabilities.append(
+            CallSubAgentCapability(
+                server_agent=server_agent,
+                instructions=resolved_prompts.call_subagent_tool.render(),
+            )
+        )
 
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),

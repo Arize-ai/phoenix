@@ -48,7 +48,7 @@ def build_server_agent(
         schema=schema,
         build_context=build_context,
         request=request,
-        instructions=resolved_prompts.base.render(),
+        instructions=resolved_prompts.run_graphql_query_tool.render(),
     )
     return Agent(
         model,

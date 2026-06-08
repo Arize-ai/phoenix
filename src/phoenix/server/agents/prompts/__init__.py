@@ -105,7 +105,12 @@ _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 _LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
 _READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
-_BASE_SERVER_AGENT_INSTRUCTIONS = get_template("server_agent/BASE_SERVER_AGENT_INSTRUCTIONS.xml.j2")
+_CALL_SUBAGENT_TOOL_INSTRUCTIONS = get_template(
+    "tools/internal/CALL_SUBAGENT_TOOL_INSTRUCTIONS.xml.j2"
+)
+_RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS = get_template(
+    "server_agent/RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS.xml.j2"
+)
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -163,13 +168,14 @@ class AgentPrompts:
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
     read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
+    call_subagent_tool: Template = _CALL_SUBAGENT_TOOL_INSTRUCTIONS
 
 
 @dataclass(frozen=True)
 class ServerAgentPrompts:
     """Every prompt template the server agent uses."""
 
-    base: Template = _BASE_SERVER_AGENT_INSTRUCTIONS
+    run_graphql_query_tool: Template = _RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS
 
 
 __all__ = [
