@@ -8,6 +8,7 @@ import {
   type ItemFilters,
   type MineFilter,
   type Status,
+  type Tab,
   type TypeFilter,
 } from "./api.ts";
 
@@ -38,6 +39,9 @@ function useStatusPolling() {
 }
 
 const TYPES: TypeFilter[] = ["all", "issue", "pr", "discussion"];
+const TABS: Tab[] = ["needs", "all", "mine"];
+const MINE_FILTERS: MineFilter[] = ["all", "assigned", "review"];
+const SORTS: ItemFilters["sort"][] = ["oldest", "newest"];
 const TYPE_LABEL: Record<TypeFilter, string> = {
   all: "All",
   issue: "Issues",
@@ -45,8 +49,92 @@ const TYPE_LABEL: Record<TypeFilter, string> = {
   discussion: "Discussions",
 };
 
+const DEFAULT_FILTERS: ItemFilters = {
+  tab: "needs",
+  mine: "all",
+  type: "all",
+  repo: "Arize-ai/phoenix",
+  q: "",
+  sort: "newest",
+};
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function useQueryFilters() {
+  const [search, setSearch] = useState(window.location.search);
+
+  useEffect(() => {
+    const onPopState = () => setSearch(window.location.search);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const filters = parseQueryFilters(search);
+
+  function updateFilters(patch: Partial<ItemFilters>) {
+    const nextFilters = {
+      ...parseQueryFilters(window.location.search),
+      ...patch,
+    };
+    const nextSearch = stringifyQueryFilters(nextFilters);
+    const nextUrl = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+    window.history.pushState(null, "", nextUrl);
+    setSearch(window.location.search);
+  }
+
+  return { filters, updateFilters };
+}
+
+function parseQueryFilters(search: string): ItemFilters {
+  const params = new URLSearchParams(search);
+  const tab = parseOneOf(params.get("tab"), TABS, DEFAULT_FILTERS.tab);
+  const mine = parseOneOf(
+    params.get("mine"),
+    MINE_FILTERS,
+    DEFAULT_FILTERS.mine
+  );
+  const type = parseOneOf(params.get("type"), TYPES, DEFAULT_FILTERS.type);
+  const sort = parseOneOf(params.get("sort"), SORTS, DEFAULT_FILTERS.sort);
+
+  return {
+    tab,
+    mine,
+    type,
+    repo: params.get("repo") ?? DEFAULT_FILTERS.repo,
+    q: params.get("q") ?? DEFAULT_FILTERS.q,
+    sort,
+  };
+}
+
+function stringifyQueryFilters(filters: ItemFilters): string {
+  const params = new URLSearchParams();
+  setQueryParam(params, "tab", filters.tab, DEFAULT_FILTERS.tab);
+  setQueryParam(params, "mine", filters.mine, DEFAULT_FILTERS.mine);
+  setQueryParam(params, "type", filters.type, DEFAULT_FILTERS.type);
+  setQueryParam(params, "repo", filters.repo, DEFAULT_FILTERS.repo);
+  setQueryParam(params, "q", filters.q, DEFAULT_FILTERS.q);
+  setQueryParam(params, "sort", filters.sort, DEFAULT_FILTERS.sort);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
+function parseOneOf<T extends string>(
+  value: string | null,
+  values: readonly T[],
+  fallback: T
+): T {
+  return values.find((candidate) => candidate === value) ?? fallback;
+}
+
+function setQueryParam(
+  params: URLSearchParams,
+  key: string,
+  value: string,
+  defaultValue: string
+) {
+  if (value !== defaultValue) params.set(key, value);
 }
 
 export function App() {
@@ -54,14 +142,7 @@ export function App() {
   const [items, setItems] = useState<Item[]>([]);
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<ItemFilters>({
-    tab: "needs",
-    mine: "all",
-    type: "all",
-    repo: "Arize-ai/phoenix", // default view; self-heals below if not monitored
-    q: "",
-    sort: "newest",
-  });
+  const { filters, updateFilters } = useQueryFilters();
   const [reloadKey, setReloadKey] = useState(0);
   const [isSyncStarting, setIsSyncStarting] = useState(false);
   const remoteSyncing = status?.sync.running ?? false;
@@ -202,20 +283,20 @@ export function App() {
             label="Needs reply"
             count={status ? scoped.needs : undefined}
             active={tab === "needs"}
-            onClick={() => setFilters((f) => ({ ...f, tab: "needs" }))}
+            onClick={() => updateFilters({ tab: "needs" })}
           />
           <TabButton
             label="All tracked"
             count={status ? scoped.tracked : undefined}
             active={tab === "all"}
-            onClick={() => setFilters((f) => ({ ...f, tab: "all" }))}
+            onClick={() => updateFilters({ tab: "all" })}
           />
           <TabButton
             label="My queue"
             count={status ? scoped.mine : undefined}
             highlight
             active={tab === "mine"}
-            onClick={() => setFilters((f) => ({ ...f, tab: "mine" }))}
+            onClick={() => updateFilters({ tab: "mine" })}
           />
         </div>
       </header>
@@ -238,17 +319,13 @@ export function App() {
                 { v: "review", label: `Review ${scoped.review}` },
               ]}
               value={mine}
-              onChange={(v) =>
-                setFilters((f) => ({ ...f, mine: v as MineFilter }))
-              }
+              onChange={(value) => updateFilters({ mine: value as MineFilter })}
             />
           ) : (
             <Segmented
               options={TYPES.map((t) => ({ v: t, label: TYPE_LABEL[t] }))}
               value={type}
-              onChange={(v) =>
-                setFilters((f) => ({ ...f, type: v as TypeFilter }))
-              }
+              onChange={(value) => updateFilters({ type: value as TypeFilter })}
             />
           )}
           {status && status.repos.length > 1 && (
@@ -261,7 +338,7 @@ export function App() {
                 })),
               ]}
               value={effectiveRepo}
-              onChange={(v) => setFilters((f) => ({ ...f, repo: v }))}
+              onChange={(value) => updateFilters({ repo: value })}
             />
           )}
           <input
@@ -269,15 +346,14 @@ export function App() {
             className="rounded-lg bg-slate-800 px-3 py-2 text-sm ring-1 ring-white/10 outline-none focus:ring-sky-500"
             placeholder="Search title / author / #"
             value={q}
-            onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
+            onChange={(event) => updateFilters({ q: event.target.value })}
           />
           <button
             className="ml-auto text-sm text-slate-400 hover:text-slate-200"
             onClick={() =>
-              setFilters((f) => ({
-                ...f,
-                sort: f.sort === "oldest" ? "newest" : "oldest",
-              }))
+              updateFilters({
+                sort: sort === "oldest" ? "newest" : "oldest",
+              })
             }
           >
             Sort: {sort === "oldest" ? "oldest first" : "newest first"}
