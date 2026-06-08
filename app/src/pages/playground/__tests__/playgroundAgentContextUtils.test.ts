@@ -105,17 +105,19 @@ describe("arePlaygroundInstancesForAgentEqual", () => {
 });
 
 describe("buildPlaygroundAgentContext", () => {
-  it("includes the current experiment recording mode", () => {
+  it("includes the current experiment recording mode and playground repetitions", () => {
     const instance = getPlaygroundInstanceForAgent(makeInstance());
 
     expect(
       buildPlaygroundAgentContext({
         recordExperiments: false,
+        repetitions: 4,
         instances: [instance],
       })
     ).toEqual({
       type: "playground",
       recordExperiments: false,
+      repetitions: 4,
       instances: [instance],
     });
   });

@@ -3170,6 +3170,11 @@ export interface components {
              * @default true
              */
             recordExperiments?: boolean;
+            /**
+             * Repetitions
+             * @default 1
+             */
+            repetitions?: number;
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
         };

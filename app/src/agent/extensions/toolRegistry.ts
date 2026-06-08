@@ -47,6 +47,7 @@ import {
   readPromptToolsAgentTool,
   writePromptToolsAgentTool,
 } from "@phoenix/agent/tools/playgroundPromptTools";
+import { setPlaygroundRepetitionsAgentTool } from "@phoenix/agent/tools/playgroundRepetitions";
 import {
   cancelPlaygroundRunAgentTool,
   runPlaygroundAgentTool,
@@ -88,6 +89,7 @@ const clientActionTools: AgentToolDefinition[] = [
   readPlaygroundOutputAgentTool,
   setVariableValuesAgentTool,
   setPlaygroundExperimentRecordingAgentTool,
+  setPlaygroundRepetitionsAgentTool,
   setTemplateVariablesPathAgentTool,
   setAppendedMessagesPathAgentTool,
   openCodeEvaluatorFormAgentTool,

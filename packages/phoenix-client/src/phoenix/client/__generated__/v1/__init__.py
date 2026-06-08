@@ -1237,6 +1237,7 @@ class HTTPValidationError(TypedDict):
 class PlaygroundContext(TypedDict):
     type: Literal["playground"]
     recordExperiments: NotRequired[bool]
+    repetitions: NotRequired[int]
     instances: NotRequired[Sequence[PlaygroundInstanceContext]]
 
 

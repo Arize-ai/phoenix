@@ -88,14 +88,17 @@ export function arePlaygroundInstancesForAgentEqual(
 
 export function buildPlaygroundAgentContext({
   recordExperiments,
+  repetitions,
   instances,
 }: {
   recordExperiments: boolean;
+  repetitions: number;
   instances: PlaygroundAgentInstance[];
 }): PlaygroundAgentContext {
   return {
     type: "playground",
     recordExperiments,
+    repetitions,
     instances,
   };
 }

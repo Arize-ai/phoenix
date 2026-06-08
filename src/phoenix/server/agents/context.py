@@ -140,6 +140,7 @@ class PlaygroundContext(_ChatContextBase):
 
     type: Literal["playground"]
     record_experiments: bool = Field(default=True, alias="recordExperiments")
+    repetitions: int = 1
     instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
 
 

@@ -4,6 +4,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     load_dataset,
     set_appended_messages_path,
     set_playground_experiment_recording,
+    set_playground_repetitions,
     set_template_variables_path,
 )
 from phoenix.server.agents.prompts import AgentPrompts
@@ -98,6 +99,26 @@ def test_set_playground_experiment_recording_parameters_expose_recording_flag() 
     assert schema["required"] == ["recordExperiments"]
     assert schema["additionalProperties"] is False
     assert schema["properties"]["recordExperiments"]["type"] == "boolean"
+
+
+def test_set_playground_repetitions_instructions_expose_repeated_run_guidance() -> None:
+    rendered = AgentPrompts().set_playground_repetitions_tool.render()
+
+    assert '<tool name="set_playground_repetitions">' in rendered
+    assert "run_playground" in rendered
+    assert "nondeterministic" in rendered
+
+
+def test_set_playground_repetitions_parameters_expose_repetition_count_bounds() -> None:
+    schema = set_playground_repetitions.TOOL_DEFINITION.parameters_json_schema
+
+    assert set_playground_repetitions.NAME == "set_playground_repetitions"
+    assert set(schema["properties"]) == {"repetitions"}
+    assert schema["required"] == ["repetitions"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["repetitions"]["type"] == "integer"
+    assert schema["properties"]["repetitions"]["minimum"] == 1
+    assert schema["properties"]["repetitions"]["maximum"] == 30
 
 
 def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> None:
