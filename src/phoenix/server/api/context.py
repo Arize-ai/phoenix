@@ -12,12 +12,11 @@ from strawberry.fastapi import BaseContext
 
 from phoenix.auth import compute_password_hash
 from phoenix.db import models
-from phoenix.server.api.dataloaders import build_data_loaders
+from phoenix.server.api.dataloaders import CacheForDataLoaders, DataLoaders, build_data_loaders
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import UserId
 
 if TYPE_CHECKING:
-    from phoenix.server.api.dataloaders import CacheForDataLoaders, DataLoaders
     from phoenix.server.daemons.experiment_runner import ExperimentRunner
     from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
     from phoenix.server.daemons.system_settings import SystemSettings
@@ -135,7 +134,7 @@ def build_context(
     email_sender: Optional[EmailSender] = None,
     request: Optional[StarletteRequest] = None,
 ) -> Context:
-    """Assemble a GraphQL ``Context`` with a fresh set of dataloaders."""
+    """Build a GraphQL Context object."""
 
     context = Context(
         db=db,

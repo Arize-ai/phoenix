@@ -19,12 +19,11 @@ from phoenix.server.agents.capabilities import (
     SkillsCapability,
     get_context_capability_function,
 )
-from phoenix.server.agents.capabilities.server_agents import ServerAgentCapability
 from phoenix.server.agents.capabilities.skills import SkillsToolset
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
 )
-from phoenix.server.agents.graphql import ServerAgentDependencies
+from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -69,7 +68,7 @@ def build_agent(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
-    server_agent: Agent[ServerAgentDependencies, str] | None = None,
+    server_agent: Agent[None, str] | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_prompts = prompts or AgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
@@ -107,7 +106,7 @@ def build_agent(
         if (web_fetch := build_web_fetch_capability(model)) is not None:
             capabilities.append(web_fetch)
     if server_agent is not None:
-        capabilities.append(ServerAgentCapability(server_agent=server_agent))
+        capabilities.append(CallSubAgentCapability(server_agent=server_agent))
 
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),

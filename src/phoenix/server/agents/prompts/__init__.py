@@ -105,6 +105,7 @@ _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 _LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
 _READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
+_SERVER_AGENT_INSTRUCTIONS = get_template("server_agent/SERVER_AGENT_INSTRUCTIONS.xml.j2")
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -162,6 +163,7 @@ class AgentPrompts:
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
     read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
+    server_agent: Template = _SERVER_AGENT_INSTRUCTIONS
 
 
 __all__ = [

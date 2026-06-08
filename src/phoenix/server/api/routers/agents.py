@@ -51,9 +51,9 @@ from phoenix.server.agents.context import (
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
-from phoenix.server.agents.graphql import build_server_agent
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,

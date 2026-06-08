@@ -24,8 +24,7 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from phoenix.server.agents.graphql import build_server_agent
-from phoenix.server.agents.graphql.types import ServerAgentDependencies
+from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.api.context import Context
 
 
@@ -52,9 +51,7 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
     return provider
 
 
-def _call_graphql_then_finish(
-    messages: list[ModelMessage], info: AgentInfo
-) -> ModelResponse:
+def _call_graphql_then_finish(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
     """Drive one ``run_graphql_query`` tool call, then return a final answer."""
     already_queried = any(
         isinstance(part, ToolReturnPart)
@@ -99,7 +96,7 @@ async def test_build_server_agent_emits_tool_span_for_graphql_query(
         tracer_provider=tracer_provider,
     )
 
-    result = await agent.run("What is hello?", deps=ServerAgentDependencies())
+    result = await agent.run("What is hello?", deps=None)
     assert result.output == "hello is world"
 
     spans = in_memory_span_exporter.get_finished_spans()
@@ -126,9 +123,7 @@ async def test_build_server_agent_emits_tool_span_for_graphql_query(
     assert tool_span.status.status_code == StatusCode.OK
 
 
-def _call_failing_query_then_finish(
-    messages: list[ModelMessage], info: AgentInfo
-) -> ModelResponse:
+def _call_failing_query_then_finish(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
     """Drive one failing ``run_graphql_query`` call, then give up after the retry."""
     retried = any(
         isinstance(part, RetryPromptPart)
@@ -173,7 +168,7 @@ async def test_build_server_agent_records_error_on_tool_span_when_query_fails(
     )
 
     # The model retries once, then returns text — the run completes normally.
-    result = await agent.run("What is boom?", deps=ServerAgentDependencies())
+    result = await agent.run("What is boom?", deps=None)
     assert result.output == "could not fetch"
 
     spans = in_memory_span_exporter.get_finished_spans()
@@ -191,7 +186,10 @@ async def test_build_server_agent_records_error_on_tool_span_when_query_fails(
     (exception_event,) = tool_span.events
     assert exception_event.name == "exception"
     exception_attributes = dict(exception_event.attributes or {})
-    assert exception_attributes["exception.type"] == "pydantic_ai.exceptions.ModelRetry"
+    # The tool raises ``ModelRetry``; by the time it reaches the capability's
+    # ``wrap_tool_execute`` seam, pydantic-ai has wrapped it as ``ToolRetryError``
+    # (the same type the main agent's tools record).
+    assert exception_attributes["exception.type"] == "pydantic_ai.exceptions.ToolRetryError"
     # The raised message carries the formatted GraphQL errors back to the model.
     assert "errors" in str(exception_attributes["exception.message"])
 
