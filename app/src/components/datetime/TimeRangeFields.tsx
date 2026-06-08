@@ -105,7 +105,7 @@ export function TimeRangeFields({
     <div
       className="time-range-selector__fields"
       data-invalid={isInvalid || undefined}
-      onKeyDown={(e) => {
+      onKeyDownCapture={(e) => {
         if (e.key === "Enter") {
           e.preventDefault();
           commit();
