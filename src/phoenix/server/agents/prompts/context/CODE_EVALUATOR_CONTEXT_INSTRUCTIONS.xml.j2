@@ -33,10 +33,18 @@
     This create-mode form has no usable sandbox configuration. Do not propose form edits; direct the user to `/settings/sandboxes` to enable a sandbox provider first.
 {% endif %}
 {% if can_test_draft %}
+{% if edit_permission == "bypass" %}
+    Auto-accept is on: once the draft is populated and valid, call `test_code_evaluator_draft` to preview it (revise the source or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
+{% else %}
     After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
+{% endif %}
 {% else %}
     Do not offer a draft test unless `test_code_evaluator_draft` is available.
 {% endif %}
+{% if edit_permission == "bypass" and can_edit_draft %}
+    Then persist by calling `submit_code_evaluator_draft` — it runs the same validated save the {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} button does and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that tool's success result, and do not tell the user to click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} themselves.
+{% else %}
     Do not claim the evaluator is persisted; persistence remains the user's {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} action in the form.
+{% endif %}
   </guidance>
 </phoenix_code_evaluator_context>
