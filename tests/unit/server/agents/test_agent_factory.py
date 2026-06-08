@@ -1575,21 +1575,21 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
     @staticmethod
     def _code_evaluator() -> PlaygroundEvaluatorContext:
         return PlaygroundEvaluatorContext(
-            datasetEvaluatorId="RXY6MQ==",
+            dataset_evaluator_id="RXY6MQ==",
             name="Exact Match",
             kind="CODE",
-            isBuiltin=False,
-            isApplied=True,
+            is_builtin=False,
+            is_applied=True,
         )
 
     @staticmethod
     def _builtin_evaluator() -> PlaygroundEvaluatorContext:
         return PlaygroundEvaluatorContext(
-            datasetEvaluatorId="RXY6Mg==",
+            dataset_evaluator_id="RXY6Mg==",
             name="Hallucination",
             kind="BUILTIN",
-            isBuiltin=True,
-            isApplied=False,
+            is_builtin=True,
+            is_applied=False,
         )
 
     async def test_both_tools_advertised_with_editable_roster(

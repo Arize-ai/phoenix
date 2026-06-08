@@ -36,11 +36,11 @@ def _evaluator(
     is_applied: bool = True,
 ) -> PlaygroundEvaluatorContext:
     return PlaygroundEvaluatorContext(
-        datasetEvaluatorId=dataset_evaluator_id,
+        dataset_evaluator_id=dataset_evaluator_id,
         name=name,
         kind=kind,
-        isBuiltin=is_builtin,
-        isApplied=is_applied,
+        is_builtin=is_builtin,
+        is_applied=is_applied,
     )
 
 
@@ -54,12 +54,12 @@ def _run_context(
     contexts = ResolvedContexts(
         playground=PlaygroundContext(
             type="playground",
-            instances=[PlaygroundInstanceContext(instanceId=0)],
+            instances=[PlaygroundInstanceContext(instance_id=0)],
             evaluators=evaluators or [],
         )
         if playground
         else None,
-        dataset=DatasetContext(type="dataset", datasetNodeId="RGF0YXNldDox") if dataset else None,
+        dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox") if dataset else None,
     )
     return RunContext(
         deps=AgentDependencies(contexts=contexts, is_viewer=is_viewer),

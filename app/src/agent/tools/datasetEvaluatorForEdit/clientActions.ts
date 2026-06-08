@@ -1,10 +1,10 @@
 import type { EvaluatorItem } from "@phoenix/components/evaluators/EvaluatorSelectMenuItem";
-import type { EvaluatorKind } from "@phoenix/types";
 import type {
   AgentClientActionResult,
   AgentStore,
 } from "@phoenix/store/agentStore";
 import { waitForRegisteredClientActions } from "@phoenix/store/agentStore";
+import type { EvaluatorKind } from "@phoenix/types";
 
 import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
@@ -16,7 +16,6 @@ import {
   READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "../llmEvaluatorDraft";
-
 import { parseOpenDatasetEvaluatorForEditInput } from "./parsers";
 
 type EditableKind = "CODE" | "LLM";

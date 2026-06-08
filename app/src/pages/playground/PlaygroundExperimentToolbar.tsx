@@ -17,9 +17,9 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
+import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
-import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 type DatasetEvaluatorNode = PlaygroundDatasetSection_evaluator$data;
