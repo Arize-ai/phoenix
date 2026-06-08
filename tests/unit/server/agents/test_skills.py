@@ -16,6 +16,14 @@ class TestSelectSkills:
         assert "playground" not in names
         assert "llm-evaluator-authoring" not in names
 
+    def test_all_bundled_skills_have_user_descriptions(self) -> None:
+        skills = select_skills(
+            has_playground_context=True,
+            has_dataset_context=True,
+            has_llm_evaluator_context=True,
+        )
+        assert all(skill.user_description for skill in skills)
+
     def test_playground_context_adds_playground_skill(self) -> None:
         names = _names(select_skills(has_playground_context=True))
         assert "playground" in names

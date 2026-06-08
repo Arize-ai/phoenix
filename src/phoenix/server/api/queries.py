@@ -1518,7 +1518,14 @@ class Query:
                 resolved_input and resolved_input.has_llm_evaluator_context
             ),
         )
-        return [AgentSkill(name=skill.name, description=skill.description) for skill in skills]
+        return [
+            AgentSkill(
+                name=skill.name,
+                description=skill.description,
+                user_description=skill.user_description,
+            )
+            for skill in skills
+        ]
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:

@@ -87,8 +87,11 @@ type AgentSkill {
   """
   name: String!
 
-  """A short summary of when and why to use the skill."""
+  """The model-facing trigger guidance shown to the assistant."""
   description: String!
+
+  """The user-facing menu description for this skill."""
+  userDescription: String!
 }
 
 type AgentTraceRecording {

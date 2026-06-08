@@ -29,6 +29,7 @@ export function useAvailableAgentSkills(): AvailableAgentSkill[] {
         availableAgentSkills(input: $input) {
           name
           description
+          userDescription
         }
       }
     `,
@@ -41,5 +42,6 @@ export function useAvailableAgentSkills(): AvailableAgentSkill[] {
   return data.availableAgentSkills.map((skill) => ({
     name: skill.name,
     description: skill.description,
+    userDescription: skill.userDescription,
   }));
 }

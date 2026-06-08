@@ -2,6 +2,7 @@
 name: annotate-spans
 description: >
   Write effective, consistent annotations on LLM/agent spans and traces, and coach the user on annotation practice. Load this whenever you are about to record structured feedback with the `batch_span_annotate` tool, or when the user asks how to annotate, label, score, or review spans/traces, build a failure taxonomy, or set up human/LLM review. Do NOT load for: pure analysis with no intent to save feedback (use debug-trace), latency or cost statistics, or prompt authoring (use playground).
+user_description: Create consistent span or trace annotations and help design useful feedback taxonomies.
 ---
 
 # Annotating Spans and Traces

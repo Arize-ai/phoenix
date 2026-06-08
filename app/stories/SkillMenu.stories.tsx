@@ -17,15 +17,21 @@ const SKILLS: AvailableAgentSkill[] = [
     name: "debug-trace",
     description:
       "Diagnose failure modes by systematically investigating traces.",
+    userDescription:
+      "Investigate traces to identify failure modes and prioritized fixes.",
   },
   {
     name: "annotate-spans",
     description:
       "Write effective, consistent annotations on LLM/agent spans and traces.",
+    userDescription:
+      "Create consistent span or trace annotations and feedback taxonomies.",
   },
   {
     name: "playground",
     description: "Author and iterate on prompts in the playground.",
+    userDescription:
+      "Author, run, compare, and improve prompts in the playground.",
   },
 ];
 

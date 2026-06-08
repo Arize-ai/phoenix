@@ -3,6 +3,7 @@ import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 export type AvailableAgentSkill = {
   name: string;
   description: string;
+  userDescription: string;
 };
 
 export type AvailableAgentSkillsInput = {
