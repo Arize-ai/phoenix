@@ -63,6 +63,11 @@ export function TimeRangeFields({
   ref,
 }: TimeRangeFieldsProps & { ref?: Ref<TimeRangeFieldsHandle> }) {
   const isDirtyRef = useRef(false);
+  // Whether the user actually edited the end field. An open-ended preset has no
+  // end, so we seed "now" only for display; if it is never touched we recompute
+  // "now" at commit time rather than committing the (frozen) seed value.
+  const isEndDirtyRef = useRef(false);
+  const isEndOpen = end == null;
   const [startValue, setStartValue] = useState<DateValue | null>(() =>
     toDateValue(start, timeZone)
   );
@@ -74,28 +79,33 @@ export function TimeRangeFields({
   const endDate = endValue ? endValue.toDate(timeZone) : null;
   const isInvalid = Boolean(startDate && endDate && startDate > endDate);
 
-  const markDirty = () => {
-    isDirtyRef.current = true;
-  };
-
   const reset = useCallback(() => {
     setStartValue(toDateValue(start, timeZone));
     setEndValue(toDateValue(end, timeZone) ?? now(timeZone));
     isDirtyRef.current = false;
+    isEndDirtyRef.current = false;
   }, [end, start, timeZone]);
 
   const commit = useCallback(() => {
     if (!isDirtyRef.current) {
       return;
     }
-    if (isInvalid) {
+    // An untouched open-ended end seeds "now" only for display; resolve it
+    // freshly here so the committed end tracks wall-clock time rather than the
+    // value captured when editing began. Reading the clock inside this
+    // imperative callback keeps it from being memoized to a stale render value.
+    const committedEnd =
+      isEndOpen && !isEndDirtyRef.current
+        ? now(timeZone).toDate()
+        : endDate;
+    if (startDate && committedEnd && startDate > committedEnd) {
       // Discard an invalid edit rather than committing a backwards range.
       reset();
       return;
     }
     isDirtyRef.current = false;
-    onCommit({ start: startDate, end: endDate });
-  }, [endDate, isInvalid, onCommit, reset, startDate]);
+    onCommit({ start: startDate, end: committedEnd });
+  }, [endDate, isEndOpen, onCommit, reset, startDate, timeZone]);
 
   useImperativeHandle(ref, () => ({ commit }), [commit]);
 
@@ -134,7 +144,7 @@ export function TimeRangeFields({
         value={startValue}
         onChange={(value) => {
           setStartValue(value);
-          markDirty();
+          isDirtyRef.current = true;
         }}
       >
         <DateInput>{(segment) => <DateSegment segment={segment} />}</DateInput>
@@ -151,7 +161,8 @@ export function TimeRangeFields({
         value={endValue}
         onChange={(value) => {
           setEndValue(value);
-          markDirty();
+          isDirtyRef.current = true;
+          isEndDirtyRef.current = true;
         }}
       >
         <DateInput>{(segment) => <DateSegment segment={segment} />}</DateInput>
