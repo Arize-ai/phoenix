@@ -19,7 +19,10 @@ const skillMenuCSS = css`
   border-radius: var(--global-rounding-medium);
   // box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   padding: var(--global-dimension-size-50);
-  padding-bottom: var(--global-dimension-size-150);
+  // The menu's bottom edge overlaps the prompt input by size-150 (see the
+  // bottom offset above), so add that back on top of the size-50 used on the
+  // other edges to keep the visible bottom padding consistent.
+  padding-bottom: var(--global-dimension-size-200);
 `;
 
 const skillMenuItemCSS = css`

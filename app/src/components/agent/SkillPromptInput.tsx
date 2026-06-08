@@ -20,12 +20,22 @@ const textareaCSS = css`
   position: relative;
   display: block;
   width: 100%;
-  min-height: calc(var(--global-line-height-s) * 3);
+  // border-box so the auto-resize (height = scrollHeight) accounts for the
+  // vertical padding below and the box fits its content exactly.
+  box-sizing: border-box;
+  // 3 lines of text plus the vertical padding, so the empty input keeps its
+  // original height.
+  min-height: calc(
+    var(--global-line-height-s) * 3 + var(--global-dimension-size-100)
+  );
   border: none;
   outline: none;
   background: transparent;
   resize: none;
-  padding: 0;
+  // MUST stay identical to the overlay's padding (sharedTextBoxCSS in
+  // SkillHighlightOverlay); the padding keeps highlighted runs clear of the
+  // overlay's clip edges. See the note there.
+  padding: var(--global-dimension-size-50);
   margin: 0;
   font-family: inherit;
   font-size: var(--global-font-size-s);

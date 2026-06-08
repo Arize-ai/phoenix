@@ -11,7 +11,13 @@ const sharedTextBoxCSS = css`
   font-family: inherit;
   font-size: var(--global-font-size-s);
   line-height: var(--global-line-height-s);
-  padding: 0;
+  // Padding gives the per-line highlight breathing room from the overlay's clip
+  // edges (overflow: hidden) so its tint and rounded corners aren't cut off —
+  // vertically on the first/last line, and horizontally for a token at the
+  // start/end of a line (which also extends past the glyphs, see the mark
+  // rule). MUST stay identical to the textarea's padding (see textareaCSS in
+  // SkillPromptInput) or the highlighted runs will drift from the caret.
+  padding: var(--global-dimension-size-50);
   margin: 0;
   border: none;
   white-space: pre-wrap;
@@ -23,6 +29,8 @@ const overlayCSS = css`
   ${sharedTextBoxCSS};
   position: absolute;
   inset: 0;
+  // Match the textarea's box model so the padded content area lines up exactly.
+  box-sizing: border-box;
   pointer-events: none;
   // The overlay is the visible text layer (the textarea above it has
   // transparent text). Render in the normal prompt text color.
@@ -30,9 +38,25 @@ const overlayCSS = css`
   overflow: hidden;
 
   mark {
-    background-color: var(--global-color-primary-300);
+    // Tint recognized skill tokens with a very subtle purple so they read as
+    // "active" without competing with the text. We derive the tint from the
+    // purple palette via relative-color syntax — the same idiom the inline
+    // attachment chips use — keeping the color's hue/lightness but at a low
+    // alpha. This is theme-aware (purple-500 adapts per theme) and avoids the
+    // -rgb companion, which the light theme doesn't define.
+    background-color: lch(from var(--global-color-purple-500) l c h / 0.45);
     color: inherit;
     border-radius: var(--global-rounding-small);
+    // Give the highlight a little horizontal breathing room. Padding pairs with
+    // an equal negative margin so the text flow — and the caret alignment with
+    // the textarea above (see sharedTextBoxCSS) — stays unchanged while the
+    // tint paints wider. We extend horizontally rather than vertically because
+    // the overlay clips (overflow: hidden), so a vertical/box-shadow spread
+    // would be cut off on the top line.
+    padding: 0 0.15em;
+    margin: 0 -0.15em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 `;
 
