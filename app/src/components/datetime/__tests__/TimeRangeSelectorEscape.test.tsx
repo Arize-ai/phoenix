@@ -2,6 +2,7 @@ import { act } from "react";
 import type {
   createElement,
   Ref,
+  KeyboardEvent as ReactKeyboardEvent,
   useImperativeHandle,
   useLayoutEffect,
   useRef,
@@ -32,11 +33,13 @@ vi.mock("../TimeRangeFields", async () => {
       autoFocus,
       onBlurWithin,
       onCommit,
+      onSubmit,
     }: {
       ref?: Ref<{ commit: () => void }>;
       autoFocus?: boolean;
       onBlurWithin?: () => void;
       onCommit: (range: OpenTimeRange) => void;
+      onSubmit?: () => void;
     }) {
       const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -60,6 +63,15 @@ vi.mock("../TimeRangeFields", async () => {
 
       return React.createElement("input", {
         "aria-label": "mock time range field",
+        onKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => {
+          if (event.key === "Enter") {
+            onCommit({
+              start: new Date("2024-01-01T00:00:00.000Z"),
+              end: new Date("2024-01-02T00:00:00.000Z"),
+            });
+            onSubmit?.();
+          }
+        },
         onBlur: onBlurWithin,
         ref: inputRef,
       });
@@ -181,6 +193,42 @@ describe("TimeRangeSelector Escape handling", () => {
     act(() => {
       listbox?.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
+      );
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const nextRange = onChange.mock.calls[0]?.[0];
+    expect(nextRange?.timeRangeKey).toBe("custom");
+    expect(nextRange?.start?.toISOString()).toBe("2024-01-01T00:00:00.000Z");
+    expect(nextRange?.end?.toISOString()).toBe("2024-01-02T00:00:00.000Z");
+    expect(getPresetListbox()).toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("submits the active custom range and closes when Enter is pressed in the field", () => {
+    const onChange = vi.fn<TimeRangeSelectorProps["onChange"]>();
+    renderSelector({ onChange });
+
+    const valueButton = container.querySelector(
+      ".time-range-selector__value"
+    ) as HTMLButtonElement | null;
+    expect(valueButton).not.toBeNull();
+
+    act(() => {
+      valueButton?.focus();
+    });
+
+    const listbox = getPresetListbox();
+    expect(document.activeElement).toBe(listbox);
+
+    const field = container.querySelector(
+      '[aria-label="mock time range field"]'
+    ) as HTMLInputElement | null;
+    expect(field).not.toBeNull();
+
+    act(() => {
+      field?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
       );
     });
 

@@ -230,11 +230,15 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
       activeElement.blur();
     }
   }, []);
-  const commitAndBlurTimeRangeField = useCallback(() => {
-    timeRangeFieldsRef.current?.commit();
+  const submitTimeRangeField = useCallback(() => {
     blurFocusedTimeRangeElement();
     setIsEditing(false);
-  }, [blurFocusedTimeRangeElement]);
+    closePresets();
+  }, [blurFocusedTimeRangeElement, closePresets]);
+  const commitAndBlurTimeRangeField = useCallback(() => {
+    timeRangeFieldsRef.current?.commit();
+    submitTimeRangeField();
+  }, [submitTimeRangeField]);
   const openPresets = useCallback(() => {
     if (suppressOpenRef.current) {
       return;
@@ -265,7 +269,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
       event.preventDefault();
       event.stopPropagation();
       commitAndBlurTimeRangeField();
-      closePresets();
     };
 
     document.addEventListener("pointerdown", handlePointerDown, true);
@@ -355,6 +358,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 isDisabled={isDisabled}
                 autoFocus
                 onBlurWithin={closeEditingIfFocusOutside}
+                onSubmit={submitTimeRangeField}
                 onCommit={(timeRange) =>
                   onChange({ timeRangeKey: "custom", ...timeRange })
                 }

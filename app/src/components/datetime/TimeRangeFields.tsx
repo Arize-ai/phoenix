@@ -22,6 +22,10 @@ export type TimeRangeFieldsProps = {
   onCommit: (range: OpenTimeRange) => void;
   autoFocus?: boolean;
   onBlurWithin?: () => void;
+  /**
+   * Called after Enter commits the current field state.
+   */
+  onSubmit?: () => void;
 };
 
 export type TimeRangeFieldsHandle = {
@@ -50,6 +54,7 @@ export function TimeRangeFields({
   onCommit,
   autoFocus,
   onBlurWithin,
+  onSubmit,
   ref,
 }: TimeRangeFieldsProps & { ref?: Ref<TimeRangeFieldsHandle> }) {
   const isDirtyRef = useRef(false);
@@ -104,6 +109,7 @@ export function TimeRangeFields({
         if (e.key === "Enter") {
           e.preventDefault();
           commit();
+          onSubmit?.();
         }
       }}
       {...focusWithinProps}
