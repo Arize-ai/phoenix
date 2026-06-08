@@ -432,7 +432,9 @@ export function ToolPart({
  *
  * @param element - The element to bring into view within its scroll container.
  */
-function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
+export function scrollElementIntoViewWithinScrollParent(
+  element: HTMLElement
+): void {
   const scrollParent = getScrollableParent(element);
   if (!scrollParent) {
     return;

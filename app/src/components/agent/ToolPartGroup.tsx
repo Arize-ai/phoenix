@@ -1,11 +1,19 @@
 import { css, keyframes } from "@emotion/react";
 import { getToolName, isToolUIPart } from "ai";
-import { type CSSProperties, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
+import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { Icon, Icons } from "@phoenix/components";
 
 import {
   getToolPartPreview,
+  scrollElementIntoViewWithinScrollParent,
   shouldAutoOpenToolPart,
   ToolPart,
   type ToolPartType,
@@ -263,17 +271,50 @@ function formatPoolStatus({
  */
 export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const stats = useToolPoolStats(parts);
-  const hasAutoOpenTool = parts.some(
-    (part) =>
-      isToolUIPart(part) &&
-      shouldAutoOpenToolPart(part, getToolPartPreview(part))
-  );
+  const groupRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledRef = useRef(false);
+  const { hasAutoOpenTool, hasAutoScrollTool } = useMemo(() => {
+    let hasAutoOpenTool = false;
+    let hasAutoScrollTool = false;
+
+    for (const part of parts) {
+      if (!isToolUIPart(part)) continue;
+      const preview = getToolPartPreview(part);
+      if (!shouldAutoOpenToolPart(part, preview)) continue;
+
+      hasAutoOpenTool = true;
+      if (
+        getAgentToolUIBehavior(getToolName(part))?.scrollIntoViewOnMount ===
+        true
+      ) {
+        hasAutoScrollTool = true;
+      }
+    }
+
+    return { hasAutoOpenTool, hasAutoScrollTool };
+  }, [parts]);
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
   // Auto-open is only the initial/default state. Once the user toggles the
   // group, their manual choice must win even if a child tool still requests
   // auto-open (for example, an edit_prompt_instance diff that remains previewable).
   const isRenderedExpanded = manualExpanded ?? hasAutoOpenTool;
   const [isHeaderActive, setIsHeaderActive] = useState(false);
+
+  useEffect(() => {
+    if (
+      !isRenderedExpanded ||
+      !hasAutoScrollTool ||
+      hasAutoScrolledRef.current
+    ) {
+      return;
+    }
+    hasAutoScrolledRef.current = true;
+    requestAnimationFrame(() => {
+      if (groupRef.current) {
+        scrollElementIntoViewWithinScrollParent(groupRef.current);
+      }
+    });
+  }, [hasAutoScrollTool, isRenderedExpanded]);
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
   const breakdownText = Array.from(stats.byName.entries())
@@ -288,6 +329,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
 
   return (
     <div
+      ref={groupRef}
       className="tool-pool"
       css={toolPoolCSS}
       data-header-active={isHeaderActive}

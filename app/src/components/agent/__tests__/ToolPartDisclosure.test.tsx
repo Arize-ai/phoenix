@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   EDIT_PROMPT_TOOL_NAME,
@@ -27,6 +27,8 @@ afterEach(() => {
     root.unmount();
   });
   container.remove();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 function createToolPart(
@@ -208,6 +210,57 @@ describe("tool disclosure controls", () => {
 
     click(header);
     expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+  });
+
+  it("scrolls an auto-open tool group into view", () => {
+    const scrollBy = vi.fn();
+    Object.defineProperty(container, "scrollHeight", {
+      value: 1000,
+      configurable: true,
+    });
+    Object.defineProperty(container, "clientHeight", {
+      value: 400,
+      configurable: true,
+    });
+    Object.defineProperty(container, "scrollBy", {
+      value: scrollBy,
+      configurable: true,
+    });
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.spyOn(window, "getComputedStyle").mockImplementation(
+      (node: Element) =>
+        ({
+          overflowY: node === container ? "auto" : "visible",
+        }) as unknown as CSSStyleDeclaration
+    );
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        const className =
+          typeof this.className === "string" ? this.className : "";
+        if (this === container) {
+          return { top: 0 } as DOMRect;
+        }
+        if (className.includes("tool-pool")) {
+          return { top: 100 } as DOMRect;
+        }
+        if (className.includes("tool-part")) {
+          return { top: 200 } as DOMRect;
+        }
+        return { top: 0 } as DOMRect;
+      }
+    );
+
+    renderToolPartGroup([
+      createToolPart({ toolCallId: "tool-call-1" }),
+      createToolPart({ toolCallId: "tool-call-2" }),
+      createAutoOpenToolPart({ toolCallId: "tool-call-3" }),
+    ]);
+
+    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+    expect(scrollBy).toHaveBeenCalledWith({ top: 84, behavior: "smooth" });
   });
 
   it("keeps an auto-open tool group collapsed after streaming updates", () => {
