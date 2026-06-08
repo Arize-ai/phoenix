@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   useCallback,
   useEffect,
@@ -30,20 +31,16 @@ import {
 } from "./utils";
 
 export type TimeRangeSelectorProps = {
+  /** Prevents edits and preset selection while preserving the displayed range. */
   isDisabled?: boolean;
+  /** The currently committed range, including its preset key. */
   value: OpenTimeRangeWithKey;
+  /** Called when a preset is selected or inline date edits commit. */
   onChange: (timeRange: OpenTimeRangeWithKey) => void;
+  /** Visual size for the selector shell. */
   size?: ComponentSize;
 };
 
-/**
- * A Datadog-style time range control. The current window is shown as a compact
- * preset label until the control receives focus, then swaps to inline editable
- * start/end date fields. Typing into the dates forks the active preset into a
- * custom range, while focusing the control opens the list of quick presets
- * right below it. The leading badge surfaces the active preset's shorthand and
- * the trailing label shows the time zone the range is displayed in.
- */
 const timeRangeSelectorCSS = css`
   display: inline-flex;
   align-items: center;
@@ -59,6 +56,7 @@ const timeRangeSelectorCSS = css`
   border-radius: var(--global-rounding-small);
   color: var(--global-text-color-900);
   font-size: var(--global-font-size-s);
+  cursor: pointer;
   transition: border-color 0.2s ease-in-out;
 
   /* Match the standard input field: a single border-color change for both
@@ -184,6 +182,14 @@ const badgeCSS = css`
   font-variant-numeric: tabular-nums;
 `;
 
+/**
+ * A Datadog-style time range control. The current window is shown as a compact
+ * preset label until the control receives focus, then swaps to inline editable
+ * start/end date fields. Typing into the dates forks the active preset into a
+ * custom range, while focusing the control opens the list of quick presets
+ * right below it. The leading badge surfaces the active preset's shorthand and
+ * the trailing label shows the time zone the range is displayed in.
+ */
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
@@ -191,6 +197,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const popoverRef = useRef<HTMLDivElement>(null);
   const presetListBoxRef = useRef<HTMLDivElement>(null);
   const valueMeasureRef = useRef<HTMLDivElement>(null);
+  const valueButtonRef = useRef<HTMLButtonElement>(null);
   const timeRangeFieldsRef = useRef<TimeRangeFieldsHandle | null>(null);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -304,6 +311,28 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const triggerLayoutKey = `${isEditing}|${fieldsKey}|${valueLabel}|${badgeLabel}|${timeZoneShortName ?? ""}`;
   const isPopoverReady = isPresetsOpen && popoverWidth != null;
 
+  /**
+   * Uses the compact value button as the only focus target while making the
+   * badge, padding, and time zone label behave like the same trigger.
+   */
+  const handleSelectorPointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    if (isDisabled || isEditing) {
+      return;
+    }
+
+    const valueButton = valueButtonRef.current;
+    const isValueButtonTarget =
+      event.target instanceof Node && valueButton?.contains(event.target);
+    if (!valueButton || isValueButtonTarget) {
+      return;
+    }
+
+    event.preventDefault();
+    valueButton.focus();
+  };
+
   useLayoutEffect(() => {
     const width = isPresetsOpen ? containerRef.current?.offsetWidth : undefined;
     const nextWidth = width ? `${width}px` : undefined;
@@ -334,6 +363,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         data-presets-open={isPresetsOpen || undefined}
         role="group"
         aria-label="Time range"
+        onPointerDown={handleSelectorPointerDown}
       >
         <Badge size="S" variant={isCustom ? "info" : "default"} css={badgeCSS}>
           {badgeLabel}
@@ -366,6 +396,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
               />
             ) : (
               <button
+                ref={valueButtonRef}
                 type="button"
                 className="time-range-selector__value"
                 disabled={isDisabled}

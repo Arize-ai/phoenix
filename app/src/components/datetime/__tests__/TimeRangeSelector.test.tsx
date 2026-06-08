@@ -145,6 +145,28 @@ describe("TimeRangeSelector", () => {
     expect(getPopover()?.style.transition).toBe("none");
   });
 
+  it("opens the preset listbox when non-button selector chrome is pressed", () => {
+    renderSelector();
+    const selector = container.querySelector(
+      ".time-range-selector"
+    ) as HTMLDivElement | null;
+    expect(selector).not.toBeNull();
+    expect(getPresetListbox()).toBeNull();
+
+    act(() => {
+      selector?.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          pointerType: "mouse",
+        })
+      );
+    });
+
+    expect(getPresetListbox()).not.toBeNull();
+    expect(container.querySelector('[aria-label="Start time"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="End time"]')).not.toBeNull();
+  });
+
   it("focuses the preset listbox when opened while keeping the range fields visible", async () => {
     renderSelector();
     const listbox = openPresetListbox();
