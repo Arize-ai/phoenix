@@ -7393,6 +7393,14 @@
             "title": "Editpermission",
             "default": "manual"
           },
+          "requestedSkills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedskills",
+            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
+          },
           "model": {
             "oneOf": [
               {
@@ -7486,6 +7494,14 @@
             ],
             "title": "Editpermission",
             "default": "manual"
+          },
+          "requestedSkills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requestedskills",
+            "description": "Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored."
           },
           "model": {
             "oneOf": [
