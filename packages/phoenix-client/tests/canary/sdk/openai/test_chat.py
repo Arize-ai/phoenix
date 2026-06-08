@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from phoenix.client.__generated__ import v1
 from phoenix.client.helpers.sdk.openai.chat import (
     _FunctionToolConversion,
+    _InvocationParametersConversion,
     _MessageConversion,
     _ResponseFormatConversion,
     _TextContentPartConversion,
@@ -476,3 +477,20 @@ class TestCompletionCreateParamsBase:
 class _MockFormatter:
     def format(self, _: str, /, *, variables: Mapping[str, str]) -> str:
         return json.dumps(variables)
+
+
+def test_google_top_k_is_not_mapped_to_openai_top_logprobs() -> None:
+    # Google `top_k` is a sampling parameter and has no OpenAI chat-completion equivalent.
+    # OpenAI `top_logprobs` is the number of logprobs to return (0-20, requires logprobs=True),
+    # so mapping top_k -> top_logprobs is wrong. Drop it, as the other reverse converters do.
+    obj: Any = {
+        "type": "google",
+        "google": {"top_k": 40, "temperature": 0.5, "max_output_tokens": 128},
+    }
+    result = _InvocationParametersConversion.to_openai(obj)
+    assert "top_logprobs" not in result
+    # The other fields still convert correctly. Use .get() because temperature /
+    # max_completion_tokens are NotRequired keys on the _InvocationParameters
+    # TypedDict (direct subscript trips pyright's reportTypedDictNotRequiredAccess).
+    assert result.get("temperature") == 0.5
+    assert result.get("max_completion_tokens") == 128
