@@ -98,7 +98,7 @@ help: ## Show this help message
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
-	@echo -e "  gh-comment-watch       - Build and start the GitHub comment watcher"
+	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -406,12 +406,8 @@ dev-mock-llm: ## Start the mock LLM server
 	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
 	cd scripts/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
 
-gh-comment-watch: ## Build and start the GitHub comment watcher
-	@echo -e "$(CYAN)Building GH Comment Watch...$(NC)"
-	@cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) install
-	@cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) --dir web install
-	@cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) build
-	@echo -e "$(CYAN)Starting GH Comment Watch on http://localhost:8787...$(NC)"
+gh-comment-watch: ## Start the GitHub comment watcher
+	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
 	cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) start
 
 #=============================================================================
