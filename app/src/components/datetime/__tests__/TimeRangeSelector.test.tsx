@@ -145,11 +145,17 @@ describe("TimeRangeSelector", () => {
     expect(getPopover()?.style.transition).toBe("none");
   });
 
-  it("focuses the preset listbox when opened so arrow keys navigate presets", () => {
+  it("focuses the preset listbox when opened while keeping the range fields visible", async () => {
     renderSelector();
     const listbox = openPresetListbox();
 
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
     expect(document.activeElement).toBe(listbox);
+    expect(container.querySelector('[aria-label="Start time"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="End time"]')).not.toBeNull();
   });
 
   it("closes the preset listbox when pressing outside", () => {

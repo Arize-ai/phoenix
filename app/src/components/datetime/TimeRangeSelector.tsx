@@ -64,7 +64,8 @@ const timeRangeSelectorCSS = css`
   /* Match the standard input field: a single border-color change for both
      hover and focus so the two states read consistently. */
   &:hover:not([data-disabled]),
-  &:focus-within:not([data-disabled]) {
+  &:focus-within:not([data-disabled]),
+  &[data-presets-open]:not([data-disabled]) {
     border-color: var(--global-input-field-border-color-active);
   }
   &[data-disabled] {
@@ -206,6 +207,19 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
   }, []);
+  const closeEditingIfFocusOutside = useCallback(() => {
+    setTimeout(() => {
+      const activeElement = document.activeElement;
+      if (
+        activeElement instanceof HTMLElement &&
+        (containerRef.current?.contains(activeElement) ||
+          popoverRef.current?.contains(activeElement))
+      ) {
+        return;
+      }
+      setIsEditing(false);
+    });
+  }, []);
   const blurFocusedTimeRangeElement = useCallback(() => {
     const activeElement = document.activeElement;
     if (
@@ -340,7 +354,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 timeZone={timeZone}
                 isDisabled={isDisabled}
                 autoFocus
-                onBlurWithin={() => setIsEditing(false)}
+                onBlurWithin={closeEditingIfFocusOutside}
                 onCommit={(timeRange) =>
                   onChange({ timeRangeKey: "custom", ...timeRange })
                 }
