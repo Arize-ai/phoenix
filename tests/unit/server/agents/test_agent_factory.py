@@ -1627,8 +1627,7 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
-        # Select still advertises (built-ins are selectable); edit-open does not,
-        # since its only possible call would error.
+        # Built-ins are selectable but not editable: select advertises, edit-open does not.
         assert "set_dataset_evaluator_selection" in tool_names
         assert "open_dataset_evaluator_for_edit" not in tool_names
 

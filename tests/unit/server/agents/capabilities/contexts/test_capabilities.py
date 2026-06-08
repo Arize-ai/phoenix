@@ -579,7 +579,6 @@ class TestPlaygroundContextCapabilityRender:
         assert 'datasetEvaluatorId="RXY6MQ=="' in content
         assert 'kind="CODE"' in content
         assert 'applied="true"' in content
-        # Both tool names are advertised on the roster so the agent reaches for them.
         assert "set_dataset_evaluator_selection" in content
         assert "open_dataset_evaluator_for_edit" in content
 

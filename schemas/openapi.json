@@ -11181,7 +11181,7 @@
           "type"
         ],
         "title": "PlaygroundContext",
-        "description": "Playground prompt editor state mounted in the current browser route.\n\n``evaluators`` carries the dataset's evaluator roster when a dataset-backed\nplayground is mounted; it is the resolution substrate the select/edit-open\ntools use to map an evaluator name to its id. It is model-resolution context\nonly \u2014 each tool execution re-resolves ids against the live browser roster\nbefore acting."
+        "description": "Playground prompt editor state mounted in the current browser route."
       },
       "PlaygroundCustomProviderModelContext": {
         "properties": {
@@ -11255,7 +11255,7 @@
           "isApplied"
         ],
         "title": "PlaygroundEvaluatorContext",
-        "description": "One dataset evaluator on the mounted playground's roster.\n\n``kind`` mirrors the GraphQL ``EvaluatorKind`` enum (``LLM``/``CODE``/\n``BUILTIN``); ``is_builtin`` is the orthogonal built-in flag the UI uses\nalongside ``kind`` to gate editability. ``name`` is user-controlled and is\nsanitized at every model-visible boundary before rendering."
+        "description": "One dataset evaluator on the mounted playground's roster. ``name`` is\nuser-controlled; sanitize at every model-visible boundary."
       },
       "PlaygroundInstanceContext": {
         "properties": {

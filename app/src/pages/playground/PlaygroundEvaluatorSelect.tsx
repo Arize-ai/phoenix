@@ -42,8 +42,6 @@ type PlaygroundEvaluatorSelectProps = {
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
   isLlmEvaluatorFormOpen: boolean;
   onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
-  // Owned by PlaygroundDatasetSection so the agent's open-for-edit action and the
-  // per-item Edit affordance drive the same slideover.
   editingEvaluator: EditingEvaluator | null;
   onEditingEvaluatorChange: (editing: EditingEvaluator | null) => void;
 };

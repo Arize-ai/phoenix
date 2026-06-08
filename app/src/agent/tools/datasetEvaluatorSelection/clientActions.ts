@@ -12,11 +12,6 @@ function boundName(name: string): string {
     : name;
 }
 
-/**
- * Replace the playground's applied dataset evaluators with exactly the requested
- * set. Requested ids are re-resolved against the live roster at apply time, so a
- * since-deleted id is reported as unknown rather than silently applied.
- */
 export function createSetDatasetEvaluatorSelectionClientAction({
   getEvaluators,
   setSelectedDatasetEvaluatorIds,

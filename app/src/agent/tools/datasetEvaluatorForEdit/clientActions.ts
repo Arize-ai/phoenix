@@ -50,16 +50,6 @@ function resolveEditableKind(evaluator: EvaluatorItem): EditableKind | null {
   return null;
 }
 
-/**
- * Open an existing code or LLM evaluator's edit slideover by id.
- *
- * The target id is re-resolved against the live roster (catching deletion and
- * not-editable kind), then the same-kind draft host is checked: because draft
- * client actions register in a single by-name map, a mounted create or edit form
- * of the same kind would be clobbered by the slideover this opens, so the call is
- * rejected and the user is told to close the open form — the mounted draft is
- * never auto-discarded.
- */
 export function createOpenDatasetEvaluatorForEditClientAction({
   agentStore,
   getEvaluators,

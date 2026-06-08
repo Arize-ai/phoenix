@@ -136,13 +136,8 @@ class PlaygroundInstanceContext(_ChatContextBase):
 
 
 class PlaygroundEvaluatorContext(_ChatContextBase):
-    """One dataset evaluator on the mounted playground's roster.
-
-    ``kind`` mirrors the GraphQL ``EvaluatorKind`` enum (``LLM``/``CODE``/
-    ``BUILTIN``); ``is_builtin`` is the orthogonal built-in flag the UI uses
-    alongside ``kind`` to gate editability. ``name`` is user-controlled and is
-    sanitized at every model-visible boundary before rendering.
-    """
+    """One dataset evaluator on the mounted playground's roster. ``name`` is
+    user-controlled; sanitize at every model-visible boundary."""
 
     dataset_evaluator_id: str = Field(alias="datasetEvaluatorId")
     name: str
@@ -152,14 +147,7 @@ class PlaygroundEvaluatorContext(_ChatContextBase):
 
 
 class PlaygroundContext(_ChatContextBase):
-    """Playground prompt editor state mounted in the current browser route.
-
-    ``evaluators`` carries the dataset's evaluator roster when a dataset-backed
-    playground is mounted; it is the resolution substrate the select/edit-open
-    tools use to map an evaluator name to its id. It is model-resolution context
-    only — each tool execution re-resolves ids against the live browser roster
-    before acting.
-    """
+    """Playground prompt editor state mounted in the current browser route."""
 
     type: Literal["playground"]
     record_experiments: bool = Field(default=True, alias="recordExperiments")

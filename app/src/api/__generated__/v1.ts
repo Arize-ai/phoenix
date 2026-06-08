@@ -3158,12 +3158,6 @@ export interface components {
         /**
          * PlaygroundContext
          * @description Playground prompt editor state mounted in the current browser route.
-         *
-         *     ``evaluators`` carries the dataset's evaluator roster when a dataset-backed
-         *     playground is mounted; it is the resolution substrate the select/edit-open
-         *     tools use to map an evaluator name to its id. It is model-resolution context
-         *     only — each tool execution re-resolves ids against the live browser roster
-         *     before acting.
          */
         PlaygroundContext: {
             /**
@@ -3207,12 +3201,8 @@ export interface components {
         };
         /**
          * PlaygroundEvaluatorContext
-         * @description One dataset evaluator on the mounted playground's roster.
-         *
-         *     ``kind`` mirrors the GraphQL ``EvaluatorKind`` enum (``LLM``/``CODE``/
-         *     ``BUILTIN``); ``is_builtin`` is the orthogonal built-in flag the UI uses
-         *     alongside ``kind`` to gate editability. ``name`` is user-controlled and is
-         *     sanitized at every model-visible boundary before rendering.
+         * @description One dataset evaluator on the mounted playground's roster. ``name`` is
+         *     user-controlled; sanitize at every model-visible boundary.
          */
         PlaygroundEvaluatorContext: {
             /** Datasetevaluatorid */

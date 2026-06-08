@@ -42,10 +42,7 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
       });
     }
     if (existing.type === "playground" && context.type === "playground") {
-      // Two surfaces contribute to one playground context: Playground.tsx owns
-      // the instances, PlaygroundDatasetSection owns the dataset evaluator
-      // roster. Merge both onto a single entry, preferring whichever non-empty
-      // value each contributor supplies.
+      // Two surfaces contribute one playground context: Playground.tsx owns the instances, PlaygroundDatasetSection the evaluator roster.
       byKey.set(key, {
         type: "playground",
         instances: context.instances?.length

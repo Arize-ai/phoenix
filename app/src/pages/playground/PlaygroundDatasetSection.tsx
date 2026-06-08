@@ -150,9 +150,7 @@ export function PlaygroundDatasetSection({
   const [editingEvaluator, setEditingEvaluator] =
     useState<EditingEvaluator | null>(null);
 
-  // The agent client actions register once on mount (the stable effect below) but
-  // must read the latest roster, so the live array is held in a ref rather than a
-  // dep — re-registering on every roster change would tear down in-flight calls.
+  // Held in a ref, not a dep: re-registering on every roster change would tear down in-flight agent calls.
   const agentStore = useAgentStore();
   const evaluatorsRef = useRef<EvaluatorItem[]>(datasetEvaluators);
   evaluatorsRef.current = datasetEvaluators;
@@ -181,9 +179,7 @@ export function PlaygroundDatasetSection({
     };
   }, [agentStore]);
 
-  // Advertise the roster onto the playground context so the agent can resolve
-  // an evaluator name to its id. selectActiveContexts merges this partial
-  // playground context with the instances-bearing one from Playground.tsx.
+  // Advertise the roster so the agent can resolve an evaluator name to its id; selectActiveContexts merges it with Playground.tsx's instances.
   const advertisedEvaluatorRoster = useMemo<AgentContext>(
     () => ({
       type: "playground" as const,

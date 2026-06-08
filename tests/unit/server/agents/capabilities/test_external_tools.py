@@ -227,7 +227,6 @@ class TestSetDatasetEvaluatorSelectionGate:
         assert self._capability().include_for_run(ctx) is True
 
     def test_included_for_builtin_only_roster(self) -> None:
-        # Select covers all kinds, so a built-in-only roster still advertises it.
         ctx = _run_context(evaluators=[_evaluator(kind="BUILTIN", is_builtin=True)])
         assert self._capability().include_for_run(ctx) is True
 
@@ -264,12 +263,11 @@ class TestOpenDatasetEvaluatorForEditGate:
         )
 
     def test_excluded_when_only_builtin_evaluators(self) -> None:
-        # A built-in-only roster has no editable target, so edit-open must not advertise.
         ctx = _run_context(evaluators=[_evaluator(kind="BUILTIN", is_builtin=True)])
         assert self._capability().include_for_run(ctx) is False
 
     def test_excluded_for_builtin_flagged_llm_or_code_evaluator(self) -> None:
-        # Mirror the UI compound guard: kind is CODE/LLM but is_builtin True is not editable.
+        # Mirror the UI compound guard: built-in CODE/LLM is not editable.
         ctx = _run_context(
             evaluators=[
                 _evaluator(kind="LLM", is_builtin=True),
@@ -304,6 +302,5 @@ def test_open_dataset_evaluator_for_edit_instructions_pin_builtin_and_collision_
 
     assert '<tool name="open_dataset_evaluator_for_edit">' in rendered
     assert "datasetEvaluatorId" in rendered
-    # The not-editable and already-open-form guards are the durable behavioral contract.
     assert "built-in" in rendered
     assert "close the open form" in rendered
