@@ -1,12 +1,8 @@
 import { css } from "@emotion/react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useInteractOutside } from "react-aria";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useDimensions } from "@phoenix/hooks";
@@ -185,8 +181,8 @@ const badgeCSS = css`
 const OPEN_VALUE_MIN_WIDTH = "var(--global-dimension-size-4000)";
 
 /**
- * A Datadog-style time range control. The current window is shown as a compact
- * preset label until the control receives focus, then swaps to inline editable
+ * An inline, editable time range control. The current window is shown as a
+ * compact preset label until the control receives focus, then swaps to editable
  * start/end date fields. Typing into the dates forks the active preset into a
  * custom range, while focusing the control opens the list of quick presets
  * right below it. The leading badge surfaces the active preset's shorthand and
@@ -204,15 +200,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
-  // Closing after a preset click can trigger focus restoration and delayed
-  // open requests. Suppress those briefly so a preset selection closes cleanly.
-  const suppressOpenRef = useRef(false);
-  const suppressNextOpen = () => {
-    suppressOpenRef.current = true;
-    setTimeout(() => {
-      suppressOpenRef.current = false;
-    }, 300);
-  };
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
   }, []);
@@ -250,44 +237,46 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     submitTimeRangeField();
   }, [submitTimeRangeField]);
   const openPresets = useCallback(() => {
-    if (suppressOpenRef.current) {
-      return;
-    }
     setIsPresetsOpen(true);
   }, []);
-  useEffect(() => {
-    if (!isPresetsOpen) {
-      return;
-    }
 
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!(event.target instanceof Node)) {
-        return;
-      }
+  // A press outside both the trigger and the (portaled) presets popover commits
+  // the edit and fully closes. The full teardown matters: react-aria restores
+  // focus into the fields when the popover unmounts, so only closing the popover
+  // would leave the control open and require a second click to blur.
+  useInteractOutside({
+    ref: containerRef,
+    isDisabled: !isPresetsOpen,
+    onInteractOutside: (event) => {
       if (
-        containerRef.current?.contains(event.target) ||
+        event.target instanceof Node &&
         popoverRef.current?.contains(event.target)
       ) {
         return;
       }
-      closePresets();
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
+      commitAndBlurTimeRangeField();
+    },
+  });
+
+  // Escape commits the field state and closes. Capture + stopPropagation keep
+  // the popover's own Escape dismissal from running, which would restore focus
+  // to the trigger and reopen the control via its onFocus.
+  useHotkeys(
+    "escape",
+    (event) => {
       event.stopPropagation();
       commitAndBlurTimeRangeField();
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [closePresets, commitAndBlurTimeRangeField, isPresetsOpen]);
+    },
+    {
+      enabled: isEditing,
+      // The date segments are form fields rendered as contentEditable spans, so
+      // both flags are needed for Escape to fire while one of them is focused.
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+      eventListenerOptions: { capture: true },
+    }
+  );
 
   const valueDimensions = useDimensions(valueMeasureRef);
   const displayTimezone = usePreferencesContext(
@@ -393,7 +382,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 autoFocus
                 onBlurWithin={closeEditingIfFocusOutside}
                 onSubmit={submitTimeRangeField}
-                onEscape={submitTimeRangeField}
                 onCommit={(timeRange) =>
                   onChange({ timeRangeKey: "custom", ...timeRange })
                 }
@@ -404,13 +392,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 type="button"
                 className="time-range-selector__value"
                 disabled={isDisabled}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    submitTimeRangeField();
-                  }
-                }}
                 onFocus={() => {
                   if (isDisabled) {
                     return;
@@ -438,13 +419,16 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         ref={popoverRef}
         triggerRef={containerRef}
         isOpen={isPopoverReady}
+        // react-aria only requests a close here (e.g. the trigger scrolls out
+        // of view); opening is driven entirely by focusing the control.
         onOpenChange={(isOpen) => {
-          if (isOpen && suppressOpenRef.current) {
-            return;
+          if (!isOpen) {
+            closePresets();
           }
-          setIsPresetsOpen(isOpen);
         }}
         isNonModal
+        // Escape is owned by the hotkey above (which also commits the edit).
+        isKeyboardDismissDisabled
         placement="bottom start"
         offset={2}
         style={{
@@ -478,7 +462,6 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
               : isLastNTimeRangeKey(timeRangeKey)
                 ? timeRangeKey
                 : undefined;
-            suppressNextOpen();
             setIsEditing(false);
             if (!keyToApply) {
               setIsPresetsOpen(false);
