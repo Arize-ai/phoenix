@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
+from pydantic_ai import Agent
 from pydantic_ai.toolsets import AgentToolset
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.capabilities.server_agents.toolset import ServerAgentToolset
+from phoenix.server.agents.graphql.types import ServerAgentDependencies
 from phoenix.server.agents.types import AgentDependencies
-
-if TYPE_CHECKING:
-    from pydantic_ai import Agent
-
-    from phoenix.server.agents.graphql.types import ServerAgentDependencies
 
 CALL_SERVER_AGENT_INSTRUCTIONS = """\
 You can delegate to a GraphQL server agent that answers questions by querying Phoenix's \

@@ -81,12 +81,8 @@ _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 ToolExecutionEnvironment = Literal["client", "server"]
 
 
-def _request_with_user(user: PhoenixUser) -> Request:
-    """Build a minimal authenticated request scope carrying ``user``.
-
-    Used to inject the real authenticated identity into a networkless ``Context`` so
-    GraphQL resolvers resolve ``info.context.user``/``user_id`` with the user's true role.
-    """
+def _get_request_with_user(user: PhoenixUser) -> Request:
+    """Build a minimal authenticated request scope carrying ``user``."""
     return Request(
         {
             "type": "http",
@@ -616,7 +612,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model=model,
             schema=request.app.state.graphql_schema,
             build_context=request.app.state.build_graphql_context,
-            request=_request_with_user(phoenix_user) if phoenix_user is not None else None,
+            request=_get_request_with_user(phoenix_user) if phoenix_user is not None else None,
             tracer_provider=tracer_provider,
         )
         agent = build_agent(

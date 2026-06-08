@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders.span_cost_detail_summary_entries_by_project_session import (
     SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
 )
+from phoenix.server.types import DbSessionFactory
 
 from .annotation_configs_by_project import AnnotationConfigsByProjectDataLoader
 from .annotation_summaries import AnnotationSummaryCache, AnnotationSummaryDataLoader
@@ -91,7 +91,6 @@ from .span_cost_summary_by_generative_model import SpanCostSummaryByGenerativeMo
 from .span_cost_summary_by_project import SpanCostSummaryByProjectDataLoader, SpanCostSummaryCache
 from .span_cost_summary_by_project_session import SpanCostSummaryByProjectSessionDataLoader
 from .span_cost_summary_by_trace import SpanCostSummaryByTraceDataLoader
-from .span_costs import SpanCostsDataLoader
 from .span_dataset_examples import SpanDatasetExamplesDataLoader
 from .span_descendants import SpanDescendantsDataLoader
 from .span_projects import SpanProjectsDataLoader
@@ -109,92 +108,9 @@ from .user_roles import UserRolesDataLoader
 from .users import UsersDataLoader
 
 __all__ = [
-    "AnnotationConfigsByProjectDataLoader",
-    "AnnotationSummaryDataLoader",
-    "AverageExperimentRepeatedRunGroupLatencyDataLoader",
-    "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
-    "CodeEvaluatorVersionCountDataLoader",
-    "CodeEvaluatorVersionSequenceNumberDataLoader",
-    "DatasetDatasetSplitsDataLoader",
-    "DatasetEvaluatorsByEvaluatorDataLoader",
-    "DatasetEvaluatorsByIdDataLoader",
-    "DatasetEvaluatorsDataLoader",
-    "DatasetsByEvaluatorDataLoader",
-    "DatasetExampleRevisionsDataLoader",
-    "DatasetExampleSpansDataLoader",
-    "DatasetExamplesAndVersionsByExperimentRunDataLoader",
-    "DatasetExampleSplitsDataLoader",
-    "DatasetLabelsDataLoader",
-    "ExperimentDatasetSplitsDataLoader",
-    "DocumentEvaluationSummaryDataLoader",
-    "DocumentEvaluationsDataLoader",
-    "DocumentRetrievalMetricsDataLoader",
-    "EvaluatorByIdDataLoader",
-    "ExperimentAnnotationSummaryDataLoader",
-    "ExperimentErrorRatesDataLoader",
-    "ExperimentJobsDataLoader",
-    "ExperimentExpectedRunCountsDataLoader",
-    "LastExperimentErrorsDataLoader",
-    "ExperimentRepeatedRunGroupsDataLoader",
-    "ExperimentRepeatedRunGroupAnnotationSummariesDataLoader",
-    "ExperimentRunAnnotations",
-    "ExperimentRunCountsDataLoader",
-    "ExperimentRunsByExperimentAndExampleDataLoader",
-    "ExperimentSequenceNumberDataLoader",
-    "LastUsedTimesByGenerativeModelIdDataLoader",
-    "LatestCodeEvaluatorVersionDataLoader",
-    "LatestPromptVersionIdDataLoader",
-    "LatencyMsQuantileDataLoader",
-    "MinStartOrMaxEndTimeDataLoader",
-    "NumChildSpansDataLoader",
-    "NumSpansPerTraceDataLoader",
-    "ProjectByNameDataLoader",
-    "ProjectHasTracesDataLoader",
-    "ProjectIdsByTraceRetentionPolicyIdDataLoader",
-    "PromptVersionDataLoader",
-    "PromptVersionSequenceNumberDataLoader",
-    "RecordCountDataLoader",
-    "SandboxConfigsByProviderDataLoader",
-    "SandboxProviderDataLoader",
-    "SecretsDataLoader",
-    "SessionAnnotationsBySessionDataLoader",
-    "SessionIODataLoader",
-    "SessionNumTracesDataLoader",
-    "SessionNumTracesWithErrorDataLoader",
-    "SessionTokenUsagesDataLoader",
-    "SessionTraceLatencyMsQuantileDataLoader",
-    "SpanAnnotationsDataLoader",
-    "SpanByIdDataLoader",
-    "SpanCostBySpanDataLoader",
-    "SpanCostDetailSummaryEntriesByGenerativeModelDataLoader",
-    "SpanCostDetailSummaryEntriesByProjectSessionDataLoader",
-    "SpanCostDetailSummaryEntriesBySpanDataLoader",
-    "SpanCostDetailSummaryEntriesByTraceDataLoader",
-    "SpanCostDetailsBySpanCostDataLoader",
-    "SpanCostSummaryByExperimentDataLoader",
-    "SpanCostSummaryByExperimentRepeatedRunGroupDataLoader",
-    "SpanCostSummaryByExperimentRunDataLoader",
-    "SpanCostSummaryByGenerativeModelDataLoader",
-    "SpanCostSummaryByProjectDataLoader",
-    "SpanCostSummaryByProjectSessionDataLoader",
-    "SpanCostSummaryByTraceDataLoader",
-    "SpanCostsDataLoader",
-    "SpanDatasetExamplesDataLoader",
-    "SpanDescendantsDataLoader",
-    "SpanProjectsDataLoader",
-    "TableFieldsDataLoader",
-    "TokenCountDataLoader",
-    "TokenPricesByModelDataLoader",
-    "TraceAnnotationsByTraceDataLoader",
-    "TraceByTraceIdsDataLoader",
-    "TraceErrorCountDataLoader",
-    "TraceErrorsByTypeDataLoader",
-    "TraceRetentionPolicyIdByProjectIdDataLoader",
-    "TraceRootSpansDataLoader",
-    "TraceSpanCountsByKindDataLoader",
-    "UserRolesDataLoader",
-    "UsersDataLoader",
+    "DataLoaders",
+    "build_data_loaders",
 ]
 
 
@@ -223,22 +139,141 @@ class CacheForDataLoaders:
     )
 
 
-if TYPE_CHECKING:
-    from phoenix.server.api.context import DataLoaders
-    from phoenix.server.types import DbSessionFactory
+@dataclass
+class DataLoaders:
+    annotation_configs_by_project: AnnotationConfigsByProjectDataLoader
+    annotation_summaries: AnnotationSummaryDataLoader
+    average_experiment_repeated_run_group_latency: (
+        AverageExperimentRepeatedRunGroupLatencyDataLoader
+    )
+    average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
+    code_evaluator_fields: TableFieldsDataLoader
+    code_evaluator_version_count: CodeEvaluatorVersionCountDataLoader
+    code_evaluator_version_sequence_number: CodeEvaluatorVersionSequenceNumberDataLoader
+    dataset_evaluator_fields: TableFieldsDataLoader
+    dataset_evaluators_by_evaluator: DatasetEvaluatorsByEvaluatorDataLoader
+    dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
+    dataset_evaluators: DatasetEvaluatorsDataLoader
+    datasets_by_evaluator: DatasetsByEvaluatorDataLoader
+    dataset_example_fields: TableFieldsDataLoader
+    dataset_example_revisions: DatasetExampleRevisionsDataLoader
+    dataset_example_spans: DatasetExampleSpansDataLoader
+    dataset_labels: DatasetLabelsDataLoader
+    dataset_label_fields: TableFieldsDataLoader
+    dataset_dataset_splits: DatasetDatasetSplitsDataLoader
+    dataset_examples_and_versions_by_experiment_run: (
+        DatasetExamplesAndVersionsByExperimentRunDataLoader
+    )
+    dataset_example_splits: DatasetExampleSplitsDataLoader
+    dataset_fields: TableFieldsDataLoader
+    dataset_split_fields: TableFieldsDataLoader
+    dataset_version_fields: TableFieldsDataLoader
+    document_annotation_fields: TableFieldsDataLoader
+    document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
+    document_evaluations: DocumentEvaluationsDataLoader
+    document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluator_by_id: EvaluatorByIdDataLoader
+    experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
+    experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
+    experiment_error_rates: ExperimentErrorRatesDataLoader
+    experiment_job_fields: TableFieldsDataLoader
+    experiment_jobs: ExperimentJobsDataLoader
+    experiment_expected_run_counts: ExperimentExpectedRunCountsDataLoader
+    last_experiment_errors: LastExperimentErrorsDataLoader
+    experiment_fields: TableFieldsDataLoader
+    experiment_repeated_run_group_annotation_summaries: (
+        ExperimentRepeatedRunGroupAnnotationSummariesDataLoader
+    )
+    experiment_repeated_run_groups: ExperimentRepeatedRunGroupsDataLoader
+    experiment_run_annotation_fields: TableFieldsDataLoader
+    experiment_run_annotations: ExperimentRunAnnotations
+    experiment_run_counts: ExperimentRunCountsDataLoader
+    experiment_run_fields: TableFieldsDataLoader
+    experiment_runs_by_experiment_and_example: ExperimentRunsByExperimentAndExampleDataLoader
+    experiment_sequence_number: ExperimentSequenceNumberDataLoader
+    generative_model_fields: TableFieldsDataLoader
+    generative_model_custom_provider_fields: TableFieldsDataLoader
+    last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
+    latency_ms_quantile: LatencyMsQuantileDataLoader
+    min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader
+    llm_evaluator_fields: TableFieldsDataLoader
+    num_child_spans: NumChildSpansDataLoader
+    num_spans_per_trace: NumSpansPerTraceDataLoader
+    project_by_name: ProjectByNameDataLoader
+    project_has_traces: ProjectHasTracesDataLoader
+    project_fields: TableFieldsDataLoader
+    project_trace_retention_policy_fields: TableFieldsDataLoader
+    projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
+    prompt_fields: TableFieldsDataLoader
+    prompt_label_fields: TableFieldsDataLoader
+    prompt_versions: PromptVersionDataLoader
+    prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
+    prompt_version_tag_fields: TableFieldsDataLoader
+    latest_prompt_version_ids: LatestPromptVersionIdDataLoader
+    latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
+    project_session_annotation_fields: TableFieldsDataLoader
+    project_session_fields: TableFieldsDataLoader
+    record_counts: RecordCountDataLoader
+    sandbox_configs_by_provider: SandboxConfigsByProviderDataLoader
+    sandbox_provider: SandboxProviderDataLoader
+    secret_fields: TableFieldsDataLoader
+    secrets: SecretsDataLoader
+    session_annotations_by_session: SessionAnnotationsBySessionDataLoader
+    session_first_inputs: SessionIODataLoader
+    session_last_outputs: SessionIODataLoader
+    session_num_traces: SessionNumTracesDataLoader
+    session_num_traces_with_error: SessionNumTracesWithErrorDataLoader
+    session_token_usages: SessionTokenUsagesDataLoader
+    session_trace_latency_ms_quantile: SessionTraceLatencyMsQuantileDataLoader
+    span_annotation_fields: TableFieldsDataLoader
+    span_annotations: SpanAnnotationsDataLoader
+    span_by_id: SpanByIdDataLoader
+    span_cost_by_span: SpanCostBySpanDataLoader
+    span_cost_detail_fields: TableFieldsDataLoader
+    span_cost_detail_summary_entries_by_generative_model: (
+        SpanCostDetailSummaryEntriesByGenerativeModelDataLoader
+    )
+    span_cost_detail_summary_entries_by_project_session: (
+        SpanCostDetailSummaryEntriesByProjectSessionDataLoader
+    )
+    span_cost_detail_summary_entries_by_span: SpanCostDetailSummaryEntriesBySpanDataLoader
+    span_cost_detail_summary_entries_by_trace: SpanCostDetailSummaryEntriesByTraceDataLoader
+    span_cost_details_by_span_cost: SpanCostDetailsBySpanCostDataLoader
+    span_cost_fields: TableFieldsDataLoader
+    span_cost_summary_by_experiment: SpanCostSummaryByExperimentDataLoader
+    span_cost_summary_by_experiment_repeated_run_group: (
+        SpanCostSummaryByExperimentRepeatedRunGroupDataLoader
+    )
+    span_cost_summary_by_experiment_run: SpanCostSummaryByExperimentRunDataLoader
+    span_cost_summary_by_generative_model: SpanCostSummaryByGenerativeModelDataLoader
+    span_cost_summary_by_project: SpanCostSummaryByProjectDataLoader
+    span_cost_summary_by_project_session: SpanCostSummaryByProjectSessionDataLoader
+    span_cost_summary_by_trace: SpanCostSummaryByTraceDataLoader
+    span_dataset_examples: SpanDatasetExamplesDataLoader
+    span_descendants: SpanDescendantsDataLoader
+    span_fields: TableFieldsDataLoader
+    span_projects: SpanProjectsDataLoader
+    token_counts: TokenCountDataLoader
+    token_prices_by_model: TokenPricesByModelDataLoader
+    trace_annotation_fields: TableFieldsDataLoader
+    trace_annotations_by_trace: TraceAnnotationsByTraceDataLoader
+    trace_by_trace_ids: TraceByTraceIdsDataLoader
+    trace_error_count: TraceErrorCountDataLoader
+    trace_errors_by_type: TraceErrorsByTypeDataLoader
+    trace_fields: TableFieldsDataLoader
+    trace_retention_policy_id_by_project_id: TraceRetentionPolicyIdByProjectIdDataLoader
+    trace_root_spans: TraceRootSpansDataLoader
+    trace_span_counts_by_kind: TraceSpanCountsByKindDataLoader
+    user_roles: UserRolesDataLoader
+    user_api_key_fields: TableFieldsDataLoader
+    user_fields: TableFieldsDataLoader
+    users: UsersDataLoader
 
 
 def build_data_loaders(
     db: DbSessionFactory,
     cache_for_dataloaders: CacheForDataLoaders | None = None,
 ) -> DataLoaders:
-    """Construct a fresh set of GraphQL dataloaders bound to ``db``.
-
-    Dataloaders batch and cache within a single request/operation, so a new set
-    must be built per GraphQL execution rather than shared.
-    """
-    from phoenix.server.api.context import DataLoaders
-
     return DataLoaders(
         annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
         average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(

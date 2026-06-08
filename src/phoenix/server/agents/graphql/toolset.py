@@ -16,13 +16,7 @@ if TYPE_CHECKING:
 
 
 class GraphQLToolset(FunctionToolset[ServerAgentDependencies]):
-    """Toolset exposing a single ``run_graphql_query`` tool.
-
-    The tool runs queries networklessly against Phoenix's own Strawberry schema via
-    ``schema.execute``. It closes over the per-request ``schema``, the ``build_context``
-    factory, and the identity-bearing ``request`` — none of which are exposed to the
-    model. A fresh ``Context`` (with blank-slate dataloaders) is built per query.
-    """
+    """Toolset exposing a tool to execute GraphQL queries, but not over the network."""
 
     def __init__(
         self,
