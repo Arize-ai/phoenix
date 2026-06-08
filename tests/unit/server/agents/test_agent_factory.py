@@ -713,6 +713,7 @@ class TestCodeEvaluatorFormToolGates:
         assert "read_code_evaluator_draft" in tool_names
         assert "edit_code_evaluator_draft" in tool_names
         assert "test_code_evaluator_draft" in tool_names
+        assert "submit_code_evaluator_draft" in tool_names
 
     async def test_create_form_hides_write_tools_without_usable_sandbox(
         self,
@@ -736,6 +737,7 @@ class TestCodeEvaluatorFormToolGates:
         assert "read_code_evaluator_draft" in tool_names
         assert "edit_code_evaluator_draft" not in tool_names
         assert "test_code_evaluator_draft" not in tool_names
+        assert "submit_code_evaluator_draft" not in tool_names
 
     async def test_edit_form_advertises_edit_without_usable_sandbox(
         self,
@@ -759,6 +761,7 @@ class TestCodeEvaluatorFormToolGates:
         assert "read_code_evaluator_draft" in tool_names
         assert "edit_code_evaluator_draft" in tool_names
         assert "test_code_evaluator_draft" not in tool_names
+        assert "submit_code_evaluator_draft" in tool_names
 
     async def test_write_and_preview_tools_hidden_for_viewers(
         self,
@@ -783,6 +786,7 @@ class TestCodeEvaluatorFormToolGates:
         assert "read_code_evaluator_draft" in tool_names
         assert "edit_code_evaluator_draft" not in tool_names
         assert "test_code_evaluator_draft" not in tool_names
+        assert "submit_code_evaluator_draft" not in tool_names
 
 
 class TestLlmEvaluatorFormToolGates:
@@ -807,6 +811,7 @@ class TestLlmEvaluatorFormToolGates:
         assert "read_llm_evaluator_draft" not in tool_names
         assert "edit_llm_evaluator_draft" not in tool_names
         assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
 
     async def test_open_form_hidden_for_viewer(
         self,
@@ -908,6 +913,7 @@ class TestLlmEvaluatorFormToolGates:
         assert "read_llm_evaluator_draft" not in tool_names
         assert "edit_llm_evaluator_draft" not in tool_names
         assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
 
     async def test_edit_form_advertises_edit_but_hides_test_without_usable_model_provider(
         self,
@@ -931,6 +937,7 @@ class TestLlmEvaluatorFormToolGates:
         assert "read_llm_evaluator_draft" in tool_names
         assert "edit_llm_evaluator_draft" in tool_names
         assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" in tool_names
 
     async def test_create_form_hides_write_tools_without_usable_model_provider(
         self,
@@ -954,6 +961,7 @@ class TestLlmEvaluatorFormToolGates:
         assert "read_llm_evaluator_draft" in tool_names
         assert "edit_llm_evaluator_draft" not in tool_names
         assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
 
     async def test_create_form_advertises_write_tools_with_usable_model_provider(
         self,
@@ -977,6 +985,7 @@ class TestLlmEvaluatorFormToolGates:
         assert "read_llm_evaluator_draft" in tool_names
         assert "edit_llm_evaluator_draft" in tool_names
         assert "test_llm_evaluator_draft" in tool_names
+        assert "submit_llm_evaluator_draft" in tool_names
 
     async def test_write_tools_hidden_for_viewer(
         self,
@@ -1001,6 +1010,7 @@ class TestLlmEvaluatorFormToolGates:
         assert "read_llm_evaluator_draft" in tool_names
         assert "edit_llm_evaluator_draft" not in tool_names
         assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
 
 
 class TestLlmEvaluatorAuthoringSkillLoadContract:

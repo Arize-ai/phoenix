@@ -21,12 +21,14 @@ import {
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
+  createSubmitCodeEvaluatorDraftClientAction,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftOperation,
   type EvaluatorSubmitResult,
   fromOutputConfigDraft,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type SandboxConfigIndex,
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
@@ -403,11 +405,20 @@ export const EditCodeEvaluatorDialogContent = ({
           agentStore.getState().permissions.edits === "bypass",
       })
     );
+    registerClientAction(
+      SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createSubmitCodeEvaluatorDraftClientAction({
+        getDraftHost,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
     return () => {
       draftHostRef.current = null;
       handleSubmitRef.current = null;
       unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterClientAction(SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
       )) {

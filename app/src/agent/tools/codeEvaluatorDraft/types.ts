@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   ApprovalSource,
   EvaluatorSubmitResult,
+  EvaluatorSubmitToolOutput,
 } from "@phoenix/agent/tools/approval";
 import type {
   ClassificationEvaluatorAnnotationConfig,
@@ -13,7 +14,7 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 
-export type { ApprovalSource, EvaluatorSubmitResult };
+export type { ApprovalSource, EvaluatorSubmitResult, EvaluatorSubmitToolOutput };
 
 import type {
   CodeEvaluatorEditToolOutputSender,
@@ -49,6 +50,8 @@ export type EditCodeEvaluatorDraftActionContext = z.output<
 export type CodeEvaluatorFormMode = "create" | "edit";
 
 export type OpenCodeEvaluatorFormInput = Record<string, never>;
+
+export type SubmitCodeEvaluatorDraftInput = Record<string, never>;
 
 export type ClassificationOutputConfigDraft = Omit<
   ClassificationEvaluatorAnnotationConfig,

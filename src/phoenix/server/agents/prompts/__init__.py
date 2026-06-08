@@ -90,6 +90,12 @@ _TEST_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
 _OPEN_LLM_EVALUATOR_FORM_TOOL_INSTRUCTIONS = get_template(
     "tools/OPEN_LLM_EVALUATOR_FORM_TOOL_INSTRUCTIONS.xml.j2"
 )
+_SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
+    "tools/SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
+)
+_SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
+    "tools/SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
+)
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -145,10 +151,12 @@ class AgentPrompts:
     edit_code_evaluator_draft_tool: Template = _EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     test_code_evaluator_draft_tool: Template = _TEST_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     open_code_evaluator_form_tool: Template = _OPEN_CODE_EVALUATOR_FORM_TOOL_INSTRUCTIONS
+    submit_code_evaluator_draft_tool: Template = _SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     read_llm_evaluator_draft_tool: Template = _READ_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     edit_llm_evaluator_draft_tool: Template = _EDIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     test_llm_evaluator_draft_tool: Template = _TEST_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     open_llm_evaluator_form_tool: Template = _OPEN_LLM_EVALUATOR_FORM_TOOL_INSTRUCTIONS
+    submit_llm_evaluator_draft_tool: Template = _SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE

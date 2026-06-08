@@ -5,6 +5,7 @@ import {
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
   READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "./constants";
 import {
@@ -17,6 +18,7 @@ import type {
   EditLlmEvaluatorDraftInput,
   OpenLlmEvaluatorFormInput,
   ReadLlmEvaluatorDraftInput,
+  SubmitLlmEvaluatorDraftInput,
   TestLlmEvaluatorDraftInput,
 } from "./types";
 
@@ -80,4 +82,19 @@ export const testLlmEvaluatorDraftAgentTool =
     notMountedErrorText:
       "The LLM-evaluator form is not mounted; cannot test the draft.",
     defaultSuccessOutput: "LLM-evaluator draft tested.",
+  });
+
+/**
+ * Persists the mounted LLM-evaluator draft. Under bypass it commits through the
+ * dialog's validated create/patch path and reports the persisted evaluator;
+ * otherwise it leaves the draft for the user to confirm via the dialog button.
+ */
+export const submitLlmEvaluatorDraftAgentTool =
+  defineClientActionTool<SubmitLlmEvaluatorDraftInput>({
+    name: SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+    parseInput: parseEmptyToolInput,
+    invalidInputErrorText: `Invalid ${SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {}.`,
+    notMountedErrorText:
+      "The LLM-evaluator form is not mounted; cannot submit the draft.",
+    defaultSuccessOutput: "LLM-evaluator draft submitted.",
   });
