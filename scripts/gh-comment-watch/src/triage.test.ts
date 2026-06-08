@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { orgMemberFlag, verdict, type Entry } from "./triage.ts";
+import { isTeam, orgMemberFlag, verdict, type Entry } from "./triage.ts";
 import type { GhUser } from "./types.ts";
 
 const NOW = Date.now();
@@ -145,5 +145,14 @@ describe("orgMemberFlag", () => {
     });
     expect(flag).toBe(0);
     expect(called).toBe(false);
+  });
+});
+
+describe("isTeam", () => {
+  it("matches case-insensitively and treats null as outside", () => {
+    const t = new Set(["maintainer"]);
+    expect(isTeam("Maintainer", t)).toBe(true);
+    expect(isTeam("outsider", t)).toBe(false);
+    expect(isTeam(null, t)).toBe(false);
   });
 });

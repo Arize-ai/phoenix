@@ -38,6 +38,7 @@ export interface ItemRow {
   state: string;
   html_url: string;
   author: string | null;
+  author_is_team: number; // 0 | 1 — thread opened by someone on the team allowlist
   created_at: string;
   updated_at: string;
   closed_at: string | null;

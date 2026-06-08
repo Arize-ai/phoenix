@@ -43,6 +43,7 @@ export function upsertItem(row: ItemRow): void {
         state: row.state,
         html_url: row.html_url,
         author: row.author,
+        author_is_team: row.author_is_team,
         created_at: row.created_at,
         updated_at: row.updated_at,
         closed_at: row.closed_at,
@@ -168,6 +169,7 @@ export interface ItemQuery {
   q?: string;
   sort?: "oldest" | "newest";
   mine?: "all" | "assigned" | "review"; // personal queue; overrides `filter`
+  excludeTeamAuthored?: boolean; // hide threads opened by a team member
 }
 
 export function queryItems(opts: ItemQuery): ItemRow[] {
@@ -188,6 +190,9 @@ export function queryItems(opts: ItemQuery): ItemRow[] {
   }
   if (opts.repo && opts.repo !== "all") {
     where.push(eq(items.repo, opts.repo));
+  }
+  if (opts.excludeTeamAuthored) {
+    where.push(eq(items.author_is_team, 0));
   }
   if (opts.q) {
     const searchPattern = `%${opts.q}%`;

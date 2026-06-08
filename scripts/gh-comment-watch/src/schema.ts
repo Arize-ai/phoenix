@@ -9,6 +9,7 @@ export const items = sqliteTable("items", {
   state: text("state").notNull(),
   html_url: text("html_url").notNull(),
   author: text("author"),
+  author_is_team: integer("author_is_team").notNull().default(0),
   created_at: text("created_at").notNull(),
   updated_at: text("updated_at").notNull(),
   closed_at: text("closed_at"),

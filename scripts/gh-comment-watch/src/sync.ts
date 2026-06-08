@@ -18,7 +18,13 @@ import { fetchDiscussions, triageDiscussion } from "./discussions.ts";
 import { listComments, listIssues, searchIssues } from "./github.ts";
 import { isOrgMember } from "./membership.ts";
 import { teamSet } from "./team.ts";
-import { orgMemberFlag, verdict, verdictFields, type Entry } from "./triage.ts";
+import {
+  isTeam,
+  orgMemberFlag,
+  verdict,
+  verdictFields,
+  type Entry,
+} from "./triage.ts";
 import type { GhIssue, ItemRow, SyncStatus } from "./types.ts";
 
 const status: SyncStatus = {
@@ -79,6 +85,7 @@ async function triageIssue(
     state: issue.state,
     html_url: issue.html_url,
     author: issue.user?.login ?? null,
+    author_is_team: isTeam(issue.user?.login ?? null, team) ? 1 : 0,
     created_at: issue.created_at,
     updated_at: issue.updated_at,
     closed_at: issue.closed_at,

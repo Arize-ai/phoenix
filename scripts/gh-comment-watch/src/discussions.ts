@@ -1,6 +1,12 @@
 import { graphql } from "./github.ts";
 import { isOrgMember } from "./membership.ts";
-import { orgMemberFlag, verdict, verdictFields, type Entry } from "./triage.ts";
+import {
+  isTeam,
+  orgMemberFlag,
+  verdict,
+  verdictFields,
+  type Entry,
+} from "./triage.ts";
 import type { ItemRow } from "./types.ts";
 
 interface Actor {
@@ -173,6 +179,7 @@ export async function triageDiscussion(
     state: d.closed ? "closed" : "open",
     html_url: d.url,
     author: d.author?.login ?? null,
+    author_is_team: isTeam(d.author?.login ?? null, team) ? 1 : 0,
     created_at: d.createdAt,
     updated_at: d.updatedAt,
     closed_at: null,

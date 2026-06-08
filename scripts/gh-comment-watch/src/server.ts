@@ -44,6 +44,7 @@ app.get("/api/items", (context) => {
     q: query.q,
     sort: query.sort === "newest" ? "newest" : "oldest",
     mine,
+    excludeTeamAuthored: query.excludeTeamAuthored === "1",
   };
   return context.json({ items: queryItems(opts) });
 });

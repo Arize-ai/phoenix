@@ -18,6 +18,11 @@ export function isBot(user: GhUser | null): boolean {
   return user.type === "Bot" || /\[bot\]$/i.test(user.login);
 }
 
+/** Is this login on the team allowlist? Case-insensitive; null → false. */
+export function isTeam(login: string | null, team: Set<string>): boolean {
+  return team.has((login ?? "").toLowerCase());
+}
+
 export function excerpt(body: string): string {
   return body.replace(/\r/g, "").trim().slice(0, 500);
 }
@@ -50,7 +55,7 @@ export function verdict(entries: Entry[], team: Set<string>): Verdict {
 
   if (!last) {
     reason = "Only bot activity";
-  } else if (team.has((last.login ?? "").toLowerCase())) {
+  } else if (isTeam(last.login, team)) {
     lastIsTeam = 1;
     reason = "Team posted last";
   } else {

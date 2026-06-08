@@ -56,6 +56,7 @@ const DEFAULT_FILTERS: ItemFilters = {
   repo: "Arize-ai/phoenix",
   q: "",
   sort: "newest",
+  excludeTeamAuthored: true,
 };
 
 function errorMessage(err: unknown): string {
@@ -105,6 +106,8 @@ function parseQueryFilters(search: string): ItemFilters {
     repo: params.get("repo") ?? DEFAULT_FILTERS.repo,
     q: params.get("q") ?? DEFAULT_FILTERS.q,
     sort,
+    // Default-on; only an explicit "0" in the URL opts back into team-authored.
+    excludeTeamAuthored: params.get("excludeTeamAuthored") !== "0",
   };
 }
 
@@ -116,6 +119,9 @@ function stringifyQueryFilters(filters: ItemFilters): string {
   setQueryParam(params, "repo", filters.repo, DEFAULT_FILTERS.repo);
   setQueryParam(params, "q", filters.q, DEFAULT_FILTERS.q);
   setQueryParam(params, "sort", filters.sort, DEFAULT_FILTERS.sort);
+  if (filters.excludeTeamAuthored !== DEFAULT_FILTERS.excludeTeamAuthored) {
+    params.set("excludeTeamAuthored", filters.excludeTeamAuthored ? "1" : "0");
+  }
   const query = params.toString();
   return query ? `?${query}` : "";
 }
@@ -152,7 +158,7 @@ export function App() {
   // If the chosen repo isn't actually monitored (the default before status
   // loads, or a changed REPOS), fall back to the first — derived, no effect.
   const repos = status?.repos ?? [];
-  const { tab, mine, type, q, sort } = filters;
+  const { tab, mine, type, q, sort, excludeTeamAuthored } = filters;
   const effectiveRepo =
     filters.repo === "all" || repos.length === 0 || repos.includes(filters.repo)
       ? filters.repo
@@ -216,6 +222,7 @@ export function App() {
           repo: effectiveRepo,
           q,
           sort,
+          excludeTeamAuthored,
         });
         if (!cancelled) {
           setItems(r.items);
@@ -228,7 +235,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [tab, mine, type, effectiveRepo, q, sort, reloadKey]);
+  }, [tab, mine, type, effectiveRepo, q, sort, excludeTeamAuthored, reloadKey]);
 
   useEffect(() => {
     if (wasSyncing.current && !remoteSyncing) setReloadKey((key) => key + 1);
@@ -348,6 +355,22 @@ export function App() {
             value={q}
             onChange={(event) => updateFilters({ q: event.target.value })}
           />
+          {tab !== "mine" && (
+            <label
+              className="flex cursor-pointer items-center gap-2 text-sm text-slate-300 select-none"
+              title="Hide threads opened by a team member (e.g. our own issues/PRs)"
+            >
+              <input
+                type="checkbox"
+                className="accent-sky-500"
+                checked={excludeTeamAuthored}
+                onChange={(event) =>
+                  updateFilters({ excludeTeamAuthored: event.target.checked })
+                }
+              />
+              Hide team-authored
+            </label>
+          )}
           <button
             className="ml-auto text-sm text-slate-400 hover:text-slate-200"
             onClick={() =>

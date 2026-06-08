@@ -22,6 +22,8 @@ For each open thread we walk the conversation (the opening post + every comment,
 
 Flagged comments whose author is an **org member but not on the allowlist** get an "Arize-ai org" badge — a hint that it's a colleague off the on-call list rather than an outside user. Membership is checked via `GET /orgs/{org}/members/{login}` and cached for a week in `member_cache`.
 
+A **Hide team-authored** toggle (on by default) drops threads *opened* by a team member — our own issues and PRs, where an outside reply landing last would otherwise flag the thread even though it's our own work. Untick it to include team-opened threads. The toggle only applies to the Needs reply / All tracked views, not My queue.
+
 > Scope note: only conversation comments are tracked, not PR code-review comments. Issues/PRs come from the REST API; discussions (which have no REST API) come from GraphQL, including their threaded replies.
 
 ## My queue

@@ -7,6 +7,7 @@ export interface Item {
   state: string;
   html_url: string;
   author: string | null;
+  author_is_team: number;
   created_at: string;
   updated_at: string;
   closed_at: string | null;
@@ -65,6 +66,7 @@ export interface ItemFilters {
   repo: string; // "all" or "owner/repo" — shared across tabs
   q: string; // shared
   sort: "oldest" | "newest"; // shared
+  excludeTeamAuthored: boolean; // needs/all views only — hide team-opened threads
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -82,6 +84,9 @@ export const api = {
     } else {
       p.set("filter", f.tab === "all" ? "all" : "needs");
       p.set("type", f.type);
+      // Personal queue is your own items regardless of who opened them, so the
+      // team-author filter only applies to the needs/all views.
+      if (f.excludeTeamAuthored) p.set("excludeTeamAuthored", "1");
     }
     return fetch(`/api/items?${p}`).then((r) => json<{ items: Item[] }>(r));
   },
