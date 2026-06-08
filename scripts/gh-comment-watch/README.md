@@ -2,9 +2,9 @@
 
 A small TypeScript + React app for on-call engineers to catch GitHub issue/PR comments from **outside users that nobody on the team has replied to** — the ones we tend to overlook on old threads.
 
-It scans **all open** issues, PRs, **and discussions** across **one or more repos** into an in-memory SQLite database, figures out who "spoke last" on each thread, and surfaces the ones awaiting a response in a React dashboard. It also has a **My queue** tab for issues/PRs assigned to you or personally awaiting your review. Defaults to monitoring `Arize-ai/phoenix` and `Arize-ai/openinference`; each item is tagged with its repo and the UI has a per-repo filter.
+It scans **all open** issues, PRs, **and discussions** across **one or more repos** into a local SQLite cache, figures out who "spoke last" on each thread, and surfaces the ones awaiting a response in a React dashboard. It also has a **My queue** tab for issues/PRs assigned to you or personally awaiting your review. Defaults to monitoring `Arize-ai/phoenix` and `Arize-ai/openinference`; each item is tagged with its repo and the UI has a per-repo filter.
 
-> **State is in-memory.** The database lives only for the life of the server process and is rebuilt by the startup sync — there's no file on disk, nothing to migrate, and a restart simply re-baselines from GitHub.
+> **State is local and persistent.** The SQLite database defaults to `data/local.db`, which is gitignored. Startup runs Drizzle Kit migrations before the server starts, so restarts keep the local cache and schema upgrades are applied idempotently.
 
 > **No activity window.** Every *open* thread is tracked regardless of age — a thread ignored for a year is exactly what this tool exists to surface, so it must never age out. (Closed/merged threads drop off.) The tool only reads GitHub; it never posts, labels, or reacts.
 
@@ -43,10 +43,7 @@ Or run it directly:
 
 ```bash
 cd scripts/gh-comment-watch
-pnpm install
-pnpm --dir web install
-pnpm build          # build the React UI
-pnpm start          # serve UI + API on http://localhost:58736
+pnpm start          # install deps, build UI, migrate DB, serve UI + API
 ```
 
 Open http://localhost:58736 and click **Sync now** for the first pull.
@@ -54,13 +51,31 @@ Open http://localhost:58736 and click **Sync now** for the first pull.
 ### Development (hot reload)
 
 ```bash
-pnpm dev            # API on :58736
+pnpm dev            # migrate DB, then run the Hono API on :58736
 pnpm dev:web        # Vite UI on :5173 (proxies /api → :58736)
 ```
 
+### Database
+
+The schema lives in `src/schema.ts` and migrations live under `drizzle/`. Use Drizzle Kit for schema changes:
+
+```bash
+pnpm db:generate    # generate a migration after editing src/schema.ts
+pnpm db:migrate     # apply pending migrations to the local SQLite file
+```
+
+`DB_FILE_NAME` can point at a different SQLite file. Its parent directory is created automatically.
+
+## Architecture
+
+- `src/server.ts` is a Hono server using `@hono/node-server`; it exposes `/api/status`, `/api/items`, and `/api/sync`, and serves the built React app from `web/dist`.
+- `src/db.ts` uses Drizzle ORM over `better-sqlite3` for typed reads and writes.
+- `src/sync.ts`, `src/github.ts`, and `src/discussions.ts` pull GitHub data via REST and GraphQL, then write rows through the Drizzle data-access layer.
+- `web/src/App.tsx` is the React dashboard. Tabs and filters are driven by URL query params (`tab`, `mine`, `type`, `repo`, `q`, `sort`), so refreshing or bookmarking a filtered view preserves it.
+
 ## Syncing
 
-The server keeps the in-memory database fresh on its own: it runs a sync on startup and then every `SYNC_INTERVAL_MINUTES` (default 15). You can also hit **Sync now** in the UI any time.
+The server keeps the local SQLite cache fresh on its own: it runs a sync on startup and then every `SYNC_INTERVAL_MINUTES` (default 15). You can also hit **Sync now** in the UI any time.
 
 The **first** sync (an empty DB on startup, or `POST /api/sync?full=1`) does a **baseline scan of every open thread**, regardless of age — nothing is dropped for being old. After that, syncs are **incremental**: they ask GitHub only for threads updated since our cursor (issues/PRs via `?since=…&sort=updated`; discussions paged newest-first by `updatedAt`, stopped once past the cutoff), including ones that were just closed so they can be dropped. Untouched older rows are left in place. This keeps regular syncs cheap — a quiet interval fetches ~zero threads — while still tracking the whole open backlog.
 
@@ -72,6 +87,7 @@ The cursor is a **data watermark**, not wall-clock time: per repo and kind we re
 | --- | --- | --- |
 | `REPOS` | `Arize-ai/phoenix,Arize-ai/openinference` | comma/space-separated `owner/repo` list to monitor (`REPO` still works for a single repo) |
 | `PORT` | `58736` | server port |
+| `DB_FILE_NAME` | `data/local.db` | local SQLite cache file |
 | `SEED_ORG` | first repo's owner | org used to check membership badges (all repos assumed in this org) |
 | `VIEWER` | `@me` (the token's user) | whose personal queue to track for the **My queue** tab |
 | `GITHUB_TOKEN` | — | used instead of the `gh` CLI token if set |
@@ -79,18 +95,3 @@ The cursor is a **data watermark**, not wall-clock time: per repo and kind we re
 | `SYNC_INTERVAL_MINUTES` | `15` | background auto-sync cadence (`0` disables) |
 | `FULL_SYNC_INTERVAL_HOURS` | `24` | periodic full scan cadence to prune stale closed rows (`0` disables) |
 | `SYNC_OVERLAP_MINUTES` | `10` | how far before the data watermark incremental syncs look back, to cover GitHub's `since`-index reordering |
-
-## Debug SQL
-
-`POST /api/debug/sql` runs one arbitrary SQL statement against the in-memory DB and streams the result as **JSONL** (one JSON object per line). SELECT-style statements stream their rows; anything else returns a single `{changes, lastInsertRowid}` line. SQL can come from `?sql=`, a raw text body, or a JSON `{ "sql": "…" }`.
-
-```bash
-# raw body — simplest
-curl -s --data-binary 'SELECT type, COUNT(*) n FROM items GROUP BY type' \
-  localhost:58736/api/debug/sql
-
-# query param
-curl -s 'localhost:58736/api/debug/sql?sql=SELECT%20*%20FROM%20meta'
-```
-
-This is a local debug aid over a throwaway cache of public GitHub data, so it has no auth and allows writes — don't expose the server to an untrusted network.
