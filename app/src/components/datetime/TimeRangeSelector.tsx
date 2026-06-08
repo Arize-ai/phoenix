@@ -182,6 +182,8 @@ const badgeCSS = css`
   font-variant-numeric: tabular-nums;
 `;
 
+const OPEN_VALUE_MIN_WIDTH = "var(--global-dimension-size-4000)";
+
 /**
  * A Datadog-style time range control. The current window is shown as a compact
  * preset label until the control receives focus, then swaps to inline editable
@@ -214,29 +216,30 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
   }, []);
-  const closeEditingIfFocusOutside = useCallback(() => {
-    setTimeout(() => {
-      const activeElement = document.activeElement;
-      if (
-        activeElement instanceof HTMLElement &&
-        (containerRef.current?.contains(activeElement) ||
-          popoverRef.current?.contains(activeElement))
-      ) {
-        return;
-      }
-      setIsEditing(false);
-    });
-  }, []);
-  const blurFocusedTimeRangeElement = useCallback(() => {
+  // The focused element belongs to this control if it lives inside the trigger
+  // or its popover. Used to decide whether losing focus should stop editing.
+  const getFocusedElementWithin = useCallback(() => {
     const activeElement = document.activeElement;
     if (
       activeElement instanceof HTMLElement &&
       (containerRef.current?.contains(activeElement) ||
         popoverRef.current?.contains(activeElement))
     ) {
-      activeElement.blur();
+      return activeElement;
     }
+    return null;
   }, []);
+  const closeEditingIfFocusOutside = useCallback(() => {
+    setTimeout(() => {
+      if (getFocusedElementWithin()) {
+        return;
+      }
+      setIsEditing(false);
+    });
+  }, [getFocusedElementWithin]);
+  const blurFocusedTimeRangeElement = useCallback(() => {
+    getFocusedElementWithin()?.blur();
+  }, [getFocusedElementWithin]);
   const submitTimeRangeField = useCallback(() => {
     blurFocusedTimeRangeElement();
     setIsEditing(false);
@@ -250,7 +253,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     if (suppressOpenRef.current) {
       return;
     }
-    setIsPresetsOpen((isOpen) => (isOpen ? isOpen : true));
+    setIsPresetsOpen(true);
   }, []);
   useEffect(() => {
     if (!isPresetsOpen) {
@@ -372,6 +375,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
           className="time-range-selector__value-shell"
           style={{
             width: isPresetsOpen || valueWidth == null ? "auto" : valueWidth,
+            minWidth: isEditing ? OPEN_VALUE_MIN_WIDTH : undefined,
           }}
         >
           <div
