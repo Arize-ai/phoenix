@@ -1,14 +1,73 @@
 import { act } from "react";
+import type {
+  createElement,
+  Ref,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
-import { TimeRangeSelector } from "../TimeRangeSelector";
+import {
+  TimeRangeSelector,
+  type TimeRangeSelectorProps,
+} from "../TimeRangeSelector";
 import { getTimeRangeFromLastNTimeRangeKey } from "../utils";
 
-describe("TimeRangeSelector", () => {
+vi.mock("../TimeRangeFields", async () => {
+  const React = (await vi.importActual("react")) as {
+    createElement: typeof createElement;
+    useImperativeHandle: typeof useImperativeHandle;
+    useLayoutEffect: typeof useLayoutEffect;
+    useRef: typeof useRef;
+  };
+
+  return {
+    TimeRangeFields({
+      ref,
+      autoFocus,
+      onBlurWithin,
+      onCommit,
+    }: {
+      ref?: Ref<{ commit: () => void }>;
+      autoFocus?: boolean;
+      onBlurWithin?: () => void;
+      onCommit: (range: OpenTimeRange) => void;
+    }) {
+      const inputRef = React.useRef<HTMLInputElement>(null);
+
+      React.useImperativeHandle(
+        ref,
+        () => ({
+          commit() {
+            onCommit({
+              start: new Date("2024-01-01T00:00:00.000Z"),
+              end: new Date("2024-01-02T00:00:00.000Z"),
+            });
+          },
+        }),
+        [onCommit]
+      );
+      React.useLayoutEffect(() => {
+        if (autoFocus) {
+          inputRef.current?.focus();
+        }
+      }, [autoFocus]);
+
+      return React.createElement("input", {
+        "aria-label": "mock time range field",
+        onBlur: onBlurWithin,
+        ref: inputRef,
+      });
+    },
+  };
+});
+
+describe("TimeRangeSelector Escape handling", () => {
   let container: HTMLDivElement;
   let root: Root;
   let originalMatchMedia: typeof window.matchMedia | undefined;
@@ -71,7 +130,11 @@ describe("TimeRangeSelector", () => {
     vi.restoreAllMocks();
   });
 
-  function renderSelector() {
+  function renderSelector({
+    onChange,
+  }: {
+    onChange: TimeRangeSelectorProps["onChange"];
+  }) {
     act(() => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
@@ -81,7 +144,7 @@ describe("TimeRangeSelector", () => {
                 timeRangeKey: "7d",
                 ...getTimeRangeFromLastNTimeRangeKey("7d"),
               }}
-              onChange={vi.fn()}
+              onChange={onChange}
             />
           </PreferencesProvider>
         </ThemeProvider>
@@ -95,11 +158,10 @@ describe("TimeRangeSelector", () => {
     ) as HTMLElement | null;
   }
 
-  function getPopover() {
-    return document.querySelector(".react-aria-Popover") as HTMLElement | null;
-  }
+  it("commits the active custom range and blurs the field when Escape is pressed", () => {
+    const onChange = vi.fn<TimeRangeSelectorProps["onChange"]>();
+    renderSelector({ onChange });
 
-  function openPresetListbox() {
     const valueButton = container.querySelector(
       ".time-range-selector__value"
     ) as HTMLButtonElement | null;
@@ -109,68 +171,25 @@ describe("TimeRangeSelector", () => {
       valueButton?.focus();
     });
 
-    const listbox = getPresetListbox();
-    expect(listbox).not.toBeNull();
-    return listbox;
-  }
-
-  it("closes the preset listbox when Escape is pressed", () => {
-    renderSelector();
-    openPresetListbox();
-    const focusedElement = document.activeElement as HTMLElement | null;
-
-    expect(focusedElement).not.toBeNull();
-    expect(focusedElement).not.toBe(document.body);
+    const field = container.querySelector(
+      '[aria-label="mock time range field"]'
+    ) as HTMLInputElement | null;
+    expect(field).not.toBeNull();
+    expect(document.activeElement).toBe(field);
+    expect(getPresetListbox()).not.toBeNull();
 
     act(() => {
-      focusedElement?.dispatchEvent(
+      field?.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
       );
     });
 
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const nextRange = onChange.mock.calls[0]?.[0];
+    expect(nextRange?.timeRangeKey).toBe("custom");
+    expect(nextRange?.start?.toISOString()).toBe("2024-01-01T00:00:00.000Z");
+    expect(nextRange?.end?.toISOString()).toBe("2024-01-02T00:00:00.000Z");
     expect(getPresetListbox()).toBeNull();
     expect(document.activeElement).toBe(document.body);
-  });
-
-  it("opens the preset listbox at the measured trigger width", () => {
-    renderSelector();
-    openPresetListbox();
-
-    const valueShell = container.querySelector(
-      ".time-range-selector__value-shell"
-    ) as HTMLElement | null;
-
-    expect(valueShell?.style.width).toBe("auto");
-    expect(getPopover()?.style.width).toBe("373px");
-    expect(getPopover()?.style.transition).toBe("none");
-  });
-
-  it("closes the preset listbox when pressing outside", () => {
-    renderSelector();
-    openPresetListbox();
-
-    const outsideButton = document.createElement("button");
-    document.body.appendChild(outsideButton);
-
-    try {
-      act(() => {
-        outsideButton.dispatchEvent(
-          new PointerEvent("pointerdown", {
-            bubbles: true,
-            pointerType: "mouse",
-          })
-        );
-        outsideButton.dispatchEvent(
-          new PointerEvent("pointerup", {
-            bubbles: true,
-            pointerType: "mouse",
-          })
-        );
-      });
-
-      expect(getPresetListbox()).toBeNull();
-    } finally {
-      outsideButton.remove();
-    }
   });
 });

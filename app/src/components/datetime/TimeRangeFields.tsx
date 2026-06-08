@@ -1,5 +1,6 @@
 import { now, parseAbsolute } from "@internationalized/date";
-import { useState } from "react";
+import { useCallback, useImperativeHandle, useRef, useState } from "react";
+import type { Ref } from "react";
 import { useFocusWithin } from "react-aria";
 import type { DateValue } from "react-aria-components";
 import { DateField, DateInput, DateSegment } from "react-aria-components";
@@ -21,6 +22,10 @@ export type TimeRangeFieldsProps = {
   onCommit: (range: OpenTimeRange) => void;
   autoFocus?: boolean;
   onBlurWithin?: () => void;
+};
+
+export type TimeRangeFieldsHandle = {
+  commit: () => void;
 };
 
 function toDateValue(
@@ -45,27 +50,32 @@ export function TimeRangeFields({
   onCommit,
   autoFocus,
   onBlurWithin,
-}: TimeRangeFieldsProps) {
+  ref,
+}: TimeRangeFieldsProps & { ref?: Ref<TimeRangeFieldsHandle> }) {
+  const isDirtyRef = useRef(false);
   const [startValue, setStartValue] = useState<DateValue | null>(() =>
     toDateValue(start, timeZone)
   );
   const [endValue, setEndValue] = useState<DateValue | null>(
     () => toDateValue(end, timeZone) ?? now(timeZone)
   );
-  const [isDirty, setIsDirty] = useState(false);
 
   const startDate = startValue ? startValue.toDate(timeZone) : null;
   const endDate = endValue ? endValue.toDate(timeZone) : null;
   const isInvalid = Boolean(startDate && endDate && startDate > endDate);
 
-  const reset = () => {
-    setStartValue(toDateValue(start, timeZone));
-    setEndValue(toDateValue(end, timeZone) ?? now(timeZone));
-    setIsDirty(false);
+  const markDirty = () => {
+    isDirtyRef.current = true;
   };
 
-  const commit = () => {
-    if (!isDirty) {
+  const reset = useCallback(() => {
+    setStartValue(toDateValue(start, timeZone));
+    setEndValue(toDateValue(end, timeZone) ?? now(timeZone));
+    isDirtyRef.current = false;
+  }, [end, start, timeZone]);
+
+  const commit = useCallback(() => {
+    if (!isDirtyRef.current) {
       return;
     }
     if (isInvalid) {
@@ -73,8 +83,11 @@ export function TimeRangeFields({
       reset();
       return;
     }
+    isDirtyRef.current = false;
     onCommit({ start: startDate, end: endDate });
-  };
+  }, [endDate, isInvalid, onCommit, reset, startDate]);
+
+  useImperativeHandle(ref, () => ({ commit }), [commit]);
 
   const { focusWithinProps } = useFocusWithin({
     onBlurWithin: () => {
@@ -105,7 +118,7 @@ export function TimeRangeFields({
         value={startValue}
         onChange={(value) => {
           setStartValue(value);
-          setIsDirty(true);
+          markDirty();
         }}
       >
         <DateInput>{(segment) => <DateSegment segment={segment} />}</DateInput>
@@ -122,7 +135,7 @@ export function TimeRangeFields({
         value={endValue}
         onChange={(value) => {
           setEndValue(value);
-          setIsDirty(true);
+          markDirty();
         }}
       >
         <DateInput>{(segment) => <DateSegment segment={segment} />}</DateInput>

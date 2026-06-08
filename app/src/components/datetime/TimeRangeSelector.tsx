@@ -22,6 +22,7 @@ import { Popover } from "../core/overlay";
 import type { ComponentSize } from "../core/types";
 import { LAST_N_TIME_RANGES, LAST_N_TIME_RANGES_MAP } from "./constants";
 import { TimeRangeFields } from "./TimeRangeFields";
+import type { TimeRangeFieldsHandle } from "./TimeRangeFields";
 import type { OpenTimeRangeWithKey } from "./types";
 import {
   getTimeRangeFromLastNTimeRangeKey,
@@ -188,6 +189,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const valueMeasureRef = useRef<HTMLDivElement>(null);
+  const timeRangeFieldsRef = useRef<TimeRangeFieldsHandle | null>(null);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
@@ -203,6 +205,21 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
   }, []);
+  const blurFocusedTimeRangeElement = useCallback(() => {
+    const activeElement = document.activeElement;
+    if (
+      activeElement instanceof HTMLElement &&
+      (containerRef.current?.contains(activeElement) ||
+        popoverRef.current?.contains(activeElement))
+    ) {
+      activeElement.blur();
+    }
+  }, []);
+  const commitAndBlurTimeRangeField = useCallback(() => {
+    timeRangeFieldsRef.current?.commit();
+    blurFocusedTimeRangeElement();
+    setIsEditing(false);
+  }, [blurFocusedTimeRangeElement]);
   const openPresets = useCallback(() => {
     if (suppressOpenRef.current) {
       return;
@@ -232,6 +249,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
       }
       event.preventDefault();
       event.stopPropagation();
+      commitAndBlurTimeRangeField();
       closePresets();
     };
 
@@ -241,7 +259,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [closePresets, isPresetsOpen]);
+  }, [closePresets, commitAndBlurTimeRangeField, isPresetsOpen]);
 
   const valueDimensions = useDimensions(valueMeasureRef);
   const displayTimezone = usePreferencesContext(
@@ -308,6 +326,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
             {isEditing ? (
               <TimeRangeFields
                 key={fieldsKey}
+                ref={timeRangeFieldsRef}
                 start={start}
                 end={end}
                 timeZone={timeZone}

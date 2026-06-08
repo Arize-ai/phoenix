@@ -110,14 +110,14 @@ export function createShortDateTimeFormatter(
 export function createTimeRangeFormatter(
   displayOptions: TimeDisplayOptions
 ): TimeRangeFormatter {
-  const fullTimeFormatter = createFullTimeFormatter(displayOptions);
+  const dateTimeFormatter = createShortDateTimeFormatter(displayOptions);
   return (timeRange: OpenTimeRange) => {
     if (timeRange.start && timeRange.end) {
-      return `${fullTimeFormatter(timeRange.start)} - ${fullTimeFormatter(timeRange.end)}`;
+      return `${dateTimeFormatter(timeRange.start)} - ${dateTimeFormatter(timeRange.end)}`;
     } else if (timeRange.start) {
-      return `From ${fullTimeFormatter(timeRange.start)}`;
+      return `From ${dateTimeFormatter(timeRange.start)}`;
     } else if (timeRange.end) {
-      return `Until ${fullTimeFormatter(timeRange.end)}`;
+      return `Until ${dateTimeFormatter(timeRange.end)}`;
     } else {
       return "All Time";
     }
