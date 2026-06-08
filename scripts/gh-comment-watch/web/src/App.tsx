@@ -40,7 +40,7 @@ function useStatusPolling() {
 
 // When sorted newest-first, draw a divider where the list crosses from "recent"
 // into threads last touched this many days ago or longer.
-const STALE_AFTER_DAYS = 2;
+const STALE_AFTER_DAYS = 3;
 
 const TYPES: TypeFilter[] = ["all", "issue", "pr", "discussion"];
 const TABS: Tab[] = ["needs", "all", "mine"];
