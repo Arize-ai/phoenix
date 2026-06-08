@@ -105,7 +105,7 @@ _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 _LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
 _READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
-_SERVER_AGENT_INSTRUCTIONS = get_template("server_agent/SERVER_AGENT_INSTRUCTIONS.xml.j2")
+_BASE_SERVER_AGENT_INSTRUCTIONS = get_template("server_agent/BASE_SERVER_AGENT_INSTRUCTIONS.xml.j2")
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -114,7 +114,7 @@ SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
 
 @dataclass(frozen=True)
 class AgentPrompts:
-    """Typed bundle of every prompt template the chat agent uses."""
+    """Every prompt template the chat agent uses."""
 
     base: Template = _BASE_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
@@ -163,10 +163,17 @@ class AgentPrompts:
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
     read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
-    server_agent: Template = _SERVER_AGENT_INSTRUCTIONS
+
+
+@dataclass(frozen=True)
+class ServerAgentPrompts:
+    """Every prompt template the server agent uses."""
+
+    base: Template = _BASE_SERVER_AGENT_INSTRUCTIONS
 
 
 __all__ = [
     "AgentPrompts",
+    "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
 ]

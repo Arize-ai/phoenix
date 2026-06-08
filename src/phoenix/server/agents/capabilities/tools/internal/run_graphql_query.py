@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import Any, Callable, Optional
 
+import strawberry
 from pydantic_ai import ModelRetry, Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from starlette.requests import Request as StarletteRequest
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-
-if TYPE_CHECKING:
-    import strawberry
-
-    from phoenix.server.api.context import Context
+from phoenix.server.api.context import Context
 
 RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION = """\
 Execute a GraphQL query against the Phoenix server and return its result.
@@ -49,7 +46,6 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_context: Callable[..., Context],
         request: Optional[StarletteRequest],
-        tool_description: str,
     ) -> None:
         async def run_graphql_query(
             query: str,
@@ -71,7 +67,13 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
             return {"data": result.data}
 
         super().__init__(
-            tools=[Tool(run_graphql_query, takes_ctx=False, description=tool_description)]
+            tools=[
+                Tool(
+                    run_graphql_query,
+                    takes_ctx=False,
+                    description=RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION,
+                )
+            ]
         )
 
 
@@ -83,14 +85,12 @@ class RunGraphQLQueryCapability(AbstractStaticCapability[None]):
     build_context: Callable[..., Context]
     request: Optional[StarletteRequest]
     instructions: str
-    tool_description: str = RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return RunGraphQLQueryToolset(
             schema=self.schema,
             build_context=self.build_context,
             request=self.request,
-            tool_description=self.tool_description,
         )
 
     def get_static_instructions(self) -> str:

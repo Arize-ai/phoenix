@@ -10,10 +10,9 @@ from pydantic_ai.models import Model
 from starlette.requests import Request as StarletteRequest
 
 from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
-    RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION,
     RunGraphQLQueryCapability,
 )
-from phoenix.server.agents.prompts import AgentPrompts
+from phoenix.server.agents.prompts import ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
 from phoenix.server.api.context import Context
 
@@ -24,8 +23,7 @@ def build_server_agent(
     schema: strawberry.Schema,
     build_context: Callable[..., Context],
     request: Optional[StarletteRequest],
-    prompts: AgentPrompts | None = None,
-    tool_description: str = RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION,
+    prompts: ServerAgentPrompts | None = None,
     tracer_provider: TracerProvider | None = None,
 ) -> Agent[None, str]:
     """Construct the per-request GraphQL server agent.
@@ -40,7 +38,7 @@ def build_server_agent(
     agent's GraphQL calls are invisible under the parent ``call_subagent`` span
     (only its LLM spans surface, via the OpenInference-wrapped ``model``).
     """
-    resolved_prompts = prompts or AgentPrompts()
+    resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
     tracer: Tracer = OITracer(
         provider.get_tracer("phoenix.server.agents"),
@@ -50,8 +48,7 @@ def build_server_agent(
         schema=schema,
         build_context=build_context,
         request=request,
-        instructions=resolved_prompts.server_agent.render(),
-        tool_description=tool_description,
+        instructions=resolved_prompts.base.render(),
     )
     return Agent(
         model,
