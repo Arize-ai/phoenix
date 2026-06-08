@@ -26,6 +26,10 @@ export type TimeRangeFieldsProps = {
    * Called after Enter commits the current field state.
    */
   onSubmit?: () => void;
+  /**
+   * Called after Escape commits the current field state.
+   */
+  onEscape?: () => void;
 };
 
 export type TimeRangeFieldsHandle = {
@@ -55,6 +59,7 @@ export function TimeRangeFields({
   autoFocus,
   onBlurWithin,
   onSubmit,
+  onEscape,
   ref,
 }: TimeRangeFieldsProps & { ref?: Ref<TimeRangeFieldsHandle> }) {
   const isDirtyRef = useRef(false);
@@ -110,6 +115,11 @@ export function TimeRangeFields({
           e.preventDefault();
           commit();
           onSubmit?.();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          commit();
+          onEscape?.();
         }
       }}
       {...focusWithinProps}

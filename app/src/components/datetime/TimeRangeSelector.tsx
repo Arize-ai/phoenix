@@ -359,6 +359,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 autoFocus
                 onBlurWithin={closeEditingIfFocusOutside}
                 onSubmit={submitTimeRangeField}
+                onEscape={submitTimeRangeField}
                 onCommit={(timeRange) =>
                   onChange({ timeRangeKey: "custom", ...timeRange })
                 }
@@ -368,6 +369,13 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 type="button"
                 className="time-range-selector__value"
                 disabled={isDisabled}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    submitTimeRangeField();
+                  }
+                }}
                 onFocus={() => {
                   if (isDisabled) {
                     return;
