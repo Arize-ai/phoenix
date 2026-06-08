@@ -94,7 +94,7 @@ from phoenix.server.api.routers import (
 )
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
-from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
@@ -704,7 +704,7 @@ def create_graphql_router(
     secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
-) -> tuple[GraphQLRouter[Context, None], Callable[..., Context]]:
+) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
     Args:
@@ -726,10 +726,7 @@ def create_graphql_router(
 
     allowed_provider_names = get_env_allowed_providers()
 
-    def build_graphql_context(*, request: Request | None = None) -> Context:
-        # A closure (not functools.partial): the returned callable is treated as
-        # atomic by copy.deepcopy, whereas a partial would be deep-copied field by
-        # field into its bound db/event-loop references (which are unpicklable).
+    def get_context() -> Context:
         return build_context(
             db=db,
             settings=system_settings,
@@ -747,14 +744,7 @@ def create_graphql_router(
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
-            request=request,
         )
-
-    def get_context() -> Context:
-        # Zero-arg getter for Strawberry's FastAPI integration (it sets ctx.request
-        # afterwards). Kept separate from build_graphql_context, whose `request`
-        # parameter would otherwise be misread by FastAPI as a request body field.
-        return build_graphql_context()
 
     router = GraphQLRouter(
         graphql_schema,
@@ -765,7 +755,7 @@ def create_graphql_router(
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
         subscription_protocols=[],
     )
-    return router, build_graphql_context
+    return router
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
@@ -959,7 +949,7 @@ def create_app(
         sandbox_session_manager=sandbox_session_manager,
     )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
-    graphql_router, build_graphql_context = create_graphql_router(
+    graphql_router = create_graphql_router(
         db=db,
         system_settings=system_settings,
         graphql_schema=graphql_schema,
@@ -1128,7 +1118,24 @@ def create_app(
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.graphql_schema = graphql_schema
-    app.state.build_graphql_context = build_graphql_context
+    app.state.build_graphql_context = _get_build_graphql_context_function(
+        db=db,
+        system_settings=system_settings,
+        span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
+        encrypt=encryption_service.encrypt,
+        decrypt=encryption_service.decrypt,
+        cache_for_dataloaders=cache_for_dataloaders,
+        last_updated_at=last_updated_at,
+        event_queue=dml_event_handler,
+        allowed_provider_names=get_env_allowed_providers(),
+        read_only=read_only,
+        authentication_enabled=authentication_enabled,
+        secret=secret,
+        token_store=token_store,
+        email_sender=email_sender,
+    )
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
@@ -1178,6 +1185,59 @@ def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]
 
     app.state.get_token_store = MethodType(get_token_store, app.state)
     return app
+
+
+def _get_build_graphql_context_function(
+    *,
+    db: DbSessionFactory,
+    system_settings: SystemSettings,
+    span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
+    cache_for_dataloaders: Optional[CacheForDataLoaders],
+    last_updated_at: CanGetLastUpdatedAt,
+    event_queue: CanPutItem[DmlEvent],
+    allowed_provider_names: Optional[frozenset[str]],
+    read_only: bool,
+    authentication_enabled: bool,
+    secret: Optional[SecretStr],
+    token_store: Optional[TokenStore],
+    email_sender: Optional[EmailSender],
+) -> Callable[[Optional[PhoenixUser]], Context]:
+    """Factory for creating GraphQL context."""
+
+    def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
+        request: Optional[Request] = None
+        if user is not None:
+            request = Request(
+                {
+                    "type": "http",
+                    "user": user,  # inject user into request
+                }
+            )
+        return build_context(
+            db=db,
+            settings=system_settings,
+            span_cost_calculator=span_cost_calculator,
+            experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
+            encrypt=encrypt,
+            decrypt=decrypt,
+            cache_for_dataloaders=cache_for_dataloaders,
+            last_updated_at=last_updated_at,
+            event_queue=event_queue,
+            allowed_provider_names=allowed_provider_names,
+            read_only=read_only,
+            auth_enabled=authentication_enabled,
+            secret=secret,
+            token_store=token_store,
+            email_sender=email_sender,
+            request=request,
+        )
+
+    return build_graphql_context
 
 
 def _warn_if_missing_aioboto3() -> None:

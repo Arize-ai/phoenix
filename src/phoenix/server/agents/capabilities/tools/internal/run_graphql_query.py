@@ -7,7 +7,6 @@ from typing import Any, Callable, Optional
 import strawberry
 from pydantic_ai import ModelRetry, Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
-from starlette.requests import Request as StarletteRequest
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
@@ -44,8 +43,7 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
         self,
         *,
         schema: strawberry.Schema,
-        build_context: Callable[..., Context],
-        request: Optional[StarletteRequest],
+        build_graphql_context: Callable[[], Context],
     ) -> None:
         async def run_graphql_query(
             query: str,
@@ -54,7 +52,7 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
             result = await schema.execute(
                 query,
                 variable_values=variable_values,
-                context_value=build_context(request=request),
+                context_value=build_graphql_context(),
             )
             if result.errors:
                 # ``schema.execute`` does not raise on GraphQL errors. Raise here so
@@ -82,15 +80,13 @@ class RunGraphQLQueryCapability(AbstractStaticCapability[None]):
     """Capability that adds the networkless ``run_graphql_query`` tool to an agent."""
 
     schema: strawberry.Schema
-    build_context: Callable[..., Context]
-    request: Optional[StarletteRequest]
+    build_graphql_context: Callable[[], Context]
     instructions: str
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return RunGraphQLQueryToolset(
             schema=self.schema,
-            build_context=self.build_context,
-            request=self.request,
+            build_graphql_context=self.build_graphql_context,
         )
 
     def get_static_instructions(self) -> str:

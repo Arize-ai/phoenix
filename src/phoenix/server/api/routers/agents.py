@@ -30,7 +30,6 @@ from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.authentication import AuthCredentials
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
@@ -80,21 +79,6 @@ from phoenix.tracers import Tracer, detached_otel_context
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
 ToolExecutionEnvironment = Literal["client", "server"]
-
-
-def _get_request_with_user(user: PhoenixUser) -> Request:
-    """Build a minimal authenticated request scope carrying ``user``."""
-    return Request(
-        {
-            "type": "http",
-            "method": "POST",
-            "path": "/graphql",
-            "headers": [],
-            "query_string": b"",
-            "user": user,
-            "auth": AuthCredentials(),
-        }
-    )
 
 
 @register_openapi_schema
@@ -613,8 +597,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             build_server_agent(
                 model=model,
                 schema=request.app.state.graphql_schema,
-                build_context=request.app.state.build_graphql_context,
-                request=_get_request_with_user(phoenix_user) if phoenix_user is not None else None,
+                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
                 tracer_provider=tracer_provider,
             )
             if get_env_phoenix_dangerously_enable_subagents()
