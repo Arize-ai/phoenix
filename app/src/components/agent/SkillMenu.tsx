@@ -1,10 +1,9 @@
 import { css } from "@emotion/react";
 import { useLayoutEffect } from "react";
 
+import type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
 import { Flex, Text } from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
-
-import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 
 const skillMenuCSS = css`
   position: absolute;

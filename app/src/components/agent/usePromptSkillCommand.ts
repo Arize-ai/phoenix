@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 
-import { findSkillTokens } from "./skillTokens";
-import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
+import type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
+import { findSkillTokens } from "@phoenix/agent/skills/requestedSkills";
 
 /**
  * Describes the active slash-command query the user is typing, derived from the

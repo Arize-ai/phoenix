@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { findSkillTokens } from "./skillTokens";
+import { findSkillTokens } from "@phoenix/agent/skills/requestedSkills";
 
 /**
  * Shared box metrics that the overlay and the textarea must agree on exactly,
@@ -46,9 +46,14 @@ function buildSegments(
   text: string,
   recognizedSkillNames: ReadonlySet<string>
 ): Segment[] {
-  const tokens = findSkillTokens(text).filter((token) =>
-    recognizedSkillNames.has(token.name)
-  );
+  const seen = new Set<string>();
+  const tokens = findSkillTokens(text).filter((token) => {
+    if (!recognizedSkillNames.has(token.name) || seen.has(token.name)) {
+      return false;
+    }
+    seen.add(token.name);
+    return true;
+  });
   if (tokens.length === 0) {
     return [{ text, highlighted: false }];
   }

@@ -1,13 +1,11 @@
 import { Suspense, useEffect } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
+import type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
 import { PromptInputTextarea } from "@phoenix/components/ai/prompt-input";
 
 import { SkillPromptInput } from "./SkillPromptInput";
-import {
-  type AvailableAgentSkill,
-  useAvailableAgentSkills,
-} from "./useAvailableAgentSkills";
+import { useAvailableAgentSkills } from "./useAvailableAgentSkills";
 
 type SkillPromptInputBoundaryProps = {
   placeholder?: string;

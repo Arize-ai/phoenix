@@ -1,4 +1,7 @@
-import { findSkillTokens, parseRequestedSkills } from "../skillTokens";
+import {
+  findSkillTokens,
+  parseRequestedSkills,
+} from "@phoenix/agent/skills/requestedSkills";
 
 describe("findSkillTokens", () => {
   it("finds a token at the start of the string", () => {

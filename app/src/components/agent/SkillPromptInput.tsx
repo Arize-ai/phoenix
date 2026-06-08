@@ -2,11 +2,11 @@ import { css } from "@emotion/react";
 import { useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
 import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/PromptInputContext";
 
 import { SkillHighlightOverlay } from "./SkillHighlightOverlay";
 import { SkillMenu } from "./SkillMenu";
-import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 import { usePromptSkillCommand } from "./usePromptSkillCommand";
 
 const wrapperCSS = css`

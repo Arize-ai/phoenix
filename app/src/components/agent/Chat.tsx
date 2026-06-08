@@ -20,22 +20,15 @@ import type {
 } from "@phoenix/agent/tools/elicit";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
-import {
-  PromptInput,
-  PromptInputActions,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTools,
-} from "@phoenix/components/ai/prompt-input";
+import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
 
+import { AgentChatInput } from "./AgentChatInput";
 import { AgentConsentGate } from "./AgentConsentGate";
-import { AgentContextPills } from "./AgentContextPills";
 import {
   AgentEditPermissionMenu,
   getNextEditPermissionMode,
@@ -44,8 +37,6 @@ import {
   AgentModelCredentialForm,
   useAgentModelCredentialStatus,
 } from "./AgentModelCredentialForm";
-import { AgentModelMenu } from "./AgentModelMenu";
-import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import {
@@ -64,11 +55,8 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
-import { SkillPromptInputBoundary } from "./SkillPromptInputBoundary";
-import { parseRequestedSkills } from "./skillTokens";
 import { isToolUIPart } from "./toolPartTypes";
 import { useAgentChat } from "./useAgentChat";
-import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
@@ -252,27 +240,6 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
-  .chat__prompt-stack {
-    position: relative;
-    isolation: isolate;
-  }
-
-  .chat__skill-menu-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-
-    > * {
-      pointer-events: auto;
-    }
-  }
-
-  .chat__prompt-input {
-    position: relative;
-    z-index: 1;
-  }
-
   .chat__loading {
     color: var(--global-text-color-300);
   }
@@ -409,9 +376,6 @@ export function ChatView({
   );
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [skillMenuLayer, setSkillMenuLayer] = useState<HTMLDivElement | null>(
-    null
-  );
   // Seed the input from any prompt staged for this session (e.g. forked from a
   // user message). The controller remounts this view per session, so the lazy
   // initializer runs once per session and the store entry is consumed exactly
@@ -420,13 +384,6 @@ export function ChatView({
     () =>
       (sessionId ? store.getState().consumePendingInput(sessionId) : null) ?? ""
   );
-  // The skills available for the current context, published by the prompt input
-  // boundary once the catalog resolves. Used to parse `/skill-name` tokens from
-  // the submitted text into the `requestedSkills` payload.
-  const [availableSkills, setAvailableSkills] = useState<AvailableAgentSkill[]>(
-    []
-  );
-
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext((state) =>
@@ -643,64 +600,27 @@ export function ChatView({
               />
             </PromptInput>
           ) : (
-            <div className="chat__prompt-stack">
-              <div className="chat__skill-menu-layer" ref={setSkillMenuLayer} />
-              <PromptInput
-                className="chat__prompt-input"
-                onSubmit={(text) => {
-                  void scrollToBottom();
-                  const availableSkillNames = new Set(
-                    availableSkills.map((skill) => skill.name)
-                  );
-                  const requestedSkills = parseRequestedSkills(
-                    text,
-                    availableSkillNames
-                  );
-                  sendMessage(
-                    { text },
-                    requestedSkills.length > 0
-                      ? { body: { requestedSkills } }
-                      : undefined
-                  );
-                }}
-                status={status}
-                value={inputValue}
-                onValueChange={setInputValue}
-              >
-                <AgentContextPills />
-                <PromptInputBody>
-                  <SkillPromptInputBoundary
-                    placeholder="Send a message..."
-                    onSkillsChange={setAvailableSkills}
-                    textareaRef={textareaRef}
-                    menuPortalTarget={skillMenuLayer}
-                  />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  <PromptInputTools>
-                    <AgentModelMenu
-                      value={modelMenuValue}
-                      onChange={onModelChange}
-                      placement="top start"
-                      shouldFlip
-                      variant="quiet"
-                    />
-                    <AgentWebSearchToggle />
-                  </PromptInputTools>
-
-                  <PromptInputActions>
-                    <PromptInputSubmit
-                      isDisabled={
-                        isSendDisabledForMissingCredentials || undefined
-                      }
-                      onPress={() => {
-                        void stop();
-                      }}
-                    />
-                  </PromptInputActions>
-                </PromptInputFooter>
-              </PromptInput>
-            </div>
+            <AgentChatInput
+              status={status}
+              value={inputValue}
+              onValueChange={setInputValue}
+              onSubmit={({ text, requestedSkills }) => {
+                void scrollToBottom();
+                sendMessage(
+                  { text },
+                  requestedSkills.length > 0
+                    ? { body: { requestedSkills } }
+                    : undefined
+                );
+              }}
+              textareaRef={textareaRef}
+              modelMenuValue={modelMenuValue}
+              onModelChange={onModelChange}
+              isSubmitDisabled={isSendDisabledForMissingCredentials}
+              onStop={() => {
+                void stop();
+              }}
+            />
           )}
           {canToggleEditPermission ? (
             <div className="chat__input-meta">
