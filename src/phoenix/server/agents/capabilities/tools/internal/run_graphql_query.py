@@ -55,11 +55,6 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
                 context_value=build_graphql_context(),
             )
             if result.errors:
-                # ``schema.execute`` does not raise on GraphQL errors. Raise here so
-                # the failure is recorded on the enclosing TOOL span (ERROR status +
-                # exception event) instead of looking like a clean success. pydantic-ai
-                # converts ``ModelRetry`` into a retry prompt, so the model still sees
-                # the error messages and can correct the query and retry.
                 formatted_errors = [error.formatted for error in result.errors]
                 raise ModelRetry(json.dumps({"data": result.data, "errors": formatted_errors}))
             return {"data": result.data}
