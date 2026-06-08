@@ -170,6 +170,16 @@ describe("TimeRangeSelector Escape handling", () => {
     act(() => {
       valueButton?.focus();
     });
+    expect(document.activeElement).toBe(getPresetListbox());
+
+    const focusedValueButton = container.querySelector(
+      ".time-range-selector__value"
+    ) as HTMLButtonElement | null;
+    expect(focusedValueButton).not.toBeNull();
+
+    act(() => {
+      focusedValueButton?.focus();
+    });
 
     const field = container.querySelector(
       '[aria-label="mock time range field"]'

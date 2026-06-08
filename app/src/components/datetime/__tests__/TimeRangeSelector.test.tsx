@@ -145,6 +145,13 @@ describe("TimeRangeSelector", () => {
     expect(getPopover()?.style.transition).toBe("none");
   });
 
+  it("focuses the preset listbox when opened so arrow keys navigate presets", () => {
+    renderSelector();
+    const listbox = openPresetListbox();
+
+    expect(document.activeElement).toBe(listbox);
+  });
+
   it("closes the preset listbox when pressing outside", () => {
     renderSelector();
     openPresetListbox();

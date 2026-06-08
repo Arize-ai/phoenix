@@ -188,6 +188,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { timeRangeKey, start, end } = value;
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const presetListBoxRef = useRef<HTMLDivElement>(null);
   const valueMeasureRef = useRef<HTMLDivElement>(null);
   const timeRangeFieldsRef = useRef<TimeRangeFieldsHandle | null>(null);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
@@ -298,6 +299,13 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     );
   }, [isPresetsOpen, triggerLayoutKey]);
 
+  useLayoutEffect(() => {
+    if (!isPopoverReady) {
+      return;
+    }
+    presetListBoxRef.current?.focus();
+  }, [isPopoverReady]);
+
   return (
     <>
       <div
@@ -392,6 +400,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         }}
       >
         <ListBox
+          ref={presetListBoxRef}
           aria-label="time range preset selection"
           selectionMode="single"
           selectedKeys={isCustom ? [] : [timeRangeKey]}
