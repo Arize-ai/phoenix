@@ -8,8 +8,9 @@ import { bashAgentTool } from "@phoenix/agent/tools/bash";
  * helpers, and this file assembles them into the ordered registry and exposes
  * the dispatch + UI-behavior surface to the chat layer.
  *
- * To add, edit, or remove a tool, see
- * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
+ * To add, edit, or remove a tool, define it in its own module with the helpers
+ * in `./registry/defineTool` or `./registry/defineClientActionTool`, then list
+ * it in the appropriate array below.
  */
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
@@ -19,8 +20,35 @@ import {
   submitCodeEvaluatorDraftAgentTool,
   testCodeEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { createDatasetAgentTool } from "@phoenix/agent/tools/createDataset";
+import {
+  deleteDatasetAgentTool,
+  patchDatasetAgentTool,
+} from "@phoenix/agent/tools/datasetEdit";
+import {
+  addDatasetExamplesAgentTool,
+  deleteDatasetExamplesAgentTool,
+  listDatasetExamplesAgentTool,
+  patchDatasetExamplesAgentTool,
+} from "@phoenix/agent/tools/datasetExamples";
+import {
+  createDatasetLabelAgentTool,
+  deleteDatasetLabelsAgentTool,
+  listDatasetLabelsAgentTool,
+  listLabelsAgentTool,
+  setDatasetLabelsAgentTool,
+} from "@phoenix/agent/tools/datasetLabels";
+import {
+  createDatasetSplitAgentTool,
+  deleteDatasetSplitsAgentTool,
+  listDatasetSplitsAgentTool,
+  listSplitsAgentTool,
+  patchDatasetSplitAgentTool,
+  setDatasetExampleSplitsAgentTool,
+} from "@phoenix/agent/tools/datasetSplits";
 import { askUserAgentTool } from "@phoenix/agent/tools/elicit";
 import { getRouteInfoAgentTool } from "@phoenix/agent/tools/getRouteInfo";
+import { listDatasetsAgentTool } from "@phoenix/agent/tools/listDatasets";
 import {
   editLlmEvaluatorDraftAgentTool,
   openLlmEvaluatorFormAgentTool,
@@ -57,6 +85,7 @@ import { setTemplateVariablesPathAgentTool } from "@phoenix/agent/tools/playgrou
 import { setVariableValuesAgentTool } from "@phoenix/agent/tools/playgroundVariableValues";
 import { renderGenerativeUIAgentTool } from "@phoenix/agent/tools/renderGenerativeUI";
 import { setSpansFilterAgentTool } from "@phoenix/agent/tools/spansFilter";
+import { addSpansToDatasetAgentTool } from "@phoenix/agent/tools/spansToDataset";
 import { setTimeRangeAgentTool } from "@phoenix/agent/tools/timeRange";
 
 import type { AgentToolDefinition } from "./registry/defineTool";
@@ -105,6 +134,36 @@ const clientActionTools: AgentToolDefinition[] = [
 ];
 
 /**
+ * Dataset management tools (built with the lower-level `defineTool`). They are
+ * not client-action tools: reads execute directly against the Relay
+ * environment, and writes stage a pending-approval store entry (the inline
+ * Accept/Reject card) — auto-applied in bypass edit mode. The dataset to act on
+ * is resolved from the advertised UI context, never supplied by the model.
+ */
+const datasetTools: AgentToolDefinition[] = [
+  listDatasetsAgentTool,
+  createDatasetAgentTool,
+  patchDatasetAgentTool,
+  deleteDatasetAgentTool,
+  listDatasetExamplesAgentTool,
+  addDatasetExamplesAgentTool,
+  patchDatasetExamplesAgentTool,
+  deleteDatasetExamplesAgentTool,
+  listDatasetSplitsAgentTool,
+  listSplitsAgentTool,
+  createDatasetSplitAgentTool,
+  setDatasetExampleSplitsAgentTool,
+  patchDatasetSplitAgentTool,
+  deleteDatasetSplitsAgentTool,
+  listDatasetLabelsAgentTool,
+  listLabelsAgentTool,
+  createDatasetLabelAgentTool,
+  setDatasetLabelsAgentTool,
+  deleteDatasetLabelsAgentTool,
+  addSpansToDatasetAgentTool,
+];
+
+/**
  * The remaining tools are not built on the client-action helper — they delegate
  * to no `registeredClientActions` entry and own what they do (built with the
  * lower-level `defineTool`):
@@ -130,6 +189,7 @@ const tools: AgentToolDefinition[] = [
 /** Ordered registry of all frontend-executable tools. */
 const agentToolDefinitions: AgentToolDefinition[] = [
   ...clientActionTools,
+  ...datasetTools,
   ...tools,
 ];
 

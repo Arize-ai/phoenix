@@ -1,0 +1,13 @@
+<tool name="list_dataset_examples">
+  <description>List a page of rows from the dataset the user is currently viewing, including each row's id, input, output, and metadata. Read-only. The result also lists the dataset's available split names. Optionally filter to one or more splits, and paginate with a cursor.</description>
+  <when_to_use>
+    - Before adding rows (add_dataset_examples), to see the field names and structure of existing rows so your new rows match.
+    - When the user asks what is in the dataset, or you need to inspect example content — optionally within specific splits.
+  </when_to_use>
+  <rules>
+    - Prefer this over hand-writing GraphQL queries (e.g. via bash) to read the dataset in view.
+    - A small `limit` is usually enough to learn the shape. If the result reports more pages, call again with the returned cursor in `after`.
+    - To read a specific split, pass its name in `splitNames`. The result lists the dataset's available split names, so read once without a filter first if you are unsure which splits exist.
+    - Remember an output is a reference, not necessarily the correct answer.
+  </rules>
+</tool>

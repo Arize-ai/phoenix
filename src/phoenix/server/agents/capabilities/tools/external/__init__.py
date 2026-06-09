@@ -9,20 +9,38 @@ from phoenix.server.agents.capabilities.base import (
     AbstractStaticCapability,
 )
 from phoenix.server.agents.capabilities.tools.external import (
+    add_dataset_examples,
     add_prompt_instance,
+    add_spans_to_dataset,
     ask_user,
     bash,
     batch_span_annotate,
     cancel_playground_run,
     clone_prompt_instance,
+    create_dataset,
+    create_dataset_label,
+    create_dataset_split,
+    delete_dataset,
+    delete_dataset_examples,
+    delete_dataset_labels,
+    delete_dataset_splits,
     edit_code_evaluator_draft,
     edit_llm_evaluator_draft,
     edit_prompt_instance,
     get_route_info,
+    list_dataset_examples,
+    list_dataset_labels,
+    list_dataset_splits,
+    list_datasets,
+    list_labels,
     list_playground_model_targets,
+    list_splits,
     load_dataset,
     open_code_evaluator_form,
     open_llm_evaluator_form,
+    patch_dataset,
+    patch_dataset_examples,
+    patch_dataset_split,
     read_code_evaluator_draft,
     read_llm_evaluator_draft,
     read_playground_output,
@@ -35,6 +53,8 @@ from phoenix.server.agents.capabilities.tools.external import (
     run_playground,
     save_prompt,
     set_appended_messages_path,
+    set_dataset_example_splits,
+    set_dataset_labels,
     set_playground_experiment_recording,
     set_playground_model,
     set_playground_repetitions,
@@ -46,8 +66,14 @@ from phoenix.server.agents.capabilities.tools.external import (
     submit_llm_evaluator_draft,
     write_prompt_tools,
 )
+from phoenix.server.agents.capabilities.tools.external.add_dataset_examples import (
+    AddDatasetExamplesCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.add_prompt_instance import (
     AddPromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.add_spans_to_dataset import (
+    AddSpansToDatasetCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
 from phoenix.server.agents.capabilities.tools.external.bash import BashCapability
@@ -59,6 +85,27 @@ from phoenix.server.agents.capabilities.tools.external.cancel_playground_run imp
 )
 from phoenix.server.agents.capabilities.tools.external.clone_prompt_instance import (
     ClonePromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.create_dataset import (
+    CreateDatasetCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.create_dataset_label import (
+    CreateDatasetLabelCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.create_dataset_split import (
+    CreateDatasetSplitCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.delete_dataset import (
+    DeleteDatasetCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.delete_dataset_examples import (
+    DeleteDatasetExamplesCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.delete_dataset_labels import (
+    DeleteDatasetLabelsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.delete_dataset_splits import (
+    DeleteDatasetSplitsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
     EditCodeEvaluatorDraftCapability,
@@ -72,8 +119,26 @@ from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance impo
 from phoenix.server.agents.capabilities.tools.external.get_route_info import (
     GetRouteInfoCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.list_dataset_examples import (
+    ListDatasetExamplesCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.list_dataset_labels import (
+    ListDatasetLabelsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.list_dataset_splits import (
+    ListDatasetSplitsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.list_datasets import (
+    ListDatasetsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.list_labels import (
+    ListLabelsCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.list_playground_model_targets import (
     ListPlaygroundModelTargetsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.list_splits import (
+    ListSplitsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.load_dataset import (
     LoadDatasetCapability,
@@ -83,6 +148,15 @@ from phoenix.server.agents.capabilities.tools.external.open_code_evaluator_form 
 )
 from phoenix.server.agents.capabilities.tools.external.open_llm_evaluator_form import (
     OpenLlmEvaluatorFormCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.patch_dataset import (
+    PatchDatasetCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.patch_dataset_examples import (
+    PatchDatasetExamplesCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.patch_dataset_split import (
+    PatchDatasetSplitCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
@@ -117,6 +191,12 @@ from phoenix.server.agents.capabilities.tools.external.run_playground import (
 from phoenix.server.agents.capabilities.tools.external.save_prompt import SavePromptCapability
 from phoenix.server.agents.capabilities.tools.external.set_appended_messages_path import (
     SetAppendedMessagesPathCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.set_dataset_example_splits import (
+    SetDatasetExampleSplitsCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.set_dataset_labels import (
+    SetDatasetLabelsCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.set_playground_experiment_recording import (
     SetPlaygroundExperimentRecordingCapability,
@@ -155,6 +235,26 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
     tool_def.name: tool_def
     for tool_def in (
         ask_user.TOOL_DEFINITION,
+        add_dataset_examples.TOOL_DEFINITION,
+        add_spans_to_dataset.TOOL_DEFINITION,
+        list_dataset_examples.TOOL_DEFINITION,
+        list_dataset_splits.TOOL_DEFINITION,
+        list_datasets.TOOL_DEFINITION,
+        list_labels.TOOL_DEFINITION,
+        list_splits.TOOL_DEFINITION,
+        create_dataset.TOOL_DEFINITION,
+        create_dataset_split.TOOL_DEFINITION,
+        set_dataset_example_splits.TOOL_DEFINITION,
+        list_dataset_labels.TOOL_DEFINITION,
+        create_dataset_label.TOOL_DEFINITION,
+        set_dataset_labels.TOOL_DEFINITION,
+        patch_dataset.TOOL_DEFINITION,
+        delete_dataset.TOOL_DEFINITION,
+        patch_dataset_examples.TOOL_DEFINITION,
+        delete_dataset_examples.TOOL_DEFINITION,
+        patch_dataset_split.TOOL_DEFINITION,
+        delete_dataset_splits.TOOL_DEFINITION,
+        delete_dataset_labels.TOOL_DEFINITION,
         add_prompt_instance.TOOL_DEFINITION,
         batch_span_annotate.TOOL_DEFINITION,
         bash.TOOL_DEFINITION,
@@ -211,11 +311,31 @@ def get_external_tool_capability_function(
         BashCapability(instructions=prompts.bash_tool),
         AskUserCapability(instructions=prompts.ask_user_tool),
         BatchSpanAnnotateCapability(instructions=prompts.batch_span_annotate_tool),
+        ListDatasetsCapability(instructions=prompts.list_datasets_tool),
+        ListLabelsCapability(instructions=prompts.list_labels_tool),
+        ListSplitsCapability(instructions=prompts.list_splits_tool),
         SetTimeRangeCapability(instructions=prompts.set_time_range_tool),
         GetRouteInfoCapability(instructions=prompts.get_route_info_tool),
         RenderGenerativeUICapability(instructions=prompts.render_generative_ui_tool),
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
+        AddDatasetExamplesCapability(instructions=prompts.add_dataset_examples_tool),
+        AddSpansToDatasetCapability(instructions=prompts.add_spans_to_dataset_tool),
+        CreateDatasetCapability(instructions=prompts.create_dataset_tool),
+        ListDatasetExamplesCapability(instructions=prompts.list_dataset_examples_tool),
+        ListDatasetSplitsCapability(instructions=prompts.list_dataset_splits_tool),
+        CreateDatasetSplitCapability(instructions=prompts.create_dataset_split_tool),
+        SetDatasetExampleSplitsCapability(instructions=prompts.set_dataset_example_splits_tool),
+        ListDatasetLabelsCapability(instructions=prompts.list_dataset_labels_tool),
+        CreateDatasetLabelCapability(instructions=prompts.create_dataset_label_tool),
+        SetDatasetLabelsCapability(instructions=prompts.set_dataset_labels_tool),
+        PatchDatasetCapability(instructions=prompts.patch_dataset_tool),
+        DeleteDatasetCapability(instructions=prompts.delete_dataset_tool),
+        PatchDatasetExamplesCapability(instructions=prompts.patch_dataset_examples_tool),
+        DeleteDatasetExamplesCapability(instructions=prompts.delete_dataset_examples_tool),
+        PatchDatasetSplitCapability(instructions=prompts.patch_dataset_split_tool),
+        DeleteDatasetSplitsCapability(instructions=prompts.delete_dataset_splits_tool),
+        DeleteDatasetLabelsCapability(instructions=prompts.delete_dataset_labels_tool),
         SetSpansFilterCapability(instructions=prompts.set_spans_filter_tool),
         SetPlaygroundModelCapability(instructions=prompts.set_playground_model_tool),
         ListPlaygroundModelTargetsCapability(
@@ -261,6 +381,26 @@ def get_external_tool_capability_function(
 
 __all__ = [
     "AskUserCapability",
+    "AddDatasetExamplesCapability",
+    "AddSpansToDatasetCapability",
+    "ListDatasetExamplesCapability",
+    "ListDatasetSplitsCapability",
+    "CreateDatasetSplitCapability",
+    "SetDatasetExampleSplitsCapability",
+    "ListDatasetLabelsCapability",
+    "CreateDatasetLabelCapability",
+    "SetDatasetLabelsCapability",
+    "PatchDatasetCapability",
+    "DeleteDatasetCapability",
+    "PatchDatasetExamplesCapability",
+    "DeleteDatasetExamplesCapability",
+    "PatchDatasetSplitCapability",
+    "DeleteDatasetSplitsCapability",
+    "DeleteDatasetLabelsCapability",
+    "ListDatasetsCapability",
+    "ListLabelsCapability",
+    "ListSplitsCapability",
+    "CreateDatasetCapability",
     "AddPromptInstanceCapability",
     "BatchSpanAnnotateCapability",
     "BashCapability",

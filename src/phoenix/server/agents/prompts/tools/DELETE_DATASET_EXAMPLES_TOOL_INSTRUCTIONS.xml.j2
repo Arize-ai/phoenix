@@ -1,0 +1,12 @@
+<tool name="delete_dataset_examples">
+  <description>Remove rows from the dataset the user is viewing, by row id. This creates a new dataset version that no longer contains those rows.</description>
+  <when_to_use>
+    - The user asks to delete or remove specific rows from the dataset.
+  </when_to_use>
+  <preflight>
+    - Get each row's id from list_dataset_examples. Do not guess ids.
+  </preflight>
+  <rules>
+    - Propose the deletion by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and removes the rows only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+  </rules>
+</tool>

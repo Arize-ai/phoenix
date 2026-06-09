@@ -51,6 +51,26 @@ async def test_create_dataset(
     }
 
 
+async def test_create_dataset_with_duplicate_name_returns_conflict(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    mutation = """
+      mutation ($name: String!) {
+        createDataset(input: {name: $name, metadata: {}}) {
+          dataset {
+            id
+          }
+        }
+      }
+    """
+    first = await gql_client.execute(query=mutation, variables={"name": "dupe-dataset"})
+    assert not first.errors
+    second = await gql_client.execute(query=mutation, variables={"name": "dupe-dataset"})
+    assert (errors := second.errors)
+    assert len(errors) == 1
+    assert errors[0].message == "A dataset named 'dupe-dataset' already exists."
+
+
 class TestPatchDatasetMutation:
     MUTATION = """
       mutation ($datasetId: ID!, $name: String, $description: String, $metadata: JSON) {

@@ -64,16 +64,21 @@ class DatasetMutationMixin:
         description = input.description if input.description is not UNSET else None
         metadata = input.metadata
         async with info.context.db() as session:
-            dataset = await session.scalar(
-                insert(models.Dataset)
-                .values(
-                    name=name,
-                    description=description,
-                    metadata_=metadata,
-                    user_id=info.context.user_id,
+            try:
+                dataset = await session.scalar(
+                    insert(models.Dataset)
+                    .values(
+                        name=name,
+                        description=description,
+                        metadata_=metadata,
+                        user_id=info.context.user_id,
+                    )
+                    .returning(models.Dataset)
                 )
-                .returning(models.Dataset)
-            )
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                # ``name`` is the only unique constraint on ``datasets``, so an
+                # integrity error here means that name is already taken.
+                raise Conflict(f"A dataset named {name!r} already exists.")
             assert dataset is not None
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
