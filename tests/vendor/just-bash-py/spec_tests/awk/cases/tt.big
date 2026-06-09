@@ -1,0 +1,51 @@
+{ print }
+{ print NR, NF, $0 }
+{ $2 = length($2); print }
+{ s += length($2) }
+END { print s }
+{ s += $3 }
+END { print s }
+{ for (i = NF; i > 0; i--)
+	printf "%s ", $i
+  printf("\n")
+}
+	$1 == $1 && $2 == $2	# test some string compares
+	$1 != $2
+{
+	sss = ""
+	for (i = NF; i > 0; i--)
+		sss = sss " " $i
+	print sss
+}
+{
+	xx[$1] += length
+}
+END {
+	for (i in xx)
+		print i, xx[i] | "sort"
+}
+NF % 2 == 0
+length % 2 == 0
+! /^./
+/.$/
+BEGIN { xxx = ".$" }
+$0 ~ xxx
+{ print substr($0, 10,10) }
+{ $3 = "xxx" $3 "xxx"; $4--; print }
+{ for (i = 1; i <= NF; i++)
+	x[i] = $i
+  for (i = 1; i <= NF; i++)
+	print x[i]
+}
+{ for (i = 1; i <= NF; i++)
+	y[i] = $i
+  for (i = 1; i <= NF; i++)
+	printf "%d %s\n", i, y[i]
+}
+function abs(x) { return (x < 0) ? -x : x }
+BEGIN {	n = 1000
+	for (i = 1; i < n; i++) x[i] = rand()
+	for (i in x)
+		for (j in x)
+			if (abs(x[i]-x[j]) < .01) break
+      }

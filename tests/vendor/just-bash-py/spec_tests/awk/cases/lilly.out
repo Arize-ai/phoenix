@@ -1,0 +1,1258 @@
+
+### BEGIN{foo=6;print foo/2}:
+3
+
+### BEGIN{foo=10;foo/=2;print foo}:
+5
+
+### /=/ {print $0}:
+foo=bar
+foo==bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo=bar=fribble
+=foo=bar
+
+### /==/ {print $0}:
+foo==bar
+
+### /+=/ {print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> /+=/ <<< 
+
+### /*=/ {print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> /*=/ <<< 
+
+### /-=/ {print $0}:
+foo-=bar
+
+### //=/ {print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> // <<< 
+
+### /%=/ {print $0}:
+foo%=bar
+
+### /^=/ {print $0}:
+=foo=bar
+
+### /\/=/ {print $0}:
+foo/=bar
+
+### /!=/ {print $0}:
+foo!=bar
+
+### /<=/ {print $0}:
+foo<=bar
+
+### />=/ {print $0}:
+foo>=bar
+
+### !/=/ {print $0}:
+foo+bar
+foo bar
+foo/bar
+
+
+### !/==/ {print $0}:
+foo=bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### !/+=/ {print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> !/+=/ <<< 
+
+### !/*=/ {print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> !/*=/ <<< 
+
+### !/-=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### !//=/ {print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> !// <<< 
+
+### !/%=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### !/^=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+
+
+### !/\/=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### !/!=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### !/<=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### !/>=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0~/=/ {print $0}:
+foo=bar
+foo==bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo=bar=fribble
+=foo=bar
+
+### $0~/==/ {print $0}:
+foo==bar
+
+### $0~/+=/ {print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> $0~/+=/ <<< 
+
+### $0~/*=/ {print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> $0~/*=/ <<< 
+
+### $0~/-=/ {print $0}:
+foo-=bar
+
+### $0~//=/ {print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> $0~// <<< 
+
+### $0~/%=/ {print $0}:
+foo%=bar
+
+### $0~/^=/ {print $0}:
+=foo=bar
+
+### $0~/\/=/ {print $0}:
+foo/=bar
+
+### $0~/!=/ {print $0}:
+foo!=bar
+
+### $0~/<=/ {print $0}:
+foo<=bar
+
+### $0~/>=/ {print $0}:
+foo>=bar
+
+### $0!~/=/ {print $0}:
+foo+bar
+foo bar
+foo/bar
+
+
+### $0!~/==/ {print $0}:
+foo=bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0!~/+=/ {print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> $0!~/+=/ <<< 
+
+### $0!~/*=/ {print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> $0!~/*=/ <<< 
+
+### $0!~/-=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0!~//=/ {print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> $0!~// <<< 
+
+### $0!~/%=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0!~/^=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+
+
+### $0!~/\/=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0!~/!=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0!~/<=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### $0!~/>=/ {print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(match($0,/=/))print $0}:
+foo=bar
+foo==bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo=bar=fribble
+=foo=bar
+
+### {if(match($0,/=/))print $0}:
+foo=bar
+foo==bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo=bar=fribble
+=foo=bar
+
+### {if(match($0,/==/))print $0}:
+foo==bar
+
+### {if(match($0,/+=/))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(match($0,/+=/) <<< 
+
+### {if(match($0,/*=/))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(match($0,/*=/) <<< 
+
+### {if(match($0,/-=/))print $0}:
+foo-=bar
+
+### {if(match($0,//=/))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(match($0,//= <<< /))print $0}
+
+### {if(match($0,/%=/))print $0}:
+foo%=bar
+
+### {if(match($0,/^=/))print $0}:
+=foo=bar
+
+### {if(match($0,/\/=/))print $0}:
+foo/=bar
+
+### {if(match($0,/!=/))print $0}:
+foo!=bar
+
+### {if(match($0,/<=/))print $0}:
+foo<=bar
+
+### {if(match($0,/>=/))print $0}:
+foo>=bar
+
+### {if(!match($0,/=/))print $0}:
+foo+bar
+foo bar
+foo/bar
+
+
+### {if(!match($0,/==/))print $0}:
+foo=bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(!match($0,/+=/))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(!match($0,/+=/) <<< 
+
+### {if(!match($0,/*=/))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(!match($0,/*=/) <<< 
+
+### {if(!match($0,/-=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(!match($0,//=/))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(!match($0,//= <<< /))print $0}
+
+### {if(!match($0,/%=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(!match($0,/^=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+
+
+### {if(!match($0,/\/=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(!match($0,/!=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(!match($0,/<=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(!match($0,/>=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(index($0,/=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/=/) <<< 
+
+### {if(index($0,/=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/=/) <<< 
+
+### {if(index($0,/==/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/==/) <<< 
+
+### {if(index($0,/+=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/+=/) <<< 
+
+### {if(index($0,/*=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/*=/) <<< 
+
+### {if(index($0,/-=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/-=/) <<< 
+
+### {if(index($0,//=/))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(index($0,//= <<< /))print $0}
+
+### {if(index($0,/%=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/%=/) <<< 
+
+### {if(index($0,/^=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/^=/) <<< 
+
+### {if(index($0,/\/=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/\/=/) <<< 
+
+### {if(index($0,/!=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/!=/) <<< 
+
+### {if(index($0,/<=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/<=/) <<< 
+
+### {if(index($0,/>=/))print $0}:
+../a.out: index() doesn't permit regular expressions at source line 1
+ context is
+	 >>> {if(index($0,/>=/) <<< 
+
+### {if(split($0,foo,/=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/==/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/+=/))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(split($0,foo,/+=/) <<< 
+
+### {if(split($0,foo,/*=/))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(split($0,foo,/*=/) <<< 
+
+### {if(split($0,foo,/-=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,//=/))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(split($0,foo,//= <<< /))print $0}
+
+### {if(split($0,foo,/%=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/^=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/\/=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/!=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/<=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(split($0,foo,/>=/))print $0}:
+foo=bar
+foo==bar
+foo+bar
+foo+=bar
+foo-=bar
+foo*=bar
+foo/=bar
+foo^=bar
+foo%=bar
+foo!=bar
+foo<=bar
+foo>=bar
+foo bar
+foo/bar
+foo=bar=fribble
+=foo=bar
+
+
+### {if(sub(/=/,"#"))print $0}:
+foo#bar
+foo#=bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar=fribble
+#foo=bar
+
+### {if(sub(/=/,"#"))print $0}:
+foo#bar
+foo#=bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar=fribble
+#foo=bar
+
+### {if(sub(/==/,"#"))print $0}:
+foo#bar
+
+### {if(sub(/+=/,"#"))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(sub(/+=/,"#") <<< 
+
+### {if(sub(/*=/,"#"))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(sub(/*=/,"#") <<< 
+
+### {if(sub(/-=/,"#"))print $0}:
+foo#bar
+
+### {if(sub(//=/,"#"))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(sub(//= <<< /,"#"))print $0}
+
+### {if(sub(/%=/,"#"))print $0}:
+foo#bar
+
+### {if(sub(/^=/,"#"))print $0}:
+#foo=bar
+
+### {if(sub(/\/=/,"#"))print $0}:
+foo#bar
+
+### {if(sub(/!=/,"#"))print $0}:
+foo#bar
+
+### {if(sub(/<=/,"#"))print $0}:
+foo#bar
+
+### {if(sub(/>=/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(/=/,"#"))print $0}:
+foo#bar
+foo##bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar#fribble
+#foo#bar
+
+### {if(gsub(/=/,"#"))print $0}:
+foo#bar
+foo##bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar#fribble
+#foo#bar
+
+### {if(gsub(/==/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(/+=/,"#"))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(gsub(/+=/,"#") <<< 
+
+### {if(gsub(/*=/,"#"))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(gsub(/*=/,"#") <<< 
+
+### {if(gsub(/-=/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(//=/,"#"))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(gsub(//= <<< /,"#"))print $0}
+
+### {if(gsub(/%=/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(/^=/,"#"))print $0}:
+#foo=bar
+
+### {if(gsub(/\/=/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(/!=/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(/<=/,"#"))print $0}:
+foo#bar
+
+### {if(gsub(/>=/,"#"))print $0}:
+foo#bar
+
+### {if(sub(/=/,"#",$0))print $0}:
+foo#bar
+foo#=bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar=fribble
+#foo=bar
+
+### {if(sub(/=/,"#",$0))print $0}:
+foo#bar
+foo#=bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar=fribble
+#foo=bar
+
+### {if(sub(/==/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(/+=/,"#",$0))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(sub(/+=/,"#",$0) <<< 
+
+### {if(sub(/*=/,"#",$0))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(sub(/*=/,"#",$0) <<< 
+
+### {if(sub(/-=/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(//=/,"#",$0))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(sub(//= <<< /,"#",$0))print $0}
+
+### {if(sub(/%=/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(/^=/,"#",$0))print $0}:
+#foo=bar
+
+### {if(sub(/\/=/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(/!=/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(/<=/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(/>=/,"#",$0))print $0}:
+foo#bar
+
+### {if(sub(/=/,"#",$0))print $0}:
+foo#bar
+foo#=bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar=fribble
+#foo=bar
+
+### {if(gsub(/=/,"#",$0))print $0}:
+foo#bar
+foo##bar
+foo+#bar
+foo-#bar
+foo*#bar
+foo/#bar
+foo^#bar
+foo%#bar
+foo!#bar
+foo<#bar
+foo>#bar
+foo#bar#fribble
+#foo#bar
+
+### {if(gsub(/==/,"#",$0))print $0}:
+foo#bar
+
+### {if(gsub(/+=/,"#",$0))print $0}:
+../a.out: illegal primary in regular expression += at =
+ source line number 1
+ context is
+	 >>> {if(gsub(/+=/,"#",$0) <<< 
+
+### {if(gsub(/*=/,"#",$0))print $0}:
+../a.out: illegal primary in regular expression *= at =
+ source line number 1
+ context is
+	 >>> {if(gsub(/*=/,"#",$0) <<< 
+
+### {if(gsub(/-=/,"#",$0))print $0}:
+foo#bar
+
+### {if(gsub(//=/,"#",$0))print $0}:
+../a.out: empty regular expression
+ source line number 1
+ context is
+	 >>> {if(gsub(//= <<< /,"#",$0))print $0}
+
+### {if(gsub(/%=/,"#",$0))print $0}:
+foo#bar
+
+### {if(gsub(/^=/,"#",$0))print $0}:
+#foo=bar
+
+### {if(gsub(/\/=/,"#",$0))print $0}:
+foo#bar
+
+### {if(gsub(/!=/,"#",$0))print $0}:
+foo#bar
+
+### {if(gsub(/<=/,"#",$0))print $0}:
+foo#bar
+
+### {if(gsub(/>=/,"#",$0))print $0}:
+foo#bar

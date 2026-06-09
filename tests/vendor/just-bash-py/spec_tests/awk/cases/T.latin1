@@ -1,0 +1,37 @@
+echo T.latin1: tests of 8-bit input
+
+awk=${awk-../a.out}
+
+$awk '
+{ print $0 }
+' latin1 >foo1
+
+diff latin1 foo1 || echo 'BAD: T.latin1 1'
+
+$awk '{ gsub(/\351/, "\370"); print }' latin1 >foo0
+$awk '{ gsub(/י/, "ר"); print }' latin1 >foo1
+diff foo0 foo1 || echo 'BAD: T.latin1 3'
+
+$awk '{ gsub(/[^\300-\370]/, ""); print }' latin1 >foo0
+$awk '{ gsub(/[^ְ-ר]/, ""); print } ' latin1 >foo1
+diff foo0 foo1 || echo 'BAD: T.latin1 4'
+
+echo  '/ב/' >foo1
+$awk -f foo1 foo1 >foo2
+
+diff foo1 foo2 || echo 'BAD: T.latin1 5'
+
+
+echo /[בי]/ >foo1
+$awk -f foo1 foo1 >foo2
+diff foo1 foo2 || echo 'BAD: T.latin1 6'
+
+
+echo 'This is a line.
+Patterns like /[בי]/ do not work yet. Example, run awk /[בי]/
+over a file containing just ב.
+This is another line.' >foo0
+echo 'Patterns like /[בי]/ do not work yet. Example, run awk /[בי]/
+over a file containing just ב.' >foo1
+$awk '/[בי]/' foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.latin1 7'

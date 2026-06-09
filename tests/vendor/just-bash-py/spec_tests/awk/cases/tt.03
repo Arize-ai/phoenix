@@ -1,0 +1,2 @@
+{ s += length($2) }
+END { print s }

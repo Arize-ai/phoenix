@@ -1,0 +1,6 @@
+{
+	s = ""
+	for (i = NF; i > 0; i--)
+		s = s " " $i
+	print s
+}

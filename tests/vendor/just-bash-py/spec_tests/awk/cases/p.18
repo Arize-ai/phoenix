@@ -1,0 +1,1 @@
+/(apple|cherry) (pie|tart)/

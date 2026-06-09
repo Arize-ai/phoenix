@@ -1,0 +1,1 @@
+{ $2 = length($2); print }

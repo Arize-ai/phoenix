@@ -1,0 +1,28 @@
+echo T.lilly: miscellaneous RE tests from Bruce Lilly
+
+awk=${awk-../a.out}
+
+rm -f foo
+awk '
+/./ {
+	print $0 >"foo"
+	close("foo")
+	print "###", NR, $0
+	system("awk -f foo <\"lilly.ifile\" ")
+}' <lilly.progs >foo1 2>&1
+
+rm -f foo
+$awk '
+/./ {
+	print $0 >"foo"
+	close("foo")
+	print "###", NR, $0
+	system("../a.out -f foo <\"lilly.ifile\" ")
+}' <lilly.progs >foo2 2>&1
+
+echo `cat lilly.progs | wc -l` tests
+
+sed -e 's/awk://' -e 's/Syntax/syntax/' -e '/warning:/d' foo1 >glop1
+sed 's/..\/a.out://' foo2 >glop2
+diff glop1 glop2 >lilly.diff || echo 'bad: T.lilly is different'
+echo

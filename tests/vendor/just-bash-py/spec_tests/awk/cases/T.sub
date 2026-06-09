@@ -1,0 +1,315 @@
+echo T.sub: tests of sub and gsub code
+
+# input lines are of form
+#	pattern  replacement  input-string  sub-output  gsub-output
+
+awk '
+BEGIN {
+	FS = "\t"
+	awk = "../a.out"
+}
+NF == 0		{ next }
+$1 ~ /^#/	{ next }
+
+$1 != "" {	# new pattern
+	pat = $1
+}
+$2 != "" {	# new replacement
+	repl = $2
+}
+$3 != "" {	# new input string
+	str = $3
+}
+$4 != "" {	# new sub output
+	subout = $4
+}
+$5 != "" {	# new gsub output
+	gsubout = $5
+}
+NF < 5 {	# weird input line
+	printf("weird test spec `%s` ignored\n", $0) | "cat 1>&2"
+	next
+}
+{		# "" => explicitly empty
+	# printf(" %3d:   %s %s %s %s %s:\n", NR, pat, repl, str, subout, gsubout)
+	if (pat == "\"\"") pat = ""
+	if (repl == "\"\"") repl = ""
+	if (str == "\"\"") str = ""
+	if (subout == "\"\"") subout = ""
+	if (gsubout == "\"\"") gsubout = ""
+}
+{		# generate a test
+	nt++
+	gsub(/\\/, "&&", repl)	# in case of \ enclosed
+	test = sprintf("echo '"'"'%s'"'"' | %s '"'\n"'", str, awk) \
+	  sprintf("{ temp = $0; sub(/%s/, \"%s\", temp)\n", pat, repl) \
+	  sprintf("  if (temp != \"%s\") print \" sub %d fails:\", temp, \"should be %s in %s\"\n",
+		subout, nt, subout, (pat " " repl " " str " " subout)) \
+	  sprintf("  gsub(/%s/, \"%s\")\n", pat, repl) \
+	  sprintf("  if ($0 != \"%s\") print \"gsub %d fails:\", $0, \"should be %s in %s\"\n}",
+		gsubout, nt, gsubout, (pat " " repl " " str " " gsubout)) \
+	  "'" '"'"
+	# if (nt >= 55) print "test is: " test
+	system(test)
+	# system("bprint -c ../a.out")
+}
+END { print nt, "tests" }
+
+' <<\!!!!
+a	x	aaa	xaa	xxx
+		axa	xxa	xxx
+		bbb	bbb	bbb
+		""	""	""
+a	xy	aaa	xyaa	xyxyxy
+		axa	xyxa	xyxxy
+		bbb	bbb	bbb
+		""	""	""
+.	x	aaa	xaa	xxx
+		axa	xxa	xxx
+		bbb	xbb	xxx
+		""	""	""
+.a	x	a	a	a
+		ax	ax	ax
+		aa	x	x
+		aaab	xab	xab
+		aaaa	xaa	xx
+		""	""	""
+$	x	a	ax	ax
+		""	x	x
+.$	x	""	""	""
+		a	x	x
+		ab	ax	ax
+a$	x	""	""	""
+		a	x	x
+		b	b	b
+		ab	ab	ab
+^	x	""	x	x
+		a	xa	xa
+^a$	xx	a	xx	xx
+		""	""	""
+		b	b	b
+		aa	aa	aa
+^a.$	xy	a	a	a
+		""	""	""
+		ab	xy	xy
+		ba	ba	ba
+^$	x	""	x	x
+		a	a	a
+^.a	x	aa	x	x
+		ba	x	x
+		ab	ab	ab
+		a	a	a	
+^.*a	xy	""	""	""
+		a	xy	xy
+		b	b	b
+		ba	xy	xy
+^.+a	xy	""	""	""
+		a	a	a
+		bb	bb	bb
+		ba	xy	xy
+a	&x&y	a	axay	axay
+		aa	axaya	axayaxay
+
+a*	x	""	x	x
+		z	xz	xzx
+		az	xz	xzx
+		aza	xza	xzx
+	b	xxx	bxxx	bxbxbxb
+	x&	paq	xpaq	xpxaqx
+	x\&	paq	x&paq	x&px&qx&
+	x&y	paq	xypaq	xypxayqxy
+	x\&y	paq	x&ypaq	x&ypx&yqx&y
+a+	x&	paq	pxaq	pxaq
+	x\&	paq	px&q	px&q
+	x&y	paq	pxayq	pxayq
+	x\&y	paq	px&yq	px&yq
+aa*	x	a	x	x
+		aa	x	x
+		wawa	wxwa	wxwx
+\$	x	""	""	""
+		a	a	a
+		a$	ax	ax
+		$$$	x$$	xxx
+		z$z$z	zxz$z	zxzxz
+\.	x	""	""	""
+		a	a	a
+		a.	ax	ax
+		...	x..	xxx
+		z.z.z	zxz.z	zxzxz
+xr+y	q	xy	xy	xy
+		xry	q	q
+		xrry	q	q
+		xryWxry	qWxry	qWq
+xr?y	q	AxyB	AqB	AqB
+		AxryB	AqB	AqB
+		Axrry	Axrry	Axrry
+a?b?c?	x	""	x	x
+		a	x	x
+		b	x	x
+		c	x	x
+		ac	x	x
+		acc	xc	xx
+^a?b?q	x	""	""	""
+		q	x	x
+		a	a	a
+		aq	x	x
+		bq	x	x
+		abq	x	x
+		qab	xab	xab
+		abqabq	xabq	xabq
+[0-9]	xyz	0	xyz	xyz
+		00	xyz0	xyzxyz
+		000	xyz00	xyzxyzxyz
+		0a	xyza	xyza
+		a0	axyz	axyz
+		0a0	xyza0	xyzaxyz
+		xx	xx	xx
+		""	""	""
+^[0-9]	xyz	0	xyz	xyz
+		00	xyz0	xyz0
+		000	xyz00	xyz00
+		0a	xyza	xyza
+		a0	a0	a0
+		xx	xx	xx
+		""	""	""
+[0-9]$	xyz	0	xyz	xyz
+		00	0xyz	0xyz
+		000	00xyz	00xyz
+		0a	0a	0a
+		a0	axyz	axyz
+		xx	xx	xx
+		""	""	""
+[0-9]*	xyz	0	xyz	xyz
+		000	xyz	xyz
+		0a	xyza	xyzaxyz
+		a0	xyza0	xyzaxyz
+		0a0	xyza0	xyzaxyz
+		pq	xyzpq	xyzpxyzqxyz
+		""	xyz	xyz
+
+""	<&>	abc	<>abc	<>a<>b<>c<>	fixed 2/07, we think
+""	<\&>	abc	<&>abc	<&>a<&>b<&>c<&>
+""	<&&>	abc	<>abc	<>a<>b<>c<>
+""	<&>	""	<>	<>
+
+d?abc	<&>	abc	<abc>	<abc>
+d?	<&>	abc	<>abc	<>a<>b<>c<>
+
+x[0-9]+y	Q	xy	xy	xy	no change
+		x0y	Q	Q
+		x12y	Q	Q
+		x1y2	Q2	Q2
+		x1yax23y	Qax23y	QaQ
+
+# x[0-9]?y	~	xy
+# 		x1y
+# 	!~	x23y
+# x[[]y	~	x[y
+# 	!~	xy
+# 		x[[]y
+# 		x]y
+# x[^[]y	~	xay
+# 	!~	x[y
+# x[-]y	~	x-y
+# 	!~	xy
+# 		x+y
+# x[^-]y	~	x+y
+# 	!~	x-y
+# 		xy
+# [0\-9]	~	0
+# 		-
+# 		9
+# 	!~	1
+# 		""
+# [-1]	~	-
+# 		1
+# 	!~	0
+# [0-]	~	0
+# 		-
+# 	!~	1
+# [^-0]	~	x
+# 		^
+# 	!~	-
+# 		0
+# 		""
+# [^0-]	~	x
+# 		^
+# 	!~	-
+# 		0
+# 		""
+# x|y	~	x
+# 		y
+# 		xy
+# 	!~	a
+# 		""
+# ^abc|xyz$	~	abc
+# 		abcd
+# 		axyz
+# 		xyz
+# 	!~	xabc
+# 		xyza
+# ^(abc|xyz)$	~	abc
+# 		xyz
+# 	!~	abcxyz
+# 		abcx
+# 		cxyz
+# ^x\|y$	~	x|y
+# 	!~	xy
+# ^x\\y$	~	x\y
+# 	!~	xy
+# 		x\\y
+# 		xay
+# \141\142	~	ab
+# 		xab
+# 		abx
+# 	!~	a
+# 		b
+# 		ax
+# 		axb
+# x\056y	~	x.y
+# 	!~	x.
+# 		.x
+# 		xxx
+# 		xby  because \056 is not the metacharacter .
+# 		xcy  ditto
+# [\60-\62\65-6\71]	~	0
+# 		1
+# 		2
+# 		5
+# 		6
+# 		9
+# 	!~	3
+# 		4
+# 		7
+# 		8
+# [\60-2\65-6\71]	~	0
+# 		1
+# 		2
+# 		5
+# 		6
+# 		9
+# 	!~	3
+# 		4
+# 		7
+# 		8
+# [\x30-\x32\x35-6\71]	~	0
+# 		1
+# 		2
+# 		5
+# 		6
+# 		9
+# 	!~	3
+# 		4
+# 		7
+# 		8
+# [\x30-2\x35-6\x39]	~	0
+# 		1
+# 		2
+# 		5
+# 		6
+# 		9
+# 	!~	3
+# 		4
+# 		7
+# 		8
+!!!!

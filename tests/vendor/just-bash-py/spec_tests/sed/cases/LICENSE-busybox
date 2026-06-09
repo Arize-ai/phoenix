@@ -1,0 +1,11 @@
+--- A note on GPL versions
+
+BusyBox is distributed under version 2 of the General Public License (included
+in its entirety, below).  Version 2 is the only version of this license which
+this version of BusyBox (or modified versions derived from this one) may be
+...
+This General Public License does not permit incorporating your program into
+proprietary programs.  If your program is a subroutine library, you may
+consider it more useful to permit linking proprietary applications with the
+library.  If this is what you want to do, use the GNU Library General
+Public License instead of this License.

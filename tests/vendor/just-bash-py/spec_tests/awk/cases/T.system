@@ -1,0 +1,15 @@
+echo T.system: test system built-in
+
+awk=${awk-../a.out}
+
+rm -f foo
+$awk 'BEGIN {
+	n = system("exit 3")
+	print n
+	exit n+1
+}
+' >foo
+echo $? >>foo
+echo "3
+4" >foo1
+diff foo foo1 || echo 'BAD: T.system (1)'

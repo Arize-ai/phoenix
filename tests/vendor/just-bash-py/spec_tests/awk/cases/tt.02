@@ -1,0 +1,1 @@
+{ print NR, NF, $0 }

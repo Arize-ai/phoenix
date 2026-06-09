@@ -1,0 +1,7 @@
+function abs(x) { return (x < 0) ? -x : x }
+BEGIN {	n = 1000
+	for (i = 1; i < n; i++) x[i] = rand()
+	for (i in x)
+		for (j in x)
+			if (abs(x[i]-x[j]) < .01) break
+      }

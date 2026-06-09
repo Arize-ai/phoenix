@@ -1,0 +1,8 @@
+echo T.beebe: tests from nelson beebe from gawk test suite
+# for which thanks.
+
+rm -rf beebe
+tar xf beebe.tar	# creates beebe
+cd beebe
+make all | sed 's/^/	/' | grep -v cmp
+

@@ -1,0 +1,11 @@
+echo T.chem:  test chem.awk
+
+awk=${awk-../a.out}
+oldawk=${oldawk-awk}
+
+for i in lsd1.p penicil.p res.p
+do
+	$awk -f chem.awk $i >foo1
+	$oldawk -f chem.awk $i >foo2
+	diff foo1 foo2 || echo "BAD: T.chem on $i"
+done

@@ -1,0 +1,88 @@
+echo T.overflow: test some overflow conditions
+
+awk=${awk-../a.out}
+
+$awk 'BEGIN {
+ 	for (i = 0; i < 1000; i++) printf("abcdefghijklmnopqsrtuvwxyz")
+ 	printf("\n")
+ 	exit
+}' >foo1
+$awk '{print}' foo1 >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.overflow record 1'
+
+echo 'abcdefghijklmnopqsrtuvwxyz' >foo1
+echo hello | $awk '
+ { for (i = 1; i < 500; i++) s = s "abcdefghijklmnopqsrtuvwxyz "
+   $0 = s
+   print $1
+ }'  >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.overflow abcdef'
+
+# default input record 3072, fields 200:
+$awk '
+BEGIN {
+	for (j = 0; j < 2; j++) {
+		for (i = 0; i < 500; i++)
+			printf(" 123456789")
+		printf("\n");
+	}
+} ' >foo1
+$awk '{$1 = " 123456789"; print}' foo1 >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.overflow -mr -mf set $1'
+
+$awk '
+BEGIN {
+	for (j = 0; j < 2; j++) {
+		for (i = 0; i < 500; i++)
+			printf(" 123456789")
+		printf("\n");
+	}
+} ' >foo
+$awk  '{print NF}' foo >foo1
+echo '500
+500' >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.overflow -mr -mf NF'
+
+rm -f core
+# this should not drop core
+$awk 'BEGIN {
+	for (i = 1; i < 1000; i++) s = s "a-z"
+	if ("x" ~ "[" s "]")
+		print "ugh"
+}' >foo 2>foo
+test -r core && echo 1>&2 "BAD: T.overflow too long char class dropped core"
+
+echo 4000004 >foo1
+$awk '
+BEGIN {
+	x1 = sprintf("%1000000s\n", "hello")
+	x2 = sprintf("%-1000000s\n", "world")
+	x3 = sprintf("%1000000.1000000s\n", "goodbye")
+	x4 = sprintf("%-1000000.1000000s\n", "goodbye")
+	print length(x1 x2 x3 x4)
+}' >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.overflow huge sprintfs'
+
+echo 0 >foo1
+$awk '
+BEGIN {
+	for (i = 0; i < 100000; i++)
+		x[i] = i
+	for (i in x)
+		delete x[i]
+	n = 0
+	for (i in x)
+		n++
+	print n
+}' >foo2
+cmp -s foo1 foo2 || echo 'BAD: T.overflow big array'
+
+echo x >foo1
+$awk '{print $40000000000000}' <foo1 >foo2 2>foo
+grep "out of range field" foo >/dev/null || echo 1>&2 "BAD: T.overflow \$400000"
+
+rm -rf /tmp/awktestfoo*
+$awk 'BEGIN { for (i=1; i <= 1000; i++) print i >("/tmp/awktestfoo" i) }'
+ls /tmp/awktestfoo* | grep '1000' >/dev/null || echo 1>&2 "BAD: T.overflow openfiles"
+rm -rf /tmp/awktestfoo*
+exit 0

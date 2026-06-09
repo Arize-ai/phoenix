@@ -1,0 +1,21 @@
+echo T.exprconv:  check conversion of expr to number
+
+awk=${awk-../a.out}
+
+$awk '
+BEGIN {	x = (1 > 0); print x
+	x = (1 < 0); print x
+	x = (1 == 1); print x
+	print ("a" >= "b")
+	print ("b" >= "a")
+	print (0 == 0.0)
+	# x = ((1 == 1e0) && (1 == 10e-1) && (1 == .1e2)); print x
+	exit
+}' >foo1
+echo '1
+0
+1
+0
+1
+1' >foo2
+cmp foo1 foo2 || echo 'BAD: T.exprconv (1 > 0, etc.)'

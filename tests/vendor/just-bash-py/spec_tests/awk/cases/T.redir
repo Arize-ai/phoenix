@@ -1,0 +1,38 @@
+echo T.redir: test redirections
+
+awk=${awk-../a.out}
+
+$awk '{ print >"foo" }' /etc/passwd
+diff foo /etc/passwd || echo 'BAD: T.redir (print >"foo")'
+
+rm -f foo
+$awk '{ print >>"foo" }' /etc/passwd
+diff foo /etc/passwd || echo 'BAD: T.redir (print >>"foo")'
+
+rm -f foo
+$awk 'NR%2 == 1 { print >>"foo" }
+      NR%2 == 0 { print >"foo" }' /etc/passwd
+diff foo /etc/passwd || echo 'BAD: T.redir (print > and >>"foo")'
+
+rm -f foo
+$awk '{ print | "cat >foo" }' /etc/passwd
+diff foo /etc/passwd || echo 'BAD: T.redir (print | "cat >foo")'
+
+# tests flush of stdout before opening pipe
+echo '   head
+1
+2' >foo1
+$awk 'BEGIN { print "   head"
+	for (i = 1; i < 3; i++)
+		print i | "sort" }' >foo2
+diff foo1 foo2 || echo 'BAD: T.redir (buffering)'
+
+rm -f foo[12]
+$awk '{ print >"/dev/stderr" }' /etc/passwd 1>foo1 2>foo2
+diff foo2 /etc/passwd || echo 'BAD: T.redir (print >"/dev/stderr")'
+diff foo1 /dev/null  || echo 'BAD: T.redir (print >"/dev/stderr")'
+
+rm -f foo[12]
+$awk '{ print >"/dev/stdout" }' /etc/passwd 1>foo1 2>foo2
+diff foo1 /etc/passwd || echo 'BAD: T.redir (print >"/dev/stdout")'
+diff foo2 /dev/null  || echo 'BAD: T.redir (print >"/dev/stderr")'

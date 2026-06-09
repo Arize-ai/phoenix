@@ -1,0 +1,21 @@
+echo T.delete: misc tests of array deletion
+
+awk=${awk-../a.out}
+
+echo '1 2 3 4
+1 2 3
+1
+' >foo0
+echo '4 3 0
+3 2 0
+1 0 0
+0 0 0' >foo2
+$awk '
+{	n = split($0, x)
+	delete x[1]
+	n1 = 0;	for (i in x) n1++
+	delete x; 
+	n2 = 0; for (i in x) n2++
+	print n, n1, n2
+}' foo0 >foo1
+diff foo1 foo2 || echo 'BAD: T.delete (1)'

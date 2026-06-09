@@ -1,0 +1,173 @@
+echo T.argv: misc tests of argc and argv
+
+awk=${awk-../a.out}
+
+echo >foo1
+echo >foo2
+$awk '
+BEGIN {
+	for (i = 1; i < ARGC-1; i++)
+		printf "%s ", ARGV[i]
+	if (ARGC > 1)
+		printf "%s", ARGV[i]
+	printf "\n"
+	exit
+}' * >foo1
+echo * >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (echo1 *)'
+
+$awk '
+BEGIN {
+	for (i = 1; i < ARGC; i++) {
+		printf "%s", ARGV[i]
+		if (i < ARGC-1)
+			printf " "
+	}
+	printf "\n"
+	exit
+}' * >foo1
+echo * >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (echo2 *)'
+
+$awk '
+BEGIN {
+	print ARGC
+	ARGV[ARGC-1] = ""
+	for (i=0; i < ARGC; i++)
+		print ARGV[i]
+	exit
+}
+' a bc def gh >foo1
+echo "5
+$awk
+a
+bc
+def
+" >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (argc *)'
+
+echo '1
+2
+3' >foo0
+echo 'foo1
+foo2
+foo3' >foo1
+$awk '{print L $0}' L=foo <foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (L=foo <foo1)'
+
+echo '1
+2
+3' >foo0
+echo 'foo1
+foo2
+foo3' >foo1
+$awk '{print L $0}' L=foo foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (L=foo foo1)'
+
+echo '1
+2
+3' >foo0
+echo 'foo1
+foo2
+foo3' >foo1
+cat foo0 | $awk '{print L $0}' L=foo - >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (L=foo -)'
+
+echo '1
+2
+3' >foo0
+echo 'foo1
+foo2
+foo3
+glop1
+glop2
+glop3' >foo1
+$awk '{print L $0}' L=foo foo0 L=glop foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (L=foo L=glop)'
+
+echo '1
+2
+3' >foo0
+echo '111
+112
+113
+221
+222
+223' >foo1
+$awk '{print L $0}' L=11 foo0 L=22 foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (L=11 L=22)'
+
+echo >foo0
+echo 'name=value
+name=value' >foo1
+$awk 'BEGIN { print ARGV[1] } { print ARGV[1] }' name=value foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv assignment operand modified'
+
+echo 3.345 >foo1
+$awk 'BEGIN { print ARGV[1] + ARGV[2]}' 1 2.345 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (ARGV[1] + ARGV[2])'
+
+echo 3.345 >foo1
+x1=1 x2=2.345 $awk 'BEGIN { print ENVIRON["x1"] + ENVIRON["x2"]}' 1 2.345 >foo2
+diff foo1 foo2 || echo 'BAD: T.argv (ENVIRON[x1] + ENVIRON[x2])'
+
+
+echo 'foo1' >foo1
+echo 'foo2' >foo2
+echo 'foo3' >foo3
+$awk 'BEGIN { ARGV[2] = "" }
+	{ print }' foo1 foo2 foo3 >foo4
+echo 'foo1
+foo3' >foo5
+diff foo4 foo5 || echo 'BAD: T.argv zap ARGV[2]'
+
+echo hi > foo1 ; mv foo1 foo2
+$awk 'BEGIN { ARGV[1] = "foo2" ; print FILENAME }
+             { print FILENAME }' foo1 >foo3
+echo '
+foo2' >foo4
+diff foo3 foo4 || echo 'BAD: T.argv startup FILENAME'
+	# assumes that startup FILENAME is ""
+
+
+# test data balanced on pinhead...
+echo 'ARGV[3] is /dev/null
+ARGV[0] is ../a.out
+ARGV[1] is /dev/null' >foo1
+
+$awk 'BEGIN {   # this is a variant of arnolds original example
+        ARGV[1] = "/dev/null"
+        ARGV[2] = "glotch"  # file open must skipped deleted argv
+        ARGV[3] = "/dev/null"
+        ARGC = 4
+        delete ARGV[2]
+}
+# note that input is read here
+END {
+        for (i in ARGV)
+                printf("ARGV[%d] is %s\n", i, ARGV[i])
+}' >foo2
+diff foo1 foo2 || echo 'BAD: T.argv delete ARGV[2]'
+
+# deleting ARGV used to trigger a use-after-free crash when awk
+# iterates over it to read files.
+echo >foo1
+echo >foo2
+echo >foo3
+
+$awk 'BEGIN {
+	delete ARGV
+	ARGV[0] = "awk"
+	ARGV[1] = "/dev/null"
+	ARGC = 2
+} {
+	# this should not be executed
+	print "FILENAME: " FILENAME
+	fflush()
+}' foo1 foo2 foo3 >foo4
+
+awkstatus=$?
+diff /dev/null foo4
+if [ $? -ne 0 ] || [ $awkstatus -ne 0 ]; then
+	echo 'BAD: T.argv delete ARGV'
+fi

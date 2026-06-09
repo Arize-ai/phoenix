@@ -1,0 +1,25 @@
+echo T.flags: test some commandline flags
+
+awk=${awk-../a.out}
+
+$awk >foo 2>&1
+grep '[Uu]sage' foo >/dev/null || echo 'T.flags: bad usage'
+
+$awk -f >foo 2>&1
+grep 'no program' foo >/dev/null || echo 'T.flags: bad no program'
+
+$awk -f glop/glop >foo 2>&1
+grep 'can.t open' foo >/dev/null || echo 'T.flags: bad can.t open program'
+
+$awk -fglop/glop >foo 2>&1
+grep 'can.t open' foo >/dev/null || echo 'T.flags: bad can.t open program 2'
+
+$awk -zz 'BEGIN{}' >foo 2>&1
+grep 'unknown option' foo >/dev/null || echo 'T.flags: bad unknown option'
+
+$awk -F  >foo 2>&1
+grep 'no field separator' foo >/dev/null || echo 'T.flags: bad missing field separator'
+
+### Awk is now like gawk and splits into separate characters if FS = ""
+# $awk -F '' >foo 2>&1
+# grep 'field separator FS is empty' foo >/dev/null || echo 'T.flags: bad empty field separator'

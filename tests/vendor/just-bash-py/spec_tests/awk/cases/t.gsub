@@ -1,0 +1,1 @@
+{gsub(/[aeiou]/,"foo"); print}

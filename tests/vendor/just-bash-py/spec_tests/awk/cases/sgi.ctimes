@@ -1,0 +1,40 @@
+awk '
+BEGIN {
+	OFS = "\t"
+	print "     new      old   new/old"
+	print ""
+}
+/differ/
+/:$/ {	name = $1; cnt = 0; next }
+$1 ~ /user|sys/ {
+	n = split($2, x, "m")	# 0m0.23s
+	if (n == 1)
+		time[cnt] += x[1]
+	else
+		time[cnt] += 60 * x[1] + x[2]
+}
+$1 ~ /sys/ {
+	cnt++
+	if (cnt == 2)
+		dump()
+}
+function dump() {
+	old = time[1]
+	new = time[0]
+	if (old > 0) {
+		printf "%8.2f %8.2f %8.3f  %s\n", new, old, new/old, name
+		rat += new/old
+	}
+	nrat++
+	totnew += new
+	totold += old
+	time[0] = time[1] = cnt = 0
+}
+END {
+	print ""
+	printf "%8.2f %8.2f\n\n", totnew, totold
+	printf "avg new/old   = %.3f\n", rat/nrat
+	printf "total new/old = %.3f\n", totnew/totold
+	print nrat " tests"
+}
+' $*

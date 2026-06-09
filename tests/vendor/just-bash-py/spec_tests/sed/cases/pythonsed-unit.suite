@@ -1,0 +1,1764 @@
+** Summary of tests
+
+** syntax
+** - terminating commands
+** addresses
+** - regexp separators
+** - regexp flags
+** regexps
+** - anchors
+** - or
+** - quantifers
+** - multiple quantifiers
+** - charsets
+** - backreferences
+** - python extensions
+** substitution
+** empty regexps
+** conditional branching
+** a,i,c
+** y
+** n, N, p, P
+
+** r and w tests in testsuite3
+
+
+**
+** Syntax : terminating commands except aicrw
+**
+** y treated apart due to its special behavior in GNU sed
+
+---
+syntax: terminating commands (all but y) - 1
+---
+1 { p }
+2 { s/abc/&&/ }
+---
+abc1
+abc2
+---
+abc1
+abc1
+abcabc2
+---
+
+---
+syntax: terminating commands (all but y) - 2
+---
+1 { p ; }
+2 { s/abc/&&/ ;  }
+---
+---
+---
+
+---
+syntax: terminating commands (all but y) - 3
+---
+1 p # comment
+2 s/abc/&&/ # comment
+---
+---
+---
+
+---
+syntax: terminating commands (y) - 1
+---
+1 { y/abc/def/ }
+---
+abc
+---
+def
+---
+
+---
+syntax: terminating commands (y) - 2
+---
+1 { y/abc/def/ ; }
+---
+---
+---
+
+---
+syntax: terminating commands (y) - 3
+---
+1 y/abc/def/ # comment
+---
+---
+---
+
+---
+syntax: terminating commands - 4
+(no space at end of line)
+---
+p; p
+---
+a
+---
+a
+a
+a
+---
+
+---
+syntax: terminating commands - 5
+(one space at end of line)
+---
+p; p 
+---
+---
+---
+
+---
+syntax: terminating commands - 6
+(no space at end of line)
+---
+p; p;
+---
+---
+---
+
+---
+syntax: terminating commands - 7
+(one space at end of line)
+---
+p; p; 
+---
+---
+---
+
+---
+syntax: terminating commands - 8
+---
+1
+---
+a
+---
+???
+---
+
+---
+syntax: terminating commands - 9
+---
+1,
+---
+a
+---
+???
+---
+
+---
+syntax: terminating commands - 10
+---
+1,2
+---
+a
+---
+???
+---
+
+---
+syntax: terminating commands - aic
+---
+#n
+i\
+foo # no comment inside i argument
+i\
+bar ; nor separator inside i argument
+i\
+egg } nor end of block inside i argument
+a\
+foo # no comment inside a argument
+a\
+bar ; nor separator inside a argument
+a\
+egg } nor end of block inside a argument
+c\
+foo # no comment inside c argument
+c\
+bar ; nor separator inside c argument
+c\
+egg } nor end of block inside c argument
+---
+x
+---
+foo # no comment inside i argument
+bar ; nor separator inside i argument
+egg } nor end of block inside i argument
+foo # no comment inside c argument
+foo # no comment inside a argument
+bar ; nor separator inside a argument
+egg } nor end of block inside a argument
+---
+
+**
+** regexp addresses
+**
+
+---
+regexp address: separators
+---
+#n
+h
+g; /a/p
+g; \xaxp
+g; \a\aap
+---
+abc
+---
+abc
+abc
+abc
+---
+
+---
+regexp address: flags
+---
+#n
+/abc/p
+/ABC/Ip
+---
+abc
+ABC
+---
+abc
+abc
+ABC
+---
+
+---
+regexp address: address range with flag
+---
+#n
+/abc/,/def/p
+/abc/I,/def/p
+/abc/,/def/Ip
+/abc/I,/def/Ip
+---
+abc
+def
+ABC
+DEF
+---
+abc
+abc
+abc
+abc
+def
+def
+def
+def
+ABC
+ABC
+DEF
+DEF
+---
+
+**
+** empty addresses
+**
+
+---
+empty addresses: single address
+---
+#n
+/a/p;//p
+---
+a
+b
+a
+b
+---
+a
+a
+a
+a
+---
+
+---
+empty addresses: address range
+---
+#n
+/a/p;//,//p
+---
+---
+a
+a
+b
+a
+a
+---
+
+**
+** regexp anchors
+**
+
+---
+PS ending with a line break
+---
+s/.*/\n/
+s/$/X/g
+---
+x
+---
+
+X
+---
+
+---
+anchors at end of regexp 1 - BRE
+---
+#n
+s/\(abc\)$/ABC/p
+---
+abc$abc
+---
+abc$ABC
+---
+
+---
+anchors at end of regexp 1 - ERE
+---
+#nr
+s/(abc)$/ABC/p
+---
+---
+---
+
+---
+anchors at end of regexp 2 - BRE
+---
+#n
+s/\(abc\)\($\)/ABC/p
+---
+---
+---
+
+---
+anchors at end of regexp 2 - ERE
+---
+#nr
+s/(abc)($)/ABC/p
+---
+---
+---
+
+---
+anchors at end of regexp 3 - BRE
+---
+#n
+s/\(abc\)\(X\|$\)/ABC/p
+---
+---
+---
+
+---
+anchors at end of regexp 3 - ERE
+---
+#nr
+s/(abc)(X|$)/ABC/p
+---
+---
+---
+
+---
+anchors at end of regexp 4 - BRE
+---
+#n
+s/\(abc\)\($\|X\)/ABC/p
+---
+---
+---
+
+---
+anchors at end of regexp 4 - ERE
+---
+#nr
+s/(abc)($|X)/ABC/p
+---
+---
+---
+
+---
+anchors inside regexp $ - BRE
+---
+#n
+s/.*\(abc\)$.*/\1/p
+---
+xabc$y
+---
+abc
+---
+
+---
+anchors inside regexp $ - ERE
+---
+#nr
+s/.*(abc)$.*/\1/p
+---
+---
+---
+
+---
+anchors at start of regexp 1 - BRE
+---
+#n
+s/^\(abc\)/ABC/p
+---
+abc^abc
+---
+ABC^abc
+---
+
+---
+anchors at start of regexp 1 - ERE
+---
+#nr
+s/^(abc)/ABC/p
+---
+---
+---
+
+---
+anchors at start of regexp 2 - BRE
+---
+#n
+s/\(^\)\(abc\)/ABC/p
+---
+---
+---
+
+---
+anchors at start of regexp 2 - ERE
+---
+#nr
+s/(^)(abc)/ABC/p
+---
+---
+---
+
+---
+anchors at start of regexp 3 - BRE
+---
+#n
+s/\(^\|X\)\(abc\)/ABC/p
+---
+---
+---
+
+---
+anchors at start of regexp 3 - ERE
+---
+#nr
+s/(^|X)(abc)/ABC/p
+---
+---
+---
+
+---
+anchors at start of regexp 4 - BRE
+---
+#n
+s/\(X\|^\)\(abc\)/ABC/p
+---
+---
+---
+
+---
+anchors at start of regexp 4 - ERE
+---
+#nr
+s/(X|^)(abc)/ABC/p
+---
+---
+---
+
+---
+anchors inside regexp ^ - BRE
+---
+#n
+s/.*\(abc\)^.*/\1/p
+---
+xabc^y
+---
+abc
+---
+
+---
+anchors inside regexp ^ - ERE
+---
+#nr
+s/.*(abc)^.*/\1/p
+---
+---
+---
+
+**
+** regexp or
+**
+
+---
+regexp or
+---
+#n
+/a\|b/p
+/ab\|cd/p
+/\(ab\)\|\(cd\)/p
+---
+axy
+xyb
+abd
+acd
+ab
+cd
+---
+axy
+xyb
+abd
+abd
+abd
+acd
+acd
+acd
+ab
+ab
+ab
+cd
+cd
+---
+
+---
+regexp or (ERE)
+---
+#nr
+/a|b/p
+/ab|cd/p
+/(ab)|(cd)/p
+---
+---
+---
+
+**
+** regexp quantifiers
+**
+
+---
+regexp: BRE +
+---
+s/ab+/cd/
+---
+ab+
+---
+cd
+---
+
+---
+regexp: BRE \+
+---
+s/ab\+/cd/
+---
+abbb
+---
+cd
+---
+
+---
+regexp: ERE +
+---
+#r
+s/ab+/cd/
+---
+abbb
+---
+cd
+---
+
+---
+regexp: ERE \+
+---
+#r
+s/ab\+/cd/
+---
+ab+
+---
+cd
+---
+
+---
+regexp: BRE ?
+---
+s/ab?/cd/
+---
+ab?
+---
+cd
+---
+
+---
+regexp: BRE \?
+---
+s/ab\?/cd/
+---
+a
+---
+cd
+---
+
+---
+regexp: ERE ?
+---
+#r
+s/ab?/cd/
+---
+a
+---
+cd
+---
+
+---
+regexp: ERE \?
+---
+#r
+s/ab\?/cd/
+---
+ab?
+---
+cd
+---
+
+---
+regexp: BRE *?
+---
+s/ab*?/cd/
+---
+abbb?
+---
+cd
+---
+
+---
+regexp: BRE +?
+---
+s/ab+?/cd/
+---
+ab+?
+---
+cd
+---
+
+---
+regexp: BRE ??
+---
+s/ab??/cd/
+---
+ab??
+---
+cd
+---
+
+---
+regexp: BRE +\?
+---
+s/ab+\?/cd/
+---
+ab+?
+---
+cd?
+---
+
+---
+regexp: BRE ?\?
+---
+s/ab?\?/cd/
+---
+ab??
+---
+cd?
+---
+
+---
+regexp: {n}
+---
+#nr
+/ab{1}c/p
+/ab{2}c/p
+/ab{3}c/p
+---
+ac
+abc
+abbc
+abbbc
+abbbbc
+---
+abc
+abbc
+abbbc
+---
+
+---
+regexp: {m,n}
+---
+#nr
+/ab{2,3}c/p
+---
+ac
+abc
+abbc
+abbbc
+abbbbc
+---
+abbc
+abbbc
+---
+
+---
+regexp: {n,}
+---
+#nr
+/ab{1,}c/p
+/ab{2,}c/p
+---
+ac
+abc
+abbc
+abbbc
+---
+abc
+abbc
+abbc
+abbbc
+abbbc
+---
+
+---
+regexp: {,n}
+---
+#nr
+/ab{,1}c/p
+/ab{,2}c/p
+---
+ac
+abc
+abbc
+abbbc
+---
+ac
+ac
+abc
+abc
+abbc
+---
+
+** multiple quantifiers
+launching an error for a pair of quantifiers is the expected error for sed.py
+
+---
+regexp: ** BRE (multiple quantifier)
+---
+s/ab**/cd/
+---
+abbb
+---
+???
+---
+
+---
+regexp: ** ERE (multiple quantifier)
+---
+#r
+s/ab**/cd/
+---
+abbb
+---
+???
+---
+
+---
+regexp: *\? BRE (multiple quantifier)
+---
+s/ab*\?/cd/
+---
+abb
+---
+???
+---
+
+---
+regexp: *? ERE (multiple quantifier)
+---
+#r
+s/ab*?/cd/
+---
+abbb
+---
+???
+---
+
+**
+** charsets
+**
+
+---
+regexp: closing bracket in char set
+---
+#n
+/a[]x]*b/p
+---
+a]x]]xx]b
+---
+a]x]]xx]b
+---
+
+---
+regexp: closing bracket in complement char set
+---
+#n
+/a[^]]b/p
+---
+axb
+---
+axb
+---
+
+---
+regexp: \t \n in char set
+---
+#n
+/a[\t]b/p
+h
+G
+/b[\n]a/p
+---
+a	b
+---
+a	b
+a	b
+a	b
+---
+
+**
+** regexp backreferences
+**
+
+---
+regexp: back reference before num in address
+---
+#n
+/\(abc\)\10/p
+---
+abcabc0
+---
+abcabc0
+---
+
+---
+regexp extended: back reference before num in address
+---
+#nr
+/(abc)\10/p
+---
+abcabc0
+---
+abcabc0
+---
+
+---
+regexp extended: unmatched groups 1
+---
+#r
+s/(a)|(b)/\1\2/
+---
+a
+---
+a
+---
+
+---
+regexp extended: unmatched groups 2
+---
+#r
+s/(x)?/\1/
+---
+---
+---
+
+**
+** avoid python extensions
+**
+
+---
+avoid python extension - 1
+---
+s/b(\?#foo)c/xyz/
+---
+ab#foo)cd
+---
+axyzd
+---
+
+---
+avoid python extension - 2
+---
+s/b\(\?#foo\)c/xyz/
+---
+abcd
+---
+???
+---
+
+
+**
+** Anchor repetition
+**
+
+---
+((^|b)a){2}
+---
+#r
+/((^|b)a){2}/p
+---
+aa
+---
+aa
+---
+
+---
+(a(b|$)){2}
+---
+#r
+/(a(b|$)){2}/p
+---
+---
+---
+
+---
+(^a){2}
+---
+#r
+/(^a){2}/p
+---
+---
+---
+
+---
+(a$){2}
+---
+#r
+/(a$){2}/p
+---
+---
+---
+
+---
+(^){2}
+---
+#r
+/(^){2}/p
+---
+---
+aa
+aa
+---
+
+---
+($){2}
+---
+#r
+/($){2}/p
+---
+---
+---
+
+
+**
+** substitutions
+**
+
+---
+substitution: replace first occurrence
+---
+s/abc/x&y/
+---
+abcabcabc
+---
+xabcyabcabc
+---
+
+---
+substitution: replace second occurrence
+---
+s/abc/x&y/2
+---
+abcabcabc
+---
+abcxabcyabc
+---
+
+---
+substitution: replace all occurrences
+---
+s/abc/x&y/g
+---
+abcabcabc
+---
+xabcyxabcyxabcy
+---
+
+---
+substitution: replace far occurrence
+---
+s/abc/x&y/12
+---
+abcabcabcabcabcabcabcabcabcabcabcabc
+---
+abcabcabcabcabcabcabcabcabcabcabcxabcy
+---
+
+---
+substitution: occurrence not found
+---
+s/abc/x&y/12
+---
+abcabcabcabc
+---
+abcabcabcabc
+---
+
+---
+substitution: replace all occurrences with ignore case (s///i)
+---
+s/ABC/x&y/gi
+---
+abcabcabc
+---
+xabcyxabcyxabcy
+---
+
+---
+substitution: replace all occurrences with ignore case (s///I)
+---
+s/ABC/x&y/gI
+---
+abcabcabc
+---
+xabcyxabcyxabcy
+---
+
+---
+substitution: ignore case by default
+---
+s/ABC/x&y/g
+---
+abcabcabc
+---
+abcabcabc
+---
+
+---
+substitution: back reference before num in regexp
+---
+s/\(abc\)\10/\1/
+---
+abcabc0
+---
+abc
+---
+
+---
+substitution: back reference before num in repl
+---
+s/\(abc\)/\10/
+---
+abc
+---
+abc0
+---
+
+---
+substitution: -r: back reference before num in regexp
+---
+#r
+s/(abc)\10/\1/
+---
+abcabc0
+---
+abc
+---
+
+---
+substitution: -r: back reference before num in repl
+---
+#r
+s/(abc)/\10/
+---
+abc
+---
+abc0
+---
+
+---
+substitution: empty back reference in regexp
+---
+s/abc\(X\{0,1\}\)abc\1/&/
+---
+abcabc
+---
+abcabc
+---
+
+---
+substitution: & in replacement
+---
+#nr
+h; s/.*/&/; p
+g; s/.*/&&&&/; p
+---
+ha
+---
+ha
+hahahaha
+---
+
+---
+substitution: new line in replacement old style
+---
+s/ab/&\
+/g
+---
+abcabc
+---
+ab
+cab
+c
+---
+
+---
+substitution: new line in replacement new style
+---
+s/ab/&\n/g
+---
+abcabc
+---
+ab
+cab
+c
+---
+
+**
+** empty regexps
+**
+
+---
+empty regexp
+---
+# Check that the empty regex recalls the last *executed* regex,
+# not the last *compiled* regex (from GNU sed test suite)
+p
+s/e/X/p
+:x
+s//Y/p
+/f/bx
+---
+eeefff
+---
+eeefff
+Xeefff
+XYefff
+XYeYff
+XYeYYf
+XYeYYY
+XYeYYY
+---
+
+---
+empty regexp: empty cascade
+---
+p
+s/e/X/p
+s//X/p
+s//X/p
+//s//X/p
+---
+eeefff
+---
+eeefff
+Xeefff
+XXefff
+XXXfff
+XXXfff
+---
+
+---
+empty regexp: case modifier propagation
+---
+p
+s/E/X/igp
+y/X/e/
+s//X/p
+---
+eeefff
+---
+eeefff
+XXXfff
+Xeefff
+Xeefff
+---
+
+---
+empty regexp: same empty regexp, different case status
+---
+p
+s/E/X/ip
+:a
+s//X/p
+s/E/X/p
+ta
+---
+eeeEEE
+---
+eeeEEE
+XeeEEE
+XXeEEE
+XXeXEE
+XXeXXE
+XXeXXX
+XXeXXX
+---
+
+---
+empty regexp: case modifier propagation for addresses
+---
+/A/Ip
+//p
+---
+a
+---
+a
+a
+a
+---
+
+**
+** conditional branching
+**
+
+---
+branch on subst
+---
+s/abc/xy/
+ta
+s/$/foo/
+:a
+s/abc/xy/
+tb
+s/$/bar/
+:b
+---
+abc
+---
+xybar
+---
+
+---
+branch on one successful subst
+---
+s/abc/xy/
+s/abc/xy/
+ta
+s/$/foo/
+:a
+---
+abc
+---
+xy
+---
+
+---
+branch or print on successful subst (not on change of PS)
+---
+s/abc/abc/p
+s/abc/abc/
+ta
+s/$/foo/
+:a
+---
+abc
+---
+abc
+abc
+---
+
+**
+** a,i,c
+**
+
+---
+Change command c
+---
+2c\
+two\
+deux
+4,6c\
+quatre\
+cinq\
+six
+8,9{ c\
+ocho\
+nueve
+}
+11 { a\
+eleven second
+c\
+eleven first
+}
+i\
+not changed:
+---
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+---
+not changed:
+1
+two
+deux
+not changed:
+3
+quatre
+cinq
+six
+not changed:
+7
+ocho
+nueve
+ocho
+nueve
+not changed:
+10
+eleven first
+eleven second
+not changed:
+12
+---
+
+---
+a,i,c
+---
+/TAG/ {
+a\
+After
+i\
+Before
+c\
+Changed
+}
+---
+1
+TAG
+2
+---
+1
+Before
+Changed
+After
+2
+---
+
+---
+a,i,c silent mode
+---
+#n
+/TAG/ {
+a\
+After
+i\
+Before
+c\
+Changed
+}
+---
+---
+Before
+Changed
+After
+---
+
+---
+a,i,c one liners
+---
+/TAG/ {
+a After
+i Before
+c Changed
+}
+---
+---
+1
+Before
+Changed
+After
+2
+---
+
+---
+a,i,c one liners - ignore leading spaces
+---
+/TAG/ {
+a     After
+i        Before
+c           Changed
+}
+---
+---
+---
+
+---
+a,i,c one liners - include leading spaces with "\"
+---
+/TAG/ {
+a \    After
+i \       Before
+c \          Changed
+}
+---
+---
+1
+       Before
+          Changed
+    After
+2
+---
+
+---
+a,i,c one liners - embedded \n
+---
+/TAG/ {
+a Aft\ner
+i Bef\nore
+c Ch\nang\ned
+}
+---
+---
+1
+Bef
+ore
+Ch
+ang
+ed
+Aft
+er
+2
+---
+
+**
+** y///
+** - basic usage
+** - slashes
+** - separators
+**
+
+---
+y: basic usage
+---
+#n
+h
+g; y/a/A/; p
+g; y/abc/AAA/; p
+g; y/abc/bca/; p
+---
+abc
+---
+Abc
+AAA
+bca
+---
+
+---
+y: slashes
+---
+#n
+h
+g; y/ABCD/xyzt/; p
+g; y,ABCD,xyzt,; p
+g; y/\\/X/; p
+g; y/\//X/; p
+g; y,\,,V,; p
+g; y/\A\B\C\D/xyzt/; p
+---
+A/B\C,D
+---
+x/y\z,t
+x/y\z,t
+A/BXC,D
+AXB\C,D
+A/B\CVD
+x/y\z,t
+---
+
+---
+y: more slashes: \n, \t
+---
+#n
+h
+g; y/	/T/; p
+g; y/\t/T/; p
+g; y/N/\n/; p
+g; y/N/\
+/; p
+---
+a	bNc
+---
+aTbNc
+aTbNc
+a	b
+c
+a	b
+c
+---
+
+---
+y: separators, including \t, space
+---
+#n
+h
+g; ya\aaAa; p
+g; y b B ; p
+g; y	c	C	; p
+---
+abcd
+---
+Abcd
+aBcd
+abCd
+---
+
+---
+y: exceptions - not delimited
+---
+y/ab/ab
+---
+abc
+---
+???
+---
+
+---
+y: exceptions - unequal length
+---
+y/ab/abc/
+---
+abc
+---
+???
+---
+
+---
+y: exceptions - additional text
+---
+y/ab/ba/ and more
+---
+abc
+---
+???
+---
+
+**
+** n, N, p, P
+**
+
+---
+n command with auto-print
+---
+n; p;
+---
+1
+2
+3
+4
+5
+---
+1
+2
+2
+3
+4
+4
+5
+---
+
+---
+n command without auto-print
+---
+#n
+n; p;
+---
+1
+2
+3
+4
+5
+---
+2
+4
+---
+
+---
+N command with auto-print
+---
+N; p;
+---
+1
+2
+3
+4
+5
+---
+1
+2
+1
+2
+3
+4
+3
+4
+5
+---
+
+---
+N command without auto-print
+---
+#n
+N; p;
+---
+1
+2
+3
+4
+5
+---
+1
+2
+3
+4
+---
+
+---
+p command with auto-print
+---
+p
+---
+1
+2
+3
+---
+1
+1
+2
+2
+3
+3
+---
+
+---
+p command without auto-print
+---
+#n
+p
+---
+1
+2
+3
+---
+1
+2
+3
+---
+
+---
+P command with auto-print
+---
+N; P;
+---
+1
+2
+3
+4
+5
+---
+1
+1
+2
+3
+3
+4
+5
+---
+
+---
+P command without auto-print
+---
+#n
+N; P;
+---
+1
+2
+3
+4
+5
+---
+1
+3
+---
+
+---
+v command earlier version
+---
+v 4.5.3
+---
+test data
+---
+test data
+---
+
+---
+v command later version
+---
+v 5.0.3
+---
+test data
+---
+???
+---
+
+---
+v command with syntax error
+---
+v 4.lo-9
+---
+test data
+---
+???
+---
+
+---
+F command
+---
+2F
+---
+1
+2
+3
+---
+1
+test-tmp-script.inp
+2
+3
+---

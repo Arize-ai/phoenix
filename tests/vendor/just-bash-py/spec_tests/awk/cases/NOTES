@@ -1,0 +1,10 @@
+Need some tests for octal, hex, various string escapes.
+
+Need to complete the sub and gsub tests.
+
+more on printf, especially weird formats
+
+more on operators
+
+
+never throw away a test

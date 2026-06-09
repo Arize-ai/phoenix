@@ -1,0 +1,32 @@
+echo T.main: misc tests of arguments in main
+
+awk=${awk-../a.out}
+
+rm -f core
+
+# test -d option
+
+
+
+echo hello | $awk -d '{print}' >foo1
+if test -r core; then echo 1>&2 "BAD: T.main awk -d dropped core"; fi
+
+echo 'a::b::c' >foo
+$awk -F:: '{print NF}' foo >foo1
+echo '3' >foo2
+diff foo1 foo2 || echo 'bad: awk -F::'
+
+echo 'a::b::c' >foo
+$awk -F :: '{print NF}' foo >foo1
+echo '3' >foo2
+diff foo1 foo2 || echo 'bad: awk -F ::'
+
+echo 'a	b	c' >foo
+$awk -F t '{print NF}' foo >foo1
+echo '3' >foo2
+diff foo1 foo2 || echo 'bad: awk -F (tab)'
+
+echo 'atabbtabc' >foo
+$awk -F tab '{print NF}' foo >foo1
+echo '3' >foo2
+diff foo1 foo2 || echo 'bad: awk -F tab'

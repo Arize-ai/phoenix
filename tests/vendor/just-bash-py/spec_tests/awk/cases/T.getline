@@ -1,0 +1,98 @@
+echo T.getline: test getline function
+
+awk=${awk-../a.out}
+
+who >foo1
+cat foo1 | $awk '
+BEGIN {
+	while (getline)
+		print
+	exit
+}
+' >foo
+cmp -s foo1 foo || echo 'BAD: T.getline (bare getline)'
+
+who >foo1
+cat foo1 | $awk '
+BEGIN {
+	while (getline xxx)
+		print xxx
+	exit
+}
+' >foo
+cmp -s foo1 foo || echo 'BAD: T.getline (getline xxx)'
+
+$awk '
+BEGIN {
+	while (getline <"/etc/passwd")
+		print
+	exit
+}
+' >foo
+cmp -s /etc/passwd foo || echo 'BAD: T.getline (getline <file)'
+
+cat /etc/passwd | $awk '
+BEGIN {
+	while (getline <"-")	# stdin
+		print
+	exit
+}
+' >foo
+cmp -s /etc/passwd foo || echo 'BAD: T.getline (getline <"-")'
+
+$awk '
+BEGIN {
+	while (getline <ARGV[1])
+		print
+	exit
+}
+' /etc/passwd >foo
+cmp -s /etc/passwd foo || echo 'BAD: T.getline (getline <arg)'
+
+$awk '
+BEGIN {
+	while (getline x <ARGV[1])
+		print x
+	exit
+}
+' /etc/passwd >foo
+cmp -s /etc/passwd foo || echo 'BAD: T.getline (getline x <arg)'
+
+$awk '
+BEGIN {
+	while (("cat " ARGV[1]) | getline)
+		print
+	exit
+}
+' /etc/passwd >foo
+cmp -s /etc/passwd foo || echo 'BAD: T.getline (cat arg | getline)'
+
+$awk '
+BEGIN {
+	while (("cat " ARGV[1]) | getline x)
+		print x
+	exit
+}
+' /etc/passwd >foo
+cmp -s /etc/passwd foo || echo 'BAD: T.getline (cat arg | getline x)'
+
+$awk ' BEGIN { print getline <"/glop/glop/glop" } ' >foo
+echo '-1' >foo1
+cmp -s foo foo1 || echo 'BAD: T.getline (non-existent file)'
+
+echo 'false false equal' >foo1
+$awk 'BEGIN {
+	"echo 0" | getline
+	if ($0) printf "true " 
+	else printf "false "
+	if ($1) printf "true " 
+	else printf "false "
+	if ($0==$1) printf "equal\n"
+	else printf "not equal\n"
+}' >foo2
+cmp -s foo1 foo2 || echo 1>&2 'BAD: T.getline bad $0 type in cmd|getline'
+
+echo 'L1
+L2' | $awk 'BEGIN { $0="old stuff"; $1="new"; getline x; print}' >foo1
+echo 'new stuff' >foo2
+cmp -s foo1 foo2 || echo 1>&2 'BAD: T.getline bad update $0'

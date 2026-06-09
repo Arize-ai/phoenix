@@ -1,0 +1,33 @@
+echo T.recache: test re cache in b.c
+	# thanks to ross ridge for this horror
+
+awk=${awk-../a.out}
+
+echo b >foo1
+$awk '
+BEGIN {
+        #
+        # Fill up DFA cache with run-time REs that have all been
+        # used twice.
+        #
+        CACHE_SIZE=64
+        for(i = 0; i < CACHE_SIZE; i++) {
+                for(j = 0; j < 2; j++) {
+                        "" ~ i "";
+                }
+        }
+        #
+        # Now evalutate an expression that uses two run-time REs
+        # that have never been used before.  The second RE will
+        # push the first out of the cache while the first RE is 
+        # still needed.
+        #
+        x = "a"
+        reg1 = "[Aa]"
+        reg2 = "A"
+        sub(reg1, x ~ reg2 ? "B" : "b", x)
+
+        print x
+}
+' >foo2
+diff foo1 foo2 || echo 'BAD: T.recache'

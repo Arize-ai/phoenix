@@ -1,0 +1,17 @@
+for i in $*
+do
+	echo $i >/dev/tty
+	echo $i '<<<'
+	cd ..
+	echo testdir/$i:
+	ind <testdir/$i
+	a.out -f testdir/$i >drek.c
+	cat drek.c
+	make drek || ( echo $i '	' bad compile; echo $i '	' bad compile >/dev/tty; continue )
+	cd testdir
+	time awk -f $i test.data >foo1
+	time ../drek test.data >foo2
+	cmp foo1 foo2 || ( echo $i '	' bad; echo $i '	' bad >/dev/tty; diff foo1 foo2 )
+	echo '>>>' $i
+	echo
+done

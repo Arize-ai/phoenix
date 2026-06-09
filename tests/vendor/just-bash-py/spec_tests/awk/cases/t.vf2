@@ -1,0 +1,1 @@
+{ print $NF++; print $NF }

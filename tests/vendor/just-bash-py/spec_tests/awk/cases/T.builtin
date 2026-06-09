@@ -1,0 +1,90 @@
+echo T.builtin: test miscellaneous builtin functions
+
+awk=${awk-../a.out}
+
+$awk 'BEGIN { print index(123, substr(123, 2)) }' >foo1
+echo 2 >foo2
+diff foo1 foo2 || echo 'BAD: T.builtin (index/substr)'
+
+$awk 'BEGIN {
+	pi = 2 * atan2(1, 0)
+	printf("%.5f %.3f %.3f %.5f %.3f\n",
+		pi, sin(pi), cos(pi/2), exp(log(pi)), log(exp(10)))
+}' >foo1
+echo '3.14159 0.000 0.000 3.14159 10.000' >foo2
+diff foo1 foo2 || echo 'BAD: T.builtin (sin/cos)'
+
+$awk 'BEGIN {
+	s = srand(1)	# set a real random start
+	for (i = 1; i <= 10; i++)
+		print rand() >"foo1"
+	srand(s)	# reset it
+	for (i = 1; i <= 10; i++)
+		print rand() >"foo2"
+}'
+diff foo1 foo2 || echo 'BAD: T.builtin (rand)'
+
+echo 'hello, WORLD!' |
+$awk '{ printf("%s|%s|%s\n", tolower($0), toupper($0), $0)}' >foo1
+echo 'hello, world!|HELLO, WORLD!|hello, WORLD!' >foo2
+diff foo1 foo2 || echo 'BAD: T.builtin (toupper/tolower)'
+
+
+if locale -a | grep -qsi de_DE.UTF-8; then
+	(export LANG=de_DE.UTF-8 && echo 'Dürst' |
+	$awk '{ printf("%s|%s|%s\n", tolower($0), toupper($0), $0)}') >foo1
+	echo 'dürst|DÜRST|Dürst' >foo2
+	diff foo1 foo2 || echo 'BAD: T.builtin (toupper/tolower) for utf-8'
+	(export LC_NUMERIC=de_DE.UTF-8 && $awk 'BEGIN { print 0.01 }' /dev/null) >foo1
+	echo "0.01" >foo2
+	diff foo1 foo2 || echo 'BAD: T.builtin LC_NUMERIC radix (.) handling' 
+fi
+
+$awk 'BEGIN {
+	j = 1; sprintf("%d", 99, ++j)	# does j get incremented?
+	if (j != 2)
+		print "BAD: T.builtin (printf arg list not evaluated)"
+}'
+
+$awk 'BEGIN {
+	j = 1; substr("", 1, ++j)	# does j get incremented?
+	if (j != 2)
+		print "BAD: T.builtin (substr arg list not evaluated)"
+}'
+
+$awk 'BEGIN {
+	j = 1; sub(/1/, ++j, z)	# does j get incremented?
+	if (j != 2)
+		print "BAD: T.builtin (sub() arg list not evaluated)"
+}'
+
+$awk 'BEGIN {
+	j = 1; length("zzzz", ++j, ++j)	# does j get incremented?
+	if (j != 3)
+		print "BAD: T.builtin (excess length args not evaluated)"
+}' 2>foo
+grep 'too many arg' foo >/dev/null || echo 'T.bad: too many args not caught'
+
+echo 'a
+a b
+a b c' >foo0
+echo '1
+2
+3' >foo1
+$awk '{ n = split($0, x); print length(x) }' <foo0 >foo2
+diff foo1 foo2 || echo 'BAD: T.builtin length array'
+
+# Test for backslash handling
+cat << \EOF >foo0
+BEGIN {
+    print "A\
+B";
+    print "CD"
+}
+EOF
+$awk -f foo0 /dev/null >foo1
+cat << \EOF >foo2
+AB
+CD
+EOF
+diff foo1 foo2 || echo 'BAD: T.builtin continuation handling (backslash)' 

@@ -1,0 +1,44 @@
+The archive of test files contains 
+
+- A shell file called REGRESS that controls the testing process.
+
+- Several shell files called Compare* that control sub-parts
+of the testing.
+
+- About 160 small tests called t.* that constitute a random
+sampling of awk constructions collected over the years.
+Not organized, but they touch almost everything.
+
+- About 60 small tests called p.* that come from the first
+two chapters of The AWK Programming Language.  This is
+basic stuff -- they have to work.
+
+These two sets are intended as regression tests, to be sure
+that a new version produces the same results as a previous one.
+There are a couple of standard data files used with them,
+test.data and test.countries, but others would work too.
+
+- About 20 files called T.* that are self-contained and
+more systematic tests of specific language features.
+For example, T.clv tests command-line variable handling.
+These tests are not regressions -- they compute the right
+answer by separate means, then compare the awk output.
+A specific test for each new bug found shows up in at least
+one of these, most often T.misc.  There are about 220 tests
+total in these files.
+
+- Two of these files, T.re and T.sub, are systematic tests
+of the regular expression and substitution code.  They express
+tests in a small language, then generate awk programs that
+verify behavior.
+
+- About 20 files called tt.* that are used as timing tests;
+they use the most common awk constructions in straightforward
+ways, against a large input file constructed by Compare.tt.
+
+
+There is undoubtedly more stuff in the archive;  it's been
+collecting for years and may need pruning.  Suggestions for
+improvement, additional tests (especially systematic ones),
+and the like are all welcome.
+

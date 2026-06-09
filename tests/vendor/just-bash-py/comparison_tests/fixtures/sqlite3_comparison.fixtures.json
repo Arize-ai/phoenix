@@ -1,0 +1,114 @@
+{
+  "bddde2e4f3f8": {
+    "command": "sqlite3 -list -noheader :memory: 'SELECT 1'",
+    "stdout": "1\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "1fc3a279ce4a": {
+    "command": "sqlite3 -list -noheader :memory: 'SELECT 1+1'",
+    "stdout": "2\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "b910900bc4ad": {
+    "command": "sqlite3 -list -noheader :memory: 'SELECT 1, 2, 3'",
+    "stdout": "1|2|3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "f467610607a9": {
+    "command": "sqlite3 -list -noheader :memory: 'SELECT 1 AS num'",
+    "stdout": "1\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "b9a5a28bb86e": {
+    "command": "sqlite3 -list -noheader :memory: \"SELECT 'hello'\"",
+    "stdout": "hello\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "fc864a81ea6a": {
+    "command": "sqlite3 -list -noheader :memory: 'SELECT NULL'",
+    "stdout": "\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "bc94d8f81d0c": {
+    "command": "sqlite3 -list -header :memory: 'SELECT 1 AS foo, 2 AS bar'",
+    "stdout": "foo|bar\n1|2\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "9556d43ab796": {
+    "command": "sqlite3 -csv -noheader :memory: 'SELECT 1, 2, 3'",
+    "stdout": "1,2,3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "f29cc21f3ae6": {
+    "command": "sqlite3 -csv -header :memory: 'SELECT 1 AS a, 2 AS b'",
+    "stdout": "a,b\n1,2\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "a8baec940ee8": {
+    "command": "sqlite3 -tabs -noheader :memory: 'SELECT 1, 2, 3'",
+    "stdout": "1\t2\t3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "c8619520f6e6": {
+    "command": "sqlite3 -list -noheader -separator ',' :memory: 'SELECT 1, 2, 3'",
+    "stdout": "1,2,3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "763c56f69269": {
+    "command": "sqlite3 -list -noheader -nullvalue 'NULL' :memory: 'SELECT NULL'",
+    "stdout": "NULL\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "c052f839dc0c": {
+    "command": "sqlite3 -list -noheader :memory: 'CREATE TABLE t (x INT); INSERT INTO t VALUES (1), (2), (3); SELECT * FROM t'",
+    "stdout": "1\n2\n3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "6cd911f5e538": {
+    "command": "sqlite3 -list -noheader :memory: 'CREATE TABLE t (x INT); INSERT INTO t VALUES (1), (2), (3); SELECT COUNT(*), SUM(x), AVG(x) FROM t'",
+    "stdout": "3|6|2.0\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "b5fe7df69712": {
+    "command": "sqlite3 -list -noheader :memory: 'CREATE TABLE t (x INT); INSERT INTO t VALUES (1), (2), (3); SELECT * FROM t WHERE x > 1'",
+    "stdout": "2\n3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  },
+  "539d86de1e49": {
+    "command": "sqlite3 -list -noheader :memory: 'CREATE TABLE t (x INT); INSERT INTO t VALUES (3), (1), (2); SELECT * FROM t ORDER BY x'",
+    "stdout": "1\n2\n3\n",
+    "stderr": "",
+    "exit_code": 0,
+    "locked": false
+  }
+}

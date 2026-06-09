@@ -1,0 +1,212 @@
+echo T.errmsg:  check some error messages
+
+awk=${awk-../a.out}
+
+ls >glop
+awk=$awk awk  '
+{	pat = $0
+	prog = ""
+	while (getline x > 0 && x != "")
+		prog = prog "\n" x
+	print sprintf("\n%s '"'"'%s'"'"' <glop >>devnull 2>foo",
+		ENVIRON["awk"], prog)
+	print sprintf("grep '"'"'%s'"'"' foo >>devnull || echo '"'"'BAD: %s'"'"' failed", pat, pat)
+}
+' >foo.sh <<\!!!!
+illegal primary in regular expression
+/(/
+
+illegal break, continue, next or nextfile from BEGIN
+BEGIN { nextfile }
+
+illegal break, continue, next or nextfile from END
+END { nextfile }
+
+nextfile is illegal inside a function
+function foo() { nextfile }
+
+duplicate argument
+function f(i,j,i) { return i }
+
+nonterminated character class
+/[[/
+
+nonterminated character class
+/[]/
+
+nonterminated character class
+/[\
+
+nonterminated character class
+BEGIN { s = "[x"; if (1 ~ s) print "foo"}
+
+syntax error in regular expression
+BEGIN { if ("x" ~ /$^/) print "ugh" }
+
+syntax error in regular expression
+/((.)/
+
+division by zero
+BEGIN { print 1/0 }
+
+division by zero in /=
+BEGIN { x = 1; print x /= 0 }
+
+division by zero in %=
+BEGIN { x = 1; print x %= 0 }
+
+division by zero in mod
+BEGIN { print 1%0 }
+
+can.t read value.* array name.
+BEGIN { x[1] = 0; split("a b c", y, x) }
+
+can.t read value.* function
+function f(){}; {split($0, x, f)}
+
+can.t assign.* a function
+function f(){}; {f = split($0, x)}
+
+can.t assign to x; it.s an array name.
+{x = split($0, x)}
+
+is a function, not an array
+function f(){}; {split($0, f)}
+
+function f called with 1 args, uses only 0
+BEGIN { f(f) }
+function f() { print "x" }
+
+can.t use function f as argument in f
+BEGIN { f(f) }
+function f() { print "x" }
+
+x is an array, not a function
+{ split($0, x) }; function x() {}
+
+illegal nested function
+function x() { function g() {} }
+
+return not in function
+{ return }
+
+break illegal outside
+{ break }
+
+continue illegal outside
+{ continue }
+
+non-terminated string
+{ print "abc
+}
+
+next is illegal inside a function
+BEGIN { f() }
+function f() { next }
+
+not enough args in printf(%s)
+BEGIN { printf("%s") }
+
+weird printf conversion
+BEGIN { printf("%z", "foo")}
+
+function f has .* arguments, limit .*
+function f(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,b1,b2,b3,b4,b5,b6,b7,b8,b9,b10,
+	c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,d1,d2,d3,d4,d5,d6,d7,d8,d9,d10,
+	e1,e2,e3,e4,e5,e6,e7,e8,e9,e10,f1,f2,f3,f4,f5,f6,f7,f8,f9,f10) {}
+BEGIN { f(123) }
+
+bailing out
+])}
+
+bailing out
+{ print }}
+
+bailing out
+{ print }}}
+
+bailing out
+]
+
+bailing out
+[
+
+bailing out
+a & b
+
+extra )
+{ x = 1) }
+
+illegal statement
+{ print ))}
+
+illegal statement
+{{ print }
+
+illegal statement
+{{{ print }
+
+illegal .*next.* from BEGIN
+BEGIN { next }
+
+illegal .*next.* from END
+END {	next; print NR }
+
+can.t open file ./nonexistentdir/foo
+BEGIN { print "abc" >"./nonexistentdir/foo" }
+
+you can.t define function f more than once
+function f() { print 1 }
+function f() { print 2 }
+
+function mp called with 1 args, uses only 0
+function mp(){ cnt++;}
+BEGIN {	mp(xx) }
+
+index.*doesn.t permit regular expressions
+BEGIN { index("abc", /a/) }
+
+log argument out of domain
+BEGIN { print log(-1) }
+
+exp result out of range
+BEGIN {print exp(1000)}
+
+null file name in print or getline
+BEGIN { print >foo }
+
+function has too many arguments
+BEGIN { length("abc", "def") }
+
+calling undefined function foo
+BEGIN { foo() }
+
+this should print a BAD message
+BEGIN { print }
+!!!!
+
+
+echo '	running tests in foo.sh'
+sh foo.sh
+
+test -r core && echo BAD: someone dropped core 1>&2
+
+echo xxx >foo0
+$awk '{print x}' x='a
+b' foo0 >foo1 2>foo2
+grep 'newline in string' foo2 >/dev/null || echo 'BAD: T.errmsg newline in string'
+
+$awk -safe 'BEGIN{"date" | getline}' >foo 2>foo2
+grep 'cmd | getline is unsafe' foo2 >/dev/null || echo 'BAD: T.errmsg cmd|getline unsafe'
+
+$awk -safe 'BEGIN{print >"foo"}' >foo 2>foo2
+grep 'print > is unsafe' foo2 >/dev/null || echo 'BAD: T.errmsg print > unsafe'
+
+$awk -safe 'BEGIN{print >> "foo"}' >foo 2>foo2
+grep 'print >> is unsafe' foo2 >/dev/null || echo 'BAD: T.errmsg print >> unsafe'
+
+$awk -safe 'BEGIN{print | "foo"}' >foo 2>foo2
+grep 'print | is unsafe' foo2 >/dev/null || echo 'BAD: T.errmsg print | unsafe'
+
+$awk -safe 'BEGIN {system("date")}' >foo 2>foo2
+grep 'system is unsafe' foo2 >/dev/null || echo 'BAD: T.errmsg system unsafe'

@@ -1,0 +1,5 @@
+{ for (i = 1; i <= NF; i++)
+	x[i] = $i
+  for (i = 1; i <= NF; i++)
+	printf "%d %s\n", i, x[i]
+}

@@ -1,0 +1,5 @@
+rm -f core foo* junk* glop* *temp* *.p bigpop smallpop tt.* countries td.1
+
+rm -f T.* t.* p.* u.* chem.awk test.data test.countries Compare*
+
+rm -f *.awk *.out testall try  ind NOTES cleanup xc yc

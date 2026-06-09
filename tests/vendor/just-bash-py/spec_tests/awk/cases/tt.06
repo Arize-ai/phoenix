@@ -1,0 +1,7 @@
+{
+	x[$1] += length
+}
+END {
+	for (i in x)
+		print i, x[i] | "sort"
+}

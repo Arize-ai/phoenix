@@ -1,0 +1,1 @@
+END { print NR }

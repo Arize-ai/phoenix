@@ -1,0 +1,29 @@
+echo T.csconcat: test constant string concatenation
+
+awk=${awk-../a.out}
+
+$awk '
+BEGIN {
+	$0 = "aaa"
+	print "abcdef" " " $0
+}
+BEGIN { print "hello" "world"; print helloworld }
+BEGIN {
+ 	print " " "hello"
+ 	print "hello" " "
+ 	print "hello" " " "world"
+ 	print "hello" (" " "world")
+}
+' > foo1
+
+cat << \EOF > foo2
+abcdef aaa
+helloworld
+
+ hello
+hello 
+hello world
+hello world
+EOF
+
+diff foo1 foo2 || echo 'BAD: T.csconcat (1)'

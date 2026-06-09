@@ -1,0 +1,10 @@
+td=td.1
+
+for i in $*
+do
+	echo $i:
+	ind <$i
+	time ../a.out -f $i $td >foo1
+	time /usr/bin/awk -f $i $td >foo2
+	cmp foo1 foo2
+done

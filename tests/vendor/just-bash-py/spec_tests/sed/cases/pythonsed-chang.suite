@@ -1,0 +1,1968 @@
+** Scripts and test cases from Roger Chang web site
+** www.rtfiber.com.tw/~changyj/sed
+**
+** Scripts from the following sections:
+**      Nth line, Patterns, Multiline Matching, N-th Match in a file
+
+** Some lines end with blank. Don't save with an editor removing trailing spaces...
+
+** Fix:
+
+Replace the LAST N matches of PAT in a file.
+Replace all but the last N matches of PAT in a file.
+ "6666" should be "number 6666"
+
+**
+** Nth line
+**
+
+---
+Get the 4th line of a file.
+---
+4!d
+q
+---
+Line 1 AAAA
+Line 2 BBBB
+Line 3 CCCC
+Line 4 DDDD
+Line 5 EEEE
+---
+Line 4 DDDD
+---
+
+---
+Get the 3rd through 6th lines of a file - 1.
+---
+3,6!d
+---
+Line 1 AAAA
+Line 2 BBBB
+Line 3 CCCC
+Line 4 DDDD
+Line 5 EEEE
+Line 6 FFFF
+Line 7 GGGG
+---
+Line 3 CCCC
+Line 4 DDDD
+Line 5 EEEE
+Line 6 FFFF
+---
+
+---
+Get the 3rd through 6th lines of a file - 2.
+---
+3,6!d; 6q
+---
+---
+---
+
+---
+Delete the 3rd through 6th lines of a file.
+---
+3,6d
+---
+Line 1 AAAA
+Line 2 BBBB
+Line 3 CCCC
+Line 4 DDDD
+Line 5 EEEE
+Line 6 FFFF
+Line 7 GGGG
+---
+Line 1 AAAA
+Line 2 BBBB
+Line 7 GGGG
+---
+
+---
+Get the last 6 lines of a file.
+---
+:loop
+$q
+/^\([^\n]*\n\)\{5\}/D
+N
+b loop
+---
+Line -9
+Line -8
+Line -7
+Line -6
+Line -5
+Line -4
+Line -3
+Line -2
+Line -1
+---
+Line -6
+Line -5
+Line -4
+Line -3
+Line -2
+Line -1
+---
+
+---
+Delete the last 6 lines of a file - 1.
+---
+:loop
+1,5{
+$d
+N
+b loop
+}
+$d
+N
+P
+D
+---
+Line 1 AAAA
+Line 2 BBBB
+Line 3 CCCC
+Line 4 DDDD
+Line 5 EEEE
+Line 6 FFFF
+Line 7 GGGG
+Line 8 HHHH
+Line 9 IIII
+---
+Line 1 AAAA
+Line 2 BBBB
+Line 3 CCCC
+---
+
+---
+Delete the last 6 lines of a file - 2.
+---
+:loop
+$d
+N
+2,6b loop
+P
+D
+---
+---
+---
+
+---
+Delete the LAST N-th line through the LAST M-th line of a datafile, where N is greater than M - 1.
+---
+#r
+:loop
+1,6{
+$b last
+N
+b loop
+}
+$!{
+N
+P
+D
+}
+: last
+s/^.*\n([^\n]*(\n[^\n]*){1})$/\1/
+---
+Line 10
+Line 9
+Line 8
+Line 7
+Line 6
+Line 5
+Line 4
+Line 3
+Line 2
+Line 1
+---
+Line 10
+Line 9
+Line 8
+Line 2
+Line 1
+---
+
+---
+Delete the LAST N-th line through the LAST M-th line of a datafile, where N is greater than M - 2.
+---
+#r
+:loop
+1,6{
+$b last
+N
+b loop
+}
+$!{
+N
+P
+D
+}
+: last
+s/^.*\n([^\n]*\n[^\n]*)$/\1/
+---
+---
+---
+
+---
+Get every Nth line of a file - 1.
+---
+#r
+:loop
+$!{
+N
+/(\n[^\n]*){3}/!b loop
+}
+s/^([^\n]*\n){3}([^\n]*)/\2/p
+d
+---
+line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+line 11
+line 12
+line 13
+line 14
+line 15
+---
+line 4
+line 8
+line 12
+---
+
+---
+Get every Nth line of a file - 2.
+---
+#r
+:loop
+$!N
+s/^([^\n]*\n){3}([^\n]*)/\2/
+t
+$!b loop
+d
+---
+---
+---
+
+...
+Append a line after every N-th (for example, 4th) line - 1.
+...
+x
+s/$/#/
+/#\{4\}/{
+a\
+----------
+s/.*//
+}
+x
+...
+Line 1 AAA
+Line 2 BBB
+Line 3 CCC
+Line 4 DDD
+Line 5 EEE
+Line 6 FFF
+Line 7 GGG
+Line 8 HHH
+Line 9 III
+Line 10 JJ
+Line 11 KK
+...
+Line 1 AAA
+Line 2 BBB
+Line 3 CCC
+Line 4 DDD
+----------
+Line 5 EEE
+Line 6 FFF
+Line 7 GGG
+Line 8 HHH
+----------
+Line 9 III
+Line 10 JJ
+Line 11 KK
+...
+
+...
+Append a line after every N-th (for example, 4th) line - 2.
+...
+G
+/\n\{4\}$/a\
+----------
+P
+s/^[^\n]*\(\n\{4\}\)*//
+h
+d
+...
+...
+...
+
+---
+Delete every 4th line (e.g., 4th, 8th, 12th...) of a file - 1.
+---
+:loop
+/^\([^\n]*\n\)\{3\}/!{
+N
+b loop
+}
+s/\n[^\n]*$//
+---
+line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+---
+line 1
+line 2
+line 3
+line 5
+line 6
+line 7
+line 9
+line 10
+---
+
+---
+Delete every 4th line (e.g., 4th, 8th, 12th...) of a file - 2.
+---
+:loop
+N
+/\n[^\n]*\n/!b loop
+n
+d
+---
+---
+---
+
+---
+Delete every 4th line (e.g., 4th, 8th, 12th...) of a file - 3.
+(Gilles)
+---
+N;N;x;N;x
+---
+---
+---
+
+---
+Delete every 4th line (e.g., 4th, 8th, 12th...) of a file - 4.
+(Gilles)
+---
+#r
+:loop
+$b
+N
+/(\n[^\n]*){2}/!b loop
+x
+N
+x
+---
+---
+---
+
+---
+Join every N lines to one - 1.
+---
+#r
+:loop
+$!{
+N
+/(\n[^\n]*){3}/!b loop
+}
+s/\n/ /g
+---
+Line  1
+Line  2
+Line  3
+Line  4
+Line  5
+Line  6
+Line  7
+Line  8
+Line  9
+Line 10
+Line 11
+Line 12
+Line 13
+---
+Line  1 Line  2 Line  3 Line  4
+Line  5 Line  6 Line  7 Line  8
+Line  9 Line 10 Line 11 Line 12
+Line 13
+---
+
+---
+Join every N lines to one - 2.
+(Gilles)
+---
+N;N;N;s/\n/ /g
+---
+---
+---
+
+---
+Join every N lines to one - 3.
+(Gilles)
+---
+#r
+:loop
+$b
+N
+/(\n[^\n]*){3}/!b loop
+s/\n/ /g
+---
+---
+---
+
+---
+For each line of a file, append the previous line to the end of it.
+---
+H
+x
+s/^\(.*\)\n\(.*\)/\2\1/
+---
+Line 1.
+Line 2.
+Line 3.
+Line 4.
+Line 5.
+Line 6.
+Line 7.
+---
+Line 1.
+Line 2.Line 1.
+Line 3.Line 2.
+Line 4.Line 3.
+Line 5.Line 4.
+Line 6.Line 5.
+Line 7.Line 6.
+---
+
+---
+For each line of a file, append the next line to the end of it.
+---
+N
+s/^\(.*\)\n\(.*\)/\1\2\n\2/
+P
+D
+---
+Line 1.
+Line 2.
+Line 3.
+Line 4.
+Line 5.
+Line 6.
+Line 7.
+---
+Line 1.Line 2.
+Line 2.Line 3.
+Line 3.Line 4.
+Line 4.Line 5.
+Line 5.Line 6.
+Line 6.Line 7.
+Line 7.
+---
+
+**
+** Patterns
+**
+
+---
+Get lines containing PAT1 AND PAT2 of a file.
+---
+/dog/!d
+/cat/!d
+---
+cat chicken
+bird dog apple
+dog orange cat
+cat juice coffee
+cow milk dog
+---
+dog orange cat
+---
+
+---
+Get lines containing PAT1 OR PAT2 of a file.
+---
+/dog/b
+/cat/!d
+---
+pig dolphin
+bird dog apple
+dog orange cat
+mouse juice coffee
+cow milk cat
+---
+bird dog apple
+dog orange cat
+cow milk cat
+---
+
+---
+Get lines containing PAT1 but no PAT2 of a file - 1.
+---
+/dog/!d
+/cat/d
+---
+cat chicken
+bird dog apple
+dog orange cat
+cat juice coffee
+cow milk dog
+---
+bird dog apple
+cow milk dog
+---
+
+---
+Get lines containing PAT1 but no PAT2 of a file - 2.
+---
+/cat/d;/dog/!d
+---
+---
+---
+
+---
+Insert a separating line after a line beginning with "abc" and immediately followed by a line beginning with "xyz".
+---
+/^abc/!b
+$!N
+s/\nxyz/\n==========&/
+t
+P
+D
+---
+ghi line 1
+abc line 2
+abc line 3
+xyz line 4
+abc line 5
+xyz line 6
+ghi line 7
+abc line 8
+---
+ghi line 1
+abc line 2
+abc line 3
+==========
+xyz line 4
+abc line 5
+==========
+xyz line 6
+ghi line 7
+abc line 8
+---
+
+---
+Perform operations on lines starting from the fist line containing PAT1 till the last one containing PAT2.
+---
+/begin/,$!b
+:loop
+/end/{
+s/change this/CHANGED TO THAT/g
+b
+}
+$q
+N
+b loop
+---
+..... keep this
+..... keep this
+..... keep this
+begin change this
+..... change this
+end   change this
+..... change this
+end   change this
+..... keep this
+..... keep this
+---
+..... keep this
+..... keep this
+..... keep this
+begin CHANGED TO THAT
+..... CHANGED TO THAT
+end   CHANGED TO THAT
+..... CHANGED TO THAT
+end   CHANGED TO THAT
+..... keep this
+..... keep this
+---
+
+---
+Delete two consecutive lines if the first one contains PAT1 and the second one contains PAT2.
+---
+$!N
+/^\n.*this/d
+P
+D
+---
+keep this
+
+delete this
+ keep this
+  keep this
+
+delete this
+   keep this
+    keep this
+---
+keep this
+ keep this
+  keep this
+   keep this
+    keep this
+---
+
+---
+Remove almost identical lines.
+---
+#r
+$!N
+/^([^\n]*).\n\1.$/d
+P
+D
+---
+3 some text a
+3 some text b
+7 more text a
+7 more text b
+83 non matching line a
+375 some more text a
+375 some more text b
+478 another non matching line b
+---
+83 non matching line a
+478 another non matching line b
+---
+
+---
+For consecutive "almost identical" lines, print only the first one.
+---
+#r
+G
+h
+s/ //g
+/^(.*)\n\1$/{
+x
+s/^.*\n//
+}
+/\n/{
+g
+1!s/^.*\n//p
+g
+s/\n.*//
+}
+$q
+h
+d
+---
+first record
+first r e c o r d
+f i r s t  r e c o r d
+s e c o n d record
+third r e c o r d
+t h i r d  record
+final record
+---
+first record
+s e c o n d record
+third r e c o r d
+final record
+---
+
+---
+Remove consecutive duplicate lines.
+---
+#r
+$!N
+/^([^\n]*)\n\1$/D
+P
+D
+---
+Sed is a stream editor.
+Sed is a stream editor.
+Sed is a stream editor.
+A stream editor is used to perform
+basic text transformations on an input stream
+basic text transformations on an input stream
+(a file or input from a pipeline).
+---
+Sed is a stream editor.
+A stream editor is used to perform
+basic text transformations on an input stream
+(a file or input from a pipeline).
+---
+
+---
+Retrieve the first line among consecutive lines of the same key - 1.
+---
+#r
+:loop
+$!N
+/>([^<]*)<.*\n.*>\1<.*/!{
+P
+D
+}
+s/\n.*//
+b loop
+---
+<a href="ind0001.html#i616">Blob</a>
+<a href="ind0002.html#i5">Blob</a>
+<a href="ind0004.html#i3546">Doe</a>
+<a href="ind0003.html#i3556">Doe</a>
+<a href="ind0001.html#k100">Newton</a>
+<a href="ind0007.html#j331">Martin</a>
+<a href="ind0009.html#j2479">Martin</a>
+<a href="ind0008.html#l779">Martin</a>
+---
+<a href="ind0001.html#i616">Blob</a>
+<a href="ind0004.html#i3546">Doe</a>
+<a href="ind0001.html#k100">Newton</a>
+<a href="ind0007.html#j331">Martin</a>
+---
+
+---
+Extract "Received:" header(s) from a mailbox.
+---
+#r
+/^Received:/!d
+:loop
+N
+/\nReceived:[^\n]*$/b loop
+/\n[\t ][^\n]*$/b loop
+s/\n[^\n]*$/\n/
+---
+From sed-users@yahoogroups.com  Sun May  9 14:52:11 2004
+Return-Path: <sentto-changyj=rtfiber.com.tw@returns.groups.yahoo.com>
+Received: from n11.grp.scd.yahoo.com (n11.grp.scd.yahoo.com [66.218.66.66])
+	by main.rtfiber.com.tw (8.11.6/8.11.6) with SMTP id i170Lq809415
+	for <changyj@rtfiber.com.tw>; Sat, 7 Feb 2004 08:21:52 +0800
+Received: (qmail 74534 invoked from network); 7 Feb 2004 00:21:52 -0000
+Received: from unknown (HELO n17.grp.scd.yahoo.com) (66.218.66.72)
+  by mta2.grp.scd.yahoo.com with SMTP; 7 Feb 2004 00:21:51 -0000
+To: sed-users@yahoogroups.com
+From: "john_vdv" <jvdv@spam.net>
+
+Welcome to the world of Regular Expressions!
+
+From tester@cracker.org  Sun May  9 14:52:11 2004
+Return-Path: <tester@cracker.org>
+Received: from solomon.hq (solomon.hq [127.0.0.1])
+	by solomon.hq (Postfix) with SMTP id 355263025A
+	for <changyj@localhost.localdomain>
+Date: Sun,  9 May 2004 14:51:57 +0800 (CST)
+From: tester@cracker.org
+To: undisclosed-recipients:;
+
+Regular expressions are powerful!
+
+---
+Received: from n11.grp.scd.yahoo.com (n11.grp.scd.yahoo.com [66.218.66.66])
+	by main.rtfiber.com.tw (8.11.6/8.11.6) with SMTP id i170Lq809415
+	for <changyj@rtfiber.com.tw>; Sat, 7 Feb 2004 08:21:52 +0800
+Received: (qmail 74534 invoked from network); 7 Feb 2004 00:21:52 -0000
+Received: from unknown (HELO n17.grp.scd.yahoo.com) (66.218.66.72)
+  by mta2.grp.scd.yahoo.com with SMTP; 7 Feb 2004 00:21:51 -0000
+
+Received: from solomon.hq (solomon.hq [127.0.0.1])
+	by solomon.hq (Postfix) with SMTP id 355263025A
+	for <changyj@localhost.localdomain>
+
+---
+
+...
+Add a separator after each header field of a mail.
+...
+#r
+:loop
+N
+/\n[ 	]+[^\n]*$/b loop
+h
+s/^.*\n//
+x
+s/\n[^\n]*$/\n---------------/p
+g
+/^$/!b loop
+:loop1
+n
+b loop1
+...
+Return-Path: <root@hq>
+Received: from main.rt.com.tw (mail.hq [10.11.1.1])
+	by smb.knit.plant (Postfix) with ESMTP id D8D8F2DC24
+	for <steven@plant>; Thu,  6 Aug 2009 08:10:06 +0800 (CST)
+Received: by main.rt.com.tw (Postfix, from userid 0)
+	id C212627F68; Thu,  6 Aug 2009 08:10:06 +0800 (CST)
+X-Original-To: mbackup@mbackup.hq
+Delivered-To: mbackup@mbackup.hq
+Received: from smb.knit.plant (smb.knit.plant [10.12.1.22])
+	by main.rt.com.tw (Postfix) with ESMTP id 8808727F58;
+	Thu,  6 Aug 2009 08:07:18 +0800 (CST)
+Received: from [10.3.1.70] (unknown [10.13.1.70])
+	by smb.knit.plant (Postfix) with ESMTP id 4B5912DC28;
+	Thu,  6 Aug 2009 08:07:18 +0800 (CST)
+Message-ID: <4A7A1E6D.8080702@rt.com.tw>
+Date: Thu, 06 Aug 2009 08:06:05 +0800
+From: Pon <pu@rt.com.tw>
+To: Celine <celine_chang@kabin>
+Subject: test mail....
+
+This is a test mail....
+Mail body line 2...
+Mail body line 3....
+...
+Return-Path: <root@hq>
+---------------
+Received: from main.rt.com.tw (mail.hq [10.11.1.1])
+	by smb.knit.plant (Postfix) with ESMTP id D8D8F2DC24
+	for <steven@plant>; Thu,  6 Aug 2009 08:10:06 +0800 (CST)
+---------------
+Received: by main.rt.com.tw (Postfix, from userid 0)
+	id C212627F68; Thu,  6 Aug 2009 08:10:06 +0800 (CST)
+---------------
+X-Original-To: mbackup@mbackup.hq
+---------------
+Delivered-To: mbackup@mbackup.hq
+---------------
+Received: from smb.knit.plant (smb.knit.plant [10.12.1.22])
+	by main.rt.com.tw (Postfix) with ESMTP id 8808727F58;
+	Thu,  6 Aug 2009 08:07:18 +0800 (CST)
+---------------
+Received: from [10.3.1.70] (unknown [10.13.1.70])
+	by smb.knit.plant (Postfix) with ESMTP id 4B5912DC28;
+	Thu,  6 Aug 2009 08:07:18 +0800 (CST)
+---------------
+Message-ID: <4A7A1E6D.8080702@rt.com.tw>
+---------------
+Date: Thu, 06 Aug 2009 08:06:05 +0800
+---------------
+From: Pon <pu@rt.com.tw>
+---------------
+To: Celine <celine_chang@kabin>
+---------------
+Subject: test mail....
+---------------
+
+This is a test mail....
+Mail body line 2...
+Mail body line 3....
+...
+
+---
+Extract matched headers of a mail.
+(note: result from gnu sed)
+---
+#r
+:loop
+N
+/\n[ \t]+[^\n]*$/b loop
+h
+s/\n[^\n]*$//
+/^(Received|Subject): /p
+x
+s/^.*\n//
+/^$/q
+b loop
+---
+From sed-users@yahoogroups.com  Sun May  9 14:52:11 2004
+Return-Path:
+Received: from n11.grp.scd.yahoo.com (n11.grp.scd.yahoo.com [66.218.66.66])
+	by main.rtfiber.com.tw (8.11.6/8.11.6) with SMTP id i170Lq809415
+	for ; Sat, 7 Feb 2004 08:21:52 +0800
+Received: (qmail 74534 invoked from network); 7 Feb 2004 00:21:52 -0000
+To: sed-users@yahoogroups.com
+Received: from unknown (HELO n17.grp.scd.yahoo.com) (66.218.66.72)
+  by mta2.grp.scd.yahoo.com with SMTP; 7 Feb 2004 00:21:51 -0000
+Subject: Hello!
+From: "john_vdv"
+Welcome to the world of Regular Expressions!
+---
+Received: from n11.grp.scd.yahoo.com (n11.grp.scd.yahoo.com [66.218.66.66])
+	by main.rtfiber.com.tw (8.11.6/8.11.6) with SMTP id i170Lq809415
+	for ; Sat, 7 Feb 2004 08:21:52 +0800
+Received: (qmail 74534 invoked from network); 7 Feb 2004 00:21:52 -0000
+Received: from unknown (HELO n17.grp.scd.yahoo.com) (66.218.66.72)
+  by mta2.grp.scd.yahoo.com with SMTP; 7 Feb 2004 00:21:51 -0000
+Subject: Hello!
+Welcome to the world of Regular Expressions!
+---
+
+** 2 scripts not included
+
+---
+Get every line containing PAT and the adjacent one preceding it.
+---
+$!N
+/PAT/P
+D
+---
+1 PAT print this
+2
+3 --- print this
+4 PAT print this
+5 PAT print this
+6
+7 --- print this
+8 PAT print this
+9 PAT print this
+10
+---
+1 PAT print this
+3 --- print this
+4 PAT print this
+5 PAT print this
+7 --- print this
+8 PAT print this
+9 PAT print this
+---
+
+---
+Get every line containing PAT, the preceding, and the following ones.
+---
+$!{
+N
+/\n.*PAT/{
+P
+D
+}
+}
+/PAT/b
+D
+---
+1
+2 ======
+3  PAT
+4 ======
+5
+6 ======
+7  PAT
+8  PAT
+9 ======
+10
+---
+2 ======
+3  PAT
+4 ======
+6 ======
+7  PAT
+8  PAT
+9 ======
+---
+
+;---
+;Get every line containing PAT, the preceding, and the following ones.
+;(incorrect)
+;---
+;$!N
+;/\n.*PAT/!{
+;P
+;D
+;}
+;/PAT/b
+;D
+;---
+;---
+;---
+
+---
+Get lines containing PAT and 3 consecutive lines following each of them.
+---
+/Dept=MIS/!d
+N;N;N
+---
+Dept=MIS
+ID=00154
+Name=John
+Age=23
+Dept=ACCOUNTING
+ID=00312
+Name=Mary
+Age=26
+Dept=SALES
+No=00439
+Name=Tom
+Age=30
+Dept=MIS
+No=00183
+Name=Ruth
+Age=25
+---
+Dept=MIS
+ID=00154
+Name=John
+Age=23
+Dept=MIS
+No=00183
+Name=Ruth
+Age=25
+---
+
+---
+Get every line which is adjacent to and precedes a line containing PAT.
+---
+$!N
+/\n.*YES/P
+D
+---
+Line  1       Do not print this
+Line  2       Print this
+Line  3 YES   Do not print this
+Line  4       Print this
+Line  5 YES   Do not print this
+Line  6
+Line  7
+Line  8       Print this
+Line  9 YES   Print this, because Line 10 contains YES
+Line 10 YES   Do not print this
+---
+Line  2       Print this
+Line  4       Print this
+Line  8       Print this
+Line  9 YES   Print this, because Line 10 contains YES
+---
+
+---
+Get the line following a line containing PAT - Case 1 - 1.
+---
+:loop
+$!N
+/PAT.*\n/!D
+s/^.*\n//p
+b loop
+---
+Line 1
+ This line contains PAT
+Line 3
+Line 4
+ PAT is here
+ One more line contains PAT
+ Two more line contains PAT
+Line 8
+ This has PAT, too
+Line 10
+---
+Line 3
+ One more line contains PAT
+ Two more line contains PAT
+Line 8
+Line 10
+---
+
+---
+Get the line following a line containing PAT - Case 1 - 2.
+---
+$!N
+/PAT.*\n/!D
+s/^.*\n\(.*\)/\1\n\1/
+P
+D
+---
+---
+---
+
+---
+Get the line following a line containing PAT - Case 2.
+---
+/PAT/!d
+$!N
+/\n.*PAT/D
+s/^.*\n//
+---
+Line 1
+ This line contains PAT
+Line 3
+Line 4
+ PAT is here
+ One more line contains PAT
+ Two more line contains PAT
+Line 8
+ This has PAT, too
+Line 10
+---
+Line 3
+Line 8
+Line 10
+---
+
+**
+** Multiline Matching
+**
+
+---
+Remove HTML tags (may be multi-line) of a file.
+---
+/</{
+:loop
+s/<[^<]*>//g
+/</{
+N
+b loop
+}
+}
+---
+<html><body>
+<table
+border=2><tr><td valign=top
+align=right>1.</td>
+<td>Line 1 Column 2</
+td></
+tr>
+<tr><td valign=top
+align=right>2.</td>
+<td>Line 2 Column 2</
+td></
+tr></table>
+</body></html>
+---
+
+1.
+Line 1 Column 2
+2.
+Line 2 Column 2
+
+---
+
+---
+Extract every IMG elements from an HTML file.
+---
+#r
+/<IMG( |$)/!d
+s/<IMG( |$)/\n&/
+s/^[^\n]*\n//
+:loop
+$!{
+/>/!N
+/>/!b loop
+}
+s/\n/ /g
+s/>/&\n/
+P
+D
+---
+This is the first image <IMG src=url_1 width=200 height=400>, followed
+by the second <IMG src=url_2> and third <IMG src=
+url_3 width=220 height=220>. There may be several IMGs in one line, like
+<IMG src=url_4>, <IMG src=url_5> and <IMG src=
+url_6 width=250 height=300
+alt="test">.
+---
+<IMG src=url_1 width=200 height=400>
+<IMG src=url_2>
+<IMG src= url_3 width=220 height=220>
+<IMG src=url_4>
+<IMG src=url_5>
+<IMG src= url_6 width=250 height=300 alt="test">
+---
+
+---
+Replace odd-numbered and even-numbered double quotes with single quotes and back quotes, respectively.
+---
+#r
+1{
+x
+s/^/`/
+x
+}
+:loop
+/\n/!s/^/\n/
+s/\n(([^\\"]*|\\.)*)"/\1\n"/
+/\n"/!{
+s/\n//
+n
+b loop
+}
+G
+s/\n"(.*)\n(.)/\2\n\1/
+x
+y/`'/'`/
+x
+b loop
+---
+....."test1"...."test2
+test2"..not.\"...not.\"..."test3
+test3"....."test4
+test4
+test4"...."test5".
+---
+.....`test1'....`test2
+test2'..not.\"...not.\"...`test3
+test3'.....`test4
+test4
+test4'....`test5'.
+---
+
+---
+Replace '**' with <B> and </B> alternatively.
+---
+:br0
+s/\*\*/<B>/
+t br1
+b
+:br1
+s/\*\*/<\/B>/
+t br0
+n
+/^ *$/b
+b br1
+---
+text01 **text02** text03 **text04
+text05** text06
+text07 **text08** **text09
+
+text10 **text11** text12
+---
+text01 <B>text02</B> text03 <B>text04
+text05</B> text06
+text07 <B>text08</B> <B>text09
+
+text10 <B>text11</B> text12
+---
+
+---
+Remove the start and the end tags of some `A' elements of an HTML file, but keep the contents.
+---
+#r
+:top
+/<a href=XX>/!b
+s/<a href=XX>/\n/
+/\n.*<\/a>/!{
+s/\n//
+:loop
+n
+/<\/a>/!b loop
+}
+s/<\/a>([^\n]*)$/\1/
+s/\n//
+b top
+---
+text1 <a href=normal>text2
+</a> text3
+<a href=XX>text4
+text5</a> text6 <a href=normal>text7</a> text8 <a href=XX>text9</a> text10
+<a href=XX>text11</a> text12 <a href=XX>text13</a> text14 <a href=normal>
+text15</a>
+---
+text1 <a href=normal>text2
+</a> text3
+text4
+text5 text6 <a href=normal>text7</a> text8 text9 text10
+text11 text12 text13 text14 <a href=normal>
+text15</a>
+---
+
+---
+Remove comments (/* ... */, maybe multi-line) of a C program. - 1
+---
+/\/\*/{
+:loop
+s|\(.*\)/\*.*\*/|\1|
+t loop
+/\/\*/{
+N
+b loop
+}
+}
+---
+Data-1 Data-2
+Data-3/* comment */ Data-4/*
+comment comment */ Data-5
+Data-6 Data-7
+/* comment */Data-8
+Data-9
+Data-10 /* comment */ Data-11 /* comment */ Data-12
+---
+Data-1 Data-2
+Data-3 Data-4 Data-5
+Data-6 Data-7
+Data-8
+Data-9
+Data-10  Data-11  Data-12
+---
+
+---
+Remove comments (/* ... */, maybe multi-line) of a C program. - 2
+---
+:loop
+s|\(.*\)/\*.*\*/|\1|
+t loop
+/\/\*/!b
+N
+b loop
+---
+---
+---
+
+---
+Extract (possibly multiline) contents between 'BEGIN' and the matching 'END'.
+---
+/BEGIN/!d
+s/BEGIN/\n/
+s/^.*\n//
+/END/{
+s/END/\n/
+P
+D
+}
+:loop
+H
+$d
+N
+s/^.*\n//
+/END/!b loop
+s/END/\n/
+H
+x
+s/^\n\(.*\)\n.*/\1/
+p
+s/^.*//
+x
+D
+---
+word-A BEGIN word-B
+word-C word-D
+word-E END word-F
+word-G
+word-H BEGIN word-I END word-J BEGIN word-K
+word-L word-M
+END word-N
+word-O
+---
+ word-B
+word-C word-D
+word-E 
+ word-I 
+ word-K
+word-L word-M
+
+---
+
+---
+Find failed instances without latter successful ones.
+---
+#r
+:loop0
+$!{
+N
+b loop0
+}
+:loop1
+/^X ([^ ]+) [^ ]+ ([^\n]+)\n.*\n@ \1 [^ \n]+ \2(\n|$)/{
+s/^[^\n]+\n//
+b loop1
+}
+/^X/P
+D
+---
+X aa.sh 01:02:50 arg01 arg02
+@ bb.sh 01:02:56 arg03
+X cc.sh 01:03:05 arg04 arg05 arg06
+X dd.sh 01:04:22 arg07
+X dd.sh 02:22:45 arg08 arg09
+@ aa.sh 03:22:56 arg10 arg11
+X cc.sh 03:30:30 arg12 arg13 arg14
+@ dd.sh 03:31:28 arg07
+@ cc.sh 04:15:35 arg12 arg13 arg14
+@ aa.sh 04:22:52 arg01 arg02
+---
+X cc.sh 01:03:05 arg04 arg05 arg06
+X dd.sh 02:22:45 arg08 arg09
+---
+
+---
+Change the first quote of every single-quoted string to backquote(`). - 1
+---
+#r
+:find_opening
+/\n/!s/^/\n/
+s/\n((\\.|[^'])*)/\1\n/
+/\n'/!{
+s/\n//
+n
+b find_opening
+}
+s/\n'/`\n/
+:find_closing
+/\n/!s/^/\n/
+s/\n((\\.|[^'])*)/\1\n/
+/\n'/!{
+s/\n//
+n
+b find_closing
+}
+s/\n'/'\n/
+b find_opening
+---
+first 'aaa\'AAA' second 'bbb
+ ccc' third 'ddd\'DE\'eee'
+fourth '' fifth 'fff
+ggg' sixth 'hh' seventh '
+' eight 'jjj kkk' ninth 'lll
+mmm'
+---
+first `aaa\'AAA' second `bbb
+ ccc' third `ddd\'DE\'eee'
+fourth `' fifth `fff
+ggg' sixth `hh' seventh `
+' eight `jjj kkk' ninth `lll
+mmm'
+---
+
+---
+Change the first quote of every single-quoted string to backquote(`). - 2
+---
+#r
+:loop
+/\n/!s/^/\n/
+s/\n((\\.|[^'])*)/\1\n/
+/\n'/!{
+s/\n//
+n
+b loop
+}
+G
+/\n$/s/\n'/`\n/
+/\n#$/s/\n'/'\n/
+s/\n#*$//
+x
+s/^/#/
+s/##//
+x
+b loop
+---
+---
+---
+
+***
+Reduces blanks, newline characters between PAT1 and PAT2. - 1
+***
+#r
+:top
+/PAT1/!b
+:loop
+$q
+N
+/\n *$/b loop
+/\n *PAT2[^\n]*$/b matched
+h
+s/\n[^\n]*$//p
+x
+s/^.*\n//
+b top
+:matched
+s/PAT1( *\n *)*PAT2/PAT1\nPAT2/
+P
+D
+***
+=== PAT1
+
+
+       PAT2 ===
+PAT 1 ...
+...
+PAT 2 === PAT1
+     PAT2 === PAT1 ...
+...
+... PAT2 --- PAT1
+
+
+
+PAT2
+---
+***
+=== PAT1
+PAT2 ===
+PAT 1 ...
+...
+PAT 2 === PAT1
+PAT2 === PAT1 ...
+...
+... PAT2 --- PAT1
+PAT2
+---
+***
+
+---
+Reduces blanks, newline characters between PAT1 and PAT2. - 2
+---
+#r
+/PAT1/!b
+:loop
+$q
+N
+/\n *$/b loop
+/\n *PAT2[^\n]*$/b matched
+h
+s/\n[^\n]*$//p
+x
+s/^.*\n/\n/
+D
+:matched
+s/PAT1( *\n *)*PAT2/PAT1\nPAT2/
+P
+D
+---
+---
+---
+
+**
+** N-th Match in a file
+**
+
+---
+Replace the FIRST occurrence of PAT1 in a file with PAT2
+---
+/dog/{
+s/dog/DOG/
+:loop
+n
+b loop
+}
+---
+1 cat chicken
+2 bird dog apple
+3 dog orange cat
+4 cat juice coffee
+5 cow milk dog
+---
+1 cat chicken
+2 bird DOG apple
+3 dog orange cat
+4 cat juice coffee
+5 cow milk dog
+---
+
+...
+Replace the first N occurrences of PAT of a file.
+...
+#r
+/word/!b
+:0
+$!{
+N
+/(word.*){4}/!b 0
+}
+:1
+s/word/------/
+x
+s/^/\n/
+/\n{4}/!{
+x
+/word/b 1
+b 2
+}
+x
+:2
+n
+b 2
+...
+word_1
+much more data...
+word_2 word_3
+much more data...
+word_4 word_5
+word_6
+much more data...
+word_7 final word_8
+...
+------_1
+much more data...
+------_2 ------_3
+much more data...
+------_4 word_5
+word_6
+much more data...
+word_7 final word_8
+...
+
+---
+Replace the FIRST N matches of PAT in a file.
+---
+#r
+/[0-9]/!b
+:loop0
+/([0-9]+([^0-9]+|$)){5}/!{
+$!N
+$!b loop0
+}
+s/([0-9]+([^0-9]+|$)){1,5}/&\n/
+h
+s/\n[^\n]*$//
+s/[0-9]+/[&]/g
+x
+s/^.*\n//
+G
+s/^([^\n]*)\n(.*)/\2\1/
+:loop1
+n
+b loop1
+---
+first 1111
+no numbers
+second 222
+third 333 fourth 44444
+no numbers
+fifth 5555 sixth 666666
+number 7777
+number 88888
+no numbers
+---
+first [1111]
+no numbers
+second [222]
+third [333] fourth [44444]
+no numbers
+fifth [5555] sixth 666666
+number 7777
+number 88888
+no numbers
+---
+
+---
+Replace/Remove all but the first occurrence of PAT in a file. 
+---
+#r
+/[0-9]+/!b
+s/[0-9]+/&\n/
+h
+s/^[^\n]*\n//
+s/[0-9]+/<&>/g
+G
+s/^([^\n]*)\n([^\n]*)\n.*/\2\1/
+:loop
+n
+s/[0-9]+/<&>/g
+b loop
+---
+First number 1111 Second 2222
+Third number 333 number
+Fourth
+44444 number Fifth number 55555
+Final number
+777
+---
+First number 1111 Second <2222>
+Third number <333> number
+Fourth
+<44444> number Fifth number <55555>
+Final number
+<777>
+---
+
+...
+Replace all but the first N occurrences of PAT of a file. 
+...
+#r
+:0
+/(word.*){3}/!{
+$!N
+$!b 0
+}
+:1
+/(word.*){4}/{
+s/^(.*)word/\1------/
+t 1
+}
+:2
+n
+s/word/------/g
+b 2
+...
+word_1 
+much more data...
+word_2 word_3 word_4
+much more data...
+word_5 word_6
+word_7
+much more data...
+word_8 final word_9
+...
+word_1 
+much more data...
+word_2 word_3 ------_4
+much more data...
+------_5 ------_6
+------_7
+much more data...
+------_8 final ------_9
+...
+
+---
+Replace the last occurrence of PAT of a file. 
+---
+#r
+:0
+/word/!b
+:1
+$!N
+/\n.*word/{
+h
+s/\n[^\n]*$//p
+g
+s/^.*\n//
+}
+$!b 1
+s/^(.*)word/\1------/
+---
+word_1 word_2 word_3
+more data...
+word_4 word_5
+more data...
+word_6 word_7
+word_8
+more data...
+word_9 final word_10
+---
+word_1 word_2 word_3
+more data...
+word_4 word_5
+more data...
+word_6 word_7
+word_8
+more data...
+word_9 final ------_10
+---
+
+...
+Replace the last N matches of PAT of a file. 
+...
+#r
+/word/!b
+:0
+$!{
+N
+/(.*word){3}/!b 0
+}
+:1
+/\n(.*word){3}/{
+P
+s/^[^\n]*\n//
+}
+$!{
+N
+b 1
+}
+:2
+s/^(.*)word/\1------/
+x
+s/^/\n/
+/^\n{3}$/!{
+x
+/word/b 2
+}
+x
+...
+word_1 word_2 word_3
+much more data...
+word_4 word_5
+much more data...
+word_6 word_7
+word_8
+much more data...
+word_9 final word_10
+...
+word_1 word_2 word_3
+much more data...
+word_4 word_5
+much more data...
+word_6 word_7
+------_8
+much more data...
+------_9 final ------_10
+...
+
+---
+Replace the LAST N matches of PAT in a file.
+---
+#r
+/[0-9]/!b
+:loop
+/\n.*([0-9]+([^0-9]+|$)){5}$/!{
+$b final
+N
+b loop
+}
+P
+D
+:final
+s/([0-9]+([^0-9]+|$)){1,5}$/\n&/
+h
+s/^[^\n]*\n//
+s/[0-9]+/[&]/g
+x
+s/\n.*$//
+G
+s/\n//
+---
+number 8888
+number 777
+number 6666 last fifth 55555 last fourth 4444
+no numbers in this line
+Last third 3333  last second 2222
+Last number 111
+no numbers
+---
+number 8888
+number 777
+number 6666 last fifth [55555] last fourth [4444]
+no numbers in this line
+Last third [3333]  last second [2222]
+Last number [111]
+no numbers
+---
+
+---
+Replace all but the last N matches of PAT in a file.
+---
+#r
+/[0-9]/!b
+:loop
+/\n.*([0-9]+([^0-9]+|$)){5}$/!{
+$b final
+N
+b loop
+}
+h
+s/\n.*//
+s/[0-9]+/[&]/gp
+g
+D
+:final
+s/([0-9]+([^0-9]+|$)){1,5}$/\n&/
+h
+s/\n.*$//
+s/[0-9]+/[&]/g
+G
+s/\n[^\n]*\n//
+---
+number 8888
+number 777
+number 6666 last fifth 55555 last fourth 4444
+no numbers in this line
+Last third 3333  last second 2222
+Last number 111
+no numbers
+---
+number [8888]
+number [777]
+number [6666] last fifth 55555 last fourth 4444
+no numbers in this line
+Last third 3333  last second 2222
+Last number 111
+no numbers
+---
+
+...
+Replace all but the last N occurrences of PAT of a file. 
+...
+#r
+/word/!b
+:0
+/(word.*){4}/!{
+$!N
+$!b 0
+}
+:1
+s/word((.*word){3})/------\1/
+t 1
+$q
+:2
+/^[^\n]*word/!{
+P
+s/^[^\n]*\n//
+b 2
+}
+b 0
+...
+word_1 
+much more data...
+word_2 word_3 word_4
+much more data...
+word_5
+word_6 word_7
+much more data...
+word_8 final word_9
+...
+------_1 
+much more data...
+------_2 ------_3 ------_4
+much more data...
+------_5
+------_6 word_7
+much more data...
+word_8 final word_9
+...
+
+---
+Replace every N-th occurrence of PAT. 
+---
+#r
+s/[0-9]+/\n&/g
+/\n/!b
+G
+:loop
+s/$/#/
+s/#{3}$//
+/\n$/s/\n([0-9]+)/\n[\1]/
+s/\n//
+/\n.*\n/b loop
+P
+s/^.*\n//
+h
+d
+---
+First number 1, Second 22, Third 333, Fourth 4444,
+Fifth 555,
+Sixth 66, Seventh 7, Eighth 88,
+Ninth 999, Tenth 1010, Eleventh 11111, Twelfth 1212,
+Thirteenth 13, Fourteenth 141414, Fifteenth 15
+---
+First number 1, Second 22, Third [333], Fourth 4444,
+Fifth 555,
+Sixth [66], Seventh 7, Eighth 88,
+Ninth [999], Tenth 1010, Eleventh 11111, Twelfth [1212],
+Thirteenth 13, Fourteenth 141414, Fifteenth [15]
+---
+
+---
+Extract N1-th, N2-th, ... matches of PAT in a file. 
+---
+#r
+/[0-9]+/!d
+s/[0-9]+/\n&/g
+G
+:loop
+s/$/#/
+/\n(#{3}|#{5}|#{11}|#{14})$/{
+s/^[^\n]*\n([0-9]+)/\1\n/
+P
+}
+s/\n//
+/\n[^\n]*\n/b loop
+s/^.*\n//
+h
+d
+---
+First number 1, Second 22, Third 333, Fourth 4444,
+Fifth 555,
+Sixth 66, Seventh 7, Eighth 88,
+Ninth 999, Tenth 1010, Eleventh 11111, Twelfth 1212,
+Thirteenth 13, Fourteenth 141414, Fifteenth 15
+---
+333
+555
+11111
+141414
+---
+ 

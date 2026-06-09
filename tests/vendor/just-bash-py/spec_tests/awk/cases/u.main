@@ -1,0 +1,9 @@
+BEGIN {
+	print "bunch of commandline error messages follow\n"
+	t = ARGV[0]; print "\n" t "\n"; system(t)				# usage
+	t = ARGV[0] " -f"; print "\n" t "\n"; system(t)			# no program file
+	t = ARGV[0] " -f /glop/glop"; print "\n" t "\n"; system(t)	# program inaccessible
+	t = ARGV[0] " -zzz"; print "\n" t "\n"; system(t)			# weird option
+	t = ARGV[0] " -F"; print "\n" t "\n"; system(t)			# null FS
+	t = ARGV[0] " -F :"; print "\n" t "\n"; system(t) 		# field sep but no program
+}

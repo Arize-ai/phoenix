@@ -1,0 +1,1 @@
+{ print length, $0 }

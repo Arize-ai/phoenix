@@ -1,0 +1,19 @@
+echo T.arnold: test fixes by Arnold Robbins 8/18
+# for which many thanks
+
+rm -rf arnold-fixes
+tar xf arnold-fixes.tar
+cd arnold-fixes
+
+pwd
+
+awk=../../a.out
+ls -l $awk
+
+for i in *.awk
+do
+  name=$(basename $i .awk)
+  #echo $name:
+  $awk -f $name.awk >foo.$name
+  diff $name.ok foo.$name || echo "BAD: T.arnold ($name)"
+done
