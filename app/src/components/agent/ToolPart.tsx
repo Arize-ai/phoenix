@@ -722,6 +722,58 @@ function getNativeWebToolPreview(
 /** A subset of the global {@link Variant} type used for tool part chrome. */
 type ToolVariant = Extract<Variant, "default" | "quiet">;
 
+/**
+ * Generic expanded details for tools without a bespoke renderer: pretty-printed
+ * JSON input, plus output or error depending on the tool state.
+ */
+function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
+  const inputStr = JSON.stringify(part.input, null, 2);
+  const outputStr =
+    part.state === "output-available"
+      ? JSON.stringify(part.output, null, 2)
+      : "";
+  const errorStr = part.errorText ?? "";
+  return (
+    <div className="tool-part__body">
+      <ToolPartLabel>Input</ToolPartLabel>
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
+      {part.state === "output-available" ? (
+        <>
+          <ToolPartLabel>Output</ToolPartLabel>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
+        </>
+      ) : null}
+      {part.state === "output-error" ? (
+        <>
+          <ToolPartLabel variant="danger">Error</ToolPartLabel>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Extracts the `name` argument the main agent passed to `call_subagent`, used
+ * as the collapsed-row summary. Returns "" when the input is not yet available.
+ */
+function getCallSubagentName(part: ToolInvocationPart): string {
+  const input = part.input;
+  if (typeof input === "object" && input !== null && !Array.isArray(input)) {
+    const { name } = input as { name?: unknown };
+    if (typeof name === "string") {
+      return name;
+    }
+  }
+  return "";
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -860,51 +912,14 @@ function getToolPresentation(
         ),
       };
     }
-    case CALL_SUBAGENT_TOOL_NAME: {
-      const inputStr = JSON.stringify(part.input, null, 2);
-      const outputStr =
-        part.state === "output-available"
-          ? JSON.stringify(part.output, null, 2)
-          : "";
-      const errorStr = part.errorText ?? "";
-      const subagentName =
-        typeof part.input === "object" &&
-        part.input !== null &&
-        !Array.isArray(part.input) &&
-        typeof (part.input as { name?: unknown }).name === "string"
-          ? (part.input as { name: string }).name
-          : "";
+    case CALL_SUBAGENT_TOOL_NAME:
       return {
-        preview: subagentName,
+        preview: getCallSubagentName(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
         icon: <Icons.SplitOutline />,
-        details: (
-          <div className="tool-part__body">
-            <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartExpandableSection>
-              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
-            </ToolPartExpandableSection>
-            {part.state === "output-available" ? (
-              <>
-                <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-            {part.state === "output-error" ? (
-              <>
-                <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-          </div>
-        ),
+        details: <GenericToolDetails part={part} />,
       };
-    }
     default: {
       if (isDocsToolName(toolName)) {
         return {
@@ -914,40 +929,11 @@ function getToolPresentation(
           details: <DocsToolDetails part={part} />,
         };
       }
-      const inputStr = JSON.stringify(part.input, null, 2);
-      const outputStr =
-        part.state === "output-available"
-          ? JSON.stringify(part.output, null, 2)
-          : "";
-      const errorStr = part.errorText ?? "";
       return {
         preview: "",
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: (
-          <div className="tool-part__body">
-            <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartExpandableSection>
-              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
-            </ToolPartExpandableSection>
-            {part.state === "output-available" ? (
-              <>
-                <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-            {part.state === "output-error" ? (
-              <>
-                <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-          </div>
-        ),
+        details: <GenericToolDetails part={part} />,
       };
     }
   }
