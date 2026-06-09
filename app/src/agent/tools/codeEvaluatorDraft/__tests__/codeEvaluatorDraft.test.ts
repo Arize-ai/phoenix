@@ -1,3 +1,4 @@
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   applyDraftOperations,
   type CodeEvaluatorDraftHost,
@@ -5,6 +6,7 @@ import {
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
   type EditCodeEvaluatorDraftOperation,
+  type EvaluatorSubmitResult,
   type PendingCodeEvaluatorEdit,
   parseEditCodeEvaluatorDraftInput,
   type SandboxConfigIndex,
@@ -57,6 +59,11 @@ function makeHost(
       snapshotRef.current = proposed.output;
       return { ok: true, output: proposed.output };
     },
+    submit: async ({ approvalSource }) => ({
+      ok: true,
+      acceptedBy: approvalSource,
+      evaluator: { id: "ev-1", name: snapshotRef.current.name },
+    }),
   };
   return { host, snapshotRef };
 }
@@ -434,6 +441,134 @@ describe("code evaluator draft agent tools", () => {
         status: "accepted",
         acceptedBy: "auto",
       }),
+    });
+  });
+
+  it("does not persist on draft-edit accept (accept is form-operation-only)", async () => {
+    const initial = makeSnapshot({ description: "original" });
+    const { host, snapshotRef } = makeHost(initial);
+    let submitCalled = false;
+    host.submit = async ({ approvalSource }) => {
+      submitCalled = true;
+      return {
+        ok: true,
+        acceptedBy: approvalSource,
+        evaluator: { id: "ev-1", name: snapshotRef.current.name },
+      };
+    };
+    let pending: PendingCodeEvaluatorEdit | null = null;
+    const action = createEditCodeEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+      setPendingCodeEvaluatorEdit: (_, edit) => {
+        pending = edit;
+      },
+      shouldAutoAccept: () => true,
+    });
+    await action(
+      { operations: [{ type: "set_description", description: "edited" }] },
+      { toolCallId: "tc", sessionId: "s", addToolOutput: async () => undefined }
+    );
+    void pending;
+    expect(snapshotRef.current.description).toBe("edited");
+    expect(submitCalled).toBe(false);
+  });
+});
+
+describe("code evaluator host submit capability", () => {
+  it("drives the dialog's handleSubmit and stamps the manual approval source", async () => {
+    let handleSubmitCalls = 0;
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
+      handleSubmitCalls += 1;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: "ev-42", name: "hallucination" },
+      };
+    };
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "user" });
+    expect(handleSubmitCalls).toBe(1);
+    expect(result).toEqual({
+      ok: true,
+      acceptedBy: "user",
+      evaluator: { id: "ev-42", name: "hallucination" },
+    });
+  });
+
+  it("persists and stamps acceptedBy 'auto' under the bypass approval source", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: true,
+      acceptedBy: "user",
+      evaluator: { id: "ev-42", name: "hallucination" },
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({
+      ok: true,
+      acceptedBy: "auto",
+      evaluator: { id: "ev-42", name: "hallucination" },
+    });
+  });
+
+  it("surfaces a validation failure as a failed result (no false accept)", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: false,
+      error: "Please select a sandbox configuration.",
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({
+      ok: false,
+      error: "Please select a sandbox configuration.",
+    });
+  });
+
+  it("surfaces a missing/incompatible sandbox-config prerequisite as a failed result", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: false,
+      error: "Source code is required.",
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/required/i);
+  });
+
+  it("surfaces a server/mutation error as a failed result", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: false,
+      error: "permission denied",
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({ ok: false, error: "permission denied" });
+  });
+
+  it("fails with the actionable unmounted error when the form is gone", async () => {
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => null,
+      unmountedError: "The code-evaluator form is not mounted; cannot submit.",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({
+      ok: false,
+      error: "The code-evaluator form is not mounted; cannot submit.",
     });
   });
 });

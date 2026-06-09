@@ -5,6 +5,7 @@ import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "./constants";
 import {
@@ -17,6 +18,7 @@ import type {
   EditCodeEvaluatorDraftInput,
   OpenCodeEvaluatorFormInput,
   ReadCodeEvaluatorDraftInput,
+  SubmitCodeEvaluatorDraftInput,
   TestCodeEvaluatorDraftInput,
 } from "./types";
 
@@ -80,4 +82,15 @@ export const testCodeEvaluatorDraftAgentTool =
     notMountedErrorText:
       "The code-evaluator test section is not mounted; cannot test the draft.",
     defaultSuccessOutput: "Code-evaluator draft tested.",
+  });
+
+/** Persists the mounted code-evaluator draft. */
+export const submitCodeEvaluatorDraftAgentTool =
+  defineClientActionTool<SubmitCodeEvaluatorDraftInput>({
+    name: SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    parseInput: parseEmptyToolInput,
+    invalidInputErrorText: `Invalid ${SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {}.`,
+    notMountedErrorText:
+      "The code-evaluator form is not mounted; cannot submit the draft.",
+    defaultSuccessOutput: "Code-evaluator draft submitted.",
   });

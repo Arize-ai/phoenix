@@ -6,13 +6,13 @@
   </when_to_use>
   <user_facing_language>
     - The tool name is internal. In replies to users, call the opened surface the LLM-evaluator form or evaluator form.
-    - Do not describe creating as approving a diff. The user creates with the form's Create action when ready.
+    - Do not describe creating as approving a diff; creating the evaluator is a separate save step.
   </user_facing_language>
   <workflow>
     - Before authoring an LLM evaluator, `load_skill` the `llm-evaluator-authoring` skill for the judge-prompt authoring methodology.
     - Call `open_llm_evaluator_form` first, then wait for the LLM-evaluator context and draft tools to appear.
     - After the form is mounted, call `read_llm_evaluator_draft`, then propose changes with `edit_llm_evaluator_draft`.
-    - After the user accepts a populated draft, offer to run `test_llm_evaluator_draft` before they click Create.
-    - Do not promise that the evaluator has been created. Persistence stays behind the user-visible Create action in the form.
+    - For testing and persisting the populated draft, follow the `<phoenix_llm_evaluator_context>` guidance; whether you drive the save yourself or defer to the form's Create action depends on the approval mode stated there.
+    - Do not claim the evaluator has been created until its save actually completes.
   </workflow>
 </tool>

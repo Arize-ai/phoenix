@@ -289,6 +289,48 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "testPayload" in content
         assert "test_code_evaluator_draft" in content
 
+    def test_names_fixed_playground_output_schema_when_playground_mounted(self) -> None:
+        capability = CodeEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=0)],
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        assert "messages" in content
+        assert "tool_calls" in content
+        assert "function" in content
+        assert "arguments" in content
+        assert "available_tools" in content
+        assert "set_test_payload" in content
+        assert "testPayload" in content
+        assert "do not assume the signal is at a top-level key" not in content
+
+    def test_omits_playground_output_schema_without_playground(self) -> None:
+        capability = CodeEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        assert "available_tools" not in content
+        assert "do not assume the signal is at a top-level key" in content
+
     def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
         capability = CodeEvaluatorContextCapability(
             instructions=_DEFAULT_PROMPTS.code_evaluator_context,
@@ -311,6 +353,18 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "envVars { name }" in content
         assert "never `secretKey`" in content
 
+    def test_bypass_routes_persistence_to_submit_tool(self) -> None:
+        capability = CodeEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
+        )
+        contexts = ResolvedContexts(
+            code_evaluator=CodeEvaluatorContext(type="code_evaluator", evaluator_node_id=None),
+        )
+        bypass = _render(capability, _get_run_context(contexts, edit_permission="bypass"))
+        manual = _render(capability, _get_run_context(contexts, edit_permission="manual"))
+        assert "submit_code_evaluator_draft" in bypass
+        assert "submit_code_evaluator_draft" not in manual
+
 
 class TestLlmEvaluatorContextCapabilityRender:
     def test_directs_on_demand_model_provider_inventory_fetch(self) -> None:
@@ -332,6 +386,18 @@ class TestLlmEvaluatorContextCapabilityRender:
         assert "phoenix-gql" in content
         assert "modelProviders" in content
         assert "credentialsSet" in content
+
+    def test_bypass_routes_persistence_to_submit_tool(self) -> None:
+        capability = LlmEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.llm_evaluator_context,
+        )
+        contexts = ResolvedContexts(
+            llm_evaluator=LlmEvaluatorContext(type="llm_evaluator", evaluator_node_id=None),
+        )
+        bypass = _render(capability, _get_run_context(contexts, edit_permission="bypass"))
+        manual = _render(capability, _get_run_context(contexts, edit_permission="manual"))
+        assert "submit_llm_evaluator_draft" in bypass
+        assert "submit_llm_evaluator_draft" not in manual
 
 
 class TestPlaygroundContextCapabilityRender:
@@ -358,6 +424,22 @@ class TestPlaygroundContextCapabilityRender:
         # link, and forbids GraphQL mutations.
         assert "[Create code evaluator]" not in content
         assert "Do NOT use GraphQL mutations" in content
+
+    def test_bypass_drives_dataset_evaluator_authoring_to_submit(self) -> None:
+        capability = PlaygroundContextCapability(
+            instructions=_DEFAULT_PROMPTS.playground_context,
+        )
+        contexts = ResolvedContexts(
+            playground=PlaygroundContext(
+                type="playground",
+                instances=[PlaygroundInstanceContext(instance_id=0)],
+            ),
+            dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox=="),
+        )
+        bypass = _render(capability, _get_run_context(contexts, edit_permission="bypass"))
+        manual = _render(capability, _get_run_context(contexts, edit_permission="manual"))
+        assert "submit_code_evaluator_draft" in bypass
+        assert "submit_code_evaluator_draft" not in manual
 
     def test_dataset_evaluator_authoring_without_dataset_asks_to_load_dataset(self) -> None:
         capability = PlaygroundContextCapability(

@@ -14,17 +14,21 @@ import {
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   applyDraftOperations,
   type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
+  createSubmitCodeEvaluatorDraftClientAction,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftOperation,
+  type EvaluatorSubmitResult,
   fromOutputConfigDraft,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type SandboxConfigIndex,
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
@@ -121,7 +125,7 @@ export const EditCodeEvaluatorDialogContent = ({
     language: CodeEvaluatorLanguage;
     sourceCode: string;
     sandboxConfigId?: string | null;
-  }) => void;
+  }) => Promise<EvaluatorSubmitResult>;
   /**
    * Called when the user clicks Cancel. Parent overlays can use this to
    * centralize close behavior such as unsaved-change confirmation.
@@ -264,6 +268,10 @@ export const EditCodeEvaluatorDialogContent = ({
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
   const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
 
+  const handleSubmitRef = useRef<(() => Promise<EvaluatorSubmitResult>) | null>(
+    null
+  );
+
   useEffect(() => {
     const buildSnapshot = (): CodeEvaluatorDraftSnapshot => {
       const local = localFieldsRef.current;
@@ -366,6 +374,11 @@ export const EditCodeEvaluatorDialogContent = ({
       getSnapshot: buildSnapshot,
       previewOperations,
       applyOperations,
+      submit: createEvaluatorHostSubmit({
+        getHandleSubmit: () => handleSubmitRef.current,
+        unmountedError:
+          "The code-evaluator form is not mounted; cannot submit.",
+      }),
     };
     draftHostRef.current = host;
 
@@ -388,10 +401,20 @@ export const EditCodeEvaluatorDialogContent = ({
           agentStore.getState().permissions.edits === "bypass",
       })
     );
+    registerClientAction(
+      SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createSubmitCodeEvaluatorDraftClientAction({
+        getDraftHost,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
     return () => {
       draftHostRef.current = null;
+      handleSubmitRef.current = null;
       unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterClientAction(SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
       )) {
@@ -435,7 +458,7 @@ export const EditCodeEvaluatorDialogContent = ({
       (sandboxConfig) => sandboxConfig.id === selectedSandboxConfigId
     ) ?? null;
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
     const isValid = await store.getState().validateAll();
     const configError = getCodeEvaluatorValidationError({
       outputConfigs: store.getState().outputConfigs,
@@ -446,7 +469,11 @@ export const EditCodeEvaluatorDialogContent = ({
     if (!isValid || configError) {
       setShowValidationError(true);
       setLocalValidationError(configError);
-      return;
+      return {
+        ok: false,
+        error:
+          configError ?? "Please fix the highlighted errors before submitting.",
+      };
     }
     setShowValidationError(false);
     setLocalValidationError(undefined);
@@ -458,12 +485,13 @@ export const EditCodeEvaluatorDialogContent = ({
         : mode === "create" || hasSandboxChanged
           ? null
           : undefined;
-    onSubmit({
+    return onSubmit({
       language,
       sourceCode,
       sandboxConfigId: nextSandboxConfigId,
     });
   };
+  handleSubmitRef.current = handleSubmit;
 
   return (
     <DialogContent>

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   fromOutputConfigDraft,
   toOutputConfigDrafts,
@@ -8,12 +9,15 @@ import {
   applyDraftOperations,
   createEditLlmEvaluatorDraftClientAction,
   createReadLlmEvaluatorDraftClientAction,
+  createSubmitLlmEvaluatorDraftClientAction,
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   type EditLlmEvaluatorDraftOperation,
+  type EvaluatorSubmitResult,
   type LLMEvaluatorDraftSnapshot,
   type LlmEvaluatorDraftHost,
   READ_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   reconcileJudgeOperations,
+  SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -34,9 +38,11 @@ import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/play
 export const useLlmEvaluatorDraftRegistration = ({
   mode,
   evaluatorNodeId,
+  handleSubmitRef,
 }: {
   mode: "create" | "update";
   evaluatorNodeId?: string | null;
+  handleSubmitRef: RefObject<() => Promise<EvaluatorSubmitResult>>;
 }) => {
   const store = useEvaluatorStoreInstance();
   const agentStore = useAgentStore();
@@ -142,6 +148,10 @@ export const useLlmEvaluatorDraftRegistration = ({
       getSnapshot: buildSnapshot,
       previewOperations,
       applyOperations,
+      submit: createEvaluatorHostSubmit({
+        getHandleSubmit: () => handleSubmitRef.current,
+        unmountedError: "The LLM-evaluator form is not mounted; cannot submit.",
+      }),
     };
     draftHostRef.current = host;
 
@@ -164,10 +174,19 @@ export const useLlmEvaluatorDraftRegistration = ({
           agentStore.getState().permissions.edits === "bypass",
       })
     );
+    registerClientAction(
+      SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+      createSubmitLlmEvaluatorDraftClientAction({
+        getDraftHost,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
     return () => {
       draftHostRef.current = null;
       unregisterClientAction(READ_LLM_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterClientAction(SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingLlmEvaluatorEditsByToolCallId
       )) {
@@ -176,5 +195,13 @@ export const useLlmEvaluatorDraftRegistration = ({
         }
       }
     };
-  }, [agentStore, store, playgroundStore, instanceId, mode, evaluatorNodeId]);
+  }, [
+    agentStore,
+    store,
+    playgroundStore,
+    instanceId,
+    mode,
+    evaluatorNodeId,
+    handleSubmitRef,
+  ]);
 };

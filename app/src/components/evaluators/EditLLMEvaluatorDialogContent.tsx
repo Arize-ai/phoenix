@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
@@ -23,7 +24,7 @@ export const EditLLMEvaluatorDialogContent = ({
   evaluatorNodeId,
 }: {
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
   mode: "create" | "update";
   error?: string;
@@ -41,18 +42,28 @@ export const EditLLMEvaluatorDialogContent = ({
     )
   );
 
-  useLlmEvaluatorDraftRegistration({ mode, evaluatorNodeId });
-
   const [showValidationError, setShowValidationError] = useState(false);
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
     const isValid = await store.getState().validateAll();
     if (!isValid) {
       setShowValidationError(true);
-      return;
+      return {
+        ok: false,
+        error: "Please fix the highlighted errors before submitting.",
+      };
     }
     setShowValidationError(false);
-    onSubmit();
+    return onSubmit();
   };
+
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
+  useLlmEvaluatorDraftRegistration({
+    mode,
+    evaluatorNodeId,
+    handleSubmitRef,
+  });
   return (
     <DialogContent>
       <DialogHeader>

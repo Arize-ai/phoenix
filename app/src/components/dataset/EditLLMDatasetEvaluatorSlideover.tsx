@@ -8,6 +8,7 @@ import {
 } from "react-relay";
 import invariant from "tiny-invariant";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
@@ -296,7 +297,7 @@ const EditEvaluatorDialog = ({
     } satisfies EvaluatorStoreProps;
   }, [datasetEvaluator, datasetId, datasetEvaluatorId]);
   const onSubmit = useCallback(
-    (store: EvaluatorStoreInstance) => {
+    (store: EvaluatorStoreInstance): Promise<EvaluatorSubmitResult> => {
       const {
         evaluator: { name, description, inputMapping, includeExplanation },
         dataset,
@@ -311,8 +312,9 @@ const EditEvaluatorDialog = ({
       // Validate output configs before submit
       const validationErrors = getOutputConfigValidationErrors(outputConfigs);
       if (validationErrors.length > 0) {
-        setError(validationErrors.join("\n"));
-        return;
+        const message = validationErrors.join("\n");
+        setError(message);
+        return Promise.resolve({ ok: false, error: message });
       }
 
       const input = updateLLMEvaluatorPayload({
@@ -326,24 +328,39 @@ const EditEvaluatorDialog = ({
         inputMapping,
         includeExplanation,
       });
-      updateLlmEvaluator({
-        variables: {
-          input,
-          connectionIds: updateConnectionIds ?? [],
-        },
-        onCompleted: () => {
-          onClose();
-          notifySuccess({
-            title: "Evaluator updated",
-          });
-          if (onUpdate) {
-            onUpdate();
-          }
-        },
-        onError: (error) => {
-          const errorMessages = getErrorMessagesFromRelayMutationError(error);
-          setError(errorMessages?.join("\n") ?? undefined);
-        },
+      return new Promise<EvaluatorSubmitResult>((resolve) => {
+        updateLlmEvaluator({
+          variables: {
+            input,
+            connectionIds: updateConnectionIds ?? [],
+          },
+          onCompleted: (response) => {
+            const updatedEvaluator =
+              response.updateDatasetLlmEvaluator.evaluator;
+            onClose();
+            notifySuccess({
+              title: "Evaluator updated",
+            });
+            if (onUpdate) {
+              onUpdate();
+            }
+            resolve({
+              ok: true,
+              acceptedBy: "user",
+              evaluator: {
+                id: updatedEvaluator.id,
+                name: updatedEvaluator.name,
+              },
+            });
+          },
+          onError: (error) => {
+            const message =
+              getErrorMessagesFromRelayMutationError(error)?.join("\n") ??
+              error.message;
+            setError(message);
+            resolve({ ok: false, error: message });
+          },
+        });
       });
     },
     [

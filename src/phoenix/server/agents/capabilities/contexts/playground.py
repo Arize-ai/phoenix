@@ -25,6 +25,7 @@ class PlaygroundContextCapability(AbstractDynamicCapability[AgentDependencies]):
             return instructions.render(
                 playground=playground.model_dump(by_alias=False),
                 dataset=ctx.deps.contexts.dataset,
+                edit_permission=ctx.deps.edit_permission,
                 labels=ascii_uppercase,
             )
 

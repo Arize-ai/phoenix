@@ -1,5 +1,8 @@
+import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
+import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
+import { SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import {
   parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
@@ -100,6 +103,23 @@ export function createEditCodeEvaluatorDraftClientAction({
     setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };
+}
+
+export function createSubmitCodeEvaluatorDraftClientAction({
+  getDraftHost,
+  shouldAutoAccept = () => false,
+}: {
+  getDraftHost: () => CodeEvaluatorDraftHost | null;
+  shouldAutoAccept?: () => boolean;
+}) {
+  return createEvaluatorSubmitClientAction({
+    getDraftHost,
+    parseInput: parseEmptyToolInput,
+    invalidInputError: `Invalid ${SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {}.`,
+    notMountedError:
+      "The code-evaluator form is not mounted; cannot submit the draft.",
+    shouldAutoAccept,
+  });
 }
 
 export function createTestCodeEvaluatorDraftClientAction({

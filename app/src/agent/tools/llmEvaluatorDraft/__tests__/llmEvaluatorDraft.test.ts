@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import { fromOutputConfigDraft } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   applyDraftOperations,
@@ -7,6 +8,7 @@ import {
   createReadLlmEvaluatorDraftClientAction,
   createTestLlmEvaluatorDraftClientAction,
   type EditLlmEvaluatorDraftOperation,
+  type EvaluatorSubmitResult,
   type LLMEvaluatorDraftSnapshot,
   type LlmEvaluatorDraftHost,
   parseEditLlmEvaluatorDraftInput,
@@ -64,6 +66,11 @@ function makeHost(initial: LLMEvaluatorDraftSnapshot): {
       snapshotRef.current = proposed.output;
       return { ok: true, output: proposed.output };
     },
+    submit: async ({ approvalSource }) => ({
+      ok: true,
+      acceptedBy: approvalSource,
+      evaluator: { id: "ev-1", name: snapshotRef.current.name },
+    }),
   };
   return { host, snapshotRef };
 }
@@ -549,5 +556,88 @@ describe("llm evaluator draft judge reconciliation", () => {
     });
     expect(calls.updateProvider).toEqual([]);
     expect(calls.updateModel).toEqual([]);
+  });
+});
+
+describe("llm evaluator host submit capability", () => {
+  it("drives the dialog's handleSubmit and stamps the manual approval source", async () => {
+    let handleSubmitCalls = 0;
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
+      handleSubmitCalls += 1;
+      return {
+        ok: true,
+        acceptedBy: "user",
+        evaluator: { id: "llm-7", name: "hallucination" },
+      };
+    };
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "user" });
+    expect(handleSubmitCalls).toBe(1);
+    expect(result).toEqual({
+      ok: true,
+      acceptedBy: "user",
+      evaluator: { id: "llm-7", name: "hallucination" },
+    });
+  });
+
+  it("persists and stamps acceptedBy 'auto' under the bypass approval source", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: true,
+      acceptedBy: "user",
+      evaluator: { id: "llm-7", name: "hallucination" },
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({
+      ok: true,
+      acceptedBy: "auto",
+      evaluator: { id: "llm-7", name: "hallucination" },
+    });
+  });
+
+  it("surfaces a validation failure as a failed result (no false accept)", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: false,
+      error: "Please fix the highlighted errors before submitting.",
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/fix the highlighted errors/i);
+  });
+
+  it("surfaces a server/mutation error as a failed result", async () => {
+    const handleSubmit = async (): Promise<EvaluatorSubmitResult> => ({
+      ok: false,
+      error: "permission denied",
+    });
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => handleSubmit,
+      unmountedError: "unmounted",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({ ok: false, error: "permission denied" });
+  });
+
+  it("fails with the actionable unmounted error when the form is gone", async () => {
+    const submit = createEvaluatorHostSubmit({
+      getHandleSubmit: () => null,
+      unmountedError: "The LLM-evaluator form is not mounted; cannot submit.",
+    });
+    const result = await submit({ approvalSource: "auto" });
+    expect(result).toEqual({
+      ok: false,
+      error: "The LLM-evaluator form is not mounted; cannot submit.",
+    });
   });
 });

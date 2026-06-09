@@ -7,9 +7,15 @@
   <draft_contract>
     - The evaluator function in `sourceCode` must be named exactly `evaluate`. Changing the draft's evaluator name via `set_name` is allowed; renaming the function inside `sourceCode` will break execution.
     - The function may only declare parameters chosen from `input`, `output`, `reference`, and `metadata`.
+{% if playground %}
+    <!-- Mirrors get_experiment_example_output's LLM branch in src/phoenix/server/api/helpers/dataset_helpers.py; keep in sync. -->
+    - `output` is a playground run and has a fixed shape: `messages[].role`, `messages[].content`, `messages[].tool_calls[].function.name`, `messages[].tool_calls[].function.arguments`, plus top-level `available_tools`. `reference` is the dataset example output and has the user-defined dataset shape — do not conflate the two.
+    - This fixed `output` shape binds both the `evaluate` body's `output` parameter at runtime AND the `testPayload.output` you fabricate via `set_test_payload`; shape the test payload like a real playground run so the preview is representative.
+{% else %}
     - For dataset-backed evaluators, `output` is the new experiment run output at runtime. The dataset `output` shape is evidence for what future run outputs may look like and is passed as `reference` when evaluating a new run.
-    - Prefer direct `evaluate` arguments and parse nested objects or stringified JSON inside the function rather than relying on a custom input mapping. The simplest evaluator usually declares only `output`. Add `reference` for relational checks that compare the new run output against expected/golden/subset data from the dataset example output.
     - Treat the dataset example shape as evidence. Write helper functions that normalize JSON strings and traverse the actual structure, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
+{% endif %}
+    - Prefer direct `evaluate` arguments and parse nested objects or stringified JSON inside the function rather than relying on a custom input mapping. The simplest evaluator usually declares only `output`. Add `reference` for relational checks that compare the new run output against expected/golden/subset data from the dataset example output.
     - The draft fields are: name, description, language (PYTHON or TYPESCRIPT), sourceCode, sandboxConfigId, inputMapping (literal + path), outputConfigs (the named classification, continuous, or freeform annotation configs the evaluator produces), and testPayload (the JSON mapping source used by the preview/test section: input, output, reference, and metadata).
     - In edit mode, language is immutable — it was fixed when the evaluator was created and is tied to the sandbox configuration. Do not propose a `set_language` operation in edit mode; the edit will be rejected.
     - The selected sandboxConfigId must match the draft language. In create mode, the draft must keep a non-null sandboxConfigId. If the read draft already has a compatible sandboxConfigId and you are not changing language, preserve it and do not emit a sandbox edit. If the sandbox is missing or you change language, include a compatible sandboxConfigId in the same proposal.
@@ -27,10 +33,18 @@
     This create-mode form has no usable sandbox configuration. Do not propose form edits; direct the user to `/settings/sandboxes` to enable a sandbox provider first.
 {% endif %}
 {% if can_test_draft %}
+{% if edit_permission == "bypass" %}
+    Auto-accept is on: once the draft is populated and valid, call `test_code_evaluator_draft` to preview it (revise the source or `testPayload` and re-test if the preview surfaces a problem) — do this without pausing to ask the user for confirmation.
+{% else %}
     After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
+{% endif %}
 {% else %}
     Do not offer a draft test unless `test_code_evaluator_draft` is available.
 {% endif %}
+{% if edit_permission == "bypass" and can_edit_draft %}
+    Then persist by calling `submit_code_evaluator_draft` — it runs the same validated save the {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} button does and returns the committed evaluator. Drive the flow through to this save without stopping to ask; report the evaluator as saved only from that tool's success result, and do not tell the user to click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} themselves.
+{% else %}
     Do not claim the evaluator is persisted; persistence remains the user's {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} action in the form.
+{% endif %}
   </guidance>
 </phoenix_code_evaluator_context>

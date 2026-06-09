@@ -1,5 +1,8 @@
+import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
+import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
+import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import {
   parseEditLlmEvaluatorDraftActionContext,
   parseEditLlmEvaluatorDraftInput,
@@ -100,6 +103,23 @@ export function createEditLlmEvaluatorDraftClientAction({
     setPendingLlmEvaluatorEdit(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };
+}
+
+export function createSubmitLlmEvaluatorDraftClientAction({
+  getDraftHost,
+  shouldAutoAccept = () => false,
+}: {
+  getDraftHost: () => LlmEvaluatorDraftHost | null;
+  shouldAutoAccept?: () => boolean;
+}) {
+  return createEvaluatorSubmitClientAction({
+    getDraftHost,
+    parseInput: parseEmptyToolInput,
+    invalidInputError: `Invalid ${SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME} input. Expected {}.`,
+    notMountedError:
+      "The LLM-evaluator form is not mounted; cannot submit the draft.",
+    shouldAutoAccept,
+  });
 }
 
 export function createTestLlmEvaluatorDraftClientAction({

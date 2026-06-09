@@ -1,6 +1,10 @@
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type {
+  ApprovalSource,
+  EvaluatorSubmitResult,
+  EvaluatorSubmitToolOutput,
+} from "@phoenix/agent/tools/approval";
 import type { OutputConfigDraft } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type {
@@ -8,7 +12,11 @@ import type {
   EvaluatorMappingSource,
 } from "@phoenix/types";
 
-export type { ApprovalSource };
+export type {
+  ApprovalSource,
+  EvaluatorSubmitResult,
+  EvaluatorSubmitToolOutput,
+};
 
 import type {
   editLlmEvaluatorDraftActionContextSchema,
@@ -45,6 +53,8 @@ export type LlmEvaluatorFormMode = "create" | "edit";
 
 export type OpenLlmEvaluatorFormInput = Record<string, never>;
 
+export type SubmitLlmEvaluatorDraftInput = Record<string, never>;
+
 export type LlmEvaluatorJudgeDraft = {
   model: string;
   provider: string;
@@ -80,6 +90,9 @@ export type LlmEvaluatorDraftHost = {
     snapshot: LLMEvaluatorDraftSnapshot,
     operations: EditLlmEvaluatorDraftOperation[]
   ) => LlmEvaluatorActionResult<LLMEvaluatorDraftSnapshot>;
+  submit: (options: {
+    approvalSource: ApprovalSource;
+  }) => Promise<EvaluatorSubmitResult>;
 };
 
 export type PendingLlmEvaluatorEdit = {
