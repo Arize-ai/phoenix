@@ -15,6 +15,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
+import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -418,31 +419,6 @@ export function ChatView({
     );
   }, [sessionId, sendMessage, store]);
 
-  /**
-   * Execute the local prompt commands parsed from a submitted message.
-   * Commands run before any remaining text is sent: `/clear` swaps to a fresh
-   * session, staging the rest of the message (if any) to auto-send when the
-   * new session's view mounts (the controller remounts ChatView per session).
-   */
-  const runPromptCommands = ({
-    commandNames,
-    text,
-    requestedSkills,
-  }: {
-    commandNames: string[];
-    text: string;
-    requestedSkills: string[];
-  }) => {
-    if (commandNames.includes("clear")) {
-      const newSessionId = createSession();
-      if (text) {
-        store
-          .getState()
-          .setPendingMessage(newSessionId, { text, requestedSkills });
-      }
-    }
-  };
-
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
@@ -653,7 +629,13 @@ export function ChatView({
               onValueChange={setInputValue}
               onSubmit={({ text, requestedSkills, commandNames }) => {
                 if (commandNames.length > 0) {
-                  runPromptCommands({ commandNames, text, requestedSkills });
+                  runPromptCommands(
+                    { commandNames, text, requestedSkills },
+                    {
+                      createSession,
+                      setPendingMessage: store.getState().setPendingMessage,
+                    }
+                  );
                   return;
                 }
                 // Command tokens are stripped before this point, so a
