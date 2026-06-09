@@ -4,7 +4,7 @@ import sqlalchemy
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.api.dataloaders import EvaluatorByIdDataLoader
+from phoenix.server.api.dataloaders.evaluator_by_id import EvaluatorByIdDataLoader
 from phoenix.server.types import DbSessionFactory
 
 
