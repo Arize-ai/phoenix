@@ -85,10 +85,6 @@ ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
 Disables PXI native web search and web fetch capabilities even when external
 resources are otherwise allowed.
 """
-ENV_PHOENIX_DANGEROUSLY_ENABLE_SUBAGENTS = "PHOENIX_DANGEROUSLY_ENABLE_SUBAGENTS"
-"""
-Enables the server-side subagents that the main PXI agent can delegate to.
-"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -1359,10 +1355,6 @@ def get_env_phoenix_agents_disable_web_access() -> bool:
 
 def get_env_phoenix_agents_web_access_enabled() -> bool:
     return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_web_access()
-
-
-def get_env_phoenix_dangerously_enable_subagents() -> bool:
-    return _bool_val(ENV_PHOENIX_DANGEROUSLY_ENABLE_SUBAGENTS, False)
 
 
 class AuthSettings(NamedTuple):

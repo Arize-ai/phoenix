@@ -38,7 +38,6 @@ from typing_extensions import TypeIs, assert_never
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_web_access_enabled,
-    get_env_phoenix_dangerously_enable_subagents,
 )
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -593,15 +592,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        server_agent = (
-            build_server_agent(
-                model=model,
-                schema=request.app.state.graphql_schema,
-                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-                tracer_provider=tracer_provider,
-            )
-            if get_env_phoenix_dangerously_enable_subagents()
-            else None
+        server_agent = build_server_agent(
+            model=model,
+            schema=request.app.state.graphql_schema,
+            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            tracer_provider=tracer_provider,
         )
         agent = build_agent(
             model=model,
