@@ -655,6 +655,12 @@ const NATIVE_WEB_SEARCH_TOOL_NAME = "web_search";
 const NATIVE_WEB_FETCH_TOOL_NAME = "web_fetch";
 
 /**
+ * The main agent's delegation tool name as it appears in AI SDK tool
+ * invocation parts.
+ */
+const CALL_SUBAGENT_TOOL_NAME = "call_subagent";
+
+/**
  * Formats native web-search action types for display in the collapsed tool row.
  */
 function formatNativeWebSearchType(type: string): string {
@@ -828,6 +834,51 @@ function getToolPresentation(
         preview: getNativeWebToolPreview(toolName, part),
         stateLabel: formatToolState(part.state),
         statusVariant,
+        details: (
+          <div className="tool-part__body">
+            <ToolPartLabel>Input</ToolPartLabel>
+            <ToolPartExpandableSection>
+              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            </ToolPartExpandableSection>
+            {part.state === "output-available" ? (
+              <>
+                <ToolPartLabel>Output</ToolPartLabel>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+                </ToolPartExpandableSection>
+              </>
+            ) : null}
+            {part.state === "output-error" ? (
+              <>
+                <ToolPartLabel variant="danger">Error</ToolPartLabel>
+                <ToolPartExpandableSection>
+                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
+                </ToolPartExpandableSection>
+              </>
+            ) : null}
+          </div>
+        ),
+      };
+    }
+    case CALL_SUBAGENT_TOOL_NAME: {
+      const inputStr = JSON.stringify(part.input, null, 2);
+      const outputStr =
+        part.state === "output-available"
+          ? JSON.stringify(part.output, null, 2)
+          : "";
+      const errorStr = part.errorText ?? "";
+      const subagentName =
+        typeof part.input === "object" &&
+        part.input !== null &&
+        !Array.isArray(part.input) &&
+        typeof (part.input as { name?: unknown }).name === "string"
+          ? (part.input as { name: string }).name
+          : "";
+      return {
+        preview: subagentName,
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.SplitOutline />,
         details: (
           <div className="tool-part__body">
             <ToolPartLabel>Input</ToolPartLabel>
