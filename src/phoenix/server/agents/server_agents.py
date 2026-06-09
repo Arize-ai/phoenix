@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, TypeAlias
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -16,9 +16,6 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashCapability,
     bash_tool_available,
 )
-from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
-    RunGraphQLQueryCapability,
-)
 from phoenix.server.agents.prompts import ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -30,6 +27,9 @@ from phoenix.server.agents.web_access import (
 )
 from phoenix.server.api.context import Context
 
+#: A Phoenix GraphQL server sub-agent: takes no deps and returns a string.
+ServerAgent: TypeAlias = AbstractAgent[None, str]
+
 
 def build_server_agent(
     *,
@@ -40,15 +40,12 @@ def build_server_agent(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
-) -> AbstractAgent[None, str]:
+) -> ServerAgent:
     """Construct server agent.
 
     ``docs_mcp_server`` and ``enable_web_access`` are gated by the caller exactly as
     they are for the main agent, so the sub-agent gains the docs MCP and web
     search/fetch tools under the same conditions.
-
-    A fresh virtual filesystem is created for the bash tool on each build. Build a
-    new server agent per ``call_subagent`` invocation to scope it to that invocation.
     """
     resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
@@ -56,13 +53,7 @@ def build_server_agent(
         provider.get_tracer("phoenix.server.agents"),
         config=TraceConfig(),
     )
-    capabilities: list[AbstractCapability[None]] = [
-        RunGraphQLQueryCapability(
-            schema=schema,
-            build_graphql_context=build_graphql_context,
-            instructions=resolved_prompts.run_graphql_query_tool.render(),
-        ),
-    ]
+    capabilities: list[AbstractCapability[None]] = []
     if bash_tool_available():
         capabilities.append(
             BashCapability(

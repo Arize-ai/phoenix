@@ -14,7 +14,6 @@ from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult, RunUsage
-from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
@@ -53,7 +52,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.server_agents import ServerAgent, build_server_agent
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -594,9 +593,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
 
-        # Build a fresh server agent per call_subagent invocation so each
-        # delegation gets its own isolated bash virtual filesystem.
-        def build_server_agent_for_invocation() -> AbstractAgent[None, str]:
+        def _build_server_agent() -> ServerAgent:
             return build_server_agent(
                 model=model,
                 schema=request.app.state.graphql_schema,
@@ -611,7 +608,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
-            server_agent_factory=build_server_agent_for_invocation,
+            server_agent_factory=_build_server_agent,
         )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,

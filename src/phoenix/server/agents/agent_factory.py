@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Callable
+
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
@@ -24,7 +26,6 @@ from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
 )
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
-from phoenix.server.agents.capabilities.tools.internal.call_subagent import ServerAgentFactory
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
@@ -36,6 +37,9 @@ from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
     build_web_search_capability,
 )
+
+if TYPE_CHECKING:
+    from phoenix.server.agents.server_agents import ServerAgent
 
 
 def get_skills_capability_function(
@@ -69,7 +73,7 @@ def build_agent(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
-    server_agent_factory: ServerAgentFactory | None = None,
+    server_agent_factory: Callable[[], ServerAgent] | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_prompts = prompts or AgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()

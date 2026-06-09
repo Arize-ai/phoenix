@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from pydantic_ai import RunContext, Tool
-from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
-#: Builds a fresh server agent. A new agent is constructed per ``call_subagent``
-#: invocation so each delegation gets its own isolated bash virtual filesystem.
-ServerAgentFactory = Callable[[], AbstractAgent[None, str]]
+if TYPE_CHECKING:
+    from phoenix.server.agents.server_agents import ServerAgent
+
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
 Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \
@@ -32,11 +31,9 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
     def __init__(
         self,
         *,
-        server_agent_factory: ServerAgentFactory,
+        server_agent_factory: Callable[[], ServerAgent],
     ) -> None:
         async def call_subagent(ctx: RunContext[AgentDependencies], name: str, task: str) -> str:
-            # Build a fresh server agent per invocation so its bash virtual
-            # filesystem is scoped to this single delegation.
             server_agent = server_agent_factory()
             result = await server_agent.run(
                 task,
@@ -54,7 +51,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
 class CallSubAgentCapability(AbstractStaticCapability[AgentDependencies]):
     """Capability that adds the `call_subagent` tool to an agent."""
 
-    server_agent_factory: ServerAgentFactory
+    server_agent_factory: Callable[[], ServerAgent]
     instructions: str
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
