@@ -12,6 +12,7 @@ vi.mock("@phoenix/RelayEnvironment", () => ({ default: {} }));
 
 import { commitMutation } from "react-relay";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
 import {
   createEvaluatorHostSubmit,
@@ -26,7 +27,6 @@ import {
 // The dialog's actual create mutation node — driving the same generated
 // operation the production submit path commits.
 import createCodeEvaluatorMutation from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation.graphql";
-import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -107,16 +107,13 @@ function makeHost({
 
 function registerSubmitTool(host: CodeEvaluatorDraftHost | null) {
   const store = createAgentStore();
-  store
-    .getState()
-    .registerClientAction(
-      SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      createSubmitCodeEvaluatorDraftClientAction({
-        getDraftHost: () => host,
-        shouldAutoAccept: () =>
-          store.getState().permissions.edits === "bypass",
-      })
-    );
+  store.getState().registerClientAction(
+    SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    createSubmitCodeEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+      shouldAutoAccept: () => store.getState().permissions.edits === "bypass",
+    })
+  );
   return store;
 }
 

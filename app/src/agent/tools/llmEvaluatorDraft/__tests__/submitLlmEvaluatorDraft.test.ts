@@ -105,16 +105,13 @@ function makeHost({
 
 function registerSubmitTool(host: LlmEvaluatorDraftHost | null) {
   const store = createAgentStore();
-  store
-    .getState()
-    .registerClientAction(
-      SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-      createSubmitLlmEvaluatorDraftClientAction({
-        getDraftHost: () => host,
-        shouldAutoAccept: () =>
-          store.getState().permissions.edits === "bypass",
-      })
-    );
+  store.getState().registerClientAction(
+    SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+    createSubmitLlmEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+      shouldAutoAccept: () => store.getState().permissions.edits === "bypass",
+    })
+  );
   return store;
 }
 

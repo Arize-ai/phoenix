@@ -14,7 +14,11 @@ import type {
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 
-export type { ApprovalSource, EvaluatorSubmitResult, EvaluatorSubmitToolOutput };
+export type {
+  ApprovalSource,
+  EvaluatorSubmitResult,
+  EvaluatorSubmitToolOutput,
+};
 
 import type {
   CodeEvaluatorEditToolOutputSender,
