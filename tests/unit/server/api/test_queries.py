@@ -2778,3 +2778,56 @@ async def test_sandbox_backends_capability_flags(
     assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
     assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
     assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type
+
+
+_AVAILABLE_AGENT_SKILLS_QUERY = """
+  query ($input: AvailableAgentSkillsInput) {
+    availableAgentSkills(input: $input) {
+      name
+      description
+      summary
+    }
+  }
+"""
+
+
+async def test_available_agent_skills_base_catalog(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(query=_AVAILABLE_AGENT_SKILLS_QUERY)
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    assert "debug-trace" in names
+    assert "annotate-spans" in names
+    assert "playground" not in names
+    assert "llm-evaluator-authoring" not in names
+    # progressive-disclosure header is populated
+    assert all(skill["description"] for skill in response.data["availableAgentSkills"])
+    assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
+
+
+async def test_available_agent_skills_playground_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasPlaygroundContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    assert "playground" in names
+
+
+async def test_available_agent_skills_dataset_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasDatasetContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    assert "llm-evaluator-authoring" in names

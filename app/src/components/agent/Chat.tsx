@@ -20,23 +20,15 @@ import type {
 } from "@phoenix/agent/tools/elicit";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
-import {
-  PromptInput,
-  PromptInputActions,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputTools,
-} from "@phoenix/components/ai/prompt-input";
+import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
 
+import { AgentChatInput } from "./AgentChatInput";
 import { AgentConsentGate } from "./AgentConsentGate";
-import { AgentContextPills } from "./AgentContextPills";
 import {
   AgentEditPermissionMenu,
   getNextEditPermissionMode,
@@ -45,8 +37,6 @@ import {
   AgentModelCredentialForm,
   useAgentModelCredentialStatus,
 } from "./AgentModelCredentialForm";
-import { AgentModelMenu } from "./AgentModelMenu";
-import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import {
@@ -343,7 +333,10 @@ export function ChatView({
 }: PropsWithChildren<{
   sessionId?: string | null;
   messages: AgentUIMessage[];
-  sendMessage: (message: { text: string }) => void;
+  sendMessage: (
+    message: { text: string },
+    options?: { body?: Record<string, unknown> }
+  ) => void;
   stop: () => Promise<void>;
   status: ChatStatus;
   error: Error | undefined;
@@ -391,7 +384,6 @@ export function ChatView({
     () =>
       (sessionId ? store.getState().consumePendingInput(sessionId) : null) ?? ""
   );
-
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext((state) =>
@@ -608,46 +600,27 @@ export function ChatView({
               />
             </PromptInput>
           ) : (
-            <PromptInput
-              onSubmit={(text) => {
-                void scrollToBottom();
-                sendMessage({ text });
-              }}
+            <AgentChatInput
               status={status}
               value={inputValue}
               onValueChange={setInputValue}
-            >
-              <AgentContextPills />
-              <PromptInputBody>
-                <PromptInputTextarea
-                  ref={textareaRef}
-                  placeholder="Send a message..."
-                />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
-                  <AgentModelMenu
-                    value={modelMenuValue}
-                    onChange={onModelChange}
-                    placement="top start"
-                    shouldFlip
-                    variant="quiet"
-                  />
-                  <AgentWebSearchToggle />
-                </PromptInputTools>
-
-                <PromptInputActions>
-                  <PromptInputSubmit
-                    isDisabled={
-                      isSendDisabledForMissingCredentials || undefined
-                    }
-                    onPress={() => {
-                      void stop();
-                    }}
-                  />
-                </PromptInputActions>
-              </PromptInputFooter>
-            </PromptInput>
+              onSubmit={({ text, requestedSkills }) => {
+                void scrollToBottom();
+                sendMessage(
+                  { text },
+                  requestedSkills.length > 0
+                    ? { body: { requestedSkills } }
+                    : undefined
+                );
+              }}
+              textareaRef={textareaRef}
+              modelMenuValue={modelMenuValue}
+              onModelChange={onModelChange}
+              isSubmitDisabled={isSendDisabledForMissingCredentials}
+              onStop={() => {
+                void stop();
+              }}
+            />
           )}
           {canToggleEditPermission ? (
             <div className="chat__input-meta">

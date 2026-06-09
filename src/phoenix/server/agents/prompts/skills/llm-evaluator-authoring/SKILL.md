@@ -1,6 +1,7 @@
 ---
 name: llm-evaluator-authoring
 description: Author or refine a Phoenix LLM-as-a-judge evaluator — design the judge prompt, classification labels, input mapping, and test payload. Load before proposing edits to an LLM-evaluator draft, including single-shot judge rewrites.
+summary: Design or refine an LLM-as-a-judge evaluator, including labels, rubric, prompt, and test cases.
 ---
 
 # LLM-as-a-Judge Evaluator Authoring

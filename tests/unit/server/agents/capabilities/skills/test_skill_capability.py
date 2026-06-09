@@ -37,6 +37,7 @@ def _make_skill(
     return Skill(
         name=name,
         description=description,
+        summary=f"{name} summary",
         content=content,
         path=Path("/tmp/unused"),
         resources=resources or [],

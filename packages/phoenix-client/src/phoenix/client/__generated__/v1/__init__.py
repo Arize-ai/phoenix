@@ -1523,6 +1523,7 @@ class ChatRegenerateMessage(TypedDict):
         ]
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1549,6 +1550,7 @@ class ChatSubmitMessage(TypedDict):
         ]
     ]
     editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):

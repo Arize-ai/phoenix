@@ -55,6 +55,7 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.input_types.AvailableAgentSkillsInput import AvailableAgentSkillsInput
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -67,6 +68,7 @@ from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
+from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
 from phoenix.server.api.types.Dataset import Dataset
@@ -1493,6 +1495,31 @@ class Query:
             allow_local_traces=trace_recording.allow_local_traces,
             allow_remote_export=trace_recording.allow_remote_export,
         )
+
+    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
+    def available_agent_skills(
+        self,
+        info: Info[Context, None],
+        input: Optional[AvailableAgentSkillsInput] = UNSET,
+    ) -> list[AgentSkill]:
+        from phoenix.server.agents.skills import get_skills
+
+        resolved_input = input if input is not UNSET and input is not None else None
+        skills = get_skills(
+            has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
+            has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
+            has_llm_evaluator_context=bool(
+                resolved_input and resolved_input.has_llm_evaluator_context
+            ),
+        )
+        return [
+            AgentSkill(
+                name=skill.name,
+                description=skill.description,
+                summary=skill.summary,
+            )
+            for skill in skills
+        ]
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:
