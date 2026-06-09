@@ -3155,6 +3155,11 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
+            /**
+             * Recordexperiments
+             * @default true
+             */
+            recordExperiments?: boolean;
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
         };

@@ -87,12 +87,15 @@ export function arePlaygroundInstancesForAgentEqual(
 }
 
 export function buildPlaygroundAgentContext({
+  recordExperiments,
   instances,
 }: {
+  recordExperiments: boolean;
   instances: PlaygroundAgentInstance[];
 }): PlaygroundAgentContext {
   return {
     type: "playground",
+    recordExperiments,
     instances,
   };
 }

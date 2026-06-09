@@ -1,5 +1,6 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
+import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import {
   createSavePromptClientAction,
   SAVE_PROMPT_TOOL_NAME,
@@ -213,6 +214,75 @@ describe("toolRegistry", () => {
     expect(
       store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"]
     ).toBeUndefined();
+  });
+
+  it("dispatches set_playground_experiment_recording to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: true, output: "recording updated" });
+    store
+      .getState()
+      .registerClientAction(
+        SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        action
+      );
+
+    const input = { recordExperiments: true };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-experiment-recording",
+        toolName: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith(input);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        output: "recording updated",
+      })
+    );
+  });
+
+  it("surfaces set_playground_experiment_recording client action errors", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: "already running" });
+    store
+      .getState()
+      .registerClientAction(
+        SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        action
+      );
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-experiment-recording-error",
+        toolName: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        input: { recordExperiments: true },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        errorText: "already running",
+      })
+    );
   });
 
   it("auto-approves save_prompt only when edit approvals are bypassed", async () => {

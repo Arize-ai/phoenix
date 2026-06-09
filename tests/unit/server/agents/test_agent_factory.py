@@ -72,6 +72,7 @@ DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.run_playground_tool.render(),
         _DEFAULT_PROMPTS.cancel_playground_run_tool.render(),
         _DEFAULT_PROMPTS.set_variable_values_tool.render(),
+        _DEFAULT_PROMPTS.set_playground_experiment_recording_tool.render(),
         _DEFAULT_PROMPTS.set_appended_messages_path_tool.render(),
         _DEFAULT_PROMPTS.load_dataset_tool.render(),
     }
@@ -502,6 +503,7 @@ class TestPlaygroundTools:
         assert "remove_prompt_instance" not in _get_tool_names(captured_request.body)
         assert "save_prompt" not in _get_tool_names(captured_request.body)
         assert "set_variable_values" not in _get_tool_names(captured_request.body)
+        assert "set_playground_experiment_recording" not in _get_tool_names(captured_request.body)
         assert "set_template_variables_path" not in _get_tool_names(captured_request.body)
         assert "set_appended_messages_path" not in _get_tool_names(captured_request.body)
         assert "list_playground_model_targets" not in _get_tool_names(captured_request.body)
@@ -541,6 +543,7 @@ class TestPlaygroundTools:
         assert "remove_prompt_instance" in _get_tool_names(captured_request.body)
         assert "save_prompt" in _get_tool_names(captured_request.body)
         assert "set_variable_values" in _get_tool_names(captured_request.body)
+        assert "set_playground_experiment_recording" in _get_tool_names(captured_request.body)
         assert "set_template_variables_path" in _get_tool_names(captured_request.body)
         assert "set_appended_messages_path" in _get_tool_names(captured_request.body)
         assert "list_playground_model_targets" in _get_tool_names(captured_request.body)

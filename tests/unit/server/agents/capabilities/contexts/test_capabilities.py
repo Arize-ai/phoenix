@@ -392,6 +392,21 @@ class TestPlaygroundContextCapabilityRender:
         content = _render(capability, ctx)
         assert '<instance label="A" instanceId="1"/>' in content
 
+    def test_renders_current_experiment_recording_mode(self) -> None:
+        capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    record_experiments=False,
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                )
+            )
+        )
+        content = _render(capability, ctx)
+        assert '<experiment_recording recordExperiments="false" mode="ephemeral"/>' in content
+        assert "set_playground_experiment_recording" in content
+
     def test_renders_experiment_id_when_set(self) -> None:
         capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
         ctx = _get_run_context(

@@ -22,6 +22,7 @@ import {
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { SET_APPENDED_MESSAGES_PATH_TOOL_NAME } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   LIST_PLAYGROUND_MODEL_TARGETS_TOOL_NAME,
@@ -82,6 +83,7 @@ const EXPECTED_TOOL_NAMES = [
   CANCEL_PLAYGROUND_RUN_TOOL_NAME,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
   SET_VARIABLE_VALUES_TOOL_NAME,
+  SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
   SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
   SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
   BATCH_SPAN_ANNOTATE_TOOL_NAME,

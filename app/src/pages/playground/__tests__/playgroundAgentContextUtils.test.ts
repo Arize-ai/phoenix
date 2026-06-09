@@ -4,6 +4,7 @@ import type { PlaygroundInstance } from "@phoenix/store/playground";
 
 import {
   arePlaygroundInstancesForAgentEqual,
+  buildPlaygroundAgentContext,
   getPlaygroundInstanceForAgent,
 } from "../playgroundAgentContextUtils";
 
@@ -100,5 +101,22 @@ describe("arePlaygroundInstancesForAgentEqual", () => {
       ),
     ];
     expect(arePlaygroundInstancesForAgentEqual(left, right)).toBe(true);
+  });
+});
+
+describe("buildPlaygroundAgentContext", () => {
+  it("includes the current experiment recording mode", () => {
+    const instance = getPlaygroundInstanceForAgent(makeInstance());
+
+    expect(
+      buildPlaygroundAgentContext({
+        recordExperiments: false,
+        instances: [instance],
+      })
+    ).toEqual({
+      type: "playground",
+      recordExperiments: false,
+      instances: [instance],
+    });
   });
 });

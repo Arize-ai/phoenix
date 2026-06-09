@@ -56,6 +56,9 @@ _SAVE_PROMPT_TOOL_INSTRUCTIONS = get_template("tools/SAVE_PROMPT_TOOL_INSTRUCTIO
 _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS.xml.j2"
 )
+_SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_INSTRUCTIONS = get_template(
+    "tools/SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_INSTRUCTIONS.xml.j2"
+)
 _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -137,6 +140,9 @@ class AgentPrompts:
     run_playground_tool: Template = _RUN_PLAYGROUND_TOOL_INSTRUCTIONS
     cancel_playground_run_tool: Template = _CANCEL_PLAYGROUND_RUN_TOOL_INSTRUCTIONS
     set_variable_values_tool: Template = _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS
+    set_playground_experiment_recording_tool: Template = (
+        _SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_INSTRUCTIONS
+    )
     set_template_variables_path_tool: Template = _SET_TEMPLATE_VARIABLES_PATH_TOOL_INSTRUCTIONS
     set_appended_messages_path_tool: Template = _SET_APPENDED_MESSAGES_PATH_TOOL_INSTRUCTIONS
     load_dataset_tool: Template = _LOAD_DATASET_TOOL_INSTRUCTIONS
