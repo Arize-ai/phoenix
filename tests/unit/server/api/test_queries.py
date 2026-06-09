@@ -2785,7 +2785,7 @@ _AVAILABLE_AGENT_SKILLS_QUERY = """
     availableAgentSkills(input: $input) {
       name
       description
-      userDescription
+      summary
     }
   }
 """
@@ -2804,7 +2804,7 @@ async def test_available_agent_skills_base_catalog(
     assert "llm-evaluator-authoring" not in names
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
-    assert all(skill["userDescription"] for skill in response.data["availableAgentSkills"])
+    assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
 
 
 async def test_available_agent_skills_playground_context(

@@ -3,7 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-from pydantic_ai.ui.vercel_ai.request_types import TextUIPart, UIMessage
+from pydantic_ai.ui.vercel_ai.request_types import (
+    TextUIPart,
+    ToolOutputAvailablePart,
+    UIMessage,
+)
 
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.prompts.templating import get_template
@@ -29,6 +33,13 @@ def _make_skill(name: str) -> Skill:
 
 def _user_message(text: str) -> UIMessage:
     return UIMessage(id="u1", role="user", parts=[TextUIPart(type="text", text=text)])
+
+
+def _load_skill_part(message: UIMessage) -> ToolOutputAvailablePart:
+    """Return the synthetic load-skill part, narrowing the part union for mypy."""
+    part = message.parts[0]
+    assert isinstance(part, ToolOutputAvailablePart)
+    return part
 
 
 def _inject(
@@ -61,9 +72,10 @@ class TestInjectRequestedSkills:
         synthetic = result[1]
         assert synthetic.role == "assistant"
         assert len(synthetic.parts) == 1
-        part = synthetic.parts[0]
+        part = _load_skill_part(synthetic)
         assert part.type == f"tool-{LOAD_SKILL_TOOL_NAME}"
         assert part.input == {"skill_name": "debug-trace"}
+        assert isinstance(part.output, str)
         assert "body for debug-trace" in part.output
 
     def test_unknown_skill_is_ignored(self) -> None:
@@ -98,7 +110,11 @@ class TestInjectRequestedSkills:
         messages = [_user_message("hi")]
         available = [_make_skill("debug-trace"), _make_skill("annotate-spans")]
         result = _inject(messages, ["annotate-spans", "debug-trace"], available)
-        injected_names = [m.parts[0].input["skill_name"] for m in result[1:]]
+        injected_names = []
+        for message in result[1:]:
+            part = _load_skill_part(message)
+            assert isinstance(part.input, dict)
+            injected_names.append(part.input["skill_name"])
         assert injected_names == ["annotate-spans", "debug-trace"]
 
     def test_synthetic_pair_adapts_to_pydantic_ai_messages(self) -> None:
