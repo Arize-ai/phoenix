@@ -7,6 +7,7 @@ from jinja2 import Template
 from phoenix.server.agents.prompts.templating import get_template
 
 _BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
+_BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
 _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
 _BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
 _ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
@@ -114,6 +115,10 @@ _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 _LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
 _READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
+_CALL_SUBAGENT_TOOL_INSTRUCTIONS = get_template("tools/CALL_SUBAGENT_TOOL_INSTRUCTIONS.xml.j2")
+_RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS = get_template(
+    "tools/RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS.xml.j2"
+)
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -122,7 +127,7 @@ SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
 
 @dataclass(frozen=True)
 class AgentPrompts:
-    """Typed bundle of every prompt template the chat agent uses."""
+    """Every prompt template the chat agent uses."""
 
     base: Template = _BASE_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
@@ -176,9 +181,20 @@ class AgentPrompts:
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
     read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
+    call_subagent_tool: Template = _CALL_SUBAGENT_TOOL_INSTRUCTIONS
+
+
+@dataclass(frozen=True)
+class ServerAgentPrompts:
+    """Every prompt template the server agent uses."""
+
+    base: Template = _BASE_SUBAGENT_INSTRUCTIONS
+    run_graphql_query_tool: Template = _RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS
+    docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
 
 
 __all__ = [
     "AgentPrompts",
+    "ServerAgentPrompts",
     "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
 ]

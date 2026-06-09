@@ -869,3 +869,52 @@ export const LoadSkillExpanded: Story = {
 export const LoadSkillError: Story = {
   args: { part: loadSkillErrorPart },
 };
+
+// ---------------------------------------------------------------------------
+// call_subagent tool mocks
+// ---------------------------------------------------------------------------
+
+const callSubagentRunningPart = makePart({
+  toolName: "call_subagent",
+  state: "input-available",
+  input: {
+    name: "server",
+    task: "Investigate why the GraphQL spans resolver returns duplicate edges.",
+  },
+});
+
+const callSubagentCompletedPart = makePart({
+  toolName: "call_subagent",
+  state: "output-available",
+  input: {
+    name: "server",
+    task: "Investigate why the GraphQL spans resolver returns duplicate edges.",
+  },
+  output:
+    "The duplicate edges come from a missing DISTINCT clause in the spans dataloader join. Adding `.distinct()` to the SQLAlchemy query before pagination resolves it.",
+});
+
+const callSubagentErrorPart = makePart({
+  toolName: "call_subagent",
+  state: "output-error",
+  input: {
+    name: "unknown-agent",
+    task: "Do something with an agent that does not exist.",
+  },
+  errorText: "Subagent 'unknown-agent' is not registered.",
+});
+
+/** A call_subagent tool currently delegating to a subagent (summary = name). */
+export const CallSubagentRunning: Story = {
+  args: { part: callSubagentRunningPart },
+};
+
+/** A call_subagent tool that completed with the subagent's result. */
+export const CallSubagentCompleted: Story = {
+  args: { part: callSubagentCompletedPart },
+};
+
+/** A call_subagent tool that failed because the subagent was not found. */
+export const CallSubagentError: Story = {
+  args: { part: callSubagentErrorPart },
+};

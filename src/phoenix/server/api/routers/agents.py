@@ -52,6 +52,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -588,22 +589,29 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        server_agent = build_server_agent(
+            model=model,
+            schema=request.app.state.graphql_schema,
+            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=web_access_enabled,
+            tracer_provider=tracer_provider,
+        )
         agent = build_agent(
             model=model,
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
+            server_agent=server_agent,
         )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
             accept=request.headers.get("accept"),
         )
-        is_viewer = False
-        if "user" in request.scope:
-            user = request.user
-            if isinstance(user, PhoenixUser):
-                is_viewer = user.is_viewer
         deps = AgentDependencies(
             contexts=resolved_contexts,
             edit_permission=body.edit_permission,
