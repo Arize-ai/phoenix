@@ -23,6 +23,56 @@ export function isTeam(login: string | null, team: Set<string>): boolean {
   return team.has((login ?? "").toLowerCase());
 }
 
+/**
+ * Whether a reactor counts toward "outside demand": not us, not a bot.
+ * Excludes team members and bots — dosubot reacts as `dosubot[bot]` (caught by
+ * `isBot`), with a bare `dosubot` login guarded as a fallback.
+ */
+export function isOutsideReactor(
+  login: string | null,
+  user: GhUser | null,
+  team: Set<string>
+): boolean {
+  if (!login) return false;
+  if (isTeam(login, team)) return false;
+  if (isBot(user)) return false;
+  if (login.toLowerCase() === "dosubot") return false;
+  return true;
+}
+
+/** GraphQL ReactionContent enum → the REST reaction keys we store. */
+const GQL_REACTION_KEY: Record<string, string> = {
+  THUMBS_UP: "+1",
+  THUMBS_DOWN: "-1",
+  LAUGH: "laugh",
+  HOORAY: "hooray",
+  CONFUSED: "confused",
+  HEART: "heart",
+  ROCKET: "rocket",
+  EYES: "eyes",
+};
+
+export function gqlReactionKey(content: string): string | undefined {
+  return GQL_REACTION_KEY[content];
+}
+
+/**
+ * Tally reactions by emoji key, counting only outside reactors. Returns a map
+ * (e.g. `{"+1":4}`), empty when nobody outside the team has reacted.
+ */
+export function tallyReactions(
+  reactors: Array<{ key: string; login: string | null; user: GhUser | null }>,
+  team: Set<string>
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const r of reactors) {
+    if (!r.key) continue;
+    if (!isOutsideReactor(r.login, r.user, team)) continue;
+    counts[r.key] = (counts[r.key] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function excerpt(body: string): string {
   return body.replace(/\r/g, "").trim().slice(0, 500);
 }
@@ -78,28 +128,30 @@ export function verdict(entries: Entry[], team: Set<string>): Verdict {
 export async function orgMemberFlag(
   v: Verdict,
   checkOrgMember: (login: string, now: number) => Promise<boolean>
-): Promise<number> {
-  if (!v.display.login || v.lastIsTeam || isBot(v.display.user)) return 0;
-  return (await checkOrgMember(v.display.login, Date.now())) ? 1 : 0;
+): Promise<boolean> {
+  if (!v.display.login || v.lastIsTeam || isBot(v.display.user)) return false;
+  return checkOrgMember(v.display.login, Date.now());
 }
 
 /**
- * The triage-derived columns shared by issues, PRs, and discussions. Both
- * sync paths assemble the same tail from a verdict; only the identity fields
- * (uid, title, timestamps, …) differ between them.
+ * The triage-derived columns shared by issues, PRs, and discussions. Both sync
+ * paths assemble the same tail from a verdict; only the identity fields (repo,
+ * number, title, timestamps, …) differ between them.
  */
-export function verdictFields(v: Verdict, orgMember: number, syncedAt: string) {
+export function verdictFields(
+  v: Verdict,
+  orgMember: boolean,
+  syncedAt: string
+) {
   return {
-    needs_attention: v.needs ? 1 : 0,
+    needs_attention: v.needs,
     reason: v.reason,
     last_actor: v.display.login,
-    last_actor_is_team: v.lastIsTeam,
-    last_actor_is_bot: isBot(v.display.user) ? 1 : 0,
+    last_actor_is_bot: isBot(v.display.user),
     last_actor_is_org_member: orgMember,
     last_entry_at: v.display.created_at,
     last_entry_url: v.display.url,
     last_entry_excerpt: excerpt(v.display.body),
-    last_entry_kind: v.display.kind,
     synced_at: syncedAt,
   };
 }

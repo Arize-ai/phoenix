@@ -1,8 +1,6 @@
 import { execFileSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * The "owner/repo" repos this tool monitors. Override with REPOS (comma- or
@@ -62,9 +60,14 @@ function nonNegativeNumberEnv(name: string, fallback: number): number {
 
 export const PORT = positiveIntegerEnv("PORT", 58736);
 
-/** Local persistent SQLite cache, intentionally gitignored. */
+/**
+ * Local persistent SQLite cache. Kept under the user's home dir (outside the
+ * repo) so it survives `git clean`, isn't repo-relative, and can be shared
+ * across checkouts. Override with DB_FILE_NAME.
+ */
 export const DB_FILE_NAME =
-  process.env.DB_FILE_NAME ?? path.resolve(here, "../data/local.db");
+  process.env.DB_FILE_NAME ??
+  path.join(os.homedir(), ".phoenix", ".gh-comment-watch", "local.db");
 
 /** Concurrent GitHub fetches during a sync. */
 export const CONCURRENCY = positiveIntegerEnv("CONCURRENCY", 8);

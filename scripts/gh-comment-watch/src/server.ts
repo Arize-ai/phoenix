@@ -5,16 +5,21 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 
-import { PORT, REPOS, SYNC_INTERVAL_MINUTES } from "./config.ts";
+import { DB_FILE_NAME, PORT, REPOS, SYNC_INTERVAL_MINUTES } from "./config.ts";
 import {
   counts,
   countsByRepo,
   getMeta,
   personalCounts,
   queryItems,
+  seedTeamMembers,
   type ItemQuery,
 } from "./db.ts";
 import { getStatus, runSync } from "./sync.ts";
+import { teamSet } from "./team.ts";
+
+// The allowlist is config; mirror it into the DB so queries can join against it.
+seedTeamMembers(teamSet());
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const webDist = path.resolve(here, "../web/dist");
@@ -45,6 +50,7 @@ app.get("/api/items", (context) => {
     sort: query.sort === "newest" ? "newest" : "oldest",
     mine,
     excludeTeamAuthored: query.excludeTeamAuthored === "1",
+    excludeAssigned: query.excludeAssigned === "1",
   };
   return context.json({ items: queryItems(opts) });
 });
@@ -77,6 +83,7 @@ const server = serve({ fetch: app.fetch, port: PORT }, () => {
     `gh-comment-watch monitoring ${REPOS.join(", ")} → http://localhost:${PORT}` +
       (fs.existsSync(webDist) ? "" : "\n(web not built yet — run `pnpm build`)")
   );
+  console.log(`Database: ${DB_FILE_NAME}`);
 
   // Keep the DB fresh on its own: an initial sync, then incremental ones.
   void runSync();

@@ -1,31 +1,27 @@
 export interface Item {
-  uid: string;
+  id: number;
   repo: string;
   number: number;
   type: "issue" | "pr" | "discussion";
   title: string;
-  state: string;
   html_url: string;
   author: string | null;
-  author_is_team: number;
   created_at: string;
   updated_at: string;
-  closed_at: string | null;
-  comments_count: number;
-  labels: string;
-  needs_attention: number;
+  needs_attention: boolean;
   reason: string;
+  has_assignee: boolean;
   last_actor: string | null;
-  last_actor_is_team: number;
-  last_actor_is_bot: number;
-  last_actor_is_org_member: number;
-  assigned_to_me: number;
-  review_requested_from_me: number;
+  last_actor_is_bot: boolean;
+  last_actor_is_org_member: boolean;
+  assigned_to_me: boolean;
+  review_requested_from_me: boolean;
   last_entry_at: string | null;
   last_entry_url: string | null;
   last_entry_excerpt: string | null;
-  last_entry_kind: string | null;
   synced_at: string;
+  labels: string[];
+  reactions: Record<string, number>;
 }
 
 export interface SyncStatus {
@@ -67,6 +63,7 @@ export interface ItemFilters {
   q: string; // shared
   sort: "oldest" | "newest"; // shared
   excludeTeamAuthored: boolean; // needs/all views only — hide team-opened threads
+  excludeAssigned: boolean; // needs/all views only — hide issues/PRs with an assignee
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -84,9 +81,10 @@ export const api = {
     } else {
       p.set("filter", f.tab === "all" ? "all" : "needs");
       p.set("type", f.type);
-      // Personal queue is your own items regardless of who opened them, so the
-      // team-author filter only applies to the needs/all views.
+      // Personal queue is your own items regardless of who opened them or
+      // whether they're assigned, so these filters only apply to needs/all.
       if (f.excludeTeamAuthored) p.set("excludeTeamAuthored", "1");
+      if (f.excludeAssigned) p.set("excludeAssigned", "1");
     }
     return fetch(`/api/items?${p}`).then((r) => json<{ items: Item[] }>(r));
   },

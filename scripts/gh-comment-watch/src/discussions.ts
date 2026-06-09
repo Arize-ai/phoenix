@@ -1,13 +1,14 @@
 import { graphql } from "./github.ts";
 import { isOrgMember } from "./membership.ts";
 import {
-  isTeam,
+  gqlReactionKey,
   orgMemberFlag,
+  tallyReactions,
   verdict,
   verdictFields,
   type Entry,
 } from "./triage.ts";
-import type { ItemRow } from "./types.ts";
+import type { ItemInput } from "./types.ts";
 
 interface Actor {
   login: string;
@@ -44,6 +45,9 @@ export interface RawDiscussion {
   author: Actor | null;
   bodyText: string;
   comments: CommentConn;
+  reactions: {
+    nodes: Array<{ content: string; user: { login: string } | null }>;
+  };
 }
 
 // `last:` grabs recent comments/replies, but long discussions can exceed these
@@ -58,6 +62,7 @@ query($owner:String!,$name:String!,$cursor:String){
         number title url createdAt updatedAt closed
         author{ login __typename }
         bodyText
+        reactions(first:100){ nodes{ content user{ login } } }
         comments(last:40){
           totalCount
           nodes{
@@ -134,7 +139,7 @@ export async function triageDiscussion(
   d: RawDiscussion,
   team: Set<string>,
   syncedAt: string
-): Promise<ItemRow> {
+): Promise<ItemInput> {
   const entries: Entry[] = [
     {
       kind: "body",
@@ -171,26 +176,30 @@ export async function triageDiscussion(
   const orgMember = await orgMemberFlag(v, isOrgMember);
   const isIncomplete = hasIncompleteData(d);
   return {
-    uid: `${repo}#d${d.number}`,
     repo,
     number: d.number,
     type: "discussion",
     title: d.title,
-    state: d.closed ? "closed" : "open",
     html_url: d.url,
     author: d.author?.login ?? null,
-    author_is_team: isTeam(d.author?.login ?? null, team) ? 1 : 0,
     created_at: d.createdAt,
     updated_at: d.updatedAt,
-    closed_at: null,
-    comments_count: d.comments.totalCount,
-    labels: "[]",
-    assigned_to_me: 0, // discussions have no assignee/review; never in the personal queue
-    review_requested_from_me: 0,
+    labels: [], // discussions don't carry labels here
+    reactions: tallyReactions(
+      d.reactions.nodes.map((r) => ({
+        key: gqlReactionKey(r.content) ?? "",
+        login: r.user?.login ?? null,
+        // GraphQL reactors give only a login; a synthetic User lets isBot still
+        // catch `*[bot]` logins (e.g. dosubot[bot]).
+        user: r.user ? { login: r.user.login, type: "User" } : null,
+      })),
+      team
+    ),
+    has_assignee: false, // discussions have no assignees
     ...verdictFields(v, orgMember, syncedAt),
     // A discussion longer than the fetched GraphQL slice can't be triaged from
     // a partial conversation, so force a manual-review verdict.
-    needs_attention: v.needs || isIncomplete ? 1 : 0,
+    needs_attention: v.needs || isIncomplete,
     reason: isIncomplete ? "Long discussion; review manually" : v.reason,
   };
 }

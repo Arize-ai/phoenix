@@ -4,7 +4,7 @@ A small TypeScript + React app for on-call engineers to catch GitHub issue/PR co
 
 It scans **all open** issues, PRs, **and discussions** across **one or more repos** into a local SQLite cache, figures out who "spoke last" on each thread, and surfaces the ones awaiting a response in a React dashboard. It also has a **My queue** tab for issues/PRs assigned to you or personally awaiting your review. Defaults to monitoring `Arize-ai/phoenix` and `Arize-ai/openinference`; each item is tagged with its repo and the UI has a per-repo filter.
 
-> **State is local and persistent.** The SQLite database defaults to `data/local.db`, which is gitignored. Startup runs Drizzle Kit migrations before the server starts, so restarts keep the local cache and schema upgrades are applied idempotently.
+> **State is local and persistent.** The SQLite database defaults to `~/.phoenix/.gh-comment-watch/local.db` — under your home dir, outside the repo, so it survives `git clean` and is shared across checkouts. Startup runs Drizzle Kit migrations before the server starts, so restarts keep the local cache and schema upgrades are applied idempotently.
 
 > **No activity window.** Every *open* thread is tracked regardless of age — a thread ignored for a year is exactly what this tool exists to surface, so it must never age out. (Closed/merged threads drop off.) The tool only reads GitHub; it never posts, labels, or reacts.
 
@@ -20,7 +20,7 @@ For each open thread we walk the conversation (the opening post + every comment,
 
 "Team" is the @claude workflow allowlist in `.github/workflows/claude.yml`. Closed/merged threads are treated as handled (they're simply not synced).
 
-Flagged comments whose author is an **org member but not on the allowlist** get an "Arize-ai org" badge — a hint that it's a colleague off the on-call list rather than an outside user. Membership is checked via `GET /orgs/{org}/members/{login}` and cached for a week in `member_cache`.
+Flagged comments whose author is an **org member but not on the allowlist** get an "Arize-ai org" badge — a hint that it's a colleague off the on-call list rather than an outside user. Membership is checked via `GET /orgs/{org}/members/{login}` and cached for a week in `org_membership_cache`.
 
 A **Hide team-authored** toggle (on by default) drops threads *opened* by a team member — our own issues and PRs, where an outside reply landing last would otherwise flag the thread even though it's our own work. Untick it to include team-opened threads. The toggle only applies to the Needs reply / All tracked views, not My queue.
 
@@ -89,7 +89,7 @@ The cursor is a **data watermark**, not wall-clock time: per repo and kind we re
 | --- | --- | --- |
 | `REPOS` | `Arize-ai/phoenix,Arize-ai/openinference` | comma/space-separated `owner/repo` list to monitor (`REPO` still works for a single repo) |
 | `PORT` | `58736` | server port |
-| `DB_FILE_NAME` | `data/local.db` | local SQLite cache file |
+| `DB_FILE_NAME` | `~/.phoenix/.gh-comment-watch/local.db` | local SQLite cache file (parent dir created automatically) |
 | `SEED_ORG` | first repo's owner | org used to check membership badges (all repos assumed in this org) |
 | `VIEWER` | `@me` (the token's user) | whose personal queue to track for the **My queue** tab |
 | `GITHUB_TOKEN` | — | used instead of the `gh` CLI token if set |

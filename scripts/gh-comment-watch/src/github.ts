@@ -1,5 +1,5 @@
 import { githubToken } from "./config.ts";
-import type { GhComment, GhIssue } from "./types.ts";
+import type { GhComment, GhIssue, GhReaction } from "./types.ts";
 
 const API = "https://api.github.com";
 
@@ -120,6 +120,20 @@ export function listComments(
 ): Promise<GhComment[]> {
   return paginate<GhComment>(
     `/repos/${repo}/issues/${issueNumber}/comments?per_page=100`
+  );
+}
+
+/**
+ * Every reaction on an issue/PR's opening post, each tagged with the user who
+ * left it — so callers can exclude team/bot reactors. The aggregate `reactions`
+ * summary on the issue object only has totals, not logins, hence this call.
+ */
+export function listIssueReactions(
+  repo: string,
+  issueNumber: number
+): Promise<GhReaction[]> {
+  return paginate<GhReaction>(
+    `/repos/${repo}/issues/${issueNumber}/reactions?per_page=100`
   );
 }
 

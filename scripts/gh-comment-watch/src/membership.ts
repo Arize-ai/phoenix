@@ -16,10 +16,10 @@ export async function isOrgMember(
 ): Promise<boolean> {
   const cached = getCachedMembership(login);
   if (cached && now - Date.parse(cached.checked_at) < TTL_MS) {
-    return cached.is_member === 1;
+    return cached.is_member;
   }
   const result = await fetchOrgMembership(SEED_ORG, login);
-  if (result === null) return cached ? cached.is_member === 1 : false;
+  if (result === null) return cached ? cached.is_member : false;
   setCachedMembership(login, result, new Date(now).toISOString());
   return result;
 }

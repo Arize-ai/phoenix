@@ -1,1 +1,0 @@
-ALTER TABLE `items` ADD `author_is_team` integer DEFAULT 0 NOT NULL;

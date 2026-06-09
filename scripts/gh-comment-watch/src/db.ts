@@ -7,6 +7,7 @@ import {
   count,
   desc,
   eq,
+  inArray,
   like,
   or,
   sql,
@@ -15,8 +16,15 @@ import {
 import { drizzle } from "drizzle-orm/better-sqlite3";
 
 import { DB_FILE_NAME } from "./config.ts";
-import { items, memberCache, meta } from "./schema.ts";
-import type { ItemRow } from "./types.ts";
+import {
+  itemLabels,
+  itemReactions,
+  items,
+  meta,
+  orgMembershipCache,
+  teamMembers,
+} from "./schema.ts";
+import type { ItemInput, ItemView, ThreadType } from "./types.ts";
 
 fs.mkdirSync(path.dirname(DB_FILE_NAME), { recursive: true });
 
@@ -26,88 +34,147 @@ sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle({
   client: sqlite,
-  schema: { items, memberCache, meta },
+  schema: {
+    items,
+    itemLabels,
+    itemReactions,
+    teamMembers,
+    orgMembershipCache,
+    meta,
+  },
 });
 
-export function upsertItem(row: ItemRow): void {
-  void db
-    .insert(items)
-    .values(row)
-    .onConflictDoUpdate({
-      target: items.uid,
-      set: {
-        repo: row.repo,
-        number: row.number,
-        type: row.type,
-        title: row.title,
-        state: row.state,
-        html_url: row.html_url,
-        author: row.author,
-        author_is_team: row.author_is_team,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        closed_at: row.closed_at,
-        comments_count: row.comments_count,
-        labels: row.labels,
-        needs_attention: row.needs_attention,
-        reason: row.reason,
-        last_actor: row.last_actor,
-        last_actor_is_team: row.last_actor_is_team,
-        last_actor_is_bot: row.last_actor_is_bot,
-        last_actor_is_org_member: row.last_actor_is_org_member,
-        last_entry_at: row.last_entry_at,
-        last_entry_url: row.last_entry_url,
-        last_entry_excerpt: row.last_entry_excerpt,
-        last_entry_kind: row.last_entry_kind,
-        synced_at: row.synced_at,
-      },
-    })
-    .run();
+/** Replace the team allowlist (logins stored lowercased for case-insensitive joins). */
+export function seedTeamMembers(logins: Iterable<string>): void {
+  db.transaction((tx) => {
+    tx.delete(teamMembers).run();
+    const rows = [...new Set([...logins].map((l) => l.toLowerCase()))].map(
+      (login) => ({ login })
+    );
+    if (rows.length) tx.insert(teamMembers).values(rows).run();
+  });
 }
 
 /**
- * Drop rows not touched by a full baseline sync (closed or aged out). Every row
- * seen this run has synced_at == syncedAt, so older rows weren't returned.
+ * Insert or update a thread and replace its labels/reactions in one transaction.
+ * The personal-queue flags (`assigned_to_me`, `review_requested_from_me`) are
+ * owned by `setPersonalFlags`, so they're set only on insert and preserved on
+ * conflict.
+ */
+export function upsertItem(input: ItemInput): void {
+  db.transaction((tx) => {
+    const row = tx
+      .insert(items)
+      .values({
+        repo: input.repo,
+        type: input.type,
+        number: input.number,
+        title: input.title,
+        html_url: input.html_url,
+        author: input.author,
+        created_at: input.created_at,
+        updated_at: input.updated_at,
+        needs_attention: input.needs_attention,
+        reason: input.reason,
+        last_actor: input.last_actor,
+        last_actor_is_bot: input.last_actor_is_bot,
+        last_actor_is_org_member: input.last_actor_is_org_member,
+        last_entry_at: input.last_entry_at,
+        last_entry_url: input.last_entry_url,
+        last_entry_excerpt: input.last_entry_excerpt,
+        has_assignee: input.has_assignee,
+        assigned_to_me: false,
+        review_requested_from_me: false,
+        synced_at: input.synced_at,
+      })
+      .onConflictDoUpdate({
+        target: [items.repo, items.type, items.number],
+        set: {
+          title: input.title,
+          html_url: input.html_url,
+          author: input.author,
+          created_at: input.created_at,
+          updated_at: input.updated_at,
+          needs_attention: input.needs_attention,
+          reason: input.reason,
+          last_actor: input.last_actor,
+          last_actor_is_bot: input.last_actor_is_bot,
+          last_actor_is_org_member: input.last_actor_is_org_member,
+          last_entry_at: input.last_entry_at,
+          last_entry_url: input.last_entry_url,
+          last_entry_excerpt: input.last_entry_excerpt,
+          has_assignee: input.has_assignee,
+          synced_at: input.synced_at,
+        },
+      })
+      .returning({ id: items.id })
+      .get();
+
+    const id = row.id;
+    tx.delete(itemLabels).where(eq(itemLabels.item_id, id)).run();
+    const labelRows = [...new Set(input.labels)].map((label) => ({
+      item_id: id,
+      label,
+    }));
+    if (labelRows.length) tx.insert(itemLabels).values(labelRows).run();
+
+    tx.delete(itemReactions).where(eq(itemReactions.item_id, id)).run();
+    const reactionRows = Object.entries(input.reactions)
+      .filter(([, n]) => n > 0)
+      .map(([emoji, n]) => ({ item_id: id, emoji, count: n }));
+    if (reactionRows.length)
+      tx.insert(itemReactions).values(reactionRows).run();
+  });
+}
+
+/**
+ * Drop rows not touched by a full baseline sync (closed or aged out). Child
+ * rows go with them via ON DELETE CASCADE.
  */
 export function pruneItems(syncedAt: string): void {
-  void db
-    .delete(items)
+  db.delete(items)
     .where(sql`${items.synced_at} < ${syncedAt}`)
     .run();
 }
 
-/** Remove a single tracked item by uid (e.g. it was closed since last sync). */
-export function deleteItem(uid: string): void {
-  void db.delete(items).where(eq(items.uid, uid)).run();
+/** Remove a single tracked thread by its natural key (e.g. it was just closed). */
+export function deleteItem(
+  repo: string,
+  type: ThreadType,
+  number: number
+): void {
+  db.delete(items)
+    .where(
+      and(eq(items.repo, repo), eq(items.type, type), eq(items.number, number))
+    )
+    .run();
 }
 
 /**
  * Replace the personal-queue flags wholesale from the latest search results:
- * clear everything, then mark the assigned/review-requested uids. One
- * transaction so a reader never sees a half-cleared state. Uids not currently
- * tracked simply no-op (they'll get the flag once triage adds the row).
+ * clear everything, then mark the matching issues/PRs. Matched by (repo, number)
+ * — unique across issues and PRs — restricted to non-discussion rows. One
+ * transaction so a reader never sees a half-cleared state.
  */
 export function setPersonalFlags(
-  assignedUids: string[],
-  reviewUids: string[]
+  assigned: Array<{ repo: string; number: number }>,
+  review: Array<{ repo: string; number: number }>
 ): void {
+  const issueLike = inArray(items.type, ["issue", "pr"]);
   db.transaction((tx) => {
-    void tx
-      .update(items)
-      .set({ assigned_to_me: 0, review_requested_from_me: 0 })
+    tx.update(items)
+      .set({ assigned_to_me: false, review_requested_from_me: false })
       .run();
-    for (const uid of assignedUids) {
-      void tx
-        .update(items)
-        .set({ assigned_to_me: 1 })
-        .where(eq(items.uid, uid))
+    for (const { repo, number } of assigned) {
+      tx.update(items)
+        .set({ assigned_to_me: true })
+        .where(and(eq(items.repo, repo), eq(items.number, number), issueLike))
         .run();
     }
-    for (const uid of reviewUids) {
-      void tx
-        .update(items)
-        .set({ review_requested_from_me: 1 })
-        .where(eq(items.uid, uid))
+    for (const { repo, number } of review) {
+      tx.update(items)
+        .set({ review_requested_from_me: true })
+        .where(and(eq(items.repo, repo), eq(items.number, number), issueLike))
         .run();
     }
   });
@@ -115,14 +182,14 @@ export function setPersonalFlags(
 
 export function getCachedMembership(
   login: string
-): { is_member: number; checked_at: string } | undefined {
+): { is_member: boolean; checked_at: string } | undefined {
   return db
     .select({
-      is_member: memberCache.is_member,
-      checked_at: memberCache.checked_at,
+      is_member: orgMembershipCache.is_member,
+      checked_at: orgMembershipCache.checked_at,
     })
-    .from(memberCache)
-    .where(eq(memberCache.login, login.toLowerCase()))
+    .from(orgMembershipCache)
+    .where(eq(orgMembershipCache.login, login.toLowerCase()))
     .get();
 }
 
@@ -131,16 +198,15 @@ export function setCachedMembership(
   isMember: boolean,
   checkedAt: string
 ): void {
-  void db
-    .insert(memberCache)
+  db.insert(orgMembershipCache)
     .values({
       login: login.toLowerCase(),
-      is_member: isMember ? 1 : 0,
+      is_member: isMember,
       checked_at: checkedAt,
     })
     .onConflictDoUpdate({
-      target: memberCache.login,
-      set: { is_member: isMember ? 1 : 0, checked_at: checkedAt },
+      target: orgMembershipCache.login,
+      set: { is_member: isMember, checked_at: checkedAt },
     })
     .run();
 }
@@ -155,8 +221,7 @@ export function getMeta(key: string): string | null {
 }
 
 export function setMeta(key: string, value: string): void {
-  void db
-    .insert(meta)
+  db.insert(meta)
     .values({ key, value })
     .onConflictDoUpdate({ target: meta.key, set: { value } })
     .run();
@@ -164,26 +229,33 @@ export function setMeta(key: string, value: string): void {
 
 export interface ItemQuery {
   filter?: "needs" | "all";
-  type?: "issue" | "pr" | "discussion" | "all";
+  type?: ThreadType | "all";
   repo?: string; // "owner/repo" or "all"
   q?: string;
   sort?: "oldest" | "newest";
   mine?: "all" | "assigned" | "review"; // personal queue; overrides `filter`
   excludeTeamAuthored?: boolean; // hide threads opened by a team member
+  excludeAssigned?: boolean; // hide issues/PRs that already have an assignee
 }
 
-export function queryItems(opts: ItemQuery): ItemRow[] {
+/** A thread the author is NOT on the team allowlist (null author counts as outside). */
+const authorIsOutside: SQL = sql`(${items.author} is null or lower(${items.author}) not in (select ${teamMembers.login} from ${teamMembers}))`;
+
+export function queryItems(opts: ItemQuery): ItemView[] {
   const where: SQL[] = [];
   if (opts.mine === "assigned") {
-    where.push(eq(items.assigned_to_me, 1));
+    where.push(eq(items.assigned_to_me, true));
   } else if (opts.mine === "review") {
-    where.push(eq(items.review_requested_from_me, 1));
+    where.push(eq(items.review_requested_from_me, true));
   } else if (opts.mine === "all") {
     where.push(
-      or(eq(items.assigned_to_me, 1), eq(items.review_requested_from_me, 1))!
+      or(
+        eq(items.assigned_to_me, true),
+        eq(items.review_requested_from_me, true)
+      )!
     );
   } else if (opts.filter !== "all") {
-    where.push(eq(items.needs_attention, 1));
+    where.push(eq(items.needs_attention, true));
   }
   if (opts.type && opts.type !== "all") {
     where.push(eq(items.type, opts.type));
@@ -192,20 +264,23 @@ export function queryItems(opts: ItemQuery): ItemRow[] {
     where.push(eq(items.repo, opts.repo));
   }
   if (opts.excludeTeamAuthored) {
-    where.push(eq(items.author_is_team, 0));
+    where.push(authorIsOutside);
+  }
+  if (opts.excludeAssigned) {
+    where.push(eq(items.has_assignee, false));
   }
   if (opts.q) {
-    const searchPattern = `%${opts.q}%`;
+    const pattern = `%${opts.q}%`;
     where.push(
       or(
-        like(items.title, searchPattern),
-        like(items.author, searchPattern),
-        like(items.last_actor, searchPattern),
+        like(items.title, pattern),
+        like(items.author, pattern),
+        like(items.last_actor, pattern),
         eq(items.number, Number(opts.q) || -1)
       )!
     );
   }
-  return db
+  const rows = db
     .select()
     .from(items)
     .where(where.length ? and(...where) : undefined)
@@ -215,6 +290,38 @@ export function queryItems(opts: ItemQuery): ItemRow[] {
         : asc(items.last_entry_at)
     )
     .all();
+  return attachChildren(rows);
+}
+
+/** Fetch labels/reactions for a set of items in two queries and stitch them in. */
+function attachChildren(rows: (typeof items.$inferSelect)[]): ItemView[] {
+  if (rows.length === 0) return [];
+  const ids = rows.map((r) => r.id);
+  const labelsByItem = new Map<number, string[]>();
+  for (const l of db
+    .select()
+    .from(itemLabels)
+    .where(inArray(itemLabels.item_id, ids))
+    .all()) {
+    const list = labelsByItem.get(l.item_id);
+    if (list) list.push(l.label);
+    else labelsByItem.set(l.item_id, [l.label]);
+  }
+  const reactionsByItem = new Map<number, Record<string, number>>();
+  for (const r of db
+    .select()
+    .from(itemReactions)
+    .where(inArray(itemReactions.item_id, ids))
+    .all()) {
+    const map = reactionsByItem.get(r.item_id) ?? {};
+    map[r.emoji] = r.count;
+    reactionsByItem.set(r.item_id, map);
+  }
+  return rows.map((r) => ({
+    ...r,
+    labels: labelsByItem.get(r.id) ?? [],
+    reactions: reactionsByItem.get(r.id) ?? {},
+  }));
 }
 
 export function counts(): { tracked: number; needs: number } {

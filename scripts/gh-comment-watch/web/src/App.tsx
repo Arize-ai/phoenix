@@ -42,6 +42,18 @@ function useStatusPolling() {
 // into threads last touched this many days ago or longer.
 const STALE_AFTER_DAYS = 3;
 
+// GitHub reaction keys (as stored in the `reactions` JSON) → emoji.
+const REACTION_EMOJI: Record<string, string> = {
+  "+1": "👍",
+  "-1": "👎",
+  laugh: "😄",
+  hooray: "🎉",
+  confused: "😕",
+  heart: "❤️",
+  rocket: "🚀",
+  eyes: "👀",
+};
+
 const TYPES: TypeFilter[] = ["all", "issue", "pr", "discussion"];
 const TABS: Tab[] = ["needs", "all", "mine"];
 const MINE_FILTERS: MineFilter[] = ["all", "assigned", "review"];
@@ -61,6 +73,7 @@ const DEFAULT_FILTERS: ItemFilters = {
   q: "",
   sort: "newest",
   excludeTeamAuthored: true,
+  excludeAssigned: false,
 };
 
 function errorMessage(err: unknown): string {
@@ -112,6 +125,8 @@ function parseQueryFilters(search: string): ItemFilters {
     sort,
     // Default-on; only an explicit "0" in the URL opts back into team-authored.
     excludeTeamAuthored: params.get("excludeTeamAuthored") !== "0",
+    // Default-off; an explicit "1" in the URL hides already-assigned threads.
+    excludeAssigned: params.get("excludeAssigned") === "1",
   };
 }
 
@@ -125,6 +140,9 @@ function stringifyQueryFilters(filters: ItemFilters): string {
   setQueryParam(params, "sort", filters.sort, DEFAULT_FILTERS.sort);
   if (filters.excludeTeamAuthored !== DEFAULT_FILTERS.excludeTeamAuthored) {
     params.set("excludeTeamAuthored", filters.excludeTeamAuthored ? "1" : "0");
+  }
+  if (filters.excludeAssigned !== DEFAULT_FILTERS.excludeAssigned) {
+    params.set("excludeAssigned", filters.excludeAssigned ? "1" : "0");
   }
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -162,7 +180,8 @@ export function App() {
   // If the chosen repo isn't actually monitored (the default before status
   // loads, or a changed REPOS), fall back to the first — derived, no effect.
   const repos = status?.repos ?? [];
-  const { tab, mine, type, q, sort, excludeTeamAuthored } = filters;
+  const { tab, mine, type, q, sort, excludeTeamAuthored, excludeAssigned } =
+    filters;
   const effectiveRepo =
     filters.repo === "all" || repos.length === 0 || repos.includes(filters.repo)
       ? filters.repo
@@ -242,6 +261,7 @@ export function App() {
           q,
           sort,
           excludeTeamAuthored,
+          excludeAssigned,
         });
         if (!cancelled) {
           setItems(r.items);
@@ -254,7 +274,17 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [tab, mine, type, effectiveRepo, q, sort, excludeTeamAuthored, reloadKey]);
+  }, [
+    tab,
+    mine,
+    type,
+    effectiveRepo,
+    q,
+    sort,
+    excludeTeamAuthored,
+    excludeAssigned,
+    reloadKey,
+  ]);
 
   useEffect(() => {
     if (wasSyncing.current && !remoteSyncing) setReloadKey((key) => key + 1);
@@ -336,70 +366,84 @@ export function App() {
           </div>
         )}
 
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          {tab === "mine" ? (
-            <Segmented
-              options={[
-                { v: "all", label: `All ${scoped.mine}` },
-                { v: "assigned", label: `Assigned ${scoped.assigned}` },
-                { v: "review", label: `Review ${scoped.review}` },
-              ]}
-              value={mine}
-              onChange={(value) => updateFilters({ mine: value as MineFilter })}
-            />
-          ) : (
-            <Segmented
-              options={TYPES.map((t) => ({ v: t, label: TYPE_LABEL[t] }))}
-              value={type}
-              onChange={(value) => updateFilters({ type: value as TypeFilter })}
-            />
-          )}
-          {status && status.repos.length > 1 && (
-            <Segmented
-              options={[
-                { v: "all", label: "All repos" },
-                ...status.repos.map((r) => ({
-                  v: r,
-                  label: r.split("/")[1] ?? r,
-                })),
-              ]}
-              value={effectiveRepo}
-              onChange={(value) => updateFilters({ repo: value })}
-            />
-          )}
-          <input
-            aria-label="Search title, author, or number"
-            className="rounded-lg bg-slate-800 px-3 py-2 text-sm ring-1 ring-white/10 outline-none focus:ring-sky-500"
-            placeholder="Search title / author / #"
-            value={q}
-            onChange={(event) => updateFilters({ q: event.target.value })}
-          />
-          {tab !== "mine" && (
-            <label
-              className="flex cursor-pointer items-center gap-2 text-sm text-slate-300 select-none"
-              title="Hide threads opened by a team member (e.g. our own issues/PRs)"
-            >
-              <input
-                type="checkbox"
-                className="accent-sky-500"
-                checked={excludeTeamAuthored}
-                onChange={(event) =>
-                  updateFilters({ excludeTeamAuthored: event.target.checked })
+        <div className="mb-4 space-y-3">
+          {/* Row 1 — what you're looking at: type/queue, repo, search, sort. */}
+          <div className="flex flex-wrap items-center gap-3">
+            {tab === "mine" ? (
+              <Segmented
+                options={[
+                  { v: "all", label: `All ${scoped.mine}` },
+                  { v: "assigned", label: `Assigned ${scoped.assigned}` },
+                  { v: "review", label: `Review ${scoped.review}` },
+                ]}
+                value={mine}
+                onChange={(value) =>
+                  updateFilters({ mine: value as MineFilter })
                 }
               />
-              Hide team-authored
-            </label>
+            ) : (
+              <Segmented
+                options={TYPES.map((t) => ({ v: t, label: TYPE_LABEL[t] }))}
+                value={type}
+                onChange={(value) =>
+                  updateFilters({ type: value as TypeFilter })
+                }
+              />
+            )}
+            {status && status.repos.length > 1 && (
+              <Segmented
+                options={[
+                  { v: "all", label: "All repos" },
+                  ...status.repos.map((r) => ({
+                    v: r,
+                    label: r.split("/")[1] ?? r,
+                  })),
+                ]}
+                value={effectiveRepo}
+                onChange={(value) => updateFilters({ repo: value })}
+              />
+            )}
+            <input
+              aria-label="Search title, author, or number"
+              className="w-full rounded-lg bg-slate-800 px-3 py-2 text-sm ring-1 ring-white/10 outline-none focus:ring-sky-500 sm:ml-auto sm:w-64"
+              placeholder="Search title / author / #"
+              value={q}
+              onChange={(event) => updateFilters({ q: event.target.value })}
+            />
+            <button
+              className="text-sm whitespace-nowrap text-slate-400 hover:text-slate-200"
+              onClick={() =>
+                updateFilters({
+                  sort: sort === "oldest" ? "newest" : "oldest",
+                })
+              }
+            >
+              Sort: {sort === "oldest" ? "oldest first" : "newest first"}
+            </button>
+          </div>
+
+          {/* Row 2 — refinements that hide noise (needs/all views only). */}
+          {tab !== "mine" && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/5 pt-3">
+              <span className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+                Hide
+              </span>
+              <CheckToggle
+                label="Team-authored"
+                title="Hide threads opened by a team member (e.g. our own issues/PRs)"
+                checked={excludeTeamAuthored}
+                onChange={(value) =>
+                  updateFilters({ excludeTeamAuthored: value })
+                }
+              />
+              <CheckToggle
+                label="Assigned"
+                title="Hide issues/PRs that already have an assignee (someone owns it)"
+                checked={excludeAssigned}
+                onChange={(value) => updateFilters({ excludeAssigned: value })}
+              />
+            </div>
           )}
-          <button
-            className="ml-auto text-sm text-slate-400 hover:text-slate-200"
-            onClick={() =>
-              updateFilters({
-                sort: sort === "oldest" ? "newest" : "oldest",
-              })
-            }
-          >
-            Sort: {sort === "oldest" ? "oldest first" : "newest first"}
-          </button>
         </div>
 
         <div className="space-y-2">
@@ -409,7 +453,7 @@ export function App() {
             </div>
           ) : (
             items.map((it, index) => (
-              <Fragment key={it.uid}>
+              <Fragment key={it.id}>
                 {index === staleBoundaryIndex && (
                   <DayDivider days={STALE_AFTER_DAYS} />
                 )}
@@ -493,6 +537,57 @@ function Segmented<T extends string>({
   );
 }
 
+function CheckToggle({
+  label,
+  title,
+  checked,
+  onChange,
+}: {
+  label: string;
+  title: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className="flex cursor-pointer items-center gap-2 text-sm text-slate-300 select-none hover:text-slate-100"
+      title={title}
+    >
+      <input
+        type="checkbox"
+        className="accent-sky-500"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      {label}
+    </label>
+  );
+}
+
+/** Outside-user reactions on the opening post, as emoji + count chips. */
+function Reactions({ counts }: { counts: Record<string, number> }) {
+  const entries = Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return null;
+  const total = entries.reduce((sum, [, n]) => sum + n, 0);
+  return (
+    <span
+      className="flex items-center gap-1"
+      title={`${total} reaction${total === 1 ? "" : "s"} from outside users`}
+    >
+      {entries.map(([key, n]) => (
+        <span
+          key={key}
+          className="rounded-full bg-slate-700/60 px-1.5 py-0.5 text-xs text-slate-200"
+        >
+          {REACTION_EMOJI[key] ?? key} {n}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function DayDivider({ days }: { days: number }) {
   return (
     <div
@@ -507,15 +602,9 @@ function DayDivider({ days }: { days: number }) {
 }
 
 function Row({ item }: { item: Item }) {
-  const labels: string[] = (() => {
-    try {
-      return JSON.parse(item.labels);
-    } catch {
-      return [];
-    }
-  })();
+  const labels = item.labels;
   const days = ageDays(item.last_entry_at);
-  const stale = item.needs_attention === 1 && days >= 7;
+  const stale = item.needs_attention && days >= 7;
 
   return (
     <div className="flex gap-4 rounded-xl bg-slate-800 px-5 py-4 ring-1 ring-white/5 hover:ring-white/15">
@@ -553,12 +642,12 @@ function Row({ item }: { item: Item }) {
         </div>
 
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-400">
-          {item.assigned_to_me === 1 && (
+          {item.assigned_to_me && (
             <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-300">
               Assigned to me
             </span>
           )}
-          {item.review_requested_from_me === 1 && (
+          {item.review_requested_from_me && (
             <span className="rounded bg-teal-500/20 px-2 py-0.5 text-xs font-medium text-teal-300">
               Review requested
             </span>
@@ -579,7 +668,7 @@ function Row({ item }: { item: Item }) {
           <span>
             <span className="text-slate-500">last </span>
             <span className="text-slate-300">{item.last_actor ?? "?"}</span>
-            {item.last_actor_is_org_member === 1 && (
+            {item.last_actor_is_org_member && (
               <span
                 className="ml-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-300"
                 title="Arize-ai org member, but not on the on-call team allowlist"
@@ -600,6 +689,7 @@ function Row({ item }: { item: Item }) {
               {l}
             </span>
           ))}
+          <Reactions counts={item.reactions} />
         </div>
 
         {item.last_entry_excerpt && (

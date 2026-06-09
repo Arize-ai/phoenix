@@ -15,17 +15,22 @@ import {
   upsertItem,
 } from "./db.ts";
 import { fetchDiscussions, triageDiscussion } from "./discussions.ts";
-import { listComments, listIssues, searchIssues } from "./github.ts";
+import {
+  listComments,
+  listIssueReactions,
+  listIssues,
+  searchIssues,
+} from "./github.ts";
 import { isOrgMember } from "./membership.ts";
 import { teamSet } from "./team.ts";
 import {
-  isTeam,
   orgMemberFlag,
+  tallyReactions,
   verdict,
   verdictFields,
   type Entry,
 } from "./triage.ts";
-import type { GhIssue, ItemRow, SyncStatus } from "./types.ts";
+import type { GhIssue, ItemInput, SyncStatus, ThreadType } from "./types.ts";
 
 const status: SyncStatus = {
   running: false,
@@ -46,8 +51,8 @@ async function triageIssue(
   issue: GhIssue,
   team: Set<string>,
   syncedAt: string
-): Promise<ItemRow> {
-  const type: "issue" | "pr" = issue.pull_request ? "pr" : "issue";
+): Promise<ItemInput> {
+  const type: ThreadType = issue.pull_request ? "pr" : "issue";
 
   const entries: Entry[] = [
     {
@@ -74,25 +79,35 @@ async function triageIssue(
     }
   }
 
+  // Reactions on the opening post signal demand, but only count outside users.
+  // Skip the extra request when GitHub's summary says there are none.
+  let reactions: Record<string, number> = {};
+  if ((issue.reactions?.total_count ?? 0) > 0) {
+    const reactors = await listIssueReactions(repo, issue.number);
+    reactions = tallyReactions(
+      reactors.map((r) => ({
+        key: r.content,
+        login: r.user?.login ?? null,
+        user: r.user,
+      })),
+      team
+    );
+  }
+
   const v = verdict(entries, team);
   const orgMember = await orgMemberFlag(v, isOrgMember);
   return {
-    uid: `${repo}#i${issue.number}`,
     repo,
     number: issue.number,
     type,
     title: issue.title,
-    state: issue.state,
     html_url: issue.html_url,
     author: issue.user?.login ?? null,
-    author_is_team: isTeam(issue.user?.login ?? null, team) ? 1 : 0,
     created_at: issue.created_at,
     updated_at: issue.updated_at,
-    closed_at: issue.closed_at,
-    comments_count: issue.comments,
-    labels: JSON.stringify((issue.labels ?? []).map((l) => l.name)),
-    assigned_to_me: 0, // set out-of-band by the personal-queue search
-    review_requested_from_me: 0,
+    labels: (issue.labels ?? []).map((l) => l.name),
+    reactions,
+    has_assignee: (issue.assignees?.length ?? 0) > 0,
     ...verdictFields(v, orgMember, syncedAt),
   };
 }
@@ -137,12 +152,11 @@ function isoMinus(iso: string, minutes: number): string {
  */
 async function syncPersonal(): Promise<void> {
   const repoQ = REPOS.map((r) => `repo:${r}`).join(" ");
-  const uid = (x: { repo: string; number: number }) => `${x.repo}#i${x.number}`;
   const assigned = await searchIssues(`is:open assignee:${VIEWER} ${repoQ}`);
   const review = await searchIssues(
     `is:open user-review-requested:${VIEWER} ${repoQ}`
   );
-  setPersonalFlags(assigned.map(uid), review.map(uid));
+  setPersonalFlags(assigned, review);
 }
 
 function isFullSyncDue(now: number): boolean {
@@ -223,7 +237,8 @@ export async function runSync({ full = false } = {}): Promise<SyncStatus> {
           // Advance the watermark for everything we see, including closures.
           maxIssues = maxIso(maxIssues, issue.updated_at);
           if (issue.state !== "open") {
-            deleteItem(`${repo}#i${issue.number}`); // closed/merged since last sync
+            // closed/merged since last sync
+            deleteItem(repo, issue.pull_request ? "pr" : "issue", issue.number);
             return;
           }
           upsertItem(await triageIssue(repo, issue, team, syncedAt));
@@ -249,7 +264,7 @@ export async function runSync({ full = false } = {}): Promise<SyncStatus> {
           try {
             maxDisc = maxIso(maxDisc, d.updatedAt);
             if (d.closed) {
-              deleteItem(`${repo}#d${d.number}`);
+              deleteItem(repo, "discussion", d.number);
               return;
             }
             upsertItem(await triageDiscussion(repo, d, team, syncedAt));

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { isTeam, orgMemberFlag, verdict, type Entry } from "./triage.ts";
+import {
+  isTeam,
+  orgMemberFlag,
+  tallyReactions,
+  verdict,
+  type Entry,
+} from "./triage.ts";
 import type { GhUser } from "./types.ts";
 
 const NOW = Date.now();
@@ -119,7 +125,7 @@ describe("orgMemberFlag", () => {
       team()
     );
     expect(v.needs).toBe(true);
-    expect(await orgMemberFlag(v, stubOrg)).toBe(1);
+    expect(await orgMemberFlag(v, stubOrg)).toBe(true);
   });
 
   it("does not flag a non-member outsider", async () => {
@@ -127,7 +133,7 @@ describe("orgMemberFlag", () => {
       [entry({ user: user("outsider"), kind: "body" })],
       team()
     );
-    expect(await orgMemberFlag(v, stubOrg)).toBe(0);
+    expect(await orgMemberFlag(v, stubOrg)).toBe(false);
   });
 
   it("skips the lookup when the team spoke last", async () => {
@@ -143,7 +149,7 @@ describe("orgMemberFlag", () => {
       called = true;
       return stubOrg(login);
     });
-    expect(flag).toBe(0);
+    expect(flag).toBe(false);
     expect(called).toBe(false);
   });
 });
@@ -154,5 +160,30 @@ describe("isTeam", () => {
     expect(isTeam("Maintainer", t)).toBe(true);
     expect(isTeam("outsider", t)).toBe(false);
     expect(isTeam(null, t)).toBe(false);
+  });
+});
+
+describe("tallyReactions", () => {
+  it("counts only outside reactors, excluding team, bots, and dosubot", () => {
+    const counts = tallyReactions(
+      [
+        { key: "+1", login: "outsider1", user: user("outsider1") },
+        { key: "+1", login: "outsider2", user: user("outsider2") },
+        { key: "heart", login: "outsider1", user: user("outsider1") },
+        { key: "+1", login: "maintainer", user: user("maintainer") }, // team
+        { key: "+1", login: "dosubot[bot]", user: user("dosubot[bot]", "Bot") },
+        { key: "+1", login: "dosubot", user: user("dosubot") }, // bare login
+      ],
+      team()
+    );
+    expect(counts).toEqual({ "+1": 2, heart: 1 });
+  });
+
+  it("returns an empty object when only team/bots reacted", () => {
+    const counts = tallyReactions(
+      [{ key: "+1", login: "maintainer", user: user("maintainer") }],
+      team()
+    );
+    expect(counts).toEqual({});
   });
 });
