@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.skills import get_skills, get_skills_for_contexts
 
 
-def _names(skills: list[object]) -> list[str]:
+def _names(skills: Iterable[object]) -> list[str]:
     return [getattr(skill, "name") for skill in skills]
 
 
