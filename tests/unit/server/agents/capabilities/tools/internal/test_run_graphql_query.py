@@ -1,4 +1,4 @@
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Optional, Protocol
 from unittest.mock import Mock
 
 import pytest
@@ -13,7 +13,11 @@ from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import 
 )
 from phoenix.server.api.context import Context
 
-CallRunGraphQLQuery = Callable[[str, Optional[dict[str, Any]]], Awaitable[Any]]
+
+class CallRunGraphQLQuery(Protocol):
+    def __call__(
+        self, query: str, variable_values: Optional[dict[str, Any]] = None
+    ) -> Awaitable[Any]: ...
 
 
 @strawberry.type
