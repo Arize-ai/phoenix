@@ -3,7 +3,10 @@ import type { ChatStatus } from "ai";
 import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
-import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import {
+  buildAgentChatRequestBody,
+  type AgentChatRequestBodyPatch,
+} from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
@@ -406,7 +409,7 @@ export function useAgentChat({
     messages: AgentUIMessage[];
     sendMessage: (
       message: { text: string },
-      options?: { body?: Record<string, unknown> }
+      options?: { body?: AgentChatRequestBodyPatch }
     ) => void;
     stop: () => Promise<void>;
     status: ChatStatus;

@@ -2,8 +2,8 @@ import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
 
-import type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
 import { SkillMenu } from "@phoenix/components/agent/SkillMenu";
+import type { AvailableAgentSkill } from "@phoenix/components/agent/useAvailableAgentSkills";
 
 const containerCSS = css`
   position: relative;

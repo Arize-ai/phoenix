@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import { useState } from "react";
 
-import type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
 import { parseRequestedSkills } from "@phoenix/agent/skills/requestedSkills";
 import {
   PromptInput,
@@ -18,6 +17,7 @@ import { AgentContextPills } from "./AgentContextPills";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { AgentWebSearchToggle } from "./AgentWebSearchToggle";
 import { SkillPromptInputBoundary } from "./SkillPromptInputBoundary";
+import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 
 const agentChatInputCSS = css`
   .agent-chat-input__prompt-stack {

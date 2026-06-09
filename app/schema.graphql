@@ -90,7 +90,7 @@ type AgentSkill {
   """The model-facing trigger guidance shown to the assistant."""
   description: String!
 
-  """The user-facing menu description for this skill."""
+  """The user-facing menu summary for this skill."""
   summary: String!
 }
 

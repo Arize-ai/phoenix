@@ -14,7 +14,7 @@ import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
-  body: Record<string, unknown> | undefined;
+  body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
   /** Full UI message history sent with the request. */
@@ -37,6 +37,11 @@ type BuildAgentChatRequestBodyOptions = {
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
+
+export type AgentChatRequestBodyPatch = Pick<
+  BuildAgentChatRequestBodyResult,
+  "requestedSkills"
+>;
 
 /**
  * Build request-only browser clock context for resolving relative time phrases.

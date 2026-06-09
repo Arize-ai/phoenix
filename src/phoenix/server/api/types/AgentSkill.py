@@ -17,5 +17,5 @@ class AgentSkill:
         description="The model-facing trigger guidance shown to the assistant.",
     )
     summary: str = strawberry.field(
-        description="The user-facing menu description for this skill.",
+        description="The user-facing menu summary for this skill.",
     )

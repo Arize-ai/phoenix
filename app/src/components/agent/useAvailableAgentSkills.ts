@@ -1,15 +1,36 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
-import {
-  buildAvailableAgentSkillsInput,
-  type AvailableAgentSkill,
-} from "@phoenix/agent/skills/availability";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import type { useAvailableAgentSkillsQuery } from "./__generated__/useAvailableAgentSkillsQuery.graphql";
 
-export type { AvailableAgentSkill } from "@phoenix/agent/skills/availability";
+export type AvailableAgentSkill = {
+  name: string;
+  description: string;
+  summary: string;
+};
+
+type AvailableAgentSkillsInput = {
+  hasPlaygroundContext: boolean;
+  hasDatasetContext: boolean;
+  hasLlmEvaluatorContext: boolean;
+};
+
+function buildAvailableAgentSkillsInput(
+  contexts: readonly AgentContext[]
+): AvailableAgentSkillsInput {
+  return {
+    hasPlaygroundContext: contexts.some(
+      (context) => context.type === "playground"
+    ),
+    hasDatasetContext: contexts.some((context) => context.type === "dataset"),
+    hasLlmEvaluatorContext: contexts.some(
+      (context) => context.type === "llm_evaluator"
+    ),
+  };
+}
 
 /**
  * Load the assistant skills available for the current UI context.
