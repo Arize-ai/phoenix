@@ -3,6 +3,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_definition,
     load_dataset,
     set_appended_messages_path,
+    set_playground_experiment_recording,
     set_template_variables_path,
 )
 from phoenix.server.agents.prompts import AgentPrompts
@@ -79,6 +80,24 @@ def test_set_appended_messages_path_parameters_expose_only_nullable_required_pat
     assert schema["required"] == ["path"]
     assert schema["additionalProperties"] is False
     assert schema["properties"]["path"]["type"] == ["string", "null"]
+
+
+def test_set_playground_experiment_recording_instructions_expose_persistence_guidance() -> None:
+    rendered = AgentPrompts().set_playground_experiment_recording_tool.render()
+
+    assert '<tool name="set_playground_experiment_recording">' in rendered
+    assert "run_playground" in rendered
+    assert "save_prompt" in rendered
+
+
+def test_set_playground_experiment_recording_parameters_expose_recording_flag() -> None:
+    schema = set_playground_experiment_recording.TOOL_DEFINITION.parameters_json_schema
+
+    assert set_playground_experiment_recording.NAME == "set_playground_experiment_recording"
+    assert set(schema["properties"]) == {"recordExperiments"}
+    assert schema["required"] == ["recordExperiments"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["recordExperiments"]["type"] == "boolean"
 
 
 def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> None:

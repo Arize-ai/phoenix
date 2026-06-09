@@ -1,0 +1,15 @@
+<tool name="set_playground_experiment_recording">
+  <description>Set whether future dataset-backed playground runs are recorded as persistent experiments.</description>
+  <when_to_use>
+    - The user asks to record, persist, keep, or save the next playground run as an experiment.
+    - Before `run_playground` when the user is running over a dataset and wants experiment results to remain available for comparison.
+    - The user asks for a temporary, throwaway, unrecorded, or ephemeral dataset-backed run.
+  </when_to_use>
+  <guidelines>
+    - Use the current playground context's `recordExperiments` value before calling this tool. If it already matches the user's requested persistence mode, do not call this tool; call `run_playground` directly when the user asked to run.
+    - Set `recordExperiments` to true before `run_playground` only when the current value is false and the user wants the run recorded as an experiment.
+    - Set `recordExperiments` to false before `run_playground` only when the current value is true and the user explicitly asks for a temporary or unrecorded run.
+    - Changing experiment recording after a run starts is not allowed; wait for the run to finish or ask whether to stop it with `cancel_playground_run`.
+    - This only controls dataset-backed playground run persistence. It does not save prompt versions; use `save_prompt` only when the user asks to save the prompt itself.
+  </guidelines>
+</tool>

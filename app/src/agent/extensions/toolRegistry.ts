@@ -29,6 +29,7 @@ import {
   testLlmEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { setAppendedMessagesPathAgentTool } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
+import { setPlaygroundExperimentRecordingAgentTool } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { loadDatasetAgentTool } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   listPlaygroundModelTargetsAgentTool,
@@ -86,6 +87,7 @@ const clientActionTools: AgentToolDefinition[] = [
   cancelPlaygroundRunAgentTool,
   readPlaygroundOutputAgentTool,
   setVariableValuesAgentTool,
+  setPlaygroundExperimentRecordingAgentTool,
   setTemplateVariablesPathAgentTool,
   setAppendedMessagesPathAgentTool,
   openCodeEvaluatorFormAgentTool,

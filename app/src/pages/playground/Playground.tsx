@@ -36,6 +36,10 @@ import {
   SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
 import {
+  createSetPlaygroundExperimentRecordingClientAction,
+  SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundExperimentRecording";
+import {
   createLoadDatasetClientAction,
   LOAD_DATASET_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundLoadDataset";
@@ -347,6 +351,9 @@ function PlaygroundContent() {
   const anyDirtyPromptInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
   );
+  const recordExperiments = usePlaygroundContext(
+    (state) => state.recordExperiments
+  );
   const playgroundInstancesForAgent = usePlaygroundContext(
     (state) =>
       state.instances.map((instance) =>
@@ -374,9 +381,10 @@ function PlaygroundContent() {
   const advertisedPlaygroundContext = useMemo(
     () =>
       buildPlaygroundAgentContext({
+        recordExperiments,
         instances: playgroundInstancesForAgent,
       }),
-    [playgroundInstancesForAgent]
+    [playgroundInstancesForAgent, recordExperiments]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 
@@ -455,6 +463,10 @@ function PlaygroundContent() {
       createSetVariableValuesClientAction({ playgroundStore })
     );
     registerClientAction(
+      SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+      createSetPlaygroundExperimentRecordingClientAction({ playgroundStore })
+    );
+    registerClientAction(
       SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
       createSetTemplateVariablesPathClientAction({
         playgroundStore,
@@ -502,6 +514,7 @@ function PlaygroundContent() {
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
+      unregisterClientAction(SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME);
       unregisterClientAction(SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME);
       unregisterClientAction(LOAD_DATASET_TOOL_NAME);
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);

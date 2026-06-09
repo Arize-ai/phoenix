@@ -11135,6 +11135,11 @@
             "const": "playground",
             "title": "Type"
           },
+          "recordExperiments": {
+            "type": "boolean",
+            "title": "Recordexperiments",
+            "default": true
+          },
           "instances": {
             "items": {
               "$ref": "#/components/schemas/PlaygroundInstanceContext"

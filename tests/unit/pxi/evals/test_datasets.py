@@ -297,6 +297,18 @@ examples:
         assert "in_app_links_valid" in dataset.evaluators
         assert "tool_call_args_match" in dataset.evaluators
 
+    def test_loads_playground_experiment_recording_dataset(self) -> None:
+        dataset = load_dataset("playground_experiment_recording")
+        assert dataset.dataset_name == "playground_experiment_recording"
+        assert len(dataset.examples) == 6
+        assert dataset.evaluators == [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ]
+        assert any(example["id"] == "record-next-run" for example in dataset.examples)
+        assert any(example["id"] == "save-prompt-not-run" for example in dataset.examples)
+
     def test_save_prompt_dataset_requires_descriptions_for_save_calls(self) -> None:
         dataset = load_dataset("save_prompt")
         assert dataset.dataset_name == "save_prompt"

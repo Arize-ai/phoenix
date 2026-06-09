@@ -35,6 +35,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     run_playground,
     save_prompt,
     set_appended_messages_path,
+    set_playground_experiment_recording,
     set_playground_model,
     set_spans_filter,
     set_template_variables_path,
@@ -116,6 +117,9 @@ from phoenix.server.agents.capabilities.tools.external.save_prompt import SavePr
 from phoenix.server.agents.capabilities.tools.external.set_appended_messages_path import (
     SetAppendedMessagesPathCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.set_playground_experiment_recording import (
+    SetPlaygroundExperimentRecordingCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.set_playground_model import (
     SetPlaygroundModelCapability,
 )
@@ -174,6 +178,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         run_playground.TOOL_DEFINITION,
         save_prompt.TOOL_DEFINITION,
         set_appended_messages_path.TOOL_DEFINITION,
+        set_playground_experiment_recording.TOOL_DEFINITION,
         set_playground_model.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_template_variables_path.TOOL_DEFINITION,
@@ -223,6 +228,9 @@ def get_external_tool_capability_function(
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         CancelPlaygroundRunCapability(instructions=prompts.cancel_playground_run_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
+        SetPlaygroundExperimentRecordingCapability(
+            instructions=prompts.set_playground_experiment_recording_tool
+        ),
         SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
         SetAppendedMessagesPathCapability(instructions=prompts.set_appended_messages_path_tool),
         LoadDatasetCapability(instructions=prompts.load_dataset_tool),
@@ -270,6 +278,7 @@ __all__ = [
     "RunPlaygroundCapability",
     "SavePromptCapability",
     "SetAppendedMessagesPathCapability",
+    "SetPlaygroundExperimentRecordingCapability",
     "SetPlaygroundModelCapability",
     "SetSpansFilterCapability",
     "SetTemplateVariablesPathCapability",
