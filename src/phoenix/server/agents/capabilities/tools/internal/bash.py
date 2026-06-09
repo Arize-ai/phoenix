@@ -5,12 +5,11 @@ network) and exposes a custom ``phoenix-gql`` binary that executes read-only
 GraphQL against the Strawberry schema in-process. The agent can therefore run
 GraphQL and pipe the JSON result through sandbox tools such as ``jq``.
 
-The virtual filesystem is persisted per session via a ``BashFilesystemStore``
-(a ``{session_id: InMemoryFs}`` map held on ``app.state``), so files written
-under the workspace survive across conversation turns within a session. Only the
-filesystem is reused across requests; a fresh ``Bash`` runtime — and a freshly
-bound ``phoenix-gql`` (so it uses the current request's GraphQL context/auth) —
-is built around it on each agent build.
+The virtual filesystem is created fresh for each ``BashToolset`` (i.e. each agent
+build). Because a new server agent is built per ``call_subagent`` invocation, the
+filesystem is effectively scoped to a single sub-agent invocation: files written
+under the workspace persist across the bash calls within that invocation, but not
+across separate invocations.
 
 just-bash requires Python >= 3.11. On older interpreters (Phoenix still supports
 3.10) the package is absent; :func:`bash_tool_available` reports this so callers
@@ -32,10 +31,6 @@ from phoenix.server.api.context import Context
 
 if TYPE_CHECKING:
     from just_bash import Bash, InMemoryFs
-
-    #: Process-global, session-keyed store of virtual filesystems. Created once on
-    #: ``app.state`` and shared across requests so each session keeps its files.
-    BashFilesystemStore = dict[str, InMemoryFs]
 
 NAME = "bash"
 
@@ -65,7 +60,7 @@ def bash_tool_available() -> bool:
     return importlib.util.find_spec("just_bash") is not None
 
 
-def _new_session_filesystem() -> InMemoryFs:
+def _new_filesystem() -> InMemoryFs:
     """Create a fresh in-memory filesystem seeded with the scratch workspace.
 
     Lazy ``just_bash`` import so this module loads without the package installed.
@@ -73,22 +68,6 @@ def _new_session_filesystem() -> InMemoryFs:
     from just_bash import InMemoryFs
 
     return InMemoryFs(initial_files={f"{WORKSPACE_ROOT}/.keep": ""})
-
-
-def get_or_create_session_filesystem(
-    store: "BashFilesystemStore",
-    session_id: str,
-) -> InMemoryFs:
-    """Return the session's filesystem, creating and registering it on first use.
-
-    Reusing the same ``InMemoryFs`` across requests is what makes workspace files
-    persist across conversation turns within a session.
-    """
-    fs = store.get(session_id)
-    if fs is None:
-        fs = _new_session_filesystem()
-        store[session_id] = fs
-    return fs
 
 
 def _build_runtime(
@@ -99,9 +78,7 @@ def _build_runtime(
 ) -> Bash:
     """Construct a just-bash runtime around ``filesystem`` with ``phoenix-gql``.
 
-    A new runtime is built per agent build, but it wraps the (possibly persisted)
-    ``filesystem`` so workspace files carry over. Built lazily so this module
-    imports cleanly without ``just-bash`` installed.
+    Built lazily so this module imports cleanly without ``just-bash`` installed.
     """
     from just_bash import Bash
     from just_bash.commands.registry import create_command_registry
@@ -151,10 +128,9 @@ def _truncate(text: str) -> str:
 class BashToolset(FunctionToolset[None]):
     """Toolset exposing a single networkless ``bash`` tool to the server agent.
 
-    The runtime is built once per toolset and reused across calls within an agent
-    run. When ``filesystem`` is provided (the per-session ``InMemoryFs``), files
-    also persist across runs/requests that share it; otherwise a fresh,
-    transient filesystem is created for this toolset only.
+    A fresh filesystem and runtime are created per toolset and reused across bash
+    calls within an agent run, so workspace files persist for the lifetime of that
+    sub-agent invocation. Pass ``filesystem`` to reuse an existing one (e.g. tests).
     """
 
     def __init__(
@@ -167,7 +143,7 @@ class BashToolset(FunctionToolset[None]):
         runtime = _build_runtime(
             schema=schema,
             build_graphql_context=build_graphql_context,
-            filesystem=filesystem if filesystem is not None else _new_session_filesystem(),
+            filesystem=filesystem if filesystem is not None else _new_filesystem(),
         )
 
         async def bash(command: str, summary: str) -> str:
@@ -181,35 +157,21 @@ class BashToolset(FunctionToolset[None]):
 class BashCapability(AbstractStaticCapability[None]):
     """Capability that adds the networkless ``bash`` tool to an agent.
 
-    When ``session_id`` and ``filesystem_store`` are both supplied, the tool's
-    virtual filesystem is fetched from (or created in) the store, so it persists
-    across conversation turns within that session. Otherwise each agent build
-    gets a fresh, transient filesystem.
+    Each agent build gets its own virtual filesystem (see :class:`BashToolset`).
     """
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]
     instructions: str
-    session_id: Optional[str] = None
-    filesystem_store: Optional["BashFilesystemStore"] = None
 
     def get_toolset(self) -> AgentToolset[None] | None:
-        filesystem: Optional[InMemoryFs] = None
-        if self.filesystem_store is not None and self.session_id is not None:
-            filesystem = get_or_create_session_filesystem(self.filesystem_store, self.session_id)
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
-            filesystem=filesystem,
         )
 
     def get_static_instructions(self) -> str:
         return self.instructions
 
 
-__all__ = [
-    "BashCapability",
-    "BashToolset",
-    "bash_tool_available",
-    "get_or_create_session_filesystem",
-]
+__all__ = ["BashCapability", "BashToolset", "bash_tool_available"]
