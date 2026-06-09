@@ -8,9 +8,11 @@ import strawberry
 from pydantic_ai import ModelRetry, Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.schema.exceptions import InvalidOperationTypeError
-from strawberry.types.graphql import OperationType
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.capabilities.tools.internal.networkless_graphql import (
+    execute_networkless_query,
+)
 from phoenix.server.api.context import Context
 
 RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION = """\
@@ -56,11 +58,11 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
         ) -> dict[str, Any]:
             context = build_graphql_context()
             try:
-                result = await schema.execute(
-                    query,
+                result = await execute_networkless_query(
+                    schema=schema,
+                    context=context,
+                    query=query,
                     variable_values=variable_values,
-                    context_value=context,
-                    allowed_operation_types={OperationType.QUERY},
                 )
             except InvalidOperationTypeError as error:
                 raise ModelRetry(

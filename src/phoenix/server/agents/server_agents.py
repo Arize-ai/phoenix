@@ -12,6 +12,10 @@ from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 
 from phoenix.server.agents.capabilities import MintlifyDocsMCPCapability
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BashCapability,
+    bash_tool_available,
+)
 from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
     RunGraphQLQueryCapability,
 )
@@ -56,6 +60,14 @@ def build_server_agent(
             instructions=resolved_prompts.run_graphql_query_tool.render(),
         ),
     ]
+    if bash_tool_available():
+        capabilities.append(
+            BashCapability(
+                schema=schema,
+                build_graphql_context=build_graphql_context,
+                instructions=resolved_prompts.bash_tool.render(),
+            )
+        )
     if docs_mcp_server is not None:
         capabilities.append(
             MintlifyDocsMCPCapability(

@@ -1,0 +1,12 @@
+<tool name="bash">
+  <description>Run a shell command in a networkless, in-memory just-bash virtual filesystem. Use it to run GraphQL via the `phoenix-gql` binary and shape the result with sandbox tools like jq, grep, sed, and sort.</description>
+  <guidelines>
+    - This is an in-memory sandbox, not a host machine: there is no network and no host binaries (no python, node, git, uv, apt). Only built-in just-bash commands (cat, grep, sed, awk, sort, jq, sqlite3, ...) and `phoenix-gql` are available.
+    - Use `phoenix-gql` for all GraphQL. It executes read-only queries in-process against the Phoenix schema (no network) and prints JSON. Run `phoenix-gql --help` for its full usage.
+    - Prefer running `phoenix-gql` and piping its JSON through `jq` to extract exactly what you need, e.g. `phoenix-gql '{ projects { edges { node { name } } } }' --data-only | jq '.data.projects.edges[].node.name'`.
+    - Do not guess field, type, or argument names. When unsure, introspect first: `phoenix-gql '{ __schema { queryType { fields { name } } } }' --data-only | jq`.
+    - Write scratch files only under /home/user/workspace (the working directory). For large responses use `phoenix-gql --output /home/user/workspace/result.json` and then inspect the file with jq, rather than dumping everything to stdout.
+    - Output is truncated if it is very large, so filter aggressively with jq/grep instead of printing whole payloads.
+    - Return a concise, factual answer grounded in the data you retrieved.
+  </guidelines>
+</tool>

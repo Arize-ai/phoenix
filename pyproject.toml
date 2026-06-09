@@ -71,6 +71,7 @@ dependencies = [
   "orjson",
   "jmespath",
   "ldap3",
+  "just-bash>=0.2.1; python_version >= '3.11'",  # networkless server-agent bash tool; requires >=3.11 (vendor later for 3.10)
 ]
 dynamic = ["version"]
 
@@ -349,6 +350,7 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
+  "just_bash.*",  # only installed on Python >= 3.11 (server-agent bash tool)
 ]
 ignore_missing_imports = true
 
