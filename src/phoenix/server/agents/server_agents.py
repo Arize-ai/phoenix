@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -16,6 +16,9 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashCapability,
     bash_tool_available,
 )
+
+if TYPE_CHECKING:
+    from phoenix.server.agents.capabilities.tools.internal.bash import BashFilesystemStore
 from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
     RunGraphQLQueryCapability,
 )
@@ -40,12 +43,18 @@ def build_server_agent(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
+    session_id: Optional[str] = None,
+    bash_filesystem_store: Optional["BashFilesystemStore"] = None,
 ) -> AbstractAgent[None, str]:
     """Construct server agent.
 
     ``docs_mcp_server`` and ``enable_web_access`` are gated by the caller exactly as
     they are for the main agent, so the sub-agent gains the docs MCP and web
     search/fetch tools under the same conditions.
+
+    When ``session_id`` and ``bash_filesystem_store`` are provided, the bash tool's
+    virtual filesystem is persisted per session so workspace files survive across
+    conversation turns.
     """
     resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
@@ -66,6 +75,8 @@ def build_server_agent(
                 schema=schema,
                 build_graphql_context=build_graphql_context,
                 instructions=resolved_prompts.bash_tool.render(),
+                session_id=session_id,
+                filesystem_store=bash_filesystem_store,
             )
         )
     if docs_mcp_server is not None:

@@ -599,6 +599,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
+            session_id=session_id,
+            bash_filesystem_store=request.app.state.bash_session_filesystems,
         )
         agent = build_agent(
             model=model,

@@ -1119,6 +1119,10 @@ def create_app(
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.graphql_schema = graphql_schema
+    # Session-keyed virtual filesystems for the server agent's bash tool, so each
+    # session's workspace files persist across conversation turns. Values are
+    # lazily-created just-bash InMemoryFs instances (see agents/.../internal/bash.py).
+    app.state.bash_session_filesystems = {}
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,
         system_settings=system_settings,

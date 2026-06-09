@@ -12,11 +12,34 @@ from pydantic_ai.usage import RunUsage
 pytest.importorskip("just_bash")
 
 from phoenix.server.agents.capabilities.tools.internal.bash import (  # noqa: E402
+    BashCapability,
     BashToolset,
     _build_runtime,
+    _new_session_filesystem,
     bash_tool_available,
 )
 from phoenix.server.api.context import Context  # noqa: E402
+
+
+async def _run_bash(toolset: BashToolset, command: str) -> Any:
+    ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+    tools = await toolset.get_tools(ctx)
+    return await toolset.call_tool(
+        "bash",
+        {"command": command, "summary": "test"},
+        ctx,
+        tools["bash"],
+    )
+
+
+def _bash_capability(session_id: str, store: dict[str, Any]) -> BashCapability:
+    return BashCapability(
+        schema=_schema(),
+        build_graphql_context=lambda: Mock(spec=Context),
+        instructions="",
+        session_id=session_id,
+        filesystem_store=store,
+    )
 
 
 @strawberry.type
@@ -55,6 +78,7 @@ def runtime() -> _Runtime:
     return _build_runtime(
         schema=_schema(),
         build_graphql_context=lambda: Mock(spec=Context),
+        filesystem=_new_session_filesystem(),
     )
 
 
@@ -154,13 +178,57 @@ async def test_bash_toolset_runs_builtin_command() -> None:
         schema=_schema(),
         build_graphql_context=lambda: Mock(spec=Context),
     )
-    ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
-    tools = await toolset.get_tools(ctx)
-    result = await toolset.call_tool(
-        "bash",
-        {"command": "echo hello | tr a-z A-Z", "summary": "shout hello"},
-        ctx,
-        tools["bash"],
-    )
+    result = await _run_bash(toolset, "echo hello | tr a-z A-Z")
 
     assert result == "HELLO\n"
+
+
+async def test_filesystem_persists_across_builds_for_same_session() -> None:
+    """A session's workspace files survive a fresh toolset/runtime (i.e. a new turn)."""
+    store: dict[str, Any] = {}
+
+    # Turn 1: write a file via one toolset.
+    first = _bash_capability("session-1", store)
+    toolset_1 = first.get_toolset()
+    assert isinstance(toolset_1, BashToolset)
+    await _run_bash(toolset_1, "echo hi > /home/user/workspace/note.txt")
+
+    # Turn 2: a brand-new toolset for the same session sees the file.
+    second = _bash_capability("session-1", store)
+    toolset_2 = second.get_toolset()
+    assert isinstance(toolset_2, BashToolset)
+    result = await _run_bash(toolset_2, "cat /home/user/workspace/note.txt")
+    assert result == "hi\n"
+
+
+async def test_filesystem_is_isolated_between_sessions() -> None:
+    store: dict[str, Any] = {}
+
+    writer = _bash_capability("session-a", store)
+    toolset_a = writer.get_toolset()
+    assert isinstance(toolset_a, BashToolset)
+    await _run_bash(toolset_a, "echo secret > /home/user/workspace/note.txt")
+
+    other = _bash_capability("session-b", store)
+    toolset_b = other.get_toolset()
+    assert isinstance(toolset_b, BashToolset)
+    result = await _run_bash(toolset_b, "cat /home/user/workspace/note.txt 2>&1; echo exit=$?")
+    assert "No such file" in result
+    assert "exit=1" in result
+
+
+async def test_transient_filesystem_when_no_session_store() -> None:
+    """Without a store, each build gets a fresh filesystem (no cross-build persistence)."""
+    cap = BashCapability(
+        schema=_schema(),
+        build_graphql_context=lambda: Mock(spec=Context),
+        instructions="",
+    )
+    toolset_1 = cap.get_toolset()
+    assert isinstance(toolset_1, BashToolset)
+    await _run_bash(toolset_1, "echo hi > /home/user/workspace/note.txt")
+
+    toolset_2 = cap.get_toolset()
+    assert isinstance(toolset_2, BashToolset)
+    result = await _run_bash(toolset_2, "cat /home/user/workspace/note.txt 2>&1; echo exit=$?")
+    assert "exit=1" in result
