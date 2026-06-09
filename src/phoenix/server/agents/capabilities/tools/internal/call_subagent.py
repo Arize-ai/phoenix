@@ -16,7 +16,11 @@ if TYPE_CHECKING:
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
 Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \
 the Phoenix backend and returns a concise answer. Use for any task that requires \
-data about projects, traces, spans, datasets, experiments, or evaluations.
+data about projects, traces, spans, datasets, experiments, or evaluations. \
+The sub-agent has a `bash` tool that runs in a networkless, in-memory virtual file \
+system (scratch space plus standard utilities like cat, grep, jq, and sqlite3), and \
+that `bash` includes `phoenix-gql` for read-only GraphQL queries against the Phoenix \
+schema, executed in-process.
 """
 
 
