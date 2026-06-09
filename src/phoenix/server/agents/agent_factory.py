@@ -3,6 +3,7 @@ from __future__ import annotations
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.capabilities import (
     AbstractCapability,
     CapabilityFunc,
@@ -68,7 +69,7 @@ def build_agent(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
-    server_agent: Agent[None, str] | None = None,
+    server_agent: AbstractAgent[None, str] | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_prompts = prompts or AgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()

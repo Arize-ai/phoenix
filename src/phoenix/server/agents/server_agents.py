@@ -6,13 +6,17 @@ import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent
+from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.models import Model
 
 from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
     RunGraphQLQueryCapability,
 )
 from phoenix.server.agents.prompts import ServerAgentPrompts
-from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
+from phoenix.server.agents.pydantic_ai import (
+    OpenInferenceAgentWrapper,
+    OpenInferenceCapabilityWrapper,
+)
 from phoenix.server.api.context import Context
 
 
@@ -23,7 +27,7 @@ def build_server_agent(
     build_graphql_context: Callable[[], Context],
     prompts: ServerAgentPrompts | None = None,
     tracer_provider: TracerProvider | None = None,
-) -> Agent[None, str]:
+) -> AbstractAgent[None, str]:
     """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
@@ -36,8 +40,10 @@ def build_server_agent(
         build_graphql_context=build_graphql_context,
         instructions=resolved_prompts.run_graphql_query_tool.render(),
     )
-    return Agent(
+    agent: Agent[None, str] = Agent(
         model,
         name="ServerAgent",
+        instructions=resolved_prompts.base.render(),
         capabilities=[OpenInferenceCapabilityWrapper(wrapped=capability, tracer=tracer)],
     )
+    return OpenInferenceAgentWrapper(agent, tracer=tracer)

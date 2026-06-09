@@ -7,6 +7,7 @@ from jinja2 import Template
 from phoenix.server.agents.prompts.templating import get_template
 
 _BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
+_BASE_SUBAGENT_INSTRUCTIONS = get_template("base/BASE_SUBAGENT_INSTRUCTIONS.xml.j2")
 _DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
 _BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
 _ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
@@ -173,6 +174,7 @@ class AgentPrompts:
 class ServerAgentPrompts:
     """Every prompt template the server agent uses."""
 
+    base: Template = _BASE_SUBAGENT_INSTRUCTIONS
     run_graphql_query_tool: Template = _RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS
 
 

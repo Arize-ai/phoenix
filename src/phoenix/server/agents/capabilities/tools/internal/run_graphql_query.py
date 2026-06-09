@@ -49,10 +49,11 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
             query: str,
             variable_values: Optional[dict[str, Any]] = None,
         ) -> dict[str, Any]:
+            context = build_graphql_context()
             result = await schema.execute(
                 query,
                 variable_values=variable_values,
-                context_value=build_graphql_context(),
+                context_value=context,
             )
             if result.errors:
                 formatted_errors = [error.formatted for error in result.errors]
