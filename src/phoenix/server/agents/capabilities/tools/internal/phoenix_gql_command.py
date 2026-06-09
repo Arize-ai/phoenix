@@ -2,8 +2,8 @@
 
 This is the server-side counterpart of the browser tool's ``phoenix-gql`` command
 (``app/src/agent/tools/bash/phoenixGqlCommand.ts``). It mirrors that CLI surface
-but executes queries *networklessly* against the Strawberry schema via
-:func:`execute_networkless_query` instead of issuing an HTTP request, so the bash
+but executes queries *networklessly* against the Strawberry schema (calling
+``schema.execute`` directly) instead of issuing an HTTP request, so the bash
 agent can run GraphQL and pipe the JSON result through ``jq`` and friends.
 
 Importing this module requires ``just-bash`` to be installed (Python >= 3.11).
@@ -18,10 +18,8 @@ from typing import Any, Callable, Optional
 import strawberry
 from just_bash.types import CommandContext, ExecResult
 from strawberry.schema.exceptions import InvalidOperationTypeError
+from strawberry.types.graphql import OperationType
 
-from phoenix.server.agents.capabilities.tools.internal.networkless_graphql import (
-    execute_networkless_query,
-)
 from phoenix.server.api.context import Context
 
 #: Scratch directory the sandbox can write to (mirrors the browser tool).
@@ -108,11 +106,13 @@ class PhoenixGqlCommand:
             query = await _resolve_query_text(parsed["query_source"], ctx)
             self._reject_unsupported_operations(query)
             variable_values = await _resolve_variables(parsed, ctx)
-            result = await execute_networkless_query(
-                schema=self._schema,
-                context=self._build_graphql_context(),
-                query=query,
+            # Execute read-only GraphQL in-process (no network hop), restricting
+            # to query operations so mutations/subscriptions raise.
+            result = await self._schema.execute(
+                query,
                 variable_values=variable_values,
+                context_value=self._build_graphql_context(),
+                allowed_operation_types={OperationType.QUERY},
             )
         except InvalidOperationTypeError:
             return ExecResult(

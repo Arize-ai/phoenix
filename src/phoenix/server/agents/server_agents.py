@@ -27,7 +27,6 @@ from phoenix.server.agents.web_access import (
 )
 from phoenix.server.api.context import Context
 
-#: A Phoenix GraphQL server sub-agent: takes no deps and returns a string.
 ServerAgent: TypeAlias = AbstractAgent[None, str]
 
 
