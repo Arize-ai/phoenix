@@ -4,6 +4,10 @@ import {
   parseSetPlaygroundRepetitionsInput,
 } from "@phoenix/agent/tools/playgroundRepetitions";
 import {
+  NUM_MAX_PLAYGROUND_REPETITIONS,
+  NUM_MIN_PLAYGROUND_REPETITIONS,
+} from "@phoenix/pages/playground/constants";
+import {
   _resetInstanceId,
   _resetMessageId,
   createPlaygroundStore,
@@ -18,17 +22,33 @@ describe("playground repetitions agent tool", () => {
   });
 
   it("parses valid repetition counts", () => {
-    expect(parseSetPlaygroundRepetitionsInput({ repetitions: 1 })).toEqual({
-      repetitions: 1,
+    expect(
+      parseSetPlaygroundRepetitionsInput({
+        repetitions: NUM_MIN_PLAYGROUND_REPETITIONS,
+      })
+    ).toEqual({
+      repetitions: NUM_MIN_PLAYGROUND_REPETITIONS,
     });
-    expect(parseSetPlaygroundRepetitionsInput({ repetitions: 30 })).toEqual({
-      repetitions: 30,
+    expect(
+      parseSetPlaygroundRepetitionsInput({
+        repetitions: NUM_MAX_PLAYGROUND_REPETITIONS,
+      })
+    ).toEqual({
+      repetitions: NUM_MAX_PLAYGROUND_REPETITIONS,
     });
   });
 
   it("rejects invalid repetition counts", () => {
-    expect(parseSetPlaygroundRepetitionsInput({ repetitions: 0 })).toBeNull();
-    expect(parseSetPlaygroundRepetitionsInput({ repetitions: 31 })).toBeNull();
+    expect(
+      parseSetPlaygroundRepetitionsInput({
+        repetitions: NUM_MIN_PLAYGROUND_REPETITIONS - 1,
+      })
+    ).toBeNull();
+    expect(
+      parseSetPlaygroundRepetitionsInput({
+        repetitions: NUM_MAX_PLAYGROUND_REPETITIONS + 1,
+      })
+    ).toBeNull();
     expect(parseSetPlaygroundRepetitionsInput({ repetitions: 1.5 })).toBeNull();
     expect(parseSetPlaygroundRepetitionsInput({ repetitions: "3" })).toBeNull();
   });
@@ -65,7 +85,9 @@ describe("playground repetitions agent tool", () => {
       playgroundStore,
     });
 
-    const result = await action({ repetitions: 31 });
+    const result = await action({
+      repetitions: NUM_MAX_PLAYGROUND_REPETITIONS + 1,
+    });
 
     expect(result).toEqual(
       expect.objectContaining({

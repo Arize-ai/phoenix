@@ -21,6 +21,11 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import type { AwsBedrockModelPrefix } from "@phoenix/store/preferencesStore";
 import { awsBedrockModelPrefixes } from "@phoenix/store/preferencesStore";
 
+import {
+  NUM_MAX_PLAYGROUND_REPETITIONS,
+  NUM_MIN_PLAYGROUND_REPETITIONS,
+} from "./constants";
+
 export function PlaygroundConfigButton() {
   const streaming = usePlaygroundContext((state) => state.streaming);
   const repetitions = usePlaygroundContext((state) => state.repetitions);
@@ -60,10 +65,10 @@ export function PlaygroundConfigButton() {
             >
               <Flex direction="column" gap="size-200">
                 <Slider
-                  defaultValue={1}
+                  defaultValue={NUM_MIN_PLAYGROUND_REPETITIONS}
                   label="Repetitions"
-                  minValue={1}
-                  maxValue={30}
+                  minValue={NUM_MIN_PLAYGROUND_REPETITIONS}
+                  maxValue={NUM_MAX_PLAYGROUND_REPETITIONS}
                   value={repetitions}
                   onChange={setRepetitions}
                 >

@@ -13,6 +13,8 @@ from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "set_playground_repetitions"
+MIN_REPETITIONS = 1
+MAX_REPETITIONS = 30
 
 DESCRIPTION = (
     "Set the playground-wide repetitions count in the currently mounted playground. "
@@ -26,8 +28,8 @@ PARAMETERS: dict[str, Any] = {
     "properties": {
         "repetitions": {
             "type": "integer",
-            "minimum": 1,
-            "maximum": 30,
+            "minimum": MIN_REPETITIONS,
+            "maximum": MAX_REPETITIONS,
             "description": "The number of times each playground task should run.",
         },
     },
