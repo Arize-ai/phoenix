@@ -30,8 +30,7 @@ const SKILLS: AvailableAgentSkill[] = [
   {
     name: "playground",
     description: "Author and iterate on prompts in the playground.",
-    summary:
-      "Author, run, compare, and improve prompts in the playground.",
+    summary: "Author, run, compare, and improve prompts in the playground.",
   },
 ];
 
