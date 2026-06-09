@@ -84,11 +84,7 @@ export const testCodeEvaluatorDraftAgentTool =
     defaultSuccessOutput: "Code-evaluator draft tested.",
   });
 
-/**
- * Persists the mounted code-evaluator draft. Under bypass it commits through the
- * dialog's validated create/patch path and reports the persisted evaluator;
- * otherwise it leaves the draft for the user to confirm via the dialog button.
- */
+/** Persists the mounted code-evaluator draft. */
 export const submitCodeEvaluatorDraftAgentTool =
   defineClientActionTool<SubmitCodeEvaluatorDraftInput>({
     name: SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,

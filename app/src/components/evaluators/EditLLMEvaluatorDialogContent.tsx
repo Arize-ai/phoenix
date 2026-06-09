@@ -56,9 +56,6 @@ export const EditLLMEvaluatorDialogContent = ({
     return onSubmit();
   };
 
-  // The host's `submit` capability (registered once below) reads the current
-  // validated `handleSubmit` through this ref, avoiding re-registration when
-  // form state changes per keystroke.
   const handleSubmitRef = useRef(handleSubmit);
   handleSubmitRef.current = handleSubmit;
 

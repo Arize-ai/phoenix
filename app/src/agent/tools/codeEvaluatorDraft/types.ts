@@ -105,9 +105,6 @@ export type CodeEvaluatorDraftHost = {
     snapshot: CodeEvaluatorDraftSnapshot,
     operations: EditCodeEvaluatorDraftOperation[]
   ) => CodeEvaluatorActionResult<CodeEvaluatorDraftSnapshot>;
-  // Drives the dialog's validated create/patch mutation — the same path the
-  // manual Create/Update button runs. Only the terminal save tool calls this;
-  // draft edits never persist.
   submit: (options: {
     approvalSource: ApprovalSource;
   }) => Promise<EvaluatorSubmitResult>;

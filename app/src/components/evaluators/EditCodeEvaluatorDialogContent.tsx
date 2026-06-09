@@ -268,10 +268,6 @@ export const EditCodeEvaluatorDialogContent = ({
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
   const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
 
-  // The host's `submit` capability is registered once (a long-lived effect),
-  // but `handleSubmit` closes over live form state that changes per keystroke.
-  // Route through a ref so the stable host always drives the current validated
-  // submit without re-registering on every edit.
   const handleSubmitRef = useRef<(() => Promise<EvaluatorSubmitResult>) | null>(
     null
   );

@@ -42,8 +42,6 @@ export const useLlmEvaluatorDraftRegistration = ({
 }: {
   mode: "create" | "update";
   evaluatorNodeId?: string | null;
-  // The dialog's current validated submit, threaded through a ref so the
-  // long-lived host registration drives it without re-registering per edit.
   handleSubmitRef: RefObject<() => Promise<EvaluatorSubmitResult>>;
 }) => {
   const store = useEvaluatorStoreInstance();

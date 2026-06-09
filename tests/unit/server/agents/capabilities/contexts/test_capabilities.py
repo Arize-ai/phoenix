@@ -313,7 +313,6 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "available_tools" in content
         assert "set_test_payload" in content
         assert "testPayload" in content
-        # The precise block supersedes the vague guessing prose for the playground case.
         assert "do not assume the signal is at a top-level key" not in content
 
     def test_omits_playground_output_schema_without_playground(self) -> None:
@@ -330,7 +329,6 @@ class TestCodeEvaluatorContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert "available_tools" not in content
-        # The arbitrary-run guessing guidance stands when no playground is mounted.
         assert "do not assume the signal is at a top-level key" in content
 
     def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:

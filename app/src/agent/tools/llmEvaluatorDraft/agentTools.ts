@@ -84,11 +84,7 @@ export const testLlmEvaluatorDraftAgentTool =
     defaultSuccessOutput: "LLM-evaluator draft tested.",
   });
 
-/**
- * Persists the mounted LLM-evaluator draft. Under bypass it commits through the
- * dialog's validated create/patch path and reports the persisted evaluator;
- * otherwise it leaves the draft for the user to confirm via the dialog button.
- */
+/** Persists the mounted LLM-evaluator draft. */
 export const submitLlmEvaluatorDraftAgentTool =
   defineClientActionTool<SubmitLlmEvaluatorDraftInput>({
     name: SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,

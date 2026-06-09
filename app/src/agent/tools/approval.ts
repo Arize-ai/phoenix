@@ -1,25 +1,7 @@
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-/**
- * Who resolved a pending tool approval. `"user"` means a person clicked the
- * inline Accept button; `"auto"` means it was approved by the current edit
- * permission mode.
- *
- * Shared by every approval-gated agent tool (e.g. prompt edits, prompt saves,
- * and span annotations) so no tool module has to depend on another for the type.
- */
 export type ApprovalSource = "user" | "auto";
 
-/**
- * Terminal outcome of persisting an evaluator through the dialog's validated
- * mutation path (the same path the manual Create/Update button drives). On
- * success it carries the persisted evaluator identity the manual flow produces;
- * on failure it carries an actionable message (validation, missing prerequisite,
- * or server/mutation error) so the agent never reports a false accept.
- *
- * Shared by the code and LLM evaluator draft hosts so neither tool module has to
- * depend on the other for the type.
- */
 export type EvaluatorSubmitResult =
   | {
       ok: true;
@@ -28,16 +10,6 @@ export type EvaluatorSubmitResult =
     }
   | { ok: false; error: string };
 
-/**
- * Builds the `submit` capability shared by the code and LLM evaluator draft
- * hosts. `getHandleSubmit` returns the dialog's current validated submit (the
- * same function the manual Create/Update button drives) or `null` when the form
- * is unmounted; routing through an accessor lets the long-lived host
- * registration always invoke the latest `handleSubmit` without re-registering.
- *
- * On success it stamps `acceptedBy` with the caller's approval source so the
- * bypass path is marked `"auto"` exactly as the manual path is marked `"user"`.
- */
 export function createEvaluatorHostSubmit({
   getHandleSubmit,
   unmountedError,
@@ -62,19 +34,12 @@ export function createEvaluatorHostSubmit({
   };
 }
 
-/** A host exposing the evaluator `submit` capability the save tool drives. */
 type EvaluatorSubmitHost = {
   submit: (options: {
     approvalSource: ApprovalSource;
   }) => Promise<EvaluatorSubmitResult>;
 };
 
-/**
- * Structured payload the terminal-save tool surfaces to the agent. `persisted`
- * is `true` only when the evaluator was actually committed (bypass path), and
- * `false` when the draft is left open for the user to confirm (manual path), so
- * the agent can never report a save that did not happen.
- */
 export type EvaluatorSubmitToolOutput =
   | {
       status: "saved";
@@ -92,16 +57,6 @@ export type EvaluatorSubmitToolOutput =
 const AWAITING_USER_MESSAGE =
   "The draft is open — review and click the dialog's Create/Update button to persist the evaluator.";
 
-/**
- * Builds the terminal-save client action shared by the code and LLM evaluator
- * draft tools. Under the bypass gate (`shouldAutoAccept`) it drives the host's
- * validated `submit` — the same create/patch path the manual Create/Update
- * button runs — and reports the persisted identity stamped `acceptedBy: "auto"`,
- * or surfaces an actionable failure (validation, missing prerequisite, or
- * server/mutation error) as a tool error so a failed save is never reported as a
- * success. Under manual approval it persists nothing and reports a non-completion
- * payload that directs the user to the dialog's confirm button.
- */
 export function createEvaluatorSubmitClientAction<
   THost extends EvaluatorSubmitHost,
 >({

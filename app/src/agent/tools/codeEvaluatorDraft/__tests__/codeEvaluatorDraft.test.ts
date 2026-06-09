@@ -469,7 +469,6 @@ describe("code evaluator draft agent tools", () => {
       { toolCallId: "tc", sessionId: "s", addToolOutput: async () => undefined }
     );
     void pending;
-    // The draft-edit accept applies operations but must never persist.
     expect(snapshotRef.current.description).toBe("edited");
     expect(submitCalled).toBe(false);
   });

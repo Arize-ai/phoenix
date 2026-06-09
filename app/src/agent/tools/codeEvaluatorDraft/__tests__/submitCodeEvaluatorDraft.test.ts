@@ -24,19 +24,12 @@ import {
   type EvaluatorSubmitResult,
   SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-// The dialog's actual create mutation node — driving the same generated
-// operation the production submit path commits.
 import createCodeEvaluatorMutation from "@phoenix/components/dataset/__generated__/CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation.graphql";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 installTestStorage();
 
-// The terminal-save tool persists exclusively through host.submit, which drives
-// the dialog's validated handleSubmit. This harness reproduces the dialog
-// create-mutation submit path: handleSubmit commits the same generated
-// createCodeEvaluator mutation through Relay against a mocked environment, and
-// resolves the EvaluatorSubmitResult from that mutation's network resolution.
 const EVALUATOR_INPUT = {
   name: "hallucination",
   description: "Scores hallucination",
@@ -54,20 +47,11 @@ type CommitConfig = {
   onError: (error: Error) => void;
 };
 
-// The harness mocks commitMutation wholesale, so it drives onCompleted/onError
-// directly; bypass the generated operation type that would otherwise force the
-// full create-input shape this test does not exercise.
 const commit = commitMutation as unknown as (
   environment: unknown,
   config: CommitConfig
 ) => void;
 
-/**
- * Builds a host whose submit is the production createEvaluatorHostSubmit wired
- * to a dialog-style handleSubmit. `validationError` short-circuits before the
- * mutation (the dialog's validateAll failure); otherwise handleSubmit commits
- * the create mutation and resolves from whatever the mocked commit invokes.
- */
 function makeHost({
   validationError,
 }: { validationError?: string } = {}): CodeEvaluatorDraftHost {
@@ -152,7 +136,6 @@ describe("submit_code_evaluator_draft agent tool", () => {
 
     const addToolOutput = await dispatchSubmit(store);
 
-    // The generated create mutation was dispatched with the dialog's variables.
     expect(relayMocks.commitMutation).toHaveBeenCalledTimes(1);
     expect(relayMocks.commitMutation).toHaveBeenCalledWith(
       expect.anything(),
@@ -179,7 +162,6 @@ describe("submit_code_evaluator_draft agent tool", () => {
 
   it("does not persist under manual approval and reports requiresUserAction", async () => {
     const store = registerSubmitTool(makeHost());
-    // Default permissions are not "bypass" — the manual path.
 
     const addToolOutput = await dispatchSubmit(store);
 
