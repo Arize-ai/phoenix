@@ -7,12 +7,17 @@ from typing import Any, Callable, Optional
 import strawberry
 from pydantic_ai import ModelRetry, Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
+from strawberry.schema.exceptions import InvalidOperationTypeError
+from strawberry.types.graphql import OperationType
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
 
 RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION = """\
-Execute a GraphQL query against the Phoenix server and return its result.
+Execute a read-only GraphQL query against the Phoenix server and return its result.
+
+This tool only permits `query` operations. Mutations and subscriptions are rejected, so \
+do not attempt to write, delete, or otherwise modify data through it.
 
 Do NOT guess field, type, or argument names. If you are not certain that every field \
 and argument in your query exists with the exact name and type you intend, first send an \
@@ -50,11 +55,18 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
             variable_values: Optional[dict[str, Any]] = None,
         ) -> dict[str, Any]:
             context = build_graphql_context()
-            result = await schema.execute(
-                query,
-                variable_values=variable_values,
-                context_value=context,
-            )
+            try:
+                result = await schema.execute(
+                    query,
+                    variable_values=variable_values,
+                    context_value=context,
+                    allowed_operation_types={OperationType.QUERY},
+                )
+            except InvalidOperationTypeError as error:
+                raise ModelRetry(
+                    f"{error} This tool is read-only and only permits `query` operations; "
+                    "mutations and subscriptions are not allowed."
+                )
             if result.errors:
                 formatted_errors = [error.formatted for error in result.errors]
                 raise ModelRetry(json.dumps({"data": result.data, "errors": formatted_errors}))
