@@ -2,19 +2,19 @@ import { css } from "@emotion/react";
 import { motion } from "motion/react";
 import { useLayoutEffect } from "react";
 
-import { Flex, Text } from "@phoenix/components";
+import { Flex, KeyboardToken, Text, Token } from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
 
-import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
+import type { SlashMenuItem } from "./usePromptSkillCommand";
 
-const skillMenuSpring = {
+const slashCommandMenuSpring = {
   type: "spring" as const,
   stiffness: 700,
   damping: 28,
   mass: 0.65,
 };
 
-const skillMenuCSS = css`
+const slashCommandMenuCSS = css`
   position: absolute;
   bottom: calc(100% - var(--global-dimension-size-150));
   left: 0;
@@ -34,7 +34,7 @@ const skillMenuCSS = css`
   padding-bottom: var(--global-dimension-size-200);
 `;
 
-const skillMenuItemCSS = css`
+const slashCommandMenuItemCSS = css`
   display: block;
   width: 100%;
   text-align: left;
@@ -51,18 +51,37 @@ const skillMenuItemCSS = css`
   }
 `;
 
-const skillMenuNameCSS = css`
+const slashCommandMenuNameCSS = css`
   font-family: "Geist Mono", monospace;
   font-size: var(--global-font-size-s);
 `;
 
-export type SkillMenuProps = {
-  /** Skills to display, already filtered to the active query. */
-  skills: AvailableAgentSkill[];
+/**
+ * The trailing pill that identifies a row: skills are tagged `skill`, commands
+ * with a shortcut show their keybind, and plain commands show nothing — being
+ * unmarked is what reads as "command".
+ */
+function SlashMenuItemPill({ item }: { item: SlashMenuItem }) {
+  if (item.kind === "skill") {
+    return <Token size="S">skill</Token>;
+  }
+  if (item.keybind) {
+    return <KeyboardToken>{item.keybind}</KeyboardToken>;
+  }
+  return null;
+}
+
+export type SlashCommandMenuProps = {
+  /**
+   * Entries to display, already filtered to the active query, in display order
+   * (skills first, then commands). One flat list; each row carries a trailing
+   * pill identifying its kind.
+   */
+  items: SlashMenuItem[];
   /** Index of the highlighted item for keyboard navigation. */
   activeIndex: number;
-  /** Called when the user picks a skill (click or Enter). */
-  onSelect: (skill: AvailableAgentSkill) => void;
+  /** Called with the item's index when the user picks it. */
+  onSelect: (index: number) => void;
   /** Called when the pointer hovers an item, to sync the active index. */
   onActiveIndexChange: (index: number) => void;
   /** DOM id used to wire `aria-activedescendant` from the textarea. */
@@ -72,7 +91,9 @@ export type SkillMenuProps = {
 };
 
 /**
- * The slash-command skill picker shown above the prompt textarea.
+ * The slash-command picker shown above the prompt textarea, listing skills and
+ * local commands as one flat list with a trailing pill per row (see
+ * {@link SlashMenuItemPill}).
  *
  * This is a presentational listbox: it does not own focus (the textarea keeps
  * it) and is driven entirely by `activeIndex`. Keyboard handling lives in the
@@ -80,60 +101,68 @@ export type SkillMenuProps = {
  * Accessibility is provided through `aria-activedescendant` on the textarea
  * pointing at the active option's id.
  */
-export function SkillMenu({
-  skills,
+export function SlashCommandMenu({
+  items,
   activeIndex,
   onSelect,
   onActiveIndexChange,
   listboxId,
   getOptionId,
-}: SkillMenuProps) {
+}: SlashCommandMenuProps) {
   useLayoutEffect(() => {
     document.getElementById(getOptionId(activeIndex))?.scrollIntoView({
       block: "nearest",
     });
   }, [activeIndex, getOptionId]);
 
-  if (skills.length === 0) {
+  if (items.length === 0) {
     return null;
   }
   return (
     <motion.div
-      css={skillMenuCSS}
+      css={slashCommandMenuCSS}
       id={listboxId}
       role="listbox"
-      aria-label="Skills"
+      aria-label="Slash commands"
       initial={{ opacity: 0, y: 28 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{
-        ...skillMenuSpring,
+        ...slashCommandMenuSpring,
         opacity: { duration: 0.12 },
       }}
     >
-      {skills.map((skill, index) => {
+      {items.map((item, index) => {
         const isActive = index === activeIndex;
         return (
           <button
-            key={skill.name}
+            key={item.name}
             type="button"
             id={getOptionId(index)}
             role="option"
             aria-selected={isActive}
             data-active={isActive}
-            css={skillMenuItemCSS}
-            className={classNames("skill-menu__item", {
-              "skill-menu__item--active": isActive,
+            css={slashCommandMenuItemCSS}
+            className={classNames("slash-command-menu__item", {
+              "slash-command-menu__item--active": isActive,
             })}
             // Prevent the textarea from losing focus on mousedown.
             onMouseDown={(event) => event.preventDefault()}
             onMouseEnter={() => onActiveIndexChange(index)}
-            onClick={() => onSelect(skill)}
+            onClick={() => onSelect(index)}
           >
             <Flex direction="column" gap="size-25">
-              <span css={skillMenuNameCSS}>/{skill.name}</span>
+              <Flex
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                gap="size-100"
+              >
+                <span css={slashCommandMenuNameCSS}>/{item.name}</span>
+                <SlashMenuItemPill item={item} />
+              </Flex>
               <Text size="XS" color="text-700">
-                {skill.summary}
+                {item.summary}
               </Text>
             </Flex>
           </button>

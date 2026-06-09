@@ -4,6 +4,10 @@ import { useState } from "react";
 
 import { parseRequestedSkills } from "@phoenix/agent/skills/requestedSkills";
 import {
+  parsePromptCommands,
+  PROMPT_COMMANDS,
+} from "@phoenix/agent/slashCommands/promptCommands";
+import {
   PromptInput,
   PromptInputActions,
   PromptInputBody,
@@ -25,7 +29,7 @@ const agentChatInputCSS = css`
     isolation: isolate;
   }
 
-  .agent-chat-input__skill-menu-layer {
+  .agent-chat-input__slash-menu-layer {
     position: absolute;
     inset: 0;
     z-index: 0;
@@ -43,8 +47,16 @@ const agentChatInputCSS = css`
 `;
 
 type AgentChatInputSubmit = {
+  /** The submitted message with recognized command tokens stripped out. */
   text: string;
+  /** Skill names recognized in `text`, for the chat request body. */
   requestedSkills: string[];
+  /**
+   * Local command names recognized in the submitted message, in order of first
+   * appearance. The chat surface executes these before sending `text` (if any
+   * text remains).
+   */
+  commandNames: string[];
 };
 
 export type AgentChatInputProps = {
@@ -59,13 +71,19 @@ export type AgentChatInputProps = {
   onStop: () => void;
 };
 
+/** Names of the local prompt commands, for the submit-time command parse. */
+const availableCommandNames: ReadonlySet<string> = new Set(
+  PROMPT_COMMANDS.map((command) => command.name)
+);
+
 /**
  * The normal assistant prompt composer.
  *
  * Owns prompt-local affordances that turn user text into chat request metadata:
- * context pills, model/search tools, slash-command skill selection, and the
- * requested-skills payload. Other chat input modes (consent, elicitation,
- * rewind confirmation) stay in `ChatView` because they replace the composer.
+ * context pills, model/search tools, slash-command skill and command selection,
+ * and the requested-skills/command payload. Other chat input modes (consent,
+ * elicitation, rewind confirmation) stay in `ChatView` because they replace the
+ * composer.
  */
 export function AgentChatInput({
   status,
@@ -78,7 +96,7 @@ export function AgentChatInput({
   isSubmitDisabled,
   onStop,
 }: AgentChatInputProps) {
-  const [skillMenuLayer, setSkillMenuLayer] = useState<HTMLDivElement | null>(
+  const [slashMenuLayer, setSlashMenuLayer] = useState<HTMLDivElement | null>(
     null
   );
   const [availableSkills, setAvailableSkills] = useState<AvailableAgentSkill[]>(
@@ -86,12 +104,19 @@ export function AgentChatInput({
   );
 
   const handleSubmit = (text: string) => {
+    // Commands parse first and are stripped; a name that collided with a skill
+    // would act as a command. Skills then parse from the stripped text.
+    const { commandNames, text: messageText } = parsePromptCommands(
+      text,
+      availableCommandNames
+    );
     const availableSkillNames = new Set(
       availableSkills.map((skill) => skill.name)
     );
     onSubmit({
-      text,
-      requestedSkills: parseRequestedSkills(text, availableSkillNames),
+      text: messageText,
+      requestedSkills: parseRequestedSkills(messageText, availableSkillNames),
+      commandNames,
     });
   };
 
@@ -99,8 +124,8 @@ export function AgentChatInput({
     <div css={agentChatInputCSS}>
       <div className="agent-chat-input__prompt-stack">
         <div
-          className="agent-chat-input__skill-menu-layer"
-          ref={setSkillMenuLayer}
+          className="agent-chat-input__slash-menu-layer"
+          ref={setSlashMenuLayer}
         />
         <PromptInput
           className="agent-chat-input__prompt-input"
@@ -113,9 +138,10 @@ export function AgentChatInput({
           <PromptInputBody>
             <SkillPromptInputBoundary
               placeholder="Send a message..."
+              commands={PROMPT_COMMANDS}
               onSkillsChange={setAvailableSkills}
               textareaRef={textareaRef}
-              menuPortalTarget={skillMenuLayer}
+              menuPortalTarget={slashMenuLayer}
             />
           </PromptInputBody>
           <PromptInputFooter>

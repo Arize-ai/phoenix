@@ -4,6 +4,7 @@ import {
   useCallback,
   type CSSProperties,
   type ReactNode,
+  useEffect,
   useMemo,
   useRef,
   type PropsWithChildren,
@@ -396,6 +397,52 @@ export function ChatView({
     (state) => state.permissions.edits
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
+  const createSession = useAgentContext((state) => state.createSession);
+
+  // Send any message staged for this session (e.g. carried past `/clear` from
+  // the previous session) as soon as the view mounts. Consuming is atomic, so
+  // re-runs and concurrent views are no-ops after the first send.
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    const pending = store.getState().consumePendingMessage(sessionId);
+    if (!pending) {
+      return;
+    }
+    sendMessage(
+      { text: pending.text },
+      pending.requestedSkills.length > 0
+        ? { body: { requestedSkills: pending.requestedSkills } }
+        : undefined
+    );
+  }, [sessionId, sendMessage, store]);
+
+  /**
+   * Execute the local prompt commands parsed from a submitted message.
+   * Commands run before any remaining text is sent: `/clear` swaps to a fresh
+   * session, staging the rest of the message (if any) to auto-send when the
+   * new session's view mounts (the controller remounts ChatView per session).
+   */
+  const runPromptCommands = ({
+    commandNames,
+    text,
+    requestedSkills,
+  }: {
+    commandNames: string[];
+    text: string;
+    requestedSkills: string[];
+  }) => {
+    if (commandNames.includes("clear")) {
+      const newSessionId = createSession();
+      if (text) {
+        store
+          .getState()
+          .setPendingMessage(newSessionId, { text, requestedSkills });
+      }
+    }
+  };
+
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
@@ -604,7 +651,16 @@ export function ChatView({
               status={status}
               value={inputValue}
               onValueChange={setInputValue}
-              onSubmit={({ text, requestedSkills }) => {
+              onSubmit={({ text, requestedSkills, commandNames }) => {
+                if (commandNames.length > 0) {
+                  runPromptCommands({ commandNames, text, requestedSkills });
+                  return;
+                }
+                // Command tokens are stripped before this point, so a
+                // commands-only submit has nothing left to send.
+                if (!text) {
+                  return;
+                }
                 void scrollToBottom();
                 sendMessage(
                   { text },

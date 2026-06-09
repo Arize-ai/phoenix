@@ -1,6 +1,6 @@
 import {
   getActiveQuery,
-  getSelectedSkillNames,
+  getSelectedTokenNames,
   isSameActiveQuery,
 } from "../usePromptSkillCommand";
 
@@ -104,12 +104,12 @@ describe("isSameActiveQuery", () => {
   });
 });
 
-describe("getSelectedSkillNames", () => {
+describe("getSelectedTokenNames", () => {
   const availableSkillNames = new Set(["debug-trace", "annotate-spans"]);
 
   it("returns known skill tokens already present in the prompt", () => {
     expect(
-      getSelectedSkillNames(
+      getSelectedTokenNames(
         "/debug-trace compare this",
         availableSkillNames,
         null
@@ -119,7 +119,7 @@ describe("getSelectedSkillNames", () => {
 
   it("ignores unknown slash tokens", () => {
     expect(
-      getSelectedSkillNames(
+      getSelectedTokenNames(
         "/unknown /annotate-spans",
         availableSkillNames,
         null
@@ -129,7 +129,7 @@ describe("getSelectedSkillNames", () => {
 
   it("excludes the active token being edited", () => {
     expect(
-      getSelectedSkillNames(
+      getSelectedTokenNames(
         "/debug-trace /annotate-spans",
         availableSkillNames,
         {

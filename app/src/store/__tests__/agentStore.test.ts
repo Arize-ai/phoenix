@@ -327,6 +327,40 @@ describe("agentStore", () => {
     });
   });
 
+  describe("pending message", () => {
+    it("sets and consumes a pending message once", () => {
+      const store = createAgentStore();
+      const message = {
+        text: "fix this bug",
+        requestedSkills: ["debug-trace"],
+      };
+      store.getState().setPendingMessage("session-1", message);
+      expect(store.getState().consumePendingMessage("session-1")).toEqual(
+        message
+      );
+      expect(store.getState().consumePendingMessage("session-1")).toBeNull();
+    });
+
+    it("clears a pending message when set to null", () => {
+      const store = createAgentStore();
+      store
+        .getState()
+        .setPendingMessage("session-1", { text: "hi", requestedSkills: [] });
+      store.getState().setPendingMessage("session-1", null);
+      expect(store.getState().consumePendingMessage("session-1")).toBeNull();
+    });
+
+    it("drops a pending message when its session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store
+        .getState()
+        .setPendingMessage(sessionId, { text: "hi", requestedSkills: [] });
+      store.getState().deleteSession(sessionId);
+      expect(store.getState().consumePendingMessage(sessionId)).toBeNull();
+    });
+  });
+
   describe("toggleOpen", () => {
     it("toggles isOpen", () => {
       const store = createAgentStore();
