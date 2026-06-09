@@ -3,10 +3,8 @@ import strawberry
 
 @strawberry.input(
     description=(
-        "Inputs that determine which assistant skills are available for a turn. "
-        "Mirrors the availability-affecting fields of a chat submission, minus the "
-        "message history. Designed as an extension point for previewing other "
-        "context-gated agent capabilities."
+        "Inputs that determine which assistant skills are available given the current "
+        "state of the UI."
     )
 )
 class AvailableAgentSkillsInput:

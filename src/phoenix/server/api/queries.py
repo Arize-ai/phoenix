@@ -1496,13 +1496,7 @@ class Query:
             allow_remote_export=trace_recording.allow_remote_export,
         )
 
-    @strawberry.field(
-        description=(
-            "The assistant skills available for a turn given the supplied UI context. "
-            "Returns the same context-gated catalog the agent itself receives, so the "
-            "prompt UI can offer only loadable skills. Side-effect free."
-        )
-    )  # type: ignore
+    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
     def available_agent_skills(
         self,
         info: Info[Context, None],

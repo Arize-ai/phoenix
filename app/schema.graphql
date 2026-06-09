@@ -90,7 +90,7 @@ type AgentSkill {
   """The model-facing trigger guidance shown to the assistant."""
   description: String!
 
-  """The user-facing menu summary for this skill."""
+  """The summary for this skill."""
   summary: String!
 }
 
@@ -319,7 +319,7 @@ enum AuthMethod {
 }
 
 """
-Inputs that determine which assistant skills are available for a turn. Mirrors the availability-affecting fields of a chat submission, minus the message history. Designed as an extension point for previewing other context-gated agent capabilities.
+Inputs that determine which assistant skills are available given the current state of the UI.
 """
 input AvailableAgentSkillsInput {
   """Whether a playground instance is mounted in the current UI context."""
@@ -3362,9 +3362,7 @@ type Query {
   serverStatus: ServerStatus!
   agentsConfig: AgentsConfig!
 
-  """
-  The assistant skills available for a turn given the supplied UI context. Returns the same context-gated catalog the agent itself receives, so the prompt UI can offer only loadable skills. Side-effect free.
-  """
+  """The assistant skills available given the supplied UI context."""
   availableAgentSkills(input: AvailableAgentSkillsInput): [AgentSkill!]!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
