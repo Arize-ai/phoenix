@@ -106,8 +106,6 @@ class PhoenixGqlCommand:
             query = await _resolve_query_text(parsed["query_source"], ctx)
             self._reject_unsupported_operations(query)
             variable_values = await _resolve_variables(parsed, ctx)
-            # Execute read-only GraphQL in-process (no network hop), restricting
-            # to query operations so mutations/subscriptions raise.
             result = await self._schema.execute(
                 query,
                 variable_values=variable_values,
