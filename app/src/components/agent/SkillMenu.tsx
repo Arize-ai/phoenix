@@ -1,10 +1,18 @@
 import { css } from "@emotion/react";
+import { motion } from "motion/react";
 import { useLayoutEffect } from "react";
 
 import { Flex, Text } from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
 
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
+
+const skillMenuSpring = {
+  type: "spring" as const,
+  stiffness: 700,
+  damping: 28,
+  mass: 0.65,
+};
 
 const skillMenuCSS = css`
   position: absolute;
@@ -90,7 +98,19 @@ export function SkillMenu({
     return null;
   }
   return (
-    <div css={skillMenuCSS} id={listboxId} role="listbox" aria-label="Skills">
+    <motion.div
+      css={skillMenuCSS}
+      id={listboxId}
+      role="listbox"
+      aria-label="Skills"
+      initial={{ opacity: 0, y: 28 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      transition={{
+        ...skillMenuSpring,
+        opacity: { duration: 0.12 },
+      }}
+    >
       {skills.map((skill, index) => {
         const isActive = index === activeIndex;
         return (
@@ -119,6 +139,6 @@ export function SkillMenu({
           </button>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

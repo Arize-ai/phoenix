@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { AnimatePresence } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -205,18 +206,25 @@ export function SkillPromptInput({
     }
   };
 
-  const menu = skillCommand.isOpen ? (
-    <SkillMenu
-      skills={skillCommand.filteredSkills}
-      activeIndex={skillCommand.activeIndex}
-      onSelect={(skill) =>
-        commitSelection(skillCommand.filteredSkills.indexOf(skill))
-      }
-      onActiveIndexChange={skillCommand.setActiveIndex}
-      listboxId={LISTBOX_ID}
-      getOptionId={getOptionId}
-    />
-  ) : null;
+  const isMenuVisible =
+    skillCommand.isOpen && skillCommand.filteredSkills.length > 0;
+  const menu = (
+    <AnimatePresence>
+      {isMenuVisible ? (
+        <SkillMenu
+          key="skill-menu"
+          skills={skillCommand.filteredSkills}
+          activeIndex={skillCommand.activeIndex}
+          onSelect={(skill) =>
+            commitSelection(skillCommand.filteredSkills.indexOf(skill))
+          }
+          onActiveIndexChange={skillCommand.setActiveIndex}
+          listboxId={LISTBOX_ID}
+          getOptionId={getOptionId}
+        />
+      ) : null}
+    </AnimatePresence>
+  );
 
   return (
     <div css={wrapperCSS}>
