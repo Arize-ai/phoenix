@@ -433,7 +433,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   resolve({
                     ok: true,
                     acceptedBy: "user",
-                    evaluator: { id: evaluatorId, name: normalizedName },
+                    evaluator: { id: datasetEvaluatorId, name: normalizedName },
                   });
                 },
                 onError: fail,
