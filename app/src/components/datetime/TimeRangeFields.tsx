@@ -72,8 +72,8 @@ export function TimeRangeFields({
 }: TimeRangeFieldsProps & { ref?: Ref<TimeRangeFieldsHandle> }) {
   const isDirtyRef = useRef(false);
   // Whether the user actually edited the end field. An open-ended preset has no
-  // end, so we seed "now" only for display; if it is never touched we recompute
-  // "now" at commit time rather than committing the (frozen) seed value.
+  // end, so we seed "now" only for display; if it is never touched the range
+  // remains open-ended instead of committing the (frozen) seed value.
   const isEndDirtyRef = useRef(false);
   const isEndOpen = end == null;
   const [startValue, setStartValue] = useState<DateValue | null>(() =>
@@ -98,12 +98,10 @@ export function TimeRangeFields({
     if (!isDirtyRef.current) {
       return;
     }
-    // An untouched open-ended end seeds "now" only for display; resolve it
-    // freshly here so the committed end tracks wall-clock time rather than the
-    // value captured when editing began. Reading the clock inside this
-    // imperative callback keeps it from being memoized to a stale render value.
+    // An untouched open-ended end seeds "now" only for display. Keep the end
+    // open so relative ranges continue to follow wall-clock time.
     const committedEnd =
-      isEndOpen && !isEndDirtyRef.current ? now(timeZone).toDate() : endDate;
+      isEndOpen && !isEndDirtyRef.current ? null : endDate;
     if (startDate && committedEnd && startDate > committedEnd) {
       // Discard an invalid edit rather than committing a backwards range.
       reset();
@@ -111,7 +109,7 @@ export function TimeRangeFields({
     }
     isDirtyRef.current = false;
     onCommit({ start: startDate, end: committedEnd });
-  }, [endDate, isEndOpen, onCommit, reset, startDate, timeZone]);
+  }, [endDate, isEndOpen, onCommit, reset, startDate]);
 
   useImperativeHandle(ref, () => ({ commit }), [commit]);
 

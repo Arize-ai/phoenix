@@ -17,6 +17,7 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { OpenTimeRangeWithKey } from "./types";
 import {
+  getMillisecondsUntilNextLastNTimeRangeRefresh,
   getTimeRangeFromLastNTimeRangeKey,
   isLastNTimeRangeKey,
 } from "./utils";
@@ -80,7 +81,13 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
 
   const setTimeRange = useCallback(
     (timeRange: OpenTimeRangeWithKey) => {
-      _setTimeRange(timeRange);
+      const nextTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey)
+        ? {
+            timeRangeKey: timeRange.timeRangeKey,
+            ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey),
+          }
+        : timeRange;
+      _setTimeRange(nextTimeRange);
       // Store the last N time range key in preferences
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
@@ -101,6 +108,26 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     },
     [setTimeRange]
   );
+
+  useEffect(() => {
+    if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      _setTimeRange((currentTimeRange) => {
+        if (!isLastNTimeRangeKey(currentTimeRange.timeRangeKey)) {
+          return currentTimeRange;
+        }
+        return {
+          timeRangeKey: currentTimeRange.timeRangeKey,
+          ...getTimeRangeFromLastNTimeRangeKey(currentTimeRange.timeRangeKey),
+        };
+      });
+    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRange.timeRangeKey));
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [timeRange]);
 
   useRegisterSetTimeRangeClientAction({ setTimeRange });
 
