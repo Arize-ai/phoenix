@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9afe84a02601a0ec736ef59ea3d5fd71>>
+ * @generated SignedSource<<ed9a6dae42cef0e9a9f313ff64b68db5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,7 @@ export type useAvailableAgentSkillsQuery$data = {
   readonly availableAgentSkills: ReadonlyArray<{
     readonly description: string;
     readonly name: string;
-    readonly userDescription: string;
+    readonly summary: string;
   }>;
 };
 export type useAvailableAgentSkillsQuery = {
@@ -70,7 +70,7 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "userDescription",
+        "name": "summary",
         "storageKey": null
       }
     ],
@@ -95,16 +95,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "75e2499e4079bb2fe734acf609486ef6",
+    "cacheID": "6d1ed961dcc6c90e21d4c60d4f31c6ef",
     "id": null,
     "metadata": {},
     "name": "useAvailableAgentSkillsQuery",
     "operationKind": "query",
-    "text": "query useAvailableAgentSkillsQuery(\n  $input: AvailableAgentSkillsInput\n) {\n  availableAgentSkills(input: $input) {\n    name\n    description\n    userDescription\n  }\n}\n"
+    "text": "query useAvailableAgentSkillsQuery(\n  $input: AvailableAgentSkillsInput\n) {\n  availableAgentSkills(input: $input) {\n    name\n    description\n    summary\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "187ece9990de6a5722900ac73a9b829a";
+(node as any).hash = "7d46e246444b90376bb1599da8d2db2a";
 
 export default node;

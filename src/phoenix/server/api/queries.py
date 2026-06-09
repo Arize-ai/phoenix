@@ -1508,10 +1508,10 @@ class Query:
         info: Info[Context, None],
         input: Optional[AvailableAgentSkillsInput] = UNSET,
     ) -> list[AgentSkill]:
-        from phoenix.server.agents.skills import select_skills
+        from phoenix.server.agents.skills import get_skills
 
         resolved_input = input if input is not UNSET and input is not None else None
-        skills = select_skills(
+        skills = get_skills(
             has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
             has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
             has_llm_evaluator_context=bool(
@@ -1522,7 +1522,7 @@ class Query:
             AgentSkill(
                 name=skill.name,
                 description=skill.description,
-                user_description=skill.user_description,
+                summary=skill.summary,
             )
             for skill in skills
         ]

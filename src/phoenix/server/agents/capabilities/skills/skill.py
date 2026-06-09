@@ -14,7 +14,7 @@ class Skill:
 
     name: str
     description: str
-    user_description: str
+    summary: str
     content: str
     path: Path
     resources: list[SkillResource] = field(default_factory=list)
@@ -43,21 +43,19 @@ class Skill:
             raise ValueError(f'Skill at {skill_file} is missing the required "name" field')
 
         description = frontmatter.get("description") or ""
-        user_description = frontmatter.get("user_description")
-        if not isinstance(user_description, str) or not user_description.strip():
-            raise ValueError(
-                f'Skill at {skill_file} is missing the required "user_description" field'
-            )
+        summary = frontmatter.get("summary")
+        if not isinstance(summary, str) or not summary.strip():
+            raise ValueError(f'Skill at {skill_file} is missing the required "summary" field')
         metadata = {
             key: value
             for key, value in frontmatter.items()
-            if key not in ("name", "description", "user_description")
+            if key not in ("name", "description", "summary")
         }
 
         return cls(
             name=name,
             description=description,
-            user_description=user_description.strip(),
+            summary=summary.strip(),
             content=instructions,
             path=skill_folder,
             resources=resources or [],

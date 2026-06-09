@@ -1,7 +1,7 @@
 ---
 name: playground
 description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground tool call, including single-shot prompt rewrites.
-user_description: Author, edit, run, compare, and improve prompts in the Phoenix playground.
+summary: Author, edit, run, compare, and improve prompts in the Phoenix playground.
 ---
 
 # Prompt Playground

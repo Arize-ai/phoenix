@@ -61,7 +61,7 @@ from phoenix.server.agents.skill_requests import (
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-from phoenix.server.agents.skills import select_skills_for_contexts
+from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -629,7 +629,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
         if body.requested_skills:
-            available_skills = select_skills_for_contexts(resolved_contexts)
+            available_skills = get_skills_for_contexts(resolved_contexts)
             forced_skills = resolve_requested_skills(
                 messages=body.messages,
                 requested_skill_names=body.requested_skills,

@@ -112,7 +112,7 @@ export function SkillMenu({
             <Flex direction="column" gap="size-25">
               <span css={skillMenuNameCSS}>/{skill.name}</span>
               <Text size="XS" color="text-700">
-                {skill.userDescription}
+                {skill.summary}
               </Text>
             </Flex>
           </button>

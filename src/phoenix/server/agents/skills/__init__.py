@@ -22,7 +22,7 @@ def build_skills(
     return skills
 
 
-def select_skills_for_contexts(contexts: ResolvedContexts) -> list[Skill]:
+def get_skills_for_contexts(contexts: ResolvedContexts) -> list[Skill]:
     """Return the skills the assistant agent would have given a resolved context set.
 
     This is the single source of truth for context-gated skill availability. Both
@@ -36,14 +36,14 @@ def select_skills_for_contexts(contexts: ResolvedContexts) -> list[Skill]:
     Returns:
         The ordered list of skills available for the given contexts.
     """
-    return select_skills(
+    return get_skills(
         has_playground_context=contexts.playground is not None,
         has_dataset_context=contexts.dataset is not None,
         has_llm_evaluator_context=contexts.llm_evaluator is not None,
     )
 
 
-def select_skills(
+def get_skills(
     *,
     has_playground_context: bool = False,
     has_dataset_context: bool = False,
@@ -69,4 +69,4 @@ def select_skills(
     )
 
 
-__all__ = ["build_skills", "select_skills", "select_skills_for_contexts"]
+__all__ = ["build_skills", "get_skills", "get_skills_for_contexts"]

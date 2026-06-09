@@ -91,7 +91,7 @@ type AgentSkill {
   description: String!
 
   """The user-facing menu description for this skill."""
-  userDescription: String!
+  summary: String!
 }
 
 type AgentTraceRecording {

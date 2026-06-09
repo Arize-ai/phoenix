@@ -21,6 +21,7 @@ def _make_skill(name: str) -> Skill:
     return Skill(
         name=name,
         description=f"{name} description",
+        summary=f"{name} summary",
         content=f"# {name}\n\nbody for {name}",
         path=Path("/tmp/unused"),
     )

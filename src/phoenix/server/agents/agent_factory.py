@@ -30,7 +30,7 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceCapabilityWrapper,
 )
-from phoenix.server.agents.skills import select_skills_for_contexts
+from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
@@ -45,7 +45,7 @@ def get_skills_capability_function(
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
         return SkillsCapability(
             toolset=SkillsToolset(
-                skills=select_skills_for_contexts(ctx.deps.contexts),
+                skills=get_skills_for_contexts(ctx.deps.contexts),
                 load_skill_template=prompts.load_skill,
                 load_skill_tool_template=prompts.load_skill_tool,
                 read_skill_resource_tool_template=prompts.read_skill_resource_tool,
