@@ -596,6 +596,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model=model,
             schema=request.app.state.graphql_schema,
             build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
         )
         agent = build_agent(

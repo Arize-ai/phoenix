@@ -7,7 +7,6 @@ from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.toolsets import AgentToolset
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.types import AgentDependencies
 
 
 class MintlifyDocsMCPServer(MCPServerStreamableHTTP):
@@ -20,14 +19,14 @@ class MintlifyDocsMCPServer(MCPServerStreamableHTTP):
 
 
 @dataclass
-class MintlifyDocsMCPCapability(AbstractStaticCapability[AgentDependencies]):
+class MintlifyDocsMCPCapability(AbstractStaticCapability[object]):
     """Pairs the Mintlify docs MCP toolset with its cacheable, session-stable
     guidance text."""
 
     mcp_server: MCPServerStreamableHTTP
     instructions: Template
 
-    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
+    def get_toolset(self) -> AgentToolset[object] | None:
         return self.mcp_server
 
     def get_static_instructions(self) -> str:
