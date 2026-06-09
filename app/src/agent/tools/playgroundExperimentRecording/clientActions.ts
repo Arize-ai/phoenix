@@ -33,7 +33,7 @@ export function createSetPlaygroundExperimentRecordingClientAction({
       return {
         ok: false,
         error:
-          "The playground is already running. Wait for the current run to finish or stop it before changing experiment recording.",
+          "The playground is already running. Wait for the current run to finish, or ask to stop it with cancel_playground_run before changing experiment recording.",
       };
     }
 
