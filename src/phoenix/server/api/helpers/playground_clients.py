@@ -2170,6 +2170,7 @@ class AzureOpenAIReasoningNonStreamingClient(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
         PROVIDER_DEFAULT,
+        "claude-fable-5",
         "claude-opus-4-8",
         "claude-opus-4-7",
     ],
