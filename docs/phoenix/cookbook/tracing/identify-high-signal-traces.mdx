@@ -1,56 +1,54 @@
 ---
 description: >-
-  When you have millions of traces, which ones are worth investigating? Learn techniques for surfacing anomalies, regressions, and failure clusters that deserve human attention.
+  When you have millions of traces, which ones are worth investigating? This guide shows you the techniques for surfacing anomalies, regressions, and failure clusters that deserve your attention.
 title: "Identifying High-Signal Traces in Production"
 ---
 
-{/* BEFORE PR — remove this comment after completing:
-  1. Run every snippet against a live Phoenix instance. Unverified APIs to confirm or replace:
-     px span add-note, px session list/get, TS addSpanNote, TS listSessions/getSession exports,
-     SpanQuery syntax "'session.id' in attributes".
-  2. Fix the three internal cross-link paths (marked TODO-path) to match the docs tree.
-  3. Confirm eval label values ('hallucinated'/'factual', 'correct'/'incorrect') against the
-     current phoenix.evals templates with Elizabeth.
-*/}
-
-When running LLM applications in production, you quickly accumulate thousands or millions of traces. Most of them are fine. A high-signal trace is one that teaches you something you didn't already know about how your system fails — and the discipline of production observability comes down to finding those traces efficiently and actually reading them.
+When running LLM applications in production, you quickly accumulate thousands or millions of traces. A **high-signal trace** is one that points to a new way in which your system fails. The discipline of production observability comes down to finding those traces efficiently and actually reading them.
 
 This guide covers:
 
 * What separates signal from noise in production traces
-* A two-cadence review practice: a daily smoke check and a weekly error-analysis session
+* The review practice: a daily smoke check and a weekly error-analysis session
 * Filtering traces by errors, latency outliers, evaluation scores, and session behavior — from the CLI and programmatically
 * Turning what you find into a failure taxonomy that drives your next evals
 
 ## Understanding Signal vs. Noise
 
-The most common mistake teams make is treating observability as a dashboard problem. Generic aggregate metrics — an overall "helpfulness" score, a global pass rate — create a false sense of measurement: the number moves and nobody can say what changed for users. Hamel Husain, who has helped dozens of teams ship production AI systems, calls error analysis "the single most valuable activity in AI development," and observes that successful teams spend the majority of their effort looking at data rather than building automated checks.
+The most common mistake teams make is treating observability as a dashboard problem. Generic aggregate metrics like an overall "helpfulness" score or a global pass rate create a false sense of measurement and control. It doesn't matter which way the number  moves if nobody can say what it means for users. Hamel Husain, whose evals writing draws on engagements with more than thirty AI teams, calls error analysis ["the most important activity in evals"](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html), and observes that successful [teams spend the majority of their development effort looking at data rather than building automated checks](https://hamel.dev/blog/posts/field-guide/).
 
-So the operative question isn't "what should my dashboard show?" It's "which traces should a human read next?" Everything in this guide — filters, sorts, scores, queries — exists to answer that question. Filters find traces; they never replace reading them.
+So before you start building a metrics dashboard, you need to find out which traces matter. While sorts, scores, and queries help you understand traces and filters find them, they never replace reading them.
 
 High-signal traces come from five sources:
 
-1. **Hard failures.** Exceptions, tool-call errors, timeouts, malformed outputs. The cheapest signal to query — and the shallowest. An LLM application can be deeply broken without ever throwing an exception.
+1. **Hard failures.** Exceptions, tool-call errors, timeouts, malformed outputs. It is the cheapest signal to query and the shallowest. An LLM application can be deeply broken without ever throwing an exception.
 2. **Soft failures.** Traces where evaluation scores flag a quality problem: a hallucinated answer, an irrelevant retrieval, a failed task.
-3. **Outliers.** Traces at the extremes of any metric — latency, token count, tool-call count, response length. Both directions are interesting: the slow tail reveals retry loops and runaway agents; the suspiciously fast tail reveals silent failures like empty retrievals.
+3. **Outliers.** Traces at the extremes of any metric: latency, token count, tool-call count, response length. Both extremes are interesting: the slow tail reveals retry loops and runaway agents; the suspiciously fast tail reveals silent failures like empty retrievals.
 4. **Human signals.** Negative feedback, support escalations, sessions where the user rephrases the same question three times. A user retry is an eval score the user computed for you.
 5. **Novelty.** Inputs unlike anything you've categorized before. New usage patterns are where your next failure mode is hiding.
 
-One principle ties these together: **prioritize the failures that happen most, not every failure that's possible.** Review time and evals aren't free. The goal is a ranked list of real, frequent problems — not exhaustive coverage.
+One principle ties these together: **prioritize the failures that happen most, not every failure that's possible.** Review time and evals aren't free. The goal is a ranked list of real, frequent problems, not exhaustive coverage.
 
 ## Two Cadences of Trace Review
 
 Production trace review works on two clocks:
 
-**The daily smoke check (minutes).** Glance at the [metrics dashboard](TODO-path/metrics) in the Phoenix UI under your project's Metrics tab for anything on fire — latency quantiles spiking, error counts climbing, costs drifting. Then run a quick error query. The dashboard is a smoke detector, not a review process: it tells you *that* something changed, never *why*. The why always lives in individual traces.
+**The daily smoke check (minutes).**
+
+1. Glance at the [metrics dashboard](/docs/phoenix/tracing/llm-traces/metrics) in the Phoenix UI under your project's Metrics tab for anything on alarming. Look for latency quantiles spiking, error counts climbing, costs drifting.
+2. Then run a quick error query.
+
+The dashboard is a smoke detector, not a review process. It tells you *that* something changed, never *why*. The why always lives in individual traces.
 
 **The weekly error-analysis session (an hour or two).** Pull a deliberately mixed sample of traces and read them with open-ended notes. This is where actual improvement comes from, and the second half of this guide is devoted to it.
 
-Teams that only do the daily check end up dashboard-watching. Teams that only do deep dives get surprised by fires. You need both, and they feed each other: smoke-check anomalies tell you where to oversample in the weekly review.
+<Callout icon="warning" color="#3b82f6">
+    Teams that only do the daily check end up dashboard-watching. Teams that only do deep dives get surprised by fires. You need both, as they are complimentary. Smoke-check anomalies tell you where to oversample in the weekly review.
+</Callout>
 
 ## The Daily Check: Finding Hard Failures
 
-Hard failures are queryable with zero setup — Phoenix records span status, exception events, and error messages on every trace. Your first triage move, straight from the terminal (see [Retrieve Traces via CLI](TODO-path/retrieve-traces-via-cli) for the full command reference):
+Hard failures are queryable with zero setup. Phoenix records span status, exception events, and error messages on every trace. Your first triage move, straight from the terminal (see [Retrieve Traces via CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/retrieve-traces-via-cli) for the full command reference):
 
 ```bash
 # Find traces with errors in the last hour
@@ -63,7 +61,7 @@ px span list --status-code ERROR --limit 20
 px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
 ```
 
-For programmatic filtering — monitoring scripts, scheduled reports — use the query DSL (covered in depth in [Extract Data from Spans](TODO-path/extract-data-from-spans)):
+For programmatic filtering (monitoring scripts, scheduled reports), use the query <abbr title="Domain Specific Language">DSL</abbr> (covered in depth in [Extract Data from Spans](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans)):
 
 <Tabs>
 <Tab title="Python" icon="python">
@@ -125,18 +123,18 @@ console.log(`Found ${llmErrors.length} LLM errors`);
 </Tab>
 </Tabs>
 
-Two principles for reading error traces:
+### How to read error traces
 
-**Find the first failure, not the loudest one.** In multi-step agent traces, upstream errors cascade — a malformed tool output at step 2 produces a confused plan at step 4 and a wrong answer at step 9. Note the *first* point where the trace went wrong; fixing it usually dissolves the downstream symptoms.
+**Find the first failure, not the loudest one.** In multi-step agent traces, upstream errors cascade. A malformed tool output at step 2 produces a confused plan at step 4 and a wrong answer at step 9. Note the *first* point where the trace went wrong; fixing it usually dissolves the downstream symptoms.
 
 **Group before you fix.** A hundred error traces might be three actual problems. Resist debugging trace-by-trace; collect, categorize, count. The weekly session below is where that happens.
 
-## Finding Performance Outliers
+### Finding Performance Outliers
 
 Latency and cost problems rarely announce themselves in averages. A healthy p50 can hide a p99 where agents loop, contexts balloon, and users give up. Sort by extremes and read **both tails**:
 
 * **Slow tail:** retry storms, agents stuck in tool-call loops, oversized retrieved contexts, sequential calls that should be parallel.
-* **Fast tail:** short-circuits and silent failures — empty retrieval results, guardrails firing when they shouldn't, models returning refusals or stubs.
+* **Fast tail:** short-circuits and silent failures, empty retrieval results, guardrails firing when they shouldn't, models returning refusals or stubs.
 
 ```bash
 # Find the slowest traces (descending by duration)
@@ -228,21 +226,21 @@ const fastTail = durations.slice(-p95Index);
 console.log(`Fast tail: ${fastTail.length} spans`);
 ```
 
-> **Note:** TypeScript requires client-side aggregation. For large volumes, export to a DataFrame using the CLI or use Python's SpanQuery.
+> **Note:** TypeScript requires client-side aggregation. For large volumes, [export to a DataFrame using the CLI](/docs/phoenix/tracing/how-to-tracing/importing-and-exporting-traces/extract-data-from-spans#downloading-all-spans-as-a-dataframe) or use Python's SpanQuery as in the corresponding Python example above.
 </Tab>
 </Tabs>
 
-For *regressions* specifically, the unit of comparison is the change: compare the latency or token distribution before and after a deploy, prompt revision, or model swap — not against an absolute threshold. And whatever cutoff you use for "outlier" — p95, one standard deviation from the median — treat it as a starting point, not a finding. The threshold's only job is to hand you a tail worth reading.
+For *regressions* specifically, the unit of comparison is the change: compare the latency or token distribution before and after a deploy, prompt revision, or model swap, not against an absolute threshold. And whatever you use do determine "outliers" (p95, one standard deviation from the median), treat it as a starting point, not a finding.
 
-## Finding Quality Issues with Evaluations
+### Finding Quality Issues with Evaluations
 
 Evaluation results attached to traces let you query for soft failures the way you query for exceptions. Treat eval results as exploration clues, not verdicts:
 
-* **Review both ends of the distribution.** Failing labels show you problems; passing labels show you whether your evaluator is calibrated. If you only ever read failures, you'll never notice your judge passing garbage.
-* **Prefer binary and categorical judgments to numeric scales.** "Did the assistant hand off to a human when it should have: yes/no" is actionable. "Helpfulness: 4.2" is not. This isn't just taste — Arize research testing LLM judges on continuous ranges found numeric score evals unreliable, with small prompt changes producing wildly different results, and a 2025 re-test on newer models confirmed that binary and categorical judgments remain the most stable ([original study](https://arize.com/blog-course/numeric-evals-for-llm-as-a-judge/), [follow-up](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/)). Phoenix's built-in evaluators emit categorical labels for exactly this reason.
+* **Review failures as well as passes.** Failing labels show you problems; passing labels show you whether your evaluator is calibrated. If you only ever read failures, you'll never notice your judge passing garbage.
+* **Prefer binary and categorical judgments to numeric scales.** "Did the assistant hand off to a human when it should have: yes/no" is actionable. "Helpfulness: 4.2" is not. Arize research testing LLM judges on continuous ranges found numeric score evals unreliable, with small prompt changes producing wildly different results, and a 2025 re-test on newer models confirmed that binary and categorical judgments remain the most stable ([original study](https://arize.com/blog-course/numeric-evals-for-llm-as-a-judge/), [follow-up](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/)). Phoenix's built-in evaluators emit categorical labels for exactly this reason.
 * **A 100% pass rate is a warning sign.** It usually means your evals aren't stressing the system. A 70% pass rate often indicates an eval that's actually testing something.
 
-A practical consequence of label-based evals: **filter on labels, not score thresholds.** Score direction varies by evaluator (for Phoenix's hallucination evaluator, a *higher* score means *factual* — direction is "maximize"), so label filters are both more readable and harder to get backwards.
+A practical consequence of label-based evals: **filter on labels, not score thresholds.** Score direction varies by evaluator (for Phoenix's hallucination evaluator, a *higher* score means *factual*), so label filters are both more readable and harder to get backwards.
 
 ```bash
 # List spans with their evaluation results
@@ -344,16 +342,16 @@ console.log(
 </Tab>
 </Tabs>
 
-Each recurring quality issue you confirm by *reading* the flagged traces is a candidate for a new, specific evaluator — which is how your eval suite grows out of real failures instead of generic metrics.
+Each recurring quality issue you confirm by *reading* the flagged traces is a candidate for a new, specific evaluator. This is how your eval suite grows out of real world failures instead of generic metrics and arbitrary benchmarks.
 
-## Session Signals: Multi-Turn Failures
+### Session Signals: Multi-Turn Failures
 
 Single-trace filters miss a whole class of problems that only exist across turns: the user who rephrases three times, the conversation that derails halfway, the agent that loses context it had two turns ago. Phoenix sessions group traces into conversations so you can read the interaction the way the user experienced it.
 
 Session-level signals worth querying for:
 
 * Sessions containing any error trace
-* Unusually long sessions (turn count as an outlier metric — often a user fighting the system)
+* Unusually long sessions (turn count as an outlier metric often portrays a user fighting the system)
 * Sessions with negative feedback on any turn
 
 When reading a session, the first-failure principle matters even more: find the earliest turn where things went wrong, because every turn after it is contaminated context.
@@ -453,19 +451,18 @@ if (errorSessions.length > 0) {
 
 ## The Weekly Session: Finding Failure Clusters
 
-Individual bad traces are anecdotes. Clusters are priorities. The method comes from qualitative research, and it works:
+Individual bad traces can be anecdotal, edge cases. Clusters help you see what to prioritize. This clustering methods comes from qualitative research:
 
-1. **Open coding.** Pull a sample of traces and write free-form notes on anything wrong with each one. Don't pre-define categories — that's how you miss the failure modes unique to your application.
-2. **Axial coding.** Group the notes into a failure taxonomy: distinct, named categories. An LLM is genuinely useful for this bucketing step.
-3. **Count.** Tally failures per category. This single step converts vibes into a prioritized roadmap. In one of Hamel Husain's client engagements, three categories accounted for over 60% of all problems.
-4. **Iterate to saturation.** Keep sampling until new traces stop revealing new categories. Rule of thumb: review at least 100 traces to start; once ~20 consecutive traces turn up nothing new, you've saturated.
+1. **Open coding.** In qualitative research, "coding" means annotating data with labels — no programming involved. Pull a sample of traces and write free-form notes on anything wrong with each one. Don't pre-define categories before looking at the traces, or you'll miss the failure modes unique to your application.
+2. **Axial coding.** Group the notes around shared themes (the "axes" the method is named for) producing a failure taxonomy: distinct, named categories. You can do this yourself like grouping socks after doing the laundry, but an LLM is often faster and just as good.
+3. **Count.** Tally failures per category. This step creates a prioritized roadmap. In [one of Hamel Husain's client engagements](https://hamel.dev/blog/posts/field-guide/#bottom-up-vs.-top-down-analysis), three categories accounted for over 60% of all problems.
+4. **Iterate to saturation.** Keep sampling until new traces stop revealing new categories. Rule of thumb: review at least 100 traces to start; once ~20 consecutive traces turn up nothing new, you're saturated.
 
-Random sampling gets inefficient once the obvious failures are fixed — most random traces are fine. Bias your sample toward signal:
+Random sampling gets inefficient once the obvious failures are fixed. Most random traces are fine. Bias your sample toward signal:
 
-* **Stratified sampling.** Group traces by the dimensions you care about — user segment, model, feature, query category, which tools were called, session turn count — and sample from each group, so a high-volume happy path doesn't drown out a broken niche. For agent applications, tools-called is often the most failure-correlated dimension you have, and it costs nothing: it's already an attribute on your spans. In Phoenix, the attributes you attach at instrumentation time (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
-* **Embedding clustering (advanced, optional).** Embed your inputs and cluster them to reveal natural groupings, then sample from every cluster. How you weight the samples depends on your goal: weight proportionally to cluster size when you want representative failure-rate estimates, or oversample the small clusters when you're hunting for failure modes you haven't seen yet — the first measures, the second discovers. There's no "correct" clustering; it's an exploration technique for surfacing patterns you'd miss manually. This technique requires more setup but can surface latent failure modes you wouldn't find with manual filtering.
+**Stratified sampling.** Group traces by the dimensions you care about, for example: user segment, model, feature, query category, which tools were called, session turn count. Sample from each group, so a high-volume happy path doesn't drown out a broken niche. For agent applications, "tools-called" is often the most failure-correlated dimension you have, and it's already an attribute on your spans. In Phoenix, the [attributes you attach at instrumentation time](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans) (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
 
-**Stratified sampling** by custom attributes:
+This is stratified sampling by custom attributes from the CLI:
 
 ```bash
 # Sample spans from different user segments
@@ -477,16 +474,39 @@ px span list --attribute llm.model_name:gpt-4 --limit 50 > gpt4_sample.json
 px span list --attribute llm.model_name:gpt-3.5-turbo --limit 50 > gpt35_sample.json
 ```
 
-**Embedding clustering** to find natural failure patterns (Python only — portability by design):
+Or proportionally in Python, [scikit-learn's splitter](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html) works directly on a spans dataframe:
+
+```python
+from sklearn.model_selection import train_test_split
+
+# A 100-span sample that preserves each model's share of traffic
+_, sample = train_test_split(
+    df, test_size=100, stratify=df['model'], random_state=42
+)
+```
+
+**Embedding clustering (advanced, optional).** Embed the *message content* (usually the user inputs) and cluster it to reveal the natural groupings in your traffic, then sample from every group. Note that this is a different kind of clustering from the failure taxonomy above:
+
+* **Axial coding** groups *failures*, and rarely needs a formal algorithm.
+* **Embedding clustering** groups *inputs*, so you can sample across the real shape of your traffic and cross-reference input clusters against error rates and eval labels.
+
+How you weight the samples depends on your goal. When you want representative failure-rate estimates, or oversample the small clusters when you're hunting for failure modes you haven't seen yet, weight proportionally to cluster size. The first measures, the second discovers.
+
+The following is an Embedding clustering of user inputs created by embedding the inputs, reducing dimensionality with [UMAP](https://umap-learn.readthedocs.io/en/latest/), cluster with [HDBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html), then label each cluster with an LLM using representative examples. Unlike [k-means](https://en.wikipedia.org/wiki/K-means_clustering), HDBSCAN doesn't make you choose the number of clusters up front, and the UMAP step matters because raw embeddings are too high-dimensional for density-based clustering.
+
+<Callout icon="sparkles" color="#3b82f6">
+    [BERTopic](https://maartengr.github.io/BERTopic/) packages this exact pipeline if you'd rather not assemble it yourself.
+</Callout>
 
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
+# pip install umap-learn scikit-learn  (HDBSCAN is in scikit-learn >= 1.3)
 from phoenix.client import Client
 from phoenix.trace.dsl import SpanQuery
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
+import umap
+from sklearn.cluster import HDBSCAN
 from openai import OpenAI  # or your embedding provider
 
 client = Client()
@@ -501,7 +521,7 @@ query = SpanQuery().select(
 )
 df = client.spans.get_spans_dataframe(query=query)
 
-# Embed the inputs
+# 1. Embed the user inputs
 def get_embedding(text: str) -> list[float]:
     if not text or not isinstance(text, str):
         return [0.0] * 1536  # Zero vector for missing inputs
@@ -514,39 +534,53 @@ def get_embedding(text: str) -> list[float]:
 df['embedding'] = df['input'].apply(get_embedding)
 embeddings = np.array(df['embedding'].tolist())
 
-# Cluster the embeddings (try 5-10 clusters to start)
-n_clusters = 8
-kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-df['cluster'] = kmeans.fit_predict(embeddings)
+# 2. Reduce dimensionality (raw embeddings are too high-dimensional
+#    for density-based clustering; 5-25 components works well)
+reducer = umap.UMAP(n_components=10, random_state=42)
+reduced = reducer.fit_transform(embeddings)
 
-# Find clusters with elevated failure rates
+# 3. Cluster with HDBSCAN — no need to pick a cluster count up front
+clusterer = HDBSCAN(min_cluster_size=10)
+df['cluster'] = clusterer.fit_predict(reduced)
+
+# Cluster -1 is HDBSCAN's "noise": inputs that don't fit any cluster.
+# Don't discard these — they're your novelty signal. Review them directly.
+noise = df[df['cluster'] == -1]
+print(f"Noise points (novel inputs): {len(noise)}")
+
+# 4. Label each cluster with an LLM using representative examples
+for cluster_id in sorted(df[df['cluster'] >= 0]['cluster'].unique()):
+    examples = df[df['cluster'] == cluster_id]['input'].head(5).tolist()
+    # Send to an LLM: "Name the common theme of these user queries in 6 words or fewer"
+    # Store the returned label alongside the cluster_id
+
+# 5. Cross-reference input clusters against failure signals
 df['is_error'] = df['status'] == 'ERROR'
 df['is_incorrect'] = df['correctness_label'] == 'incorrect'
-cluster_stats = df.groupby('cluster').agg(
+cluster_stats = df[df['cluster'] >= 0].groupby('cluster').agg(
     error_rate=('is_error', 'mean'),
     incorrect_rate=('is_incorrect', 'mean'),
     size=('input', 'count'),
 )
-
 print(cluster_stats.sort_values('error_rate', ascending=False))
 
-# Oversample from high-error clusters for review
+# 6. Build the review sample: high-error clusters, small clusters, and noise
 high_error_clusters = cluster_stats[cluster_stats['error_rate'] > 0.2].index
-high_error_sample = df[df['cluster'].isin(high_error_clusters)].sample(n=min(50, len(df)))
+high_error_sample = df[df['cluster'].isin(high_error_clusters)].sample(
+    n=min(50, len(df[df['cluster'].isin(high_error_clusters)]))
+)
 
-# Also sample from small clusters (edge cases)
 small_clusters = cluster_stats[cluster_stats['size'] < cluster_stats['size'].quantile(0.25)].index
-edge_case_sample = df[df['cluster'].isin(small_clusters)].sample(n=min(20, len(df)))
+edge_case_sample = df[df['cluster'].isin(small_clusters)].sample(
+    n=min(20, len(df[df['cluster'].isin(small_clusters)]))
+)
 
 print(f"\nHigh-error sample: {len(high_error_sample)} spans")
 print(f"Edge-case sample: {len(edge_case_sample)} spans")
+print(f"Novelty sample: {min(20, len(noise))} spans")
 
-# Optional: visualize with PCA
-pca = PCA(n_components=2)
-coords = pca.fit_transform(embeddings)
-df['x'] = coords[:, 0]
-df['y'] = coords[:, 1]
-# Now plot df[['x', 'y', 'cluster', 'status']] with your favorite plotting library
+# Optional: for a visual map, run a second UMAP to 2 components
+# and plot (x, y, cluster, status) with your favorite plotting library
 ```
 </Tab>
 
@@ -582,7 +616,7 @@ console.log(
 );
 ```
 
-> **Note:** Phoenix doesn't include a built-in embedding projector. The Python workflow above shows the full DIY approach: embed, cluster, cross-tab against error rates. This portability is a feature — you control the embedding model and clustering algorithm.
+> **Note:** Phoenix doesn't include a built-in embedding projector. The Python workflow above shows the full DIY approach: embed, reduce, cluster, cross-reference against error rates. This portability is a feature — you control the embedding model and clustering algorithm.
 </Tab>
 </Tabs>
 
