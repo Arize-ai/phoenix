@@ -11156,6 +11156,11 @@
             "title": "Recordexperiments",
             "default": true
           },
+          "repetitions": {
+            "type": "integer",
+            "title": "Repetitions",
+            "default": 1
+          },
           "instances": {
             "items": {
               "$ref": "#/components/schemas/PlaygroundInstanceContext"

@@ -1,0 +1,149 @@
+dataset_name: playground_repetitions
+description: >-
+  PXI eval suite for mounted playground repetition changes. Covers requests to
+  increase repetitions for confidence, flake checks, and structured output
+  validation, plus negative cases where the agent should run normally or choose
+  another playground tool.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - tool_call_count_within_limit
+examples:
+  - id: run-five-times
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          repetitions: 1
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Run this prompt 5 times so I can compare the answers.
+    expected:
+      tools:
+        required: [set_playground_repetitions]
+      tool_call_args:
+        set_playground_repetitions:
+          repetitions: 5
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: explicit_repetition_count
+      difficulty: obvious
+      polarity: positive
+
+  - id: flake-check-twice
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          repetitions: 1
+          instances:
+            - instanceId: 102
+      messages:
+        - role: user
+          content: Can you check this twice for flakes before I save it?
+    expected:
+      tools:
+        required: [set_playground_repetitions]
+      tool_call_args:
+        set_playground_repetitions:
+          repetitions: 2
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: flake_check
+      difficulty: obvious
+      polarity: positive
+
+  - id: structured-output-confidence
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          repetitions: 1
+          instances:
+            - instanceId: 103
+      messages:
+        - role: user
+          content: I need to be sure the JSON shape is stable. Run several repetitions before we trust it.
+    expected:
+      tools:
+        required: [set_playground_repetitions]
+      tool_call_args:
+        set_playground_repetitions:
+          repetitions: { any: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: structured_output_confidence
+      difficulty: moderate
+      polarity: positive
+
+  - id: tool-call-confidence
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          repetitions: 1
+          instances:
+            - instanceId: 104
+      messages:
+        - role: user
+          content: Run a few repetitions to make sure the prompt's tool-call behavior is stable before I save it.
+    expected:
+      tools:
+        required: [set_playground_repetitions]
+      tool_call_args:
+        set_playground_repetitions:
+          repetitions: { any: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: tool_call_confidence
+      difficulty: moderate
+      polarity: positive
+
+  - id: normal-run-no-repetition-change
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          repetitions: 1
+          instances:
+            - instanceId: 201
+      messages:
+        - role: user
+          content: Run it on the current inputs.
+    expected:
+      tools:
+        required: [run_playground]
+        forbidden: [set_playground_repetitions]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_normal_run
+      difficulty: obvious
+      polarity: negative
+
+  - id: over-maximum-request
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          repetitions: 1
+          instances:
+            - instanceId: 202
+      messages:
+        - role: user
+          content: Run this 50 times so I can be completely sure.
+    expected:
+      tools:
+        forbidden: [set_playground_repetitions, run_playground]
+      budgets:
+        max_tool_calls: 1
+    metadata:
+      category: negative_over_maximum
+      difficulty: moderate
+      polarity: negative

@@ -1,4 +1,6 @@
 export const NUM_MAX_PLAYGROUND_INSTANCES = 4;
+export const NUM_MIN_PLAYGROUND_REPETITIONS = 1;
+export const NUM_MAX_PLAYGROUND_REPETITIONS = 30;
 
 /**
  * Parsing errors for parsing a span to a playground instance

@@ -1,6 +1,7 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
 import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
+import { SET_PLAYGROUND_REPETITIONS_TOOL_NAME } from "@phoenix/agent/tools/playgroundRepetitions";
 import {
   createSavePromptClientAction,
   SAVE_PROMPT_TOOL_NAME,
@@ -252,6 +253,39 @@ describe("toolRegistry", () => {
     );
   });
 
+  it("dispatches set_playground_repetitions to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: true, output: "repetitions updated" });
+    store
+      .getState()
+      .registerClientAction(SET_PLAYGROUND_REPETITIONS_TOOL_NAME, action);
+
+    const input = { repetitions: 4 };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-repetitions",
+        toolName: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith(input);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        output: "repetitions updated",
+      })
+    );
+  });
+
   it("surfaces set_playground_experiment_recording client action errors", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
@@ -280,6 +314,36 @@ describe("toolRegistry", () => {
       expect.objectContaining({
         state: "output-error",
         tool: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        errorText: "already running",
+      })
+    );
+  });
+
+  it("surfaces set_playground_repetitions client action errors", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: "already running" });
+    store
+      .getState()
+      .registerClientAction(SET_PLAYGROUND_REPETITIONS_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-repetitions-error",
+        toolName: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        input: { repetitions: 4 },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
         errorText: "already running",
       })
     );

@@ -72,6 +72,10 @@ import {
   WRITE_PROMPT_TOOLS_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import {
+  createSetPlaygroundRepetitionsClientAction,
+  SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundRepetitions";
+import {
   CANCEL_PLAYGROUND_RUN_TOOL_NAME,
   createCancelPlaygroundRunClientAction,
   createRunPlaygroundClientAction,
@@ -354,6 +358,7 @@ function PlaygroundContent() {
   const recordExperiments = usePlaygroundContext(
     (state) => state.recordExperiments
   );
+  const repetitions = usePlaygroundContext((state) => state.repetitions);
   const playgroundInstancesForAgent = usePlaygroundContext(
     (state) =>
       state.instances.map((instance) =>
@@ -382,9 +387,10 @@ function PlaygroundContent() {
     () =>
       buildPlaygroundAgentContext({
         recordExperiments,
+        repetitions,
         instances: playgroundInstancesForAgent,
       }),
-    [playgroundInstancesForAgent, recordExperiments]
+    [playgroundInstancesForAgent, recordExperiments, repetitions]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 
@@ -467,6 +473,10 @@ function PlaygroundContent() {
       createSetPlaygroundExperimentRecordingClientAction({ playgroundStore })
     );
     registerClientAction(
+      SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+      createSetPlaygroundRepetitionsClientAction({ playgroundStore })
+    );
+    registerClientAction(
       SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME,
       createSetTemplateVariablesPathClientAction({
         playgroundStore,
@@ -515,6 +525,7 @@ function PlaygroundContent() {
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
       unregisterClientAction(SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME);
+      unregisterClientAction(SET_PLAYGROUND_REPETITIONS_TOOL_NAME);
       unregisterClientAction(SET_TEMPLATE_VARIABLES_PATH_TOOL_NAME);
       unregisterClientAction(LOAD_DATASET_TOOL_NAME);
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);

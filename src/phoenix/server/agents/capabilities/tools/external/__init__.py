@@ -37,6 +37,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     set_appended_messages_path,
     set_playground_experiment_recording,
     set_playground_model,
+    set_playground_repetitions,
     set_spans_filter,
     set_template_variables_path,
     set_time_range,
@@ -123,6 +124,9 @@ from phoenix.server.agents.capabilities.tools.external.set_playground_experiment
 from phoenix.server.agents.capabilities.tools.external.set_playground_model import (
     SetPlaygroundModelCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.set_playground_repetitions import (
+    SetPlaygroundRepetitionsCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
     SetSpansFilterCapability,
 )
@@ -180,6 +184,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         set_appended_messages_path.TOOL_DEFINITION,
         set_playground_experiment_recording.TOOL_DEFINITION,
         set_playground_model.TOOL_DEFINITION,
+        set_playground_repetitions.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_template_variables_path.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
@@ -231,6 +236,7 @@ def get_external_tool_capability_function(
         SetPlaygroundExperimentRecordingCapability(
             instructions=prompts.set_playground_experiment_recording_tool
         ),
+        SetPlaygroundRepetitionsCapability(instructions=prompts.set_playground_repetitions_tool),
         SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
         SetAppendedMessagesPathCapability(instructions=prompts.set_appended_messages_path_tool),
         LoadDatasetCapability(instructions=prompts.load_dataset_tool),
@@ -280,6 +286,7 @@ __all__ = [
     "SetAppendedMessagesPathCapability",
     "SetPlaygroundExperimentRecordingCapability",
     "SetPlaygroundModelCapability",
+    "SetPlaygroundRepetitionsCapability",
     "SetSpansFilterCapability",
     "SetTemplateVariablesPathCapability",
     "SetTimeRangeCapability",
