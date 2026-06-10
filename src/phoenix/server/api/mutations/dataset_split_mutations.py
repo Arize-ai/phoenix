@@ -129,23 +129,8 @@ class DatasetSplitMutationMixin:
     async def patch_dataset_split(
         self, info: Info[Context, None], input: PatchDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
-        # Distinguish omitted (UNSET) from explicit null: omitted fields are
-        # left unchanged, while null clears nullable columns (description) and
-        # is ignored for non-nullable ones — same contract as patchDataset.
-        patch = {
-            column.key: patch_value
-            for column, patch_value, column_is_nullable in (
-                (
-                    models.DatasetSplit.name,
-                    _validated_name(input.name) if isinstance(input.name, str) else input.name,
-                    False,
-                ),
-                (models.DatasetSplit.description, input.description, True),
-                (models.DatasetSplit.color, input.color, False),
-                (models.DatasetSplit.metadata_, input.metadata, False),
-            )
-            if patch_value is not UNSET and (patch_value is not None or column_is_nullable)
-        }
+        # An invalid new name fails fast, before anything is loaded or changed.
+        validated_name = _validated_name(input.name) if isinstance(input.name, str) else None
         async with info.context.db() as session:
             dataset_split_id = from_global_id_with_expected_type(
                 input.dataset_split_id, DatasetSplit.__name__
@@ -154,8 +139,19 @@ class DatasetSplitMutationMixin:
             if not dataset_split_orm:
                 raise NotFound(f"Dataset split with ID {input.dataset_split_id} not found")
 
-            for key, patch_value in patch.items():
-                setattr(dataset_split_orm, key, patch_value)
+            # Distinguish omitted (UNSET) from explicit null: omitted fields are
+            # left unchanged, while null clears nullable columns (description)
+            # and is ignored for non-nullable ones — same contract as
+            # patchDataset. Assignments are spelled out per column so the type
+            # checker verifies each value against its Mapped[...] type.
+            if validated_name is not None:
+                dataset_split_orm.name = validated_name
+            if input.description is not UNSET:
+                dataset_split_orm.description = input.description
+            if isinstance(input.color, str):
+                dataset_split_orm.color = input.color
+            if isinstance(input.metadata, dict):
+                dataset_split_orm.metadata_ = input.metadata
 
             gql_dataset_split = DatasetSplit(id=dataset_split_orm.id, db_record=dataset_split_orm)
             try:

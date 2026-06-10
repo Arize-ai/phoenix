@@ -238,9 +238,8 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[str] = UNSET,
-        filter_ids: Optional[
-            list[GlobalID]
-        ] = UNSET,
+        # filter_ids is a stopgap until a query DSL is implemented
+        filter_ids: Optional[list[GlobalID]] = UNSET,
     ) -> Connection[DatasetExample]:
         args = ConnectionArgs(
             first=first,
