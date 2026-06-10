@@ -178,54 +178,13 @@ class Dataset(Node):
                 except Exception:
                     raise BadRequest(f"Invalid split ID: {split_id}")
 
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(models.DatasetExample)
-            .where(models.DatasetExample.dataset_id == dataset_id)
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        return await info.context.data_loaders.dataset_example_counts.load(
+            (
+                dataset_id,
+                version_id,
+                tuple(sorted(set(split_rowids))) if split_rowids else None,
+            )
         )
-        if version_id:
-            version_id_subquery = (
-                select(models.DatasetVersion.id)
-                .where(models.DatasetVersion.dataset_id == dataset_id)
-                .where(models.DatasetVersion.id == version_id)
-                .scalar_subquery()
-            )
-            revision_ids = revision_ids.where(
-                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
-            )
-
-        # Build the count query
-        if split_rowids:
-            # When filtering by splits, count distinct examples that belong to those splits
-            stmt = (
-                select(count(models.DatasetExample.id.distinct()))
-                .join(
-                    models.DatasetExampleRevision,
-                    onclause=(
-                        models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id
-                    ),
-                )
-                .join(
-                    models.DatasetSplitDatasetExample,
-                    onclause=(
-                        models.DatasetExample.id
-                        == models.DatasetSplitDatasetExample.dataset_example_id
-                    ),
-                )
-                .where(models.DatasetExampleRevision.id.in_(revision_ids))
-                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
-            )
-        else:
-            stmt = (
-                select(count(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.id.in_(revision_ids))
-                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-            )
-
-        async with info.context.db.read() as session:
-            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def examples(

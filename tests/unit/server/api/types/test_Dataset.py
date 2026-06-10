@@ -209,6 +209,71 @@ class TestDatasetExampleCountResolver:
         assert not response.errors
         assert response.data == {"node": {"exampleCount": 1}}
 
+    async def test_count_is_zero_when_version_belongs_to_another_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(2))),
+                "datasetVersionId": str(GlobalID("DatasetVersion", str(1))),
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 0}}
+
+    async def test_bulk_query_returns_count_for_every_dataset(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        query = """
+          query {
+            datasets(first: 50) {
+              edges {
+                node {
+                  id
+                  exampleCount
+                }
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(query=query)
+        assert not response.errors
+        assert response.data
+        counts = {
+            edge["node"]["id"]: edge["node"]["exampleCount"]
+            for edge in response.data["datasets"]["edges"]
+        }
+        assert counts == dict(many_datasets_with_examples)
+
+    async def test_count_with_split_filter(
+        self,
+        gql_client: AsyncGraphQLClient,
+        many_datasets_with_examples: Mapping[str, int],
+    ) -> None:
+        query = """
+          query ($datasetId: ID!, $splitIds: [ID!]) {
+            node(id: $datasetId) {
+              ... on Dataset {
+                exampleCount(splitIds: $splitIds)
+              }
+            }
+          }
+        """
+        response = await gql_client.execute(
+            query=query,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(3))),
+                "splitIds": [str(GlobalID("DatasetSplit", str(1)))],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"exampleCount": 2}}
+
 
 class TestDatasetExamplesResolver:
     QUERY = """
@@ -1317,6 +1382,100 @@ async def dataset_with_three_versions(db: DbSessionFactory) -> None:
         )
         session.add(dataset_example_revision_3)
         await session.flush()
+
+
+@pytest.fixture
+async def many_datasets_with_examples(db: DbSessionFactory) -> Mapping[str, int]:
+    """
+    Twelve datasets where dataset i contains i active examples plus one deleted
+    example that must not be counted. The first two examples of dataset 3 are
+    assigned to dataset split 1. Returns a mapping from dataset global ID to its
+    expected active example count.
+    """
+    expected_counts: dict[str, int] = {}
+    async with db() as session:
+        split = models.DatasetSplit(
+            id=1,
+            name="train",
+            description=None,
+            color="#0000FF",
+            metadata_={},
+        )
+        session.add(split)
+        example_id = 0
+        revision_id = 0
+        for dataset_index in range(1, 13):
+            session.add(
+                models.Dataset(
+                    id=dataset_index,
+                    name=f"dataset-{dataset_index}",
+                    description=None,
+                    metadata_={},
+                )
+            )
+            await session.flush()
+            session.add(
+                models.DatasetVersion(
+                    id=dataset_index,
+                    dataset_id=dataset_index,
+                    description=None,
+                    metadata_={},
+                )
+            )
+            await session.flush()
+            for example_index in range(dataset_index):
+                example_id += 1
+                session.add(models.DatasetExample(id=example_id, dataset_id=dataset_index))
+                await session.flush()
+                revision_id += 1
+                session.add(
+                    models.DatasetExampleRevision(
+                        id=revision_id,
+                        dataset_example_id=example_id,
+                        dataset_version_id=dataset_index,
+                        input={},
+                        output={},
+                        metadata_={},
+                        revision_kind="CREATE",
+                    )
+                )
+                if dataset_index == 3 and example_index < 2:
+                    session.add(
+                        models.DatasetSplitDatasetExample(
+                            dataset_split_id=1,
+                            dataset_example_id=example_id,
+                        )
+                    )
+            session.add(
+                models.DatasetVersion(
+                    id=dataset_index + 100,
+                    dataset_id=dataset_index,
+                    description=None,
+                    metadata_={},
+                )
+            )
+            example_id += 1
+            session.add(models.DatasetExample(id=example_id, dataset_id=dataset_index))
+            await session.flush()
+            for version_id, revision_kind in (
+                (dataset_index, "CREATE"),
+                (dataset_index + 100, "DELETE"),
+            ):
+                revision_id += 1
+                session.add(
+                    models.DatasetExampleRevision(
+                        id=revision_id,
+                        dataset_example_id=example_id,
+                        dataset_version_id=version_id,
+                        input={},
+                        output={},
+                        metadata_={},
+                        revision_kind=revision_kind,
+                    )
+                )
+            await session.flush()
+            expected_counts[str(GlobalID("Dataset", str(dataset_index)))] = dataset_index
+    return expected_counts
 
 
 @pytest.fixture
