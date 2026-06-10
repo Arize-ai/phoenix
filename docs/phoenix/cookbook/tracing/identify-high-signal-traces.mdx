@@ -1,0 +1,798 @@
+---
+description: >-
+  When you have millions of traces, which ones are worth investigating? Learn techniques for surfacing anomalies, regressions, and failure clusters that deserve human attention.
+title: "Identifying High-Signal Traces in Production"
+---
+
+{/* HANDOFF NOTE for Claude Code:
+  - This is an MDX guide, no notebook. All code slots use the docs' <Tabs> pattern:
+    <Tabs><Tab title="Python" icon="python">…</Tab><Tab title="TypeScript" icon="js">…</Tab></Tabs>
+  - VERIFY before writing: (1) does SpanQuery or equivalent exist in @arizeai/phoenix-client (TS)?
+    If not, the TS tab should show the honest available path (CLI / REST) with a one-line note —
+    do not fake parity. (2) Does the embeddings projector / clustering feature exist in current
+    Phoenix? If yes, reference it in Failure Clusters; if no, keep the dataframe-DIY framing.
+  - CLI examples should match the px commands you surfaced (trace list, span list --status-code,
+    --attribute, --include-annotations, trace get, session get).
+*/}
+
+When running LLM applications in production, you quickly accumulate thousands or millions of traces. Most of them are fine. A high-signal trace is one that teaches you something you didn't already know about how your system fails — and the discipline of production observability comes down to finding those traces efficiently and actually reading them.
+
+This guide covers:
+
+* What separates signal from noise in production traces
+* A two-cadence review practice: a daily smoke check and a weekly error-analysis session
+* Filtering traces by errors, latency outliers, evaluation scores, and session behavior — from the CLI and programmatically
+* Turning what you find into a failure taxonomy that drives your next evals
+
+## Understanding Signal vs. Noise
+
+The most common mistake teams make is treating observability as a dashboard problem. Generic aggregate metrics — an overall "helpfulness" score, a global pass rate — create a false sense of measurement: the number moves and nobody can say what changed for users. Hamel Husain, who has helped dozens of teams ship production AI systems, calls error analysis "the single most valuable activity in AI development," and observes that successful teams spend the majority of their effort looking at data rather than building automated checks.
+
+So the operative question isn't "what should my dashboard show?" It's "which traces should a human read next?" Everything in this guide — filters, sorts, scores, queries — exists to answer that question. Filters find traces; they never replace reading them.
+
+High-signal traces come from five sources:
+
+1. **Hard failures.** Exceptions, tool-call errors, timeouts, malformed outputs. The cheapest signal to query — and the shallowest. An LLM application can be deeply broken without ever throwing an exception.
+2. **Soft failures.** Traces where evaluation scores flag a quality problem: a hallucinated answer, an irrelevant retrieval, a failed task.
+3. **Outliers.** Traces at the extremes of any metric — latency, token count, tool-call count, response length. Both directions are interesting: the slow tail reveals retry loops and runaway agents; the suspiciously fast tail reveals silent failures like empty retrievals.
+4. **Human signals.** Negative feedback, support escalations, sessions where the user rephrases the same question three times. A user retry is an eval score the user computed for you.
+5. **Novelty.** Inputs unlike anything you've categorized before. New usage patterns are where your next failure mode is hiding.
+
+One principle ties these together: **prioritize the failures that happen most, not every failure that's possible.** Review time and evals aren't free. The goal is a ranked list of real, frequent problems — not exhaustive coverage.
+
+## Two Cadences of Trace Review
+
+Production trace review works on two clocks:
+
+**The daily smoke check (minutes).** Glance at the metrics dashboard (in the Phoenix UI under your project's Metrics tab) for anything on fire — latency quantiles spiking, error counts climbing, costs drifting. Then run a quick error query. The dashboard is a smoke detector, not a review process: it tells you *that* something changed, never *why*. The why always lives in individual traces.
+
+**The weekly error-analysis session (an hour or two).** Pull a deliberately mixed sample of traces and read them with open-ended notes. This is where actual improvement comes from, and the second half of this guide is devoted to it.
+
+Teams that only do the daily check end up dashboard-watching. Teams that only do deep dives get surprised by fires. You need both, and they feed each other: smoke-check anomalies tell you where to oversample in the weekly review.
+
+## The Daily Check: Finding Hard Failures
+
+Hard failures are queryable with zero setup — Phoenix records span status, exception events, and error messages on every trace. Your first triage move, straight from the terminal:
+
+```bash
+# Find traces with errors in the last hour
+px trace list --last-n-minutes 60 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+
+# List all errored spans
+px span list --status-code ERROR --limit 20
+
+# Drill down into a specific trace
+px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
+```
+
+For programmatic filtering — monitoring scripts, scheduled reports — use the query DSL:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.client import Client
+from phoenix.trace.dsl import SpanQuery
+
+client = Client()
+
+# Get all errored spans
+error_query = SpanQuery().where("status_code == 'ERROR'").select(
+    span_kind="span_kind",
+    name="name",
+    error_message="exception.message",
+    input="input.value",
+)
+errors_df = client.spans.get_spans_dataframe(query=error_query)
+
+# Filter for specific span kinds (e.g., only LLM or TOOL errors)
+llm_errors = SpanQuery().where(
+    "status_code == 'ERROR' and span_kind == 'LLM'"
+).select(
+    model="llm.model_name",
+    error="exception.message",
+    input="input.value",
+)
+llm_errors_df = client.spans.get_spans_dataframe(query=llm_errors)
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+
+// Get errored spans with built-in filters
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  statusCode: "ERROR",
+  limit: 100,
+});
+
+// Filter for specific span kinds
+const { spans: llmErrors } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  spanKind: "LLM",
+  statusCode: "ERROR",
+  limit: 100,
+});
+
+console.log(`Found ${llmErrors.length} LLM errors`);
+```
+
+> **Note:** TypeScript uses `getSpans()` with parameter-based filtering. For complex queries like Python's SpanQuery DSL, use the CLI (`px span list`) or REST API directly.
+</Tab>
+</Tabs>
+
+Two principles for reading error traces:
+
+**Find the first failure, not the loudest one.** In multi-step agent traces, upstream errors cascade — a malformed tool output at step 2 produces a confused plan at step 4 and a wrong answer at step 9. Note the *first* point where the trace went wrong; fixing it usually dissolves the downstream symptoms.
+
+**Group before you fix.** A hundred error traces might be three actual problems. Resist debugging trace-by-trace; collect, categorize, count. The weekly session below is where that happens.
+
+## Finding Performance Outliers
+
+Latency and cost problems rarely announce themselves in averages. A healthy p50 can hide a p99 where agents loop, contexts balloon, and users give up. Sort by extremes and read **both tails**:
+
+* **Slow tail:** retry storms, agents stuck in tool-call loops, oversized retrieved contexts, sequential calls that should be parallel.
+* **Fast tail:** short-circuits and silent failures — empty retrieval results, guardrails firing when they shouldn't, models returning refusals or stubs.
+
+```bash
+# Find the slowest traces (descending by duration)
+px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:10]'
+
+# Find suspiciously fast traces (ascending by duration)
+px trace list --format raw --no-progress | jq 'sort_by(.duration) | .[0:10]'
+```
+
+For programmatic analysis of latency tails:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.client import Client
+from phoenix.trace.dsl import SpanQuery
+import pandas as pd
+
+client = Client()
+
+# Pull all LLM spans with timing and token data
+perf_query = SpanQuery().where("span_kind == 'LLM'").select(
+    name="name",
+    model="llm.model_name",
+    start_time="start_time",
+    end_time="end_time",
+    prompt_tokens="llm.token_count.prompt",
+    completion_tokens="llm.token_count.completion",
+    total_tokens="llm.token_count.total",
+)
+df = client.spans.get_spans_dataframe(query=perf_query)
+
+# Calculate duration in milliseconds
+df['duration'] = (pd.to_datetime(df['end_time']) - pd.to_datetime(df['start_time'])).dt.total_seconds() * 1000
+
+# Compute percentiles
+p95_duration = df['duration'].quantile(0.95)
+p99_duration = df['duration'].quantile(0.99)
+p5_duration = df['duration'].quantile(0.05)
+
+# Find slow tail (potential loops, retries)
+slow_tail = df[df['duration'] > p95_duration].sort_values('duration', ascending=False)
+print(f"Slow tail (>{p95_duration}ms): {len(slow_tail)} spans")
+
+# Find fast tail (potential silent failures)
+fast_tail = df[df['duration'] < p5_duration].sort_values('duration')
+print(f"Fast tail (<{p5_duration}ms): {len(fast_tail)} spans")
+
+# High token usage (cost outliers)
+p95_tokens = df['total_tokens'].quantile(0.95)
+high_cost = df[df['total_tokens'] > p95_tokens]
+print(f"High token usage (>{p95_tokens}): {len(high_cost)} spans")
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+
+// Get LLM spans and analyze durations client-side
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  spanKind: "LLM",
+  limit: 1000, // Adjust based on volume
+});
+
+// Calculate duration for each span
+const durations = spans
+  .map((span) => ({
+    spanId: span.context.span_id,
+    name: span.name,
+    duration:
+      new Date(span.end_time).getTime() - new Date(span.start_time).getTime(),
+    tokens: span.attributes["llm.token_count.total"] as number,
+  }))
+  .sort((a, b) => b.duration - a.duration);
+
+// Slow tail (top 5%)
+const p95Index = Math.floor(durations.length * 0.05);
+const slowTail = durations.slice(0, p95Index);
+console.log(`Slow tail: ${slowTail.length} spans`);
+
+// Fast tail (bottom 5%)
+const fastTail = durations.slice(-p95Index);
+console.log(`Fast tail: ${fastTail.length} spans`);
+```
+
+> **Note:** TypeScript requires client-side aggregation. For large volumes, export to a DataFrame using the CLI or use Python's SpanQuery.
+</Tab>
+</Tabs>
+
+For *regressions* specifically, the unit of comparison is the change: compare the latency or token distribution before and after a deploy, prompt revision, or model swap — not against an absolute threshold.
+
+## Finding Quality Issues with Evaluations
+
+Evaluation scores attached to traces let you query for soft failures the way you query for exceptions. Treat scores as exploration clues, not verdicts:
+
+* **Review both ends of the distribution.** Low scores show you failures; high scores show you whether your evaluator is calibrated. If you only ever read failures, you'll never notice your judge passing garbage.
+* **Prefer binary judgments to numeric scales.** "Did the assistant hand off to a human when it should have: yes/no" is actionable. "Helpfulness: 4.2" is not — unanchored scores erode trust in the whole system.
+* **A 100% pass rate is a warning sign.** It usually means your evals aren't stressing the system. A 70% pass rate often indicates an eval that's actually testing something.
+
+```bash
+# List spans with their evaluation scores
+px span list --include-annotations --limit 20 --format raw --no-progress | \
+  jq '.[] | select(.annotations != null) | {span_id: .context.span_id, name, annotations}'
+
+# Filter traces by specific annotation values (requires jq post-processing)
+px trace list --include-annotations --format raw --no-progress | \
+  jq '.[] | select(.annotations[] | select(.name == "correctness" and .score < 0.5))'
+```
+
+For programmatic filtering by evaluation scores:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.client import Client
+from phoenix.trace.dsl import SpanQuery
+
+client = Client()
+
+# Find low-scoring spans (potential failures)
+low_quality = SpanQuery().where(
+    "evals['hallucination'].score > 0.5"  # Higher hallucination score = bad
+).select(
+    input="input.value",
+    output="output.value",
+    hallucination_score="evals['hallucination'].score",
+    hallucination_label="evals['hallucination'].label",
+    explanation="evals['hallucination'].explanation",
+)
+low_df = client.spans.get_spans_dataframe(query=low_quality)
+print(f"Found {len(low_df)} spans with hallucination score > 0.5")
+
+# ALSO check high scorers to validate your evaluator
+high_quality = SpanQuery().where(
+    "evals['hallucination'].score < 0.1"
+).select(
+    input="input.value",
+    output="output.value",
+    score="evals['hallucination'].score",
+)
+high_df = client.spans.get_spans_dataframe(query=high_quality)
+# Spot-check: are these actually good? If not, your eval is miscalibrated.
+
+# Find spans with multiple eval failures (compound failures)
+multi_fail = SpanQuery().where(
+    "evals['relevance'].label == 'irrelevant' and evals['correctness'].label == 'incorrect'"
+).select(
+    input="input.value",
+    output="output.value",
+    relevance="evals['relevance'].score",
+    correctness="evals['correctness'].score",
+)
+multi_df = client.spans.get_spans_dataframe(query=multi_fail)
+print(f"Compound failures: {len(multi_df)} spans")
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans, getSpanAnnotations } from "@arizeai/phoenix-client/spans";
+
+const client = createClient();
+
+// Get spans with annotations
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  limit: 1000,
+});
+
+const spanIds = spans.map((s) => s.context.span_id);
+
+// Fetch annotations for these spans
+const { data: annotations } = await getSpanAnnotations({
+  client,
+  project: { projectName: "my-project" },
+  spanIds,
+  includeAnnotationNames: ["hallucination", "correctness"],
+});
+
+// Filter for low scores client-side
+const lowScores = annotations.filter(
+  (ann) => ann.name === "hallucination" && (ann.score ?? 0) > 0.5
+);
+
+console.log(`Found ${lowScores.length} high hallucination scores`);
+
+// Check high scorers too (calibration check)
+const highScores = annotations.filter(
+  (ann) => ann.name === "hallucination" && (ann.score ?? 1) < 0.1
+);
+console.log(
+  `High-scoring spans: ${highScores.length} (spot-check these for false negatives)`
+);
+```
+
+> **Note:** TypeScript requires fetching annotations separately and filtering client-side. For complex eval-based queries, use Python's SpanQuery or the CLI.
+</Tab>
+</Tabs>
+
+Each recurring quality issue you confirm by *reading* the flagged traces is a candidate for a new, specific evaluator — which is how your eval suite grows out of real failures instead of generic metrics.
+
+## Session Signals: Multi-Turn Failures
+
+Single-trace filters miss a whole class of problems that only exist across turns: the user who rephrases three times, the conversation that derails halfway, the agent that loses context it had two turns ago. Phoenix sessions group traces into conversations so you can read the interaction the way the user experienced it.
+
+Session-level signals worth querying for:
+
+* Sessions containing any error trace
+* Unusually long sessions (turn count as an outlier metric — often a user fighting the system)
+* Sessions with negative feedback on any turn
+
+When reading a session, the first-failure principle matters even more: find the earliest turn where things went wrong, because every turn after it is contaminated context.
+
+```bash
+# List all sessions
+px session list --limit 20
+
+# Get a specific session with all its traces
+px session get <session-id> --format raw | jq '.traces[] | {trace_id, start_time, status}'
+
+# Find spans for a specific session
+px span list --attribute session.id:my-session-123 --limit 50
+```
+
+For programmatic session analysis:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.client import Client
+from phoenix.trace.dsl import SpanQuery
+
+client = Client()
+
+# Find all spans in sessions with errors
+error_sessions = SpanQuery().where(
+    "status_code == 'ERROR' and 'session.id' in attributes"
+).select(
+    session_id="session.id",
+    trace_id="context.trace_id",
+    error="exception.message",
+)
+error_sessions_df = client.spans.get_spans_dataframe(query=error_sessions)
+
+# Get unique session IDs with errors
+problem_sessions = error_sessions_df['session_id'].unique()
+print(f"Found {len(problem_sessions)} sessions with errors")
+
+# Find long sessions (high turn count = user struggling)
+all_sessions = SpanQuery().where(
+    "'session.id' in attributes"
+).select(
+    session_id="session.id",
+    trace_id="context.trace_id",
+)
+sessions_df = client.spans.get_spans_dataframe(query=all_sessions)
+
+# Count traces per session
+turn_counts = sessions_df.groupby('session_id')['trace_id'].nunique()
+high_turn_sessions = turn_counts[turn_counts > turn_counts.quantile(0.90)]
+print(f"Long sessions (>90th percentile): {len(high_turn_sessions)}")
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { listSessions, getSession } from "@arizeai/phoenix-client/sessions";
+
+const client = createClient();
+
+// List all sessions
+const sessions = await listSessions({
+  client,
+  project: "my-project",
+});
+
+// Analyze session lengths (turn counts)
+const sessionStats = sessions.map((session) => ({
+  sessionId: session.sessionId,
+  turnCount: session.traces.length,
+  hasErrors: session.traces.some((trace) => trace.status === "ERROR"),
+}));
+
+// Find long sessions (potential user struggles)
+const avgTurns =
+  sessionStats.reduce((sum, s) => sum + s.turnCount, 0) / sessionStats.length;
+const longSessions = sessionStats.filter((s) => s.turnCount > avgTurns * 2);
+console.log(`Long sessions: ${longSessions.length}`);
+
+// Find sessions with errors
+const errorSessions = sessionStats.filter((s) => s.hasErrors);
+console.log(`Sessions with errors: ${errorSessions.length}`);
+
+// Drill into a specific problematic session
+if (errorSessions.length > 0) {
+  const session = await getSession({
+    client,
+    sessionId: errorSessions[0].sessionId,
+  });
+  console.log(`Session ${session.sessionId}:`, session.traces);
+}
+```
+</Tab>
+</Tabs>
+
+## The Weekly Session: Finding Failure Clusters
+
+Individual bad traces are anecdotes. Clusters are priorities. The method comes from qualitative research, and it works:
+
+1. **Open coding.** Pull a sample of traces and write free-form notes on anything wrong with each one. Don't pre-define categories — that's how you miss the failure modes unique to your application.
+2. **Axial coding.** Group the notes into a failure taxonomy: distinct, named categories. An LLM is genuinely useful for this bucketing step.
+3. **Count.** Tally failures per category. This single step converts vibes into a prioritized roadmap. In one of Hamel Husain's client engagements, three categories accounted for over 60% of all problems.
+4. **Iterate to saturation.** Keep sampling until new traces stop revealing new categories. Rule of thumb: review at least 100 traces to start; once ~20 consecutive traces turn up nothing new, you've saturated.
+
+Random sampling gets inefficient once the obvious failures are fixed — most random traces are fine. Bias your sample toward signal:
+
+* **Stratified sampling.** Group traces by the dimensions you care about — user segment, model, feature, query category — and sample from each group, so a high-volume happy path doesn't drown out a broken niche. In Phoenix, the attributes you attach at instrumentation time (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
+* **Embedding clustering (advanced, optional).** Embed your inputs and cluster them to reveal natural groupings; sample from every cluster, and oversample the small ones — that's where edge cases live. There's no "correct" clustering; it's an exploration technique for surfacing patterns you'd miss manually. This technique requires more setup but can surface latent failure modes you wouldn't find with manual filtering.
+
+**Stratified sampling** by custom attributes:
+
+```bash
+# Sample spans from different user segments
+px span list --attribute user.segment:enterprise --limit 50 > enterprise_sample.json
+px span list --attribute user.segment:free --limit 50 > free_sample.json
+
+# Sample by model
+px span list --attribute llm.model_name:gpt-4 --limit 50 > gpt4_sample.json
+px span list --attribute llm.model_name:gpt-3.5-turbo --limit 50 > gpt35_sample.json
+```
+
+**Embedding clustering** to find natural failure patterns (Python only — portability by design):
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.client import Client
+from phoenix.trace.dsl import SpanQuery
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from openai import OpenAI  # or your embedding provider
+
+client = Client()
+openai_client = OpenAI()
+
+# Export spans with inputs and eval scores
+query = SpanQuery().select(
+    input="input.value",
+    output="output.value",
+    status="status_code",
+    correctness_score="evals['correctness'].score",
+)
+df = client.spans.get_spans_dataframe(query=query)
+
+# Embed the inputs
+def get_embedding(text: str) -> list[float]:
+    if not text or not isinstance(text, str):
+        return [0.0] * 1536  # Zero vector for missing inputs
+    response = openai_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text[:8000]  # Truncate long inputs
+    )
+    return response.data[0].embedding
+
+df['embedding'] = df['input'].apply(get_embedding)
+embeddings = np.array(df['embedding'].tolist())
+
+# Cluster the embeddings (try 5-10 clusters to start)
+n_clusters = 8
+kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+df['cluster'] = kmeans.fit_predict(embeddings)
+
+# Find clusters with elevated failure rates
+cluster_stats = df.groupby('cluster').agg({
+    'status': lambda x: (x == 'ERROR').mean(),  # Error rate
+    'correctness_score': 'mean',  # Avg correctness
+    'input': 'count'  # Cluster size
+}).rename(columns={'status': 'error_rate', 'input': 'size'})
+
+print(cluster_stats.sort_values('error_rate', ascending=False))
+
+# Oversample from high-error clusters for review
+high_error_clusters = cluster_stats[cluster_stats['error_rate'] > 0.2].index
+high_error_sample = df[df['cluster'].isin(high_error_clusters)].sample(n=min(50, len(df)))
+
+# Also sample from small clusters (edge cases)
+small_clusters = cluster_stats[cluster_stats['size'] < cluster_stats['size'].quantile(0.25)].index
+edge_case_sample = df[df['cluster'].isin(small_clusters)].sample(n=min(20, len(df)))
+
+print(f"\nHigh-error sample: {len(high_error_sample)} spans")
+print(f"Edge-case sample: {len(edge_case_sample)} spans")
+
+# Optional: visualize with PCA
+pca = PCA(n_components=2)
+coords = pca.fit_transform(embeddings)
+df['x'] = coords[:, 0]
+df['y'] = coords[:, 1]
+# Now plot df[['x', 'y', 'cluster', 'status']] with your favorite plotting library
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+```typescript
+// TypeScript: Export spans, then cluster in Python or use an external tool
+// The pattern: getSpans → write to JSON → cluster offline → rejoin results
+
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+import * as fs from "fs";
+
+const client = createClient();
+
+// Export spans for offline clustering
+const { spans } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  limit: 5000,
+});
+
+// Extract inputs for embedding
+const inputs = spans.map((span) => ({
+  span_id: span.context.span_id,
+  input: span.attributes["input.value"],
+  status: span.status_code,
+}));
+
+fs.writeFileSync("spans_for_clustering.json", JSON.stringify(inputs, null, 2));
+
+console.log(
+  "Exported spans to spans_for_clustering.json — cluster with Python, then rejoin"
+);
+```
+
+> **Note:** Phoenix doesn't include a built-in embedding projector. The Python workflow above shows the full DIY approach: embed, cluster, cross-tab against error rates. This portability is a feature — you control the embedding model and clustering algorithm.
+</Tab>
+</Tabs>
+
+## Putting It Together: The Triage Loop
+
+The full weekly loop, end to end:
+
+1. **Pull a mixed sample.** All hard failures since last review, both latency tails, the lowest (and a few highest) eval scores, sessions with negative feedback or high turn counts, plus a stratified random slice so you don't develop tunnel vision.
+2. **Annotate, open-coding style.** Free-form notes, first failure first. Phoenix annotations keep notes attached to the trace where the next reviewer can find them.
+3. **Update the taxonomy and re-count.** New failure modes get new categories; recurring ones get their tallies bumped.
+4. **Prioritize by frequency × impact** and fix from the top.
+5. **Convert each confirmed failure mode into an evaluator** — a code assertion where possible, an LLM-as-judge with validated binary outputs where not. This is the flywheel: every review cycle makes the next cycle's automated filtering smarter.
+
+The scripts below are **starting-point templates** — adapt the sampling logic, thresholds, and time windows to match your application's failure modes and review capacity.
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from phoenix.client import Client
+from phoenix.trace.dsl import SpanQuery
+from datetime import datetime, timedelta
+import pandas as pd
+
+client = Client()
+
+# Time range: last 7 days
+end_time = datetime.now()
+start_time = end_time - timedelta(days=7)
+
+print("🔍 Weekly Trace Review — Mixed Sample")
+print(f"Period: {start_time.date()} to {end_time.date()}\n")
+
+# 1. All hard failures
+errors = SpanQuery().where("status_code == 'ERROR'").select(
+    input="input.value",
+    error="exception.message",
+)
+errors_df = client.spans.get_spans_dataframe(
+    query=errors, start_time=start_time, end_time=end_time
+)
+print(f"❌ Hard failures: {len(errors_df)}")
+
+# 2. Slow tail (p95+)
+all_spans = SpanQuery().select(
+    start_time="start_time",
+    end_time="end_time",
+)
+spans_df = client.spans.get_spans_dataframe(
+    query=all_spans, start_time=start_time, end_time=end_time
+)
+# Calculate duration in milliseconds
+spans_df['duration'] = (pd.to_datetime(spans_df['end_time']) - pd.to_datetime(spans_df['start_time'])).dt.total_seconds() * 1000
+
+p95_duration = spans_df['duration'].quantile(0.95)
+slow_tail = spans_df[spans_df['duration'] > p95_duration]
+print(f"🐌 Slow tail (p95+): {len(slow_tail)}")
+
+# 3. Fast tail (p5-)
+p5_duration = spans_df['duration'].quantile(0.05)
+fast_tail = spans_df[spans_df['duration'] < p5_duration]
+print(f"⚡ Fast tail (p5-): {len(fast_tail)}")
+
+# 4. Low eval scores
+low_quality = SpanQuery().where(
+    "evals['correctness'].score < 0.5"
+).select(
+    input="input.value",
+    score="evals['correctness'].score",
+)
+low_df = client.spans.get_spans_dataframe(
+    query=low_quality, start_time=start_time, end_time=end_time
+)
+print(f"📉 Low eval scores: {len(low_df)}")
+
+# 5. Stratified random sample (all non-error spans)
+random_sample = SpanQuery().where("status_code == 'OK'").select(
+    input="input.value",
+)
+random_df = client.spans.get_spans_dataframe(
+    query=random_sample, start_time=start_time, end_time=end_time
+)
+random_df = random_df.sample(n=min(30, len(random_df)))  # 30 random spans
+print(f"🎲 Random sample: {len(random_df)}")
+
+# Combine into review queue
+review_queue = pd.concat([
+    errors_df.head(20),   # Top 20 errors
+    slow_tail.head(10),   # Top 10 slow
+    fast_tail.head(5),    # 5 suspiciously fast
+    low_df.head(15),      # 15 low-quality
+    random_df,            # 30 random
+])
+
+print(f"\n📋 Total review queue: {len(review_queue)} spans")
+print(f"Next: Read these traces and add notes with:")
+print(f"  px span add-note <span-id> --text 'your observation'")
+
+# Export for offline review
+review_queue.to_csv('weekly_review_sample.csv', index=True)
+print(f"✅ Exported to weekly_review_sample.csv")
+```
+</Tab>
+
+<Tab title="TypeScript" icon="js">
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getSpans } from "@arizeai/phoenix-client/spans";
+import { addSpanNote } from "@arizeai/phoenix-client/spans";
+import * as fs from "fs";
+
+const client = createClient();
+
+// Time range: last 7 days
+const endTime = new Date();
+const startTime = new Date(endTime.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+console.log("🔍 Weekly Trace Review — Mixed Sample");
+console.log(`Period: ${startTime.toDateString()} to ${endTime.toDateString()}\n`);
+
+// 1. All hard failures
+const { spans: errorSpans } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  statusCode: "ERROR",
+  startTime,
+  endTime,
+  limit: 1000,
+});
+console.log(`❌ Hard failures: ${errorSpans.length}`);
+
+// 2. Get all spans for tail analysis
+const { spans: allSpans } = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  startTime,
+  endTime,
+  limit: 5000,
+});
+
+// Calculate durations
+const withDurations = allSpans.map((span) => ({
+  ...span,
+  duration:
+    new Date(span.end_time).getTime() - new Date(span.start_time).getTime(),
+}));
+
+// Sort by duration
+const sorted = withDurations.sort((a, b) => b.duration - a.duration);
+const p95Index = Math.floor(sorted.length * 0.05);
+const p5Index = Math.floor(sorted.length * 0.95);
+
+const slowTail = sorted.slice(0, p95Index);
+const fastTail = sorted.slice(p5Index);
+
+console.log(`🐌 Slow tail (p95+): ${slowTail.length}`);
+console.log(`⚡ Fast tail (p5-): ${fastTail.length}`);
+
+// 3. Random sample (OK spans only)
+const okSpans = allSpans.filter((s) => s.status_code === "OK");
+const randomSample = okSpans
+  .sort(() => Math.random() - 0.5)
+  .slice(0, Math.min(30, okSpans.length));
+
+console.log(`🎲 Random sample: ${randomSample.length}`);
+
+// Combine into review queue
+const reviewQueue = [
+  ...errorSpans.slice(0, 20),
+  ...slowTail.slice(0, 10),
+  ...fastTail.slice(0, 5),
+  ...randomSample,
+];
+
+console.log(`\n📋 Total review queue: ${reviewQueue.length} spans`);
+
+// Export for offline review
+fs.writeFileSync(
+  "weekly_review_sample.json",
+  JSON.stringify(
+    reviewQueue.map((s) => ({
+      span_id: s.context.span_id,
+      name: s.name,
+      status: s.status_code,
+      input: s.attributes["input.value"],
+    })),
+    null,
+    2
+  )
+);
+
+console.log("✅ Exported to weekly_review_sample.json");
+console.log("Next: Read traces and add notes with:");
+console.log("  px span add-note <span-id> --text 'your observation'");
+```
+</Tab>
+</Tabs>
+
+Re-run the loop whenever you ship a significant change. Thirty minutes reading 20–50 traces after a prompt revision catches regressions that no pre-existing eval was written to see.
+
+## Next Steps
+
+* Convert your top failure categories into automated evaluators and run them as online evals
+* Set up annotation queues so domain experts — not just engineers — review edge cases; the people best positioned to judge quality often write no code
+* Track failure-category counts over time: a category trending up is a regression even if no individual eval fires
+* Revisit the full loop after every significant prompt, model, or retrieval change
+
+## Further Reading
+
+The methodology in this guide draws on Hamel Husain's writing on evals and error analysis:
+
+* [A Field Guide to Rapidly Improving AI Products](https://hamel.dev/blog/posts/field-guide/)
+* [AI Evals FAQ: Why is error analysis so important?](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html)
+* [AI Evals FAQ: How can I efficiently sample production traces for review?](https://hamel.dev/blog/posts/evals-faq/how-can-i-efficiently-sample-production-traces-for-review.html)
