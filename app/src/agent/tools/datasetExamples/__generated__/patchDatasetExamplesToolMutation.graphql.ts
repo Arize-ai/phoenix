@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2b8e52cf0840cad99e1ce20ed3cf9007>>
+ * @generated SignedSource<<95157f08a503f73beaa437a88734adb2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type PatchDatasetExamplesInput = {
+  datasetId?: string | null;
   patches: ReadonlyArray<DatasetExamplePatch>;
   versionDescription?: string | null;
   versionMetadata?: any | null;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<78486dc30a0087b8621832b9d3ceb1aa>>
+ * @generated SignedSource<<77af947a39ae5c64b39635262c0eb981>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type DeleteDatasetExamplesInput = {
+  datasetId?: string | null;
   datasetVersionDescription?: string | null;
   datasetVersionMetadata?: any | null;
   exampleIds: ReadonlyArray<string>;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a3978420650f34abd33e7c4779f9541e>>
+ * @generated SignedSource<<8b776807d54d368fee33f82a38bcc52c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,23 +9,24 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type SetDatasetExampleSplitsInput = {
+export type SetDatasetExamplesSplitsInput = {
+  datasetId?: string | null;
   datasetSplitIds: ReadonlyArray<string>;
-  exampleId: string;
+  exampleIds: ReadonlyArray<string>;
 };
-export type setDatasetExampleSplitsToolMutation$variables = {
-  input: SetDatasetExampleSplitsInput;
+export type setDatasetExampleSplitsToolBatchMutation$variables = {
+  input: SetDatasetExamplesSplitsInput;
 };
-export type setDatasetExampleSplitsToolMutation$data = {
-  readonly setDatasetExampleSplits: {
-    readonly example: {
+export type setDatasetExampleSplitsToolBatchMutation$data = {
+  readonly setDatasetExamplesSplits: {
+    readonly examples: ReadonlyArray<{
       readonly id: string;
-    };
+    }>;
   };
 };
-export type setDatasetExampleSplitsToolMutation = {
-  response: setDatasetExampleSplitsToolMutation$data;
-  variables: setDatasetExampleSplitsToolMutation$variables;
+export type setDatasetExampleSplitsToolBatchMutation = {
+  response: setDatasetExampleSplitsToolBatchMutation$data;
+  variables: setDatasetExampleSplitsToolBatchMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -46,9 +47,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "SetDatasetExampleSplitsMutationPayload",
+    "concreteType": "SetDatasetExamplesSplitsMutationPayload",
     "kind": "LinkedField",
-    "name": "setDatasetExampleSplits",
+    "name": "setDatasetExamplesSplits",
     "plural": false,
     "selections": [
       {
@@ -56,8 +57,8 @@ v1 = [
         "args": null,
         "concreteType": "DatasetExample",
         "kind": "LinkedField",
-        "name": "example",
-        "plural": false,
+        "name": "examples",
+        "plural": true,
         "selections": [
           {
             "alias": null,
@@ -78,7 +79,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "setDatasetExampleSplitsToolMutation",
+    "name": "setDatasetExampleSplitsToolBatchMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -87,20 +88,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "setDatasetExampleSplitsToolMutation",
+    "name": "setDatasetExampleSplitsToolBatchMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "f4aed67890b1e4501feae797c080dddd",
+    "cacheID": "806d9cc072a89701b34c31b14e9b9a5b",
     "id": null,
     "metadata": {},
-    "name": "setDatasetExampleSplitsToolMutation",
+    "name": "setDatasetExampleSplitsToolBatchMutation",
     "operationKind": "mutation",
-    "text": "mutation setDatasetExampleSplitsToolMutation(\n  $input: SetDatasetExampleSplitsInput!\n) {\n  setDatasetExampleSplits(input: $input) {\n    example {\n      id\n    }\n  }\n}\n"
+    "text": "mutation setDatasetExampleSplitsToolBatchMutation(\n  $input: SetDatasetExamplesSplitsInput!\n) {\n  setDatasetExamplesSplits(input: $input) {\n    examples {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "85bb39a0b17cf9d2bad43361749b4722";
+(node as any).hash = "7bb4c01088227966315047ce0260d78e";
 
 export default node;

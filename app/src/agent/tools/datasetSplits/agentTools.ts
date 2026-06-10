@@ -170,6 +170,7 @@ export const setDatasetExampleSplitsAgentTool =
         },
         apply: () =>
           commitSetDatasetExampleSplits({
+            datasetId: datasetContext.datasetNodeId,
             exampleIds: input.exampleIds,
             splitNames: input.splitNames,
           }),

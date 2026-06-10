@@ -7,7 +7,7 @@ import {
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { deleteDatasetLabelsToolMutation } from "./__generated__/deleteDatasetLabelsToolMutation.graphql";
-import { fetchAllAvailableLabels } from "./listLabels";
+import { fetchLabelsByNames } from "./listLabels";
 import type { DeleteDatasetLabelsInput } from "./types";
 
 const mutation = graphql`
@@ -29,17 +29,17 @@ const mutation = graphql`
 export async function commitDeleteDatasetLabels({
   labelNames,
 }: DeleteDatasetLabelsInput): Promise<DatasetWriteApplyResult> {
-  const labelsResult = await fetchAllAvailableLabels();
+  const labelsResult = await fetchLabelsByNames(labelNames);
   if (!labelsResult.ok) {
     return { ok: false, error: labelsResult.error };
   }
   const { ids, unknown } = resolveNamesToIds(labelsResult.labels, labelNames);
   if (unknown.length > 0) {
-    const available =
-      labelsResult.labels.map((label) => label.name).join(", ") || "(none)";
     return {
       ok: false,
-      error: `Unknown label(s): ${unknown.join(", ")}. Existing labels: ${available}.`,
+      error: `Unknown label(s): ${unknown.join(
+        ", "
+      )}. Use list_labels to see existing labels.`,
     };
   }
 

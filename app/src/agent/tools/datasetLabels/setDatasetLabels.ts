@@ -7,7 +7,7 @@ import {
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { setDatasetLabelsToolMutation } from "./__generated__/setDatasetLabelsToolMutation.graphql";
-import { fetchAllAvailableLabels } from "./listLabels";
+import { fetchLabelsByNames } from "./listLabels";
 import type { SetDatasetLabelsInput } from "./types";
 
 const mutation = graphql`
@@ -32,7 +32,7 @@ export async function commitSetDatasetLabels({
 }: {
   datasetId: string;
 } & SetDatasetLabelsInput): Promise<DatasetWriteApplyResult> {
-  const labelsResult = await fetchAllAvailableLabels();
+  const labelsResult = await fetchLabelsByNames(labelNames);
   if (!labelsResult.ok) {
     return { ok: false, error: labelsResult.error };
   }
@@ -41,11 +41,11 @@ export async function commitSetDatasetLabels({
     labelNames
   );
   if (unknown.length > 0) {
-    const available =
-      labelsResult.labels.map((label) => label.name).join(", ") || "(none)";
     return {
       ok: false,
-      error: `Unknown label(s): ${unknown.join(", ")}. Existing labels: ${available}. Create a new label with create_dataset_label first.`,
+      error: `Unknown label(s): ${unknown.join(
+        ", "
+      )}. Use list_labels to see existing labels, or create_dataset_label to create one.`,
     };
   }
 

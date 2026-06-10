@@ -1272,6 +1272,7 @@ input DeleteDatasetExamplesInput {
   exampleIds: [ID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
+  datasetId: ID
 }
 
 input DeleteDatasetInput {
@@ -2327,6 +2328,7 @@ type Mutation {
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
+  setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
@@ -2515,6 +2517,7 @@ input PatchDatasetExamplesInput {
   patches: [DatasetExamplePatch!]!
   versionDescription: String
   versionMetadata: JSON
+  datasetId: ID
 }
 
 input PatchDatasetInput {
@@ -3345,8 +3348,8 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
-  datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
-  datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
+  datasetLabels(first: Int = 50, last: Int, after: String, before: String, names: [String!]): DatasetLabelConnection!
+  datasetSplits(first: Int = 50, last: Int, after: String, before: String, names: [String!]): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
@@ -3590,6 +3593,17 @@ input SetDatasetExampleSplitsInput {
 type SetDatasetExampleSplitsMutationPayload {
   query: Query!
   example: DatasetExample!
+}
+
+input SetDatasetExamplesSplitsInput {
+  exampleIds: [ID!]!
+  datasetSplitIds: [ID!]!
+  datasetId: ID
+}
+
+type SetDatasetExamplesSplitsMutationPayload {
+  query: Query!
+  examples: [DatasetExample!]!
 }
 
 input SetDatasetLabelsInput {

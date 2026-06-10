@@ -23,17 +23,23 @@ const mutation = graphql`
 
 /**
  * Edit existing rows via the existing `patchDatasetExamples` mutation (creates a
- * new dataset version). Runs outside React, so it uses the singleton Relay
+ * new dataset version). The write is scoped to the dataset in view via
+ * `datasetId`, so the server rejects it outright if any example belongs to
+ * another dataset. Runs outside React, so it uses the singleton Relay
  * environment.
  */
 export function commitPatchDatasetExamples({
+  datasetId,
   patches,
   versionDescription,
-}: PatchDatasetExamplesInput): Promise<DatasetWriteApplyResult> {
+}: {
+  datasetId: string;
+} & PatchDatasetExamplesInput): Promise<DatasetWriteApplyResult> {
   return runDatasetMutation<patchDatasetExamplesToolMutation>({
     mutation,
     variables: {
       input: {
+        datasetId,
         patches: patches.map((patch) => ({
           exampleId: patch.exampleId,
           ...(patch.input !== undefined ? { input: patch.input } : {}),

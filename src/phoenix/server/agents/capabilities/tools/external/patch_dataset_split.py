@@ -16,10 +16,11 @@ NAME = "patch_dataset_split"
 
 DESCRIPTION = (
     "Edit an existing split of the dataset the user is viewing — its name, description, and/or "
-    "color — identified by its current name. Only the fields you pass are changed; fields can be "
-    "replaced but not cleared, so pass a field only with a new non-empty value. Does not change "
-    "which rows are in the split (use set_dataset_example_splits for that). Get the split's "
-    "current name from list_dataset_splits. Split names are unique; a duplicate new name fails."
+    "color — identified by its current name. Only the fields you pass are changed. Pass "
+    "description: null to clear the description; name and color cannot be cleared, only "
+    "replaced with a new non-empty value. Does not change which rows are in the split (use "
+    "set_dataset_example_splits for that). Get the split's current name from "
+    "list_dataset_splits. Split names are unique; a duplicate new name fails."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -36,9 +37,8 @@ PARAMETERS: dict[str, Any] = {
             "description": "A new unique name for the split.",
         },
         "description": {
-            "type": "string",
-            "minLength": 1,
-            "description": "A new description for the split (replaces, cannot clear).",
+            "type": ["string", "null"],
+            "description": "A new description for the split, or null to clear it.",
         },
         "color": {
             "type": "string",

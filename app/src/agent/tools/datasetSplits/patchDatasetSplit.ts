@@ -6,7 +6,7 @@ import {
 } from "@phoenix/agent/shared/pendingDatasetWrite";
 
 import type { patchDatasetSplitToolMutation } from "./__generated__/patchDatasetSplitToolMutation.graphql";
-import { fetchAllSplits } from "./listSplits";
+import { fetchSplitsByNames } from "./listSplits";
 import type { PatchDatasetSplitInput } from "./types";
 
 const mutation = graphql`
@@ -32,17 +32,15 @@ export async function commitPatchDatasetSplit({
   description,
   color,
 }: PatchDatasetSplitInput): Promise<DatasetWriteApplyResult> {
-  const splitsResult = await fetchAllSplits();
+  const splitsResult = await fetchSplitsByNames([splitName]);
   if (!splitsResult.ok) {
     return { ok: false, error: splitsResult.error };
   }
   const match = splitsResult.splits.find((split) => split.name === splitName);
   if (!match) {
-    const available =
-      splitsResult.splits.map((split) => split.name).join(", ") || "(none)";
     return {
       ok: false,
-      error: `Unknown split: ${splitName}. Existing splits: ${available}.`,
+      error: `Unknown split: ${splitName}. Use list_splits to see existing splits.`,
     };
   }
 

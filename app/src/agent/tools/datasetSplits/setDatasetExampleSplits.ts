@@ -1,59 +1,46 @@
-import { commitMutation, graphql } from "react-relay";
+import { graphql } from "react-relay";
 
-import type { DatasetWriteApplyResult } from "@phoenix/agent/shared/pendingDatasetWrite";
+import {
+  runDatasetMutation,
+  type DatasetWriteApplyResult,
+} from "@phoenix/agent/shared/pendingDatasetWrite";
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
-import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import type { setDatasetExampleSplitsToolMutation } from "./__generated__/setDatasetExampleSplitsToolMutation.graphql";
-import { fetchAllSplits } from "./listSplits";
+import type { setDatasetExampleSplitsToolBatchMutation } from "./__generated__/setDatasetExampleSplitsToolBatchMutation.graphql";
+import { fetchSplitsByNames } from "./listSplits";
 import type { SetDatasetExampleSplitsInput } from "./types";
 
 const mutation = graphql`
-  mutation setDatasetExampleSplitsToolMutation(
-    $input: SetDatasetExampleSplitsInput!
+  mutation setDatasetExampleSplitsToolBatchMutation(
+    $input: SetDatasetExamplesSplitsInput!
   ) {
-    setDatasetExampleSplits(input: $input) {
-      example {
+    setDatasetExamplesSplits(input: $input) {
+      examples {
         id
       }
     }
   }
 `;
 
-function commitOne(
-  exampleId: string,
-  datasetSplitIds: string[]
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  return new Promise((resolve) => {
-    commitMutation<setDatasetExampleSplitsToolMutation>(RelayEnvironment, {
-      mutation,
-      variables: { input: { exampleId, datasetSplitIds } },
-      onCompleted: (_response, errors) => {
-        const message = errors?.find((error) => error.message)?.message;
-        resolve(message ? { ok: false, error: message } : { ok: true });
-      },
-      onError: (error) => resolve({ ok: false, error: error.message }),
-    });
-  });
-}
-
 /**
  * Assign rows to existing splits by name. Resolves split names to ids against
  * the instance-wide split vocabulary (splits are global entities, so an example
  * can be assigned to any existing split, not only ones already on its dataset),
- * then applies the per-example `setDatasetExampleSplits` mutation for each row
- * (it replaces each row's split membership). Runs outside React, so it uses the
- * singleton Relay environment. Example ids are prevalidated against the dataset
- * in view before the write is staged (see the agent tool), and split names are
- * resolved before the first mutation — so a partial assignment can only result
- * from a transient failure mid-loop; the error then reports how many rows were
- * applied.
+ * then applies the batch `setDatasetExamplesSplits` mutation, which replaces
+ * every row's split membership in a single transaction — a failure on any row
+ * leaves no partial assignment. The write is additionally scoped to the dataset
+ * in view via `datasetId`, so the server rejects the whole batch if any example
+ * belongs to another dataset. Runs outside React, so it uses the singleton
+ * Relay environment.
  */
 export async function commitSetDatasetExampleSplits({
+  datasetId,
   exampleIds,
   splitNames,
-}: SetDatasetExampleSplitsInput): Promise<DatasetWriteApplyResult> {
-  const splitsResult = await fetchAllSplits();
+}: {
+  datasetId: string;
+} & SetDatasetExampleSplitsInput): Promise<DatasetWriteApplyResult> {
+  const splitsResult = await fetchSplitsByNames(splitNames);
   if (!splitsResult.ok) {
     return { ok: false, error: splitsResult.error };
   }
@@ -62,31 +49,22 @@ export async function commitSetDatasetExampleSplits({
     splitNames
   );
   if (unknown.length > 0) {
-    const available =
-      splitsResult.splits.map((split) => split.name).join(", ") || "(none)";
     return {
       ok: false,
       error: `Unknown split(s): ${unknown.join(
         ", "
-      )}. Existing splits: ${available}. Create a new split with create_dataset_split first.`,
+      )}. Use list_splits to see existing splits, or create_dataset_split to create one.`,
     };
   }
 
-  let applied = 0;
-  for (const exampleId of exampleIds) {
-    const result = await commitOne(exampleId, splitIds);
-    if (!result.ok) {
-      return {
-        ok: false,
-        error: `Assigned ${applied} of ${exampleIds.length} example(s) before failing: ${result.error}`,
-      };
-    }
-    applied += 1;
-  }
-  return {
-    ok: true,
-    output: `Assigned ${applied} example(s) to split(s): ${splitNames.join(
-      ", "
-    )}.`,
-  };
+  return runDatasetMutation<setDatasetExampleSplitsToolBatchMutation>({
+    mutation,
+    variables: {
+      input: { exampleIds, datasetSplitIds: splitIds, datasetId },
+    },
+    onSuccess: () =>
+      `Assigned ${exampleIds.length} example(s) to split(s): ${splitNames.join(
+        ", "
+      )}.`,
+  });
 }

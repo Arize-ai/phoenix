@@ -2,6 +2,7 @@ import { fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
+import type { listSplitsToolByNamesQuery } from "./__generated__/listSplitsToolByNamesQuery.graphql";
 import type { listSplitsToolQuery } from "./__generated__/listSplitsToolQuery.graphql";
 import { LIST_SPLITS_DEFAULT_LIMIT, LIST_SPLITS_MAX_LIMIT } from "./constants";
 import type {
@@ -9,11 +10,6 @@ import type {
   ListSplitsInput,
   ListSplitsResult,
 } from "./types";
-
-/** Per-page size when scanning the full instance-wide split list to resolve names. */
-const RESOLUTION_PAGE_SIZE = 200;
-/** Safety bound on pages walked during a full scan (RESOLUTION_PAGE_SIZE × this). */
-const RESOLUTION_MAX_PAGES = 100;
 
 const query = graphql`
   query listSplitsToolQuery($first: Int!, $after: String) {
@@ -29,6 +25,21 @@ const query = graphql`
       pageInfo {
         hasNextPage
         endCursor
+      }
+    }
+  }
+`;
+
+const byNamesQuery = graphql`
+  query listSplitsToolByNamesQuery($names: [String!]!, $first: Int!) {
+    datasetSplits(names: $names, first: $first) {
+      edges {
+        node {
+          id
+          name
+          description
+          color
+        }
       }
     }
   }
@@ -107,38 +118,37 @@ export async function commitListSplits({
 }
 
 /**
- * Fetch *every* instance-wide split by walking the `datasetSplits` connection to
- * exhaustion. Used to resolve split names to ids for the write tools: splits are
- * global, instance-wide entities (associated with a dataset only through their
- * member examples), so resolution can't assume the dataset in view already
- * carries the split. `datasetSplits` has no name filter, so the full set must be
- * scanned. Capped at RESOLUTION_MAX_PAGES as a runaway guard.
+ * Fetch the instance-wide splits matching the given names exactly. Used to
+ * resolve split names to ids for the write tools: splits are global,
+ * instance-wide entities (associated with a dataset only through their member
+ * examples), so resolution can't assume the dataset in view already carries
+ * the split. Returns only the names that matched; callers diff against their
+ * request to report unknown names.
  */
-export async function fetchAllSplits(): Promise<
+export async function fetchSplitsByNames(
+  names: string[]
+): Promise<
   { ok: true; splits: DatasetSplitSummary[] } | { ok: false; error: string }
 > {
-  const splits: DatasetSplitSummary[] = [];
-  let after: string | null = null;
+  const uniqueNames = Array.from(new Set(names));
   try {
-    for (let page = 0; page < RESOLUTION_MAX_PAGES; page++) {
-      const result = await fetchSplitPage(RESOLUTION_PAGE_SIZE, after);
-      if (!result) {
-        return { ok: false, error: "Failed to read the dataset's splits." };
-      }
-      splits.push(...result.splits);
-      if (!result.hasNextPage || result.endCursor == null) {
-        return { ok: true, splits };
-      }
-      after = result.endCursor;
+    const data = await fetchQuery<listSplitsToolByNamesQuery>(
+      RelayEnvironment,
+      byNamesQuery,
+      { names: uniqueNames, first: uniqueNames.length }
+    ).toPromise();
+    const connection = data?.datasetSplits;
+    if (!connection) {
+      return { ok: false, error: "Failed to read splits." };
     }
-    return { ok: true, splits };
+    return {
+      ok: true,
+      splits: connection.edges.map((edge) => toSplitSummary(edge.node)),
+    };
   } catch (error) {
     return {
       ok: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to read the dataset's splits.",
+      error: error instanceof Error ? error.message : "Failed to read splits.",
     };
   }
 }

@@ -2,6 +2,7 @@ import { fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
+import type { listLabelsToolByNamesQuery } from "./__generated__/listLabelsToolByNamesQuery.graphql";
 import type { listLabelsToolQuery } from "./__generated__/listLabelsToolQuery.graphql";
 import { LIST_LABELS_DEFAULT_LIMIT, LIST_LABELS_MAX_LIMIT } from "./constants";
 import type {
@@ -9,11 +10,6 @@ import type {
   ListLabelsInput,
   ListLabelsResult,
 } from "./types";
-
-/** Per-page size when scanning the full instance-wide label list to resolve names. */
-const RESOLUTION_PAGE_SIZE = 200;
-/** Safety bound on pages walked during a full scan (RESOLUTION_PAGE_SIZE × this). */
-const RESOLUTION_MAX_PAGES = 100;
 
 const query = graphql`
   query listLabelsToolQuery($first: Int!, $after: String) {
@@ -29,6 +25,21 @@ const query = graphql`
       pageInfo {
         hasNextPage
         endCursor
+      }
+    }
+  }
+`;
+
+const byNamesQuery = graphql`
+  query listLabelsToolByNamesQuery($names: [String!]!, $first: Int!) {
+    datasetLabels(names: $names, first: $first) {
+      edges {
+        node {
+          id
+          name
+          description
+          color
+        }
       }
     }
   }
@@ -107,30 +118,30 @@ export async function commitListLabels({
 }
 
 /**
- * Fetch *every* instance-wide label by walking the `datasetLabels` connection to
- * exhaustion. Used to resolve label names to ids for the write tools, which
- * can't assume a single page covers the vocabulary (`datasetLabels` has no name
- * filter, so the full set must be scanned). Capped at RESOLUTION_MAX_PAGES as a
- * runaway guard.
+ * Fetch the instance-wide labels matching the given names exactly. Used to
+ * resolve label names to ids for the write tools. Returns only the names that
+ * matched; callers diff against their request to report unknown names.
  */
-export async function fetchAllAvailableLabels(): Promise<
+export async function fetchLabelsByNames(
+  names: string[]
+): Promise<
   { ok: true; labels: DatasetLabelSummary[] } | { ok: false; error: string }
 > {
-  const labels: DatasetLabelSummary[] = [];
-  let after: string | null = null;
+  const uniqueNames = Array.from(new Set(names));
   try {
-    for (let page = 0; page < RESOLUTION_MAX_PAGES; page++) {
-      const result = await fetchLabelPage(RESOLUTION_PAGE_SIZE, after);
-      if (!result) {
-        return { ok: false, error: "Failed to read dataset labels." };
-      }
-      labels.push(...result.labels);
-      if (!result.hasNextPage || result.endCursor == null) {
-        return { ok: true, labels };
-      }
-      after = result.endCursor;
+    const data = await fetchQuery<listLabelsToolByNamesQuery>(
+      RelayEnvironment,
+      byNamesQuery,
+      { names: uniqueNames, first: uniqueNames.length }
+    ).toPromise();
+    const connection = data?.datasetLabels;
+    if (!connection) {
+      return { ok: false, error: "Failed to read dataset labels." };
     }
-    return { ok: true, labels };
+    return {
+      ok: true,
+      labels: connection.edges.map((edge) => toLabelSummary(edge.node)),
+    };
   } catch (error) {
     return {
       ok: false,

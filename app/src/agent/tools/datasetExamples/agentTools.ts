@@ -144,7 +144,11 @@ export const patchDatasetExamplesAgentTool =
             patches: input.patches,
           },
         },
-        apply: () => commitPatchDatasetExamples(input),
+        apply: () =>
+          commitPatchDatasetExamples({
+            datasetId: datasetContext.datasetNodeId,
+            ...input,
+          }),
         addToolOutput,
         agentStore,
       });
@@ -193,7 +197,11 @@ export const deleteDatasetExamplesAgentTool =
             exampleIds: input.exampleIds,
           },
         },
-        apply: () => commitDeleteDatasetExamples(input),
+        apply: () =>
+          commitDeleteDatasetExamples({
+            datasetId: datasetContext.datasetNodeId,
+            ...input,
+          }),
         addToolOutput,
         agentStore,
       });

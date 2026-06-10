@@ -23,17 +23,22 @@ const mutation = graphql`
 
 /**
  * Remove rows via the existing `deleteDatasetExamples` mutation (creates a new
- * dataset version). Runs outside React, so it uses the singleton Relay
- * environment.
+ * dataset version). The write is scoped to the dataset in view via `datasetId`,
+ * so the server rejects it outright if any example belongs to another dataset.
+ * Runs outside React, so it uses the singleton Relay environment.
  */
 export function commitDeleteDatasetExamples({
+  datasetId,
   exampleIds,
   versionDescription,
-}: DeleteDatasetExamplesInput): Promise<DatasetWriteApplyResult> {
+}: {
+  datasetId: string;
+} & DeleteDatasetExamplesInput): Promise<DatasetWriteApplyResult> {
   return runDatasetMutation<deleteDatasetExamplesToolMutation>({
     mutation,
     variables: {
       input: {
+        datasetId,
         exampleIds,
         ...(versionDescription != null
           ? { datasetVersionDescription: versionDescription }

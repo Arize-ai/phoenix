@@ -7,7 +7,7 @@ import {
 import { resolveNamesToIds } from "@phoenix/agent/shared/resolveNamesToIds";
 
 import type { deleteDatasetSplitsToolMutation } from "./__generated__/deleteDatasetSplitsToolMutation.graphql";
-import { fetchAllSplits } from "./listSplits";
+import { fetchSplitsByNames } from "./listSplits";
 import type { DeleteDatasetSplitsInput } from "./types";
 
 const mutation = graphql`
@@ -30,17 +30,15 @@ const mutation = graphql`
 export async function commitDeleteDatasetSplits({
   splitNames,
 }: DeleteDatasetSplitsInput): Promise<DatasetWriteApplyResult> {
-  const splitsResult = await fetchAllSplits();
+  const splitsResult = await fetchSplitsByNames(splitNames);
   if (!splitsResult.ok) {
     return { ok: false, error: splitsResult.error };
   }
   const { ids, unknown } = resolveNamesToIds(splitsResult.splits, splitNames);
   if (unknown.length > 0) {
-    const available =
-      splitsResult.splits.map((split) => split.name).join(", ") || "(none)";
     return {
       ok: false,
-      error: `Unknown split(s): ${unknown.join(", ")}. Existing splits: ${available}.`,
+      error: `Unknown split(s): ${unknown.join(", ")}. Use list_splits to see existing splits.`,
     };
   }
 
