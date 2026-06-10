@@ -45,7 +45,7 @@ describe("patch_dataset_split input parser", () => {
     ).toBeNull();
   });
 
-  it("rejects empty strings (a silent no-op on the backend)", () => {
+  it("rejects empty strings (clearing is expressed with null, not '')", () => {
     expect(
       parsePatchDatasetSplitInput({ splitName: "test", description: "" })
     ).toBeNull();
@@ -132,6 +132,15 @@ describe("set_dataset_example_splits input parser", () => {
       parseSetDatasetExampleSplitsInput({
         exampleIds: ["E1", "E2"],
         splitNames: ["test"],
+      })
+    ).toEqual({ exampleIds: ["E1", "E2"], splitNames: ["test"] });
+  });
+
+  it("deduplicates repeated ids and names", () => {
+    expect(
+      parseSetDatasetExampleSplitsInput({
+        exampleIds: ["E1", "E1", "E2"],
+        splitNames: ["test", "test"],
       })
     ).toEqual({ exampleIds: ["E1", "E2"], splitNames: ["test"] });
   });

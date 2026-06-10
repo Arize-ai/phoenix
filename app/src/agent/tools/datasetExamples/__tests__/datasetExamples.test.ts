@@ -25,12 +25,29 @@ describe("patch_dataset_examples input parser", () => {
     expect(parsePatchDatasetExamplesInput({ patches: [] })).toBeNull();
     expect(parsePatchDatasetExamplesInput({})).toBeNull();
   });
+
+  it("rejects duplicate exampleIds (two patches for one row cannot merge)", () => {
+    expect(
+      parsePatchDatasetExamplesInput({
+        patches: [
+          { exampleId: "E1", output: { a: 1 } },
+          { exampleId: "E1", output: { a: 2 } },
+        ],
+      })
+    ).toBeNull();
+  });
 });
 
 describe("delete_dataset_examples input parser", () => {
   it("parses example ids", () => {
     expect(
       parseDeleteDatasetExamplesInput({ exampleIds: ["E1", "E2"] })
+    ).toEqual({ exampleIds: ["E1", "E2"] });
+  });
+
+  it("deduplicates repeated ids (a duplicated delete errors server-side)", () => {
+    expect(
+      parseDeleteDatasetExamplesInput({ exampleIds: ["E1", "E2", "E1"] })
     ).toEqual({ exampleIds: ["E1", "E2"] });
   });
 

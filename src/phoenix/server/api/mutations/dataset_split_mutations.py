@@ -147,8 +147,11 @@ class DatasetSplitMutationMixin:
             if validated_name is not None:
                 dataset_split_orm.name = validated_name
             if input.description is not UNSET:
-                dataset_split_orm.description = input.description
+                # An empty string is treated as a clear, not stored verbatim.
+                dataset_split_orm.description = input.description or None
             if isinstance(input.color, str):
+                if not input.color.strip():
+                    raise BadRequest("Color cannot be empty")
                 dataset_split_orm.color = input.color
             if isinstance(input.metadata, dict):
                 dataset_split_orm.metadata_ = input.metadata

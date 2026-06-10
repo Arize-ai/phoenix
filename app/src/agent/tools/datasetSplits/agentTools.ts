@@ -141,9 +141,10 @@ export const setDatasetExampleSplitsAgentTool =
         });
         return;
       }
-      // The mutation is applied per example with no cross-dataset guard, so
-      // validate every id against the dataset in view up front — this is what
-      // prevents both wrong-dataset writes and most partial-failure paths.
+      // Staging-time check so a stale id fails before the user is asked to
+      // approve, and so the preview can name the dataset. The batch mutation
+      // re-enforces dataset membership server-side via datasetId at apply
+      // time, which covers the staging->accept window.
       const membership = await verifyExamplesInDataset({
         datasetId: datasetContext.datasetNodeId,
         exampleIds: input.exampleIds,

@@ -38,7 +38,9 @@ export async function commitDeleteDatasetSplits({
   if (unknown.length > 0) {
     return {
       ok: false,
-      error: `Unknown split(s): ${unknown.join(", ")}. Use list_splits to see existing splits.`,
+      error: `Unknown split(s): ${unknown.join(
+        ", "
+      )}. Use list_splits to see existing splits.`,
     };
   }
 

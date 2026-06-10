@@ -110,7 +110,9 @@ export async function commitListDatasetExamples({
           "(none)";
         return {
           ok: false,
-          error: `Unknown split(s): ${unknown.join(", ")}. Available splits: ${available}.`,
+          error: `Unknown split(s): ${unknown.join(
+            ", "
+          )}. Available splits: ${available}.`,
         };
       }
       splitIds = ids;

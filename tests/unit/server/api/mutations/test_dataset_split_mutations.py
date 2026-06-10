@@ -211,6 +211,41 @@ class TestPatchDatasetSplit:
             "color": "#123456",
         }
 
+    async def test_empty_description_is_treated_as_a_clear(
+        self,
+        gql_client: AsyncGraphQLClient,
+        datasets_with_splits_and_labels: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": {
+                    "datasetSplitId": str(GlobalID("DatasetSplit", "1")),
+                    "description": "",
+                }
+            },
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        assert data["patchDatasetSplit"]["datasetSplit"]["description"] is None
+
+    async def test_empty_color_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        datasets_with_splits_and_labels: None,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "input": {
+                    "datasetSplitId": str(GlobalID("DatasetSplit", "1")),
+                    "color": "  ",
+                }
+            },
+        )
+        assert response.errors
+        assert "Color cannot be empty" in response.errors[0].message
+
     async def test_null_is_ignored_for_non_nullable_fields(
         self,
         gql_client: AsyncGraphQLClient,

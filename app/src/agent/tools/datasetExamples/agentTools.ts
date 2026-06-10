@@ -105,7 +105,7 @@ export const patchDatasetExamplesAgentTool =
   defineTool<PatchDatasetExamplesInput>({
     name: PATCH_DATASET_EXAMPLES_TOOL_NAME,
     parseInput: parsePatchDatasetExamplesInput,
-    invalidInputErrorText: `Invalid ${PATCH_DATASET_EXAMPLES_TOOL_NAME} input. Expected { patches: [{ exampleId, input?, output?, metadata? }], versionDescription? }.`,
+    invalidInputErrorText: `Invalid ${PATCH_DATASET_EXAMPLES_TOOL_NAME} input. Expected { patches: [{ exampleId, input?, output?, metadata? }], versionDescription? }, with each exampleId appearing at most once.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const datasetContext = getActiveContext(agentStore.getState(), "dataset");

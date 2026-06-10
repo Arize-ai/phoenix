@@ -18,9 +18,17 @@ export const createDatasetSplitInputSchema = z.object({
 });
 
 // set_dataset_example_splits: assign example ids to existing splits by name.
+// Duplicates are harmless repetition of the same intent, so both lists are
+// deduplicated rather than rejected.
 export const setDatasetExampleSplitsInputSchema = z.object({
-  exampleIds: z.array(z.string().min(1)).min(1),
-  splitNames: z.array(z.string().trim().min(1)).min(1),
+  exampleIds: z
+    .array(z.string().min(1))
+    .min(1)
+    .transform((ids) => Array.from(new Set(ids))),
+  splitNames: z
+    .array(z.string().trim().min(1))
+    .min(1)
+    .transform((names) => Array.from(new Set(names))),
 });
 
 // patch_dataset_split: edit a split (found by current name); at least one of

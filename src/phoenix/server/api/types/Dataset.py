@@ -269,12 +269,31 @@ class Dataset(Node):
                 except Exception:
                     raise BadRequest(f"Invalid split ID: {split_id}")
 
+        # Parse filter IDs if provided
+        filter_rowids: Optional[list[int]] = None
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=DatasetExample.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+
         revision_ids = (
             select(func.max(models.DatasetExampleRevision.id))
             .join(models.DatasetExample)
             .where(models.DatasetExample.dataset_id == dataset_id)
             .group_by(models.DatasetExampleRevision.dataset_example_id)
         )
+        if filter_rowids is not None:
+            # Restrict the latest-revision aggregation to the requested rows so
+            # an id-membership lookup doesn't aggregate the whole dataset.
+            revision_ids = revision_ids.where(models.DatasetExample.id.in_(filter_rowids))
         if version_id:
             version_id_subquery = (
                 select(models.DatasetVersion.id)
@@ -325,18 +344,7 @@ class Dataset(Node):
             )
             query = query.where(filter_condition)
 
-        if filter_ids:
-            filter_rowids = []
-            for filter_id in filter_ids:
-                try:
-                    filter_rowids.append(
-                        from_global_id_with_expected_type(
-                            global_id=filter_id,
-                            expected_type_name=DatasetExample.__name__,
-                        )
-                    )
-                except ValueError:
-                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+        if filter_rowids is not None:
             query = query.where(models.DatasetExample.id.in_(filter_rowids))
 
         async with info.context.db.read() as session:
