@@ -4,15 +4,13 @@ description: >-
 title: "Identifying High-Signal Traces in Production"
 ---
 
-{/* HANDOFF NOTE for Claude Code:
-  - This is an MDX guide, no notebook. All code slots use the docs' <Tabs> pattern:
-    <Tabs><Tab title="Python" icon="python">…</Tab><Tab title="TypeScript" icon="js">…</Tab></Tabs>
-  - VERIFY before writing: (1) does SpanQuery or equivalent exist in @arizeai/phoenix-client (TS)?
-    If not, the TS tab should show the honest available path (CLI / REST) with a one-line note —
-    do not fake parity. (2) Does the embeddings projector / clustering feature exist in current
-    Phoenix? If yes, reference it in Failure Clusters; if no, keep the dataframe-DIY framing.
-  - CLI examples should match the px commands you surfaced (trace list, span list --status-code,
-    --attribute, --include-annotations, trace get, session get).
+{/* BEFORE PR — remove this comment after completing:
+  1. Run every snippet against a live Phoenix instance. Unverified APIs to confirm or replace:
+     px span add-note, px session list/get, TS addSpanNote, TS listSessions/getSession exports,
+     SpanQuery syntax "'session.id' in attributes".
+  2. Fix the three internal cross-link paths (marked TODO-path) to match the docs tree.
+  3. Confirm eval label values ('hallucinated'/'factual', 'correct'/'incorrect') against the
+     current phoenix.evals templates with Elizabeth.
 */}
 
 When running LLM applications in production, you quickly accumulate thousands or millions of traces. Most of them are fine. A high-signal trace is one that teaches you something you didn't already know about how your system fails — and the discipline of production observability comes down to finding those traces efficiently and actually reading them.
@@ -44,7 +42,7 @@ One principle ties these together: **prioritize the failures that happen most, n
 
 Production trace review works on two clocks:
 
-**The daily smoke check (minutes).** Glance at the metrics dashboard (in the Phoenix UI under your project's Metrics tab) for anything on fire — latency quantiles spiking, error counts climbing, costs drifting. Then run a quick error query. The dashboard is a smoke detector, not a review process: it tells you *that* something changed, never *why*. The why always lives in individual traces.
+**The daily smoke check (minutes).** Glance at the [metrics dashboard](TODO-path/metrics) in the Phoenix UI under your project's Metrics tab for anything on fire — latency quantiles spiking, error counts climbing, costs drifting. Then run a quick error query. The dashboard is a smoke detector, not a review process: it tells you *that* something changed, never *why*. The why always lives in individual traces.
 
 **The weekly error-analysis session (an hour or two).** Pull a deliberately mixed sample of traces and read them with open-ended notes. This is where actual improvement comes from, and the second half of this guide is devoted to it.
 
@@ -52,7 +50,7 @@ Teams that only do the daily check end up dashboard-watching. Teams that only do
 
 ## The Daily Check: Finding Hard Failures
 
-Hard failures are queryable with zero setup — Phoenix records span status, exception events, and error messages on every trace. Your first triage move, straight from the terminal:
+Hard failures are queryable with zero setup — Phoenix records span status, exception events, and error messages on every trace. Your first triage move, straight from the terminal (see [Retrieve Traces via CLI](TODO-path/retrieve-traces-via-cli) for the full command reference):
 
 ```bash
 # Find traces with errors in the last hour
@@ -65,7 +63,7 @@ px span list --status-code ERROR --limit 20
 px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK")'
 ```
 
-For programmatic filtering — monitoring scripts, scheduled reports — use the query DSL:
+For programmatic filtering — monitoring scripts, scheduled reports — use the query DSL (covered in depth in [Extract Data from Spans](TODO-path/extract-data-from-spans)):
 
 <Tabs>
 <Tab title="Python" icon="python">
@@ -234,27 +232,29 @@ console.log(`Fast tail: ${fastTail.length} spans`);
 </Tab>
 </Tabs>
 
-For *regressions* specifically, the unit of comparison is the change: compare the latency or token distribution before and after a deploy, prompt revision, or model swap — not against an absolute threshold.
+For *regressions* specifically, the unit of comparison is the change: compare the latency or token distribution before and after a deploy, prompt revision, or model swap — not against an absolute threshold. And whatever cutoff you use for "outlier" — p95, one standard deviation from the median — treat it as a starting point, not a finding. The threshold's only job is to hand you a tail worth reading.
 
 ## Finding Quality Issues with Evaluations
 
-Evaluation scores attached to traces let you query for soft failures the way you query for exceptions. Treat scores as exploration clues, not verdicts:
+Evaluation results attached to traces let you query for soft failures the way you query for exceptions. Treat eval results as exploration clues, not verdicts:
 
-* **Review both ends of the distribution.** Low scores show you failures; high scores show you whether your evaluator is calibrated. If you only ever read failures, you'll never notice your judge passing garbage.
-* **Prefer binary judgments to numeric scales.** "Did the assistant hand off to a human when it should have: yes/no" is actionable. "Helpfulness: 4.2" is not — unanchored scores erode trust in the whole system.
+* **Review both ends of the distribution.** Failing labels show you problems; passing labels show you whether your evaluator is calibrated. If you only ever read failures, you'll never notice your judge passing garbage.
+* **Prefer binary and categorical judgments to numeric scales.** "Did the assistant hand off to a human when it should have: yes/no" is actionable. "Helpfulness: 4.2" is not. This isn't just taste — Arize research testing LLM judges on continuous ranges found numeric score evals unreliable, with small prompt changes producing wildly different results, and a 2025 re-test on newer models confirmed that binary and categorical judgments remain the most stable ([original study](https://arize.com/blog-course/numeric-evals-for-llm-as-a-judge/), [follow-up](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/)). Phoenix's built-in evaluators emit categorical labels for exactly this reason.
 * **A 100% pass rate is a warning sign.** It usually means your evals aren't stressing the system. A 70% pass rate often indicates an eval that's actually testing something.
 
+A practical consequence of label-based evals: **filter on labels, not score thresholds.** Score direction varies by evaluator (for Phoenix's hallucination evaluator, a *higher* score means *factual* — direction is "maximize"), so label filters are both more readable and harder to get backwards.
+
 ```bash
-# List spans with their evaluation scores
+# List spans with their evaluation results
 px span list --include-annotations --limit 20 --format raw --no-progress | \
   jq '.[] | select(.annotations != null) | {span_id: .context.span_id, name, annotations}'
 
-# Filter traces by specific annotation values (requires jq post-processing)
+# Filter traces by annotation label (requires jq post-processing)
 px trace list --include-annotations --format raw --no-progress | \
-  jq '.[] | select(.annotations[] | select(.name == "correctness" and .score < 0.5))'
+  jq '.[] | select(.annotations[] | select(.name == "correctness" and .label == "incorrect"))'
 ```
 
-For programmatic filtering by evaluation scores:
+For programmatic filtering by evaluation results:
 
 <Tabs>
 <Tab title="Python" icon="python">
@@ -264,29 +264,28 @@ from phoenix.trace.dsl import SpanQuery
 
 client = Client()
 
-# Find low-scoring spans (potential failures)
-low_quality = SpanQuery().where(
-    "evals['hallucination'].score > 0.5"  # Higher hallucination score = bad
+# Find hallucinating spans (filter on the label, not the score)
+hallucinated = SpanQuery().where(
+    "evals['hallucination'].label == 'hallucinated'"
 ).select(
     input="input.value",
     output="output.value",
-    hallucination_score="evals['hallucination'].score",
-    hallucination_label="evals['hallucination'].label",
+    label="evals['hallucination'].label",
     explanation="evals['hallucination'].explanation",
 )
-low_df = client.spans.get_spans_dataframe(query=low_quality)
-print(f"Found {len(low_df)} spans with hallucination score > 0.5")
+hallucinated_df = client.spans.get_spans_dataframe(query=hallucinated)
+print(f"Found {len(hallucinated_df)} spans labeled hallucinated")
 
-# ALSO check high scorers to validate your evaluator
-high_quality = SpanQuery().where(
-    "evals['hallucination'].score < 0.1"
+# ALSO spot-check the passing labels to validate your evaluator
+factual = SpanQuery().where(
+    "evals['hallucination'].label == 'factual'"
 ).select(
     input="input.value",
     output="output.value",
-    score="evals['hallucination'].score",
+    label="evals['hallucination'].label",
 )
-high_df = client.spans.get_spans_dataframe(query=high_quality)
-# Spot-check: are these actually good? If not, your eval is miscalibrated.
+factual_df = client.spans.get_spans_dataframe(query=factual)
+# Read a handful: are these actually factual? If not, your judge is miscalibrated.
 
 # Find spans with multiple eval failures (compound failures)
 multi_fail = SpanQuery().where(
@@ -294,8 +293,8 @@ multi_fail = SpanQuery().where(
 ).select(
     input="input.value",
     output="output.value",
-    relevance="evals['relevance'].score",
-    correctness="evals['correctness'].score",
+    relevance="evals['relevance'].label",
+    correctness="evals['correctness'].label",
 )
 multi_df = client.spans.get_spans_dataframe(query=multi_fail)
 print(f"Compound failures: {len(multi_df)} spans")
@@ -326,19 +325,18 @@ const { data: annotations } = await getSpanAnnotations({
   includeAnnotationNames: ["hallucination", "correctness"],
 });
 
-// Filter for low scores client-side
-const lowScores = annotations.filter(
-  (ann) => ann.name === "hallucination" && (ann.score ?? 0) > 0.5
+// Filter on labels, not score thresholds (score direction varies by evaluator)
+const hallucinated = annotations.filter(
+  (ann) => ann.name === "hallucination" && ann.label === "hallucinated"
 );
+console.log(`Spans labeled hallucinated: ${hallucinated.length}`);
 
-console.log(`Found ${lowScores.length} high hallucination scores`);
-
-// Check high scorers too (calibration check)
-const highScores = annotations.filter(
-  (ann) => ann.name === "hallucination" && (ann.score ?? 1) < 0.1
+// Spot-check the passing labels too (calibration check)
+const factual = annotations.filter(
+  (ann) => ann.name === "hallucination" && ann.label === "factual"
 );
 console.log(
-  `High-scoring spans: ${highScores.length} (spot-check these for false negatives)`
+  `Spans labeled factual: ${factual.length} (read a few to catch false negatives)`
 );
 ```
 
@@ -464,8 +462,8 @@ Individual bad traces are anecdotes. Clusters are priorities. The method comes f
 
 Random sampling gets inefficient once the obvious failures are fixed — most random traces are fine. Bias your sample toward signal:
 
-* **Stratified sampling.** Group traces by the dimensions you care about — user segment, model, feature, query category — and sample from each group, so a high-volume happy path doesn't drown out a broken niche. In Phoenix, the attributes you attach at instrumentation time (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
-* **Embedding clustering (advanced, optional).** Embed your inputs and cluster them to reveal natural groupings; sample from every cluster, and oversample the small ones — that's where edge cases live. There's no "correct" clustering; it's an exploration technique for surfacing patterns you'd miss manually. This technique requires more setup but can surface latent failure modes you wouldn't find with manual filtering.
+* **Stratified sampling.** Group traces by the dimensions you care about — user segment, model, feature, query category, which tools were called, session turn count — and sample from each group, so a high-volume happy path doesn't drown out a broken niche. For agent applications, tools-called is often the most failure-correlated dimension you have, and it costs nothing: it's already an attribute on your spans. In Phoenix, the attributes you attach at instrumentation time (user IDs, session IDs, custom metadata) are exactly what makes this possible: stratification is an instrumentation decision before it's a query.
+* **Embedding clustering (advanced, optional).** Embed your inputs and cluster them to reveal natural groupings, then sample from every cluster. How you weight the samples depends on your goal: weight proportionally to cluster size when you want representative failure-rate estimates, or oversample the small clusters when you're hunting for failure modes you haven't seen yet — the first measures, the second discovers. There's no "correct" clustering; it's an exploration technique for surfacing patterns you'd miss manually. This technique requires more setup but can surface latent failure modes you wouldn't find with manual filtering.
 
 **Stratified sampling** by custom attributes:
 
@@ -494,12 +492,12 @@ from openai import OpenAI  # or your embedding provider
 client = Client()
 openai_client = OpenAI()
 
-# Export spans with inputs and eval scores
+# Export spans with inputs and eval results
 query = SpanQuery().select(
     input="input.value",
     output="output.value",
     status="status_code",
-    correctness_score="evals['correctness'].score",
+    correctness_label="evals['correctness'].label",
 )
 df = client.spans.get_spans_dataframe(query=query)
 
@@ -522,11 +520,13 @@ kmeans = KMeans(n_clusters=n_clusters, random_state=42)
 df['cluster'] = kmeans.fit_predict(embeddings)
 
 # Find clusters with elevated failure rates
-cluster_stats = df.groupby('cluster').agg({
-    'status': lambda x: (x == 'ERROR').mean(),  # Error rate
-    'correctness_score': 'mean',  # Avg correctness
-    'input': 'count'  # Cluster size
-}).rename(columns={'status': 'error_rate', 'input': 'size'})
+df['is_error'] = df['status'] == 'ERROR'
+df['is_incorrect'] = df['correctness_label'] == 'incorrect'
+cluster_stats = df.groupby('cluster').agg(
+    error_rate=('is_error', 'mean'),
+    incorrect_rate=('is_incorrect', 'mean'),
+    size=('input', 'count'),
+)
 
 print(cluster_stats.sort_values('error_rate', ascending=False))
 
@@ -596,6 +596,8 @@ The full weekly loop, end to end:
 4. **Prioritize by frequency × impact** and fix from the top.
 5. **Convert each confirmed failure mode into an evaluator** — a code assertion where possible, an LLM-as-judge with validated binary outputs where not. This is the flywheel: every review cycle makes the next cycle's automated filtering smarter.
 
+**Where agents fit.** The filtering and sampling steps above are mechanical enough to delegate to a coding agent once your sampling logic is settled. More interestingly, agent-as-judge review over *full trajectories* adds a recall layer that scalar filters miss: an agent can assess whether a complex tool call or generated shell command was actually correct — something no human reviewer can verify at scale — and can contextualize the smoke signals your filters raise. The division of labor: agents triage and judge what humans can't check at volume; humans keep what agents can't be trusted with — validating the judge's calibration, naming new failure categories, and deciding what matters. The thesis doesn't change: agent review is one more filter whose escalations a human reads.
+
 The scripts below are **starting-point templates** — adapt the sampling logic, thresholds, and time windows to match your application's failure modes and review capacity.
 
 <Tabs>
@@ -612,7 +614,7 @@ client = Client()
 end_time = datetime.now()
 start_time = end_time - timedelta(days=7)
 
-print("🔍 Weekly Trace Review — Mixed Sample")
+print("Weekly Trace Review — Mixed Sample")
 print(f"Period: {start_time.date()} to {end_time.date()}\n")
 
 # 1. All hard failures
@@ -623,7 +625,7 @@ errors = SpanQuery().where("status_code == 'ERROR'").select(
 errors_df = client.spans.get_spans_dataframe(
     query=errors, start_time=start_time, end_time=end_time
 )
-print(f"❌ Hard failures: {len(errors_df)}")
+print(f"Hard failures: {len(errors_df)}")
 
 # 2. Slow tail (p95+)
 all_spans = SpanQuery().select(
@@ -638,24 +640,24 @@ spans_df['duration'] = (pd.to_datetime(spans_df['end_time']) - pd.to_datetime(sp
 
 p95_duration = spans_df['duration'].quantile(0.95)
 slow_tail = spans_df[spans_df['duration'] > p95_duration]
-print(f"🐌 Slow tail (p95+): {len(slow_tail)}")
+print(f"Slow tail (p95+): {len(slow_tail)}")
 
 # 3. Fast tail (p5-)
 p5_duration = spans_df['duration'].quantile(0.05)
 fast_tail = spans_df[spans_df['duration'] < p5_duration]
-print(f"⚡ Fast tail (p5-): {len(fast_tail)}")
+print(f"Fast tail (p5-): {len(fast_tail)}")
 
-# 4. Low eval scores
-low_quality = SpanQuery().where(
-    "evals['correctness'].score < 0.5"
+# 4. Failing eval labels
+incorrect = SpanQuery().where(
+    "evals['correctness'].label == 'incorrect'"
 ).select(
     input="input.value",
-    score="evals['correctness'].score",
+    label="evals['correctness'].label",
 )
-low_df = client.spans.get_spans_dataframe(
-    query=low_quality, start_time=start_time, end_time=end_time
+incorrect_df = client.spans.get_spans_dataframe(
+    query=incorrect, start_time=start_time, end_time=end_time
 )
-print(f"📉 Low eval scores: {len(low_df)}")
+print(f"Failing eval labels: {len(incorrect_df)}")
 
 # 5. Stratified random sample (all non-error spans)
 random_sample = SpanQuery().where("status_code == 'OK'").select(
@@ -665,24 +667,24 @@ random_df = client.spans.get_spans_dataframe(
     query=random_sample, start_time=start_time, end_time=end_time
 )
 random_df = random_df.sample(n=min(30, len(random_df)))  # 30 random spans
-print(f"🎲 Random sample: {len(random_df)}")
+print(f"Random sample: {len(random_df)}")
 
 # Combine into review queue
 review_queue = pd.concat([
-    errors_df.head(20),   # Top 20 errors
-    slow_tail.head(10),   # Top 10 slow
-    fast_tail.head(5),    # 5 suspiciously fast
-    low_df.head(15),      # 15 low-quality
-    random_df,            # 30 random
+    errors_df.head(20),     # Top 20 errors
+    slow_tail.head(10),     # Top 10 slow
+    fast_tail.head(5),      # 5 suspiciously fast
+    incorrect_df.head(15),  # 15 failing evals
+    random_df,              # 30 random
 ])
 
-print(f"\n📋 Total review queue: {len(review_queue)} spans")
-print(f"Next: Read these traces and add notes with:")
-print(f"  px span add-note <span-id> --text 'your observation'")
+print(f"\nTotal review queue: {len(review_queue)} spans")
+print("Next: Read these traces and add notes with:")
+print("  px span add-note <span-id> --text 'your observation'")
 
 # Export for offline review
 review_queue.to_csv('weekly_review_sample.csv', index=True)
-print(f"✅ Exported to weekly_review_sample.csv")
+print("Exported to weekly_review_sample.csv")
 ```
 </Tab>
 
@@ -690,7 +692,6 @@ print(f"✅ Exported to weekly_review_sample.csv")
 ```typescript
 import { createClient } from "@arizeai/phoenix-client";
 import { getSpans } from "@arizeai/phoenix-client/spans";
-import { addSpanNote } from "@arizeai/phoenix-client/spans";
 import * as fs from "fs";
 
 const client = createClient();
@@ -699,7 +700,7 @@ const client = createClient();
 const endTime = new Date();
 const startTime = new Date(endTime.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-console.log("🔍 Weekly Trace Review — Mixed Sample");
+console.log("Weekly Trace Review — Mixed Sample");
 console.log(`Period: ${startTime.toDateString()} to ${endTime.toDateString()}\n`);
 
 // 1. All hard failures
@@ -711,7 +712,7 @@ const { spans: errorSpans } = await getSpans({
   endTime,
   limit: 1000,
 });
-console.log(`❌ Hard failures: ${errorSpans.length}`);
+console.log(`Hard failures: ${errorSpans.length}`);
 
 // 2. Get all spans for tail analysis
 const { spans: allSpans } = await getSpans({
@@ -737,8 +738,8 @@ const p5Index = Math.floor(sorted.length * 0.95);
 const slowTail = sorted.slice(0, p95Index);
 const fastTail = sorted.slice(p5Index);
 
-console.log(`🐌 Slow tail (p95+): ${slowTail.length}`);
-console.log(`⚡ Fast tail (p5-): ${fastTail.length}`);
+console.log(`Slow tail (p95+): ${slowTail.length}`);
+console.log(`Fast tail (p5-): ${fastTail.length}`);
 
 // 3. Random sample (OK spans only)
 const okSpans = allSpans.filter((s) => s.status_code === "OK");
@@ -746,7 +747,7 @@ const randomSample = okSpans
   .sort(() => Math.random() - 0.5)
   .slice(0, Math.min(30, okSpans.length));
 
-console.log(`🎲 Random sample: ${randomSample.length}`);
+console.log(`Random sample: ${randomSample.length}`);
 
 // Combine into review queue
 const reviewQueue = [
@@ -756,7 +757,7 @@ const reviewQueue = [
   ...randomSample,
 ];
 
-console.log(`\n📋 Total review queue: ${reviewQueue.length} spans`);
+console.log(`\nTotal review queue: ${reviewQueue.length} spans`);
 
 // Export for offline review
 fs.writeFileSync(
@@ -773,7 +774,7 @@ fs.writeFileSync(
   )
 );
 
-console.log("✅ Exported to weekly_review_sample.json");
+console.log("Exported to weekly_review_sample.json");
 console.log("Next: Read traces and add notes with:");
 console.log("  px span add-note <span-id> --text 'your observation'");
 ```
@@ -791,8 +792,10 @@ Re-run the loop whenever you ship a significant change. Thirty minutes reading 2
 
 ## Further Reading
 
-The methodology in this guide draws on Hamel Husain's writing on evals and error analysis:
+The methodology in this guide draws on practitioner research in error analysis and evaluation:
 
-* [A Field Guide to Rapidly Improving AI Products](https://hamel.dev/blog/posts/field-guide/)
-* [AI Evals FAQ: Why is error analysis so important?](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html)
-* [AI Evals FAQ: How can I efficiently sample production traces for review?](https://hamel.dev/blog/posts/evals-faq/how-can-i-efficiently-sample-production-traces-for-review.html)
+* [A Field Guide to Rapidly Improving AI Products](https://hamel.dev/blog/posts/field-guide/) — Hamel Husain
+* [AI Evals FAQ: Why is error analysis so important?](https://hamel.dev/blog/posts/evals-faq/why-is-error-analysis-so-important-in-llm-evals-and-how-is-it-performed.html) — Hamel Husain
+* [AI Evals FAQ: How can I efficiently sample production traces for review?](https://hamel.dev/blog/posts/evals-faq/how-can-i-efficiently-sample-production-traces-for-review.html) — Hamel Husain
+* [Why You Should Not Use Numeric Evals for LLM as a Judge](https://arize.com/blog-course/numeric-evals-for-llm-as-a-judge/) — Arize AI research on why categorical judgments beat numeric scores
+* [Testing Binary vs. Score Evals on the Latest Models](https://arize.com/blog/testing-binary-vs-score-llm-evals-on-the-latest-models/) — 2025 follow-up confirming the findings hold on newer models
