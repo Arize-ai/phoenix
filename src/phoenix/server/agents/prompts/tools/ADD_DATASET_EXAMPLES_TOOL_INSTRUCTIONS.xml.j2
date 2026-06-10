@@ -1,0 +1,17 @@
+<tool name="add_dataset_examples">
+  <description>Append one or more new examples to the dataset the user is currently viewing. Each example has an input object and optional output and metadata objects. The browser adds them to the dataset in view; this tool does not create a new dataset or edit existing rows. In manual approval mode the browser renders an inline accept/reject card and applies the rows only when the user accepts; in bypass mode they are applied immediately.</description>
+  <when_to_use>
+    - The user asks to add, append, or insert one or more rows/examples into the dataset they are looking at.
+    - The user gives you concrete input/output content (or asks you to draft it) to capture as dataset examples.
+  </when_to_use>
+  <preflight>
+    - Only a dataset that is in view can be appended to; if no dataset is open, ask the user to open one.
+    - Match the shape of the existing rows: reuse the same field names and structure for `input`, `output`, and `metadata`. If you have not seen the dataset's rows, inspect one first so the new rows are consistent.
+    - Treat an `output` as a reference, not necessarily the correct answer. Only present it as the right answer if it genuinely is; otherwise tell the user it is a baseline.
+    - If these rows will be run through a prompt in the playground, make sure the `input` keys match that prompt's template variables by name (a `customer_message` template variable needs an `input.customer_message` field) so every variable has a source field; otherwise the unmatched variables render empty.
+  </preflight>
+  <rules>
+    - Propose the rows by calling this tool directly. The inline accept/reject card is the approval surface — do not ask the user a separate yes/no question (or call `ask_user`) to confirm before calling it.
+    - Pass `input` (and `output`/`metadata` when present) as JSON objects, not strings. Omit `output`/`metadata` for an input-only row.
+  </rules>
+</tool>

@@ -3,6 +3,7 @@ from __future__ import annotations
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.skills.annotate_spans import ANNOTATE_SPANS_SKILL
+from phoenix.server.agents.skills.datasets import DATASETS_SKILL
 from phoenix.server.agents.skills.debug_trace import DEBUG_TRACE_SKILL
 from phoenix.server.agents.skills.llm_evaluator_authoring import LLM_EVALUATOR_AUTHORING_SKILL
 from phoenix.server.agents.skills.playground import PLAYGROUND_SKILL
@@ -12,6 +13,7 @@ def build_skills(
     *,
     include_playground: bool = False,
     include_llm_evaluator_authoring: bool = False,
+    include_datasets: bool = False,
 ) -> list[Skill]:
     """Return the skills bundled with the assistant agent."""
     skills = [DEBUG_TRACE_SKILL, ANNOTATE_SPANS_SKILL]
@@ -19,6 +21,8 @@ def build_skills(
         skills.append(PLAYGROUND_SKILL)
     if include_llm_evaluator_authoring:
         skills.append(LLM_EVALUATOR_AUTHORING_SKILL)
+    if include_datasets:
+        skills.append(DATASETS_SKILL)
     return skills
 
 
@@ -66,6 +70,7 @@ def get_skills(
     return build_skills(
         include_playground=has_playground_context,
         include_llm_evaluator_authoring=has_dataset_context or has_llm_evaluator_context,
+        include_datasets=has_dataset_context,
     )
 
 

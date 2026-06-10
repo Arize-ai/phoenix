@@ -13,6 +13,7 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
+import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
@@ -385,6 +386,13 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     annotation: PendingBatchSpanAnnotate | null
   ) => void;
+  pendingDatasetWritesByToolCallId: Partial<
+    Record<string, PendingDatasetWrite>
+  >;
+  setPendingDatasetWrite: (
+    toolCallId: string,
+    pending: PendingDatasetWrite | null
+  ) => void;
   pendingPromptToolWritesByToolCallId: Partial<
     Record<string, PendingPromptToolWrite>
   >;
@@ -558,6 +566,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptEditsByToolCallId: {},
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
+    pendingDatasetWritesByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
@@ -1083,6 +1092,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingDatasetWrite: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingDatasetWritesByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingDatasetWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingDatasetWrite" }
+      );
+    },
     setPendingBatchSpanAnnotate: (toolCallId, annotation) => {
       set(
         (state) => {

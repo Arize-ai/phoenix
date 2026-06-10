@@ -2,8 +2,9 @@
  * Runtime capabilities are feature flags that shape what the agent can do and
  * how the UI should expose those controls.
  *
- * For tool-extension workflow guidance, see
- * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
+ * For tool-extension workflow guidance, see the `defineTool` /
+ * `defineClientActionTool` helpers in `./registry` and the registry aggregator
+ * in `./toolRegistry`.
  */
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"

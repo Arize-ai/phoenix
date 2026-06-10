@@ -5,6 +5,33 @@ import { useEffect, useRef, useState } from "react";
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { CREATE_DATASET_TOOL_NAME } from "@phoenix/agent/tools/createDataset";
+import {
+  DELETE_DATASET_TOOL_NAME,
+  PATCH_DATASET_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetEdit";
+import {
+  ADD_DATASET_EXAMPLES_TOOL_NAME,
+  DELETE_DATASET_EXAMPLES_TOOL_NAME,
+  LIST_DATASET_EXAMPLES_TOOL_NAME,
+  PATCH_DATASET_EXAMPLES_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetExamples";
+import {
+  CREATE_DATASET_LABEL_TOOL_NAME,
+  DELETE_DATASET_LABELS_TOOL_NAME,
+  LIST_DATASET_LABELS_TOOL_NAME,
+  LIST_LABELS_TOOL_NAME,
+  SET_DATASET_LABELS_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetLabels";
+import {
+  CREATE_DATASET_SPLIT_TOOL_NAME,
+  DELETE_DATASET_SPLITS_TOOL_NAME,
+  LIST_DATASET_SPLITS_TOOL_NAME,
+  LIST_SPLITS_TOOL_NAME,
+  PATCH_DATASET_SPLIT_TOOL_NAME,
+  SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetSplits";
+import { LIST_DATASETS_TOOL_NAME } from "@phoenix/agent/tools/listDatasets";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
@@ -13,9 +40,14 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
 
+import {
+  AddDatasetExamplesToolDetails,
+  getAddDatasetExamplesToolPreview,
+} from "./AddDatasetExamplesToolDetails";
 import {
   AskUserToolDetails,
   formatAskUserState,
@@ -27,6 +59,16 @@ import {
   formatBatchSpanAnnotateState,
   getBatchSpanAnnotateToolPreview,
 } from "./BatchSpanAnnotateToolDetails";
+import {
+  CreateDatasetToolDetails,
+  getCreateDatasetToolPreview,
+} from "./CreateDatasetToolDetails";
+import { DatasetReadToolDetails } from "./DatasetReadToolDetails";
+import {
+  getListDatasetExamplesToolPreview,
+  getListDatasetsToolPreview,
+} from "./datasetReadToolPreviews";
+import { DatasetSplitWriteToolDetails } from "./DatasetSplitWriteToolDetails";
 import {
   DocsToolDetails,
   formatDocsToolState,
@@ -840,6 +882,80 @@ function getToolPresentation(
         stateLabel: formatLoadDatasetState(part),
         statusVariant: getLoadDatasetStatusVariant(part) ?? statusVariant,
         details: <LoadDatasetToolDetails part={part} />,
+      };
+    case CREATE_DATASET_TOOL_NAME:
+      return {
+        preview: getCreateDatasetToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <CreateDatasetToolDetails part={part} />,
+      };
+    case LIST_DATASET_EXAMPLES_TOOL_NAME:
+      return {
+        preview: getListDatasetExamplesToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetReadToolDetails part={part} label="Examples" />,
+      };
+    case LIST_DATASETS_TOOL_NAME:
+      return {
+        preview: getListDatasetsToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetReadToolDetails part={part} label="Datasets" />,
+      };
+    case LIST_DATASET_SPLITS_TOOL_NAME:
+      return {
+        preview: "",
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetReadToolDetails part={part} label="Splits" />,
+      };
+    case LIST_SPLITS_TOOL_NAME:
+      return {
+        preview: "",
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetReadToolDetails part={part} label="Splits" />,
+      };
+    case CREATE_DATASET_SPLIT_TOOL_NAME:
+    case SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME:
+    case CREATE_DATASET_LABEL_TOOL_NAME:
+    case SET_DATASET_LABELS_TOOL_NAME:
+    case PATCH_DATASET_TOOL_NAME:
+    case DELETE_DATASET_TOOL_NAME:
+    case PATCH_DATASET_EXAMPLES_TOOL_NAME:
+    case DELETE_DATASET_EXAMPLES_TOOL_NAME:
+    case PATCH_DATASET_SPLIT_TOOL_NAME:
+    case DELETE_DATASET_SPLITS_TOOL_NAME:
+    case DELETE_DATASET_LABELS_TOOL_NAME:
+    case ADD_SPANS_TO_DATASET_TOOL_NAME:
+      return {
+        preview: "",
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetSplitWriteToolDetails part={part} />,
+      };
+    case LIST_DATASET_LABELS_TOOL_NAME:
+      return {
+        preview: "",
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetReadToolDetails part={part} label="Labels" />,
+      };
+    case LIST_LABELS_TOOL_NAME:
+      return {
+        preview: "",
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <DatasetReadToolDetails part={part} label="Labels" />,
+      };
+    case ADD_DATASET_EXAMPLES_TOOL_NAME:
+      return {
+        preview: getAddDatasetExamplesToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: <AddDatasetExamplesToolDetails part={part} />,
       };
     case BATCH_SPAN_ANNOTATE_TOOL_NAME:
       return {

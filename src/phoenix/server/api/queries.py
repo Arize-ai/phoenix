@@ -2,7 +2,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Literal, Optional
+from typing import Annotated, Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
 import strawberry
@@ -1177,6 +1177,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only labels whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetLabel]:
         args = ConnectionArgs(
             first=first,
@@ -1184,10 +1192,13 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetLabel.name.in_(names))
         async with info.context.db.read() as session:
-            dataset_labels = await session.scalars(
-                select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
-            )
+            dataset_labels = await session.scalars(stmt)
         data = [
             DatasetLabel(id=dataset_label.id, db_record=dataset_label)
             for dataset_label in dataset_labels
@@ -1202,6 +1213,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only splits whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetSplit]:
         args = ConnectionArgs(
             first=first,
@@ -1209,8 +1228,13 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.DatasetSplit)
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetSplit.name.in_(names))
         async with info.context.db.read() as session:
-            splits = await session.stream_scalars(select(models.DatasetSplit))
+            splits = await session.stream_scalars(stmt)
             data = [DatasetSplit(id=split.id, db_record=split) async for split in splits]
             return connection_from_list(
                 data=data,

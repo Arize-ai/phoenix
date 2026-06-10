@@ -52,3 +52,17 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
 
   return order.map((key) => byKey.get(key) as AgentContext);
 }
+
+/**
+ * Return the active context of a given `type` (e.g. `"dataset"`, `"span"`), or
+ * `undefined` if none is in scope. Narrows to the matching context variant.
+ */
+export function getActiveContext<T extends AgentContext["type"]>(
+  state: AgentState,
+  type: T
+): Extract<AgentContext, { type: T }> | undefined {
+  return selectActiveContexts(state).find(
+    (context): context is Extract<AgentContext, { type: T }> =>
+      context.type === type
+  );
+}

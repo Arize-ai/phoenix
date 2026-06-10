@@ -1,0 +1,12 @@
+<tool name="patch_dataset">
+  <description>Edit the dataset the user is viewing — its name, description, and/or metadata. Only the fields you pass are changed; omitted fields are left as they are. Does not change the dataset's rows.</description>
+  <when_to_use>
+    - The user asks to rename the dataset, change its description, or update its metadata.
+  </when_to_use>
+  <preflight>
+    - Pass only the fields you intend to change. Dataset names are unique; if the new name is taken the call fails and you should pick a different name.
+  </preflight>
+  <rules>
+    - Propose the edit by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+  </rules>
+</tool>

@@ -50,6 +50,18 @@ class SetDatasetExampleSplitsInput:
 
 
 @strawberry.input
+class SetDatasetExamplesSplitsInput:
+    example_ids: list[GlobalID]
+    dataset_split_ids: list[GlobalID]
+    dataset_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET,
+        description="When provided, every example must belong to this dataset or the "
+        "whole mutation is rejected — lets callers scope a batch write to the dataset "
+        "they believe they are editing.",
+    )
+
+
+@strawberry.input
 class CreateDatasetSplitWithExamplesInput:
     name: str
     description: Optional[str] = UNSET
@@ -84,6 +96,12 @@ class SetDatasetExampleSplitsMutationPayload:
 
 
 @strawberry.type
+class SetDatasetExamplesSplitsMutationPayload:
+    query: "Query"
+    examples: list[DatasetExample]
+
+
+@strawberry.type
 class DatasetSplitMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_split(
@@ -113,7 +131,8 @@ class DatasetSplitMutationMixin:
     async def patch_dataset_split(
         self, info: Info[Context, None], input: PatchDatasetSplitInput
     ) -> DatasetSplitMutationPayload:
-        validated_name = _validated_name(input.name) if input.name else None
+        # An invalid new name fails fast, before anything is loaded or changed.
+        validated_name = _validated_name(input.name) if isinstance(input.name, str) else None
         async with info.context.db() as session:
             dataset_split_id = from_global_id_with_expected_type(
                 input.dataset_split_id, DatasetSplit.__name__
@@ -122,11 +141,19 @@ class DatasetSplitMutationMixin:
             if not dataset_split_orm:
                 raise NotFound(f"Dataset split with ID {input.dataset_split_id} not found")
 
-            if validated_name:
+            # Distinguish omitted (UNSET) from explicit null: omitted fields are
+            # left unchanged, while null clears nullable columns (description)
+            # and is ignored for non-nullable ones — same contract as
+            # patchDataset. Assignments are spelled out per column so the type
+            # checker verifies each value against its Mapped[...] type.
+            if validated_name is not None:
                 dataset_split_orm.name = validated_name
-            if input.description:
-                dataset_split_orm.description = input.description
-            if input.color:
+            if input.description is not UNSET:
+                # An empty string is treated as a clear, not stored verbatim.
+                dataset_split_orm.description = input.description or None
+            if isinstance(input.color, str):
+                if not input.color.strip():
+                    raise BadRequest("Color cannot be empty")
                 dataset_split_orm.color = input.color
             if isinstance(input.metadata, dict):
                 dataset_split_orm.metadata_ = input.metadata
@@ -270,6 +297,110 @@ class DatasetSplitMutationMixin:
 
         return SetDatasetExampleSplitsMutationPayload(
             example=DatasetExample(id=example.id, db_record=example),
+            query=Query(),
+        )
+
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description="Batch form of setDatasetExampleSplits: replaces the split "
+        "membership of every listed example in a single transaction, so a failure "
+        "on any example leaves no partial assignment.",
+    )  # type: ignore
+    async def set_dataset_examples_splits(
+        self, info: Info[Context, None], input: SetDatasetExamplesSplitsInput
+    ) -> SetDatasetExamplesSplitsMutationPayload:
+        if not input.example_ids:
+            raise BadRequest("Must provide at least one example ID")
+
+        example_ids: dict[int, None] = {}  # use dictionary to de-duplicate, preserving order
+        for example_gid in input.example_ids:
+            try:
+                example_id = from_global_id_with_expected_type(
+                    example_gid, models.DatasetExample.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid example ID: {example_gid}")
+            example_ids[example_id] = None
+
+        dataset_split_ids: dict[int, None] = {}
+        for dataset_split_gid in input.dataset_split_ids:
+            try:
+                dataset_split_id = from_global_id_with_expected_type(
+                    dataset_split_gid, DatasetSplit.__name__
+                )
+            except ValueError:
+                raise BadRequest(f"Invalid dataset split ID: {dataset_split_gid}")
+            dataset_split_ids[dataset_split_id] = None
+
+        scoped_dataset_id: Optional[int] = None
+        if input.dataset_id:
+            try:
+                scoped_dataset_id = from_global_id_with_expected_type(input.dataset_id, "Dataset")
+            except ValueError:
+                raise BadRequest(f"Invalid dataset ID: {input.dataset_id}")
+
+        async with info.context.db() as session:
+            examples = (
+                await session.scalars(
+                    select(models.DatasetExample).where(
+                        models.DatasetExample.id.in_(example_ids.keys())
+                    )
+                )
+            ).all()
+            if len(examples) != len(example_ids):
+                raise NotFound("One or more examples not found")
+            if scoped_dataset_id is not None and any(
+                example.dataset_id != scoped_dataset_id for example in examples
+            ):
+                raise BadRequest("One or more examples do not belong to the specified dataset")
+
+            existing_split_ids = (
+                await session.scalars(
+                    select(models.DatasetSplit.id).where(
+                        models.DatasetSplit.id.in_(dataset_split_ids.keys())
+                    )
+                )
+            ).all()
+            if len(existing_split_ids) != len(dataset_split_ids):
+                raise NotFound("One or more dataset splits not found")
+
+            # Do deletes first, then adds to prevent duplicate key errors
+            await session.execute(
+                delete(models.DatasetSplitDatasetExample).where(
+                    models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids.keys()),
+                    models.DatasetSplitDatasetExample.dataset_split_id.not_in(
+                        dataset_split_ids.keys()
+                    ),
+                )
+            )
+            await session.flush()
+
+            existing_pairs = {
+                (row.dataset_split_id, row.dataset_example_id)
+                for row in await session.execute(
+                    select(
+                        models.DatasetSplitDatasetExample.dataset_split_id,
+                        models.DatasetSplitDatasetExample.dataset_example_id,
+                    ).where(
+                        models.DatasetSplitDatasetExample.dataset_example_id.in_(example_ids.keys())
+                    )
+                )
+            }
+            dataset_splits_dataset_examples_to_add = [
+                models.DatasetSplitDatasetExample(
+                    dataset_example_id=example_id,
+                    dataset_split_id=dataset_split_id,
+                )
+                for example_id in example_ids
+                for dataset_split_id in dataset_split_ids
+                if (dataset_split_id, example_id) not in existing_pairs
+            ]
+            if dataset_splits_dataset_examples_to_add:
+                session.add_all(dataset_splits_dataset_examples_to_add)
+                await session.flush()
+
+        return SetDatasetExamplesSplitsMutationPayload(
+            examples=[DatasetExample(id=example.id, db_record=example) for example in examples],
             query=Query(),
         )
 
