@@ -1,7 +1,7 @@
 """Tests for arithmetic evaluation (Phase 1 spec test remediation)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestArithmeticDivisionModulo:

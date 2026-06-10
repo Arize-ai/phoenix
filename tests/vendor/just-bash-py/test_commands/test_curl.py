@@ -10,9 +10,9 @@ These tests cover:
 import gzip
 import zlib
 import pytest
-from just_bash.commands.curl.curl import CurlCommand, parse_options, CurlOptions
-from just_bash.types import CommandContext
-from just_bash.fs import InMemoryFs
+from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand, parse_options, CurlOptions
+from phoenix.vendor.just_bash.types import CommandContext
+from phoenix.vendor.just_bash.fs import InMemoryFs
 
 
 class TestCurlCookieFile:

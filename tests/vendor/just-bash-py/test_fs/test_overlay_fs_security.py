@@ -11,7 +11,7 @@ class TestPathTraversal:
     @pytest.mark.asyncio
     async def test_block_traversal_above_mount(self):
         """Paths traversing above mount point should be blocked."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a file we shouldn't be able to access
@@ -27,7 +27,7 @@ class TestPathTraversal:
     @pytest.mark.asyncio
     async def test_normalized_traversal_blocked(self):
         """Various path traversal attempts should be normalized and blocked."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -46,7 +46,7 @@ class TestPathTraversal:
     @pytest.mark.asyncio
     async def test_write_traversal_blocked(self):
         """Writing via path traversal should be blocked."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -65,7 +65,7 @@ class TestSymlinkEscape:
     @pytest.mark.asyncio
     async def test_symlink_to_outside_blocked(self):
         """Symlinks pointing outside the overlay should not allow escape."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -81,7 +81,7 @@ class TestSymlinkEscape:
     @pytest.mark.asyncio
     async def test_real_symlink_escape_blocked(self):
         """Real symlinks on disk pointing outside should be blocked."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a real symlink pointing outside
@@ -105,7 +105,7 @@ class TestRootIsolation:
     @pytest.mark.asyncio
     async def test_root_stays_within_bounds(self):
         """All operations should stay within the configured root."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "sandbox"
@@ -129,7 +129,7 @@ class TestRootIsolation:
     @pytest.mark.asyncio
     async def test_absolute_paths_still_rooted(self):
         """Absolute paths in the virtual fs should still be rooted."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))

@@ -1,7 +1,7 @@
 """Tests for alias and unalias builtins."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestAliasBasic:

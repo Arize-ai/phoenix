@@ -11,7 +11,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_valid_root(self):
         """Creating with valid directory root should succeed."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -21,7 +21,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_nonexistent_root(self):
         """Creating with nonexistent root should raise error."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with pytest.raises(FileNotFoundError):
             OverlayFs(OverlayFsOptions(root="/nonexistent/path/that/doesnt/exist"))
@@ -29,7 +29,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_default_mount_point(self):
         """Default mount point should be /home/user/project."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -38,7 +38,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_custom_mount_point(self):
         """Custom mount point should be respected."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/workspace"))
@@ -51,7 +51,7 @@ class TestMountPoint:
     @pytest.mark.asyncio
     async def test_read_at_mount_point(self):
         """Files in the root should be accessible via mount point."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a real file
@@ -66,7 +66,7 @@ class TestMountPoint:
     @pytest.mark.asyncio
     async def test_files_outside_mount_not_accessible(self):
         """Files outside the mount point should not exist."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.txt"
@@ -80,7 +80,7 @@ class TestMountPoint:
     @pytest.mark.asyncio
     async def test_mount_point_is_directory(self):
         """The mount point should appear as a directory."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -91,7 +91,7 @@ class TestMountPoint:
     @pytest.mark.asyncio
     async def test_readdir_at_mount_point(self):
         """readdir at mount point should list real files."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "file1.txt").write_text("a")
@@ -110,7 +110,7 @@ class TestReadFallback:
     @pytest.mark.asyncio
     async def test_read_from_real_fs(self):
         """Reading file not in memory should read from real fs."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "real.txt"
@@ -124,7 +124,7 @@ class TestReadFallback:
     @pytest.mark.asyncio
     async def test_read_bytes_from_real_fs(self):
         """Reading bytes should also fall back to real fs."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "binary.bin"
@@ -138,7 +138,7 @@ class TestReadFallback:
     @pytest.mark.asyncio
     async def test_stat_from_real_fs(self):
         """stat should work for real files."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "real.txt"
@@ -157,7 +157,7 @@ class TestMemoryLayer:
     @pytest.mark.asyncio
     async def test_write_stays_in_memory(self):
         """Writing should store in memory, not affect real fs."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -175,7 +175,7 @@ class TestMemoryLayer:
     @pytest.mark.asyncio
     async def test_overwrite_real_file_in_memory(self):
         """Overwriting a real file should store change in memory only."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "existing.txt"
@@ -196,7 +196,7 @@ class TestMemoryLayer:
     @pytest.mark.asyncio
     async def test_append_to_real_file(self):
         """Appending to a real file should copy-on-write."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "append.txt"
@@ -216,7 +216,7 @@ class TestMemoryLayer:
     @pytest.mark.asyncio
     async def test_mkdir_in_memory(self):
         """mkdir should create directory in memory only."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -236,7 +236,7 @@ class TestDeletionTracking:
     @pytest.mark.asyncio
     async def test_rm_marks_as_deleted(self):
         """rm should mark file as deleted, not actually delete from disk."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "todelete.txt"
@@ -255,7 +255,7 @@ class TestDeletionTracking:
     @pytest.mark.asyncio
     async def test_deleted_file_returns_enoent(self):
         """Reading a deleted file should raise FileNotFoundError."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "deleted.txt"
@@ -271,7 +271,7 @@ class TestDeletionTracking:
     @pytest.mark.asyncio
     async def test_recreate_deleted_file(self):
         """Writing to a deleted path should recreate in memory."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "recreate.txt"
@@ -291,7 +291,7 @@ class TestDeletionTracking:
     @pytest.mark.asyncio
     async def test_rm_directory_recursive(self):
         """rm -r should mark directory and contents as deleted."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "dir"
@@ -316,7 +316,7 @@ class TestReadOnlyMode:
     @pytest.mark.asyncio
     async def test_read_only_write_raises_error(self):
         """Writing in read-only mode should raise EROFS error."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt", read_only=True))
@@ -328,7 +328,7 @@ class TestReadOnlyMode:
     @pytest.mark.asyncio
     async def test_read_only_mkdir_raises_error(self):
         """mkdir in read-only mode should raise EROFS error."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt", read_only=True))
@@ -340,7 +340,7 @@ class TestReadOnlyMode:
     @pytest.mark.asyncio
     async def test_read_only_rm_raises_error(self):
         """rm in read-only mode should raise EROFS error."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "file.txt"
@@ -355,7 +355,7 @@ class TestReadOnlyMode:
     @pytest.mark.asyncio
     async def test_read_only_can_read(self):
         """Reading in read-only mode should work."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "file.txt"
@@ -373,7 +373,7 @@ class TestSymlinks:
     @pytest.mark.asyncio
     async def test_symlink_creation(self):
         """Creating symlink should work in memory."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "target.txt"
@@ -390,7 +390,7 @@ class TestSymlinks:
     @pytest.mark.asyncio
     async def test_readlink(self):
         """readlink should return symlink target."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -407,7 +407,7 @@ class TestDirectoryMerging:
     @pytest.mark.asyncio
     async def test_readdir_merges_entries(self):
         """readdir should show both real and memory files."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create real file
@@ -425,7 +425,7 @@ class TestDirectoryMerging:
     @pytest.mark.asyncio
     async def test_readdir_excludes_deleted(self):
         """readdir should not show deleted files."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "keep.txt").write_text("keep")
@@ -442,7 +442,7 @@ class TestDirectoryMerging:
     @pytest.mark.asyncio
     async def test_readdir_memory_overrides_real(self):
         """If file exists in both, memory version takes precedence."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "both.txt").write_text("real")
@@ -463,7 +463,7 @@ class TestCopyMove:
     @pytest.mark.asyncio
     async def test_cp_real_to_memory(self):
         """Copying real file creates memory copy."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "src.txt").write_text("source")
@@ -481,7 +481,7 @@ class TestCopyMove:
     @pytest.mark.asyncio
     async def test_mv_real_file(self):
         """Moving real file: source marked deleted, dest in memory."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "src.txt").write_text("content")
@@ -507,7 +507,7 @@ class TestChmod:
     @pytest.mark.asyncio
     async def test_chmod_memory_file(self):
         """chmod on memory file should work."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -521,7 +521,7 @@ class TestChmod:
     @pytest.mark.asyncio
     async def test_chmod_real_file_copies_to_memory(self):
         """chmod on real file should copy to memory with new mode."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "file.txt"
@@ -545,7 +545,7 @@ class TestPathHandling:
     @pytest.mark.asyncio
     async def test_resolve_path(self):
         """resolve_path should work correctly."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -559,7 +559,7 @@ class TestPathHandling:
     @pytest.mark.asyncio
     async def test_paths_with_dot_components(self):
         """Paths with . and .. should resolve correctly."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "file.txt").write_text("content")
@@ -579,7 +579,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_memory_file(self):
         """utimes on memory file should update mtime."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))
@@ -593,7 +593,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_real_file_copies_to_memory(self):
         """utimes on real file should copy to memory with new mtime, leaving the real file unchanged."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_file = Path(tmpdir) / "file.txt"
@@ -613,7 +613,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_nonexistent_file(self):
         """utimes() on a missing file should raise FileNotFoundError."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = OverlayFs(OverlayFsOptions(root=tmpdir, mount_point="/mnt"))

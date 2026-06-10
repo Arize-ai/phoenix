@@ -1,7 +1,7 @@
 """Phase 8: Control flow, shell features, and builtins tests."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestBreakContinueN:

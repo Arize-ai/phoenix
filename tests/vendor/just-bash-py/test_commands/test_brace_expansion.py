@@ -5,7 +5,7 @@ Key areas: sequences {1..10}, {a..z}, step sequences {1..10..2}, nested braces, 
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestBraceExpansionBasic:

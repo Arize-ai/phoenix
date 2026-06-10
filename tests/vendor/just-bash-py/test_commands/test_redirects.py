@@ -6,7 +6,7 @@ Key areas: >& syntax, <> read-write, <<< here-strings, FD duplication,
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestBasicRedirects:

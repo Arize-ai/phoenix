@@ -1,7 +1,7 @@
 """Tests for sqlite3 command."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestSqlite3Basic:

@@ -15,7 +15,7 @@ import uuid
 import pytest
 from pathlib import Path
 
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 # Generate unique markers for each test run to avoid false positives
@@ -1326,8 +1326,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_symlink_to_etc_passwd(self):
         """Attempt escape via symlink pointing to /etc/passwd."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -1346,8 +1346,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_symlink_relative_escape(self):
         """Attempt escape via relative symlink traversal."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -1364,8 +1364,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_real_symlink_on_disk_escape(self):
         """Test escape via pre-existing symlink in overlay root pointing outside."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create real symlink pointing outside
@@ -1388,8 +1388,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_nested_symlink_escape_chain(self):
         """Test escape via chain of symlinks."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -1409,8 +1409,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_path_traversal_via_mount_point(self):
         """Attempt path traversal through the mount point."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1426,8 +1426,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_write_outside_mount_point(self):
         """Attempt to write to path outside mount point."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1443,8 +1443,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_write_to_mount_parent(self):
         """Attempt to write to parent of mount point."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1462,8 +1462,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_readonly_write_blocked(self):
         """Verify read-only mode blocks writes."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1479,8 +1479,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_readonly_mkdir_blocked(self):
         """Verify read-only mode blocks directory creation."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir, read_only=True))
@@ -1494,8 +1494,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_stat_symlink_no_info_leak(self):
         """Verify stat on symlink doesn't leak real filesystem info."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -1514,8 +1514,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_readlink_no_real_path_leak(self):
         """Verify readlink doesn't leak real filesystem paths."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a real symlink in the overlay root
@@ -1538,8 +1538,8 @@ class TestOverlayFsEscapes:
     @pytest.mark.asyncio
     async def test_overlay_delete_then_recreate_no_escape(self):
         """Test that deleting and recreating doesn't allow access to real file."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1571,7 +1571,7 @@ class TestReadWriteFsIsolation:
     @pytest.mark.asyncio
     async def test_readwritefs_path_traversal_blocked(self):
         """Test that path traversal is normalized and doesn't escape root."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1590,7 +1590,7 @@ class TestReadWriteFsIsolation:
     @pytest.mark.asyncio
     async def test_readwritefs_symlink_escape_blocked(self):
         """Test that symlink creation to outside root is handled properly."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -1612,7 +1612,7 @@ class TestReadWriteFsIsolation:
     @pytest.mark.asyncio
     async def test_readwritefs_real_symlink_in_root_blocked(self):
         """Test handling of real symlinks pointing outside the root."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a real symlink pointing outside
@@ -1635,7 +1635,7 @@ class TestReadWriteFsIsolation:
     @pytest.mark.asyncio
     async def test_readwritefs_readlink_no_info_leak(self):
         """Test that readlink returns virtual paths when possible."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -1659,7 +1659,7 @@ class TestMountableFsCrossMountAttacks:
     @pytest.mark.asyncio
     async def test_cross_mount_hardlink_raises_exdev(self):
         """Test that hard links across mounts raise EXDEV error."""
-        from just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
 
         fs1 = InMemoryFs(initial_files={"/file.txt": "content1"})
         fs2 = InMemoryFs()
@@ -1682,7 +1682,7 @@ class TestMountableFsCrossMountAttacks:
     @pytest.mark.asyncio
     async def test_cross_mount_symlink_isolation(self):
         """Test that symlinks across mounts don't leak between mounts."""
-        from just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
 
         fs1 = InMemoryFs(initial_files={"/secret.txt": "SECRET_DATA"})
         fs2 = InMemoryFs()
@@ -1709,7 +1709,7 @@ class TestMountableFsCrossMountAttacks:
     @pytest.mark.asyncio
     async def test_mount_boundary_path_confusion(self):
         """Test edge cases in mount point path matching."""
-        from just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
 
         fs1 = InMemoryFs(initial_files={"/file.txt": "mount1_content"})
 
@@ -1738,7 +1738,7 @@ class TestMountableFsCrossMountAttacks:
     @pytest.mark.asyncio
     async def test_nested_mount_escape(self):
         """Test that nested mounts don't allow escaping to parent mount."""
-        from just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
         marker = unique_marker()
 
         parent_fs = InMemoryFs(initial_files={"/parent_secret.txt": "PARENT_SECRET"})
@@ -1765,7 +1765,7 @@ class TestMountableFsCrossMountAttacks:
     @pytest.mark.asyncio
     async def test_mount_point_removal_blocked(self):
         """Test that mount points cannot be removed."""
-        from just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
 
         mountable = MountableFs(MountableFsOptions(
             base=InMemoryFs(),
@@ -1788,8 +1788,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_ln_symlink_escape_blocked(self):
         """Test ln -s command doesn't allow escape."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1807,8 +1807,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_symlink_chain_escape_blocked(self):
         """Test chained symlinks via bash don't escape."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1830,8 +1830,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_write_via_symlink_blocked(self):
         """Test writing through symlink doesn't escape overlay."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1850,8 +1850,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_read_outside_mount_blocked(self):
         """Test reading files outside mount point is blocked."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -1867,8 +1867,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_path_traversal_via_overlay(self):
         """Test path traversal in bash commands with overlay."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1893,8 +1893,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_cp_through_symlink_blocked(self):
         """Test cp through symlink doesn't escape."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1913,8 +1913,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_mv_through_symlink_blocked(self):
         """Test mv through symlink doesn't escape."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1933,8 +1933,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_tar_through_overlay_symlink(self):
         """Test tar extraction through symlink doesn't escape."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1954,8 +1954,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_overlay_preserves_real_files(self):
         """Test that overlay protects real files from modification."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1980,8 +1980,8 @@ class TestBashWithOverlayFs:
     @pytest.mark.asyncio
     async def test_bash_overlay_deletes_dont_affect_real(self):
         """Test that deletes in overlay don't affect real files."""
-        from just_bash import Bash
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a real file
@@ -2010,7 +2010,7 @@ class TestOverlayFsDirectApiEscapes:
     @pytest.mark.asyncio
     async def test_direct_read_file_outside_mount(self):
         """Test read_file directly on path outside mount."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -2026,7 +2026,7 @@ class TestOverlayFsDirectApiEscapes:
     @pytest.mark.asyncio
     async def test_direct_write_file_outside_mount(self):
         """Test write_file directly on path outside mount."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2042,7 +2042,7 @@ class TestOverlayFsDirectApiEscapes:
     @pytest.mark.asyncio
     async def test_direct_mkdir_outside_mount(self):
         """Test mkdir directly on path outside mount doesn't escape to real fs."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2062,7 +2062,7 @@ class TestOverlayFsDirectApiEscapes:
     @pytest.mark.asyncio
     async def test_direct_symlink_api_outside_mount(self):
         """Test symlink API creating link outside mount."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -2081,7 +2081,7 @@ class TestOverlayFsDirectApiEscapes:
     @pytest.mark.asyncio
     async def test_direct_exists_outside_mount(self):
         """Test exists check on paths outside mount."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             overlay = OverlayFs(OverlayFsOptions(root=tmpdir))
@@ -2097,7 +2097,7 @@ class TestOverlayFsDirectApiEscapes:
     @pytest.mark.asyncio
     async def test_direct_cp_outside_mount(self):
         """Test cp API copying outside mount boundaries."""
-        from just_bash.fs import OverlayFs, OverlayFsOptions
+        from phoenix.vendor.just_bash.fs import OverlayFs, OverlayFsOptions
         marker = unique_marker()
 
         with tempfile.TemporaryDirectory() as tmpdir:

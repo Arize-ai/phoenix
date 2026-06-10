@@ -1,7 +1,7 @@
 """Tests for array operations (Phase 5)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestIndexedArrayBasic:

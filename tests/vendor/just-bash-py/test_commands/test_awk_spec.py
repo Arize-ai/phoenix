@@ -1,7 +1,7 @@
 """Tests for awk command features (Phase 14)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestAwkBasic:

@@ -1,7 +1,7 @@
 """Tests for xan CSV toolkit - Phase 1 and Phase 2 commands."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestXanReverse:

@@ -1,7 +1,7 @@
 """Tests for assignment and append operations (Phase 4)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestArrayAppend:

@@ -5,9 +5,9 @@ Front matter is YAML content between --- markers at the start of a file.
 """
 
 import pytest
-from just_bash.commands.yq.yq import YqCommand
-from just_bash.types import CommandContext
-from just_bash.fs import InMemoryFs
+from phoenix.vendor.just_bash.commands.yq.yq import YqCommand
+from phoenix.vendor.just_bash.types import CommandContext
+from phoenix.vendor.just_bash.fs import InMemoryFs
 
 
 class TestYqFrontMatter:

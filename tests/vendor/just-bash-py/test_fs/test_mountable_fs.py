@@ -11,7 +11,7 @@ class TestMountOperations:
     @pytest.mark.asyncio
     async def test_mount_filesystem(self):
         """mount() should add a filesystem at a path."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         child_fs = InMemoryFs(initial_files={"/file.txt": "content"})
@@ -24,7 +24,7 @@ class TestMountOperations:
     @pytest.mark.asyncio
     async def test_unmount_filesystem(self):
         """unmount() should remove a filesystem."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         child_fs = InMemoryFs(initial_files={"/file.txt": "content"})
@@ -38,7 +38,7 @@ class TestMountOperations:
     @pytest.mark.asyncio
     async def test_get_mounts(self):
         """get_mounts() should return all mount points."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/mnt1", InMemoryFs())
@@ -51,7 +51,7 @@ class TestMountOperations:
     @pytest.mark.asyncio
     async def test_is_mount_point(self):
         """is_mount_point() should identify mount points."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/mnt", InMemoryFs())
@@ -66,7 +66,7 @@ class TestMountValidation:
     @pytest.mark.asyncio
     async def test_prevent_root_mount(self):
         """Mounting at root should raise error."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
 
@@ -76,7 +76,7 @@ class TestMountValidation:
     @pytest.mark.asyncio
     async def test_nested_mounts_allowed(self):
         """Nested mounts should be allowed and route to the most specific mount."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         outer = InMemoryFs(initial_files={"/file.txt": "outer"})
         inner = InMemoryFs(initial_files={"/file.txt": "inner"})
@@ -96,7 +96,7 @@ class TestMountValidation:
     @pytest.mark.asyncio
     async def test_parent_mount_of_existing_allowed(self):
         """Mounting a parent of an existing mount should be allowed."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={"/file.txt": "child"})
         parent = InMemoryFs(initial_files={"/file.txt": "parent"})
@@ -116,7 +116,7 @@ class TestMountValidation:
     @pytest.mark.asyncio
     async def test_prevent_duplicate_mount(self):
         """Mounting at an already-mounted path should raise error."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/mnt", InMemoryFs())
@@ -131,7 +131,7 @@ class TestPathRouting:
     @pytest.mark.asyncio
     async def test_routes_to_correct_filesystem(self):
         """Paths should be routed to the correct mounted filesystem."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs1 = InMemoryFs(initial_files={"/file.txt": "fs1"})
         fs2 = InMemoryFs(initial_files={"/file.txt": "fs2"})
@@ -146,7 +146,7 @@ class TestPathRouting:
     @pytest.mark.asyncio
     async def test_longest_prefix_match(self):
         """Should use longest matching mount point."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         short = InMemoryFs(initial_files={"/file.txt": "short"})
         long = InMemoryFs(initial_files={"/file.txt": "long"})
@@ -164,7 +164,7 @@ class TestPathRouting:
     @pytest.mark.asyncio
     async def test_write_to_mounted_fs(self):
         """Writes should go to the correct mounted filesystem."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs()
 
@@ -186,7 +186,7 @@ class TestBaseFilesystem:
     @pytest.mark.asyncio
     async def test_operations_outside_mounts_use_base(self):
         """Operations outside mounts should use base fs."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         base = InMemoryFs(initial_files={"/base.txt": "base content"})
         child = InMemoryFs()
@@ -201,7 +201,7 @@ class TestBaseFilesystem:
     @pytest.mark.asyncio
     async def test_write_to_base(self):
         """Writing outside mounts should write to base fs."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         base = InMemoryFs()
         fs = MountableFs(MountableFsOptions(base=base))
@@ -214,7 +214,7 @@ class TestBaseFilesystem:
     @pytest.mark.asyncio
     async def test_default_base_is_in_memory(self):
         """Default base should be InMemoryFs."""
-        from just_bash.fs import MountableFs, MountableFsOptions
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions
 
         fs = MountableFs(MountableFsOptions())
 
@@ -229,7 +229,7 @@ class TestReaddir:
     @pytest.mark.asyncio
     async def test_readdir_shows_mount_points(self):
         """readdir should show mount points as directories."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         base = InMemoryFs()
         fs = MountableFs(MountableFsOptions(base=base))
@@ -244,7 +244,7 @@ class TestReaddir:
     @pytest.mark.asyncio
     async def test_readdir_merges_base_and_mount(self):
         """readdir should merge entries from base and child mount."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         base = InMemoryFs(initial_files={"/dir/base.txt": "base"})
         child = InMemoryFs(initial_files={"/child.txt": "child"})
@@ -259,7 +259,7 @@ class TestReaddir:
     @pytest.mark.asyncio
     async def test_readdir_inside_mount(self):
         """readdir inside a mount should list mount's contents."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={
             "/a.txt": "a",
@@ -280,7 +280,7 @@ class TestCrossMountOperations:
     @pytest.mark.asyncio
     async def test_cp_across_mounts(self):
         """cp across mounts should work (read from one, write to other)."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         src_fs = InMemoryFs(initial_files={"/file.txt": "content"})
         dest_fs = InMemoryFs()
@@ -298,7 +298,7 @@ class TestCrossMountOperations:
     @pytest.mark.asyncio
     async def test_mv_across_mounts(self):
         """mv across mounts should copy and delete."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         src_fs = InMemoryFs(initial_files={"/file.txt": "content"})
         dest_fs = InMemoryFs()
@@ -321,7 +321,7 @@ class TestHardLinkRestriction:
     @pytest.mark.asyncio
     async def test_link_within_same_mount_works(self):
         """Hard links within the same mount should work."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={"/original.txt": "content"})
 
@@ -336,7 +336,7 @@ class TestHardLinkRestriction:
     @pytest.mark.asyncio
     async def test_link_across_mounts_raises_exdev(self):
         """Hard links across mounts should raise EXDEV error."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs1 = InMemoryFs(initial_files={"/file.txt": "content"})
         fs2 = InMemoryFs()
@@ -352,7 +352,7 @@ class TestHardLinkRestriction:
     @pytest.mark.asyncio
     async def test_link_mount_to_base_raises_exdev(self):
         """Hard links from mount to base should raise EXDEV."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={"/file.txt": "content"})
 
@@ -370,7 +370,7 @@ class TestVirtualDirectories:
     @pytest.mark.asyncio
     async def test_mount_point_parent_is_directory(self):
         """Parent directories of mount points should appear as directories."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/a/b/c/mnt", InMemoryFs())
@@ -382,7 +382,7 @@ class TestVirtualDirectories:
     @pytest.mark.asyncio
     async def test_readdir_shows_virtual_parent(self):
         """readdir should show virtual parent directories."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/a/b/mnt", InMemoryFs())
@@ -400,7 +400,7 @@ class TestMountConfig:
     @pytest.mark.asyncio
     async def test_initial_mounts(self):
         """MountConfig should set up initial mounts."""
-        from just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, MountConfig, InMemoryFs
 
         child1 = InMemoryFs(initial_files={"/file1.txt": "one"})
         child2 = InMemoryFs(initial_files={"/file2.txt": "two"})
@@ -422,7 +422,7 @@ class TestStat:
     @pytest.mark.asyncio
     async def test_stat_file_in_mount(self):
         """stat should work for files in mounts."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={"/file.txt": "hello"})
         fs = MountableFs(MountableFsOptions())
@@ -435,7 +435,7 @@ class TestStat:
     @pytest.mark.asyncio
     async def test_stat_mount_point(self):
         """stat on mount point should show directory."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/mnt", InMemoryFs())
@@ -450,7 +450,7 @@ class TestMkdir:
     @pytest.mark.asyncio
     async def test_mkdir_in_mount(self):
         """mkdir in mount should create in child fs."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs()
         fs = MountableFs(MountableFsOptions())
@@ -463,7 +463,7 @@ class TestMkdir:
     @pytest.mark.asyncio
     async def test_mkdir_in_base(self):
         """mkdir outside mounts should create in base fs."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         base = InMemoryFs()
         fs = MountableFs(MountableFsOptions(base=base))
@@ -479,7 +479,7 @@ class TestRm:
     @pytest.mark.asyncio
     async def test_rm_in_mount(self):
         """rm in mount should delete from child fs."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={"/file.txt": "content"})
         fs = MountableFs(MountableFsOptions())
@@ -492,7 +492,7 @@ class TestRm:
     @pytest.mark.asyncio
     async def test_cannot_rm_mount_point(self):
         """Attempting to rm a mount point should fail."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/mnt", InMemoryFs())
@@ -508,7 +508,7 @@ class TestSymlinks:
     @pytest.mark.asyncio
     async def test_symlink_in_mount(self):
         """symlink in mount should work."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         child = InMemoryFs(initial_files={"/target.txt": "content"})
         fs = MountableFs(MountableFsOptions())
@@ -526,7 +526,7 @@ class TestResolve:
     @pytest.mark.asyncio
     async def test_resolve_path(self):
         """resolve_path should work correctly."""
-        from just_bash.fs import MountableFs, MountableFsOptions
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions
 
         fs = MountableFs(MountableFsOptions())
 
@@ -543,7 +543,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_routes_to_mount(self):
         """utimes() should delegate to the mounted filesystem."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         child_fs = InMemoryFs(initial_files={"/file.txt": "content"})
@@ -557,7 +557,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_nonexistent_file(self):
         """utimes() on a missing file should raise FileNotFoundError."""
-        from just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
+        from phoenix.vendor.just_bash.fs import MountableFs, MountableFsOptions, InMemoryFs
 
         fs = MountableFs(MountableFsOptions())
         fs.mount("/mnt", InMemoryFs())

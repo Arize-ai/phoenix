@@ -7,7 +7,7 @@ Key areas: ${var/pattern/replacement}, ${var//pattern/replacement} (global),
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestPatternSubstitutionBasic:

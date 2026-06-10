@@ -1,7 +1,7 @@
 """Tests for minor command improvements (ls, stat, uniq, cut, head, tail, wc)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestLsExtended:

@@ -1,7 +1,7 @@
 """Tests for touch command extended options."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestTouchDate:

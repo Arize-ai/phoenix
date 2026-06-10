@@ -3,7 +3,7 @@
 import json
 from dataclasses import dataclass
 
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 from .parser import JqTestCase
 

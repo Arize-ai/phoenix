@@ -3,7 +3,7 @@
 These replace the Python scripts used in the original Oils shell tests.
 """
 
-from just_bash.types import CommandContext, ExecResult
+from phoenix.vendor.just_bash.types import CommandContext, ExecResult
 
 
 class ArgvCommand:
@@ -57,7 +57,7 @@ class PrintenvCommand:
 
     def _is_exported(self, ctx: CommandContext, name: str) -> bool:
         """Check if a variable is exported (visible to subprocesses)."""
-        from just_bash.interpreter.types import VariableStore
+        from phoenix.vendor.just_bash.interpreter.types import VariableStore
         if isinstance(ctx.env, VariableStore):
             return "x" in ctx.env.get_attributes(name)
         # If not a VariableStore, assume all variables are exported

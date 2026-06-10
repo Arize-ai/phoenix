@@ -13,7 +13,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_valid_root(self):
         """Creating with valid directory root should succeed."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -22,7 +22,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_nonexistent_root(self):
         """Creating with nonexistent root should raise error."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with pytest.raises(FileNotFoundError):
             ReadWriteFs(ReadWriteFsOptions(root="/nonexistent/path/that/doesnt/exist"))
@@ -30,7 +30,7 @@ class TestConstructor:
     @pytest.mark.asyncio
     async def test_file_as_root(self):
         """Creating with file as root should raise error."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.NamedTemporaryFile() as tmp:
             with pytest.raises(NotADirectoryError):
@@ -43,7 +43,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_read_file(self):
         """Reading a file should return its contents."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a test file
@@ -57,7 +57,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_read_file_bytes(self):
         """Reading a file as bytes should return raw bytes."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "binary.bin"
@@ -70,7 +70,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_read_nonexistent_file(self):
         """Reading nonexistent file should raise FileNotFoundError."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -80,7 +80,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_exists_true(self):
         """exists() should return True for existing file."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "exists.txt"
@@ -92,7 +92,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_exists_false(self):
         """exists() should return False for nonexistent file."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -101,7 +101,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_is_file(self):
         """is_file() should return True for files."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "file.txt"
@@ -114,7 +114,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_is_directory(self):
         """is_directory() should return True for directories."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "subdir"
@@ -127,7 +127,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_stat_file(self):
         """stat() should return file stats."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.txt"
@@ -142,7 +142,7 @@ class TestReadOperations:
     @pytest.mark.asyncio
     async def test_stat_directory(self):
         """stat() should return directory stats."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "mydir"
@@ -160,7 +160,7 @@ class TestWriteOperations:
     @pytest.mark.asyncio
     async def test_write_file(self):
         """write_file() should create file on real filesystem."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -174,7 +174,7 @@ class TestWriteOperations:
     @pytest.mark.asyncio
     async def test_write_file_creates_parent_dirs(self):
         """write_file() should create parent directories."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -187,7 +187,7 @@ class TestWriteOperations:
     @pytest.mark.asyncio
     async def test_append_file(self):
         """append_file() should append to existing file."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "append.txt"
@@ -201,7 +201,7 @@ class TestWriteOperations:
     @pytest.mark.asyncio
     async def test_mkdir(self):
         """mkdir() should create directory on real filesystem."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -214,7 +214,7 @@ class TestWriteOperations:
     @pytest.mark.asyncio
     async def test_mkdir_recursive(self):
         """mkdir(recursive=True) should create nested directories."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -231,7 +231,7 @@ class TestDirectoryOperations:
     @pytest.mark.asyncio
     async def test_readdir(self):
         """readdir() should list directory contents."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create some files and directories
@@ -249,7 +249,7 @@ class TestDirectoryOperations:
     @pytest.mark.asyncio
     async def test_readdir_with_file_types(self):
         """readdir_with_file_types() should return typed entries."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (Path(tmpdir) / "file.txt").write_text("content")
@@ -277,7 +277,7 @@ class TestFileOperations:
     @pytest.mark.asyncio
     async def test_rm_file(self):
         """rm() should remove file from real filesystem."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "todelete.txt"
@@ -291,7 +291,7 @@ class TestFileOperations:
     @pytest.mark.asyncio
     async def test_rm_directory_recursive(self):
         """rm(recursive=True) should remove directory tree."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "toremove"
@@ -306,7 +306,7 @@ class TestFileOperations:
     @pytest.mark.asyncio
     async def test_cp_file(self):
         """cp() should copy file."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             src = Path(tmpdir) / "src.txt"
@@ -323,7 +323,7 @@ class TestFileOperations:
     @pytest.mark.asyncio
     async def test_mv_file(self):
         """mv() should move file."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             src = Path(tmpdir) / "src.txt"
@@ -344,7 +344,7 @@ class TestLinkOperations:
     @pytest.mark.asyncio
     async def test_symlink(self):
         """symlink() should create symbolic link."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             target = Path(tmpdir) / "target.txt"
@@ -361,7 +361,7 @@ class TestLinkOperations:
     @pytest.mark.asyncio
     async def test_readlink(self):
         """readlink() should return symlink target."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             target = Path(tmpdir) / "target.txt"
@@ -377,7 +377,7 @@ class TestLinkOperations:
     @pytest.mark.asyncio
     async def test_link_hard(self):
         """link() should create hard link."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             original = Path(tmpdir) / "original.txt"
@@ -399,7 +399,7 @@ class TestPathHandling:
     @pytest.mark.asyncio
     async def test_relative_path_components(self):
         """Paths with . and .. should be resolved correctly."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             subdir = Path(tmpdir) / "dir"
@@ -420,7 +420,7 @@ class TestPathHandling:
     @pytest.mark.asyncio
     async def test_absolute_paths(self):
         """All paths should be treated as relative to root."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.txt"
@@ -435,7 +435,7 @@ class TestPathHandling:
     @pytest.mark.asyncio
     async def test_resolve_path(self):
         """resolve_path() should combine base and relative paths."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -455,7 +455,7 @@ class TestChmod:
     @pytest.mark.asyncio
     async def test_chmod(self):
         """chmod() should change file permissions."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.txt"
@@ -475,7 +475,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_sets_times(self):
         """utimes() should set access and modification times."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "test.txt"
@@ -491,7 +491,7 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_utimes_nonexistent_file(self):
         """utimes() on a missing file should raise FileNotFoundError."""
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -501,8 +501,8 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_touch_creates_file(self):
         """touch on ReadWriteFs should create the file without errors (issue #6)."""
-        from just_bash import Bash
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             fs = ReadWriteFs(ReadWriteFsOptions(root=tmpdir))
@@ -517,8 +517,8 @@ class TestUtimes:
     @pytest.mark.asyncio
     async def test_touch_existing_file_updates_mtime(self):
         """touch on an existing file should update its mtime."""
-        from just_bash import Bash
-        from just_bash.fs import ReadWriteFs, ReadWriteFsOptions
+        from phoenix.vendor.just_bash import Bash
+        from phoenix.vendor.just_bash.fs import ReadWriteFs, ReadWriteFsOptions
 
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = Path(tmpdir) / "old.txt"

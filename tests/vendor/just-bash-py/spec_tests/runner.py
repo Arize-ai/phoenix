@@ -3,8 +3,8 @@
 import re
 from dataclasses import dataclass
 
-from just_bash import Bash
-from just_bash.commands import create_command_registry
+from phoenix.vendor.just_bash import Bash
+from phoenix.vendor.just_bash.commands import create_command_registry
 
 from .helpers import get_test_helper_commands
 from .parser import (

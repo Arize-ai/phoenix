@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestPwdCommand:
@@ -5082,9 +5082,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_help(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
         ctx = CommandContext(fs=fs, cwd="/", env={})
@@ -5097,9 +5097,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_no_url(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
         ctx = CommandContext(fs=fs, cwd="/", env={})
@@ -5111,9 +5111,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_no_fetch(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
         ctx = CommandContext(fs=fs, cwd="/", env={}, fetch=None)
@@ -5125,9 +5125,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_unknown_option(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
         ctx = CommandContext(fs=fs, cwd="/", env={})
@@ -5139,7 +5139,7 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_option_parsing(self):
-        from just_bash.commands.curl.curl import parse_options
+        from phoenix.vendor.just_bash.commands.curl.curl import parse_options
 
         # Test basic URL
         opts = parse_options(["https://example.com"])
@@ -5187,9 +5187,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_with_mock_fetch(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5212,9 +5212,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_include_headers(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5238,9 +5238,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_output_to_file(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5266,9 +5266,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_fail_on_http_error(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5290,9 +5290,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_silent_mode(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5314,9 +5314,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_write_out(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5338,9 +5338,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_head_request(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5364,9 +5364,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_post_data(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs()
 
@@ -5392,9 +5392,9 @@ class TestCurlCommand:
 
     @pytest.mark.asyncio
     async def test_curl_user_auth(self):
-        from just_bash.commands.curl.curl import CurlCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.curl.curl import CurlCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
         import base64
 
         fs = InMemoryFs()
@@ -5602,9 +5602,9 @@ class TestXanCommand:
 
     @pytest.mark.asyncio
     async def test_xan_select(self):
-        from just_bash.commands.xan.xan import XanCommand
-        from just_bash.types import CommandContext
-        from just_bash.fs import InMemoryFs
+        from phoenix.vendor.just_bash.commands.xan.xan import XanCommand
+        from phoenix.vendor.just_bash.types import CommandContext
+        from phoenix.vendor.just_bash.fs import InMemoryFs
 
         fs = InMemoryFs({"/test.csv": "name,age,city\nAlice,30,NYC\nBob,25,LA"})
         ctx = CommandContext(fs=fs, cwd="/", env={})

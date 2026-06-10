@@ -1,7 +1,7 @@
 """Tests for gzip/gunzip/zcat compression commands."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestGzipCommand:

@@ -4,8 +4,8 @@ import gzip
 import pytest
 from aiohttp import web
 
-from just_bash import AllowedUrl, Bash, NetworkConfig, RequestTransform
-from just_bash.network import _is_private_hostname, _matches_allow_entry, _read_limited_body
+from phoenix.vendor.just_bash import AllowedUrl, Bash, NetworkConfig, RequestTransform
+from phoenix.vendor.just_bash.network import _is_private_hostname, _matches_allow_entry, _read_limited_body
 
 
 async def make_server(routes):

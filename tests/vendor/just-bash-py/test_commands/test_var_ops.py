@@ -1,7 +1,7 @@
 """Tests for variable operations and parameter expansion (Phase 2)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestPatternRemovalPOSIXClasses:

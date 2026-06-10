@@ -8,11 +8,11 @@ These tests cover:
 
 import gzip
 import pytest
-from just_bash.commands.compression.compression import GzipCommand
-from just_bash.commands.timeout.timeout import TimeoutCommand
-from just_bash.commands.env.env import EnvCommand
-from just_bash.types import CommandContext, ExecResult
-from just_bash.fs import InMemoryFs
+from phoenix.vendor.just_bash.commands.compression.compression import GzipCommand
+from phoenix.vendor.just_bash.commands.timeout.timeout import TimeoutCommand
+from phoenix.vendor.just_bash.commands.env.env import EnvCommand
+from phoenix.vendor.just_bash.types import CommandContext, ExecResult
+from phoenix.vendor.just_bash.fs import InMemoryFs
 
 
 # =============================================================================

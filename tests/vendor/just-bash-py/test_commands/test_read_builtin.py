@@ -5,7 +5,7 @@ Key areas: read -a, read -d, read -n, read -t, read -r, IFS handling
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestReadBasic:

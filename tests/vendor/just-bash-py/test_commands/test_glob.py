@@ -1,7 +1,7 @@
 """Tests for glob and pattern matching features."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestBasicGlob:

@@ -1,7 +1,7 @@
 """Tests for the bash lexer."""
 
 import pytest
-from just_bash.parser.lexer import Lexer, TokenType, tokenize
+from phoenix.vendor.just_bash.parser.lexer import Lexer, TokenType, tokenize
 
 
 class TestBasicTokens:

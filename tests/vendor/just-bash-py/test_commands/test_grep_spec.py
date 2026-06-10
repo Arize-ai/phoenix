@@ -1,7 +1,7 @@
 """Tests for grep command edge cases (Phase 12)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestGrepBasic:

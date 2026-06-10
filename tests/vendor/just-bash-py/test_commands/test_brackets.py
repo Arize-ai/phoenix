@@ -5,7 +5,7 @@ Key areas: [[ ]] vs [ ] differences, pattern matching, regex with =~, logical op
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestSingleBracketBasic:

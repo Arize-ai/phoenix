@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 @dataclass

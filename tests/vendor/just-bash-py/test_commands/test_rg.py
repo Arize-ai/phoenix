@@ -4,7 +4,7 @@ These tests aim for feature parity with the TypeScript just-bash implementation.
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestRgBasicSearch:

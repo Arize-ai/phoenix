@@ -1,7 +1,7 @@
 """Tests for miscellaneous bash features (Phase 11)."""
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestAnsiCQuoting:

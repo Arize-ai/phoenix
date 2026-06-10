@@ -6,7 +6,7 @@ Key areas: local arrays, word splitting, multi-line init, ${a[@]} vs ${a[*]},
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestArrayDeclaration:

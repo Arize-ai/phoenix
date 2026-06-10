@@ -5,7 +5,7 @@ Key areas: IFS scoping, empty IFS, $* vs $@, IFS with whitespace/non-whitespace,
 """
 
 import pytest
-from just_bash import Bash
+from phoenix.vendor.just_bash import Bash
 
 
 class TestIFSBasic:

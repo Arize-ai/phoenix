@@ -1,7 +1,7 @@
 """Tests for the query engine module."""
 
 import pytest
-from just_bash.query_engine import (
+from phoenix.vendor.just_bash.query_engine import (
     tokenize,
     parse,
     evaluate,

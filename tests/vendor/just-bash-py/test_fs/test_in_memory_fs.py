@@ -1,7 +1,7 @@
 """Tests for the in-memory filesystem."""
 
 import pytest
-from just_bash.fs import InMemoryFs
+from phoenix.vendor.just_bash.fs import InMemoryFs
 
 
 class TestBasicOperations:

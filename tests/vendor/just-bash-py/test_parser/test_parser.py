@@ -1,8 +1,8 @@
 """Tests for the bash parser."""
 
 import pytest
-from just_bash.parser import Parser, parse, ParseException
-from just_bash.ast import (
+from phoenix.vendor.just_bash.parser import Parser, parse, ParseException
+from phoenix.vendor.just_bash.ast import (
     ScriptNode,
     StatementNode,
     PipelineNode,

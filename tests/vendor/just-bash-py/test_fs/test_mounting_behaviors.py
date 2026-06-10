@@ -13,8 +13,8 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from just_bash import Bash
-from just_bash.fs import InMemoryFs, MountableFs, OverlayFs, OverlayFsOptions
+from phoenix.vendor.just_bash import Bash
+from phoenix.vendor.just_bash.fs import InMemoryFs, MountableFs, OverlayFs, OverlayFsOptions
 
 
 # =============================================================================
