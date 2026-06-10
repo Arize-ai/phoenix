@@ -14,7 +14,6 @@ from pydantic_ai.models import Model
 from phoenix.server.agents.capabilities import MintlifyDocsMCPCapability
 from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashCapability,
-    bash_tool_available,
 )
 from phoenix.server.agents.prompts import ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import (
@@ -53,14 +52,13 @@ def build_server_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[None]] = []
-    if bash_tool_available():
-        capabilities.append(
-            BashCapability(
-                schema=schema,
-                build_graphql_context=build_graphql_context,
-                instructions=resolved_prompts.bash_tool.render(),
-            )
+    capabilities.append(
+        BashCapability(
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            instructions=resolved_prompts.bash_tool.render(),
         )
+    )
     if docs_mcp_server is not None:
         capabilities.append(
             MintlifyDocsMCPCapability(

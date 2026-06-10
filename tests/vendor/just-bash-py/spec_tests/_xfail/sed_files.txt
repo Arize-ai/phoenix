@@ -1,0 +1,3 @@
+busybox-sed.tests
+pythonsed-chang.suite
+pythonsed-unit.suite

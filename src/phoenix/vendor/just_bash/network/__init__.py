@@ -474,9 +474,7 @@ def make_default_fetch(config: NetworkConfig):
                             current_url = redirect_url
                             continue
 
-                        response_body = await _read_limited_body(
-                            resp, config.max_response_size
-                        )
+                        response_body = await _read_limited_body(resp, config.max_response_size)
                         return {
                             "status": resp.status,
                             "statusText": resp.reason or "",
@@ -485,7 +483,9 @@ def make_default_fetch(config: NetworkConfig):
                             "url": str(resp.url),
                             "redirectCount": redirect_count,
                         }
-            except TimeoutError as exc:
+            # Python <3.11 raises asyncio.TimeoutError, which is a distinct
+            # class from the builtin TimeoutError (they were unified in 3.11).
+            except (asyncio.TimeoutError, TimeoutError) as exc:
                 raise TimeoutError("operation timeout") from exc
 
     return fetch

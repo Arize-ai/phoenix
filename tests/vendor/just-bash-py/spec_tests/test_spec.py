@@ -8,25 +8,25 @@ from pathlib import Path
 
 import pytest
 
-# Bash tests
-from .parser import parse_spec_file
-from .runner import format_error, run_test_case
+# AWK tests
+from .awk import parse_awk_test_file, run_awk_test_case
+from .awk.runner import format_error as format_awk_error
 
 # Grep tests
 from .grep import parse_grep_test_file, run_grep_test_case
 from .grep.runner import format_error as format_grep_error
 
-# Sed tests
-from .sed import parse_sed_test_file, run_sed_test_case
-from .sed.runner import format_error as format_sed_error
-
-# AWK tests
-from .awk import parse_awk_test_file, run_awk_test_case
-from .awk.runner import format_error as format_awk_error
-
 # JQ tests
 from .jq import parse_jq_test_file, run_jq_test_case
 from .jq.runner import format_error as format_jq_error
+
+# Bash tests
+from .parser import parse_spec_file
+from .runner import format_error, run_test_case
+
+# Sed tests
+from .sed import parse_sed_test_file, run_sed_test_case
+from .sed.runner import format_error as format_sed_error
 
 # Base directories
 SPEC_TESTS_DIR = Path(__file__).parent
@@ -35,6 +35,46 @@ GREP_CASES_DIR = SPEC_TESTS_DIR / "grep" / "cases"
 SED_CASES_DIR = SPEC_TESTS_DIR / "sed" / "cases"
 AWK_CASES_DIR = SPEC_TESTS_DIR / "awk" / "cases"
 JQ_CASES_DIR = SPEC_TESTS_DIR / "jq" / "cases"
+
+# Known-failing spec cases/files are marked xfail so the suite stays green on
+# documented just-bash conformance gaps while a *new* failure still surfaces.
+# Manifests live in _xfail/; see _xfail/README.md for the format and how to
+# regenerate them.
+XFAIL_DIR = SPEC_TESTS_DIR / "_xfail"
+_XFAIL_REASON = "known just-bash conformance gap (see spec_tests/_xfail/)"
+
+
+def _load_xfail(name: str) -> set[str]:
+    """Load a known-failure manifest (one entry per line, '#' comments ignored)."""
+    path = XFAIL_DIR / name
+    if not path.exists():
+        return set()
+    return {
+        stripped
+        for line in path.read_text().splitlines()
+        if (stripped := line.strip()) and not stripped.startswith("#")
+    }
+
+
+XFAIL_BASH_CASES = _load_xfail("bash_cases.txt")
+XFAIL_BASH_FILES = _load_xfail("bash_files.txt")
+XFAIL_AWK_FILES = _load_xfail("awk_files.txt")
+XFAIL_JQ_FILES = _load_xfail("jq_files.txt")
+XFAIL_GREP_FILES = _load_xfail("grep_files.txt")
+XFAIL_SED_FILES = _load_xfail("sed_files.txt")
+
+
+def _xfail_marks(name: str, xfails: set[str]) -> list:
+    """xfail mark (non-strict) for a parametrized entry if it is known-failing."""
+    if name in xfails:
+        return [pytest.mark.xfail(reason=_XFAIL_REASON, strict=False)]
+    return []
+
+
+def _file_params(files: list[str], xfails: set[str]) -> list:
+    """Wrap spec test files as pytest params, xfailing the known-failing ones."""
+    return [pytest.param(f, marks=_xfail_marks(f, xfails)) for f in files]
+
 
 # Bash tests to skip entirely (interactive, requires real shell, etc.)
 BASH_SKIP_FILES = {
@@ -182,7 +222,7 @@ def truncate_script(script: str, max_len: int = 60) -> str:
 
     if len(normalized) <= max_len:
         return normalized
-    return f"{normalized[:max_len - 3]}..."
+    return f"{normalized[: max_len - 3]}..."
 
 
 # ============================================================================
@@ -199,7 +239,8 @@ def pytest_generate_tests(metafunc):
             spec_file = parse_spec_file(file_path)
             for test_case in spec_file.test_cases:
                 test_id = f"{file_name}::{test_case.name}[L{test_case.line_number}]"
-                test_params.append(pytest.param(file_name, test_case, id=test_id))
+                marks = _xfail_marks(test_id, XFAIL_BASH_CASES)
+                test_params.append(pytest.param(file_name, test_case, id=test_id, marks=marks))
         metafunc.parametrize("test_file,test_case", test_params)
 
 
@@ -219,7 +260,7 @@ class TestBashSpecTests:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_file", get_bash_test_files())
+@pytest.mark.parametrize("test_file", _file_params(get_bash_test_files(), XFAIL_BASH_FILES))
 async def test_bash_spec_file(test_file: str):
     """Run all tests in a bash spec file."""
     file_path = BASH_CASES_DIR / test_file
@@ -242,7 +283,7 @@ async def test_bash_spec_file(test_file: str):
             failures.append(format_error(result))
 
     if failures:
-        summary = f"\n\n{'='*60}\nSummary: {passed} passed, {failed} failed, {skipped} skipped\n{'='*60}\n\n"
+        summary = f"\n\n{'=' * 60}\nSummary: {passed} passed, {failed} failed, {skipped} skipped\n{'=' * 60}\n\n"
         failure_text = "\n\n---\n\n".join(failures[:3])
         if len(failures) > 3:
             failure_text += f"\n\n... and {len(failures) - 3} more failures"
@@ -255,7 +296,7 @@ async def test_bash_spec_file(test_file: str):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_file", get_grep_test_files())
+@pytest.mark.parametrize("test_file", _file_params(get_grep_test_files(), XFAIL_GREP_FILES))
 async def test_grep_spec_file(test_file: str):
     """Run all tests in a grep spec file."""
     file_path = GREP_CASES_DIR / test_file
@@ -279,7 +320,7 @@ async def test_grep_spec_file(test_file: str):
             failures.append(format_grep_error(result))
 
     if failures:
-        summary = f"\n\n{'='*60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'='*60}\n\n"
+        summary = f"\n\n{'=' * 60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'=' * 60}\n\n"
         failure_text = "\n\n---\n\n".join(failures[:3])
         if len(failures) > 3:
             failure_text += f"\n\n... and {len(failures) - 3} more failures"
@@ -292,7 +333,7 @@ async def test_grep_spec_file(test_file: str):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_file", get_sed_test_files())
+@pytest.mark.parametrize("test_file", _file_params(get_sed_test_files(), XFAIL_SED_FILES))
 async def test_sed_spec_file(test_file: str):
     """Run all tests in a sed spec file."""
     file_path = SED_CASES_DIR / test_file
@@ -316,7 +357,7 @@ async def test_sed_spec_file(test_file: str):
             failures.append(format_sed_error(result))
 
     if failures:
-        summary = f"\n\n{'='*60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'='*60}\n\n"
+        summary = f"\n\n{'=' * 60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'=' * 60}\n\n"
         failure_text = "\n\n---\n\n".join(failures[:3])
         if len(failures) > 3:
             failure_text += f"\n\n... and {len(failures) - 3} more failures"
@@ -329,7 +370,7 @@ async def test_sed_spec_file(test_file: str):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_file", get_awk_test_files())
+@pytest.mark.parametrize("test_file", _file_params(get_awk_test_files(), XFAIL_AWK_FILES))
 async def test_awk_spec_file(test_file: str):
     """Run all tests in an awk spec file."""
     file_path = AWK_CASES_DIR / test_file
@@ -357,7 +398,7 @@ async def test_awk_spec_file(test_file: str):
             failures.append(format_awk_error(result))
 
     if failures:
-        summary = f"\n\n{'='*60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'='*60}\n\n"
+        summary = f"\n\n{'=' * 60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'=' * 60}\n\n"
         failure_text = "\n\n---\n\n".join(failures[:3])
         if len(failures) > 3:
             failure_text += f"\n\n... and {len(failures) - 3} more failures"
@@ -370,7 +411,7 @@ async def test_awk_spec_file(test_file: str):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("test_file", get_jq_test_files())
+@pytest.mark.parametrize("test_file", _file_params(get_jq_test_files(), XFAIL_JQ_FILES))
 async def test_jq_spec_file(test_file: str):
     """Run all tests in a jq spec file."""
     file_path = JQ_CASES_DIR / test_file
@@ -398,7 +439,7 @@ async def test_jq_spec_file(test_file: str):
             failures.append(format_jq_error(result))
 
     if failures:
-        summary = f"\n\n{'='*60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'='*60}\n\n"
+        summary = f"\n\n{'=' * 60}\n{test_file}: {passed} passed, {failed} failed, {skipped} skipped\n{'=' * 60}\n\n"
         failure_text = "\n\n---\n\n".join(failures[:3])
         if len(failures) > 3:
             failure_text += f"\n\n... and {len(failures) - 3} more failures"

@@ -11,14 +11,13 @@ filesystem is effectively scoped to a single sub-agent invocation: files written
 under the workspace persist across the bash calls within that invocation, but not
 across separate invocations.
 
-just-bash requires Python >= 3.11. On older interpreters (Phoenix still supports
-3.10) the package is absent; :func:`bash_tool_available` reports this so callers
-can omit the capability instead of failing at agent-build time.
+just-bash is vendored under :mod:`phoenix.vendor.just_bash` (a pure-Python bash
+interpreter), so the tool is available on every supported interpreter, including
+Python 3.10.
 """
 
 from __future__ import annotations
 
-import importlib.util
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Optional
 
@@ -30,7 +29,7 @@ from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
 
 if TYPE_CHECKING:
-    from just_bash import Bash, InMemoryFs
+    from phoenix.vendor.just_bash import Bash, InMemoryFs
 
 NAME = "bash"
 
@@ -55,17 +54,9 @@ output through jq to extract what you need, e.g. \
 """
 
 
-def bash_tool_available() -> bool:
-    """Whether the ``just-bash`` package is importable (requires Python >= 3.11)."""
-    return importlib.util.find_spec("just_bash") is not None
-
-
 def _new_filesystem() -> InMemoryFs:
-    """Create a fresh in-memory filesystem seeded with the scratch workspace.
-
-    Lazy ``just_bash`` import so this module loads without the package installed.
-    """
-    from just_bash import InMemoryFs
+    """Create a fresh in-memory filesystem seeded with the scratch workspace."""
+    from phoenix.vendor.just_bash import InMemoryFs
 
     return InMemoryFs(initial_files={f"{WORKSPACE_ROOT}/.keep": ""})
 
@@ -78,14 +69,13 @@ def _build_runtime(
 ) -> Bash:
     """Construct a just-bash runtime around ``filesystem`` with ``phoenix-gql``.
 
-    Built lazily so this module imports cleanly without ``just-bash`` installed.
+    The vendored just-bash is imported lazily to keep this module's import cheap.
     """
-    from just_bash import Bash
-    from just_bash.commands.registry import create_command_registry
-
     from phoenix.server.agents.capabilities.tools.internal.phoenix_gql_command import (
         PhoenixGqlCommand,
     )
+    from phoenix.vendor.just_bash import Bash
+    from phoenix.vendor.just_bash.commands.registry import create_command_registry
 
     # Start from the full built-in registry (jq, grep, sed, ...) without the
     # network commands, then register phoenix-gql, mirroring how just-bash itself
@@ -174,4 +164,4 @@ class BashCapability(AbstractStaticCapability[None]):
         return self.instructions
 
 
-__all__ = ["BashCapability", "BashToolset", "bash_tool_available"]
+__all__ = ["BashCapability", "BashToolset"]

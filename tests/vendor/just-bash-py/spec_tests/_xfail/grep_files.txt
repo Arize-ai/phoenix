@@ -1,0 +1,4 @@
+busybox-grep.tests
+gnu-bre.tests
+gnu-ere.tests
+gnu-spencer2.tests

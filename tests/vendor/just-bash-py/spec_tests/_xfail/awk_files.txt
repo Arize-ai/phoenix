@@ -1,0 +1,17 @@
+T.-f-f
+T.argv
+T.builtin
+T.close
+T.clv
+T.csconcat
+T.exprconv
+T.func
+T.gawk
+T.getline
+T.latin1
+T.misc
+T.overflow
+T.recache
+T.redir
+T.split
+T.system

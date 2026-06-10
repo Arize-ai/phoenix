@@ -6,7 +6,7 @@ but executes queries *networklessly* against the Strawberry schema (calling
 ``schema.execute`` directly) instead of issuing an HTTP request, so the bash
 agent can run GraphQL and pipe the JSON result through ``jq`` and friends.
 
-Importing this module requires ``just-bash`` to be installed (Python >= 3.11).
+It builds on the vendored just-bash (:mod:`phoenix.vendor.just_bash`).
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ import re
 from typing import Any, Callable, Optional
 
 import strawberry
-from just_bash.types import CommandContext, ExecResult
 from strawberry.schema.exceptions import InvalidOperationTypeError
 from strawberry.types.graphql import OperationType
 
 from phoenix.server.api.context import Context
+from phoenix.vendor.just_bash.types import CommandContext, ExecResult
 
 #: Scratch directory the sandbox can write to (mirrors the browser tool).
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -76,7 +76,7 @@ def _strip_graphql_comments(query: str) -> str:
 class PhoenixGqlCommand:
     """just-bash ``Command`` exposing networkless GraphQL execution as a binary.
 
-    Conforms structurally to ``just_bash.types.Command`` (a ``name`` attribute and
+    Conforms structurally to ``phoenix.vendor.just_bash.types.Command`` (a ``name`` attribute and
     an async ``execute(args, ctx)`` returning an ``ExecResult``).
     """
 

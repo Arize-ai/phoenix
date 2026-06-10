@@ -463,6 +463,8 @@ wheels = [
 name = "arize-phoenix"
 source = { editable = "." }
 dependencies = [
+    { name = "aiofiles" },
+    { name = "aiohttp" },
     { name = "aioitertools" },
     { name = "aiosqlite" },
     { name = "alembic" },
@@ -481,8 +483,8 @@ dependencies = [
     { name = "joserfc" },
     { name = "jsonpath-ng" },
     { name = "jsonschema" },
-    { name = "just-bash", marker = "python_full_version >= '3.11'" },
     { name = "ldap3" },
+    { name = "nest-asyncio" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "openinference-instrumentation" },
@@ -603,6 +605,7 @@ dev = [
     { name = "ldap3" },
     { name = "libcst" },
     { name = "litellm" },
+    { name = "markdownify" },
     { name = "mcp" },
     { name = "modal" },
     { name = "mypy" },
@@ -677,6 +680,8 @@ dev = [
 requires-dist = [
     { name = "aioboto3", marker = "extra == 'aws'" },
     { name = "aioboto3", marker = "extra == 'container'" },
+    { name = "aiofiles" },
+    { name = "aiohttp" },
     { name = "aiohttp", marker = "extra == 'azure'" },
     { name = "aiohttp", marker = "extra == 'container'" },
     { name = "aioitertools" },
@@ -707,10 +712,10 @@ requires-dist = [
     { name = "joserfc" },
     { name = "jsonpath-ng" },
     { name = "jsonschema" },
-    { name = "just-bash", marker = "python_full_version >= '3.11'", specifier = ">=0.2.1" },
     { name = "ldap3" },
     { name = "modal", marker = "extra == 'container'", specifier = ">=1.2.0" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.2.0" },
+    { name = "nest-asyncio" },
     { name = "numpy" },
     { name = "openai", marker = "extra == 'container'", specifier = ">=2.14.0" },
     { name = "openinference-instrumentation", specifier = ">=0.1.44" },
@@ -795,6 +800,7 @@ dev = [
     { name = "ldap3" },
     { name = "libcst", specifier = ">=1.8.6" },
     { name = "litellm", specifier = ">=1.83.14,<1.84" },
+    { name = "markdownify" },
     { name = "mcp", specifier = ">=1.26.0" },
     { name = "modal", specifier = ">=1.2.0" },
     { name = "mypy", specifier = "==2.1.0" },
@@ -3525,21 +3531,6 @@ wheels = [
 ]
 
 [[package]]
-name = "just-bash"
-version = "0.2.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "aiofiles", marker = "python_full_version >= '3.11'" },
-    { name = "aiohttp", marker = "python_full_version >= '3.11'" },
-    { name = "markdownify", marker = "python_full_version >= '3.11'" },
-    { name = "nest-asyncio", marker = "python_full_version >= '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/a2/e59308b4d3db71735cfb099ebd3c13f2a0dee7c5b716ed585fea0fe8250a/just_bash-0.2.1.tar.gz", hash = "sha256:c8545e21a921ae665ec44edfad7cdbe644c6ef1deb1a16d719cc64211745c836", size = 5842975, upload-time = "2026-06-04T15:34:40.069Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/08/e773d6e78b67b9649e7c0c9118fa4669d4fa655d36b0742e94897efcbf76/just_bash-0.2.1-py3-none-any.whl", hash = "sha256:a51b13e7ef5e4205112b5f5cdba55a1f41c2005ac2fc019023361b251a1f9c8c", size = 408270, upload-time = "2026-06-04T15:34:38.503Z" },
-]
-
-[[package]]
 name = "keyring"
 version = "25.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3783,8 +3774,8 @@ name = "markdownify"
 version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "beautifulsoup4", marker = "python_full_version >= '3.11'" },
-    { name = "six", marker = "python_full_version >= '3.11'" },
+    { name = "beautifulsoup4" },
+    { name = "six" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/3f/bc/c8c8eea5335341306b0fa7e1cb33c5e1c8d24ef70ddd684da65f41c49c92/markdownify-1.2.2.tar.gz", hash = "sha256:b274f1b5943180b031b699b199cbaeb1e2ac938b75851849a31fd0c3d6603d09", size = 18816, upload-time = "2025-11-16T19:21:18.565Z" }
 wheels = [

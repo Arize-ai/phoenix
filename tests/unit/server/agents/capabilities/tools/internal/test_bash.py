@@ -7,17 +7,12 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-# The networkless bash tool depends on just-bash, which requires Python >= 3.11.
-# Skip the whole module on interpreters where it is not installed (e.g. 3.10).
-pytest.importorskip("just_bash")
-
-from phoenix.server.agents.capabilities.tools.internal.bash import (  # noqa: E402
+from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashToolset,
     _build_runtime,
     _new_filesystem,
-    bash_tool_available,
 )
-from phoenix.server.api.context import Context  # noqa: E402
+from phoenix.server.api.context import Context
 
 
 async def _run_bash(toolset: BashToolset, command: str) -> Any:
@@ -76,10 +71,6 @@ def runtime() -> _Runtime:
         build_graphql_context=lambda: Mock(spec=Context),
         filesystem=_new_filesystem(),
     )
-
-
-def test_bash_tool_available() -> None:
-    assert bash_tool_available() is True
 
 
 async def test_phoenix_gql_returns_data(runtime: _Runtime) -> None:

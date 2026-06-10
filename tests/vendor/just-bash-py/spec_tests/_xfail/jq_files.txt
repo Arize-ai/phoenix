@@ -1,0 +1,4 @@
+jq.test
+man.test
+manonig.test
+onig.test

@@ -71,7 +71,11 @@ dependencies = [
   "orjson",
   "jmespath",
   "ldap3",
-  "just-bash>=0.2.1; python_version >= '3.11'",  # networkless server-agent bash tool; requires >=3.11 (vendor later for 3.10)
+  # Runtime deps of the vendored just-bash (src/phoenix/vendor/just_bash), which
+  # powers the networkless server-agent bash tool. Vendored so it runs on 3.10 too.
+  "aiofiles",
+  "aiohttp",
+  "nest-asyncio",
 ]
 dynamic = ["version"]
 
@@ -106,6 +110,7 @@ dev = [
   "jsonpath-ng",
   "ldap3",
   "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
+  "markdownify",  # optional runtime dep of the vendored just-bash html-to-markdown command; dev-only so its tests run (the command degrades gracefully when absent)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
@@ -323,6 +328,7 @@ exclude = [
   "scripts/",
   "sdist/",
   "src/phoenix/vendor/json_canonicalization_scheme/",
+  "src/phoenix/vendor/just_bash/",
   "tutorials/",
   "js/",
 ]
@@ -350,7 +356,6 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "wasmtime",
-  "just_bash.*",  # only installed on Python >= 3.11 (server-agent bash tool)
 ]
 ignore_missing_imports = true
 
@@ -382,6 +387,7 @@ exclude = [
   "docs/",
   "src/phoenix/trace/v1/evaluation_pb2.py*",
   "src/phoenix/vendor/json_canonicalization_scheme",
+  "src/phoenix/vendor/just_bash",
 ]
 line-length = 100
 target-version = "py310"
