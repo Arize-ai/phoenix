@@ -1610,6 +1610,7 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         tool_names = _get_tool_names(captured_request.body)
         assert "set_dataset_evaluator_selection" in tool_names
         assert "open_dataset_evaluator_for_edit" in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
 
     async def test_edit_open_absent_when_only_builtin_evaluators(
         self,
@@ -1619,7 +1620,18 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=self._roster_playground([self._builtin_evaluator()]),
+                playground=self._roster_playground(
+                    [
+                        self._builtin_evaluator(),
+                        PlaygroundEvaluatorContext(
+                            dataset_evaluator_id="RXY6Mw==",
+                            name="Builtin Code",
+                            kind="CODE",
+                            is_builtin=True,
+                            is_applied=True,
+                        ),
+                    ]
+                ),
                 dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
             ),
         )
@@ -1627,8 +1639,8 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
-        # Built-ins are selectable but not editable: select advertises, edit-open does not.
         assert "set_dataset_evaluator_selection" in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
         assert "open_dataset_evaluator_for_edit" not in tool_names
 
     async def test_both_tools_absent_for_empty_roster(
@@ -1649,6 +1661,7 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         tool_names = _get_tool_names(captured_request.body)
         assert "set_dataset_evaluator_selection" not in tool_names
         assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names
 
     async def test_both_tools_hidden_for_viewer(
         self,
@@ -1669,6 +1682,7 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         tool_names = _get_tool_names(captured_request.body)
         assert "set_dataset_evaluator_selection" not in tool_names
         assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names
 
     async def test_both_tools_hidden_without_dataset(
         self,
@@ -1687,3 +1701,4 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         tool_names = _get_tool_names(captured_request.body)
         assert "set_dataset_evaluator_selection" not in tool_names
         assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names

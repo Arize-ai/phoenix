@@ -1,71 +1,15 @@
-from typing import Literal
-
-from pydantic_ai import RunContext
-from pydantic_ai.models.test import TestModel
-from pydantic_ai.usage import RunUsage
-
 from phoenix.server.agents.capabilities.tools.external import (
     _EXTERNAL_TOOL_DEFINITIONS_BY_NAME,
-    OpenDatasetEvaluatorForEditCapability,
-    SetDatasetEvaluatorSelectionCapability,
     get_external_tool_definition,
     load_dataset,
     open_dataset_evaluator_for_edit,
+    read_dataset_evaluator_definition,
     set_appended_messages_path,
     set_dataset_evaluator_selection,
     set_playground_experiment_recording,
     set_template_variables_path,
 )
-from phoenix.server.agents.context import (
-    DatasetContext,
-    PlaygroundContext,
-    PlaygroundEvaluatorContext,
-    PlaygroundInstanceContext,
-    ResolvedContexts,
-)
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.types import AgentDependencies
-
-
-def _evaluator(
-    *,
-    dataset_evaluator_id: str = "RXY6MQ==",
-    name: str = "Exact Match",
-    kind: Literal["LLM", "CODE", "BUILTIN"] = "CODE",
-    is_builtin: bool = False,
-    is_applied: bool = True,
-) -> PlaygroundEvaluatorContext:
-    return PlaygroundEvaluatorContext(
-        dataset_evaluator_id=dataset_evaluator_id,
-        name=name,
-        kind=kind,
-        is_builtin=is_builtin,
-        is_applied=is_applied,
-    )
-
-
-def _run_context(
-    *,
-    evaluators: list[PlaygroundEvaluatorContext] | None = None,
-    playground: bool = True,
-    dataset: bool = True,
-    is_viewer: bool = False,
-) -> RunContext[AgentDependencies]:
-    contexts = ResolvedContexts(
-        playground=PlaygroundContext(
-            type="playground",
-            instances=[PlaygroundInstanceContext(instance_id=0)],
-            evaluators=evaluators or [],
-        )
-        if playground
-        else None,
-        dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox") if dataset else None,
-    )
-    return RunContext(
-        deps=AgentDependencies(contexts=contexts, is_viewer=is_viewer),
-        model=TestModel(),
-        usage=RunUsage(),
-    )
 
 
 def test_load_dataset_instructions_expose_params_and_discovery_preflight() -> None:
@@ -216,78 +160,17 @@ def test_open_dataset_evaluator_for_edit_parameters_take_single_id() -> None:
     assert schema["properties"]["datasetEvaluatorId"]["type"] == "string"
 
 
-class TestSetDatasetEvaluatorSelectionGate:
-    def _capability(self) -> SetDatasetEvaluatorSelectionCapability:
-        return SetDatasetEvaluatorSelectionCapability(
-            instructions=AgentPrompts().set_dataset_evaluator_selection_tool
-        )
+def test_read_dataset_evaluator_definition_parameters_take_bounded_id_array() -> None:
+    schema = read_dataset_evaluator_definition.TOOL_DEFINITION.parameters_json_schema
 
-    def test_included_when_roster_non_empty(self) -> None:
-        ctx = _run_context(evaluators=[_evaluator()])
-        assert self._capability().include_for_run(ctx) is True
-
-    def test_included_for_builtin_only_roster(self) -> None:
-        ctx = _run_context(evaluators=[_evaluator(kind="BUILTIN", is_builtin=True)])
-        assert self._capability().include_for_run(ctx) is True
-
-    def test_excluded_when_roster_empty(self) -> None:
-        ctx = _run_context(evaluators=[])
-        assert self._capability().include_for_run(ctx) is False
-
-    def test_excluded_for_viewer(self) -> None:
-        ctx = _run_context(evaluators=[_evaluator()], is_viewer=True)
-        assert self._capability().include_for_run(ctx) is False
-
-    def test_excluded_without_dataset_or_playground(self) -> None:
-        assert self._capability().include_for_run(_run_context(playground=False)) is False
-        assert (
-            self._capability().include_for_run(
-                _run_context(evaluators=[_evaluator()], dataset=False)
-            )
-            is False
-        )
-
-
-class TestOpenDatasetEvaluatorForEditGate:
-    def _capability(self) -> OpenDatasetEvaluatorForEditCapability:
-        return OpenDatasetEvaluatorForEditCapability(
-            instructions=AgentPrompts().open_dataset_evaluator_for_edit_tool
-        )
-
-    def test_included_with_editable_code_or_llm_evaluator(self) -> None:
-        assert self._capability().include_for_run(
-            _run_context(evaluators=[_evaluator(kind="CODE")])
-        )
-        assert self._capability().include_for_run(
-            _run_context(evaluators=[_evaluator(kind="LLM", is_builtin=False)])
-        )
-
-    def test_excluded_when_only_builtin_evaluators(self) -> None:
-        ctx = _run_context(evaluators=[_evaluator(kind="BUILTIN", is_builtin=True)])
-        assert self._capability().include_for_run(ctx) is False
-
-    def test_excluded_for_builtin_flagged_llm_or_code_evaluator(self) -> None:
-        # Mirror the UI compound guard: built-in CODE/LLM is not editable.
-        ctx = _run_context(
-            evaluators=[
-                _evaluator(kind="LLM", is_builtin=True),
-                _evaluator(kind="CODE", is_builtin=True),
-            ]
-        )
-        assert self._capability().include_for_run(ctx) is False
-
-    def test_excluded_for_viewer(self) -> None:
-        ctx = _run_context(evaluators=[_evaluator(kind="CODE")], is_viewer=True)
-        assert self._capability().include_for_run(ctx) is False
-
-    def test_excluded_without_dataset_or_playground(self) -> None:
-        assert self._capability().include_for_run(_run_context(playground=False)) is False
-        assert (
-            self._capability().include_for_run(
-                _run_context(evaluators=[_evaluator(kind="CODE")], dataset=False)
-            )
-            is False
-        )
+    assert read_dataset_evaluator_definition.NAME == "read_dataset_evaluator_definition"
+    assert set(schema["properties"]) == {"datasetEvaluatorIds"}
+    assert schema["required"] == ["datasetEvaluatorIds"]
+    assert schema["additionalProperties"] is False
+    ids = schema["properties"]["datasetEvaluatorIds"]
+    assert ids["type"] == "array"
+    assert ids["minItems"] == 1
+    assert ids["maxItems"] == read_dataset_evaluator_definition.MAX_EVALUATOR_IDS
 
 
 def test_set_dataset_evaluator_selection_instructions_pin_whole_set_contract() -> None:
@@ -304,3 +187,11 @@ def test_open_dataset_evaluator_for_edit_instructions_pin_builtin_and_collision_
     assert "datasetEvaluatorId" in rendered
     assert "built-in" in rendered
     assert "close the open form" in rendered
+
+
+def test_read_dataset_evaluator_definition_instructions_pin_read_only_contract() -> None:
+    rendered = AgentPrompts().read_dataset_evaluator_definition_tool.render()
+
+    assert '<tool name="read_dataset_evaluator_definition">' in rendered
+    assert "datasetEvaluatorIds" in rendered
+    assert "truncated" in rendered

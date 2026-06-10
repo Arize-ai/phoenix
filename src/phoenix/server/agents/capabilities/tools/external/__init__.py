@@ -43,6 +43,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     patch_dataset_examples,
     patch_dataset_split,
     read_code_evaluator_draft,
+    read_dataset_evaluator_definition,
     read_llm_evaluator_draft,
     read_playground_output,
     read_prompt_instance,
@@ -166,6 +167,9 @@ from phoenix.server.agents.capabilities.tools.external.patch_dataset_split impor
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.read_dataset_evaluator_definition import (
+    ReadDatasetEvaluatorDefinitionCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.read_llm_evaluator_draft import (
     ReadLlmEvaluatorDraftCapability,
 )
@@ -277,6 +281,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         open_dataset_evaluator_for_edit.TOOL_DEFINITION,
         open_llm_evaluator_form.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
+        read_dataset_evaluator_definition.TOOL_DEFINITION,
         read_llm_evaluator_draft.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
         read_prompt_tools.TOOL_DEFINITION,
@@ -376,6 +381,9 @@ def get_external_tool_capability_function(
         OpenDatasetEvaluatorForEditCapability(
             instructions=prompts.open_dataset_evaluator_for_edit_tool
         ),
+        ReadDatasetEvaluatorDefinitionCapability(
+            instructions=prompts.read_dataset_evaluator_definition_tool
+        ),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
@@ -432,6 +440,7 @@ __all__ = [
     "OpenDatasetEvaluatorForEditCapability",
     "OpenLlmEvaluatorFormCapability",
     "ReadCodeEvaluatorDraftCapability",
+    "ReadDatasetEvaluatorDefinitionCapability",
     "ReadLlmEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",
     "ReadPromptToolsCapability",

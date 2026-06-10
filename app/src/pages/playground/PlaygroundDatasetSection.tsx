@@ -4,6 +4,10 @@ import { graphql, readInlineData, useLazyLoadQuery } from "react-relay";
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
+  createReadDatasetEvaluatorDefinitionClientAction,
+  READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME,
+} from "@phoenix/agent/tools/datasetEvaluatorDefinition";
+import {
   createOpenDatasetEvaluatorForEditClientAction,
   OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME,
 } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
@@ -173,11 +177,19 @@ export function PlaygroundDatasetSection({
         openEvaluatorForEdit: setEditingEvaluator,
       })
     );
+    registerClientAction(
+      READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME,
+      createReadDatasetEvaluatorDefinitionClientAction({
+        datasetId,
+        getEvaluators: () => evaluatorsRef.current,
+      })
+    );
     return () => {
       unregisterClientAction(SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME);
       unregisterClientAction(OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME);
+      unregisterClientAction(READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME);
     };
-  }, [agentStore]);
+  }, [agentStore, datasetId]);
 
   // Advertise the roster so the agent can resolve an evaluator name to its id; selectActiveContexts merges it with Playground.tsx's instances.
   const advertisedEvaluatorRoster = useMemo<AgentContext>(

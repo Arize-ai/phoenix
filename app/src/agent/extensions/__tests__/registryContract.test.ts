@@ -14,6 +14,7 @@ import {
   SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME } from "@phoenix/agent/tools/datasetEvaluatorDefinition";
 import { OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
 import { SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
@@ -94,6 +95,7 @@ const EXPECTED_TOOL_NAMES = [
   SET_APPENDED_MESSAGES_PATH_TOOL_NAME,
   SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME,
   OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME,
+  READ_DATASET_EVALUATOR_DEFINITION_TOOL_NAME,
   BATCH_SPAN_ANNOTATE_TOOL_NAME,
   OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,

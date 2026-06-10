@@ -581,6 +581,7 @@ class TestPlaygroundContextCapabilityRender:
         assert 'applied="true"' in content
         assert "set_dataset_evaluator_selection" in content
         assert "open_dataset_evaluator_for_edit" in content
+        assert "read_dataset_evaluator_definition" in content
 
     def test_sanitizes_evaluator_name_in_roster(self) -> None:
         capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
