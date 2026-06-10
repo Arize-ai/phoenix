@@ -100,8 +100,7 @@ export function TimeRangeFields({
     }
     // An untouched open-ended end seeds "now" only for display. Keep the end
     // open so relative ranges continue to follow wall-clock time.
-    const committedEnd =
-      isEndOpen && !isEndDirtyRef.current ? null : endDate;
+    const committedEnd = isEndOpen && !isEndDirtyRef.current ? null : endDate;
     if (startDate && committedEnd && startDate > committedEnd) {
       // Discard an invalid edit rather than committing a backwards range.
       reset();

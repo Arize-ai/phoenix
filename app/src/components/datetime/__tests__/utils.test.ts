@@ -16,9 +16,7 @@ describe("datetime utils", () => {
 
     const timeRange = getTimeRangeFromLastNTimeRangeKey("15m");
 
-    expect(timeRange.start?.toISOString()).toBe(
-      "2026-06-09T09:45:00.000Z"
-    );
+    expect(timeRange.start?.toISOString()).toBe("2026-06-09T09:45:00.000Z");
     expect(timeRange.end).toBeNull();
   });
 
@@ -37,8 +35,6 @@ describe("datetime utils", () => {
     expect(getMillisecondsUntilNextLastNTimeRangeRefresh("12h")).toBe(
       2_670_000
     );
-    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("7d")).toBe(
-      2_670_000
-    );
+    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("7d")).toBe(2_670_000);
   });
 });
