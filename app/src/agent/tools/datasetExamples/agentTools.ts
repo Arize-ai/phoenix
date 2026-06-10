@@ -1,14 +1,17 @@
 import { getActiveContext } from "@phoenix/agent/context/selectors";
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 import { stageDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import { verifyExamplesInDataset } from "@phoenix/agent/shared/verifyExamplesInDataset";
 
 import { commitAddDatasetExamples } from "./addDatasetExamples";
 import {
   ADD_DATASET_EXAMPLES_NO_DATASET_ERROR,
   ADD_DATASET_EXAMPLES_TOOL_NAME,
+  DELETE_DATASET_EXAMPLES_NO_DATASET_ERROR,
   DELETE_DATASET_EXAMPLES_TOOL_NAME,
   LIST_DATASET_EXAMPLES_NO_DATASET_ERROR,
   LIST_DATASET_EXAMPLES_TOOL_NAME,
+  PATCH_DATASET_EXAMPLES_NO_DATASET_ERROR,
   PATCH_DATASET_EXAMPLES_TOOL_NAME,
 } from "./constants";
 import { commitDeleteDatasetExamples } from "./deleteDatasetExamples";
@@ -105,13 +108,40 @@ export const patchDatasetExamplesAgentTool =
     invalidInputErrorText: `Invalid ${PATCH_DATASET_EXAMPLES_TOOL_NAME} input. Expected { patches: [{ exampleId, input?, output?, metadata? }], versionDescription? }.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const datasetContext = getActiveContext(agentStore.getState(), "dataset");
+      if (!datasetContext) {
+        await addToolOutput({
+          state: "output-error",
+          tool: PATCH_DATASET_EXAMPLES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: PATCH_DATASET_EXAMPLES_NO_DATASET_ERROR,
+        });
+        return;
+      }
+      // Example ids are global, so confirm each one is a row of the dataset in
+      // view before asking the user to approve — a stale id must not edit
+      // another dataset behind an approval that doesn't name it.
+      const membership = await verifyExamplesInDataset({
+        datasetId: datasetContext.datasetNodeId,
+        exampleIds: input.patches.map((patch) => patch.exampleId),
+      });
+      if (!membership.ok) {
+        await addToolOutput({
+          state: "output-error",
+          tool: PATCH_DATASET_EXAMPLES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: membership.error,
+        });
+        return;
+      }
       await stageDatasetWrite({
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: PATCH_DATASET_EXAMPLES_TOOL_NAME,
           preview: {
             kind: "patch-examples",
-            exampleCount: input.patches.length,
+            datasetName: membership.datasetName,
+            patches: input.patches,
           },
         },
         apply: () => commitPatchDatasetExamples(input),
@@ -128,13 +158,39 @@ export const deleteDatasetExamplesAgentTool =
     invalidInputErrorText: `Invalid ${DELETE_DATASET_EXAMPLES_TOOL_NAME} input. Expected { exampleIds: string[], versionDescription? }.`,
     uiBehavior: { autoOpen: true, scrollIntoViewOnMount: true },
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const datasetContext = getActiveContext(agentStore.getState(), "dataset");
+      if (!datasetContext) {
+        await addToolOutput({
+          state: "output-error",
+          tool: DELETE_DATASET_EXAMPLES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: DELETE_DATASET_EXAMPLES_NO_DATASET_ERROR,
+        });
+        return;
+      }
+      // Same global-id hazard as patching, but destructive: never stage a
+      // delete whose rows aren't all in the dataset in view.
+      const membership = await verifyExamplesInDataset({
+        datasetId: datasetContext.datasetNodeId,
+        exampleIds: input.exampleIds,
+      });
+      if (!membership.ok) {
+        await addToolOutput({
+          state: "output-error",
+          tool: DELETE_DATASET_EXAMPLES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: membership.error,
+        });
+        return;
+      }
       await stageDatasetWrite({
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: DELETE_DATASET_EXAMPLES_TOOL_NAME,
           preview: {
             kind: "delete-examples",
-            exampleCount: input.exampleIds.length,
+            datasetName: membership.datasetName,
+            exampleIds: input.exampleIds,
           },
         },
         apply: () => commitDeleteDatasetExamples(input),

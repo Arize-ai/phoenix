@@ -16,6 +16,14 @@ export type DatasetWriteExampleRow = {
   metadata?: Record<string, unknown>;
 };
 
+/** One row edit in a previewed patch-examples write. */
+export type DatasetWriteExamplePatch = {
+  exampleId: string;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+};
+
 /** What a pending dataset write will do, rendered in the approval card. */
 export type DatasetWritePreview =
   | {
@@ -34,8 +42,9 @@ export type DatasetWritePreview =
     }
   | {
       kind: "set-splits";
+      datasetName: string;
       splitNames: string[];
-      exampleCount: number;
+      exampleIds: string[];
     }
   | {
       kind: "create-label";
@@ -50,8 +59,12 @@ export type DatasetWritePreview =
     }
   | { kind: "patch-dataset"; changes: Record<string, unknown> }
   | { kind: "delete-dataset"; datasetName: string }
-  | { kind: "patch-examples"; exampleCount: number }
-  | { kind: "delete-examples"; exampleCount: number }
+  | {
+      kind: "patch-examples";
+      datasetName: string;
+      patches: DatasetWriteExamplePatch[];
+    }
+  | { kind: "delete-examples"; datasetName: string; exampleIds: string[] }
   | {
       kind: "patch-split";
       splitName: string;

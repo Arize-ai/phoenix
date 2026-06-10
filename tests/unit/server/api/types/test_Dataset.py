@@ -495,6 +495,69 @@ class TestDatasetExamplesResolver:
         assert not response.errors
         assert response.data == {"node": {"examples": {"edges": []}}}
 
+    FILTER_IDS_QUERY = """
+      query ($datasetId: ID!, $filterIds: [ID!]) {
+        node(id: $datasetId) {
+          ... on Dataset {
+            examples(filterIds: $filterIds) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    async def test_filter_ids_returns_only_requested_examples(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        example_id = str(GlobalID("DatasetExample", str(2)))
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [example_id],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": [{"node": {"id": example_id}}]}}}
+
+    async def test_filter_ids_excludes_examples_from_other_datasets(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        # An example ID that exists nowhere (or in another dataset) yields no edges
+        # rather than leaking rows from outside the dataset in view.
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [str(GlobalID("DatasetExample", str(999)))],
+            },
+        )
+        assert not response.errors
+        assert response.data == {"node": {"examples": {"edges": []}}}
+
+    async def test_filter_ids_rejects_ids_of_wrong_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+        dataset_with_patch_revision: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.FILTER_IDS_QUERY,
+            variables={
+                "datasetId": str(GlobalID("Dataset", str(1))),
+                "filterIds": [str(GlobalID("Dataset", str(1)))],
+            },
+        )
+        assert response.errors
+
 
 @pytest.mark.parametrize(
     "sort_direction, expected_versions",

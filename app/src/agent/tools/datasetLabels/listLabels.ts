@@ -2,8 +2,8 @@ import { fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { LIST_LABELS_DEFAULT_LIMIT, LIST_LABELS_MAX_LIMIT } from "./constants";
 import type { listLabelsToolQuery } from "./__generated__/listLabelsToolQuery.graphql";
+import { LIST_LABELS_DEFAULT_LIMIT, LIST_LABELS_MAX_LIMIT } from "./constants";
 import type {
   DatasetLabelSummary,
   ListLabelsInput,

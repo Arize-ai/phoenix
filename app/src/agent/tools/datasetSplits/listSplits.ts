@@ -2,8 +2,8 @@ import { fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { LIST_SPLITS_DEFAULT_LIMIT, LIST_SPLITS_MAX_LIMIT } from "./constants";
 import type { listSplitsToolQuery } from "./__generated__/listSplitsToolQuery.graphql";
+import { LIST_SPLITS_DEFAULT_LIMIT, LIST_SPLITS_MAX_LIMIT } from "./constants";
 import type {
   DatasetSplitSummary,
   ListSplitsInput,

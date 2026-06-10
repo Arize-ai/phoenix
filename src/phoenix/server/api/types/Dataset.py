@@ -238,6 +238,9 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[str] = UNSET,
+        filter_ids: Optional[
+            list[GlobalID]
+        ] = UNSET,
     ) -> Connection[DatasetExample]:
         args = ConnectionArgs(
             first=first,
@@ -322,6 +325,20 @@ class Dataset(Node):
                 func.cast(models.DatasetExampleRevision.metadata_, Text).ilike(f"%{filter}%"),
             )
             query = query.where(filter_condition)
+
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=DatasetExample.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+            query = query.where(models.DatasetExample.id.in_(filter_rowids))
 
         async with info.context.db.read() as session:
             dataset_examples = [

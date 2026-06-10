@@ -24,14 +24,23 @@ export const setDatasetExampleSplitsInputSchema = z.object({
 });
 
 // patch_dataset_split: edit a split (found by current name); at least one of
-// name/description/color must change.
+// name/description/color must change. The backend mutation ignores null and
+// empty strings (it cannot clear a field), so null is normalized to "omitted"
+// here and empty strings are rejected — otherwise a no-op call would be
+// approved and report success while changing nothing.
 export const patchDatasetSplitInputSchema = z
   .object({
     splitName: z.string().trim().min(1),
-    name: z.string().trim().min(1).nullable().optional(),
-    description: z.string().nullable().optional(),
-    color: z.string().trim().min(1).nullable().optional(),
+    name: z.string().trim().min(1).nullish(),
+    description: z.string().min(1).nullish(),
+    color: z.string().trim().min(1).nullish(),
   })
+  .transform(({ splitName, name, description, color }) => ({
+    splitName,
+    ...(name != null ? { name } : {}),
+    ...(description != null ? { description } : {}),
+    ...(color != null ? { color } : {}),
+  }))
   .refine(
     (value) =>
       value.name !== undefined ||

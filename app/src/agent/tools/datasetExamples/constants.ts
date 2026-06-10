@@ -17,3 +17,9 @@ export const LIST_DATASET_EXAMPLES_MAX_LIMIT = 50;
 // Must byte-match the server tool NAMEs (patch/delete_dataset_examples.py).
 export const PATCH_DATASET_EXAMPLES_TOOL_NAME = "patch_dataset_examples";
 export const DELETE_DATASET_EXAMPLES_TOOL_NAME = "delete_dataset_examples";
+
+export const PATCH_DATASET_EXAMPLES_NO_DATASET_ERROR =
+  "No dataset is in view, so there are no examples to edit. Open a dataset first.";
+
+export const DELETE_DATASET_EXAMPLES_NO_DATASET_ERROR =
+  "No dataset is in view, so there are no examples to delete. Open a dataset first.";

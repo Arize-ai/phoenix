@@ -43,8 +43,10 @@ function commitOne(
  * can be assigned to any existing split, not only ones already on its dataset),
  * then applies the per-example `setDatasetExampleSplits` mutation for each row
  * (it replaces each row's split membership). Runs outside React, so it uses the
- * singleton Relay environment. Because the mutation is per-example, a mid-way
- * failure can leave a partial assignment — the error reports how many rows were
+ * singleton Relay environment. Example ids are prevalidated against the dataset
+ * in view before the write is staged (see the agent tool), and split names are
+ * resolved before the first mutation — so a partial assignment can only result
+ * from a transient failure mid-loop; the error then reports how many rows were
  * applied.
  */
 export async function commitSetDatasetExampleSplits({
@@ -64,7 +66,9 @@ export async function commitSetDatasetExampleSplits({
       splitsResult.splits.map((split) => split.name).join(", ") || "(none)";
     return {
       ok: false,
-      error: `Unknown split(s): ${unknown.join(", ")}. Existing splits: ${available}. Create a new split with create_dataset_split first.`,
+      error: `Unknown split(s): ${unknown.join(
+        ", "
+      )}. Existing splits: ${available}. Create a new split with create_dataset_split first.`,
     };
   }
 
@@ -81,6 +85,8 @@ export async function commitSetDatasetExampleSplits({
   }
   return {
     ok: true,
-    output: `Assigned ${applied} example(s) to split(s): ${splitNames.join(", ")}.`,
+    output: `Assigned ${applied} example(s) to split(s): ${splitNames.join(
+      ", "
+    )}.`,
   };
 }

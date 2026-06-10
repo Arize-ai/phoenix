@@ -2,8 +2,8 @@ import { fetchQuery, graphql } from "react-relay";
 
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 
-import { toLabelSummary } from "./listLabels";
 import type { listDatasetLabelsToolQuery } from "./__generated__/listDatasetLabelsToolQuery.graphql";
+import { toLabelSummary } from "./listLabels";
 import type { ListDatasetLabelsResult } from "./types";
 
 const query = graphql`

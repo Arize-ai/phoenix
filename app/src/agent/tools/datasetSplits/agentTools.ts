@@ -1,6 +1,7 @@
 import { getActiveContext } from "@phoenix/agent/context/selectors";
 import { defineTool } from "@phoenix/agent/extensions/registry/defineTool";
 import { stageDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import { verifyExamplesInDataset } from "@phoenix/agent/shared/verifyExamplesInDataset";
 
 import {
   CREATE_DATASET_SPLIT_TOOL_NAME,
@@ -140,14 +141,31 @@ export const setDatasetExampleSplitsAgentTool =
         });
         return;
       }
+      // The mutation is applied per example with no cross-dataset guard, so
+      // validate every id against the dataset in view up front — this is what
+      // prevents both wrong-dataset writes and most partial-failure paths.
+      const membership = await verifyExamplesInDataset({
+        datasetId: datasetContext.datasetNodeId,
+        exampleIds: input.exampleIds,
+      });
+      if (!membership.ok) {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: membership.error,
+        });
+        return;
+      }
       await stageDatasetWrite({
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: SET_DATASET_EXAMPLE_SPLITS_TOOL_NAME,
           preview: {
             kind: "set-splits",
+            datasetName: membership.datasetName,
             splitNames: input.splitNames,
-            exampleCount: input.exampleIds.length,
+            exampleIds: input.exampleIds,
           },
         },
         apply: () =>

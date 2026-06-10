@@ -5,6 +5,7 @@ export type {
   ApprovalSource,
   BindPendingDatasetWriteOptions,
   DatasetWriteApplyResult,
+  DatasetWriteExamplePatch,
   DatasetWriteExampleRow,
   DatasetWritePreview,
   DatasetWriteToolOutputSender,

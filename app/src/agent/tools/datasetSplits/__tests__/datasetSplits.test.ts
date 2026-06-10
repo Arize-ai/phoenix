@@ -18,6 +18,40 @@ describe("patch_dataset_split input parser", () => {
     expect(parsePatchDatasetSplitInput({ splitName: "test" })).toBeNull();
     expect(parsePatchDatasetSplitInput({ name: "x" })).toBeNull();
   });
+
+  it("treats null fields as omitted (the backend cannot clear a field)", () => {
+    // Null alongside a real change: the null is dropped, the change survives.
+    expect(
+      parsePatchDatasetSplitInput({
+        splitName: "test",
+        name: "holdout",
+        description: null,
+        color: null,
+      })
+    ).toEqual({ splitName: "test", name: "holdout" });
+    // Nulls only: nothing would change, so the call is rejected instead of
+    // being approved and reporting a success that does nothing.
+    expect(
+      parsePatchDatasetSplitInput({ splitName: "test", description: null })
+    ).toBeNull();
+    expect(
+      parsePatchDatasetSplitInput({
+        splitName: "test",
+        name: null,
+        description: null,
+        color: null,
+      })
+    ).toBeNull();
+  });
+
+  it("rejects empty strings (a silent no-op on the backend)", () => {
+    expect(
+      parsePatchDatasetSplitInput({ splitName: "test", description: "" })
+    ).toBeNull();
+    expect(
+      parsePatchDatasetSplitInput({ splitName: "test", name: "" })
+    ).toBeNull();
+  });
 });
 
 describe("delete_dataset_splits input parser", () => {

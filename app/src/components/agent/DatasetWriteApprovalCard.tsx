@@ -62,8 +62,9 @@ function describePreview(pending: PendingDatasetWrite): PreviewDescriptor {
       return {
         label: "Assign examples to splits",
         payload: {
+          datasetName: preview.datasetName,
           splitNames: preview.splitNames,
-          exampleCount: preview.exampleCount,
+          exampleIds: preview.exampleIds,
         },
         note: null,
       };
@@ -97,13 +98,19 @@ function describePreview(pending: PendingDatasetWrite): PreviewDescriptor {
     case "patch-examples":
       return {
         label: "Edit examples",
-        payload: { exampleCount: preview.exampleCount },
+        payload: {
+          datasetName: preview.datasetName,
+          patches: preview.patches,
+        },
         note: null,
       };
     case "delete-examples":
       return {
         label: "Delete examples",
-        payload: { exampleCount: preview.exampleCount },
+        payload: {
+          datasetName: preview.datasetName,
+          exampleIds: preview.exampleIds,
+        },
         note: "Removes these rows from the dataset (recorded as a new version).",
       };
     case "patch-split":
@@ -149,7 +156,9 @@ export function DatasetWriteApprovalCard({
   const { label, payload, note } = describePreview(pending);
   return (
     <Flex direction="column" gap="size-100" minHeight="0">
-      <ToolPartLabel variant={note ? "danger" : undefined}>{label}</ToolPartLabel>
+      <ToolPartLabel variant={note ? "danger" : undefined}>
+        {label}
+      </ToolPartLabel>
       <ToolPartCodeBlock>{stringifyToolValue(payload)}</ToolPartCodeBlock>
       {note ? <ToolPartLabel variant="danger">{note}</ToolPartLabel> : null}
       <View paddingX="size-200" paddingBottom="size-125">
