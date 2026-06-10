@@ -25,6 +25,7 @@ import { Logo, LogoText } from "./Logo";
 
 const topNavCSS = css`
   padding: var(--global-dimension-static-size-100);
+  padding-right: var(--global-dimension-static-size-200);
   background-color: var(--global-color-gray-100);
   flex: none;
   display: flex;
