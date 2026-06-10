@@ -923,7 +923,20 @@ type Dataset implements Node {
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
   exampleCount(datasetVersionId: ID, splitIds: [ID!]): Int!
-  examples(datasetVersionId: ID, splitIds: [ID!], first: Int = 50, last: Int, after: String, before: String, filter: String, filterIds: [ID!]): DatasetExampleConnection!
+  examples(
+    datasetVersionId: ID
+    splitIds: [ID!]
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+    filter: String
+
+    """
+    When provided, return only the examples with the given IDs — a membership lookup that avoids paging the whole connection.
+    """
+    filterIds: [ID!]
+  ): DatasetExampleConnection!
   splits: [DatasetSplit!]!
 
   """
@@ -1272,6 +1285,10 @@ input DeleteDatasetExamplesInput {
   exampleIds: [ID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
+
+  """
+  When provided, every deleted example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
+  """
   datasetId: ID
 }
 
@@ -2328,6 +2345,10 @@ type Mutation {
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
+
+  """
+  Batch form of setDatasetExampleSplits: replaces the split membership of every listed example in a single transaction, so a failure on any example leaves no partial assignment.
+  """
   setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
@@ -2517,6 +2538,10 @@ input PatchDatasetExamplesInput {
   patches: [DatasetExamplePatch!]!
   versionDescription: String
   versionMetadata: JSON
+
+  """
+  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
+  """
   datasetId: ID
 }
 
@@ -3348,8 +3373,28 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
-  datasetLabels(first: Int = 50, last: Int, after: String, before: String, names: [String!]): DatasetLabelConnection!
-  datasetSplits(first: Int = 50, last: Int, after: String, before: String, names: [String!]): DatasetSplitConnection!
+  datasetLabels(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+
+    """
+    When provided, return only labels whose name exactly matches one of the given names — a lookup that avoids paging through the entire instance-wide vocabulary.
+    """
+    names: [String!]
+  ): DatasetLabelConnection!
+  datasetSplits(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+
+    """
+    When provided, return only splits whose name exactly matches one of the given names — a lookup that avoids paging through the entire instance-wide vocabulary.
+    """
+    names: [String!]
+  ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
@@ -3598,6 +3643,10 @@ type SetDatasetExampleSplitsMutationPayload {
 input SetDatasetExamplesSplitsInput {
   exampleIds: [ID!]!
   datasetSplitIds: [ID!]!
+
+  """
+  When provided, every example must belong to this dataset or the whole mutation is rejected — lets callers scope a batch write to the dataset they believe they are editing.
+  """
   datasetId: ID
 }
 

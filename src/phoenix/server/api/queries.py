@@ -2,7 +2,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Literal, Optional
+from typing import Annotated, Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
 import strawberry
@@ -1177,7 +1177,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-        names: Optional[list[str]] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only labels whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetLabel]:
         args = ConnectionArgs(
             first=first,
@@ -1206,7 +1213,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
-        names: Optional[list[str]] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only splits whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetSplit]:
         args = ConnectionArgs(
             first=first,

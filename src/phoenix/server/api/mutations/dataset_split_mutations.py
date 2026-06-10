@@ -53,10 +53,12 @@ class SetDatasetExampleSplitsInput:
 class SetDatasetExamplesSplitsInput:
     example_ids: list[GlobalID]
     dataset_split_ids: list[GlobalID]
-    dataset_id: Optional[GlobalID] = UNSET
-    """When provided, every example must belong to this dataset or the whole
-    mutation is rejected — lets callers scope a batch write to the dataset
-    they believe they are editing."""
+    dataset_id: Optional[GlobalID] = strawberry.field(
+        default=UNSET,
+        description="When provided, every example must belong to this dataset or the "
+        "whole mutation is rejected — lets callers scope a batch write to the dataset "
+        "they believe they are editing.",
+    )
 
 
 @strawberry.input
@@ -298,13 +300,15 @@ class DatasetSplitMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description="Batch form of setDatasetExampleSplits: replaces the split "
+        "membership of every listed example in a single transaction, so a failure "
+        "on any example leaves no partial assignment.",
+    )  # type: ignore
     async def set_dataset_examples_splits(
         self, info: Info[Context, None], input: SetDatasetExamplesSplitsInput
     ) -> SetDatasetExamplesSplitsMutationPayload:
-        """Batch form of setDatasetExampleSplits: replace the split membership
-        of every listed example in a single transaction, so a failure on any
-        example leaves no partial assignment."""
         if not input.example_ids:
             raise BadRequest("Must provide at least one example ID")
 
