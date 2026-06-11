@@ -105,20 +105,9 @@ feature actually does. Commit messages are often terse — the code tells the re
 - Test additions or fixes
 - CI/CD and build changes
 - Code style or formatting changes
-- Internal tooling, skills, or dev workflows
+- Internal tooling, repo-internal agent skills (`.agents/skills/`), or dev workflows with no
+  product behavior change
 - Reverts that cancel out a feature within the same release
-
-**EXCLUDE — beta features (hard rule):**
-- **PXI agent** — anything under the `phoenix-pxi` namespace, the PXI runtime, or PXI tool
-  wiring. PXI is still in beta and is not announced in release notes.
-- **Phoenix AI Assistant** — the in-app assistant widget, its settings page
-  (`Settings → Agents`), system prompt customization, enable/disable toggle, and response
-  feedback (thumbs up/down, copy, open-trace). The assistant is still in beta.
-
-If a commit, PR, or feature touches PXI or the assistant, skip it entirely — do not mention it
-in individual MDX files, the aggregate `release-notes.mdx`, the year overview, or `docs.json`
-navigation. This exclusion stands even if the change is user-visible. Revisit only when the
-user explicitly says these features are GA.
 
 If a release contains only excluded changes, skip it — no release note needed.
 
@@ -231,6 +220,7 @@ Match the version line to which packages are involved:
 **Available in arize-phoenix 13.14.0+**
 **Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
 **Available in arize-phoenix 13.13.0+ (server), arize-phoenix-client 1.31.0+ (Python)**
+**Available in arize-phoenix 15.1.0+ (beta)**
 **Breaking change in arize-phoenix-client 2.0.0**
 ```
 
