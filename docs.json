@@ -1220,6 +1220,8 @@
               {
                 "group": "06.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
+                  "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",
                   "docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent"
                 ]
               },

@@ -15,6 +15,15 @@ Create and publish release documentation for Phoenix. This skill walks through a
 workflow: identify undocumented releases, analyze commits by reading the actual code, draft MDX
 files, and update all the documentation touchpoints.
 
+## Hard Rules
+
+- Do not exclude a change just because it is PXI-related or beta. PXI is a user-facing Phoenix
+  product surface, so PXI releases should go out when they add visible capabilities.
+- Distinguish product PXI skills from internal Codex/agent skills. Changes under
+  `src/phoenix/server/agents/prompts/skills/` are PXI product behavior; changes under
+  `.agents/skills/` are internal agent workflow unless they are accompanied by a Phoenix product
+  change.
+
 ## Tone and Style
 
 Write for a developer who uses Phoenix daily. The voice is technical, friendly, and informative
@@ -43,6 +52,10 @@ without being verbose.
 | @arizeai/phoenix-evals (TS evals) | Check `js/packages/phoenix-evals/package.json` |
 | @arizeai/phoenix-mcp (TS MCP) | Check `js/packages/phoenix-mcp/package.json` |
 | @arizeai/phoenix-otel (TS OTel) | Check `js/packages/phoenix-otel/package.json` |
+
+PXI features usually ship as part of `arize-phoenix` because the server, GraphQL/API surface, and
+frontend app own the built-in agent experience. Use the server version line unless the PXI release
+also changes a public Python or TypeScript SDK package.
 
 ## Step 1: Identify Undocumented Releases
 
@@ -87,6 +100,11 @@ feature actually does. Commit messages are often terse — the code tells the re
 - **Evaluators**: `packages/phoenix-evals/src/phoenix/evals/`
 - **CLI**: `packages/phoenix-client/src/phoenix/client/cli/`
 - **Models/providers**: playground and model configuration code
+- **PXI frontend**: `app/src/agent/`, `app/src/components/agent/`, and settings/playground pages
+  that expose agent controls
+- **PXI server/runtime**: `src/phoenix/server/agents/`, `src/phoenix/server/api/types/AgentsConfig.py`,
+  and related configuration in `src/phoenix/config.py`
+- **PXI product docs**: `docs/phoenix/pxi.mdx` and PXI-specific release-note pages
 
 ### Classify each change
 
@@ -98,6 +116,10 @@ feature actually does. Commit messages are often terse — the code tells the re
 - New CLI commands or flags
 - New evaluator types or capabilities
 - Performance improvements with visible user impact
+- PXI agent features — new PXI tools, skills, slash commands, and agent capabilities are
+  user-facing and should be announced
+- PXI controls, observability, approval flows, sandbox/runtime capabilities, web access settings,
+  model configuration, and context-aware page integrations
 
 **EXCLUDE** — internal housekeeping:
 - Dependency bumps (`chore(deps):`, `fix(deps):`)
@@ -105,20 +127,9 @@ feature actually does. Commit messages are often terse — the code tells the re
 - Test additions or fixes
 - CI/CD and build changes
 - Code style or formatting changes
-- Internal tooling, skills, or dev workflows
+- Internal tooling, `.agents/skills/` changes, eval harnesses, or dev workflows with no Phoenix
+  product behavior change
 - Reverts that cancel out a feature within the same release
-
-**EXCLUDE — beta features (hard rule):**
-- **PXI agent** — anything under the `phoenix-pxi` namespace, the PXI runtime, or PXI tool
-  wiring. PXI is still in beta and is not announced in release notes.
-- **Phoenix AI Assistant** — the in-app assistant widget, its settings page
-  (`Settings → Agents`), system prompt customization, enable/disable toggle, and response
-  feedback (thumbs up/down, copy, open-trace). The assistant is still in beta.
-
-If a commit, PR, or feature touches PXI or the assistant, skip it entirely — do not mention it
-in individual MDX files, the aggregate `release-notes.mdx`, the year overview, or `docs.json`
-navigation. This exclusion stands even if the change is user-visible. Revisit only when the
-user explicitly says these features are GA.
 
 If a release contains only excluded changes, skip it — no release note needed.
 
@@ -127,6 +138,10 @@ If a release contains only excluded changes, skip it — no release note needed.
 Multiple commits often implement a single feature across server + client + UI. A REST endpoint
 commit, a Python client wrapper, and a TypeScript client wrapper should become one release note
 entry that mentions all relevant package versions — not three separate entries.
+
+For PXI, group the full user capability. A tool definition, client action renderer, server prompt
+skill, GraphQL/config change, and documentation update that all enable one agent behavior should be
+one PXI release-note entry, usually versioned as `arize-phoenix X.Y.Z+`.
 
 ## Step 3: Draft Individual MDX Files
 
@@ -231,6 +246,7 @@ Match the version line to which packages are involved:
 **Available in arize-phoenix 13.14.0+**
 **Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
 **Available in arize-phoenix 13.13.0+ (server), arize-phoenix-client 1.31.0+ (Python)**
+**Available in arize-phoenix 15.1.0+ (PXI beta)**
 **Breaking change in arize-phoenix-client 2.0.0**
 ```
 
