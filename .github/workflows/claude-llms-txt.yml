@@ -59,9 +59,9 @@ jobs:
           # and the OIDC app token is never in Claude's context. Note: logs are public.
           show_full_output: 'true'
           # Setting additional_permissions triggers the action to explicitly request
-          # contents/pull_requests/issues: write on the OIDC-minted app token, which
-          # the post-action "Commit and open pull request" step uses to git push and
-          # open the PR via steps.claude.outputs.github_token.
+          # contents/pull_requests/issues: write on the OIDC-minted app token while
+          # Claude runs. The action revokes this token during cleanup, so later
+          # publishing steps use a separate token.
           additional_permissions: |
             contents: write
           prompt: |
@@ -78,9 +78,9 @@ jobs:
       - name: Commit and open pull request
         if: steps.claude.outcome == 'success'
         env:
-          # App token minted by the claude-code-action OIDC exchange — short-lived,
-          # auto-revoked at job end, and (unlike GITHUB_TOKEN) triggers downstream CI.
-          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
             echo "No llms.txt changes — exiting cleanly."

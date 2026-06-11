@@ -54,9 +54,9 @@ jobs:
           # and the OIDC app token is never in Claude's context. Note: logs are public.
           show_full_output: 'true'
           # Setting additional_permissions triggers the action to explicitly request
-          # contents/pull_requests/issues: write on the OIDC-minted app token, which
-          # the post-action "Create docs gap issue" step uses via
-          # steps.claude.outputs.github_token.
+          # contents/pull_requests/issues: write on the OIDC-minted app token while
+          # Claude runs. The action revokes this token during cleanup, so later
+          # publishing steps use a separate token.
           additional_permissions: |
             contents: write
           prompt: |
@@ -84,9 +84,9 @@ jobs:
 
       - name: Create docs gap issue
         env:
-          # App token minted by the claude-code-action OIDC exchange — short-lived
-          # and auto-revoked at job end.
-          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           if [ ! -s .scratch/docs-gap-issue.md ]; then
             echo "No docs gap issue body written — exiting cleanly."
