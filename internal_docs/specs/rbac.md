@@ -35,7 +35,7 @@ not "what can this user do to this specific project, dataset, or prompt?"
 
 Role names live in the database, but permissions do not. Backend and frontend
 code checks role names directly ("is admin", "is not viewer"). That works for
-three fixed roles but cannot express anything in between.
+a small fixed set of roles but cannot express anything in between.
 
 ## Model
 
@@ -91,7 +91,7 @@ inherits the owner's role, so scoping is opt-in.
 ### External Auth
 
 OAuth and LDAP role mapping keeps working with built-in roles and can later
-target custom roles by stable key. If a provider maps a user to a missing or
+target custom roles by a stable role identifier. If a provider maps a user to a missing or
 unassignable role, existing behavior applies: strict mode rejects the login;
 non-strict mode falls back to least privilege.
 
