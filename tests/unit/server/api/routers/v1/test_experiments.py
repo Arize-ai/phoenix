@@ -1664,3 +1664,148 @@ class TestIncompleteEvaluations:
         assert normal_result["status_code"] == 200, (
             "Database should still be functional after SQL injection attempts"
         )
+
+
+class TestPatchExperiment:
+    """Tests for PATCH /v1/experiments/{experiment_id}."""
+
+    async def test_metadata_only_patch_leaves_name_and_description_untouched(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"metadata": {"info": "updated"}},
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["metadata"] == {"info": "updated"}
+        assert data["name"] == "test"  # unchanged
+        assert data["description"] is None  # unchanged
+
+        # The change is durable: a follow-up GET reflects the patch.
+        refetched = (await httpx_client.get(f"v1/experiments/{experiment_gid}")).json()["data"]
+        assert refetched["metadata"] == {"info": "updated"}
+        assert refetched["name"] == "test"
+
+    async def test_patch_all_three_fields(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={
+                "name": "renamed",
+                "description": "a new description",
+                "metadata": {"info": "updated", "extra": 1},
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["name"] == "renamed"
+        assert data["description"] == "a new description"
+        assert data["metadata"] == {"info": "updated", "extra": 1}
+
+    async def test_explicit_null_description_clears_it(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        # First set a description so clearing it is observable.
+        await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"description": "to be cleared"},
+        )
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"description": None},
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["description"] is None
+
+    async def test_metadata_replaces_as_a_whole_no_deep_merge(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"metadata": {"new_key": "new_value"}},
+        )
+        assert response.status_code == 200
+        # The original "info" key is gone — metadata is replaced, not merged.
+        assert response.json()["data"]["metadata"] == {"new_key": "new_value"}
+
+    async def test_null_name_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"name": None},
+        )
+        assert response.status_code == 422
+
+    async def test_null_metadata_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"metadata": None},
+        )
+        assert response.status_code == 422
+
+    async def test_non_object_metadata_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"metadata": "not-an-object"},
+        )
+        assert response.status_code == 422
+
+    async def test_empty_effective_patch_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(f"v1/experiments/{experiment_gid}", json={})
+        assert response.status_code == 422
+
+    async def test_invalid_id_format_is_422(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        response = await httpx_client.patch(
+            "v1/experiments/not-a-global-id",
+            json={"name": "x"},
+        )
+        assert response.status_code == 422
+
+    async def test_missing_experiment_is_404(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        missing_gid = GlobalID("Experiment", "9000")
+        response = await httpx_client.patch(
+            f"v1/experiments/{missing_gid}",
+            json={"name": "x"},
+        )
+        assert response.status_code == 404

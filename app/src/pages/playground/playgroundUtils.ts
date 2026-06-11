@@ -2191,6 +2191,7 @@ export const getChatCompletionOverDatasetInput = ({
     allInstanceMessages: instanceMessages,
     stateByDatasetId,
     recordExperiments,
+    nextExperimentScaffold,
     streaming,
   } = playgroundStore.getState();
 
@@ -2248,6 +2249,9 @@ export const getChatCompletionOverDatasetInput = ({
     promptName: instance.prompt?.name,
     promptVersionId: instance.prompt?.version ?? null,
     createEphemeralExperiment: !recordExperiments,
+    experimentName: nextExperimentScaffold?.name ?? null,
+    experimentDescription: nextExperimentScaffold?.description ?? null,
+    experimentMetadata: nextExperimentScaffold?.metadata ?? null,
     streamModelOutput: streaming,
     maxConcurrency: maxConcurrency ?? 10,
   };

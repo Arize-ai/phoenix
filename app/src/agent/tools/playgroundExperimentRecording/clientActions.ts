@@ -1,15 +1,34 @@
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
+import type { ExperimentScaffold } from "@phoenix/store/playground";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
 import { parseSetPlaygroundExperimentRecordingInput } from "./parsers";
+import type { SetPlaygroundExperimentRecordingInput } from "./types";
 
 function getExperimentRecordingMode(recordExperiments: boolean) {
   return recordExperiments ? "persistent" : "ephemeral";
 }
 
+function buildExperimentScaffold(
+  input: SetPlaygroundExperimentRecordingInput
+): ExperimentScaffold | null {
+  const scaffold: ExperimentScaffold = {};
+  if (input.experimentName !== undefined) {
+    scaffold.name = input.experimentName;
+  }
+  if (input.experimentDescription !== undefined) {
+    scaffold.description = input.experimentDescription;
+  }
+  if (input.experimentMetadata !== undefined) {
+    scaffold.metadata = input.experimentMetadata;
+  }
+  return Object.keys(scaffold).length > 0 ? scaffold : null;
+}
+
 /**
  * Creates the client action handler for set_playground_experiment_recording.
- * Updates the mounted playground's future dataset-backed run persistence mode.
+ * Updates the mounted playground's future dataset-backed run persistence mode
+ * and stages the name/description/metadata for the next run's experiments.
  */
 export function createSetPlaygroundExperimentRecordingClientAction({
   playgroundStore,
@@ -41,6 +60,11 @@ export function createSetPlaygroundExperimentRecordingClientAction({
     state.setRecordExperiments(parsed.recordExperiments);
     const mode = getExperimentRecordingMode(parsed.recordExperiments);
 
+    const scaffold = buildExperimentScaffold(parsed);
+    if (scaffold != null) {
+      state.setNextExperimentScaffold(scaffold);
+    }
+
     return {
       ok: true,
       output: JSON.stringify(
@@ -49,6 +73,7 @@ export function createSetPlaygroundExperimentRecordingClientAction({
           previousRecordExperiments,
           recordExperiments: parsed.recordExperiments,
           mode,
+          nextExperimentScaffold: scaffold,
           message: parsed.recordExperiments
             ? "Future dataset-backed playground runs will be recorded as experiments."
             : "Future dataset-backed playground runs will be temporary and unrecorded.",

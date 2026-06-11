@@ -388,7 +388,11 @@ export interface paths {
         delete: operations["deleteExperiment"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update an experiment by ID
+         * @description Partially update an experiment's name, description, and/or metadata. Only the fields included in the request body are changed; omitted fields are left as-is. Patching an ephemeral experiment refreshes its last-update timestamp, which extends the window before it is swept away.
+         */
+        patch: operations["updateExperiment"];
         trace?: never;
     };
     "/v1/experiments/{experiment_id}/incomplete-runs": {
@@ -2356,6 +2360,16 @@ export interface components {
              */
             dataset_version_id: string;
             /**
+             * Name
+             * @description The name of the experiment
+             */
+            name: string;
+            /**
+             * Description
+             * @description The description of the experiment
+             */
+            description: string | null;
+            /**
              * Repetitions
              * @description Number of times the experiment is repeated
              */
@@ -3175,6 +3189,7 @@ export interface components {
              * @default 1
              */
             repetitions?: number;
+            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldContext"] | null;
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
             /** Evaluators */
@@ -3218,6 +3233,24 @@ export interface components {
             isBuiltin: boolean;
             /** Isapplied */
             isApplied: boolean;
+        };
+        /**
+         * PlaygroundExperimentScaffoldContext
+         * @description Name/description/metadata staged for the next dataset-backed run's experiments.
+         *
+         *     Each field is present only when the user has staged it; an absent field falls
+         *     back to the server default. The scaffold is consumed once the next run starts.
+         */
+        PlaygroundExperimentScaffoldContext: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Hasmetadata
+             * @default false
+             */
+            hasMetadata?: boolean;
         };
         /**
          * PlaygroundInstanceContext
@@ -5106,6 +5139,33 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /**
+         * UpdateExperimentRequestBody
+         * @description Fields to update on an experiment. Omit a field to leave it unchanged.
+         */
+        UpdateExperimentRequestBody: {
+            /**
+             * Name
+             * @description New name for the experiment (null is rejected; name is required)
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description New description for the experiment (null clears the description)
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description New metadata object for the experiment (replaces the existing metadata as a whole; null is rejected)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** UpdateExperimentResponseBody */
+        UpdateExperimentResponseBody: {
+            data: components["schemas"]["Experiment"];
+        };
         /** UpdateProjectRequestBody */
         UpdateProjectRequestBody: {
             /** Description */
@@ -6574,6 +6634,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateExperiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExperimentRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Experiment updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateExperimentResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

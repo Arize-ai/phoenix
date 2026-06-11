@@ -26,6 +26,22 @@ describe("playground experiment recording agent tool", () => {
     ).toEqual({ recordExperiments: false });
   });
 
+  it("parses optional experiment scaffold fields", () => {
+    expect(
+      parseSetPlaygroundExperimentRecordingInput({
+        recordExperiments: true,
+        experimentName: "Shorter system prompt",
+        experimentDescription: "Trimmed the system prompt by half",
+        experimentMetadata: { hypothesis: "fewer tokens, same accuracy" },
+      })
+    ).toEqual({
+      recordExperiments: true,
+      experimentName: "Shorter system prompt",
+      experimentDescription: "Trimmed the system prompt by half",
+      experimentMetadata: { hypothesis: "fewer tokens, same accuracy" },
+    });
+  });
+
   it("rejects invalid recording modes", () => {
     expect(
       parseSetPlaygroundExperimentRecordingInput({ recordExperiments: "true" })
@@ -35,6 +51,21 @@ describe("playground experiment recording agent tool", () => {
       parseSetPlaygroundExperimentRecordingInput({
         recordExperiments: true,
         extra: "nope",
+      })
+    ).toBeNull();
+  });
+
+  it("rejects scaffold fields of the wrong type", () => {
+    expect(
+      parseSetPlaygroundExperimentRecordingInput({
+        recordExperiments: true,
+        experimentName: 42,
+      })
+    ).toBeNull();
+    expect(
+      parseSetPlaygroundExperimentRecordingInput({
+        recordExperiments: true,
+        experimentMetadata: "not-an-object",
       })
     ).toBeNull();
   });
@@ -62,6 +93,71 @@ describe("playground experiment recording agent tool", () => {
         mode: "persistent",
       })
     );
+  });
+
+  it("stages the experiment scaffold for the next run", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const action = createSetPlaygroundExperimentRecordingClientAction({
+      playgroundStore,
+    });
+
+    const result = await action({
+      recordExperiments: true,
+      experimentName: "Shorter system prompt",
+      experimentMetadata: { hypothesis: "fewer tokens, same accuracy" },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(playgroundStore.getState().nextExperimentScaffold).toEqual({
+      name: "Shorter system prompt",
+      metadata: { hypothesis: "fewer tokens, same accuracy" },
+    });
+    if (!result.ok) return;
+    expect(JSON.parse(result.output ?? "")).toEqual(
+      expect.objectContaining({
+        status: "updated",
+        recordExperiments: true,
+        nextExperimentScaffold: {
+          name: "Shorter system prompt",
+          metadata: { hypothesis: "fewer tokens, same accuracy" },
+        },
+      })
+    );
+  });
+
+  it("leaves the scaffold untouched when no scaffold fields are provided", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const action = createSetPlaygroundExperimentRecordingClientAction({
+      playgroundStore,
+    });
+
+    await action({ recordExperiments: true });
+
+    expect(playgroundStore.getState().nextExperimentScaffold).toBeNull();
+  });
+
+  it("consumes the staged scaffold once, then clears it", () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore
+      .getState()
+      .setNextExperimentScaffold({ name: "Run with notes" });
+
+    const consumed = playgroundStore.getState().consumeNextExperimentScaffold();
+
+    expect(consumed).toEqual({ name: "Run with notes" });
+    expect(playgroundStore.getState().nextExperimentScaffold).toBeNull();
+    expect(
+      playgroundStore.getState().consumeNextExperimentScaffold()
+    ).toBeNull();
   });
 
   it("disables persistent experiment recording", async () => {

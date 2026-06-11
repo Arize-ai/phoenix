@@ -33,6 +33,7 @@ import {
 } from "@phoenix/agent/tools/datasetSplits";
 import { LIST_DATASETS_TOOL_NAME } from "@phoenix/agent/tools/listDatasets";
 import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { PATCH_EXPERIMENT_TOOL_NAME } from "@phoenix/agent/tools/patchExperiment";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
 import {
   EDIT_PROMPT_TOOL_NAME,
@@ -101,6 +102,12 @@ import {
   LOAD_SKILL_TOOL_NAME,
   LoadSkillToolDetails,
 } from "./LoadSkillToolDetails";
+import {
+  formatPatchExperimentState,
+  getPatchExperimentStatusVariant,
+  getPatchExperimentToolPreview,
+  PatchExperimentToolDetails,
+} from "./PatchExperimentToolDetails";
 import {
   formatRemovePromptInstanceState,
   getRemovePromptInstanceStatusVariant,
@@ -963,6 +970,13 @@ function getToolPresentation(
         stateLabel: formatBatchSpanAnnotateState(part),
         statusVariant,
         details: <BatchSpanAnnotateToolDetails part={part} />,
+      };
+    case PATCH_EXPERIMENT_TOOL_NAME:
+      return {
+        preview: getPatchExperimentToolPreview(part),
+        stateLabel: formatPatchExperimentState(part),
+        statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
+        details: <PatchExperimentToolDetails part={part} />,
       };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
       return {

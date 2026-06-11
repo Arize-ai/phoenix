@@ -1,0 +1,352 @@
+dataset_name: experiments_skill_trigger
+description: >-
+  PXI server-side eval suite for experiments skill trigger correctness.
+  Tests whether the agent calls load_skill(skill_name="experiments") when the
+  user, with a dataset mounted, asks to run, compare, or read back
+  dataset-backed experiments (positive cases), and correctly avoids triggering
+  the skill for pure prompt iteration, trace diagnosis, evaluator authoring,
+  and closed-form data reads that route to a sibling skill or no skill
+  (negative cases). One regression footprint example asserts that, given a
+  compare question, the agent reads quality, latency, and cost together via a
+  phoenix-gql read.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - forbidden_tool_call_args_match
+  - bash_command_substrings_match
+
+examples:
+
+  # ===== Positive triggers: experiments skill should fire =====
+  # Every positive carries a dataset context, because the experiments skill is
+  # gated into the catalog on dataset-context presence; without it load_skill
+  # cannot resolve the name.
+
+  - id: compare-two-experiments
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: I ran two experiments on this dataset. Which prompt did better?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: compare_experiments
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Explicit cross-experiment comparison over a mounted dataset — the
+          core experiments-skill workflow.
+
+  - id: run-experiment-over-dataset
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Run my prompt over this dataset and tell me how it does.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: run_experiment
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Dataset-backed experiment run with a quality read-back. Maps to the
+          experiments skill's run-and-review loop.
+
+  - id: did-changes-improve
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Did my prompt change actually improve the results, or did it regress?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: regression_check
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Improvement-vs-regression question across experiment runs. Requires
+          reading and diffing experiment summaries — experiments skill.
+
+  - id: review-experiment-results
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Look at my latest experiment and find the recurring failure patterns.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: review_results
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Reviewing experiment outputs and annotations for failure patterns is
+          the experiments skill's review step.
+
+  - id: iterate-experiment-loop
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Help me iterate on this prompt against the dataset until the scores stop improving.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: iterate_loop
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Dataset-backed hypothesis/edit/run/compare loop. Medium because the
+          playground skill also touches iteration, but the dataset-scored loop
+          is the experiments skill's territory.
+
+  - id: which-experiment-cheaper-faster
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Between my two runs, which one is cheaper and faster without losing quality?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: tradeoff_compare
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Cross-experiment cost/latency/quality tradeoff — the three-axis read
+          the experiments skill owns.
+
+  # ===== Footprint regression: the experiments method is actually followed =====
+  # Given a primed experiment id and a compare question under the harness's
+  # bash/phoenix-gql toolset, the agent must read all three axes (quality
+  # annotations with explanation, latency, and cost) in its gql read. This binds
+  # to the known harness toolset on purpose; the skill itself stays
+  # tool-agnostic. Variants cover both summary-level and per-run reads.
+
+  - id: footprint-three-axis-read
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: >-
+            Read experiment RXhwZXJpbWVudDox on this dataset and tell me about its
+            quality, latency, and cost. Use the explanations behind the scores.
+    expected:
+      tools:
+        required: [bash]
+      bash_command:
+        - contains: [phoenix-gql, annotationSummaries, costSummary, latencyMs]
+        - contains: [phoenix-gql, annotations, explanation, costSummary, latencyMs]
+        - contains: [phoenix-gql, annotations, explanation, costSummary, averageLatencyMs]
+    metadata:
+      category: footprint_three_axis
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Footprint, not trigger: asserts the experiments method (read quality
+          annotations including per-run explanation, latency, and cost in one
+          gql pass) under the bash/phoenix-gql harness toolset. Variants allow
+          summary-level (annotationSummaries) or per-run (annotations +
+          explanation) reads and either latencyMs or averageLatencyMs.
+
+  # ===== Negative triggers: experiments skill should NOT fire =====
+  # Uses forbidden_tool_call_args so a legitimate load_skill for the correct
+  # sibling skill in the same turn does not fail the example.
+
+  - id: negative-rewrite-prompt-no-dataset
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Just rewrite this system prompt to be more concise.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      negative: true
+      category: negative_prompt_iteration
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Pure prompt rewrite with no dataset-backed loop. Routes to the
+          playground skill, not experiments. No dataset context mounted.
+
+  - id: negative-debug-agent-failures
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: What's going wrong with my agent's traces?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      negative: true
+      category: negative_trace_diagnosis
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Cross-trace failure diagnosis routes to debug-trace, not experiments,
+          even with a dataset mounted. Dataset presence must not pull the
+          experiments skill onto a trace-diagnosis ask.
+
+  - id: negative-author-judge-evaluator
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Write an LLM judge that scores whether the answer is grounded in the context.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      negative: true
+      category: negative_evaluator_authoring
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Authoring a judge routes to the evaluators skill, not experiments,
+          even though both surface on a mounted dataset.
+
+  - id: negative-average-score-closed-form
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: What's the average relevance score on my last experiment?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      negative: true
+      category: negative_closed_form_read
+      difficulty: tricky
+      polarity: negative
+      annotation:
+        agreement: medium
+        n_opinions: 3
+        notes: >-
+          Single closed-form statistic answerable with a direct phoenix-gql
+          read; does not need the experiments authoring/iteration methodology.
+          Medium because it mentions an experiment, which sits near the trigger
+          boundary.
+
+  - id: negative-tell-me-about-dataset
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: How many examples are in this dataset?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      negative: true
+      category: negative_dataset_metadata
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 3
+        notes: >-
+          Definitional dataset-size question, answerable with a direct read.
+          Not an experiment run, comparison, or review.

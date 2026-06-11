@@ -146,12 +146,27 @@ class PlaygroundEvaluatorContext(_ChatContextBase):
     is_applied: bool = Field(alias="isApplied")
 
 
+class PlaygroundExperimentScaffoldContext(_ChatContextBase):
+    """Name/description/metadata staged for the next dataset-backed run's experiments.
+
+    Each field is present only when the user has staged it; an absent field falls
+    back to the server default. The scaffold is consumed once the next run starts.
+    """
+
+    name: str | None = None
+    description: str | None = None
+    has_metadata: bool = Field(default=False, alias="hasMetadata")
+
+
 class PlaygroundContext(_ChatContextBase):
     """Playground prompt editor state mounted in the current browser route."""
 
     type: Literal["playground"]
     record_experiments: bool = Field(default=True, alias="recordExperiments")
     repetitions: int = 1
+    next_experiment_scaffold: PlaygroundExperimentScaffoldContext | None = Field(
+        default=None, alias="nextExperimentScaffold"
+    )
     instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
     evaluators: list[PlaygroundEvaluatorContext] = Field(default_factory=list)
 

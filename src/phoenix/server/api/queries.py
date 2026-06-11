@@ -1535,6 +1535,9 @@ class Query:
             has_llm_evaluator_context=bool(
                 resolved_input and resolved_input.has_llm_evaluator_context
             ),
+            has_code_evaluator_context=bool(
+                resolved_input and resolved_input.has_code_evaluator_context
+            ),
         )
         return [
             AgentSkill(

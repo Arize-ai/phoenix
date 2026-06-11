@@ -8,7 +8,7 @@ export const setPlaygroundExperimentRecordingAgentTool =
   defineClientActionTool<SetPlaygroundExperimentRecordingInput>({
     name: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
     parseInput: parseSetPlaygroundExperimentRecordingInput,
-    invalidInputErrorText: `Invalid ${SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME} input. Expected { recordExperiments: boolean }.`,
+    invalidInputErrorText: `Invalid ${SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME} input. Expected { recordExperiments: boolean, experimentName?: string, experimentDescription?: string, experimentMetadata?: object }.`,
     notMountedErrorText:
       "The playground is not mounted; cannot set playground experiment recording.",
     defaultSuccessOutput: "Playground experiment recording updated.",

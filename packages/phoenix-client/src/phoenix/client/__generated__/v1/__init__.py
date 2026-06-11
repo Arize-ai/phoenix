@@ -152,6 +152,8 @@ class Experiment(TypedDict):
     id: str
     dataset_id: str
     dataset_version_id: str
+    name: str
+    description: Optional[str]
     repetitions: int
     metadata: Mapping[str, Any]
     project_name: Optional[str]
@@ -330,6 +332,20 @@ class PlaygroundCustomProviderModelContext(TypedDict):
     customProviderName: str
     provider: str
     modelName: str
+
+
+class PlaygroundEvaluatorContext(TypedDict):
+    datasetEvaluatorId: str
+    name: str
+    kind: Literal["LLM", "CODE", "BUILTIN"]
+    isBuiltin: bool
+    isApplied: bool
+
+
+class PlaygroundExperimentScaffoldContext(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    hasMetadata: NotRequired[bool]
 
 
 class PlaygroundInstanceContext(TypedDict):
@@ -867,6 +883,16 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
+class UpdateExperimentRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
+class UpdateExperimentResponseBody(TypedDict):
+    data: Experiment
+
+
 class UpdateProjectRequestBody(TypedDict):
     description: NotRequired[str]
 
@@ -1238,7 +1264,9 @@ class PlaygroundContext(TypedDict):
     type: Literal["playground"]
     recordExperiments: NotRequired[bool]
     repetitions: NotRequired[int]
+    nextExperimentScaffold: NotRequired[PlaygroundExperimentScaffoldContext]
     instances: NotRequired[Sequence[PlaygroundInstanceContext]]
+    evaluators: NotRequired[Sequence[PlaygroundEvaluatorContext]]
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):

@@ -18,6 +18,7 @@ import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnn
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
 import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
   PendingPromptEdit,
@@ -418,6 +419,13 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pending: PendingDatasetWrite | null
   ) => void;
+  pendingPatchExperimentsByToolCallId: Partial<
+    Record<string, PendingPatchExperiment>
+  >;
+  setPendingPatchExperiment: (
+    toolCallId: string,
+    patch: PendingPatchExperiment | null
+  ) => void;
   pendingPromptToolWritesByToolCallId: Partial<
     Record<string, PendingPromptToolWrite>
   >;
@@ -488,6 +496,35 @@ function pruneSessionScopedRecord<T>({
 }
 
 /**
+ * Removes pending-tool records (keyed by tool-call id but carrying the owning
+ * `sessionId`) whose session is no longer retained, so a dropped session does
+ * not leak its unresolved proposals.
+ */
+function pruneToolCallRecordBySession<T extends { sessionId: string }>({
+  record,
+  retainedSessionIds,
+}: {
+  record: Partial<Record<string, T>>;
+  retainedSessionIds: Set<string>;
+}): Partial<Record<string, T>> {
+  return Object.fromEntries(
+    Object.entries(record).filter(
+      ([, value]) => value != null && retainedSessionIds.has(value.sessionId)
+    )
+  );
+}
+
+/** Removes pending-tool records owned by a single session. */
+function removeToolCallRecordForSession<T extends { sessionId: string }>(
+  record: Partial<Record<string, T>>,
+  sessionId: string
+): Partial<Record<string, T>> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
+  );
+}
+
+/**
  * Builds the persisted session-state patch after creating, pruning, or clearing
  * retained sessions, keeping sessionMap and related per-session UI state aligned.
  */
@@ -508,6 +545,7 @@ function buildSessionRetentionPatch({
   | "chatStatusBySessionId"
   | "pendingInputBySessionId"
   | "pendingMessageBySessionId"
+  | "pendingPatchExperimentsByToolCallId"
 > {
   const retainedSessionIdSet = new Set(retainedSessionIds);
   return {
@@ -531,6 +569,10 @@ function buildSessionRetentionPatch({
     }),
     pendingMessageBySessionId: pruneSessionScopedRecord({
       record: state.pendingMessageBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    pendingPatchExperimentsByToolCallId: pruneToolCallRecordBySession({
+      record: state.pendingPatchExperimentsByToolCallId,
       retainedSessionIds: retainedSessionIdSet,
     }),
   };
@@ -597,6 +639,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
+    pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
@@ -718,6 +761,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.pendingMessageBySessionId,
           };
           delete newPendingMessageBySessionId[sessionId];
+          const newPendingPatchExperimentsByToolCallId =
+            removeToolCallRecordForSession(
+              state.pendingPatchExperimentsByToolCallId,
+              sessionId
+            );
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
@@ -731,6 +779,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             chatStatusBySessionId: newChatStatusBySessionId,
             pendingInputBySessionId: newPendingInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
+            pendingPatchExperimentsByToolCallId:
+              newPendingPatchExperimentsByToolCallId,
           };
         },
         false,
@@ -885,6 +935,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           chatStatusBySessionId: {},
           pendingInputBySessionId: {},
           pendingMessageBySessionId: {},
+          pendingPatchExperimentsByToolCallId: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -1191,6 +1242,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingBatchSpanAnnotate" }
+      );
+    },
+
+    setPendingPatchExperiment: (toolCallId, patch) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPatchExperimentsByToolCallId };
+          if (patch) {
+            next[toolCallId] = patch;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPatchExperimentsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPatchExperiment" }
       );
     },
 

@@ -330,6 +330,9 @@ input AvailableAgentSkillsInput {
 
   """Whether an LLM evaluator is mounted in the current UI context."""
   hasLlmEvaluatorContext: Boolean! = false
+
+  """Whether a code evaluator is mounted in the current UI context."""
+  hasCodeEvaluatorContext: Boolean! = false
 }
 
 type AzureADTokenProvider {
@@ -2372,6 +2375,7 @@ type Mutation {
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
   reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
+  patchExperiment(input: PatchExperimentInput!): PatchExperimentPayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -2558,6 +2562,17 @@ input PatchDatasetSplitInput {
   description: String
   color: String
   metadata: JSON
+}
+
+input PatchExperimentInput {
+  experimentId: ID!
+  name: String
+  description: String
+  metadata: JSON
+}
+
+type PatchExperimentPayload {
+  experiment: Experiment!
 }
 
 input PatchGenerativeModelCustomProviderMutationInput {

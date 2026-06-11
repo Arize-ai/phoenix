@@ -50,41 +50,36 @@ dataset-backed evaluation loop is in scope.
 ## Workflow: Iterate Over A Dataset With Evaluators And Experiments
 
 Use this workflow when the user wants evidence that a prompt is improving across a dataset, or when
-they are comparing prompt variants using evaluator results.
+they are comparing prompt variants using evaluator results. This covers the playground mechanics of
+setting up and starting a recorded run; the `experiments` skill owns the methodology for reading and
+comparing the experiments that result, and the `evaluators` skill owns designing the evaluators that
+score them.
 
 1. Load the dataset with `load_dataset` if it isn't already loaded. If the user named a dataset but
    no split and the dataset has splits, name them and ask whether to scope to one or load the whole
    dataset — then load once.
-2. Confirm the dataset represents the task the prompt is meant to solve, including the important
-   input fields, expected outputs, and failure modes.
-3. Make sure the starting prompt is well formed before running it: it should define the task,
+2. Make sure the starting prompt is well formed before running it: it should define the task,
    relevant variables, output format, and any constraints needed for consistent evaluation.
-4. Use `set_playground_experiment_recording` before running when the user wants the next
-   dataset-backed playground run recorded, persisted, or saved as an experiment. Set it to false
-   only when the user explicitly asks for a temporary, throwaway, unrecorded, or ephemeral run.
-   This is separate from `save_prompt`, which saves prompt versions rather than run results.
-5. Use `set_playground_repetitions` before running when the user needs confidence across repeated
+3. Use `set_playground_experiment_recording` before running when the user wants the next
+   dataset-backed playground run recorded, persisted, or saved as an experiment, or wants to name,
+   describe, or attach metadata (such as a hypothesis or the variable being changed) to the next
+   experiment. Set `recordExperiments` to false only when the user explicitly asks for a temporary,
+   throwaway, unrecorded, or ephemeral run. Call this tool only when the requested recording mode or
+   scaffold fields differ from the advertised `recordExperiments` and `nextExperimentScaffold`
+   values; the staged scaffold applies to that one run and is consumed when it starts. This is
+   separate from `save_prompt`, which saves prompt versions rather than run results.
+4. Use `set_playground_repetitions` before running when the user needs confidence across repeated
    attempts, especially for flaky behavior, structured outputs, or tool-call correctness.
-6. Run the playground over the dataset. When recording is enabled, each prompt instance run over a
+5. Run the playground over the dataset. When recording is enabled, each prompt instance run over a
    dataset is captured as an experiment, with outputs and evaluator annotations available for
    review.
-7. Review the experiment outputs and annotations to find recurring failure patterns (see *Reading
-   experiment results* below for the `phoenix-gql` query); `read_playground_output` only reads
-   manual playground runs. Separate model randomness from prompt issues when possible.
-8. Use or add evaluators when they make issue detection more systematic, especially for failures
-   that are hard to spot by manual review alone.
-9. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance`,
-   `add_prompt_instance`, or `clone_prompt_instance` to create the next candidate. Choose
-   `add_prompt_instance` for a candidate that starts from the default prompt messages and
-   `clone_prompt_instance` for a candidate that should start from existing prompt content.
-10. Rerun the playground and compare experiments. Look for evaluator improvements, fewer repeated
-   failure modes, and acceptable tradeoffs in output quality.
-11. Use `save_prompt` to save a prompt as a new version only after the evidence shows an
-   improvement or the user explicitly accepts the tradeoff. For unsaved prompts, the tool can
-   create the Phoenix prompt directly without asking for a name unless the user cares about the
-   exact name.
-12. Continue the hypothesis, edit, run, compare loop until the dataset-backed results satisfy the
-   user's goal.
+6. To read the experiment results and decide whether a change helped, follow the `experiments`
+   skill; to create the next candidate, use `edit_prompt_instance`, `add_prompt_instance`, or
+   `clone_prompt_instance` (`add_prompt_instance` starts from the default prompt messages,
+   `clone_prompt_instance` from existing prompt content), then rerun.
+7. Use `save_prompt` to save a prompt as a new version only after the evidence shows an improvement
+   or the user explicitly accepts the tradeoff. For unsaved prompts, the tool can create the Phoenix
+   prompt directly without asking for a name unless the user cares about the exact name.
 
 ### Reading experiment results
 

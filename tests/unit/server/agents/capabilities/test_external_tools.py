@@ -3,6 +3,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_definition,
     load_dataset,
     open_dataset_evaluator_for_edit,
+    patch_experiment,
     read_dataset_evaluator_definition,
     set_appended_messages_path,
     set_dataset_evaluator_selection,
@@ -97,10 +98,18 @@ def test_set_playground_experiment_recording_parameters_expose_recording_flag() 
     schema = set_playground_experiment_recording.TOOL_DEFINITION.parameters_json_schema
 
     assert set_playground_experiment_recording.NAME == "set_playground_experiment_recording"
-    assert set(schema["properties"]) == {"recordExperiments"}
+    assert set(schema["properties"]) == {
+        "recordExperiments",
+        "experimentName",
+        "experimentDescription",
+        "experimentMetadata",
+    }
     assert schema["required"] == ["recordExperiments"]
     assert schema["additionalProperties"] is False
     assert schema["properties"]["recordExperiments"]["type"] == "boolean"
+    assert schema["properties"]["experimentName"]["type"] == "string"
+    assert schema["properties"]["experimentDescription"]["type"] == "string"
+    assert schema["properties"]["experimentMetadata"]["type"] == "object"
 
 
 def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> None:
@@ -119,6 +128,45 @@ def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> N
         assert "anyOf" not in schema
         assert "allOf" not in schema
         assert "not" not in schema
+
+
+def test_patch_experiment_is_registered_as_external_tool() -> None:
+    tool_definition = get_external_tool_definition("patch_experiment")
+
+    assert tool_definition is not None
+    assert tool_definition.kind == "external"
+    assert patch_experiment.NAME == "patch_experiment"
+
+
+def test_patch_experiment_parameters_require_only_experiment_id() -> None:
+    """Pin the model-facing parameter contract: experimentId required, the rest
+    optional, and no top-level combinators."""
+    schema = patch_experiment.TOOL_DEFINITION.parameters_json_schema
+
+    assert schema["type"] == "object"
+    assert schema["required"] == ["experimentId"]
+    assert set(schema["properties"]) == {
+        "experimentId",
+        "name",
+        "description",
+        "metadata",
+    }
+    # description is the only nullable field; metadata is a plain object (whole replace).
+    assert schema["properties"]["description"]["type"] == ["string", "null"]
+    assert schema["properties"]["metadata"]["type"] == "object"
+    assert schema["additionalProperties"] is False
+
+
+def test_patch_experiment_instructions_teach_observations_append_convention() -> None:
+    """Pin the instruction structure, not its prose: the template must teach the
+    whole-metadata-replace foot-gun and the observations append, and must not use
+    'lab notebook' anywhere."""
+    rendered = AgentPrompts().patch_experiment_tool.render()
+
+    assert '<tool name="patch_experiment">' in rendered
+    assert "observations" in rendered
+    assert "as a whole" in rendered
+    assert "lab notebook" not in rendered.lower()
 
 
 def test_get_route_info_is_registered_as_external_tool() -> None:

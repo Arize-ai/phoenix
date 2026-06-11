@@ -2801,6 +2801,8 @@ async def test_available_agent_skills_base_catalog(
     assert "debug-trace" in names
     assert "annotate-spans" in names
     assert "playground" not in names
+    assert "experiments" not in names
+    assert "evaluators" not in names
     assert "llm-evaluator-authoring" not in names
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
@@ -2830,4 +2832,33 @@ async def test_available_agent_skills_dataset_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "llm-evaluator-authoring" in names
+    assert "experiments" in names
+    assert "evaluators" in names
+
+
+async def test_available_agent_skills_llm_evaluator_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasLlmEvaluatorContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    assert "evaluators" in names
+    assert "experiments" not in names
+
+
+async def test_available_agent_skills_code_evaluator_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasCodeEvaluatorContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    assert "evaluators" in names
+    assert "experiments" not in names
