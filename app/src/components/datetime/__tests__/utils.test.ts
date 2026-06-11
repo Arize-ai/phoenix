@@ -14,49 +14,21 @@ describe("datetime utils", () => {
     vi.useRealTimers();
   });
 
-  it("keeps last-N ranges open-ended", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-09T10:00:30.000Z"));
-
-    const timeRange = getTimeRangeFromLastNTimeRangeKey("15m");
-
-    expect(timeRange.start?.toISOString()).toBe("2026-06-09T09:45:00.000Z");
-    expect(timeRange.end).toBeNull();
-  });
-
-  it("refreshes minute-based last-N ranges at the next minute boundary", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-09T10:00:30.000Z"));
-
-    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("15m")).toBe(30_000);
-    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("1h")).toBe(30_000);
-  });
-
-  it("refreshes hour-based last-N ranges at the next hour boundary", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-09T10:15:30.000Z"));
-
-    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("12h")).toBe(
-      2_670_000
-    );
-    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("7d")).toBe(2_670_000);
-  });
-
-  it("computes arbitrary last-N keys, snapping by window length", () => {
+  it("computes open-ended last-N ranges, snapping and refreshing by window length", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-09T10:20:30.000Z"));
 
-    // Windows up to an hour snap to the minute
+    // Windows up to an hour (inclusive) snap and refresh to the minute
     const minutes = getTimeRangeFromLastNTimeRangeKey("25m");
     expect(minutes.start?.toISOString()).toBe("2026-06-09T09:55:00.000Z");
     expect(minutes.end).toBeNull();
+    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("25m")).toBe(30_000);
+    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("1h")).toBe(30_000);
 
-    // Longer windows snap to the hour
+    // Longer windows snap and refresh to the hour
     const hours = getTimeRangeFromLastNTimeRangeKey("2h");
     expect(hours.start?.toISOString()).toBe("2026-06-09T08:00:00.000Z");
     expect(hours.end).toBeNull();
-
-    expect(getMillisecondsUntilNextLastNTimeRangeRefresh("25m")).toBe(30_000);
     expect(getMillisecondsUntilNextLastNTimeRangeRefresh("2h")).toBe(2_370_000);
   });
 

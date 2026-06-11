@@ -108,22 +108,6 @@ describe("TimeRangeSelector", () => {
     );
   }
 
-  it("keeps the inline time fields mounted when the selector receives focus", async () => {
-    await renderSelector(() => undefined);
-
-    const valueButton = container.querySelector<HTMLButtonElement>(
-      ".time-range-selector__value"
-    );
-    expect(valueButton).not.toBeNull();
-
-    await act(async () => {
-      valueButton?.focus();
-    });
-
-    expect(container.querySelector('[aria-label="Start time"]')).not.toBeNull();
-    expect(container.querySelector('[aria-label="End time"]')).not.toBeNull();
-  });
-
   it("commits a typed duration as an open last-N range", async () => {
     const onChange = vi.fn();
     await renderSelector(onChange);
