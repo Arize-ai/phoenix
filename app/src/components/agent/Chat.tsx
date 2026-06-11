@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useLayoutEffect,
   type PropsWithChildren,
   useState,
 } from "react";
@@ -332,6 +333,7 @@ export function ChatView({
   children,
   emptyStateSubtext,
   emptyStateQuickActions,
+  autoFocusInput = false,
 }: PropsWithChildren<{
   sessionId?: string | null;
   messages: AgentUIMessage[];
@@ -356,6 +358,7 @@ export function ChatView({
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
+  autoFocusInput?: boolean;
 }>) {
   const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom, stopScroll } =
@@ -507,6 +510,23 @@ export function ChatView({
       }
     }
   };
+
+  useLayoutEffect(() => {
+    if (
+      !autoFocusInput ||
+      !hasAcknowledgedConsent ||
+      pendingElicitation ||
+      rewindRequest
+    ) {
+      return;
+    }
+    textareaRef.current?.focus();
+  }, [
+    autoFocusInput,
+    hasAcknowledgedConsent,
+    pendingElicitation,
+    rewindRequest,
+  ]);
 
   return (
     <ElicitationDraftProvider draft={resolvedElicitationDraft}>
