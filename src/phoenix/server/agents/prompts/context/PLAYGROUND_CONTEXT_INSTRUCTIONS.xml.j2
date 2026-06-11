@@ -21,6 +21,9 @@
     Call `set_dataset_evaluator_selection` when the user wants to choose which existing dataset evaluators run in the experiment, `read_dataset_evaluator_definition` to inspect one or a few existing evaluators' full bodies by id before comparing, selecting, or editing them, and `open_dataset_evaluator_for_edit` when the user wants to change an existing code or LLM evaluator's configuration.
     Call `cancel_playground_run` when the user wants to stop an active playground run, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state.
     For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.
+{% if dataset %}
+    Running a prompt over the loaded dataset is implicitly an experiment: `load_skill` the `experiments` skill before designing a dataset run or reading experiment results, if it is not already loaded.
+{% endif %}
   </guidance>
   <dataset_evaluator_authoring>
 {% if dataset %}

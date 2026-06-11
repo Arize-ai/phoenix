@@ -1,7 +1,7 @@
 ---
 name: experiments
 description: >
-  Run, read, and compare dataset-backed experiments to find evidence that a prompt or pipeline is improving. Trigger when the user wants to iterate over a dataset with experiments, compare experiment runs, read experiment quality/latency/cost, or decide whether a change actually helped. Do NOT trigger on: (1) manual prompt drafting with no dataset-backed evaluation in scope (use `playground`), (2) authoring or refining an evaluator's logic or rubric (use `evaluators`), (3) cross-trace failure diagnosis with no experiment in scope (use `debug-trace`).
+  Run, read, and compare dataset-backed experiments to find evidence that a prompt or pipeline is improving. Trigger when the user wants to iterate over a dataset with experiments, compare experiment runs, read experiment quality/latency/cost, or decide whether a change actually helped. Running a prompt over a dataset is implicitly an experiment — load this skill when dataset-backed work begins, before authoring evaluators for the experiment and before starting the recorded run, not only when reading results. Do NOT trigger on: (1) manual prompt drafting with no dataset-backed evaluation in scope (use `playground`), (2) authoring or refining an evaluator's logic or rubric (use `evaluators`), (3) cross-trace failure diagnosis with no experiment in scope (use `debug-trace`).
 summary: Iterate over a dataset with experiments — run, read results across quality, latency, and cost, and compare candidates to drive improvement.
 ---
 

@@ -50,10 +50,12 @@ dataset-backed evaluation loop is in scope.
 ## Workflow: Iterate Over A Dataset With Evaluators And Experiments
 
 Use this workflow when the user wants evidence that a prompt is improving across a dataset, or when
-they are comparing prompt variants using evaluator results. This covers the playground mechanics of
-setting up and starting a recorded run; the `experiments` skill owns the methodology for reading and
-comparing the experiments that result, and the `evaluators` skill owns designing the evaluators that
-score them.
+they are comparing prompt variants using evaluator results. Running a prompt over a dataset is
+implicitly an experiment: consult the `experiments` skill before designing the run, not only after
+results arrive — it owns the iteration methodology end to end (what to stage at creation, how to
+read and compare results, when an evaluator is warranted), and the `evaluators` skill owns designing
+the evaluators that score them. This workflow covers only the playground mechanics of setting up and
+starting a recorded run.
 
 1. Load the dataset with `load_dataset` if it isn't already loaded. If the user named a dataset but
    no split and the dataset has splits, name them and ask whether to scope to one or load the whole

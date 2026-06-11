@@ -6,9 +6,11 @@ description: >-
   dataset-backed experiments (positive cases), and correctly avoids triggering
   the skill for pure prompt iteration, trace diagnosis, evaluator authoring,
   and closed-form data reads that route to a sibling skill or no skill
-  (negative cases). One regression footprint example asserts that, given a
-  compare question, the agent reads quality, latency, and cost together via a
-  phoenix-gql read.
+  (negative cases). Two cases guard load timing: a mid-pipeline transition
+  (results read right after a recorded run) and load-order (evaluator authoring
+  in service of a planned experiment still loads experiments). One regression
+  footprint example asserts that, given a compare question, the agent reads
+  quality, latency, and cost together via a phoenix-gql read.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
@@ -178,6 +180,82 @@ examples:
         notes: >-
           Cross-experiment cost/latency/quality tradeoff — the three-axis read
           the experiments skill owns.
+
+  - id: read-results-mid-pipeline
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Run my prompt over the dataset and record it as an experiment.
+        - role: assistant
+          tool_calls:
+            - id: r1
+              name: run_playground
+              args: {}
+        - role: tool
+          tool_call_id: r1
+          name: run_playground
+          content: '{"status":"completed","datasetRun":true,"instances":[{"instanceId":101,"experimentId":"RXhwZXJpbWVudDoxMA=="}]}'
+        - role: user
+          content: Nice — how did it do? Did anything regress compared to the baseline?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: workflow_transition
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Mid-pipeline trigger: the agent just ran a recorded experiment and the
+          user pivots to reading results. Field-observed miss (2026-06-11): an
+          agent in run momentum read results without loading the skill.
+          Lead-annotated extension; expected block mirrors the sibling
+          positives' shape verbatim, so the full annotation fan-out was skipped.
+
+  - id: evaluator-for-planned-experiment
+    splits: [regression]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: >-
+            Set up a safety evaluator for this dataset and run an experiment to
+            check whether my new system prompt is actually safer.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: experiments
+    metadata:
+      category: load_order
+      difficulty: tricky
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Ordering case: evaluator authoring in service of a planned experiment
+          must load experiments (any-of matching means loading evaluators too is
+          fine — the assertion is that experiments is among the loads).
+          Distinct from negative-author-judge-evaluator, which carries no
+          experiment intent. Lead-annotated extension; expected block mirrors
+          sibling positives, full fan-out skipped.
 
   # ===== Footprint regression: the experiments method is actually followed =====
   # Given a primed experiment id and a compare question under the harness's
