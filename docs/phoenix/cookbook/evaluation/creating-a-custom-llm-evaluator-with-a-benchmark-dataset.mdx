@@ -33,7 +33,7 @@ We will go through key code snippets on this page. To run the full tutorial end-
 
 ## Generate Receipt Extraction Traces
 
-In this tutorial, we’ll ask an LLM to generate expense reports from receipt images provided as public URLs. Running the cells below will generate traces, which you can explore directly in Phoenix for annotation. We’ll use GPT-4.1, which supports image inputs.
+In this tutorial, we’ll ask an LLM to generate expense reports from receipt images provided as public URLs. Running the cells below will generate traces, which you can explore directly in Phoenix for annotation. We’ll use GPT-5.5, which supports image inputs.
 
 <Info>
 The sample images below are public receipt photos from the [Wikimedia Commons Receipts category](https://commons.wikimedia.org/wiki/Category:Receipts) (Creative Commons licensed). Swap in your own receipt URLs to build traces for your use case.
@@ -68,7 +68,7 @@ client = OpenAI()
 
 def extract_receipt_data(input):
   response = client.chat.completions.create(
-    model="gpt-4.1",
+    model="gpt-5.5",
     messages=[
         {
             "role": "user",
@@ -175,7 +175,7 @@ Evaluate whether the expense report is complete and well-structured. Assign one 
 ```py expandable
 from phoenix.evals import LLM, ClassificationEvaluator
 
-llm = LLM(provider="openai", model="gpt-4o")
+llm = LLM(provider="openai", model="gpt-5.5")
 receipt_evaluator = ClassificationEvaluator(
     name="receipt_accuracy",
     prompt_template=prompt_template,
