@@ -2,7 +2,10 @@ from phoenix.server.agents.capabilities.tools.external import (
     _EXTERNAL_TOOL_DEFINITIONS_BY_NAME,
     get_external_tool_definition,
     load_dataset,
+    open_dataset_evaluator_for_edit,
+    read_dataset_evaluator_definition,
     set_appended_messages_path,
+    set_dataset_evaluator_selection,
     set_playground_experiment_recording,
     set_template_variables_path,
 )
@@ -135,3 +138,60 @@ def test_cancel_playground_run_is_registered_as_external_tool() -> None:
         "properties": {},
         "additionalProperties": False,
     }
+
+
+def test_set_dataset_evaluator_selection_parameters_take_whole_set_of_ids() -> None:
+    schema = set_dataset_evaluator_selection.TOOL_DEFINITION.parameters_json_schema
+
+    assert set_dataset_evaluator_selection.NAME == "set_dataset_evaluator_selection"
+    assert set(schema["properties"]) == {"datasetEvaluatorIds"}
+    assert schema["required"] == ["datasetEvaluatorIds"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["datasetEvaluatorIds"]["type"] == "array"
+
+
+def test_open_dataset_evaluator_for_edit_parameters_take_single_id() -> None:
+    schema = open_dataset_evaluator_for_edit.TOOL_DEFINITION.parameters_json_schema
+
+    assert open_dataset_evaluator_for_edit.NAME == "open_dataset_evaluator_for_edit"
+    assert set(schema["properties"]) == {"datasetEvaluatorId"}
+    assert schema["required"] == ["datasetEvaluatorId"]
+    assert schema["additionalProperties"] is False
+    assert schema["properties"]["datasetEvaluatorId"]["type"] == "string"
+
+
+def test_read_dataset_evaluator_definition_parameters_take_bounded_id_array() -> None:
+    schema = read_dataset_evaluator_definition.TOOL_DEFINITION.parameters_json_schema
+
+    assert read_dataset_evaluator_definition.NAME == "read_dataset_evaluator_definition"
+    assert set(schema["properties"]) == {"datasetEvaluatorIds"}
+    assert schema["required"] == ["datasetEvaluatorIds"]
+    assert schema["additionalProperties"] is False
+    ids = schema["properties"]["datasetEvaluatorIds"]
+    assert ids["type"] == "array"
+    assert ids["minItems"] == 1
+    assert ids["maxItems"] == read_dataset_evaluator_definition.MAX_EVALUATOR_IDS
+
+
+def test_set_dataset_evaluator_selection_instructions_pin_whole_set_contract() -> None:
+    rendered = AgentPrompts().set_dataset_evaluator_selection_tool.render()
+
+    assert '<tool name="set_dataset_evaluator_selection">' in rendered
+    assert "datasetEvaluatorIds" in rendered
+
+
+def test_open_dataset_evaluator_for_edit_instructions_pin_builtin_and_collision_guards() -> None:
+    rendered = AgentPrompts().open_dataset_evaluator_for_edit_tool.render()
+
+    assert '<tool name="open_dataset_evaluator_for_edit">' in rendered
+    assert "datasetEvaluatorId" in rendered
+    assert "built-in" in rendered
+    assert "close the open form" in rendered
+
+
+def test_read_dataset_evaluator_definition_instructions_pin_read_only_contract() -> None:
+    rendered = AgentPrompts().read_dataset_evaluator_definition_tool.render()
+
+    assert '<tool name="read_dataset_evaluator_definition">' in rendered
+    assert "datasetEvaluatorIds" in rendered
+    assert "truncated" in rendered

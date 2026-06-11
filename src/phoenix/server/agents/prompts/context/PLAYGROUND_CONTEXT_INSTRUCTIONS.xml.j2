@@ -13,6 +13,7 @@
     Call `list_playground_model_targets` before suggesting or listing available playground models, `set_playground_model` to switch an instance's model immediately, and `set_variable_values` when the user wants to populate manual playground variable inputs.
     Call `set_template_variables_path` when a prompt needs dataset fields outside the default `input` root (`reference`, `metadata`, or the whole example) — variable names resolve relative to the chosen path, so pair it with `edit_prompt_instance` to rename references that no longer match.
     Call `set_appended_messages_path` when the user wants to append or clear a dataset message-list for message-based dataset re-runs, `set_playground_experiment_recording` before `run_playground` only when the user wants the next dataset-backed run recorded or unrecorded and the current `recordExperiments` value does not already match that request, `set_playground_repetitions` before `run_playground` when the user wants repeated runs for confidence, flake checks, structured output validation, or tool-call validation, and `run_playground` when the user wants to run the mounted playground.
+    Call `set_dataset_evaluator_selection` when the user wants to choose which existing dataset evaluators run in the experiment, `read_dataset_evaluator_definition` to inspect one or a few existing evaluators' full bodies by id before comparing, selecting, or editing them, and `open_dataset_evaluator_for_edit` when the user wants to change an existing code or LLM evaluator's configuration.
     Call `cancel_playground_run` when the user wants to stop an active playground run, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state.
     For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.
   </guidance>
@@ -31,4 +32,14 @@
     If the user asks to create a code evaluator for experiment scoring, ask them to load a dataset first. Do not give a manual form walkthrough or propose evaluator source code until a dataset context is available.
 {% endif %}
   </dataset_evaluator_authoring>
+  <existing_dataset_evaluators>
+{% if playground.evaluators %}
+    These evaluators already exist on the loaded dataset. Only id, name, kind, and flags are listed here — not the body. Reference them by name; pass the `datasetEvaluatorId` when calling tools. `applied="true"` means the evaluator runs in the next experiment. To read an evaluator's full definition (source, judge messages, or built-in config), call `read_dataset_evaluator_definition` with the id(s) you need. To change which evaluators run, call `set_dataset_evaluator_selection` with the complete desired set of ids — it replaces the current selection wholesale. To change an existing evaluator's configuration, call `open_dataset_evaluator_for_edit` with its id, then use the draft tools that appear. Only code and LLM evaluators are agent-editable; built-in evaluators (`builtin="true"`) can be selected and read but not yet edited via the agent.
+{% for evaluator in playground.evaluators %}
+    <evaluator datasetEvaluatorId="{{ safe_attr(evaluator.dataset_evaluator_id) }}" name="{{ safe_attr(evaluator.name) }}" kind="{{ evaluator.kind }}" builtin="{{ evaluator.is_builtin | lower }}" applied="{{ evaluator.is_applied | lower }}"/>
+{% endfor %}
+{% else %}
+    The loaded dataset has no evaluators yet. To score experiments, author one with the create-evaluator flow above before selecting or editing.
+{% endif %}
+  </existing_dataset_evaluators>
 </phoenix_playground_context>

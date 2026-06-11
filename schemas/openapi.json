@@ -11167,6 +11167,13 @@
             },
             "type": "array",
             "title": "Instances"
+          },
+          "evaluators": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundEvaluatorContext"
+            },
+            "type": "array",
+            "title": "Evaluators"
           }
         },
         "type": "object",
@@ -11210,6 +11217,45 @@
         ],
         "title": "PlaygroundCustomProviderModelContext",
         "description": "Custom-provider playground model selection."
+      },
+      "PlaygroundEvaluatorContext": {
+        "properties": {
+          "datasetEvaluatorId": {
+            "type": "string",
+            "title": "Datasetevaluatorid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "LLM",
+              "CODE",
+              "BUILTIN"
+            ],
+            "title": "Kind"
+          },
+          "isBuiltin": {
+            "type": "boolean",
+            "title": "Isbuiltin"
+          },
+          "isApplied": {
+            "type": "boolean",
+            "title": "Isapplied"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasetEvaluatorId",
+          "name",
+          "kind",
+          "isBuiltin",
+          "isApplied"
+        ],
+        "title": "PlaygroundEvaluatorContext",
+        "description": "One dataset evaluator on the mounted playground's roster. ``name`` is\nuser-controlled; sanitize at every model-visible boundary."
       },
       "PlaygroundInstanceContext": {
         "properties": {

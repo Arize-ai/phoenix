@@ -3177,6 +3177,8 @@ export interface components {
             repetitions?: number;
             /** Instances */
             instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            /** Evaluators */
+            evaluators?: components["schemas"]["PlaygroundEvaluatorContext"][];
         };
         /**
          * PlaygroundCustomProviderModelContext
@@ -3196,6 +3198,26 @@ export interface components {
             provider: string;
             /** Modelname */
             modelName: string;
+        };
+        /**
+         * PlaygroundEvaluatorContext
+         * @description One dataset evaluator on the mounted playground's roster. ``name`` is
+         *     user-controlled; sanitize at every model-visible boundary.
+         */
+        PlaygroundEvaluatorContext: {
+            /** Datasetevaluatorid */
+            datasetEvaluatorId: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE" | "BUILTIN";
+            /** Isbuiltin */
+            isBuiltin: boolean;
+            /** Isapplied */
+            isApplied: boolean;
         };
         /**
          * PlaygroundInstanceContext

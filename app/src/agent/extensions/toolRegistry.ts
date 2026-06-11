@@ -25,6 +25,9 @@ import {
   deleteDatasetAgentTool,
   patchDatasetAgentTool,
 } from "@phoenix/agent/tools/datasetEdit";
+import { readDatasetEvaluatorDefinitionAgentTool } from "@phoenix/agent/tools/datasetEvaluatorDefinition";
+import { openDatasetEvaluatorForEditAgentTool } from "@phoenix/agent/tools/datasetEvaluatorForEdit";
+import { setDatasetEvaluatorSelectionAgentTool } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import {
   addDatasetExamplesAgentTool,
   deleteDatasetExamplesAgentTool,
@@ -121,6 +124,9 @@ const clientActionTools: AgentToolDefinition[] = [
   setPlaygroundRepetitionsAgentTool,
   setTemplateVariablesPathAgentTool,
   setAppendedMessagesPathAgentTool,
+  setDatasetEvaluatorSelectionAgentTool,
+  openDatasetEvaluatorForEditAgentTool,
+  readDatasetEvaluatorDefinitionAgentTool,
   openCodeEvaluatorFormAgentTool,
   readCodeEvaluatorDraftAgentTool,
   editCodeEvaluatorDraftAgentTool,

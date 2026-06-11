@@ -17,6 +17,7 @@ import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import type { PlaygroundDatasetSection_evaluator$data } from "@phoenix/pages/playground/__generated__/PlaygroundDatasetSection_evaluator.graphql";
 import type { PlaygroundEvaluatorSelect_query$key } from "@phoenix/pages/playground/__generated__/PlaygroundEvaluatorSelect_query.graphql";
 import { PlaygroundDatasetSelect } from "@phoenix/pages/playground/PlaygroundDatasetSelect";
+import type { EditingEvaluator } from "@phoenix/pages/playground/playgroundEvaluatorEditing";
 import { PlaygroundEvaluatorSelect } from "@phoenix/pages/playground/PlaygroundEvaluatorSelect";
 import { PlaygroundExperimentSettingsButton } from "@phoenix/pages/playground/PlaygroundExperimentSettingsButton";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -35,6 +36,8 @@ type PlaygroundExperimentToolbarProps = {
   onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
   isLlmEvaluatorFormOpen: boolean;
   onLlmEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  editingEvaluator: EditingEvaluator | null;
+  onEditingEvaluatorChange: (editing: EditingEvaluator | null) => void;
 };
 
 export function PlaygroundExperimentToolbar({
@@ -49,6 +52,8 @@ export function PlaygroundExperimentToolbar({
   onCodeEvaluatorFormOpenChange,
   isLlmEvaluatorFormOpen,
   onLlmEvaluatorFormOpenChange,
+  editingEvaluator,
+  onEditingEvaluatorChange,
 }: PlaygroundExperimentToolbarProps) {
   const instances = usePlaygroundContext((state) => state.instances);
   const recordExperiments = usePlaygroundContext(
@@ -124,6 +129,8 @@ export function PlaygroundExperimentToolbar({
             onCodeEvaluatorFormOpenChange={onCodeEvaluatorFormOpenChange}
             isLlmEvaluatorFormOpen={isLlmEvaluatorFormOpen}
             onLlmEvaluatorFormOpenChange={onLlmEvaluatorFormOpenChange}
+            editingEvaluator={editingEvaluator}
+            onEditingEvaluatorChange={onEditingEvaluatorChange}
           />
           <PlaygroundDatasetSelect isDisabled={isRunning} />
           <PlaygroundExperimentSettingsButton

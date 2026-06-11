@@ -36,6 +36,7 @@ from phoenix.server.agents.context import (
     LlmEvaluatorContext,
     PlaygroundBuiltinModelContext,
     PlaygroundContext,
+    PlaygroundEvaluatorContext,
     PlaygroundInstanceContext,
     ProjectContext,
     ResolvedContexts,
@@ -1558,3 +1559,148 @@ class TestWebAccessCapabilities:
         native_tool_types = self._get_native_tool_types(model_without_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
+
+
+class TestDatasetEvaluatorSelectAndEditToolGates:
+    @staticmethod
+    def _roster_playground(
+        evaluators: list[PlaygroundEvaluatorContext],
+    ) -> PlaygroundContext:
+        return PlaygroundContext(
+            type="playground",
+            instances=[PlaygroundInstanceContext(instance_id=1)],
+            evaluators=evaluators,
+        )
+
+    @staticmethod
+    def _code_evaluator() -> PlaygroundEvaluatorContext:
+        return PlaygroundEvaluatorContext(
+            dataset_evaluator_id="RXY6MQ==",
+            name="Exact Match",
+            kind="CODE",
+            is_builtin=False,
+            is_applied=True,
+        )
+
+    @staticmethod
+    def _builtin_evaluator() -> PlaygroundEvaluatorContext:
+        return PlaygroundEvaluatorContext(
+            dataset_evaluator_id="RXY6Mg==",
+            name="Hallucination",
+            kind="BUILTIN",
+            is_builtin=True,
+            is_applied=False,
+        )
+
+    async def test_both_tools_advertised_with_editable_roster(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([self._code_evaluator()]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" in tool_names
+        assert "open_dataset_evaluator_for_edit" in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
+
+    async def test_edit_open_absent_when_only_builtin_evaluators(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground(
+                    [
+                        self._builtin_evaluator(),
+                        PlaygroundEvaluatorContext(
+                            dataset_evaluator_id="RXY6Mw==",
+                            name="Builtin Code",
+                            kind="CODE",
+                            is_builtin=True,
+                            is_applied=True,
+                        ),
+                    ]
+                ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+
+    async def test_both_tools_absent_for_empty_roster(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" not in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names
+
+    async def test_write_tools_hidden_for_viewer_but_read_remains(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([self._code_evaluator()]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        # Selection and edit-open mutate state, so they stay viewer-gated; reading
+        # a definition is a pure read and remains available to viewers.
+        assert "set_dataset_evaluator_selection" not in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
+
+    async def test_both_tools_hidden_without_dataset(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([self._code_evaluator()]),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" not in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names

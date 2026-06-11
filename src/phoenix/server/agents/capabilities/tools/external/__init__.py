@@ -37,11 +37,13 @@ from phoenix.server.agents.capabilities.tools.external import (
     list_splits,
     load_dataset,
     open_code_evaluator_form,
+    open_dataset_evaluator_for_edit,
     open_llm_evaluator_form,
     patch_dataset,
     patch_dataset_examples,
     patch_dataset_split,
     read_code_evaluator_draft,
+    read_dataset_evaluator_definition,
     read_llm_evaluator_draft,
     read_playground_output,
     read_prompt_instance,
@@ -53,6 +55,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     run_playground,
     save_prompt,
     set_appended_messages_path,
+    set_dataset_evaluator_selection,
     set_dataset_example_splits,
     set_dataset_labels,
     set_playground_experiment_recording,
@@ -146,6 +149,9 @@ from phoenix.server.agents.capabilities.tools.external.load_dataset import (
 from phoenix.server.agents.capabilities.tools.external.open_code_evaluator_form import (
     OpenCodeEvaluatorFormCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.open_dataset_evaluator_for_edit import (
+    OpenDatasetEvaluatorForEditCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.open_llm_evaluator_form import (
     OpenLlmEvaluatorFormCapability,
 )
@@ -160,6 +166,9 @@ from phoenix.server.agents.capabilities.tools.external.patch_dataset_split impor
 )
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.read_dataset_evaluator_definition import (
+    ReadDatasetEvaluatorDefinitionCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_llm_evaluator_draft import (
     ReadLlmEvaluatorDraftCapability,
@@ -191,6 +200,9 @@ from phoenix.server.agents.capabilities.tools.external.run_playground import (
 from phoenix.server.agents.capabilities.tools.external.save_prompt import SavePromptCapability
 from phoenix.server.agents.capabilities.tools.external.set_appended_messages_path import (
     SetAppendedMessagesPathCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.set_dataset_evaluator_selection import (
+    SetDatasetEvaluatorSelectionCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.set_dataset_example_splits import (
     SetDatasetExampleSplitsCapability,
@@ -266,8 +278,10 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         get_route_info.TOOL_DEFINITION,
         load_dataset.TOOL_DEFINITION,
         open_code_evaluator_form.TOOL_DEFINITION,
+        open_dataset_evaluator_for_edit.TOOL_DEFINITION,
         open_llm_evaluator_form.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
+        read_dataset_evaluator_definition.TOOL_DEFINITION,
         read_llm_evaluator_draft.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
         read_prompt_tools.TOOL_DEFINITION,
@@ -282,6 +296,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         run_playground.TOOL_DEFINITION,
         save_prompt.TOOL_DEFINITION,
         set_appended_messages_path.TOOL_DEFINITION,
+        set_dataset_evaluator_selection.TOOL_DEFINITION,
         set_playground_experiment_recording.TOOL_DEFINITION,
         set_playground_model.TOOL_DEFINITION,
         set_playground_repetitions.TOOL_DEFINITION,
@@ -360,6 +375,15 @@ def get_external_tool_capability_function(
         SetTemplateVariablesPathCapability(instructions=prompts.set_template_variables_path_tool),
         SetAppendedMessagesPathCapability(instructions=prompts.set_appended_messages_path_tool),
         LoadDatasetCapability(instructions=prompts.load_dataset_tool),
+        SetDatasetEvaluatorSelectionCapability(
+            instructions=prompts.set_dataset_evaluator_selection_tool
+        ),
+        OpenDatasetEvaluatorForEditCapability(
+            instructions=prompts.open_dataset_evaluator_for_edit_tool
+        ),
+        ReadDatasetEvaluatorDefinitionCapability(
+            instructions=prompts.read_dataset_evaluator_definition_tool
+        ),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
@@ -413,8 +437,10 @@ __all__ = [
     "ListPlaygroundModelTargetsCapability",
     "LoadDatasetCapability",
     "OpenCodeEvaluatorFormCapability",
+    "OpenDatasetEvaluatorForEditCapability",
     "OpenLlmEvaluatorFormCapability",
     "ReadCodeEvaluatorDraftCapability",
+    "ReadDatasetEvaluatorDefinitionCapability",
     "ReadLlmEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",
     "ReadPromptToolsCapability",
@@ -424,6 +450,7 @@ __all__ = [
     "RunPlaygroundCapability",
     "SavePromptCapability",
     "SetAppendedMessagesPathCapability",
+    "SetDatasetEvaluatorSelectionCapability",
     "SetPlaygroundExperimentRecordingCapability",
     "SetPlaygroundModelCapability",
     "SetPlaygroundRepetitionsCapability",

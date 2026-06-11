@@ -135,6 +135,17 @@ class PlaygroundInstanceContext(_ChatContextBase):
     experiment_id: str | None = Field(default=None, alias="experimentId")
 
 
+class PlaygroundEvaluatorContext(_ChatContextBase):
+    """One dataset evaluator on the mounted playground's roster. ``name`` is
+    user-controlled; sanitize at every model-visible boundary."""
+
+    dataset_evaluator_id: str = Field(alias="datasetEvaluatorId")
+    name: str
+    kind: Literal["LLM", "CODE", "BUILTIN"]
+    is_builtin: bool = Field(alias="isBuiltin")
+    is_applied: bool = Field(alias="isApplied")
+
+
 class PlaygroundContext(_ChatContextBase):
     """Playground prompt editor state mounted in the current browser route."""
 
@@ -142,6 +153,7 @@ class PlaygroundContext(_ChatContextBase):
     record_experiments: bool = Field(default=True, alias="recordExperiments")
     repetitions: int = 1
     instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
+    evaluators: list[PlaygroundEvaluatorContext] = Field(default_factory=list)
 
 
 class CodeEvaluatorContext(_ChatContextBase):
