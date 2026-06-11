@@ -1,5 +1,26 @@
 # Changelog
 
+## [17.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.3.0...arize-phoenix-v17.4.0) (2026-06-11)
+
+
+### Features
+
+* **agents:** Add local slash commands to chat menu ([#13683](https://github.com/Arize-ai/phoenix/issues/13683)) ([fbd013a](https://github.com/Arize-ai/phoenix/commit/fbd013a04aad532819d4d1bf03990aa69cf2c656))
+* **pxi:** select, read & edit dataset evaluators ([#13645](https://github.com/Arize-ai/phoenix/issues/13645)) ([a7016e0](https://github.com/Arize-ai/phoenix/commit/a7016e049046770734b089af69972412fa8b4720))
+* **ui:** search and free-form durations in time range selector ([#13703](https://github.com/Arize-ai/phoenix/issues/13703)) ([2e8ebe1](https://github.com/Arize-ai/phoenix/commit/2e8ebe190735ce109709de1752cd7a5aa9fbbf00))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#13685](https://github.com/Arize-ai/phoenix/issues/13685)) ([105f36a](https://github.com/Arize-ai/phoenix/commit/105f36af4f4f8fbd3cf5491f5d441e297156be4d))
+* **cost:** update built-in model token prices ([#13698](https://github.com/Arize-ai/phoenix/issues/13698)) ([853bd0c](https://github.com/Arize-ai/phoenix/commit/853bd0c0877d88a44faa519171c82060458b34f6))
+* **graphql:** batch dataset exampleCount resolution with a dataloader ([#13690](https://github.com/Arize-ai/phoenix/issues/13690)) ([583e31d](https://github.com/Arize-ai/phoenix/commit/583e31d8b347a563190d547e18593ccf7273fcfb))
+
+
+### Documentation
+
+* add OpenAI Agents SDK (TypeScript) integration ([#13700](https://github.com/Arize-ai/phoenix/issues/13700)) ([64fab95](https://github.com/Arize-ai/phoenix/commit/64fab95dc1563b4f897b9580730d2875456e1c42))
+
 ## [17.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.2.0...arize-phoenix-v17.3.0) (2026-06-10)
 
 
