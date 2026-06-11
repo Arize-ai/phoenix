@@ -58,12 +58,6 @@ jobs:
           # inputs are public repo/PR/issue content, registered secrets stay masked,
           # and the OIDC app token is never in Claude's context. Note: logs are public.
           show_full_output: 'true'
-          # Setting additional_permissions triggers the action to explicitly request
-          # contents/pull_requests/issues: write on the OIDC-minted app token while
-          # Claude runs. The action revokes this token during cleanup, so later
-          # publishing steps use a separate token.
-          additional_permissions: |
-            contents: write
           prompt: |
             /phoenix-llms-txt
 

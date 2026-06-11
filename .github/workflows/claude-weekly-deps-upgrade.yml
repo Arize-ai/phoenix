@@ -205,12 +205,6 @@ jobs:
           # inputs are public repo/PR/issue content, registered secrets stay masked,
           # and the OIDC app token is never in Claude's context. Note: logs are public.
           show_full_output: 'true'
-          # additional_permissions triggers an OIDC exchange that mints a
-          # short-lived app token with contents:write for the Claude action while
-          # it runs. The action revokes this token during cleanup, so the
-          # post-step commit/push uses a separate publishing token.
-          additional_permissions: |
-            contents: write
           prompt: |
             You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
             already ran (`uv lock --upgrade` for Python, `pnpm update -r --latest`

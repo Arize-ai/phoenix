@@ -108,11 +108,6 @@ jobs:
           # inputs are public repo/PR/issue content, registered secrets stay masked,
           # and the OIDC app token is never in Claude's context. Note: logs are public.
           show_full_output: 'true'
-          # Mints an OIDC app token with write access for the Claude action while
-          # it runs. The action revokes this token during cleanup, so later steps
-          # must use a separate publishing token.
-          additional_permissions: |
-            contents: write
           prompt: |
             Bump the pinned uv CLI version across this repo from `${{ steps.repo.outputs.version }}` to `${{ steps.dependabot.outputs.version }}` so it matches the version Dependabot supports.
 
