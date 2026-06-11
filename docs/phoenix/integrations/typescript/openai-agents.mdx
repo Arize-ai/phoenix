@@ -1,0 +1,89 @@
+---
+title: "OpenAI Agents SDK (TypeScript)"
+sidebarTitle: "OpenAI Agents SDK"
+description: Trace OpenAI Agents SDK applications in TypeScript/Node.js with Phoenix
+---
+
+<Note>Looking for Python? See the [Python guide](/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing).</Note>
+
+[![NPM Version](https://img.shields.io/npm/v/@arizeai%2Fopeninference-instrumentation-openai-agents.svg)](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-openai-agents)
+
+This module provides [OpenInference](https://github.com/Arize-ai/openinference) instrumentation for the [OpenAI Agents SDK for TypeScript](https://github.com/openai/openai-agents-js) (`@openai/agents`), capturing agent runs, model calls, tool calls, handoffs, and guardrails as OpenInference spans.
+
+## Install
+
+```bash
+npm install @arizeai/phoenix-otel @arizeai/openinference-instrumentation-openai-agents @openai/agents
+```
+
+## Setup
+
+Use the `register` function from `@arizeai/phoenix-otel` to connect to Phoenix, then register the Agents SDK instrumentation.
+
+Create the `instrumentation.ts` file:
+
+```typescript expandable
+import { register } from "@arizeai/phoenix-otel";
+import { OpenAIAgentsInstrumentation } from "@arizeai/openinference-instrumentation-openai-agents";
+import * as agents from "@openai/agents";
+
+// Initialize Phoenix tracing
+export const provider = register({
+  projectName: "openai-agents-app",
+  // If using Phoenix Cloud:
+  // url: "https://app.phoenix.arize.com/s/your-space-name",
+  // apiKey: process.env.PHOENIX_API_KEY,
+  // If using self-hosted Phoenix:
+  // url: "http://localhost:6006",
+});
+
+// Set up OpenAI Agents SDK instrumentation
+const instrumentation = new OpenAIAgentsInstrumentation({
+  tracerProvider: provider,
+});
+instrumentation.manuallyInstrument(agents);
+```
+
+<Note>
+The Agents SDK exposes a first-class [tracing API](https://openai.github.io/openai-agents-js/guides/tracing/), so this instrumentation registers a trace processor with the SDK rather than monkey-patching the module. By default it replaces the SDK's built-in processors; pass `manuallyInstrument(agents, { exclusiveProcessor: false })` to keep OpenAI's native tracing exporter running alongside Phoenix.
+</Note>
+
+## Usage
+
+```typescript expandable
+import "./instrumentation.js";
+import { Agent, run } from "@openai/agents";
+
+const agent = new Agent({
+  name: "Assistant",
+  instructions: "You are a helpful assistant.",
+});
+
+const result = await run(agent, "Explain the theory of relativity in simple terms.");
+console.log(result.finalOutput);
+```
+
+<Note>
+Spans are exported in batches. In short-lived scripts, call `await provider.forceFlush()` before the process exits so all spans are delivered to Phoenix.
+</Note>
+
+## Observe
+
+With instrumentation enabled, you will see the following in Phoenix:
+
+- **AGENT spans** for each agent in the run, with graph metadata that lets Phoenix visualize multi-agent handoffs as a graph
+- **LLM spans** for model calls, including messages, invocation parameters, and token counts
+- **TOOL spans** for function tool calls, handoffs, and MCP tool listings
+- **GUARDRAIL spans** for input/output guardrails, including whether the guardrail was triggered
+
+Both the chat completions and responses transports are supported. See the [package README](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai-agents) for the full span-coverage table and configuration options (including `traceConfig` for masking sensitive inputs/outputs).
+
+## Resources
+
+* [NPM Package](https://www.npmjs.com/package/@arizeai/openinference-instrumentation-openai-agents)
+
+* [Runnable examples (chat, handoff, streaming, guardrail)](https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai-agents/examples)
+
+* [OpenAI Agents SDK on GitHub](https://github.com/openai/openai-agents-js)
+
+* [OpenAI Agents SDK Documentation](https://openai.github.io/openai-agents-js/)

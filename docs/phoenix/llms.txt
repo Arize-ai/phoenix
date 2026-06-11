@@ -278,6 +278,7 @@
 - [LangChain.js Tracing](https://arize.com/docs/phoenix/integrations/typescript/langchain/langchain-js): Auto-instrument LangChain.js chains and agents
 - [Mastra Tracing](https://arize.com/docs/phoenix/integrations/typescript/mastra/mastra-tracing): Auto-instrument Mastra agent workflows
 - [MCP Tracing (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript): Trace MCP interactions in TypeScript
+- [OpenAI Agents SDK (TypeScript)](https://arize.com/docs/phoenix/integrations/typescript/openai-agents): Trace @openai/agents runs, handoffs, and guardrails with @arizeai/openinference-instrumentation-openai-agents
 - [TanStack AI Tracing](https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing): Auto-instrument TanStack AI chat, tool calls, and agent loops
 - [Vercel AI SDK Tracing](https://arize.com/docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js): Auto-instrument Vercel AI SDK
 
