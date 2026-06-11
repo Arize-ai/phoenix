@@ -4,6 +4,7 @@ import {
   useCallback,
   type CSSProperties,
   type ReactNode,
+  useEffect,
   useMemo,
   useRef,
   type PropsWithChildren,
@@ -14,6 +15,7 @@ import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
+import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -396,6 +398,27 @@ export function ChatView({
     (state) => state.permissions.edits
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
+  const createSession = useAgentContext((state) => state.createSession);
+
+  // Send any message staged for this session (e.g. carried past `/clear` from
+  // the previous session) as soon as the view mounts. Consuming is atomic, so
+  // re-runs and concurrent views are no-ops after the first send.
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    const pending = store.getState().consumePendingMessage(sessionId);
+    if (!pending) {
+      return;
+    }
+    sendMessage(
+      { text: pending.text },
+      pending.requestedSkills.length > 0
+        ? { body: { requestedSkills: pending.requestedSkills } }
+        : undefined
+    );
+  }, [sessionId, sendMessage, store]);
+
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
@@ -604,7 +627,22 @@ export function ChatView({
               status={status}
               value={inputValue}
               onValueChange={setInputValue}
-              onSubmit={({ text, requestedSkills }) => {
+              onSubmit={({ text, requestedSkills, commandNames }) => {
+                if (commandNames.length > 0) {
+                  runPromptCommands(
+                    { commandNames, text, requestedSkills },
+                    {
+                      createSession,
+                      setPendingMessage: store.getState().setPendingMessage,
+                    }
+                  );
+                  return;
+                }
+                // Command tokens are stripped before this point, so a
+                // commands-only submit has nothing left to send.
+                if (!text) {
+                  return;
+                }
                 void scrollToBottom();
                 sendMessage(
                   { text },

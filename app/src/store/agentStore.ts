@@ -101,6 +101,16 @@ export type AgentSessionUsage = {
 };
 
 /**
+ * A message staged for a session whose chat view has not mounted yet, sent
+ * automatically on mount. Carries the submit-time skill parse along with the
+ * text so the request body matches what an interactive send would produce.
+ */
+export type PendingAgentMessage = {
+  text: string;
+  requestedSkills: string[];
+};
+
+/**
  * An agent conversation session containing messages, context references,
  * and its own model configuration (initially cloned from the default).
  */
@@ -324,6 +334,21 @@ export interface AgentState extends AgentProps {
   pendingInputBySessionId: Record<string, string>;
   setPendingInput: (sessionId: string, input: string | null) => void;
   consumePendingInput: (sessionId: string) => string | null;
+
+  /**
+   * A message staged to be sent as soon as a session's chat view mounts. Used
+   * by local prompt commands (e.g. `/clear fix this`): the command creates a
+   * fresh session, and the rest of the submitted message is carried over and
+   * sent there. Unlike {@link pendingInputBySessionId} — which only seeds the
+   * textarea — a consumed pending message is sent immediately. Ephemeral and
+   * consumed once by the view on mount.
+   */
+  pendingMessageBySessionId: Record<string, PendingAgentMessage>;
+  setPendingMessage: (
+    sessionId: string,
+    message: PendingAgentMessage | null
+  ) => void;
+  consumePendingMessage: (sessionId: string) => PendingAgentMessage | null;
   setSessionUsage: (
     sessionId: string,
     newUsage: {
@@ -482,6 +507,7 @@ function buildSessionRetentionPatch({
   | "pendingElicitationBySessionId"
   | "chatStatusBySessionId"
   | "pendingInputBySessionId"
+  | "pendingMessageBySessionId"
 > {
   const retainedSessionIdSet = new Set(retainedSessionIds);
   return {
@@ -501,6 +527,10 @@ function buildSessionRetentionPatch({
     }),
     pendingInputBySessionId: pruneSessionScopedRecord({
       record: state.pendingInputBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    pendingMessageBySessionId: pruneSessionScopedRecord({
+      record: state.pendingMessageBySessionId,
       retainedSessionIds: retainedSessionIdSet,
     }),
   };
@@ -684,6 +714,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...state.pendingInputBySessionId,
           };
           delete newPendingInputBySessionId[sessionId];
+          const newPendingMessageBySessionId = {
+            ...state.pendingMessageBySessionId,
+          };
+          delete newPendingMessageBySessionId[sessionId];
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
@@ -696,6 +730,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
             pendingInputBySessionId: newPendingInputBySessionId,
+            pendingMessageBySessionId: newPendingMessageBySessionId,
           };
         },
         false,
@@ -849,6 +884,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           pendingElicitationBySessionId: {},
           chatStatusBySessionId: {},
           pendingInputBySessionId: {},
+          pendingMessageBySessionId: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -928,6 +964,41 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         );
       }
       return input;
+    },
+
+    pendingMessageBySessionId: {},
+    setPendingMessage: (sessionId, message) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingMessageBySessionId };
+          if (message) {
+            next[sessionId] = message;
+          } else {
+            delete next[sessionId];
+          }
+          return { pendingMessageBySessionId: next };
+        },
+        false,
+        { type: "setPendingMessage" }
+      );
+    },
+    consumePendingMessage: (sessionId) => {
+      const message = get().pendingMessageBySessionId[sessionId] ?? null;
+      if (message != null) {
+        set(
+          (state) => {
+            if (!(sessionId in state.pendingMessageBySessionId)) {
+              return state;
+            }
+            const next = { ...state.pendingMessageBySessionId };
+            delete next[sessionId];
+            return { pendingMessageBySessionId: next };
+          },
+          false,
+          { type: "consumePendingMessage" }
+        );
+      }
+      return message;
     },
 
     chatStatusBySessionId: {},

@@ -1,6 +1,7 @@
 import { Suspense, useEffect } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
+import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
 import { PromptInputTextarea } from "@phoenix/components/ai/prompt-input";
 
 import { SkillPromptInput } from "./SkillPromptInput";
@@ -11,6 +12,12 @@ import {
 
 type SkillPromptInputBoundaryProps = {
   placeholder?: string;
+  /**
+   * Local prompt commands offered alongside the skills in the slash menu.
+   * Forwarded as-is; the parent owns the catalog so it can also run the
+   * submit-time command parse.
+   */
+  commands: PromptCommand[];
   /**
    * Receives the available skills whenever the catalog resolves, so the parent
    * can parse requested skills from the submitted message text. Called with an
@@ -25,6 +32,7 @@ type SkillPromptInputBoundaryProps = {
 
 function SkillPromptInputLoader({
   placeholder,
+  commands,
   onSkillsChange,
   textareaRef,
   menuPortalTarget,
@@ -39,6 +47,7 @@ function SkillPromptInputLoader({
     <SkillPromptInput
       placeholder={placeholder}
       skills={skills}
+      commands={commands}
       textareaRef={textareaRef}
       menuPortalTarget={menuPortalTarget}
     />
@@ -55,6 +64,7 @@ function SkillPromptInputLoader({
  */
 export function SkillPromptInputBoundary({
   placeholder,
+  commands,
   onSkillsChange,
   textareaRef,
   menuPortalTarget,
@@ -67,6 +77,7 @@ export function SkillPromptInputBoundary({
       <Suspense fallback={fallback}>
         <SkillPromptInputLoader
           placeholder={placeholder}
+          commands={commands}
           onSkillsChange={onSkillsChange}
           textareaRef={textareaRef}
           menuPortalTarget={menuPortalTarget}

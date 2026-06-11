@@ -3,10 +3,11 @@ import { AnimatePresence } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
+import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
 import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/PromptInputContext";
 
 import { SkillHighlightOverlay } from "./SkillHighlightOverlay";
-import { SkillMenu } from "./SkillMenu";
+import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
 import { usePromptSkillCommand } from "./usePromptSkillCommand";
 
@@ -71,6 +72,12 @@ export type SkillPromptInputProps = {
    * catalog can be reused for the submit-time requested-skills parse.
    */
   skills: AvailableAgentSkill[];
+  /**
+   * Local prompt commands offered in the menu below the skills. Commands share
+   * the slash grammar but are executed by the UI at submit time rather than
+   * being sent to the agent.
+   */
+  commands: PromptCommand[];
   /** Forwarded to the underlying textarea so callers can focus it. */
   textareaRef?: React.Ref<HTMLTextAreaElement>;
   /** Optional layer outside the prompt surface where the menu can be stacked. */
@@ -78,23 +85,25 @@ export type SkillPromptInputProps = {
 };
 
 /**
- * Prompt textarea augmented with the slash-command skill loader.
+ * Prompt textarea augmented with the slash-command menu (skills + commands).
  *
  * Renders a transparent-text textarea over a {@link SkillHighlightOverlay} so
- * recognized `/skill-name` tokens are highlighted in place, and shows a
- * {@link SkillMenu} when the user types a `/` trigger. The textarea retains
- * focus and drives the menu via its own key handler; selection inserts the
- * skill token as plain text (never stripped). Reads value/setValue/submit from
- * the surrounding `PromptInput` context.
+ * recognized `/skill-name` and `/command` tokens are highlighted in place, and
+ * shows a {@link SlashCommandMenu} when the user types a `/` trigger. The
+ * textarea retains focus and drives the menu via its own key handler; selection
+ * inserts the token as plain text (skill tokens are never stripped; command
+ * tokens are stripped at submit time by the chat surface). Reads
+ * value/setValue/submit from the surrounding `PromptInput` context.
  */
 export function SkillPromptInput({
   placeholder = "Send a message...",
   skills,
+  commands,
   textareaRef: forwardedTextareaRef,
   menuPortalTarget,
 }: SkillPromptInputProps) {
   const { value, setValue, onSubmit, isDisabled } = usePromptInputContext();
-  const skillCommand = usePromptSkillCommand(skills);
+  const skillCommand = usePromptSkillCommand(skills, commands);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -113,6 +122,9 @@ export function SkillPromptInput({
   };
 
   const recognizedSkillNames = new Set(skills.map((skill) => skill.name));
+  const recognizedCommandNames = new Set(
+    commands.map((command) => command.name)
+  );
 
   // Auto-resize the textarea to fit its content, mirroring PromptInputTextarea.
   useLayoutEffect(() => {
@@ -150,9 +162,9 @@ export function SkillPromptInput({
   };
 
   const commitSelection = (index: number) => {
-    const skill = skillCommand.filteredSkills[index];
-    if (!skill) return;
-    const result = skillCommand.selectSkill(value, skill);
+    const item = skillCommand.filteredItems[index];
+    if (!item) return;
+    const result = skillCommand.selectItem(value, item);
     if (!result) return;
     setValue(result.value);
     // Restore the caret after React applies the new value.
@@ -168,7 +180,7 @@ export function SkillPromptInput({
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (skillCommand.isOpen) {
-      const lastIndex = skillCommand.filteredSkills.length - 1;
+      const lastIndex = skillCommand.filteredItems.length - 1;
       switch (event.key) {
         case "ArrowDown":
           event.preventDefault();
@@ -207,17 +219,15 @@ export function SkillPromptInput({
   };
 
   const isMenuVisible =
-    skillCommand.isOpen && skillCommand.filteredSkills.length > 0;
+    skillCommand.isOpen && skillCommand.filteredItems.length > 0;
   const menu = (
     <AnimatePresence>
       {isMenuVisible ? (
-        <SkillMenu
-          key="skill-menu"
-          skills={skillCommand.filteredSkills}
+        <SlashCommandMenu
+          key="slash-command-menu"
+          items={skillCommand.filteredItems}
           activeIndex={skillCommand.activeIndex}
-          onSelect={(skill) =>
-            commitSelection(skillCommand.filteredSkills.indexOf(skill))
-          }
+          onSelect={commitSelection}
           onActiveIndexChange={skillCommand.setActiveIndex}
           listboxId={LISTBOX_ID}
           getOptionId={getOptionId}
@@ -233,6 +243,7 @@ export function SkillPromptInput({
         ref={overlayRef}
         value={value}
         recognizedSkillNames={recognizedSkillNames}
+        recognizedCommandNames={recognizedCommandNames}
       />
       <textarea
         ref={mergeTextareaRef}

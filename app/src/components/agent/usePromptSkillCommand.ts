@@ -1,8 +1,23 @@
 import { useRef, useState } from "react";
 
-import { findSkillTokens } from "@phoenix/agent/skills/requestedSkills";
+import type { PromptCommand } from "@phoenix/agent/slashCommands/promptCommands";
+import { findSlashTokens } from "@phoenix/agent/slashCommands/slashTokens";
 
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
+
+/**
+ * An entry the slash-command menu can offer: either a server-advertised skill
+ * or a local prompt command. Both are inserted into the text as `/name `; the
+ * `kind` (and a command's optional keybind) only affects the trailing pill the
+ * menu renders on the row.
+ */
+export type SlashMenuItem = {
+  name: string;
+  summary: string;
+  kind: "skill" | "command";
+  /** Display string for a command's keyboard shortcut, when it has one. */
+  keybind?: string;
+};
 
 /**
  * Describes the active slash-command query the user is typing, derived from the
@@ -15,16 +30,16 @@ export type ActiveQuery = {
   caret: number;
   /** End index (exclusive) of the slash-command token to replace. */
   replacementEnd: number;
-  /** The text typed after the `/`, used to filter skills. */
+  /** The text typed after the `/`, used to filter skills and commands. */
   query: string;
 };
 
-const SKILL_NAME_CHAR_PATTERN = /[a-zA-Z0-9-]/;
+const SLASH_NAME_CHAR_PATTERN = /[a-zA-Z0-9-]/;
 
 /**
  * Inspect the text immediately before the caret for an in-progress slash
  * command. A command is active when a `/` appears at the start of the input or
- * after whitespace, the caret is at or past that `/`, and only skill-name
+ * after whitespace, the caret is at or past that `/`, and only token-name
  * characters (letters, digits, hyphens) sit between the `/` and the caret.
  */
 export function getActiveQuery(
@@ -41,7 +56,7 @@ export function getActiveQuery(
         let replacementEnd = caret;
         while (
           replacementEnd < value.length &&
-          SKILL_NAME_CHAR_PATTERN.test(value[replacementEnd])
+          SLASH_NAME_CHAR_PATTERN.test(value[replacementEnd])
         ) {
           replacementEnd += 1;
         }
@@ -54,9 +69,9 @@ export function getActiveQuery(
       }
       return null;
     }
-    // Skill-name characters only; anything else (including whitespace) ends
+    // Token-name characters only; anything else (including whitespace) ends
     // the candidate query.
-    if (!SKILL_NAME_CHAR_PATTERN.test(char)) {
+    if (!SLASH_NAME_CHAR_PATTERN.test(char)) {
       return null;
     }
     index -= 1;
@@ -80,33 +95,85 @@ export function isSameActiveQuery(
   return a.slashIndex === b.slashIndex && a.query === b.query;
 }
 
-function filterSkills(
-  skills: AvailableAgentSkill[],
+function partitionItemsByMatch<Item extends { name: string }>(
+  items: Item[],
   query: string,
-  selectedSkillNames: ReadonlySet<string>
-): AvailableAgentSkill[] {
+  selectedNames: ReadonlySet<string>
+): { prefixMatches: Item[]; substringMatches: Item[] } {
   const lowerQuery = query.toLowerCase();
-  return skills.filter(
-    (skill) =>
-      !selectedSkillNames.has(skill.name) &&
-      (query === "" || skill.name.toLowerCase().includes(lowerQuery))
-  );
+  const prefixMatches: Item[] = [];
+  const substringMatches: Item[] = [];
+  for (const item of items) {
+    if (selectedNames.has(item.name)) {
+      continue;
+    }
+    const lowerName = item.name.toLowerCase();
+    if (query === "" || lowerName.startsWith(lowerQuery)) {
+      prefixMatches.push(item);
+    } else if (lowerName.includes(lowerQuery)) {
+      substringMatches.push(item);
+    }
+  }
+  return { prefixMatches, substringMatches };
+}
+
+function mapSkillToMenuItem(skill: AvailableAgentSkill): SlashMenuItem {
+  return {
+    name: skill.name,
+    summary: skill.summary,
+    kind: "skill",
+  };
+}
+
+function mapCommandToMenuItem(command: PromptCommand): SlashMenuItem {
+  return {
+    name: command.name,
+    summary: command.summary,
+    kind: "command",
+    keybind: command.keybind,
+  };
+}
+
+export function getFilteredSlashMenuItems({
+  skills,
+  commands,
+  query,
+  selectedNames,
+  canShowCommands,
+}: {
+  skills: AvailableAgentSkill[];
+  commands: PromptCommand[];
+  query: string;
+  selectedNames: ReadonlySet<string>;
+  canShowCommands: boolean;
+}): SlashMenuItem[] {
+  const skillMatches = partitionItemsByMatch(skills, query, selectedNames);
+  const commandMatches = canShowCommands
+    ? partitionItemsByMatch(commands, query, selectedNames)
+    : { prefixMatches: [], substringMatches: [] };
+  return [
+    ...skillMatches.prefixMatches.map(mapSkillToMenuItem),
+    ...commandMatches.prefixMatches.map(mapCommandToMenuItem),
+    ...commandMatches.substringMatches.map(mapCommandToMenuItem),
+    ...skillMatches.substringMatches.map(mapSkillToMenuItem),
+  ];
 }
 
 /**
- * Return selected skill names from existing prompt tokens, excluding the active
- * token being edited so users can still refine or replace it from the menu.
+ * Return the recognized token names already present in the prompt, excluding
+ * the active token being edited so users can still refine or replace it from
+ * the menu. Used to hide already-typed skills/commands from the menu.
  */
-export function getSelectedSkillNames(
+export function getSelectedTokenNames(
   value: string,
-  availableSkillNames: ReadonlySet<string>,
+  availableNames: ReadonlySet<string>,
   activeQuery: ActiveQuery | null
 ): Set<string> {
   const selected = new Set<string>();
-  for (const token of findSkillTokens(value)) {
+  for (const token of findSlashTokens(value)) {
     if (
       token.start === activeQuery?.slashIndex ||
-      !availableSkillNames.has(token.name)
+      !availableNames.has(token.name)
     ) {
       continue;
     }
@@ -116,11 +183,15 @@ export function getSelectedSkillNames(
 }
 
 export type PromptSkillCommandState = {
-  /** Whether the skill menu should be shown. */
+  /** Whether the slash menu should be shown. */
   isOpen: boolean;
-  /** Skills matching the current query, in catalog order. */
-  filteredSkills: AvailableAgentSkill[];
-  /** Index of the highlighted skill in `filteredSkills`. */
+  /**
+   * Menu entries matching the current query, in display order — skills first
+   * (catalog order), then commands. One flat list: keyboard navigation and
+   * `activeIndex` run straight over it.
+   */
+  filteredItems: SlashMenuItem[];
+  /** Index of the highlighted entry in `filteredItems`. */
   activeIndex: number;
   /** Set the highlighted index (e.g. on hover). */
   setActiveIndex: (index: number) => void;
@@ -132,28 +203,30 @@ export type PromptSkillCommandState = {
   /** Close the menu and suppress it until the next fresh `/` trigger. */
   dismiss: () => void;
   /**
-   * Apply a skill selection to `value`, replacing the active `/query` with
+   * Apply a menu selection to `value`, replacing the active `/query` with
    * `/name ` and returning the new value plus the caret position to restore.
    * Returns null when there is no active query to replace.
    */
-  selectSkill: (
+  selectItem: (
     value: string,
-    skill: AvailableAgentSkill
+    item: SlashMenuItem
   ) => { value: string; caret: number } | null;
 };
 
 /**
  * Owns the slash-command interaction state for the prompt input: trigger
- * detection, query filtering, keyboard-driven highlight, dismissal, and text
- * insertion on selection. The textarea remains the focus owner; this hook only
- * computes state from `(value, caret)` snapshots the textarea hands it.
+ * detection, query filtering across skills and local commands, keyboard-driven
+ * highlight, dismissal, and text insertion on selection. The textarea remains
+ * the focus owner; this hook only computes state from `(value, caret)`
+ * snapshots the textarea hands it.
  */
 export function usePromptSkillCommand(
-  skills: AvailableAgentSkill[]
+  skills: AvailableAgentSkill[],
+  commands: PromptCommand[]
 ): PromptSkillCommandState {
   const [activeQuery, setActiveQuery] = useState<ActiveQuery | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [selectedSkillNames, setSelectedSkillNames] = useState<Set<string>>(
+  const [selectedNames, setSelectedNames] = useState<Set<string>>(
     () => new Set()
   );
   // Tracks the active query so we can decide when to reset the highlight: the
@@ -168,17 +241,24 @@ export function usePromptSkillCommand(
     query: string;
   } | null>(null);
 
-  const filteredSkills = activeQuery
-    ? filterSkills(skills, activeQuery.query, selectedSkillNames)
+  const filteredItems: SlashMenuItem[] = activeQuery
+    ? getFilteredSlashMenuItems({
+        skills,
+        commands,
+        query: activeQuery.query,
+        selectedNames,
+        canShowCommands: activeQuery.slashIndex === 0,
+      })
     : [];
-  const isOpen = activeQuery !== null && filteredSkills.length > 0;
+  const isOpen = activeQuery !== null && filteredItems.length > 0;
 
   const syncFromInput = (value: string, caret: number) => {
     const next = getActiveQuery(value, caret);
-    const availableSkillNames = new Set(skills.map((skill) => skill.name));
-    setSelectedSkillNames(
-      getSelectedSkillNames(value, availableSkillNames, next)
-    );
+    const availableNames = new Set([
+      ...skills.map((skill) => skill.name),
+      ...commands.map((command) => command.name),
+    ]);
+    setSelectedNames(getSelectedTokenNames(value, availableNames, next));
     if (next === null) {
       setActiveQuery(null);
       dismissedQueryRef.current = null;
@@ -214,13 +294,13 @@ export function usePromptSkillCommand(
     setActiveQuery(null);
   };
 
-  const selectSkill = (value: string, skill: AvailableAgentSkill) => {
+  const selectItem = (value: string, item: SlashMenuItem) => {
     if (!activeQuery) {
       return null;
     }
     const before = value.slice(0, activeQuery.slashIndex);
     const after = value.slice(activeQuery.replacementEnd);
-    const insertion = `/${skill.name} `;
+    const insertion = `/${item.name} `;
     const nextValue = `${before}${insertion}${after}`;
     setActiveQuery(null);
     dismissedQueryRef.current = null;
@@ -229,17 +309,17 @@ export function usePromptSkillCommand(
 
   // Clamp the active index into the filtered range without an effect.
   const clampedActiveIndex =
-    filteredSkills.length === 0
+    filteredItems.length === 0
       ? 0
-      : Math.min(activeIndex, filteredSkills.length - 1);
+      : Math.min(activeIndex, filteredItems.length - 1);
 
   return {
     isOpen,
-    filteredSkills,
+    filteredItems,
     activeIndex: clampedActiveIndex,
     setActiveIndex,
     syncFromInput,
     dismiss,
-    selectSkill,
+    selectItem,
   };
 }

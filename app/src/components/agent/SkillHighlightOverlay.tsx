@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
-import { findSkillTokens } from "@phoenix/agent/skills/requestedSkills";
+import { findPromptCommandTokens } from "@phoenix/agent/slashCommands/promptCommands";
+import { findSlashTokens } from "@phoenix/agent/slashCommands/slashTokens";
 
 /**
  * Shared box metrics that the overlay and the textarea must agree on exactly,
@@ -63,16 +64,28 @@ const overlayCSS = css`
 type Segment = { text: string; highlighted: boolean };
 
 /**
- * Split `text` into plain and highlighted segments, marking only the tokens
- * whose names are in `recognizedSkillNames`.
+ * Split `text` into plain and highlighted segments, marking recognized skill
+ * tokens anywhere and recognized command tokens only where they can execute.
  */
-function buildSegments(
+export function buildSegments(
   text: string,
-  recognizedSkillNames: ReadonlySet<string>
+  recognizedSkillNames: ReadonlySet<string>,
+  recognizedCommandNames: ReadonlySet<string>
 ): Segment[] {
   const seen = new Set<string>();
-  const tokens = findSkillTokens(text).filter((token) => {
-    if (!recognizedSkillNames.has(token.name) || seen.has(token.name)) {
+  const executableCommandTokens = findPromptCommandTokens(
+    text,
+    recognizedCommandNames
+  );
+  const commandTokenStarts = new Set(
+    executableCommandTokens.map((token) => token.start)
+  );
+  const tokens = findSlashTokens(text).filter((token) => {
+    const isRecognizedSkill =
+      recognizedSkillNames.has(token.name) &&
+      !recognizedCommandNames.has(token.name);
+    const isExecutableCommand = commandTokenStarts.has(token.start);
+    if ((!isRecognizedSkill && !isExecutableCommand) || seen.has(token.name)) {
       return false;
     }
     seen.add(token.name);
@@ -105,15 +118,23 @@ function buildSegments(
 export type SkillHighlightOverlayProps = {
   /** The current textarea value. */
   value: string;
-  /** Names of skills that are real and available; only these get highlighted. */
+  /**
+   * Names of skills that are real and available; these get highlighted wherever
+   * they appear as slash tokens.
+   */
   recognizedSkillNames: ReadonlySet<string>;
+  /**
+   * Names of commands that are real and available; these get highlighted only
+   * when they are executable from the start of the prompt.
+   */
+  recognizedCommandNames: ReadonlySet<string>;
   /** Forwarded to keep the overlay scroll position synced with the textarea. */
   ref?: React.Ref<HTMLDivElement>;
 };
 
 /**
  * A transparent-text backdrop rendered behind the prompt textarea that paints a
- * highlight behind each recognized `/skill-name` token.
+ * highlight behind each recognized `/skill-name` or `/command` token.
  *
  * The textarea above it has transparent text (caret stays visible) so the user
  * effectively reads this layer. The two must share identical box metrics; see
@@ -122,9 +143,14 @@ export type SkillHighlightOverlayProps = {
 export function SkillHighlightOverlay({
   value,
   recognizedSkillNames,
+  recognizedCommandNames,
   ref,
 }: SkillHighlightOverlayProps) {
-  const segments = buildSegments(value, recognizedSkillNames);
+  const segments = buildSegments(
+    value,
+    recognizedSkillNames,
+    recognizedCommandNames
+  );
   return (
     <div ref={ref} css={overlayCSS} aria-hidden="true">
       {segments.map((segment, index) =>

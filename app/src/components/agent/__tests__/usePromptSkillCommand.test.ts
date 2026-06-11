@@ -1,8 +1,30 @@
 import {
+  getFilteredSlashMenuItems,
   getActiveQuery,
-  getSelectedSkillNames,
+  getSelectedTokenNames,
   isSameActiveQuery,
 } from "../usePromptSkillCommand";
+
+const skills = [
+  {
+    name: "debug-trace",
+    summary: "Debug a trace",
+    description: "Debug a trace",
+  },
+  {
+    name: "compare",
+    summary: "Compare things",
+    description: "Compare things",
+  },
+];
+
+const commands = [
+  {
+    name: "clear",
+    summary: "Clear the conversation",
+    run: vi.fn(),
+  },
+];
 
 describe("getActiveQuery", () => {
   it("detects a query when the caret is right after a leading slash", () => {
@@ -104,12 +126,12 @@ describe("isSameActiveQuery", () => {
   });
 });
 
-describe("getSelectedSkillNames", () => {
+describe("getSelectedTokenNames", () => {
   const availableSkillNames = new Set(["debug-trace", "annotate-spans"]);
 
   it("returns known skill tokens already present in the prompt", () => {
     expect(
-      getSelectedSkillNames(
+      getSelectedTokenNames(
         "/debug-trace compare this",
         availableSkillNames,
         null
@@ -119,7 +141,7 @@ describe("getSelectedSkillNames", () => {
 
   it("ignores unknown slash tokens", () => {
     expect(
-      getSelectedSkillNames(
+      getSelectedTokenNames(
         "/unknown /annotate-spans",
         availableSkillNames,
         null
@@ -129,7 +151,7 @@ describe("getSelectedSkillNames", () => {
 
   it("excludes the active token being edited", () => {
     expect(
-      getSelectedSkillNames(
+      getSelectedTokenNames(
         "/debug-trace /annotate-spans",
         availableSkillNames,
         {
@@ -140,5 +162,31 @@ describe("getSelectedSkillNames", () => {
         }
       )
     ).toEqual(new Set(["debug-trace"]));
+  });
+});
+
+describe("getFilteredSlashMenuItems", () => {
+  it("ranks executable command prefix matches before skill substring matches", () => {
+    expect(
+      getFilteredSlashMenuItems({
+        skills,
+        commands,
+        query: "c",
+        selectedNames: new Set(),
+        canShowCommands: true,
+      }).map((item) => item.name)
+    ).toEqual(["compare", "clear", "debug-trace"]);
+  });
+
+  it("hides commands when the slash query is not in executable position", () => {
+    expect(
+      getFilteredSlashMenuItems({
+        skills,
+        commands,
+        query: "c",
+        selectedNames: new Set(),
+        canShowCommands: false,
+      }).map((item) => item.name)
+    ).toEqual(["compare", "debug-trace"]);
   });
 });
