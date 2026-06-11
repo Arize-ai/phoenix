@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.8.0...arize-phoenix-client-v2.9.0) (2026-06-11)
+
+
+### Features
+
+* add playground repetitions tool ([#13656](https://github.com/Arize-ai/phoenix/issues/13656)) ([ad4a659](https://github.com/Arize-ai/phoenix/commit/ad4a65993d83564a47692bb79db494a88112853e))
+* **agents:** User invokable skill menu ([#13670](https://github.com/Arize-ai/phoenix/issues/13670)) ([4f6cb6e](https://github.com/Arize-ai/phoenix/commit/4f6cb6e388e8ade433bb2088592aa391916fdb4b))
+* **pxi:** add playground experiment recording tool ([#13678](https://github.com/Arize-ai/phoenix/issues/13678)) ([15912cb](https://github.com/Arize-ai/phoenix/commit/15912cb5787c9fa11ba7e35ade1ea40868139290))
+
+
+### Bug Fixes
+
+* **client:** record and resolve experiment examples by node GlobalID ([#13702](https://github.com/Arize-ai/phoenix/issues/13702)) ([0347f22](https://github.com/Arize-ai/phoenix/commit/0347f2203947d95b6b3ddf66835b256540229fb0))
+
 ## [2.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.7.0...arize-phoenix-client-v2.8.0) (2026-06-08)
 
 
