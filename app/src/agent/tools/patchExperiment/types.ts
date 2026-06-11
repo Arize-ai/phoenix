@@ -11,25 +11,19 @@ import type {
 export type { ApprovalSource };
 export type { PatchExperimentToolOutputSender } from "./schemas";
 
-/** Parsed input for `patch_experiment`. */
 export type PatchExperimentInput = z.output<typeof patchExperimentInputSchema>;
 
 export type PatchExperimentActionContext = z.output<
   typeof patchExperimentActionContextSchema
 >;
 
-/**
- * The fields a single experiment patch may touch. Only keys present here are
- * written; `description: null` clears the column. Committed verbatim from the
- * pending record so the write matches exactly what the approval card showed.
- */
+// Only keys present are written; `description: null` clears it.
 export type PatchExperimentPayload = {
   name?: string;
   description?: string | null;
   metadata?: Record<string, unknown>;
 };
 
-/** Snapshot of the target experiment captured at propose time. */
 export type ExperimentSnapshot = {
   name: string;
   description: string | null;
@@ -37,7 +31,6 @@ export type ExperimentSnapshot = {
   updatedAt: string;
 };
 
-/** One field's before/after values for the approval card's diff. */
 export type PatchExperimentFieldDiff = {
   field: "name" | "description" | "metadata";
   previous: string | null;
@@ -47,15 +40,12 @@ export type PatchExperimentFieldDiff = {
 export type PendingPatchExperiment = {
   toolCallId: string;
   sessionId: string;
-  /** Target experiment node id the patch commits against. */
   experimentId: string;
-  /** Resolved target name from the fetched experiment, never from input. */
+  /** Resolved from the fetched experiment, never from model input. */
   experimentName: string;
-  /** `updatedAt` captured at propose time; re-checked before committing. */
+  /** Re-checked before commit to reject drift between propose and accept. */
   expectedUpdatedAt: string;
-  /** Canonical patch committed verbatim at accept time. */
   payload: PatchExperimentPayload;
-  /** Field-level before/after preview rendered on the card. */
   diff: PatchExperimentFieldDiff[];
   accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
   reject?: () => Promise<void>;

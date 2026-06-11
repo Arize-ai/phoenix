@@ -140,7 +140,6 @@ const fieldDiffRowCSS = css`
   min-width: 0;
 `;
 
-/** Renders the field-level before/after diff for the proposed patch. */
 function FieldDiffList({ diff }: { diff: PatchExperimentFieldDiff[] }) {
   return (
     <div css={fieldDiffCSS}>

@@ -1,5 +1,4 @@
-// Must byte-match the server tool NAME (patch_experiment.py) — the name is the
-// single contract between server advertisement and browser dispatch.
+// Must byte-match the server tool name in patch_experiment.py.
 export const PATCH_EXPERIMENT_TOOL_NAME = "patch_experiment";
 
 export const PATCH_EXPERIMENT_NAVIGATION_CANCEL_ERROR =

@@ -1158,8 +1158,6 @@ export function PlaygroundDatasetExamplesTable({
       const subscription = requestSubscription(environment, config);
       subscriptions.push(subscription);
     }
-    // The scaffold applies to every instance's experiment in this run, then is
-    // cleared once so it never carries over to a later, unrelated run.
     playgroundStore.getState().consumeNextExperimentScaffold();
     return () => {
       resetPendingExperimentMetrics();

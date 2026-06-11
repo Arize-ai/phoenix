@@ -14,10 +14,9 @@ export type CanonicalToolChoice = {
 };
 
 /**
- * Name, description, and metadata applied to the experiments produced by the
- * next dataset-backed run. Every field is optional; an absent field falls back
- * to the server default (a generated name, no description, empty metadata).
- * Consumed once per run and then cleared.
+ * Name/description/metadata applied to the experiments produced by the next
+ * dataset-backed run; an absent field falls back to the server default
+ * (generated name, no description, empty metadata).
  */
 export type ExperimentScaffold = {
   name?: string;
@@ -678,10 +677,7 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   setNextExperimentScaffold: (
     nextExperimentScaffold: ExperimentScaffold | null
   ) => void;
-  /**
-   * Return the staged scaffold and clear it. Called once per dataset run so the
-   * scaffold applies to that run's experiments only.
-   */
+  /** Return the staged scaffold and clear it. */
   consumeNextExperimentScaffold: () => ExperimentScaffold | null;
   /**
    * Set the max concurrency for experiment execution

@@ -11,14 +11,8 @@ import { parsePatchExperimentInput } from "./parsers";
 import { bindPendingPatchExperimentActions } from "./pendingPatchExperiment";
 import type { PatchExperimentInput } from "./types";
 
-/**
- * Proposes a sparse edit to one experiment's name, description, or metadata as a
- * pending change. Auto-applies when edit approvals are bypassed; otherwise
- * stores the proposal for the UI to accept or reject. The target is fetched by
- * node id at propose time so the card preview and the committed write both come
- * from the actual experiment, and an `updatedAt` snapshot guards against the
- * experiment changing between propose and accept. Requires an active session.
- */
+// Proposes a sparse edit to one experiment's name, description, or metadata,
+// pending user approval (auto-applied when edit approvals are bypassed).
 export const patchExperimentAgentTool = defineTool<PatchExperimentInput>({
   name: PATCH_EXPERIMENT_TOOL_NAME,
   parseInput: parsePatchExperimentInput,

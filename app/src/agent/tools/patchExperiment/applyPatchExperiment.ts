@@ -10,11 +10,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/**
- * Fetches the target experiment's editable fields plus its `updatedAt` token.
- * The snapshot is taken at propose time for the card preview and re-fetched at
- * accept time to detect drift before committing.
- */
 export async function fetchExperimentSnapshot(
   experimentId: string
 ): Promise<ExperimentSnapshot> {
@@ -48,11 +43,6 @@ export async function fetchExperimentSnapshot(
   };
 }
 
-/**
- * Commits the experiment patch with the stored payload. The server replaces
- * metadata as a whole object and treats an omitted field as unchanged; only
- * the keys present in `payload` are sent.
- */
 export function commitPatchExperiment({
   experimentId,
   payload,

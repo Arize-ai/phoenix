@@ -495,11 +495,6 @@ function pruneSessionScopedRecord<T>({
   );
 }
 
-/**
- * Removes pending-tool records (keyed by tool-call id but carrying the owning
- * `sessionId`) whose session is no longer retained, so a dropped session does
- * not leak its unresolved proposals.
- */
 function pruneToolCallRecordBySession<T extends { sessionId: string }>({
   record,
   retainedSessionIds,
@@ -514,7 +509,6 @@ function pruneToolCallRecordBySession<T extends { sessionId: string }>({
   );
 }
 
-/** Removes pending-tool records owned by a single session. */
 function removeToolCallRecordForSession<T extends { sessionId: string }>(
   record: Partial<Record<string, T>>,
   sessionId: string

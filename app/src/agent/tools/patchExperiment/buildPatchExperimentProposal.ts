@@ -9,24 +9,12 @@ function stringifyMetadata(metadata: Record<string, unknown>): string {
   return JSON.stringify(metadata, null, 2);
 }
 
-/**
- * A proposed patch whose effective change set is non-empty, paired with the
- * before/after diff the approval card renders. `null` when the input would not
- * change any field relative to the current experiment.
- */
 export type PatchExperimentProposal = {
   payload: PatchExperimentPayload;
   diff: PatchExperimentFieldDiff[];
 };
 
-/**
- * Reduces a parsed patch input against the current experiment snapshot into the
- * canonical payload (only the keys that actually change) plus the field-level
- * diff. Returns `null` when nothing would change so the caller can reject the
- * proposal before creating a pending record. A field is in scope only when the
- * input carries that key; a value equal to the current one is dropped so a
- * no-op key never reaches the mutation or the card.
- */
+// Returns null when no field would change relative to the snapshot.
 export function buildPatchExperimentProposal(
   input: PatchExperimentInput,
   snapshot: ExperimentSnapshot

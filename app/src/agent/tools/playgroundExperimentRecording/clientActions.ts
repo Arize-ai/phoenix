@@ -25,11 +25,8 @@ function buildExperimentScaffold(
   return Object.keys(scaffold).length > 0 ? scaffold : null;
 }
 
-/**
- * Creates the client action handler for set_playground_experiment_recording.
- * Updates the mounted playground's future dataset-backed run persistence mode
- * and stages the name/description/metadata for the next run's experiments.
- */
+// Sets the playground's dataset-run persistence mode and stages the
+// name/description/metadata for the next run's experiments.
 export function createSetPlaygroundExperimentRecordingClientAction({
   playgroundStore,
 }: {

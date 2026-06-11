@@ -9,7 +9,6 @@ import type {
   PendingPatchExperiment,
 } from "./types";
 
-/** Model-facing representation of the diff rendered on the approval card. */
 function toChangeOutput(diff: PatchExperimentFieldDiff[]) {
   return diff.map((change) => ({
     field: change.field,
@@ -18,7 +17,6 @@ function toChangeOutput(diff: PatchExperimentFieldDiff[]) {
   }));
 }
 
-/** Attaches accept/reject callbacks to a pending experiment patch proposal. */
 export function bindPendingPatchExperimentActions({
   pendingPatch,
   fetchExperimentSnapshot,
@@ -49,8 +47,7 @@ export function bindPendingPatchExperimentActions({
         return;
       }
 
-      // The staleness guard rejects only target drift; the payload is never
-      // reconstructed from live state, so the committed write matches the card.
+      // Re-fetch only checks for drift; the committed payload is the stored one.
       if (currentUpdatedAt !== pendingPatch.expectedUpdatedAt) {
         await addToolOutput({
           state: "output-error",
