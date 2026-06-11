@@ -121,10 +121,10 @@ export function SkillPromptInput({
     }
   };
 
-  const recognizedTokenNames = new Set([
-    ...skills.map((skill) => skill.name),
-    ...commands.map((command) => command.name),
-  ]);
+  const recognizedSkillNames = new Set(skills.map((skill) => skill.name));
+  const recognizedCommandNames = new Set(
+    commands.map((command) => command.name)
+  );
 
   // Auto-resize the textarea to fit its content, mirroring PromptInputTextarea.
   useLayoutEffect(() => {
@@ -242,7 +242,8 @@ export function SkillPromptInput({
       <SkillHighlightOverlay
         ref={overlayRef}
         value={value}
-        recognizedTokenNames={recognizedTokenNames}
+        recognizedSkillNames={recognizedSkillNames}
+        recognizedCommandNames={recognizedCommandNames}
       />
       <textarea
         ref={mergeTextareaRef}

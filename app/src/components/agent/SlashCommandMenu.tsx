@@ -2,7 +2,13 @@ import { css } from "@emotion/react";
 import { motion } from "motion/react";
 import { useLayoutEffect } from "react";
 
-import { Flex, KeyboardToken, Text, Token } from "@phoenix/components";
+import {
+  Flex,
+  KeyboardToken,
+  Text,
+  Token,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { classNames } from "@phoenix/utils/classNames";
 
 import type { SlashMenuItem } from "./usePromptSkillCommand";
@@ -58,17 +64,22 @@ const slashCommandMenuNameCSS = css`
 
 /**
  * The trailing pill that identifies a row: skills are tagged `skill`, commands
- * with a shortcut show their keybind, and plain commands show nothing — being
- * unmarked is what reads as "command".
+ * with a shortcut show their keybind, and plain commands include a screen-reader
+ * label so the visual "unmarked means command" convention is accessible.
  */
 function SlashMenuItemPill({ item }: { item: SlashMenuItem }) {
   if (item.kind === "skill") {
     return <Token size="S">skill</Token>;
   }
   if (item.keybind) {
-    return <KeyboardToken>{item.keybind}</KeyboardToken>;
+    return (
+      <>
+        <VisuallyHidden>command</VisuallyHidden>
+        <KeyboardToken>{item.keybind}</KeyboardToken>
+      </>
+    );
   }
-  return null;
+  return <VisuallyHidden>command</VisuallyHidden>;
 }
 
 export type SlashCommandMenuProps = {

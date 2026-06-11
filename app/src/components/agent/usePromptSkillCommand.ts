@@ -95,17 +95,68 @@ export function isSameActiveQuery(
   return a.slashIndex === b.slashIndex && a.query === b.query;
 }
 
-function filterItems<Item extends { name: string }>(
+function partitionItemsByMatch<Item extends { name: string }>(
   items: Item[],
   query: string,
   selectedNames: ReadonlySet<string>
-): Item[] {
+): { prefixMatches: Item[]; substringMatches: Item[] } {
   const lowerQuery = query.toLowerCase();
-  return items.filter(
-    (item) =>
-      !selectedNames.has(item.name) &&
-      (query === "" || item.name.toLowerCase().includes(lowerQuery))
-  );
+  const prefixMatches: Item[] = [];
+  const substringMatches: Item[] = [];
+  for (const item of items) {
+    if (selectedNames.has(item.name)) {
+      continue;
+    }
+    const lowerName = item.name.toLowerCase();
+    if (query === "" || lowerName.startsWith(lowerQuery)) {
+      prefixMatches.push(item);
+    } else if (lowerName.includes(lowerQuery)) {
+      substringMatches.push(item);
+    }
+  }
+  return { prefixMatches, substringMatches };
+}
+
+function mapSkillToMenuItem(skill: AvailableAgentSkill): SlashMenuItem {
+  return {
+    name: skill.name,
+    summary: skill.summary,
+    kind: "skill",
+  };
+}
+
+function mapCommandToMenuItem(command: PromptCommand): SlashMenuItem {
+  return {
+    name: command.name,
+    summary: command.summary,
+    kind: "command",
+    keybind: command.keybind,
+  };
+}
+
+export function getFilteredSlashMenuItems({
+  skills,
+  commands,
+  query,
+  selectedNames,
+  canShowCommands,
+}: {
+  skills: AvailableAgentSkill[];
+  commands: PromptCommand[];
+  query: string;
+  selectedNames: ReadonlySet<string>;
+  canShowCommands: boolean;
+}): SlashMenuItem[] {
+  const skillMatches = partitionItemsByMatch(skills, query, selectedNames);
+  const commandMatches = canShowCommands
+    ? partitionItemsByMatch(commands, query, selectedNames)
+    : { prefixMatches: [], substringMatches: [] };
+  return [
+    ...skillMatches.prefixMatches.map(mapSkillToMenuItem),
+    ...commandMatches.prefixMatches.map(mapCommandToMenuItem),
+    ...commandMatches.substringMatches.map(mapCommandToMenuItem),
+    ...skillMatches.substringMatches.map(mapSkillToMenuItem),
+  ];
 }
 
 /**
@@ -191,23 +242,13 @@ export function usePromptSkillCommand(
   } | null>(null);
 
   const filteredItems: SlashMenuItem[] = activeQuery
-    ? [
-        ...filterItems(skills, activeQuery.query, selectedNames).map(
-          (skill): SlashMenuItem => ({
-            name: skill.name,
-            summary: skill.summary,
-            kind: "skill",
-          })
-        ),
-        ...filterItems(commands, activeQuery.query, selectedNames).map(
-          (command): SlashMenuItem => ({
-            name: command.name,
-            summary: command.summary,
-            kind: "command",
-            keybind: command.keybind,
-          })
-        ),
-      ]
+    ? getFilteredSlashMenuItems({
+        skills,
+        commands,
+        query: activeQuery.query,
+        selectedNames,
+        canShowCommands: activeQuery.slashIndex === 0,
+      })
     : [];
   const isOpen = activeQuery !== null && filteredItems.length > 0;
 

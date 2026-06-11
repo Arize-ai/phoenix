@@ -1,8 +1,30 @@
 import {
+  getFilteredSlashMenuItems,
   getActiveQuery,
   getSelectedTokenNames,
   isSameActiveQuery,
 } from "../usePromptSkillCommand";
+
+const skills = [
+  {
+    name: "debug-trace",
+    summary: "Debug a trace",
+    description: "Debug a trace",
+  },
+  {
+    name: "compare",
+    summary: "Compare things",
+    description: "Compare things",
+  },
+];
+
+const commands = [
+  {
+    name: "clear",
+    summary: "Clear the conversation",
+    run: vi.fn(),
+  },
+];
 
 describe("getActiveQuery", () => {
   it("detects a query when the caret is right after a leading slash", () => {
@@ -140,5 +162,31 @@ describe("getSelectedTokenNames", () => {
         }
       )
     ).toEqual(new Set(["debug-trace"]));
+  });
+});
+
+describe("getFilteredSlashMenuItems", () => {
+  it("ranks executable command prefix matches before skill substring matches", () => {
+    expect(
+      getFilteredSlashMenuItems({
+        skills,
+        commands,
+        query: "c",
+        selectedNames: new Set(),
+        canShowCommands: true,
+      }).map((item) => item.name)
+    ).toEqual(["compare", "clear", "debug-trace"]);
+  });
+
+  it("hides commands when the slash query is not in executable position", () => {
+    expect(
+      getFilteredSlashMenuItems({
+        skills,
+        commands,
+        query: "c",
+        selectedNames: new Set(),
+        canShowCommands: false,
+      }).map((item) => item.name)
+    ).toEqual(["compare", "debug-trace"]);
   });
 });

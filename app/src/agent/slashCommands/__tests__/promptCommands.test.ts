@@ -1,4 +1,28 @@
-import { parsePromptCommands } from "@phoenix/agent/slashCommands/promptCommands";
+import {
+  findPromptCommandTokens,
+  parsePromptCommands,
+} from "@phoenix/agent/slashCommands/promptCommands";
+
+describe("findPromptCommandTokens", () => {
+  const available = new Set(["clear"]);
+
+  it("finds an executable command at the start of the prompt", () => {
+    expect(findPromptCommandTokens("/clear fix this", available)).toEqual([
+      { name: "clear", start: 0, end: 6 },
+    ]);
+  });
+
+  it("does not find commands mid-message", () => {
+    expect(findPromptCommandTokens("what does /clear do?", available)).toEqual(
+      []
+    );
+  });
+
+  it("does not find commands followed by punctuation", () => {
+    expect(findPromptCommandTokens("/clear.", available)).toEqual([]);
+    expect(findPromptCommandTokens("/clear, fix this", available)).toEqual([]);
+  });
+});
 
 describe("parsePromptCommands", () => {
   const available = new Set(["clear"]);
@@ -17,10 +41,10 @@ describe("parsePromptCommands", () => {
     });
   });
 
-  it("strips a mid-message command without doubling whitespace", () => {
+  it("leaves mid-message command mentions untouched", () => {
     expect(parsePromptCommands("fix /clear this bug", available)).toEqual({
-      commandNames: ["clear"],
-      text: "fix this bug",
+      commandNames: [],
+      text: "fix /clear this bug",
     });
   });
 
@@ -31,10 +55,17 @@ describe("parsePromptCommands", () => {
     });
   });
 
-  it("dedupes repeated commands but strips every occurrence", () => {
+  it("dedupes repeated commands but leaves non-leading mentions untouched", () => {
     expect(parsePromptCommands("/clear and /clear again", available)).toEqual({
       commandNames: ["clear"],
-      text: "and again",
+      text: "and /clear again",
+    });
+  });
+
+  it("strips consecutive leading commands", () => {
+    expect(parsePromptCommands("/clear /clear again", available)).toEqual({
+      commandNames: ["clear"],
+      text: "again",
     });
   });
 
@@ -49,6 +80,17 @@ describe("parsePromptCommands", () => {
     expect(parsePromptCommands("see a/clear/b", available)).toEqual({
       commandNames: [],
       text: "see a/clear/b",
+    });
+  });
+
+  it("does not treat punctuation as part of a command invocation", () => {
+    expect(parsePromptCommands("/clear.", available)).toEqual({
+      commandNames: [],
+      text: "/clear.",
+    });
+    expect(parsePromptCommands("/clear, fix this", available)).toEqual({
+      commandNames: [],
+      text: "/clear, fix this",
     });
   });
 });

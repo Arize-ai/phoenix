@@ -36,12 +36,14 @@ describe("runPromptCommands", () => {
     });
   });
 
-  it("ignores unrecognized command names", () => {
+  it("throws on unrecognized command names", () => {
     const context = createContext();
-    runPromptCommands(
-      { commandNames: ["unknown"], text: "hello", requestedSkills: [] },
-      context
-    );
+    expect(() =>
+      runPromptCommands(
+        { commandNames: ["unknown"], text: "hello", requestedSkills: [] },
+        context
+      )
+    ).toThrow("Unknown prompt command: unknown");
     expect(context.createSession).not.toHaveBeenCalled();
     expect(context.setPendingMessage).not.toHaveBeenCalled();
   });
