@@ -6,7 +6,7 @@ from typing import Any, Optional
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from pydantic import Field
+from pydantic import Field, model_validator
 from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -404,6 +404,17 @@ class UpdateExperimentRequestBody(V1RoutesBaseModel):
             "whole; null is rejected)"
         ),
     )
+
+    @model_validator(mode="after")
+    def _reject_explicit_null_name_and_metadata(self) -> "UpdateExperimentRequestBody":
+        # `name` and `metadata` are non-nullable: an omitted field stays UNDEFINED, but an
+        # explicit JSON `null` arrives as None and must be rejected (422) rather than silently
+        # dropped — otherwise `{"name": null, "description": "x"}` would 200 and ignore the name.
+        if self.name is None:
+            raise ValueError("name cannot be null")
+        if self.metadata is None:
+            raise ValueError("metadata cannot be null")
+        return self
 
 
 class UpdateExperimentResponseBody(ResponseBody[Experiment]):

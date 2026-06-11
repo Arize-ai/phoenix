@@ -1766,6 +1766,32 @@ class TestPatchExperiment:
         )
         assert response.status_code == 422
 
+    async def test_null_name_alongside_other_field_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        # An explicit null name must 422 even when paired with a valid field, rather than
+        # being silently dropped while the other field updates.
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"name": None, "description": "x"},
+        )
+        assert response.status_code == 422
+
+    async def test_null_metadata_alongside_other_field_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        dataset_with_experiments_without_runs: Any,
+    ) -> None:
+        experiment_gid = GlobalID("Experiment", "0")
+        response = await httpx_client.patch(
+            f"v1/experiments/{experiment_gid}",
+            json={"metadata": None, "description": "x"},
+        )
+        assert response.status_code == 422
+
     async def test_non_object_metadata_is_rejected(
         self,
         httpx_client: httpx.AsyncClient,
