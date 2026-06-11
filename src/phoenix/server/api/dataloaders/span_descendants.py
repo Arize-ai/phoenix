@@ -7,6 +7,7 @@ from sqlalchemy import select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import Span
 from phoenix.server.types import DbSessionFactory
 
@@ -23,73 +24,10 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: Iterable[Key]) -> list[Result]:
-        # Create a values expression with Span.id and respective max_depth (which can be None).
-        values = sa.values(
-            sa.Column("root_rowid", sa.Integer),
-            sa.Column("max_depth", sa.Integer, nullable=True),
-            name="values",
-        ).data(list(keys))
-
-        # Get the root spans with their depth limits by joining the values to the Span table.
-        roots = (
-            select(
-                Span.span_id,
-                values.c.root_rowid,
-                values.c.max_depth,
-            )
-            .join_from(values, Span, Span.id == values.c.root_rowid)
-            .subquery("roots")
-        )
-
-        # Initialize the recursive common table expression (CTE) with direct children
-        # of root spans, setting depth=1.
-        descendants = (
-            select(
-                Span.id,
-                Span.span_id,
-                Span.start_time,
-                roots.c.root_rowid,
-                roots.c.max_depth,
-                sa.literal(1).label("depth"),  # immediate children are depth=1 from root
-            )
-            .join_from(roots, Span, Span.parent_id == roots.c.span_id)
-            .cte("descendants", recursive=True)
-        )
-
-        # Build the recursive part of the query to fetch descendants at increasing depths.
-        # This recursively finds children of spans in the current depth level.
-        parents = descendants.alias("parents")
-        descendants = descendants.union_all(
-            select(
-                Span.id,
-                Span.span_id,
-                Span.start_time,
-                parents.c.root_rowid,
-                parents.c.max_depth,
-                (parents.c.depth + 1).label("depth"),  # Increment depth for each level
-            )
-            .join_from(parents, Span, Span.parent_id == parents.c.span_id)
-            .where(
-                sa.or_(
-                    parents.c.max_depth.is_(None),  # No limit if max_depth is NULL
-                    parents.c.depth + 1 <= parents.c.max_depth,  # Stop when max depth is reached
-                ),
-            )
-        )
-
-        # Final query to select and order all descendants.
-        # Ordering ensures breadth-first traversal and consistent results.
-        stmt = select(
-            descendants.c.id,
-            descendants.c.root_rowid,
-            descendants.c.max_depth,
-        ).order_by(
-            descendants.c.root_rowid,
-            descendants.c.max_depth,
-            descendants.c.depth,  # Order by depth for BFS traversal
-            descendants.c.start_time,
-            descendants.c.id,
-        )
+        keys = list(keys)
+        if not keys:
+            return []
+        stmt = _descendants_stmt(keys, self._db.dialect)
 
         results: defaultdict[Key, Result] = defaultdict(list)
         async with self._db.read() as session:
@@ -101,3 +39,89 @@ class SpanDescendantsDataLoader(DataLoader[Key, Result]):
                 results[key].extend(id_ for id_, *_ in group)
 
         return [results[key].copy() for key in keys]
+
+
+def _descendants_stmt(
+    keys: list[Key], dialect: SupportedSQLDialect
+) -> sa.Select[tuple[int, int, int | None]]:
+    values = _root_values(keys, dialect)
+
+    # Get the root spans with their depth limits by joining the values to the Span table.
+    roots = (
+        select(
+            Span.span_id,
+            values.c.root_rowid,
+            values.c.max_depth,
+        )
+        .join_from(values, Span, Span.id == values.c.root_rowid)
+        .subquery("roots")
+    )
+
+    # Initialize the recursive common table expression (CTE) with direct children
+    # of root spans, setting depth=1.
+    descendants = (
+        select(
+            Span.id,
+            Span.span_id,
+            Span.start_time,
+            roots.c.root_rowid,
+            roots.c.max_depth,
+            sa.literal(1).label("depth"),  # immediate children are depth=1 from root
+        )
+        .join_from(roots, Span, Span.parent_id == roots.c.span_id)
+        .cte("descendants", recursive=True)
+    )
+
+    # Build the recursive part of the query to fetch descendants at increasing depths.
+    # This recursively finds children of spans in the current depth level.
+    parents = descendants.alias("parents")
+    descendants = descendants.union_all(
+        select(
+            Span.id,
+            Span.span_id,
+            Span.start_time,
+            parents.c.root_rowid,
+            parents.c.max_depth,
+            (parents.c.depth + 1).label("depth"),  # Increment depth for each level
+        )
+        .join_from(parents, Span, Span.parent_id == parents.c.span_id)
+        .where(
+            sa.or_(
+                parents.c.max_depth.is_(None),  # No limit if max_depth is NULL
+                parents.c.depth + 1 <= parents.c.max_depth,  # Stop when max depth is reached
+            ),
+        )
+    )
+
+    # Final query to select and order all descendants.
+    # Ordering ensures breadth-first traversal and consistent results.
+    return select(
+        descendants.c.id,
+        descendants.c.root_rowid,
+        descendants.c.max_depth,
+    ).order_by(
+        descendants.c.root_rowid,
+        descendants.c.max_depth,
+        descendants.c.depth,  # Order by depth for BFS traversal
+        descendants.c.start_time,
+        descendants.c.id,
+    )
+
+
+def _root_values(keys: list[Key], dialect: SupportedSQLDialect) -> sa.FromClause:
+    # Create a values expression with Span.id and respective max_depth (which can be None).
+    if dialect != SupportedSQLDialect.MYSQL:
+        return sa.values(
+            sa.Column("root_rowid", sa.Integer),
+            sa.Column("max_depth", sa.Integer, nullable=True),
+            name="values",
+        ).data(keys)
+
+    selects = [
+        select(
+            sa.literal(root_rowid).label("root_rowid"),
+            sa.literal(max_depth, type_=sa.Integer).label("max_depth"),
+        )
+        for root_rowid, max_depth in keys
+    ]
+    return sa.union_all(*selects).subquery("values")

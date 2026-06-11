@@ -1757,7 +1757,7 @@ OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE.split(".")
 
 def _as_datetime(value: Any) -> datetime:
     if isinstance(value, datetime):
-        return value
+        return cast(datetime, normalize_datetime(value, timezone.utc))
     if isinstance(value, str):
         return cast(datetime, normalize_datetime(datetime.fromisoformat(value), timezone.utc))
     raise ValueError(f"Cannot convert {value} to datetime")
