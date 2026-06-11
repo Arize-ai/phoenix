@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from evals.pxi.evaluators.links import evaluate_in_app_links
+from evals.pxi.evaluators.text import evaluate_assistant_text_substrings
 from evals.pxi.evaluators.tools import (
     evaluate_tool_call_args,
     evaluate_tools_called,
@@ -478,3 +479,137 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "fail"
         assert "must be an object" in result["metadata"]["set_time_range"]["reason"]
+
+
+def _text_output(text: str | None) -> dict[str, Any]:
+    return {"assistant_text": text, "messages": []}
+
+
+def _text_expected(expectation: Any) -> dict[str, Any]:
+    return {"assistant_text": expectation}
+
+
+class TestAssistantTextSubstringsMatch:
+    def test_no_expectations_passes(self) -> None:
+        result = evaluate_assistant_text_substrings(output=_text_output("anything"), expected={})
+        assert result["label"] == "pass"
+
+    def test_contains_all_passes_case_insensitively(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("A turn corresponds to a single TRACE in the session."),
+            expected=_text_expected({"contains_all": ["trace", "session"]}),
+        )
+        assert result["label"] == "pass"
+
+    def test_contains_all_fails_when_substring_missing(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("A turn is part of a session."),
+            expected=_text_expected({"contains_all": ["trace"]}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["missing_required"] == ["trace"]
+
+    def test_any_of_group_passes_when_one_alternative_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Cost comes from model prices times token counts."),
+            expected=_text_expected({"contains_all": [["pricing", "model prices"], "token"]}),
+        )
+        assert result["label"] == "pass"
+
+    def test_any_of_group_fails_when_no_alternative_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Cost is computed from token counts."),
+            expected=_text_expected({"contains_all": [["pricing", "model prices"]]}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["missing_required"] == [
+            ["pricing", "model prices"]
+        ]
+
+    def test_contains_any_passes_when_one_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Annotator kinds are HUMAN, LLM, and CODE."),
+            expected=_text_expected({"contains_any": ["human", "llm"]}),
+        )
+        assert result["label"] == "pass"
+
+    def test_contains_any_fails_when_none_match(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Annotations carry a label and a score."),
+            expected=_text_expected({"contains_any": ["human", "llm"]}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["missing_any_of"] == ["human", "llm"]
+
+    def test_not_contains_fails_when_forbidden_present(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Just set the llm.cost.total attribute on your spans."),
+            expected=_text_expected(
+                {"contains_all": ["token"], "not_contains": ["set the llm.cost"]}
+            ),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["matched_forbidden"] == [
+            "set the llm.cost"
+        ]
+
+    def test_variant_list_passes_when_any_variant_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("An experiment runs over a dataset version."),
+            expected=_text_expected(
+                [
+                    {"contains_all": ["snapshot"]},
+                    {"contains_all": ["dataset version"]},
+                ]
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_variant_list_fails_when_no_variant_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("An experiment is a kind of test."),
+            expected=_text_expected(
+                [
+                    {"contains_all": ["snapshot"]},
+                    {"contains_all": ["dataset version"]},
+                ]
+            ),
+        )
+        assert result["label"] == "fail"
+        assert len(result["metadata"]["variant_failures"]) == 2
+
+    def test_missing_assistant_text_fails(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output(None),
+            expected=_text_expected({"contains_all": ["trace"]}),
+        )
+        assert result["label"] == "fail"
+        assert "did not include text" in result["explanation"]
+
+    def test_blank_assistant_text_fails(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("   \n"),
+            expected=_text_expected({"contains_all": ["trace"]}),
+        )
+        assert result["label"] == "fail"
+
+    @pytest.mark.parametrize(
+        "expectation",
+        [
+            "not-a-dict",
+            [],
+            ["not-a-dict"],
+            {"unknown_key": ["x"]},
+            {},
+            {"contains_all": "not-a-list"},
+            {"contains_all": [[]]},
+            {"contains_all": [123]},
+            {"not_contains": [123]},
+        ],
+    )
+    def test_malformed_expectation_fails(self, expectation: Any) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("some text"),
+            expected=_text_expected(expectation),
+        )
+        assert result["label"] == "fail"
