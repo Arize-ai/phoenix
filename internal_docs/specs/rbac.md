@@ -25,6 +25,8 @@ or prompt?"
 - Keep the model simple: one user has one role.
 - Make the access model easier to explain, audit, and extend.
 - Leave room for OAuth and LDAP group mapping to assign custom roles later.
+- Leave room for API keys to be scoped to a subset of the owner's access
+  controls.
 
 ## Non-Goals
 
@@ -135,6 +137,23 @@ semantics into the new access-control model.
 The important product shift is that Phoenix should ask "does this user's role
 grant this capability?" rather than "is this user an Admin, Member, or Viewer?"
 
+### API Keys
+
+API keys should be able to carry their own set of access controls so that a key
+can be scoped down to less than what the owner's role allows. A key's effective
+access is the intersection of its grants and the owner's role: a key can never
+exceed the role, and narrowing a role narrows every key under it.
+
+A key created without explicit grants should keep today's behavior and inherit
+the owner's role. This makes scoped keys an opt-in refinement rather than a
+breaking change.
+
+Scoped keys let users follow least privilege for automation. Examples:
+
+- An ingest key that can only write traces, used by instrumented applications.
+- A read-only key for dashboards and reporting.
+- A CI key that can run experiments but cannot manage users or secrets.
+
 ### External Auth
 
 OAuth and LDAP role mapping should continue to work with the built-in roles.
@@ -199,4 +218,6 @@ Allow OAuth and LDAP mappings to assign custom roles by stable role key.
   experiments?
 - Should role changes immediately revoke active API keys, or should API keys
   pick up new permissions on the normal refresh path?
+- Should scoped API keys ship alongside custom roles, or follow as a later
+  phase once access-control checks are in place?
 - Should role management be visible when authentication is disabled?
