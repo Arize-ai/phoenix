@@ -63,6 +63,9 @@ class SetDatasetEvaluatorSelectionCapability(AbstractDynamicCapability[AgentDepe
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
+        # Empty roster is intentionally gated out: the applied set is already filtered to
+        # roster membership at run time (PlaygroundDatasetSection), so empty-array "clear"
+        # is moot here.
         playground = ctx.deps.contexts.playground
         return (
             playground is not None

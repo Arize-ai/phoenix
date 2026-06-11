@@ -83,7 +83,7 @@ describe("read_dataset_evaluator_definition client action", () => {
     expect(readDatasetEvaluatorDefinition).not.toHaveBeenCalled();
   });
 
-  it("fails all-or-error when a per-id fetch rejects, returning no partial result", async () => {
+  it("returns the definitions that resolved plus per-id errors when one fetch fails", async () => {
     const evaluators = [evaluator({ id: "a" }), evaluator({ id: "b" })];
     readDatasetEvaluatorDefinition.mockImplementation(
       async ({ datasetEvaluatorId }: { datasetEvaluatorId: string }) =>
@@ -98,8 +98,38 @@ describe("read_dataset_evaluator_definition client action", () => {
 
     const result = await action({ datasetEvaluatorIds: ["a", "b"] });
 
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const parsed = JSON.parse(result.output!);
+      expect(
+        parsed.datasetEvaluatorDefinitions.map(
+          (def: { datasetEvaluatorId: string }) => def.datasetEvaluatorId
+        )
+      ).toEqual(["a"]);
+      expect(parsed.errors).toEqual([
+        { datasetEvaluatorId: "b", error: "Failed to read evaluator b." },
+      ]);
+    }
+  });
+
+  it("fails only when every per-id fetch fails", async () => {
+    const evaluators = [evaluator({ id: "a" }), evaluator({ id: "b" })];
+    readDatasetEvaluatorDefinition.mockImplementation(
+      async ({ datasetEvaluatorId }: { datasetEvaluatorId: string }) => ({
+        ok: false,
+        error: `Failed to read evaluator ${datasetEvaluatorId}.`,
+      })
+    );
+    const action = createReadDatasetEvaluatorDefinitionClientAction({
+      datasetId: "RGF0YXNldDox",
+      getEvaluators: () => evaluators,
+    });
+
+    const result = await action({ datasetEvaluatorIds: ["a", "b"] });
+
     expect(result.ok).toBe(false);
     if (!result.ok) {
+      expect(result.error).toContain("evaluator a");
       expect(result.error).toContain("evaluator b");
     }
   });

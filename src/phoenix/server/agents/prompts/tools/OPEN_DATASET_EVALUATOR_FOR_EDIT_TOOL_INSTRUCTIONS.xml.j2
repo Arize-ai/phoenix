@@ -6,16 +6,15 @@
   </when_to_use>
   <user_facing_language>
     - The tool name is internal. In replies to users, call the opened surface the evaluator form.
-    - Do not describe saving as approving a diff. The user saves with the form's Save action when ready.
+    - Do not describe saving as approving a diff. Saving is the form's Save action; whether you drive that save or the user clicks it is governed by the mounted evaluator context's permission-aware guidance.
   </user_facing_language>
   <workflow>
     - Call `open_dataset_evaluator_for_edit` first, then wait for the evaluator context and draft tools to appear.
     - After the form is mounted, call the matching `read_*_evaluator_draft`, then propose changes with `edit_*_evaluator_draft`.
-    - After the user accepts a populated draft, offer to run the matching `test_*_evaluator_draft` before they save.
-    - Do not promise the evaluator was updated. Persistence stays behind the user-visible Save action in the form.
+    - For testing and saving, follow the mounted `<phoenix_code_evaluator_context>` or `<phoenix_llm_evaluator_context>` guidance — it is permission-aware and, under auto-accept, drives the populated draft through the matching `test_*_evaluator_draft` and `submit_*_evaluator_draft` automatically. Do not prescribe a manual Save step here or claim the evaluator was updated until that save's success result comes back; let the mounted context govern persistence.
   </workflow>
   <rules>
     - Only code and LLM evaluators can be opened here. If the user asks to edit a built-in evaluator, tell them built-in evaluators are not yet editable via the assistant.
-    - If a code or LLM evaluator form is already open, this call is rejected. Ask the user to close the open form, then retry — do not try to discard their in-progress draft yourself.
+    - If another evaluator form is already open (a create or edit form), this call is rejected. Ask the user to close the open form, then retry — do not try to discard their in-progress draft yourself.
   </rules>
 </tool>

@@ -7,7 +7,7 @@
   <rules>
     - Pass `datasetEvaluatorIds` from the playground roster (`existing_dataset_evaluators`). Read only the ids you need.
     - Code evaluators return source, language, sandbox, and mappings; LLM evaluators return judge messages, model config, and output configs; built-in evaluators return metadata, input schema, and output configs.
-    - If any id is not on the roster, the whole call fails — re-check the roster and retry with valid ids. This tool only reads; to edit use `open_dataset_evaluator_for_edit`, to change which run use `set_dataset_evaluator_selection`.
+    - If any id is not on the roster, the whole call fails — re-check the roster and retry with valid ids. If an id passes the roster check but can't be read (for example it was just deleted), that id is reported under `errors` while the rest still return in `datasetEvaluatorDefinitions`; retry only the failed ids. This tool only reads; to edit use `open_dataset_evaluator_for_edit`, to change which run use `set_dataset_evaluator_selection`.
     - Long body fields may be truncated with a `… [truncated]` marker. Open the evaluator's form if you need the untruncated body.
   </rules>
 </tool>

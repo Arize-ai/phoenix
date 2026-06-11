@@ -23,8 +23,9 @@ DESCRIPTION = (
     "language, sandbox, and mappings; LLM evaluators return judge messages, model "
     "config, and output configs; built-in evaluators return metadata, input "
     "schema, and output configs. Pass evaluator ids from the playground roster; "
-    f"read at most {MAX_EVALUATOR_IDS} at a time. It does not edit, select, or "
-    "create evaluators."
+    f"read at most {MAX_EVALUATOR_IDS} at a time. Long body fields may be "
+    "truncated with a marker; open the evaluator for edit to read the full "
+    "source. It does not edit, select, or create evaluators."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -69,10 +70,11 @@ class ReadDatasetEvaluatorDefinitionCapability(AbstractDynamicCapability[AgentDe
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
+        # Pure read, so not viewer-gated, matching read_code_evaluator_draft and the
+        # list_* tools; only writes/runs gate on is_viewer.
         playground = ctx.deps.contexts.playground
         return (
             playground is not None
             and ctx.deps.contexts.dataset is not None
             and bool(playground.evaluators)
-            and not ctx.deps.is_viewer
         )

@@ -1663,7 +1663,7 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         assert "open_dataset_evaluator_for_edit" not in tool_names
         assert "read_dataset_evaluator_definition" not in tool_names
 
-    async def test_both_tools_hidden_for_viewer(
+    async def test_write_tools_hidden_for_viewer_but_read_remains(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -1680,9 +1680,11 @@ class TestDatasetEvaluatorSelectAndEditToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
+        # Selection and edit-open mutate state, so they stay viewer-gated; reading
+        # a definition is a pure read and remains available to viewers.
         assert "set_dataset_evaluator_selection" not in tool_names
         assert "open_dataset_evaluator_for_edit" not in tool_names
-        assert "read_dataset_evaluator_definition" not in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
 
     async def test_both_tools_hidden_without_dataset(
         self,

@@ -37,22 +37,44 @@ export function createReadDatasetEvaluatorDefinitionClientAction({
       };
     }
 
-    const definitions: DatasetEvaluatorDefinition[] = [];
-    for (const datasetEvaluatorId of requestedIds) {
-      const result = await readDatasetEvaluatorDefinition({
-        datasetId,
+    const settled = await Promise.all(
+      requestedIds.map(async (datasetEvaluatorId) => ({
         datasetEvaluatorId,
-      });
-      if (!result.ok) {
-        return { ok: false, error: result.error };
+        result: await readDatasetEvaluatorDefinition({
+          datasetId,
+          datasetEvaluatorId,
+        }),
+      }))
+    );
+
+    const definitions: DatasetEvaluatorDefinition[] = [];
+    const errors: { datasetEvaluatorId: string; error: string }[] = [];
+    for (const { datasetEvaluatorId, result } of settled) {
+      if (result.ok) {
+        definitions.push(result.definition);
+      } else {
+        errors.push({ datasetEvaluatorId, error: result.error });
       }
-      definitions.push(result.definition);
+    }
+
+    if (definitions.length === 0) {
+      return {
+        ok: false,
+        error: errors
+          .map(
+            ({ datasetEvaluatorId, error }) => `${datasetEvaluatorId}: ${error}`
+          )
+          .join("; "),
+      };
     }
 
     return {
       ok: true,
       output: JSON.stringify(
-        { datasetEvaluatorDefinitions: definitions },
+        {
+          datasetEvaluatorDefinitions: definitions,
+          ...(errors.length > 0 ? { errors } : {}),
+        },
         null,
         2
       ),

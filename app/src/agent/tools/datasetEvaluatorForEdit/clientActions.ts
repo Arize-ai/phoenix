@@ -33,6 +33,11 @@ const DRAFT_TOOL_NAMES_BY_KIND: Record<EditableKind, readonly string[]> = {
   ],
 };
 
+const ALL_DRAFT_TOOL_NAMES: readonly string[] = [
+  ...DRAFT_TOOL_NAMES_BY_KIND.CODE,
+  ...DRAFT_TOOL_NAMES_BY_KIND.LLM,
+];
+
 export type OpenEvaluatorForEditTarget = {
   datasetEvaluatorId: string;
   kind: EvaluatorKind;
@@ -52,10 +57,12 @@ function resolveEditableKind(evaluator: EvaluatorItem): EditableKind | null {
 export function createOpenDatasetEvaluatorForEditClientAction({
   agentStore,
   getEvaluators,
+  getEditingEvaluator,
   openEvaluatorForEdit,
 }: {
   agentStore: AgentStore;
   getEvaluators: () => EvaluatorItem[];
+  getEditingEvaluator: () => OpenEvaluatorForEditTarget | null;
   openEvaluatorForEdit: (target: OpenEvaluatorForEditTarget) => void;
 }) {
   return async (input: unknown): Promise<AgentClientActionResult> => {
@@ -89,18 +96,32 @@ export function createOpenDatasetEvaluatorForEditClientAction({
       };
     }
 
-    const registeredClientActions =
-      agentStore.getState().registeredClientActions;
-    const mountedSameKind = DRAFT_TOOL_NAMES_BY_KIND[editableKind].some(
-      (name) => name in registeredClientActions
-    );
-    if (mountedSameKind) {
+    // All three edit slideovers share one editingEvaluator slot (PlaygroundDatasetSection);
+    // opening a second clobbers the first's unsaved draft, and a built-in edit form occupies
+    // the slot but registers no draft tools.
+    if (getEditingEvaluator() !== null) {
       return {
         ok: false,
         error:
-          `A ${editableKind === "CODE" ? "code" : "LLM"}-evaluator form is ` +
-          "already open. Ask the user to close it, then retry — the open form's " +
-          "unsaved changes are not discarded automatically.",
+          "An evaluator form is already open for editing. Ask the user to " +
+          "close it, then retry — the open form's unsaved changes are not " +
+          "discarded automatically.",
+      };
+    }
+
+    // Create forms register their kind's draft tools without touching the slot above.
+    const registeredClientActions =
+      agentStore.getState().registeredClientActions;
+    const draftFormMounted = ALL_DRAFT_TOOL_NAMES.some(
+      (name) => name in registeredClientActions
+    );
+    if (draftFormMounted) {
+      return {
+        ok: false,
+        error:
+          "An evaluator form is already open. Ask the user to close it, then " +
+          "retry — the open form's unsaved changes are not discarded " +
+          "automatically.",
       };
     }
 

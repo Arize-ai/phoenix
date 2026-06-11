@@ -154,10 +154,15 @@ export function PlaygroundDatasetSection({
   const [editingEvaluator, setEditingEvaluator] =
     useState<EditingEvaluator | null>(null);
 
-  // Held in a ref, not a dep: re-registering on every roster change would tear down in-flight agent calls.
+  // Held in refs, not deps, so re-registering the client actions on every roster or
+  // edit change doesn't tear down in-flight agent calls.
   const agentStore = useAgentStore();
   const evaluatorsRef = useRef<EvaluatorItem[]>(datasetEvaluators);
-  evaluatorsRef.current = datasetEvaluators;
+  const editingEvaluatorRef = useRef<EditingEvaluator | null>(editingEvaluator);
+  useEffect(() => {
+    evaluatorsRef.current = datasetEvaluators;
+    editingEvaluatorRef.current = editingEvaluator;
+  }, [datasetEvaluators, editingEvaluator]);
 
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =
@@ -174,6 +179,7 @@ export function PlaygroundDatasetSection({
       createOpenDatasetEvaluatorForEditClientAction({
         agentStore,
         getEvaluators: () => evaluatorsRef.current,
+        getEditingEvaluator: () => editingEvaluatorRef.current,
         openEvaluatorForEdit: setEditingEvaluator,
       })
     );
