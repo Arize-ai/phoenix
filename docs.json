@@ -1187,6 +1187,7 @@
             "pages": [
               "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
               "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
+              "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
               "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
               "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
