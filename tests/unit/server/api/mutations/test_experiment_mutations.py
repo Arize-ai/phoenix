@@ -164,13 +164,13 @@ class TestPatchExperimentMutation:
         gql_client: AsyncGraphQLClient,
         simple_experiments: Any,
     ) -> None:
+        # description is the only nullable field: an explicit null clears it, while name and
+        # metadata are left untouched.
         response = await gql_client.execute(
             query=self.MUTATION,
             variables={
                 "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                "name": None,
                 "description": None,
-                "metadata": None,
             },
         )
         assert not response.errors
@@ -185,7 +185,26 @@ class TestPatchExperimentMutation:
             }
         }
 
-    async def test_empty_effective_patch_is_rejected(
+    async def test_null_name_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        # An explicit null name must be rejected even when paired with a valid field, rather
+        # than being silently dropped while the other field updates.
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "name": None,
+                "description": "x",
+            },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == "name cannot be null"
+
+    async def test_null_metadata_is_rejected(
         self,
         gql_client: AsyncGraphQLClient,
         simple_experiments: Any,
@@ -194,8 +213,24 @@ class TestPatchExperimentMutation:
             query=self.MUTATION,
             variables={
                 "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
-                "name": None,
                 "metadata": None,
+                "description": "x",
+            },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == "metadata cannot be null"
+
+    async def test_empty_effective_patch_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        # No mutable fields supplied (all UNSET) -> nothing to patch.
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
             },
         )
         assert (errors := response.errors)

@@ -222,6 +222,13 @@ class ExperimentMutationMixin:
         input: PatchExperimentInput,
     ) -> PatchExperimentPayload:
         experiment_id = from_global_id_with_expected_type(input.experiment_id, Experiment.__name__)
+        # `name` and `metadata` are non-nullable: an omitted field stays UNSET, but an explicit
+        # null must be rejected rather than silently dropped (mirrors the REST updateExperiment
+        # contract). `description` may be null to clear it.
+        if input.name is None:
+            raise BadRequest("name cannot be null")
+        if input.metadata is None:
+            raise BadRequest("metadata cannot be null")
         patch = {
             column.key: patch_value
             for column, patch_value, column_is_nullable in (
