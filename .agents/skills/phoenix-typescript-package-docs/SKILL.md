@@ -75,7 +75,7 @@ Each supported package must have:
 - a canonical Mintlify package-doc folder
 - a `docs` entry in `files`
 - a `prepack` hook that runs the sync script for that package
-- a `postpack` hook that removes staged package docs
+- a `postpublish` hook that removes staged package docs (not `postpack` — `pnpm publish` stats the package files after the pack lifecycle, so a `postpack` clean deletes them mid-publish and fails with ENOENT)
 - visible navigation in `docs.json`
 
 ## Authoring Rules
