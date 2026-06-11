@@ -40,14 +40,15 @@ class ExperimentSweeper(DaemonTask):
         cutoff = datetime.now(timezone.utc) - timedelta(
             hours=EPHEMERAL_EXPERIMENT_TIME_TO_LIVE_HOURS
         )
-        stmt = (
-            sa.delete(models.Experiment)
-            .where(models.Experiment.is_ephemeral.is_(True))
-            .where(models.Experiment.updated_at < cutoff)
-            .returning(models.Experiment.project_name)
+        predicate = (
+            models.Experiment.is_ephemeral.is_(True),
+            models.Experiment.updated_at < cutoff,
         )
         async with self._db() as session:
-            project_names = (await session.scalars(stmt)).all()
+            project_names = (
+                await session.scalars(sa.select(models.Experiment.project_name).where(*predicate))
+            ).all()
+            await session.execute(sa.delete(models.Experiment).where(*predicate))
             num_deleted = len(project_names)
             non_null_project_names = {
                 project_name for project_name in project_names if project_name

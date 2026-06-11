@@ -1,5 +1,6 @@
 -r ci.txt
 asyncpg
+aiomysql>=0.2.0
 grpcio
 litellm>=1.83.14,<1.84
 aioboto3

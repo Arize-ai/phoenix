@@ -1,6 +1,7 @@
 -r ci.txt
 -r type-check.txt
 aioboto3
+aiomysql>=0.2.0
 asyncpg
 beautifulsoup4
 faker

@@ -7,7 +7,8 @@ from typing import Any, AsyncIterator, Sequence
 import pytest
 import sqlalchemy as sa
 from deepdiff.diff import DeepDiff
-from sqlalchemy import select
+from sqlalchemy import create_mock_engine, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import selectinload
 
 from phoenix.db import models
@@ -32,6 +33,65 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.types import DbSessionFactory
+
+
+def test_metadata_compiles_for_mysql() -> None:
+    ddl: list[str] = []
+    engine = create_mock_engine(
+        "mysql+pymysql://user:password@localhost/phoenix",
+        lambda sql, *multiparams, **params: ddl.append(str(sql.compile(dialect=engine.dialect))),
+    )
+
+    models.Base.metadata.create_all(engine, checkfirst=False)
+
+    assert ddl
+    assert any("CREATE TABLE" in statement for statement in ddl)
+    assert any("content_hash BINARY(16)" in statement for statement in ddl)
+    assert any(
+        "CREATE INDEX ix_spans_session_id" in statement and "((CAST(" in statement
+        for statement in ddl
+    )
+    assert not any("JSON NOT NULL DEFAULT" in statement for statement in ddl)
+
+
+def test_latency_ms_compiles_for_mysql() -> None:
+    statement = select(models.LatencyMs(models.Span.start_time, models.Span.end_time))
+
+    sql = str(statement.compile(dialect=mysql.dialect()))
+
+    assert "timestampdiff(MICROSECOND" in sql
+    assert "EXTRACT(EPOCH" not in sql
+
+
+def test_num_documents_compiles_for_mysql() -> None:
+    statement = select(models.NumDocuments(models.Span.attributes, models.Span.span_kind))
+
+    sql = str(statement.compile(dialect=mysql.dialect()))
+
+    assert "JSON_TYPE" in sql
+    assert "JSON_LENGTH" in sql
+    assert "jsonb_typeof" not in sql
+    assert "jsonb_array_length" not in sql
+
+
+def test_text_contains_compiles_for_mysql() -> None:
+    statement = select(models.TextContains(models.Project.description, "needle"))
+
+    sql = str(statement.compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    assert "instr(" in sql.lower()
+    assert "text_contains(" not in sql
+    assert "LIKE" not in sql.upper()
+
+
+def test_case_insensitive_contains_compiles_for_mysql() -> None:
+    statement = select(models.CaseInsensitiveContains(models.Project.description, "needle"))
+
+    sql = str(statement.compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    assert "instr(lower(" in sql.lower()
+    assert "text_contains(" not in sql
+    assert "LIKE" not in sql.upper()
 
 
 async def test_projects_with_session_injection(
@@ -454,11 +514,11 @@ class TestJsonSerialization:
             attributes_result = (
                 await session.scalars(sa.text("SELECT attributes FROM spans"))
             ).first()
-            attributes_result = _decode_if_sqlite([attributes_result], db.dialect)[0]
+            attributes_result = _decode_raw_json_text([attributes_result], db.dialect)[0]
             assert attributes_result == expected_converted
 
             events_result = (await session.scalars(sa.text("SELECT events FROM spans"))).first()
-            events_result = _decode_if_sqlite([events_result], db.dialect)[0]
+            events_result = _decode_raw_json_text([events_result], db.dialect)[0]
             assert events_result == [expected_event]
 
             # Verify all metadata fields
@@ -472,7 +532,7 @@ class TestJsonSerialization:
             ]
             for table in metadata_tables:
                 result = (await session.scalars(sa.text(f"SELECT metadata FROM {table}"))).first()
-                result = _decode_if_sqlite([result], db.dialect)[0]
+                result = _decode_raw_json_text([result], db.dialect)[0]
                 assert result == expected_converted, f"Failed for table: {table}"
 
         # ORM verification (ensures type adapters work correctly)
@@ -600,7 +660,7 @@ class TestJsonSerialization:
                 raw_attrs_result = (
                     await session.scalars(sa.text("SELECT attributes FROM spans"))
                 ).first()
-                raw_attrs_result = _decode_if_sqlite([raw_attrs_result], db.dialect)[0]
+                raw_attrs_result = _decode_raw_json_text([raw_attrs_result], db.dialect)[0]
                 assert not DeepDiff(
                     [raw_attrs_result], [raw_attrs_with_nan], ignore_nan_inequality=True
                 )
@@ -609,7 +669,7 @@ class TestJsonSerialization:
                 raw_events_result = (
                     await session.scalars(sa.text("SELECT events FROM spans"))
                 ).first()
-                raw_events_result = _decode_if_sqlite([raw_events_result], db.dialect)[0]
+                raw_events_result = _decode_raw_json_text([raw_events_result], db.dialect)[0]
                 assert not DeepDiff(
                     [raw_events_result], [[raw_event_with_nan]], ignore_nan_inequality=True
                 )
@@ -627,7 +687,7 @@ class TestJsonSerialization:
                     raw_metadata = (
                         await session.scalars(sa.text(f"SELECT metadata FROM {table}"))
                     ).first()
-                    raw_metadata = _decode_if_sqlite([raw_metadata], db.dialect)[0]
+                    raw_metadata = _decode_raw_json_text([raw_metadata], db.dialect)[0]
                     assert not DeepDiff(
                         [raw_metadata], [raw_attrs_with_nan], ignore_nan_inequality=True
                     )
@@ -663,15 +723,17 @@ class TestJsonSerialization:
                 ).first() == sanitized_nan_attrs
 
 
-def _decode_if_sqlite(values: Sequence[Any], dialect: SupportedSQLDialect) -> list[Any]:
+def _decode_raw_json_text(values: Sequence[Any], dialect: SupportedSQLDialect) -> list[Any]:
     """Ensure consistent JSON decoding across dialects.
 
-    SQLite stores JSON as TEXT; raw SELECTs return strings that must be decoded.
+    SQLite and MySQL can return JSON as text for raw SELECTs.
     PostgreSQL returns native JSONB, which SQLAlchemy maps to Python objects.
     This helper is only needed when fetching via raw SQL (not ORM), since ORM
     queries on mapped columns already return Python objects across dialects.
     """
-    return list(map(json.loads, values)) if dialect is SupportedSQLDialect.SQLITE else list(values)
+    if dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
+        return list(map(json.loads, values))
+    return list(values)
 
 
 class TestNumDocuments:

@@ -2,7 +2,7 @@ from dataclasses import asdict
 from typing import NamedTuple, Optional, cast
 
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
@@ -52,10 +52,11 @@ async def insert_span(
                 select(models.Project.id).filter_by(name=project_name)
             )
         ) is None:
-            project_rowid = await session.scalar(
-                insert(models.Project).values(name=project_name).returning(models.Project.id)
-            )
-            assert project_rowid is not None
+            project = models.Project(name=project_name)
+            session.add(project)
+            await session.flush()
+            assert project.id is not None
+            project_rowid = project.id
         trace.project_rowid = project_rowid
         session.add(trace)
 
@@ -133,34 +134,47 @@ async def insert_span(
         cumulative_error_count += cast(int, accumulation[0] or 0)
         cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
         cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
-    span_rowid = await session.scalar(
-        insert_on_conflict(
-            dict(
-                span_id=span.context.span_id,
-                trace_rowid=trace.id,
-                parent_id=span.parent_id,
-                span_kind=span.span_kind.value,
-                name=span.name,
-                start_time=span.start_time,
-                end_time=span.end_time,
-                attributes=span.attributes,
-                events=[asdict(event) for event in span.events],
-                status_code=span.status_code.value,
-                status_message=span.status_message,
-                cumulative_error_count=cumulative_error_count,
-                cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
-                cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
-                llm_token_count_prompt=llm_token_count_prompt,
-                llm_token_count_completion=llm_token_count_completion,
-            ),
-            dialect=dialect,
-            table=models.Span,
-            unique_by=("span_id",),
-            on_conflict=OnConflict.DO_NOTHING,
-        ).returning(models.Span.id)
+    span_values = dict(
+        span_id=span.context.span_id,
+        trace_rowid=trace.id,
+        parent_id=span.parent_id,
+        span_kind=span.span_kind.value,
+        name=span.name,
+        start_time=span.start_time,
+        end_time=span.end_time,
+        attributes=span.attributes,
+        events=[asdict(event) for event in span.events],
+        status_code=span.status_code.value,
+        status_message=span.status_message,
+        cumulative_error_count=cumulative_error_count,
+        cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
+        cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+        llm_token_count_prompt=llm_token_count_prompt,
+        llm_token_count_completion=llm_token_count_completion,
     )
-    if span_rowid is None:
-        return None
+    if dialect is SupportedSQLDialect.MYSQL:
+        existing_span_rowid = await session.scalar(
+            select(models.Span.id).where(models.Span.span_id == span.context.span_id)
+        )
+        if existing_span_rowid is not None:
+            return None
+        span_model = models.Span(**span_values)
+        session.add(span_model)
+        await session.flush()
+        assert span_model.id is not None
+        span_rowid = span_model.id
+    else:
+        span_rowid = await session.scalar(
+            insert_on_conflict(
+                span_values,
+                dialect=dialect,
+                table=models.Span,
+                unique_by=("span_id",),
+                on_conflict=OnConflict.DO_NOTHING,
+            ).returning(models.Span.id)
+        )
+        if span_rowid is None:
+            return None
     # Propagate cumulative values to ancestors. This is usually a no-op, since
     # the parent usually arrives after the child. But in the event that a
     # child arrives after its parent, we need to make sure that all the

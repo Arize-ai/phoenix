@@ -1,4 +1,4 @@
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
@@ -10,13 +10,13 @@ async def delete_projects(
 ) -> list[int]:
     if not project_names:
         return []
-    stmt = (
-        delete(models.Project)
-        .where(models.Project.name.in_(set(project_names)))
-        .returning(models.Project.id)
-    )
+    names = set(project_names)
     async with db() as session:
-        return list(await session.scalars(stmt))
+        ids = list(
+            await session.scalars(select(models.Project.id).where(models.Project.name.in_(names)))
+        )
+        await session.execute(delete(models.Project).where(models.Project.name.in_(names)))
+        return ids
 
 
 async def delete_traces(
@@ -25,10 +25,10 @@ async def delete_traces(
 ) -> list[int]:
     if not trace_ids:
         return []
-    stmt = (
-        delete(models.Trace)
-        .where(models.Trace.trace_id.in_(set(trace_ids)))
-        .returning(models.Trace.id)
-    )
+    ids = set(trace_ids)
     async with db() as session:
-        return list(await session.scalars(stmt))
+        rowids = list(
+            await session.scalars(select(models.Trace.id).where(models.Trace.trace_id.in_(ids)))
+        )
+        await session.execute(delete(models.Trace).where(models.Trace.trace_id.in_(ids)))
+        return rowids

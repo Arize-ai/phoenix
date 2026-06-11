@@ -35,26 +35,24 @@ class TraceMutationMixin:
         async with info.context.db() as session:
             traces = (
                 await session.scalars(
-                    delete(models.Trace)
+                    select(models.Trace)
                     .where(models.Trace.id.in_(trace_rowids))
-                    .returning(models.Trace)
                     .options(
                         load_only(models.Trace.project_rowid, models.Trace.project_session_rowid)
                     )
                 )
             ).all()
             if len(traces) < len(trace_rowids):
-                await session.rollback()
                 raise BadRequest("Invalid trace IDs provided")
             project_ids = tuple(set(trace.project_rowid for trace in traces))
             if len(project_ids) > 1:
-                await session.rollback()
                 raise BadRequest("Cannot delete traces from multiple projects")
             session_ids = set(
                 session_id
                 for trace in traces
                 if (session_id := trace.project_session_rowid) is not None
             )
+            await session.execute(delete(models.Trace).where(models.Trace.id.in_(trace_rowids)))
             if session_ids:
                 await session.execute(
                     delete(models.ProjectSession).where(

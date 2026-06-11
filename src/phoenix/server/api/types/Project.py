@@ -6,7 +6,7 @@ import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
@@ -709,7 +709,12 @@ class Project(Node):
             dialect = info.context.db.dialect
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 str(stmt.compile(dialect=sqlite.dialect()))
+                str(stmt.compile(dialect=mysql.dialect()))  # type: ignore[no-untyped-call]
             elif dialect is SupportedSQLDialect.SQLITE:
+                str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
+                str(stmt.compile(dialect=mysql.dialect()))  # type: ignore[no-untyped-call]
+            elif dialect is SupportedSQLDialect.MYSQL:
+                str(stmt.compile(dialect=sqlite.dialect()))
                 str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
             else:
                 assert_never(dialect)
@@ -1052,6 +1057,65 @@ class Project(Node):
             stmt = stmt.where(time_range.start <= models.Trace.start_time)
         if time_range.end:
             stmt = stmt.where(models.Trace.start_time < time_range.end)
+
+        if dialect is SupportedSQLDialect.MYSQL:
+
+            def percentile_cont_value(values: list[float], fraction: float) -> Optional[float]:
+                if not values:
+                    return None
+                position = (len(values) - 1) * fraction
+                lower_index = int(position)
+                upper_index = min(lower_index + 1, len(values) - 1)
+                lower_value = values[lower_index]
+                upper_value = values[upper_index]
+                return lower_value + (upper_value - lower_value) * (position - lower_index)
+
+            values_by_timestamp: dict[datetime, list[float]] = {}
+            raw_stmt = stmt.add_columns(models.Trace.latency_ms).order_by(
+                bucket, models.Trace.latency_ms
+            )
+            async with info.context.db.read() as session:
+                async for bucket_time, latency_ms in await session.stream(raw_stmt):
+                    if latency_ms is None:
+                        continue
+                    values_by_timestamp.setdefault(_as_datetime(bucket_time), []).append(
+                        float(latency_ms)
+                    )
+
+            data = {
+                timestamp: TraceLatencyMsPercentileTimeSeriesDataPoint(
+                    timestamp=timestamp,
+                    p50=percentile_cont_value(values, 0.50),
+                    p75=percentile_cont_value(values, 0.75),
+                    p90=percentile_cont_value(values, 0.90),
+                    p95=percentile_cont_value(values, 0.95),
+                    p99=percentile_cont_value(values, 0.99),
+                    p999=percentile_cont_value(values, 0.999),
+                    max=max(values) if values else None,
+                )
+                for timestamp, values in values_by_timestamp.items()
+            }
+            data_timestamps = [data_point.timestamp for data_point in data.values()]
+            min_time = min([*data_timestamps, time_range.start])
+            max_time = max(
+                [
+                    *data_timestamps,
+                    *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
+                ],
+            )
+            for timestamp in get_timestamp_range(
+                start_time=min_time,
+                end_time=max_time,
+                stride=field,
+                utc_offset_minutes=utc_offset_minutes,
+            ):
+                if timestamp not in data:
+                    data[timestamp] = TraceLatencyMsPercentileTimeSeriesDataPoint(
+                        timestamp=timestamp
+                    )
+            return TraceLatencyPercentileTimeSeries(
+                data=sorted(data.values(), key=lambda x: x.timestamp)
+            )
 
         if dialect is SupportedSQLDialect.POSTGRESQL:
             stmt = stmt.add_columns(
@@ -1830,11 +1894,11 @@ async def _paginate_span_by_trace_start_time(
             models.Span.id.desc(),
         )
 
-    # Use DISTINCT for PostgreSQL, manual grouping for SQLite
+    # Use DISTINCT for PostgreSQL, manual grouping for SQLite and MySQL
     if db.dialect is SupportedSQLDialect.POSTGRESQL:
         stmt = stmt.distinct(traces_cte.c.start_time, traces_cte.c.id)
-    elif db.dialect is SupportedSQLDialect.SQLITE:
-        # too complicated for SQLite, so we rely on groupby() below
+    elif db.dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
+        # too complicated for these dialects, so we rely on groupby() below
         pass
     else:
         assert_never(db.dialect)

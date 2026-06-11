@@ -191,14 +191,15 @@ async def delete_dataset(
         raise HTTPException(detail="Missing Dataset ID", status_code=422)
     project_names_stmt = get_project_names_for_datasets(dataset_id)
     eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-    stmt = (
-        delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset.id)
-    )
     async with request.app.state.db() as session:
         project_names = await session.scalars(project_names_stmt)
         eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-        if (await session.scalar(stmt)) is None:
+        existing_dataset_id = await session.scalar(
+            select(models.Dataset.id).where(models.Dataset.id == dataset_id)
+        )
+        if existing_dataset_id is None:
             raise HTTPException(detail="Dataset does not exist", status_code=404)
+        await session.execute(delete(models.Dataset).where(models.Dataset.id == dataset_id))
     tasks = BackgroundTasks()
     tasks.add_task(delete_projects, request.app.state.db, *project_names)
     tasks.add_task(delete_traces, request.app.state.db, *eval_trace_ids)

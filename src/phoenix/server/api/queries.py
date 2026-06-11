@@ -1491,6 +1491,18 @@ class Query:
             except Exception:
                 # TODO: temporary workaround until we can reproduce the error
                 return []
+        elif info.context.db.dialect is SupportedSQLDialect.MYSQL:
+            stmt = text("""\
+                SELECT table_name, data_length + index_length
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                AND table_type = 'BASE TABLE';
+            """)
+            try:
+                async with info.context.db.read() as session:
+                    stats = type_cast(Iterable[tuple[str, int]], await session.execute(stmt))
+            except Exception:
+                return []
         else:
             assert_never(info.context.db.dialect)
         return [

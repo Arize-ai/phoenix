@@ -65,16 +65,14 @@ class DatasetMutationMixin:
         metadata = input.metadata
         async with info.context.db() as session:
             try:
-                dataset = await session.scalar(
-                    insert(models.Dataset)
-                    .values(
-                        name=name,
-                        description=description,
-                        metadata_=metadata,
-                        user_id=info.context.user_id,
-                    )
-                    .returning(models.Dataset)
+                dataset = models.Dataset(
+                    name=name,
+                    description=description,
+                    metadata_=metadata,
+                    user_id=info.context.user_id,
                 )
+                session.add(dataset)
+                await session.flush()
             except (PostgreSQLIntegrityError, SQLiteIntegrityError):
                 # ``name`` is the only unique constraint on ``datasets``, so an
                 # integrity error here means that name is already taken.
@@ -103,12 +101,14 @@ class DatasetMutationMixin:
         }
         async with info.context.db() as session:
             dataset = await session.scalar(
-                update(models.Dataset)
-                .where(models.Dataset.id == dataset_id)
-                .returning(models.Dataset)
-                .values(**patch)
+                select(models.Dataset).where(models.Dataset.id == dataset_id)
             )
-            assert dataset is not None
+            if dataset is None:
+                raise NotFound(f"Unknown dataset: {input.dataset_id}")
+            await session.execute(
+                update(models.Dataset).where(models.Dataset.id == dataset_id).values(**patch)
+            )
+            await session.flush()
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
 
@@ -179,18 +179,16 @@ class DatasetMutationMixin:
                 raise NotFound("Some spans could not be found")
 
             DatasetExample = models.DatasetExample
-            dataset_example_rowids = (
-                await session.scalars(
-                    insert(DatasetExample).returning(DatasetExample.id),
-                    [
-                        {
-                            DatasetExample.dataset_id.key: dataset_rowid,
-                            DatasetExample.span_rowid.key: span.id,
-                        }
-                        for span in spans
-                    ],
+            dataset_examples = [
+                DatasetExample(
+                    dataset_id=dataset_rowid,
+                    span_rowid=span.id,
                 )
-            ).all()
+                for span in spans
+            ]
+            session.add_all(dataset_examples)
+            await session.flush()
+            dataset_example_rowids = [example.id for example in dataset_examples]
             assert len(dataset_example_rowids) == len(spans)
             assert all(map(lambda id: isinstance(id, int), dataset_example_rowids))
             DatasetExampleRevision = models.DatasetExampleRevision
@@ -259,16 +257,16 @@ class DatasetMutationMixin:
                 raise ValueError(
                     f"Unknown dataset: {dataset_id}"
                 )  # todo: implement error types https://github.com/Arize-ai/phoenix/issues/3221
-            dataset_version_rowid = await session.scalar(
-                insert(models.DatasetVersion)
-                .values(
-                    dataset_id=dataset_rowid,
-                    description=dataset_version_description,
-                    metadata_=dataset_version_metadata,
-                    user_id=info.context.user_id,
-                )
-                .returning(models.DatasetVersion.id)
+            dataset_version = models.DatasetVersion(
+                dataset_id=dataset_rowid,
+                description=dataset_version_description,
+                metadata_=dataset_version_metadata,
+                user_id=info.context.user_id,
             )
+            session.add(dataset_version)
+            await session.flush()
+            dataset_version_rowid = dataset_version.id
+            assert dataset_version_rowid is not None
 
             # Fetch spans and span annotations
             spans = (
@@ -411,14 +409,16 @@ class DatasetMutationMixin:
             raise NotFound(f"Unknown dataset: {input.dataset_id}")
         project_names_stmt = get_project_names_for_datasets(dataset_id)
         eval_trace_ids_stmt = get_eval_trace_ids_for_datasets(dataset_id)
-        stmt = (
-            delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
-        )
         async with info.context.db() as session:
             project_names = await session.scalars(project_names_stmt)
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-            if not (dataset := await session.scalar(stmt)):
+            if not (
+                dataset := await session.scalar(
+                    select(models.Dataset).where(models.Dataset.id == dataset_id)
+                )
+            ):
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
+            await session.execute(delete(models.Dataset).where(models.Dataset.id == dataset_id))
         await asyncio.gather(
             delete_projects(info.context.db, *project_names),
             delete_traces(info.context.db, *eval_trace_ids),
@@ -494,16 +494,15 @@ class DatasetMutationMixin:
             if (num_missing_examples := len(example_ids) - len(revisions)) > 0:
                 raise NotFound(f"{num_missing_examples} example(s) could not be found.")
 
-            version_id = await session.scalar(
-                insert(models.DatasetVersion)
-                .returning(models.DatasetVersion.id)
-                .values(
-                    dataset_id=dataset.id,
-                    description=version_description,
-                    metadata_=version_metadata,
-                    user_id=info.context.user_id,
-                )
+            version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description=version_description,
+                metadata_=version_metadata,
+                user_id=info.context.user_id,
             )
+            session.add(version)
+            await session.flush()
+            version_id = version.id
             assert version_id is not None
 
             await session.execute(
@@ -560,17 +559,17 @@ class DatasetMutationMixin:
             dataset = datasets[0]
             _check_dataset_scope(dataset, input.dataset_id)
 
-            dataset_version_rowid = await session.scalar(
-                insert(models.DatasetVersion)
-                .values(
-                    dataset_id=dataset.id,
-                    description=dataset_version_description,
-                    metadata_=dataset_version_metadata,
-                    user_id=info.context.user_id,
-                    created_at=timestamp,
-                )
-                .returning(models.DatasetVersion.id)
+            dataset_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description=dataset_version_description,
+                metadata_=dataset_version_metadata,
+                user_id=info.context.user_id,
+                created_at=timestamp,
             )
+            session.add(dataset_version)
+            await session.flush()
+            dataset_version_rowid = dataset_version.id
+            assert dataset_version_rowid is not None
 
             # If the examples already have a delete revision, skip the deletion
             existing_delete_revisions = (

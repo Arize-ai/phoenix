@@ -5,6 +5,7 @@ from threading import Thread
 from time import perf_counter
 from typing import Optional
 
+import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -77,7 +78,33 @@ def migrate(
 
 def _run_alembic_upgrade(connection, alembic_cfg: Config) -> None:  # type: ignore[no-untyped-def]
     alembic_cfg.attributes["connection"] = connection
+    if connection.dialect.name == "mysql" and _is_empty_database(connection):
+        _bootstrap_mysql_database(connection, alembic_cfg)
+        return
     command.upgrade(alembic_cfg, "head")
+
+
+def _is_empty_database(connection) -> bool:  # type: ignore[no-untyped-def]
+    inspector = sa.inspect(connection)
+    return not inspector.get_table_names()
+
+
+def _bootstrap_mysql_database(connection, alembic_cfg: Config) -> None:  # type: ignore[no-untyped-def]
+    from phoenix.config import DEFAULT_PROJECT_NAME
+    from phoenix.db import models
+
+    # Keep each table visible before creating dependent foreign keys.
+    for table in models.Base.metadata.sorted_tables:
+        table.create(connection, checkfirst=True)
+        connection.commit()
+    connection.execute(
+        sa.insert(models.Project).values(
+            name=DEFAULT_PROJECT_NAME,
+            description="Default project",
+        )
+    )
+    connection.commit()
+    command.stamp(alembic_cfg, "head")
 
 
 def migrate_in_thread(engine: AsyncEngine, log_migrations: bool = True) -> None:

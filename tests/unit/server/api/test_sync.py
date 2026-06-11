@@ -1,18 +1,39 @@
 from typing import Any, Mapping, cast
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import create_mock_engine, select
 
 from phoenix.db import models
 from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, SANDBOX_ADAPTERS
 from phoenix.server.sandbox.sync import (
+    _on_conflict_do_nothing,
     sync_languages,
     sync_sandbox_default_configs,
     sync_sandbox_providers,
 )
 from phoenix.server.types import DbSessionFactory
+
+pytestmark = pytest.mark.mysql_compatible
+
+
+class _SessionWithBind:
+    bind = create_mock_engine("mysql://", lambda *args, **kwargs: None)
+
+
+def test_on_conflict_do_nothing_compiles_for_mysql() -> None:
+    stmt = _on_conflict_do_nothing(
+        _SessionWithBind(),
+        models.Language,
+        [{"name": "PYTHON"}],
+        unique_columns=["name"],
+    )
+
+    sql = str(stmt.compile(dialect=_SessionWithBind.bind.dialect))
+
+    assert "ON DUPLICATE KEY UPDATE" in sql
+    assert "ON CONFLICT" not in sql
 
 
 class TestSyncLanguages:

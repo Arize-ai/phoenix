@@ -1,7 +1,7 @@
 from typing import Any, Optional, cast
 
 import strawberry
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
 
@@ -102,10 +102,9 @@ class TraceAnnotationMutationMixin:
                     processed_annotation = existing_annotation
 
                 if processed_annotation is None:
-                    stmt = insert(models.TraceAnnotation).values(**values)
-                    stmt = stmt.returning(models.TraceAnnotation)
-                    result = await session.scalars(stmt)
-                    processed_annotation = result.one()
+                    processed_annotation = models.TraceAnnotation(**values)
+                    session.add(processed_annotation)
+                    await session.flush()
 
                 processed_annotations_map[idx] = processed_annotation
 
@@ -228,9 +227,9 @@ class TraceAnnotationMutationMixin:
 
         async with info.context.db() as session:
             result = await session.scalars(
-                delete(models.TraceAnnotation)
-                .where(models.TraceAnnotation.id.in_(trace_annotation_ids.keys()))
-                .returning(models.TraceAnnotation)
+                select(models.TraceAnnotation).where(
+                    models.TraceAnnotation.id.in_(trace_annotation_ids.keys())
+                )
             )
             deleted_annotations_by_id = {annotation.id: annotation for annotation in result.all()}
 
@@ -250,6 +249,12 @@ class TraceAnnotationMutationMixin:
                 raise NotFound(
                     f"Could not find trace annotations with IDs: {missing_trace_annotation_ids}"
                 )
+
+            await session.execute(
+                delete(models.TraceAnnotation).where(
+                    models.TraceAnnotation.id.in_(trace_annotation_ids.keys())
+                )
+            )
 
         deleted_gql_annotations = [
             TraceAnnotation(

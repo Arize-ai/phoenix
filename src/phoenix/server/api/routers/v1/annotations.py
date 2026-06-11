@@ -966,8 +966,10 @@ async def delete_span_annotations(
         )
         predicate.append(models.SpanAnnotation.span_rowid.in_(span_rowids_in_project))
 
-        stmt = delete(models.SpanAnnotation).where(*predicate).returning(models.SpanAnnotation.id)
-        deleted_ids = list((await session.scalars(stmt)).all())
+        deleted_ids = list(
+            (await session.scalars(select(models.SpanAnnotation.id).where(*predicate))).all()
+        )
+        await session.execute(delete(models.SpanAnnotation).where(*predicate))
 
     if deleted_ids:
         request.state.event_queue.put(SpanAnnotationDeleteEvent(tuple(deleted_ids)))
@@ -1051,8 +1053,10 @@ async def delete_trace_annotations(
         )
         predicate.append(models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project))
 
-        stmt = delete(models.TraceAnnotation).where(*predicate).returning(models.TraceAnnotation.id)
-        deleted_ids = list((await session.scalars(stmt)).all())
+        deleted_ids = list(
+            (await session.scalars(select(models.TraceAnnotation.id).where(*predicate))).all()
+        )
+        await session.execute(delete(models.TraceAnnotation).where(*predicate))
 
     if deleted_ids:
         request.state.event_queue.put(TraceAnnotationDeleteEvent(tuple(deleted_ids)))
@@ -1138,12 +1142,12 @@ async def delete_session_annotations(
             models.ProjectSessionAnnotation.project_session_id.in_(session_rowids_in_project)
         )
 
-        stmt = (
-            delete(models.ProjectSessionAnnotation)
-            .where(*predicate)
-            .returning(models.ProjectSessionAnnotation.id)
+        deleted_ids = list(
+            (
+                await session.scalars(select(models.ProjectSessionAnnotation.id).where(*predicate))
+            ).all()
         )
-        deleted_ids = list((await session.scalars(stmt)).all())
+        await session.execute(delete(models.ProjectSessionAnnotation).where(*predicate))
 
     if deleted_ids:
         request.state.event_queue.put(ProjectSessionAnnotationDeleteEvent(tuple(deleted_ids)))

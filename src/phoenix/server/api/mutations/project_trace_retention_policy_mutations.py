@@ -217,13 +217,18 @@ class ProjectTraceRetentionPolicyMutationMixin:
         id_ = from_global_id_with_expected_type(input.id, ProjectTraceRetentionPolicy.__name__)
         if id_ == DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID:
             raise BadRequest("Cannot delete the default project trace retention policy.")
-        stmt = (
-            sa.delete(models.ProjectTraceRetentionPolicy)
-            .where(models.ProjectTraceRetentionPolicy.id == id_)
-            .returning(models.ProjectTraceRetentionPolicy)
-        )
         async with info.context.db() as session:
-            policy = await session.scalar(stmt)
+            policy = await session.scalar(
+                sa.select(models.ProjectTraceRetentionPolicy).where(
+                    models.ProjectTraceRetentionPolicy.id == id_
+                )
+            )
+            if policy is not None:
+                await session.execute(
+                    sa.delete(models.ProjectTraceRetentionPolicy).where(
+                        models.ProjectTraceRetentionPolicy.id == id_
+                    )
+                )
         if not policy:
             raise NotFound(f"ProjectTraceRetentionPolicy with ID={input.id} not found")
         return ProjectTraceRetentionPolicyMutationPayload(

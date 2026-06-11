@@ -4,10 +4,35 @@ from typing import Any
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from sqlalchemy import select
+from sqlalchemy.dialects import mysql, sqlite
 from sqlalchemy.engine.base import Engine
 
+from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanQuery
+from phoenix.trace.dsl.query import _json_type_is_array
+
+
+def test_json_type_is_array_compiles_with_dialect_specific_literals() -> None:
+    sqlite_sql = str(
+        select(_json_type_is_array(models.Span.attributes, SupportedSQLDialect.SQLITE)).compile(
+            dialect=sqlite.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+    mysql_sql = str(
+        select(_json_type_is_array(models.Span.attributes, SupportedSQLDialect.MYSQL)).compile(
+            dialect=mysql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+
+    assert "json_type" in sqlite_sql
+    assert "'array'" in sqlite_sql
+    assert "JSON_TYPE" in mysql_sql
+    assert "'ARRAY'" in mysql_sql
 
 
 async def test_select_all(

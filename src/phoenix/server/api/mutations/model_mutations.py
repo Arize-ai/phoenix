@@ -182,17 +182,17 @@ class ModelMutationMixin:
 
         async with info.context.db() as session:
             model = await session.scalar(
-                sa.update(models.GenerativeModel)
-                .values(deleted_at=datetime.now(timezone.utc))
+                sa.select(models.GenerativeModel)
                 .where(models.GenerativeModel.deleted_at.is_(None))
                 .where(models.GenerativeModel.id == model_id)
-                .returning(models.GenerativeModel)
             )
             if model is None:
                 raise NotFound(f'Model "{input.id}" not found')
             if model.is_built_in:
-                await session.rollback()
                 raise BadRequest("Cannot delete built-in model")
+            model.deleted_at = datetime.now(timezone.utc)
+            session.add(model)
+            await session.flush()
         return DeleteModelMutationPayload(
             model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),

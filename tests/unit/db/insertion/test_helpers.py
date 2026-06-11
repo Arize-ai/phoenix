@@ -2,14 +2,17 @@ from asyncio import sleep
 from typing import Any, Mapping, Optional
 
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import select
+from sqlalchemy.dialects import mysql
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict, should_calculate_span_cost
+from phoenix.db.insertion.types import _ordered_ids_for_records
 from phoenix.server.types import DbSessionFactory
 
 
+@pytest.mark.mysql_compatible
 class Test_insert_on_conflict:
     @pytest.mark.parametrize(
         "on_conflict",
@@ -44,7 +47,8 @@ class Test_insert_on_conflict:
                     on_conflict=on_conflict,
                 )
             )
-        projects = (await session.scalars(select(models.Project))).all()
+        async with db() as session:
+            projects = (await session.scalars(select(models.Project))).all()
         assert len(projects) == 1
         assert projects[0].name == "name"
         assert projects[0].description == "description"
@@ -68,15 +72,15 @@ class Test_insert_on_conflict:
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
-            project_id = await session.scalar(
-                insert(models.Project)
-                .values(dict(name="abc", description="initial description"))
-                .returning(models.Project.id)
-            )
+            project = models.Project(name="abc", description="initial description")
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+            assert project_id is not None
             project_record = await session.scalar(
                 select(models.Project).where(models.Project.id == project_id)
             )
-        assert project_record is not None
+            assert project_record is not None
 
         async with db() as session:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
@@ -102,6 +106,59 @@ class Test_insert_on_conflict:
         else:
             assert updated_project.description == "updated description"
             assert updated_project.updated_at > project_record.updated_at
+
+    @pytest.mark.parametrize(
+        "on_conflict",
+        [
+            pytest.param(OnConflict.DO_NOTHING, id="do-nothing"),
+            pytest.param(OnConflict.DO_UPDATE, id="do-update"),
+        ],
+    )
+    def test_compiles_mysql_on_duplicate_key_update(
+        self,
+        on_conflict: OnConflict,
+    ) -> None:
+        stmt = insert_on_conflict(
+            {"name": "abc", "description": "updated description"},
+            dialect=SupportedSQLDialect.MYSQL,
+            table=models.Project,
+            unique_by=("name",),
+            on_conflict=on_conflict,
+        )
+
+        compiled = str(stmt.compile(dialect=mysql.dialect()))
+
+        assert "ON DUPLICATE KEY UPDATE" in compiled
+        assert "ON CONFLICT" not in compiled
+        assert "gradient_start_color" not in compiled
+        assert "gradient_end_color" not in compiled
+
+
+class TestOrderedIdsForRecords:
+    def test_orders_mysql_selected_ids_by_input_records(self) -> None:
+        records = [
+            {"name": "first"},
+            {"name": "second"},
+            {"name": "first"},
+        ]
+        rows = [
+            (20, "second"),
+            (10, "first"),
+        ]
+
+        assert _ordered_ids_for_records(records, ("name",), rows) == (10, 20, 10)
+
+    def test_orders_mysql_selected_ids_by_composite_key(self) -> None:
+        records = [
+            {"name": "first", "identifier": "a"},
+            {"name": "second", "identifier": "b"},
+        ]
+        rows = [
+            (20, "second", "b"),
+            (10, "first", "a"),
+        ]
+
+        assert _ordered_ids_for_records(records, ("name", "identifier"), rows) == (10, 20)
 
 
 class TestShouldCalculateSpanCost:

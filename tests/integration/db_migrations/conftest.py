@@ -7,7 +7,7 @@ import pytest
 import sqlean
 from alembic.config import Config
 from pytest import TempPathFactory
-from sqlalchemy import URL, NullPool, event
+from sqlalchemy import URL, NullPool, event, text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 import phoenix
@@ -84,5 +84,30 @@ async def _engine(
 
         yield engine
         await engine.dispose()
+    elif backend == "mysql":
+        assert not _schema, "MySQL uses the database from the URL"
+        async_url = get_async_db_url(_sql_database_url.render_as_string(hide_password=False))
+        engine = create_async_engine(url=async_url, poolclass=NullPool, echo=True)
+        await _drop_mysql_tables(engine)
+        yield engine
+        await _drop_mysql_tables(engine)
+        await engine.dispose()
     else:
         pytest.fail(f"Unknown backend: {backend}")
+
+
+async def _drop_mysql_tables(engine: AsyncEngine) -> None:
+    async with engine.begin() as conn:
+        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 0"))
+        tables = await conn.execute(
+            text(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                """
+            )
+        )
+        for (table_name,) in tables:
+            await conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+        await conn.execute(text("SET FOREIGN_KEY_CHECKS = 1"))

@@ -20,7 +20,7 @@ from phoenix.db.helpers import (
     get_experiment_incomplete_runs_query,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict_returning_id
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -231,20 +231,18 @@ async def create_experiment(
         await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        project_rowid = await session.scalar(
-            insert_on_conflict(
-                dict(
-                    name=project_name,
-                    description=project_description,
-                    created_at=experiment.created_at,
-                    updated_at=experiment.updated_at,
-                ),
-                dialect=dialect,
-                table=models.Project,
-                unique_by=("name",),
-            ).returning(models.Project.id)
+        await insert_on_conflict_returning_id(
+            dict(
+                name=project_name,
+                description=project_description,
+                created_at=experiment.created_at,
+                updated_at=experiment.updated_at,
+            ),
+            session=session,
+            dialect=dialect,
+            table=models.Project,
+            unique_by=("name",),
         )
-        assert project_rowid is not None
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
         if dataset_version_globalid_str is None:
@@ -589,16 +587,15 @@ async def delete_experiment(
     # harmless since the experiment is being deleted anyway.
     await request.state.experiment_runner.stop_experiment(experiment_rowid)
 
-    stmt = (
-        sa.delete(models.Experiment)
-        .where(models.Experiment.id == experiment_rowid)
-        .returning(models.Experiment.project_name)
-    )
     async with request.app.state.db() as session:
-        result = (await session.execute(stmt)).first()
-        if result is None:
+        project_name = await session.scalar(
+            select(models.Experiment.project_name).where(models.Experiment.id == experiment_rowid)
+        )
+        if project_name is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
-        project_name = result.project_name
+        await session.execute(
+            sa.delete(models.Experiment).where(models.Experiment.id == experiment_rowid)
+        )
         if delete_project and project_name:
             delete_project_stmt = sa.delete(models.Project).where(
                 models.Project.name == project_name

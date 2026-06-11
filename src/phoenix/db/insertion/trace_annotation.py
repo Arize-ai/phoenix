@@ -57,8 +57,7 @@ class TraceAnnotationQueueInserter(
         *insertions: Insertables.TraceAnnotation,
     ) -> list[TraceAnnotationDmlEvent]:
         records = [{**dict(as_kv(ins.row)), "updated_at": ins.row.updated_at} for ins in insertions]
-        stmt = self._insert_on_conflict(*records).returning(self.table.id)
-        ids = tuple([_ async for _ in await session.stream_scalars(stmt)])
+        ids = await self._insert_records_returning_ids(session, *records)
         return [TraceAnnotationDmlEvent(ids)]
 
     async def _partition(

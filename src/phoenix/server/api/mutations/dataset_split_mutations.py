@@ -189,15 +189,17 @@ class DatasetSplitMutationMixin:
                 split.id: split
                 for split in (
                     await session.scalars(
-                        delete(models.DatasetSplit)
-                        .where(models.DatasetSplit.id.in_(dataset_split_rowids))
-                        .returning(models.DatasetSplit)
+                        select(models.DatasetSplit).where(
+                            models.DatasetSplit.id.in_(dataset_split_rowids)
+                        )
                     )
                 ).all()
             }
             if len(deleted_splits_by_id) < len(dataset_split_rowids):
-                await session.rollback()
                 raise NotFound("One or more dataset splits not found")
+            await session.execute(
+                delete(models.DatasetSplit).where(models.DatasetSplit.id.in_(dataset_split_rowids))
+            )
             await session.commit()
 
         return DeleteDatasetSplitsMutationPayload(

@@ -14,7 +14,7 @@ from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
 from pydantic import SecretStr
-from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
+from sqlalchemy import Boolean, and_, case, cast, func, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -763,21 +763,23 @@ async def _create_user(
     )
     if email_exists:
         raise EmailAlreadyInUse(f"An account for {email} is already in use.")
-    role_id = select(models.UserRole.id).where(models.UserRole.name == role_name).scalar_subquery()
-    user_id = await session.scalar(
-        insert(models.User)
-        .returning(models.User.id)
-        .values(
-            user_role_id=role_id,
-            oauth2_client_id=oauth2_client_id,
-            oauth2_user_id=user_info.idp_user_id,
-            username=_with_random_suffix(username) if username_exists else username,
-            email=email,
-            profile_picture_url=user_info.profile_picture_url,
-            reset_password=False,
-            auth_method="OAUTH2",
-        )
+    role_id = await session.scalar(
+        select(models.UserRole.id).where(models.UserRole.name == role_name)
     )
+    assert role_id is not None
+    new_user = models.User(
+        user_role_id=role_id,
+        oauth2_client_id=oauth2_client_id,
+        oauth2_user_id=user_info.idp_user_id,
+        username=_with_random_suffix(username) if username_exists else username,
+        email=email,
+        profile_picture_url=user_info.profile_picture_url,
+        reset_password=False,
+        auth_method="OAUTH2",
+    )
+    session.add(new_user)
+    await session.flush()
+    user_id = new_user.id
     assert isinstance(user_id, int)
     user = await session.scalar(
         select(models.User).where(models.User.id == user_id).options(joinedload(models.User.role))

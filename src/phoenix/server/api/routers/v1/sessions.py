@@ -6,14 +6,14 @@ from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_session
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict_returning_id
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
@@ -253,18 +253,17 @@ async def delete_session(
             where_clause = models.ProjectSession.session_id == session_identifier
             error_detail = f"Session with session_id '{session_identifier}' not found"
 
-        delete_stmt = (
-            delete(models.ProjectSession)
-            .where(where_clause)
-            .returning(models.ProjectSession.project_id)
+        project_id = await session.scalar(
+            select(models.ProjectSession.project_id).where(where_clause)
         )
-        project_id = await session.scalar(delete_stmt)
 
         if project_id is None:
             raise HTTPException(
                 status_code=404,
                 detail=error_detail,
             )
+
+        await session.execute(delete(models.ProjectSession).where(where_clause))
 
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))
     return None
@@ -319,13 +318,9 @@ async def delete_sessions(
         else:
             where_clause = models.ProjectSession.session_id.in_(session_ids)
 
-        delete_stmt = (
-            delete(models.ProjectSession)
-            .where(where_clause)
-            .returning(models.ProjectSession.project_id)
-        )
-        result = await session.scalars(delete_stmt)
+        result = await session.scalars(select(models.ProjectSession.project_id).where(where_clause))
         project_ids = tuple(set(result.all()))
+        await session.execute(delete(models.ProjectSession).where(where_clause))
 
     if project_ids:
         request.state.event_queue.put(SpanDeleteEvent(project_ids))
@@ -476,13 +471,12 @@ async def annotate_sessions(
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_sessions[p.session_id]).row))
-            session_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.ProjectSessionAnnotation,
-                    unique_by=("name", "project_session_id", "identifier"),
-                ).returning(models.ProjectSessionAnnotation.id)
+            session_annotation_id = await insert_on_conflict_returning_id(
+                values,
+                session=session,
+                dialect=dialect,
+                table=models.ProjectSessionAnnotation,
+                unique_by=("name", "project_session_id", "identifier"),
             )
             inserted_ids.append(session_annotation_id)
 
@@ -557,21 +551,19 @@ async def create_session_note(
 
         if note_data.identifier:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            result = await session.execute(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.ProjectSessionAnnotation,
-                    unique_by=("name", "project_session_id", "identifier"),
-                ).returning(models.ProjectSessionAnnotation.id)
+            annotation_id = await insert_on_conflict_returning_id(
+                values,
+                session=session,
+                dialect=dialect,
+                table=models.ProjectSessionAnnotation,
+                unique_by=("name", "project_session_id", "identifier"),
             )
         else:
-            result = await session.execute(
-                insert(models.ProjectSessionAnnotation)
-                .values(**values)
-                .returning(models.ProjectSessionAnnotation.id)
-            )
-        annotation_id = result.scalar_one()
+            annotation = models.ProjectSessionAnnotation(**values)
+            session.add(annotation)
+            await session.flush()
+            annotation_id = annotation.id
+            assert annotation_id is not None
 
     request.state.event_queue.put(ProjectSessionAnnotationInsertEvent((annotation_id,)))
     return CreateSessionNoteResponseBody(

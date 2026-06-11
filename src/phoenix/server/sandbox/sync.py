@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from sqlalchemy import Executable, select
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,6 +46,11 @@ def _on_conflict_do_nothing(
             .values(list(values))
             .on_conflict_do_nothing(index_elements=list(unique_columns))
         )
+    if dialect_name == "mysql":
+        stmt = mysql_insert(table).values(list(values))
+        return stmt.on_duplicate_key_update(
+            **{column: getattr(stmt.inserted, column) for column in unique_columns}
+        )
     raise ValueError(f"Unsupported SQL dialect for sandbox sync: {dialect_name}")
 
 
@@ -83,7 +89,7 @@ async def sync_sandbox_providers(
     for backend_type in backend_types:
         if backend_type in existing_backend_types:
             continue
-        rows_to_insert.append({"backend_type": backend_type, "enabled": True})
+        rows_to_insert.append({"backend_type": backend_type, "enabled": True, "config": {}})
         logger.info(f"Inserted sandbox_providers row: backend_type={backend_type!r}")
 
     if rows_to_insert:

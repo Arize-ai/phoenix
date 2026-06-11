@@ -15,7 +15,7 @@ from typing import (
 import strawberry
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.context import Context as OtelContext
-from sqlalchemy import and_, insert, select
+from sqlalchemy import and_, select
 from sqlalchemy import func as sa_func
 from strawberry.types import Info
 from typing_extensions import TypeAlias
@@ -218,14 +218,14 @@ class Subscription:
                     select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
                 )
             ) is None:
-                playground_project_id = await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=PLAYGROUND_PROJECT_NAME,
-                        description="Traces from prompt playground",
-                    )
+                playground_project = models.Project(
+                    name=PLAYGROUND_PROJECT_NAME,
+                    description="Traces from prompt playground",
                 )
+                session.add(playground_project)
+                await session.flush()
+                playground_project_id = playground_project.id
+                assert playground_project_id is not None
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
@@ -368,14 +368,12 @@ class Subscription:
                     select(models.Project.id).where(models.Project.name == project_name)
                 )
             ) is None:
-                await session.scalar(
-                    insert(models.Project)
-                    .returning(models.Project.id)
-                    .values(
-                        name=project_name,
-                        description="Traces from prompt playground",
-                    )
+                playground_project = models.Project(
+                    name=project_name,
+                    description="Traces from prompt playground",
                 )
+                session.add(playground_project)
+                await session.flush()
 
             # === Create experiment (same as chat_completion_over_dataset) ===
             user_id = get_user(info)

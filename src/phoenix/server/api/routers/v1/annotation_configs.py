@@ -372,14 +372,14 @@ async def delete_annotation_config(
         raise HTTPException(status_code=400, detail="Invalid annotation configuration ID")
     config_rowid = int(config_gid.node_id)
     async with request.app.state.db() as session:
-        stmt = (
-            delete(models.AnnotationConfig)
-            .where(models.AnnotationConfig.id == config_rowid)
-            .returning(models.AnnotationConfig)
+        annotation_config = await session.scalar(
+            select(models.AnnotationConfig).where(models.AnnotationConfig.id == config_rowid)
         )
-        annotation_config = await session.scalar(stmt)
         if annotation_config is None:
             raise HTTPException(status_code=404, detail="Annotation configuration not found")
+        await session.execute(
+            delete(models.AnnotationConfig).where(models.AnnotationConfig.id == config_rowid)
+        )
         await session.commit()
     return DeleteAnnotationConfigResponseBody(data=db_to_api_annotation_config(annotation_config))
 

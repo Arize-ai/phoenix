@@ -11,7 +11,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceResponse,
 )
 from pydantic import BeforeValidator, Field
-from sqlalchemy import delete, insert, or_, select
+from sqlalchemy import delete, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -21,7 +21,7 @@ from strawberry.relay import GlobalID
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_trace
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict_returning_id
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -427,13 +427,12 @@ async def annotate_traces(
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         for p in precursors:
             values = dict(as_kv(p.as_insertable(existing_traces[p.trace_id]).row))
-            trace_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.TraceAnnotation,
-                    unique_by=("name", "trace_rowid", "identifier"),
-                ).returning(models.TraceAnnotation.id)
+            trace_annotation_id = await insert_on_conflict_returning_id(
+                values,
+                session=session,
+                dialect=dialect,
+                table=models.TraceAnnotation,
+                unique_by=("name", "trace_rowid", "identifier"),
             )
             inserted_ids.append(trace_annotation_id)
     request.state.event_queue.put(TraceAnnotationInsertEvent(tuple(inserted_ids)))
@@ -536,19 +535,19 @@ async def create_trace_note(
 
         if note_data.identifier:
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            result = await session.execute(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.TraceAnnotation,
-                    unique_by=("name", "trace_rowid", "identifier"),
-                ).returning(models.TraceAnnotation.id)
+            annotation_id = await insert_on_conflict_returning_id(
+                values,
+                session=session,
+                dialect=dialect,
+                table=models.TraceAnnotation,
+                unique_by=("name", "trace_rowid", "identifier"),
             )
         else:
-            result = await session.execute(
-                insert(models.TraceAnnotation).values(**values).returning(models.TraceAnnotation.id)
-            )
-        annotation_id = result.scalar_one()
+            annotation = models.TraceAnnotation(**values)
+            session.add(annotation)
+            await session.flush()
+            annotation_id = annotation.id
+            assert annotation_id is not None
 
     request.state.event_queue.put(TraceAnnotationInsertEvent((annotation_id,)))
     return CreateTraceNoteResponseBody(
@@ -605,7 +604,7 @@ async def delete_trace(
 
     This endpoint will:
     1. Delete the trace by identifier (relay GlobalID or OpenTelemetry trace_id)
-    2. Get project_id from the deletion for cache invalidation
+    2. Get project_id before deletion for cache invalidation
     3. Trigger cache invalidation events
     4. Return 204 No Content on success
 
@@ -620,28 +619,22 @@ async def delete_trace(
                 "Trace",
             )
             # Delete by database rowid
-            delete_stmt = (
-                delete(models.Trace)
-                .where(models.Trace.id == trace_rowid)
-                .returning(models.Trace.project_rowid)
-            )
+            predicate = models.Trace.id == trace_rowid
             error_detail = f"Trace with relay ID '{trace_identifier}' not found"
         except Exception:
             # Delete by OpenTelemetry trace_id
-            delete_stmt = (
-                delete(models.Trace)
-                .where(models.Trace.trace_id == trace_identifier)
-                .returning(models.Trace.project_rowid)
-            )
+            predicate = models.Trace.trace_id == trace_identifier
             error_detail = f"Trace with trace_id '{trace_identifier}' not found"
 
-        project_id = await session.scalar(delete_stmt)
+        project_id = await session.scalar(select(models.Trace.project_rowid).where(predicate))
 
         if project_id is None:
             raise HTTPException(
                 status_code=404,
                 detail=error_detail,
             )
+
+        await session.execute(delete(models.Trace).where(predicate))
 
     # Trigger cache invalidation event
     request.state.event_queue.put(SpanDeleteEvent((project_id,)))

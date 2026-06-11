@@ -263,17 +263,20 @@ class AnnotationConfigMutationMixin:
             config_ids.add(int(config_gid.node_id))
 
         async with info.context.db() as session:
-            result = await session.scalars(
-                delete(models.AnnotationConfig)
-                .where(models.AnnotationConfig.id.in_(config_ids))
-                .returning(models.AnnotationConfig)
-            )
-            deleted_annotation_configs = result.all()
+            deleted_annotation_configs = (
+                await session.scalars(
+                    select(models.AnnotationConfig).where(
+                        models.AnnotationConfig.id.in_(config_ids)
+                    )
+                )
+            ).all()
             if len(deleted_annotation_configs) < len(config_ids):
-                await session.rollback()
                 raise NotFound(
                     "Could not find one or more annotation configs to delete, deletion aborted."
                 )
+            await session.execute(
+                delete(models.AnnotationConfig).where(models.AnnotationConfig.id.in_(config_ids))
+            )
         return DeleteAnnotationConfigsPayload(
             query=Query(),
             annotation_configs=[
@@ -358,20 +361,16 @@ class AnnotationConfigMutationMixin:
             annotation_config_id = int(item.annotation_config_id.node_id)
             project_annotation_config_associations.add((project_id, annotation_config_id))
         async with info.context.db() as session:
-            result = await session.scalars(
-                delete(models.ProjectAnnotationConfig)
-                .where(
-                    tuple_(
-                        models.ProjectAnnotationConfig.project_id,
-                        models.ProjectAnnotationConfig.annotation_config_id,
-                    ).in_(project_annotation_config_associations)
-                )
-                .returning(models.ProjectAnnotationConfig)
-            )
-            annotation_configs = result.all()
+            predicate = tuple_(
+                models.ProjectAnnotationConfig.project_id,
+                models.ProjectAnnotationConfig.annotation_config_id,
+            ).in_(project_annotation_config_associations)
+            annotation_configs = (
+                await session.scalars(select(models.ProjectAnnotationConfig).where(predicate))
+            ).all()
             if len(annotation_configs) < len(project_annotation_config_associations):
-                await session.rollback()
                 raise NotFound("Could not find one or more input project annotation configs")
+            await session.execute(delete(models.ProjectAnnotationConfig).where(predicate))
         return RemoveAnnotationConfigFromProjectPayload(
             query=Query(),
             project=Project(id=project_id),

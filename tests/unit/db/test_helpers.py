@@ -1,6 +1,7 @@
 import itertools
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from types import SimpleNamespace
 from typing import Any, Iterable, Literal, Sequence, Union, cast
 
 import pandas as pd
@@ -8,6 +9,7 @@ import pytest
 import sqlalchemy as sa
 from faker import Faker
 from sqlalchemy import Select, func, literal, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.sql import CompoundSelect
 from typing_extensions import assert_never
 
@@ -18,6 +20,8 @@ from phoenix.db.helpers import (
     create_experiment_examples_snapshot_insert,
     date_trunc,
     get_dataset_example_revisions,
+    get_experiment_incomplete_runs_query,
+    get_runs_with_incomplete_evaluations_query,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -25,6 +29,30 @@ fake = Faker()
 
 # Test constants
 NONEXISTENT_ID = 99999
+
+
+MYSQL_INCOMPATIBLE_SQL_FRAGMENTS = (
+    "array_agg",
+    "date_trunc",
+    "generate_series",
+    "json_group_array",
+    "strftime",
+    "::json",
+)
+
+
+def compile_mysql(stmt: sa.ClauseElement) -> str:
+    return str(
+        stmt.compile(
+            dialect=mysql.dialect(),
+            compile_kwargs={"literal_binds": True},
+        )
+    )
+
+
+def assert_mysql_compatible(sql: str) -> None:
+    normalized = sql.lower()
+    assert not [fragment for fragment in MYSQL_INCOMPATIBLE_SQL_FRAGMENTS if fragment in normalized]
 
 
 def get_example_ids(revisions: Sequence[Any]) -> set[int]:
@@ -38,6 +66,60 @@ def create_id_subquery(*values: int) -> Union[Select[tuple[int]], CompoundSelect
     for value in values[1:]:
         query = query.union_all(select(literal(value)))  # type: ignore[assignment]
     return query
+
+
+class TestMySQLCompilation:
+    @pytest.mark.parametrize("field", ["minute", "hour", "day", "week", "month", "year"])
+    def test_date_trunc_compiles_for_mysql(
+        self,
+        field: Literal["minute", "hour", "day", "week", "month", "year"],
+    ) -> None:
+        stmt = sa.select(
+            date_trunc(
+                SupportedSQLDialect.MYSQL,
+                field,
+                models.Span.start_time,
+                -300,
+            )
+        )
+
+        sql = compile_mysql(stmt)
+
+        assert_mysql_compatible(sql)
+        assert "date_add" in sql.lower()
+        assert "date_sub" in sql.lower()
+
+    @pytest.mark.parametrize("repetitions", [1, 3])
+    def test_experiment_incomplete_runs_compiles_for_mysql(self, repetitions: int) -> None:
+        experiment = SimpleNamespace(id=1, repetitions=repetitions)
+        stmt = get_experiment_incomplete_runs_query(
+            experiment,
+            SupportedSQLDialect.MYSQL,
+            cursor_example_rowid=10,
+            limit=50,
+        )
+
+        sql = compile_mysql(stmt)
+
+        assert_mysql_compatible(sql)
+        if repetitions > 1:
+            assert "with recursive" in sql.lower()
+            assert "json_arrayagg" in sql.lower()
+
+    def test_runs_with_incomplete_evaluations_compiles_for_mysql(self) -> None:
+        stmt = get_runs_with_incomplete_evaluations_query(
+            experiment_id=1,
+            evaluation_names=["score"],
+            dialect=SupportedSQLDialect.MYSQL,
+            cursor_run_rowid=10,
+            limit=50,
+            include_annotations_and_revisions=True,
+        )
+
+        sql = compile_mysql(stmt)
+
+        assert_mysql_compatible(sql)
+        assert "json_arrayagg" in sql.lower()
 
 
 class TestDateTrunc:

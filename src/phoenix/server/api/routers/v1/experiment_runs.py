@@ -10,7 +10,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import get_runs_with_incomplete_evaluations_query
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict_returning_id
 from phoenix.db.models import ExperimentRunOutput
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -121,7 +121,7 @@ async def create_experiment_run(
                 ),
             )
         # Either no record exists, or existing record has an error - proceed with upsert
-        stmt = insert_on_conflict(
+        id_ = await insert_on_conflict_returning_id(
             {
                 "experiment_id": experiment_rowid,
                 "dataset_example_id": dataset_example_id,
@@ -132,12 +132,12 @@ async def create_experiment_run(
                 "end_time": end_time,
                 "error": error,
             },
+            session=session,
             table=models.ExperimentRun,
             dialect=request.app.state.db.dialect,
             unique_by=["experiment_id", "dataset_example_id", "repetition_number"],
             on_conflict=OnConflict.DO_UPDATE,
-        ).returning(models.ExperimentRun.id)
-        id_ = await session.scalar(stmt)
+        )
 
     request.state.event_queue.put(ExperimentRunInsertEvent((id_,)))
     run_gid = GlobalID("ExperimentRun", str(id_))

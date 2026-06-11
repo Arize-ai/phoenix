@@ -25,6 +25,7 @@ from sqlalchemy import (
     Null,
     PrimaryKeyConstraint,
     String,
+    Text,
     TypeDecorator,
     UniqueConstraint,
     case,
@@ -46,7 +47,16 @@ from sqlalchemy.orm import (
     mapped_column,
     relationship,
 )
-from sqlalchemy.sql import Values, column, compiler, expression, literal, roles, union_all
+from sqlalchemy.sql import (
+    Values,
+    column,
+    compiler,
+    expression,
+    literal,
+    literal_column,
+    roles,
+    union_all,
+)
 from sqlalchemy.sql.compiler import SQLCompiler
 from sqlalchemy.sql.elements import Case
 from sqlalchemy.sql.functions import coalesce
@@ -217,6 +227,32 @@ _Integer = Integer().with_variant(
     sa.BigInteger(),
     "postgresql",
 )
+_String = String().with_variant(String(255), "mysql")
+_Text = String().with_variant(Text(), "mysql")
+_ContentHash = LargeBinary().with_variant(sa.BINARY(16), "mysql")
+
+
+class SpanSessionId(expression.FunctionElement[str]):
+    inherit_cache = True
+    type = _String
+    name = "span_session_id"
+
+
+@compiles(SpanSessionId)
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+    (attributes,) = list(element.clauses)
+    return compiler.process(attributes[["session", "id"]].as_string(), **kw)
+
+
+@compiles(SpanSessionId, "mysql")
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+    (attributes,) = list(element.clauses)
+    session_id = attributes[["session", "id"]].as_string()
+    return compiler.process(sa.cast(session_id, _String), **kw)
+
+
+def _span_session_id_expression() -> ColumnElement[str]:
+    return SpanSessionId(column("attributes", JSON_))
 
 
 class JsonDict(TypeDecorator[dict[str, Any]]):
@@ -258,7 +294,7 @@ class UtcTimeStamp(TypeDecorator[datetime]):
 class _Identifier(TypeDecorator[Identifier]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(self, value: Optional[Identifier], _: Dialect) -> Optional[str]:
         assert isinstance(value, Identifier) or value is None
@@ -271,7 +307,7 @@ class _Identifier(TypeDecorator[Identifier]):
 class _ModelProvider(TypeDecorator[ModelProvider]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(self, value: Optional[ModelProvider], _: Dialect) -> Optional[str]:
         if isinstance(value, str):
@@ -357,7 +393,7 @@ class _PromptResponseFormat(TypeDecorator[PromptResponseFormat]):
 class _PromptTemplateType(TypeDecorator[PromptTemplateType]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(self, value: Optional[PromptTemplateType], _: Dialect) -> Optional[str]:
         if isinstance(value, str):
@@ -373,7 +409,7 @@ class _PromptTemplateType(TypeDecorator[PromptTemplateType]):
 class _TemplateFormat(TypeDecorator[PromptTemplateFormat]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(
         self, value: Optional[PromptTemplateFormat], _: Dialect
@@ -391,7 +427,7 @@ class _TemplateFormat(TypeDecorator[PromptTemplateFormat]):
 class _TraceRetentionCronExpression(TypeDecorator[TraceRetentionCronExpression]):
     # See # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(
         self, value: Optional[TraceRetentionCronExpression], _: Dialect
@@ -531,7 +567,7 @@ class _TokenCustomization(TypeDecorator[TokenPriceCustomization]):
 class _RegexStr(TypeDecorator[re.Pattern[str]]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(self, value: Optional[re.Pattern[str]], _: Dialect) -> Optional[str]:
         if value is None:
@@ -555,7 +591,7 @@ _HEX_COLOR_PATTERN = re.compile(r"^#([0-9a-f]{6})$")
 class _HexColor(TypeDecorator[str]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
-    impl = String
+    impl = _String
 
     def process_bind_param(self, value: Optional[str], _: Dialect) -> Optional[str]:
         if value is None:
@@ -665,6 +701,7 @@ class Base(DeclarativeBase):
         },
     )
     type_annotation_map = {
+        str: _String,
         dict[str, Any]: JsonDict,
         list[dict[str, Any]]: JsonList,
         ExperimentRunOutput: JsonDict,
@@ -678,7 +715,7 @@ class HasId(Base):
 
 class ProjectTraceRetentionPolicy(HasId):
     __tablename__ = "project_trace_retention_policies"
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(_String, nullable=False)
     cron_expression: Mapped[TraceRetentionCronExpression] = mapped_column(
         _TraceRetentionCronExpression, nullable=False
     )
@@ -693,12 +730,12 @@ class Project(HasId):
     name: Mapped[str]
     description: Mapped[Optional[str]]
     gradient_start_color: Mapped[str] = mapped_column(
-        String,
+        _String,
         server_default=text("'#5bdbff'"),
     )
 
     gradient_end_color: Mapped[str] = mapped_column(
-        String,
+        _String,
         server_default=text("'#1c76fc'"),
     )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -730,7 +767,7 @@ class Project(HasId):
 
 class ProjectSession(HasId):
     __tablename__ = "project_sessions"
-    session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    session_id: Mapped[str] = mapped_column(_String, nullable=False, unique=True)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -974,11 +1011,9 @@ class Span(HasId):
         ),
         Index(
             "ix_spans_session_id",
-            column("attributes", JSON_)[["session", "id"]].as_string(),
-            postgresql_where=column("attributes", JSON_)[["session", "id"]]
-            .as_string()
-            .is_not(None),
-            sqlite_where=column("attributes", JSON_)[["session", "id"]].as_string().is_not(None),
+            _span_session_id_expression(),
+            postgresql_where=_span_session_id_expression().is_not(None),
+            sqlite_where=_span_session_id_expression().is_not(None),
         ),
     )
 
@@ -1015,6 +1050,18 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
         # postgresql is correct because it matches the value computed by Python.
         func.round(
             (func.unixepoch(end_time, "subsec") - func.unixepoch(start_time, "subsec")) * 1000, 1
+        ),
+        **kw,
+    )
+
+
+@compiles(LatencyMs, "mysql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    start_time, end_time = list(element.clauses)
+    return compiler.process(
+        func.round(
+            func.timestampdiff(literal_column("MICROSECOND"), start_time, end_time) / 1000,
+            1,
         ),
         **kw,
     )
@@ -1060,10 +1107,32 @@ def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
     )
 
 
+@compiles(NumDocuments, "mysql")
+def _(element: Any, compiler: SQLCompiler, **kw: Any) -> Any:
+    attributes, span_kind = list(element.clauses)
+    retrieval_docs = attributes[RETRIEVAL_DOCUMENTS]
+    reranker_docs = attributes[RERANKER_OUTPUT_DOCUMENTS]
+    num_retrieval_docs = sql.case(
+        (func.JSON_TYPE(retrieval_docs) == "ARRAY", func.JSON_LENGTH(retrieval_docs)),
+        else_=0,
+    )
+    num_reranker_docs = sql.case(
+        (func.JSON_TYPE(reranker_docs) == "ARRAY", func.JSON_LENGTH(reranker_docs)),
+        else_=0,
+    )
+    return compiler.process(
+        sql.case(
+            (func.upper(span_kind) == "RERANKER", num_reranker_docs),
+            else_=num_retrieval_docs,
+        ),
+        **kw,
+    )
+
+
 class TextContains(expression.FunctionElement[str]):
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     inherit_cache = True
-    type = String()
+    type = _String
     name = "text_contains"
 
 
@@ -1086,6 +1155,12 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     # See https://docs.sqlalchemy.org/en/20/core/compiler.html
     string, substring = list(element.clauses)
     return compiler.process(func.text_contains(string, substring) > 0, **kw)
+
+
+@compiles(TextContains, "mysql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    return compiler.process(func.instr(string, substring) > 0, **kw)
 
 
 class CaseInsensitiveContains(expression.FunctionElement[bool]):
@@ -1123,6 +1198,13 @@ def _(element: Any, compiler: Any, **kw: Any) -> Any:
     return result
 
 
+@compiles(CaseInsensitiveContains, "mysql")
+def _(element: Any, compiler: Any, **kw: Any) -> Any:
+    string, substring = list(element.clauses)
+    result = compiler.process(func.instr(func.lower(string), func.lower(substring)) > 0, **kw)
+    return result
+
+
 async def init_models(engine: AsyncEngine) -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -1143,7 +1225,7 @@ class SpanAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1153,7 +1235,7 @@ class SpanAnnotation(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
-        String,
+        _String,
         server_default="",
         nullable=False,
     )
@@ -1183,7 +1265,7 @@ class TraceAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1193,7 +1275,7 @@ class TraceAnnotation(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
-        String,
+        _String,
         server_default="",
         nullable=False,
     )
@@ -1221,7 +1303,7 @@ class DocumentAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1231,7 +1313,7 @@ class DocumentAnnotation(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
-        String,
+        _String,
         server_default="",
         nullable=False,
     )
@@ -1262,7 +1344,7 @@ class ProjectSessionAnnotation(HasId):
     name: Mapped[str]
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     annotator_kind: Mapped[Literal["LLM", "CODE", "HUMAN"]] = mapped_column(
         CheckConstraint("annotator_kind IN ('LLM', 'CODE', 'HUMAN')", name="valid_annotator_kind"),
@@ -1272,7 +1354,7 @@ class ProjectSessionAnnotation(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     identifier: Mapped[str] = mapped_column(
-        String,
+        _String,
         server_default="",
         nullable=False,
     )
@@ -1422,7 +1504,7 @@ class DatasetExample(HasId):
         index=True,
         nullable=True,
     )
-    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    external_id: Mapped[Optional[str]] = mapped_column(_String, nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     __table_args__ = (
@@ -1457,7 +1539,7 @@ class DatasetExampleRevision(HasId):
     input: Mapped[dict[str, Any]]
     output: Mapped[dict[str, Any]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
-    content_hash: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True, index=True)
+    content_hash: Mapped[Optional[bytes]] = mapped_column(_ContentHash, nullable=True, index=True)
     revision_kind: Mapped[str] = mapped_column(
         CheckConstraint(
             "revision_kind IN ('CREATE', 'PATCH', 'DELETE')", name="valid_revision_kind"
@@ -1487,9 +1569,9 @@ class DatasetSplit(HasId):
         nullable=True,
         index=True,
     )
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(_String, nullable=False, unique=True)
     description: Mapped[Optional[str]]
-    color: Mapped[str] = mapped_column(String, nullable=False)
+    color: Mapped[str] = mapped_column(_String, nullable=False)
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -1682,7 +1764,7 @@ class ExperimentRunAnnotation(HasId):
     )
     label: Mapped[Optional[str]]
     score: Mapped[Optional[float]]
-    explanation: Mapped[Optional[str]]
+    explanation: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     trace_id: Mapped[Optional[str]]
     error: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
@@ -1731,6 +1813,7 @@ class ExperimentJob(HasId):
         primary_key=True,
     )
     type: Mapped[str] = mapped_column(
+        _String,
         CheckConstraint(
             "type IN ('PROMPT', 'EVAL_ONLY')",
             name="valid_type",
@@ -1755,7 +1838,7 @@ class ExperimentJob(HasId):
     # Ownership: claimed_at NOT NULL = running, NULL = not running
     # Updated by heartbeat to maintain claim
     claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
-    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+    claimed_by: Mapped[Optional[str]] = mapped_column(_String)
 
     # Cooldown: earliest time the next stop/resume is allowed
     cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
@@ -1788,6 +1871,7 @@ class ExperimentPromptTask(ExperimentJob):
     __tablename__ = "experiment_prompt_tasks"
     id: Mapped[int] = mapped_column(primary_key=True)
     type: Mapped[Literal["PROMPT"]] = mapped_column(
+        _String,
         CheckConstraint("type = 'PROMPT'", name="valid_type"),
         server_default="PROMPT",
         nullable=False,
@@ -1795,7 +1879,7 @@ class ExperimentPromptTask(ExperimentJob):
 
     # Model identity
     model_provider: Mapped[ModelProvider] = mapped_column(_ModelProvider)
-    model_name: Mapped[str] = mapped_column(String)
+    model_name: Mapped[str] = mapped_column(_String)
 
     # Provider routing (FK)
     custom_provider_id: Mapped[Optional[int]] = mapped_column(
@@ -1805,15 +1889,13 @@ class ExperimentPromptTask(ExperimentJob):
 
     # Prompt definition (complex nested → JSON)
     template_type: Mapped[PromptTemplateType] = mapped_column(_PromptTemplateType)
-    template_format: Mapped[PromptTemplateFormat] = mapped_column(String)
+    template_format: Mapped[PromptTemplateFormat] = mapped_column(_String)
     template: Mapped[PromptTemplate] = mapped_column(_PromptTemplate)
     tools: Mapped[Optional[PromptTools]] = mapped_column(_Tools, default=Null(), nullable=True)
     response_format: Mapped[Optional[PromptResponseFormat]] = mapped_column(
         _PromptResponseFormat, default=Null(), nullable=True
     )
-    invocation_parameters: Mapped[PromptInvocationParameters] = mapped_column(
-        _InvocationParameters, server_default="{}"
-    )
+    invocation_parameters: Mapped[PromptInvocationParameters] = mapped_column(_InvocationParameters)
 
     # Connection overrides (SDK-specific)
     connection: Mapped[Optional[ConnectionConfig]] = mapped_column(
@@ -1849,7 +1931,8 @@ class ExperimentPromptTask(ExperimentJob):
         CheckConstraint(
             "NOT (custom_provider_id IS NOT NULL AND connection IS NOT NULL)",
             name="custom_provider_or_connection",
-        ),
+            # MySQL rejects this CHECK because custom_provider_id participates in a SET NULL FK.
+        ).ddl_if(dialect=("postgresql", "sqlite")),
     )
 
 
@@ -1903,6 +1986,7 @@ class ExperimentLog(HasId):
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     category: Mapped[ExperimentLogCategory] = mapped_column(
+        _String,
         CheckConstraint(
             "category IN ('TASK', 'EVAL', 'EXPERIMENT')",
             name="valid_event_category",
@@ -1914,7 +1998,7 @@ class ExperimentLog(HasId):
             name="valid_event_level",
         ),
     )
-    message: Mapped[str] = mapped_column(String)
+    message: Mapped[str] = mapped_column(_Text)
     detail: Mapped[Optional[ExperimentLogDetail]] = mapped_column(
         _ExperimentLogDetail, nullable=True
     )
@@ -1944,6 +2028,7 @@ class ExperimentTaskLog(ExperimentLog):
     __tablename__ = "experiment_task_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[Literal["TASK"]] = mapped_column(
+        _String,
         CheckConstraint("category = 'TASK'", name="valid_category"),
         server_default="TASK",
         nullable=False,
@@ -1971,6 +2056,7 @@ class ExperimentEvalLog(ExperimentLog):
     __tablename__ = "experiment_eval_logs"
     id: Mapped[int] = mapped_column(primary_key=True)
     category: Mapped[Literal["EVAL"]] = mapped_column(
+        _String,
         CheckConstraint("category = 'EVAL'", name="valid_category"),
         server_default="EVAL",
         nullable=False,
@@ -2283,7 +2369,7 @@ CostType: TypeAlias = Literal["DEFAULT", "OVERRIDE"]
 
 class GenerativeModel(HasId):
     __tablename__ = "generative_models"
-    name: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(_String, nullable=False)
     provider: Mapped[str]
     start_time: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
     name_pattern: Mapped[re.Pattern[str]] = mapped_column(_RegexStr, nullable=False)
@@ -2359,9 +2445,9 @@ class TokenPrice(HasId):
 
 class PromptLabel(HasId):
     __tablename__ = "prompt_labels"
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(_String, unique=True, index=True, nullable=False)
     description: Mapped[Optional[str]]
-    color: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    color: Mapped[Optional[str]] = mapped_column(_String, nullable=True)
 
     prompts_prompt_labels: Mapped[list["PromptPromptLabel"]] = relationship(
         "PromptPromptLabel",
@@ -2443,7 +2529,7 @@ class PromptVersion(HasId):
         index=True,
         nullable=False,
     )
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
@@ -2518,7 +2604,7 @@ class PromptVersionTag(HasId):
     __tablename__ = "prompt_version_tags"
 
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     prompt_id: Mapped[int] = mapped_column(
         ForeignKey("prompts.id", ondelete="CASCADE"),
         index=True,
@@ -2551,7 +2637,7 @@ class PromptVersionTag(HasId):
 
 class AnnotationConfig(HasId):
     __tablename__ = "annotation_configs"
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(_String, nullable=False, unique=True)
     config: Mapped[AnnotationConfigType] = mapped_column(_AnnotationConfig, nullable=False)
 
 
@@ -2708,6 +2794,7 @@ class SpanCostDetail(HasId):
 class Evaluator(HasId):
     __tablename__ = "evaluators"
     kind: Mapped[EvaluatorKind] = mapped_column(
+        _String,
         CheckConstraint("kind IN ('LLM', 'CODE', 'BUILTIN')", name="valid_evaluator_kind"),
         nullable=False,
     )
@@ -2741,6 +2828,7 @@ class LLMEvaluator(Evaluator):
     __tablename__ = "llm_evaluators"
     id: Mapped[int] = mapped_column(primary_key=True)
     kind: Mapped[Literal["LLM"]] = mapped_column(
+        _String,
         CheckConstraint("kind = 'LLM'", name="valid_evaluator_kind"),
         server_default="LLM",
         nullable=False,
@@ -2779,7 +2867,7 @@ class LLMEvaluator(Evaluator):
 
 class Language(Base):
     __tablename__ = "languages"
-    name: Mapped[LanguageName] = mapped_column(String, primary_key=True)
+    name: Mapped[LanguageName] = mapped_column(_String, primary_key=True)
 
 
 class SandboxProvider(Base):
@@ -2787,9 +2875,9 @@ class SandboxProvider(Base):
 
     __tablename__ = "sandbox_providers"
 
-    backend_type: Mapped[SandboxBackendType] = mapped_column(String, primary_key=True)
+    backend_type: Mapped[SandboxBackendType] = mapped_column(_String, primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, default=dict)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
@@ -2811,7 +2899,7 @@ class SandboxConfig(HasId):
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
-    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, default=dict)
     timeout: Mapped[int] = mapped_column(Integer, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
@@ -2827,6 +2915,8 @@ class SandboxConfig(HasId):
     __table_args__ = (
         UniqueConstraint("backend_type", "name"),
         UniqueConstraint("language", "id"),
+        # MySQL requires the referenced composite FK columns to be indexed in order.
+        Index("ix_sandbox_configs_id_language", "id", "language"),
     )
 
 
@@ -2834,6 +2924,7 @@ class CodeEvaluator(Evaluator):
     __tablename__ = "code_evaluators"
     id: Mapped[int] = mapped_column(primary_key=True)
     kind: Mapped[Literal["CODE"]] = mapped_column(
+        _String,
         CheckConstraint("kind = 'CODE'", name="valid_evaluator_kind"),
         server_default="CODE",
         nullable=False,
@@ -2848,11 +2939,9 @@ class CodeEvaluator(Evaluator):
         nullable=True,
         index=True,
     )
-    input_mapping: Mapped[InputMapping] = mapped_column(
-        _InputMapping, nullable=False, server_default='{"literal_mapping": {}, "path_mapping": {}}'
-    )
+    input_mapping: Mapped[InputMapping] = mapped_column(_InputMapping, nullable=False)
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
-        _AnnotationConfigList, nullable=False, server_default="[]"
+        _AnnotationConfigList, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2898,7 +2987,7 @@ class CodeEvaluatorVersion(HasId):
         index=True,
         nullable=True,
     )
-    source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
+    source_code: Mapped[str] = mapped_column(_Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     code_evaluator: Mapped["CodeEvaluator"] = relationship(
@@ -2933,12 +3022,13 @@ class BuiltinEvaluator(Evaluator):
 
     id: Mapped[int] = mapped_column(_Integer, primary_key=True)
     kind: Mapped[Literal["BUILTIN"]] = mapped_column(
+        _String,
         CheckConstraint("kind = 'BUILTIN'", name="valid_evaluator_kind"),
         server_default="BUILTIN",
         nullable=False,
     )
 
-    key: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    key: Mapped[str] = mapped_column(_String, nullable=False, unique=True)
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False)
     output_configs: Mapped[list[OutputConfigType]] = mapped_column(
         _OutputConfigList, nullable=False
@@ -2975,7 +3065,7 @@ class DatasetEvaluators(HasId):
         index=True,
     )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(_Text, nullable=True)
     output_configs: Mapped[Optional[list[OutputConfigType]]] = mapped_column(
         _OutputConfigList, nullable=True
     )
@@ -3008,7 +3098,7 @@ class DatasetEvaluators(HasId):
 
 class Secret(Base):
     __tablename__ = "secrets"
-    key: Mapped[str] = mapped_column(String, primary_key=True)
+    key: Mapped[str] = mapped_column(_String, primary_key=True)
     value: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -3037,10 +3127,10 @@ def validate_secret_config(_: Any, __: Any, target: "Secret") -> None:
 
 class GenerativeModelCustomProvider(HasId):
     __tablename__ = "generative_model_custom_providers"
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(_String, nullable=False, unique=True)
     description: Mapped[Optional[str]]
-    provider: Mapped[str] = mapped_column(String, nullable=False)
-    sdk: Mapped[GenerativeModelSDK] = mapped_column(String, nullable=False)
+    provider: Mapped[str] = mapped_column(_String, nullable=False)
+    sdk: Mapped[GenerativeModelSDK] = mapped_column(_String, nullable=False)
     config: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

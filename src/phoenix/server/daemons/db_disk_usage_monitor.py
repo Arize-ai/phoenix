@@ -104,6 +104,15 @@ class DbDiskUsageMonitor(DaemonTask):
             """).bindparams(nspname=nspname)
             async with self._db() as session:
                 current_usage_bytes = await session.scalar(stmt)
+        elif self._db.dialect is SupportedSQLDialect.MYSQL:
+            stmt = text("""\
+                SELECT COALESCE(SUM(data_length + index_length), 0)
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                AND table_type = 'BASE TABLE';
+            """)
+            async with self._db() as session:
+                current_usage_bytes = await session.scalar(stmt)
         else:
             assert_never(self._db.dialect)
         return float(current_usage_bytes)
