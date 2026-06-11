@@ -7,7 +7,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useLayoutEffect,
   type PropsWithChildren,
   useState,
 } from "react";
@@ -511,7 +510,11 @@ export function ChatView({
     }
   };
 
-  useLayoutEffect(() => {
+  // Focus the prompt input when the panel opens (the controller unmounts this
+  // view while closed, so mount === open). Re-fires when a blocking surface
+  // (consent gate, elicitation, rewind confirmation) clears, returning focus
+  // to the input after the interruption.
+  useEffect(() => {
     if (
       !autoFocusInput ||
       !hasAcknowledgedConsent ||
