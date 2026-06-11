@@ -20,6 +20,7 @@ from .dataset_dataset_splits import DatasetDatasetSplitsDataLoader
 from .dataset_evaluators import DatasetEvaluatorsDataLoader
 from .dataset_evaluators_by_evaluator import DatasetEvaluatorsByEvaluatorDataLoader
 from .dataset_evaluators_by_id import DatasetEvaluatorsByIdDataLoader
+from .dataset_example_counts import DatasetExampleCountsDataLoader
 from .dataset_example_revisions import DatasetExampleRevisionsDataLoader
 from .dataset_example_spans import DatasetExampleSpansDataLoader
 from .dataset_example_splits import DatasetExampleSplitsDataLoader
@@ -155,6 +156,7 @@ class DataLoaders:
     dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
     dataset_evaluators: DatasetEvaluatorsDataLoader
     datasets_by_evaluator: DatasetsByEvaluatorDataLoader
+    dataset_example_counts: DatasetExampleCountsDataLoader
     dataset_example_fields: TableFieldsDataLoader
     dataset_example_revisions: DatasetExampleRevisionsDataLoader
     dataset_example_spans: DatasetExampleSpansDataLoader
@@ -289,6 +291,7 @@ def build_data_loaders(
         dataset_evaluators=DatasetEvaluatorsDataLoader(db),
         datasets_by_evaluator=DatasetsByEvaluatorDataLoader(db),
         dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
+        dataset_example_counts=DatasetExampleCountsDataLoader(db),
         dataset_example_fields=TableFieldsDataLoader(db, models.DatasetExample),
         dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
         dataset_example_spans=DatasetExampleSpansDataLoader(db),
