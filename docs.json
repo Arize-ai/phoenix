@@ -1142,7 +1142,6 @@
             "pages": [
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
               "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
               "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
               "docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments"
@@ -1164,8 +1163,7 @@
             "icon": "user-plus",
             "pages": [
               "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript"
             ]
           },
           {
@@ -1185,6 +1183,7 @@
             "group": "Evaluation",
             "icon": "clipboard-check",
             "pages": [
+              "docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
               "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
               "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
@@ -1541,6 +1540,10 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
+      "destination": "/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+    },
     {
       "source": "/docs/phoenix/phoenix-deployment-options",
       "destination": "/docs/phoenix/self-hosting/architecture"
