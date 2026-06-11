@@ -19,7 +19,6 @@ import { OPEN_DATASET_EVALUATOR_FOR_EDIT_TOOL_NAME } from "@phoenix/agent/tools/
 import { SET_DATASET_EVALUATOR_SELECTION_TOOL_NAME } from "@phoenix/agent/tools/datasetEvaluatorSelection";
 import { ASK_USER_TOOL_NAME } from "@phoenix/agent/tools/elicit";
 import { GET_ROUTE_INFO_TOOL_NAME } from "@phoenix/agent/tools/getRouteInfo";
-import { PATCH_EXPERIMENT_TOOL_NAME } from "@phoenix/agent/tools/patchExperiment";
 import {
   EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   OPEN_LLM_EVALUATOR_FORM_TOOL_NAME,
@@ -27,6 +26,7 @@ import {
   SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
   TEST_LLM_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { PATCH_EXPERIMENT_TOOL_NAME } from "@phoenix/agent/tools/patchExperiment";
 import { SET_APPENDED_MESSAGES_PATH_TOOL_NAME } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
 import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";

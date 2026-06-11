@@ -112,9 +112,7 @@ describe("agentStore", () => {
 
       store.getState().clearAllSessions();
 
-      expect(
-        store.getState().pendingPatchExperimentsByToolCallId
-      ).toEqual({});
+      expect(store.getState().pendingPatchExperimentsByToolCallId).toEqual({});
     });
 
     it("prunes pending patches owned by sessions dropped on retention", () => {
