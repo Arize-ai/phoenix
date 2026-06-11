@@ -1,4 +1,11 @@
-export type LastNTimeRangeKey = "15m" | "1h" | "12h" | "1d" | "7d" | "30d";
+export type LastNTimeRangeUnit = "m" | "h" | "d";
+
+/**
+ * A relative, open-ended time window expressed as a quantity and unit, e.g.
+ * "15m", "12h", "30d". A fixed set of these is offered as presets
+ * (see LAST_N_TIME_RANGES) but any positive quantity is a valid key.
+ */
+export type LastNTimeRangeKey = `${number}${LastNTimeRangeUnit}`;
 
 export type CustomTimeRangeKey = "custom";
 

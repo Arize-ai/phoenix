@@ -11,6 +11,15 @@ class ResizeObserverMock {
 }
 globalThis.ResizeObserver = ResizeObserverMock;
 
+// jsdom does not expose CSS.escape, which react-aria uses to build selectors
+// for virtually focused collection items
+if (typeof globalThis.CSS === "undefined") {
+  globalThis.CSS = {
+    escape: (value: string) =>
+      String(value).replace(/[^a-zA-Z0-9_-]/g, (char) => `\\${char}`),
+  } as typeof CSS;
+}
+
 export const baseWindowConfig = {
   authenticationEnabled: true,
   basename: "/",

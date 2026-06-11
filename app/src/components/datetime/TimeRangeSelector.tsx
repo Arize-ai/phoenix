@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
-import { useInteractOutside } from "react-aria";
+import { useFilter, useInteractOutside } from "react-aria";
+import { Autocomplete, Input } from "react-aria-components";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { usePreferencesContext } from "@phoenix/contexts";
@@ -14,15 +15,18 @@ import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 import { Badge } from "../core/badge";
 import { Text } from "../core/content";
+import { SearchField, SearchIcon } from "../core/field";
 import { ListBox, ListBoxItem } from "../core/listbox";
 import { Popover } from "../core/overlay";
 import type { ComponentSize } from "../core/types";
-import { LAST_N_TIME_RANGES, LAST_N_TIME_RANGES_MAP } from "./constants";
+import { LAST_N_TIME_RANGES } from "./constants";
 import { TimeRangeFields } from "./TimeRangeFields";
 import type { TimeRangeFieldsHandle } from "./TimeRangeFields";
 import type { OpenTimeRangeWithKey } from "./types";
 import {
+  getLastNTimeRangeLabel,
   getTimeRangeFromLastNTimeRangeKey,
+  getTimeRangeSearchSuggestions,
   isLastNTimeRangeKey,
 } from "./utils";
 
@@ -173,6 +177,16 @@ const presetListBoxCSS = css`
   width: 100%;
 `;
 
+const presetEmptyStateCSS = css`
+  padding: var(--global-dimension-size-200) var(--global-dimension-size-150);
+`;
+
+const presetSearchCSS = css`
+  width: 100%;
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-menu-border-color);
+`;
+
 const badgeCSS = css`
   flex: none;
   font-variant-numeric: tabular-nums;
@@ -185,23 +199,28 @@ const OPEN_VALUE_MIN_WIDTH = "var(--global-dimension-size-4000)";
  * compact preset label until the control receives focus, then swaps to editable
  * start/end date fields. Typing into the dates forks the active preset into a
  * custom range, while focusing the control opens the list of quick presets
- * right below it. The leading badge surfaces the active preset's shorthand and
- * the trailing label shows the time zone the range is displayed in.
+ * right below it. A search field at the top of the presets filters the list
+ * and parses free-form durations ("25m", "2 hours") into ad-hoc last-N
+ * options. The leading badge surfaces the active preset's shorthand and the
+ * trailing label shows the time zone the range is displayed in.
  */
 export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const { value, isDisabled, onChange, size = "S" } = props;
   const { timeRangeKey, start, end } = value;
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const presetListBoxRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const valueMeasureRef = useRef<HTMLDivElement>(null);
   const valueButtonRef = useRef<HTMLButtonElement>(null);
   const timeRangeFieldsRef = useRef<TimeRangeFieldsHandle | null>(null);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
+  const [searchText, setSearchText] = useState("");
+  const { contains } = useFilter({ sensitivity: "base" });
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
+    setSearchText("");
   }, []);
   // The focused element belongs to this control if it lives inside the trigger
   // or its popover. Used to decide whether losing focus should stop editing.
@@ -265,6 +284,12 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     "escape",
     (event) => {
       event.stopPropagation();
+      // Escape from a non-empty search clears the search before a second
+      // press closes the control, matching standard search field behavior.
+      if (searchText && document.activeElement === searchInputRef.current) {
+        setSearchText("");
+        return;
+      }
       commitAndBlurTimeRangeField();
     },
     {
@@ -293,8 +318,17 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const badgeLabel = isCustom ? "Custom" : timeRangeKey;
   const timeRangeFormatter = createTimeRangeFormatter({ locale, timeZone });
   const valueLabel = isLastNTimeRangeKey(timeRangeKey)
-    ? (LAST_N_TIME_RANGES_MAP[timeRangeKey]?.label ?? timeRangeKey)
+    ? getLastNTimeRangeLabel(timeRangeKey)
     : timeRangeFormatter({ start, end });
+
+  // A duration typed into the search (e.g. "25m") becomes a selectable
+  // "Last 25 minutes" option ahead of the presets, and a bare quantity
+  // ("25") suggests it in every unit. Colliding presets are dropped so each
+  // option appears once.
+  const searchSuggestions = getTimeRangeSearchSuggestions(searchText);
+  const presetItems = LAST_N_TIME_RANGES.filter(
+    ({ key }) => !searchSuggestions.includes(key)
+  );
 
   // Forces the inline fields to reset whenever the committed range or the
   // display time zone changes from the outside (e.g. selecting a preset).
@@ -341,7 +375,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
     if (!isPopoverReady) {
       return;
     }
-    presetListBoxRef.current?.focus();
+    searchInputRef.current?.focus();
   }, [isPopoverReady]);
 
   return (
@@ -444,40 +478,67 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
           opacity: 1,
         }}
       >
-        <ListBox
-          ref={presetListBoxRef}
-          aria-label="time range preset selection"
-          selectionMode="single"
-          selectedKeys={isCustom ? [] : [timeRangeKey]}
-          css={presetListBoxCSS}
-          onSelectionChange={(selection) => {
-            const selectedKey =
-              selection === "all" ? undefined : selection.keys().next().value;
-            // Re-clicking the active preset toggles single-selection off,
-            // firing this with an empty selection; fall back to the active
-            // preset so that clicking any preset — even the current one —
-            // commits its (recomputed) range.
-            const keyToApply = isLastNTimeRangeKey(selectedKey)
-              ? selectedKey
-              : isLastNTimeRangeKey(timeRangeKey)
-                ? timeRangeKey
-                : undefined;
-            setIsEditing(false);
-            if (!keyToApply) {
-              setIsPresetsOpen(false);
-              return;
-            }
-            const nextRange = getTimeRangeFromLastNTimeRangeKey(keyToApply);
-            setIsPresetsOpen(false);
-            onChange({ timeRangeKey: keyToApply, ...nextRange });
-          }}
-        >
-          {LAST_N_TIME_RANGES.map(({ key, label }) => (
-            <ListBoxItem key={key} id={key}>
-              {label}
-            </ListBoxItem>
-          ))}
-        </ListBox>
+        <Autocomplete filter={contains}>
+          <SearchField
+            aria-label="Search time range presets"
+            size="M"
+            variant="quiet"
+            value={searchText}
+            onChange={setSearchText}
+            css={presetSearchCSS}
+          >
+            <SearchIcon />
+            <Input ref={searchInputRef} placeholder='Search or type "25m"' />
+          </SearchField>
+          <ListBox
+            aria-label="time range preset selection"
+            selectionMode="single"
+            selectedKeys={isCustom ? [] : [timeRangeKey]}
+            css={presetListBoxCSS}
+            renderEmptyState={() => (
+              <div css={presetEmptyStateCSS}>No matching time ranges</div>
+            )}
+            onSelectionChange={(selection) => {
+              const selectedKey =
+                selection === "all" ? undefined : selection.keys().next().value;
+              // Re-clicking the active preset toggles single-selection off,
+              // firing this with an empty selection; fall back to the active
+              // preset so that clicking any preset — even the current one —
+              // commits its (recomputed) range.
+              const keyToApply = isLastNTimeRangeKey(selectedKey)
+                ? selectedKey
+                : isLastNTimeRangeKey(timeRangeKey)
+                  ? timeRangeKey
+                  : undefined;
+              setIsEditing(false);
+              if (!keyToApply) {
+                closePresets();
+                return;
+              }
+              const nextRange = getTimeRangeFromLastNTimeRangeKey(keyToApply);
+              closePresets();
+              onChange({ timeRangeKey: keyToApply, ...nextRange });
+            }}
+          >
+            {searchSuggestions.map((suggestedKey) => (
+              // The search text itself is the text value so suggestions always
+              // survive the autocomplete filter (their labels may not contain
+              // the raw input, e.g. "25m" vs "Last 25 minutes").
+              <ListBoxItem
+                key={suggestedKey}
+                id={suggestedKey}
+                textValue={searchText}
+              >
+                {getLastNTimeRangeLabel(suggestedKey)}
+              </ListBoxItem>
+            ))}
+            {presetItems.map(({ key, label }) => (
+              <ListBoxItem key={key} id={key}>
+                {label}
+              </ListBoxItem>
+            ))}
+          </ListBox>
+        </Autocomplete>
       </Popover>
     </>
   );

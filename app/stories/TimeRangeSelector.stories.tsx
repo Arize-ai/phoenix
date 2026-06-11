@@ -70,6 +70,20 @@ export const Custom = {
   },
 };
 
+/**
+ * Any duration typed into the preset search (e.g. "25m") becomes an ad-hoc
+ * open-ended last-N range with a spelled-out label.
+ */
+export const ArbitraryDuration = {
+  render: Template,
+  args: {
+    initialValue: {
+      timeRangeKey: "25m",
+      start: new Date("2024-01-15T10:00:00Z"),
+    },
+  },
+};
+
 export const Disabled = {
   render: Template,
   args: {
