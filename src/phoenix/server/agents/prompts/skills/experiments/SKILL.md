@@ -79,11 +79,9 @@ them — left intact; a write that omits them erases the scaffold the next sessi
 
 ## Boundaries
 
-- Dataset example writes have no approval-routed tool in the current roster; surface needed dataset
-  edits rather than improvising them, and route dataset evolution to `datasets`.
-- Repetition count is not settable through the current tool roster.
-- Whether prompt editing reaches invocation parameters (temperature and similar) is unverified; treat
-  params as a changed-variable axis whose actuation may be unavailable.
+- When a needed write — a dataset edit, a run setting, an invocation parameter — has no available
+  path, surface the change you need to the user rather than improvising it through raw reads or
+  writes.
 
 ## Things To Avoid
 

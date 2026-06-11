@@ -19,9 +19,9 @@ here; the explanations you enable are its evidence channel when comparing runs.
 1. Derive the grading task from the stated purpose — a hypothesis and its evaluator are one design:
    the hypothesis names the failure mode, the evaluator scores it. Evidence comes from the stated
    purpose, the dataset's examples, and existing run outputs, not from interrogating the user.
-2. Inventory before creating. List the dataset's existing evaluators via `phoenix-gql` and check
-   input-shape compatibility — an evaluator fits when its declared inputs parse the experiment's
-   output topology. Reuse or attach on a match; create on a gap. A question is warranted only when
+2. Inventory before creating. Read the dataset's existing evaluators and check input-shape
+   compatibility — an evaluator fits when its declared inputs parse the experiment's output
+   topology. Reuse or attach on a match; create on a gap. A question is warranted only when
    the stated purpose lacks the failure mode, target output field, or acceptable tradeoff.
 3. Decide the labels. Choose a small, mutually exclusive, collectively exhaustive set — often
    binary (`correct`/`incorrect`, `pass`/`fail`). Add labels only to distinguish failure modes that
@@ -47,16 +47,16 @@ When reference-based, triage what the `reference` actually is before trusting it
 
 - **golden** — a hand-labeled ideal output. Deviation is a defect; strict comparison is warranted.
 - **baseline-snapshot** — current-state outputs culled into the dataset as a comparison point, not
-  ground truth (a label coined here, not a docs term). It anchors did-behavior-change judgments —
-  Pairwise suits it — and losing to it is a signal, not a verdict.
+  ground truth. It anchors did-behavior-change judgments — Pairwise suits it — and losing to it is
+  a signal, not a verdict.
 - **reference-free** — no stored answer key; judge the output against the input and a rubric.
 
 ## Choosing The Judgment Structure
 
-Discover the environment first: read the mounted sandbox's capability fingerprint via the
-`phoenix-gql` `sandboxProviders` read — each config's env-var names (model credentials by
-provider), internet access mode, and packages. Choose by environment capability and task need, not
-artifact kind. The ladder, floor to heaviest:
+Discover the environment first: read the capability fingerprint of the sandbox the evaluator will
+run in — which model credentials its environment variables name, whether it has internet access,
+and which packages are installed. Choose by environment capability and task need, not artifact
+kind. The ladder, floor to heaviest:
 
 - **deterministic primitives** — exact-match, contains, regex-match, json-distance,
   embedding-distance, levenshtein-distance, scikit-learn metrics, and structural `tool_calls`
