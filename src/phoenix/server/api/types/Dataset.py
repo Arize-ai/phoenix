@@ -182,7 +182,7 @@ class Dataset(Node):
             (
                 dataset_id,
                 version_id,
-                tuple(sorted(set(split_rowids))) if split_rowids else None,
+                tuple(sorted(set(split_rowids))) if split_rowids else (),
             )
         )
 

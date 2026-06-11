@@ -11,7 +11,7 @@ from phoenix.server.types import DbSessionFactory
 
 DatasetId: TypeAlias = int
 VersionId: TypeAlias = Optional[int]
-SplitIds: TypeAlias = Optional[tuple[int, ...]]
+SplitIds: TypeAlias = tuple[int, ...]  # empty means no split filter
 Key: TypeAlias = tuple[DatasetId, VersionId, SplitIds]
 Result: TypeAlias = int
 
@@ -27,20 +27,28 @@ class DatasetExampleCountsDataLoader(DataLoader[Key, Result]):
         groups: defaultdict[tuple[VersionId, SplitIds], set[DatasetId]] = defaultdict(set)
         for dataset_id, version_id, split_ids in keys:
             groups[(version_id, split_ids)].add(dataset_id)
+        version_ids = {version_id for version_id, _ in groups if version_id is not None}
         counts: dict[Key, int] = {}
         async with self._db.read() as session:
+            version_owners: dict[int, int] = {}
+            if version_ids:
+                version_owners = {
+                    version_id: dataset_id
+                    for version_id, dataset_id in await session.execute(
+                        select(models.DatasetVersion.id, models.DatasetVersion.dataset_id).where(
+                            models.DatasetVersion.id.in_(version_ids)
+                        )
+                    )
+                }
             for (version_id, split_ids), dataset_ids in groups.items():
                 target_dataset_ids = dataset_ids
                 if version_id is not None:
-                    version_dataset_id = await session.scalar(
-                        select(models.DatasetVersion.dataset_id).where(
-                            models.DatasetVersion.id == version_id
-                        )
-                    )
                     # A version belongs to exactly one dataset; any other dataset
                     # queried with this version has zero examples in it.
                     target_dataset_ids = {
-                        dataset_id for dataset_id in dataset_ids if dataset_id == version_dataset_id
+                        dataset_id
+                        for dataset_id in dataset_ids
+                        if dataset_id == version_owners.get(version_id)
                     }
                 if not target_dataset_ids:
                     continue
