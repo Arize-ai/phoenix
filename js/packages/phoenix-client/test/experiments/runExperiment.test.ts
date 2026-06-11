@@ -34,6 +34,30 @@ const mockDataset = {
   ],
 };
 
+// A dataset uploaded with custom example ids: "id" carries the custom id
+// while "nodeId" carries the server-generated node GlobalID.
+const mockCustomIdDataset = {
+  ...mockDataset,
+  examples: [
+    {
+      id: "custom-1",
+      nodeId: "RGF0YXNldEV4YW1wbGU6MQ==",
+      input: { name: "Alice" },
+      output: { text: "Hello, Alice!" },
+      metadata: {},
+      updatedAt: new Date(),
+    },
+    {
+      id: "custom-2",
+      nodeId: "RGF0YXNldEV4YW1wbGU6Mg==",
+      input: { name: "Bob" },
+      output: { text: "Hello, Bob!" },
+      metadata: {},
+      updatedAt: new Date(),
+    },
+  ],
+};
+
 describe("runExperiment (dryRun)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -204,6 +228,28 @@ describe("runExperiment (dryRun)", () => {
       ),
     });
   });
+  it("records runs against the node GlobalID on custom-id datasets", async () => {
+    vi.spyOn(getDatasetModule, "getDataset").mockResolvedValue(
+      mockCustomIdDataset
+    );
+    const task = (example: Example) => `Hi, ${example.input.name}`;
+
+    const experiment = await runExperiment({
+      dataset: { datasetId: mockCustomIdDataset.id },
+      task,
+      dryRun: true,
+    });
+
+    // Runs identify their example by node GlobalID, not by the custom id
+    const exampleIds = Object.values(experiment.runs)
+      .map((run) => run.datasetExampleId)
+      .sort();
+    expect(exampleIds).toEqual([
+      "RGF0YXNldEV4YW1wbGU6MQ==",
+      "RGF0YXNldEV4YW1wbGU6Mg==",
+    ]);
+  });
+
   it("passes traceId to evaluators", async () => {
     const task = async (example: Example) => `Hello, ${example.input.name}!`;
     const evaluateFn = vi.fn(async () => ({
