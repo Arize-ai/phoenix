@@ -153,6 +153,33 @@
       ]
     },
     {
+      "name": "claude-fable-5",
+      "name_pattern": "claude-fable-5",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00001,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00005,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 0.0000125,
+          "is_prompt": true,
+          "token_type": "cache_write"
+        }
+      ]
+    },
+    {
       "name": "claude-haiku-4-5",
       "name_pattern": "claude-haiku-4-5",
       "source": "litellm",
@@ -390,33 +417,6 @@
         },
         {
           "base_rate": 6.25e-6,
-          "is_prompt": true,
-          "token_type": "cache_write"
-        }
-      ]
-    },
-    {
-      "name": "claude-fable-5",
-      "name_pattern": "claude-fable-5",
-      "source": "litellm",
-      "token_prices": [
-        {
-          "base_rate": 1e-5,
-          "is_prompt": true,
-          "token_type": "input"
-        },
-        {
-          "base_rate": 5e-5,
-          "is_prompt": false,
-          "token_type": "output"
-        },
-        {
-          "base_rate": 1e-6,
-          "is_prompt": true,
-          "token_type": "cache_read"
-        },
-        {
-          "base_rate": 1.25e-5,
           "is_prompt": true,
           "token_type": "cache_write"
         }
