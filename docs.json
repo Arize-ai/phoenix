@@ -576,6 +576,7 @@
                   "docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript"
                 ]
               },
+              "docs/phoenix/integrations/typescript/openai-agents",
               {
                 "group": "TanStack AI",
                 "pages": [

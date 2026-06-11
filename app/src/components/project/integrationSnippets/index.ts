@@ -24,7 +24,10 @@ export {
 export { getLlamaIndexCodePython } from "./llamaIndex";
 export { getMastraCodeTypescript } from "./mastra";
 export { getOpenaiCodePython, getOpenaiCodeTypescript } from "./openai";
-export { getOpenaiAgentsCodePython } from "./openaiAgents";
+export {
+  getOpenaiAgentsCodePython,
+  getOpenaiAgentsCodeTypescript,
+} from "./openaiAgents";
 export { getStrandsAgentsCodePython } from "./strandsAgents";
 export { getTanStackAiCodeTypescript } from "./tanstackAi";
 export {

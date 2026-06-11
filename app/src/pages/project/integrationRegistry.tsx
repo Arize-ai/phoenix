@@ -52,6 +52,7 @@ import {
   getLlamaIndexCodePython,
   getMastraCodeTypescript,
   getOpenaiAgentsCodePython,
+  getOpenaiAgentsCodeTypescript,
   getOpenaiCodePython,
   getOpenaiCodeTypescript,
   getOpenLLMetryCodePython,
@@ -292,6 +293,19 @@ export const ONBOARDING_INTEGRATIONS: OnboardingIntegration[] = [
           "https://arize.com/docs/phoenix/integrations/llm-providers/openai-agents-sdk",
         githubHref:
           "https://github.com/Arize-ai/openinference/tree/main/python/instrumentation/openinference-instrumentation-openai-agents",
+      },
+      TypeScript: {
+        packages: [
+          "@arizeai/phoenix-otel",
+          "@arizeai/openinference-instrumentation-openai-agents",
+          "@openai/agents",
+        ],
+        getImplementationCode: getOpenaiAgentsCodeTypescript,
+        envVars: OPENAI_ENV,
+        docsHref:
+          "https://arize.com/docs/phoenix/integrations/typescript/openai-agents",
+        githubHref:
+          "https://github.com/Arize-ai/openinference/tree/main/js/packages/openinference-instrumentation-openai-agents",
       },
     },
   },
