@@ -1,3 +1,4 @@
+import { fromDate } from "@internationalized/date";
 import {
   startOfHour,
   startOfMinute,
@@ -5,6 +6,7 @@ import {
   subHours,
   subMinutes,
 } from "date-fns";
+import type { DateValue } from "react-aria-components";
 
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -189,4 +191,15 @@ export function getTimeRangeSearchSuggestions(
     return [];
   }
   return [`${quantity}m`, `${quantity}h`, `${quantity}d`];
+}
+
+/**
+ * Converts a JS Date into a DateValue in the given time zone, for seeding
+ * react-aria date components.
+ */
+export function toDateValue(
+  date: Date | null | undefined,
+  timeZone: string
+): DateValue | null {
+  return date ? fromDate(date, timeZone) : null;
 }

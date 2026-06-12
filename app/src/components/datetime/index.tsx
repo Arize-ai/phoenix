@@ -1,6 +1,7 @@
 export { DateInput, DateSegment } from "react-aria-components";
 export { DateField } from "../core/datetime/DateField";
 export { TimeField } from "../core/datetime/TimeField";
+export * from "./TimeRangeCalendarPicker";
 export * from "./TimeRangeContext";
 export * from "./TimeRangeSelector";
 export * from "./ConnectedTimeRangeSelector";
