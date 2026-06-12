@@ -151,7 +151,8 @@ const timeRangeSelectorCSS = css`
     &:focus {
       color: var(--highlight-foreground);
       background: var(--highlight-background);
-      outline: none;
+      outline: 1px solid var(--global-color-primary);
+      outline-offset: -1px;
       caret-color: transparent;
     }
   }
