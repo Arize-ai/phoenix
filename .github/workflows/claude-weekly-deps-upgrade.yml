@@ -113,6 +113,16 @@ jobs:
             cat "$log"
             echo "::endgroup::"
           }
+          # Regenerate generated artifacts first: upgraded deps (strawberry,
+          # pydantic, fastapi, relay, openapi-typescript) can legitimately
+          # change generated output, and CI enforces that committed artifacts
+          # match regeneration (git diff --exit-code). Regenerating here lets
+          # the changed artifacts ride along in the upgrade commit and ensures
+          # the checks below run against them. A failure here means generation
+          # itself broke (e.g. an API change in a codegen tool).
+          run gen-graphql         make graphql
+          run gen-openapi         make openapi
+          run gen-generative-ui   make schema-generative-ui
           run python-format       make format-python
           run python-lint         make lint-python
           run python-typecheck    make typecheck-python
@@ -247,6 +257,9 @@ jobs:
             only as evidence for what changed and what failed.
 
             Available log files (when present):
+              - `.scratch/verify/gen-graphql.log`
+              - `.scratch/verify/gen-openapi.log`
+              - `.scratch/verify/gen-generative-ui.log`
               - `.scratch/verify/python-format.log`
               - `.scratch/verify/python-lint.log`
               - `.scratch/verify/python-typecheck.log`
