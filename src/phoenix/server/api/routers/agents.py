@@ -61,7 +61,7 @@ from phoenix.server.agents.skill_requests import (
     iter_requested_skill_response_chunks,
     resolve_requested_skills,
 )
-from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.skills import get_server_agent_skills, get_skills_for_contexts
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -622,6 +622,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 docs_mcp_server=request.app.state.docs_mcp_server,
                 enable_web_access=web_access_enabled,
                 tracer_provider=tracer_provider,
+                skills=get_server_agent_skills(),
             )
             if subagents_enabled
             else None

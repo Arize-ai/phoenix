@@ -5,15 +5,19 @@ from typing import Any
 from jinja2 import Template
 from pydantic_ai import ModelRetry, Tool
 from pydantic_ai._run_context import RunContext
+from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import FunctionToolset
 
 from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
-from phoenix.server.agents.types import AgentDependencies
 
 
-class SkillsToolset(FunctionToolset[AgentDependencies]):
-    """Pydantic AI toolset for automatic skill discovery and integration."""
+class SkillsToolset(FunctionToolset[AgentDepsT]):
+    """Pydantic AI toolset for automatic skill discovery and integration.
+
+    Generic over the agent's dependency type so the same toolset serves both
+    the main assistant agent and sub-agents with different (or no) deps.
+    """
 
     def __init__(
         self,
@@ -43,7 +47,7 @@ class SkillsToolset(FunctionToolset[AgentDependencies]):
             return self._load_skill_template.render(skill=self._skills[skill_name])
 
         async def read_skill_resource(
-            ctx: RunContext[AgentDependencies],
+            ctx: RunContext[AgentDepsT],
             skill_name: str,
             resource_name: str,
             args: dict[str, Any] | None = None,

@@ -1,37 +1,6 @@
 import type { ConcreteRequest, GraphQLTaggedNode } from "relay-runtime";
 
-import { PHOENIX_ROOT } from "@phoenix/agent/tools/bash/context/filesystem/pathConstants";
-
 import type { GeneratedContextFile } from "../types";
-
-export const PHOENIX_GQL_GUIDE = `# phoenix-gql
-
-Use \`phoenix-gql\` to execute GraphQL operations against Phoenix from the bash sandbox.
-This command is built into the bash environment; you can execute it directly.
-Run \`phoenix-gql --help\` to see current permissions and usage.
-
-Tips:
-- Prefer \`node(id: ...)\` with inline fragments when page context already gives you an entity id.
-- Use page context and any route-specific recipe files to find likely ids and entrypoints.
-- Verify argument names and enum values in \`${PHOENIX_ROOT}/graphql/schema.json\` before guessing.
-- Use \`--data-only\` when piping into \`jq\`.
-- Use \`--output\` for larger results you want to inspect in multiple steps.
-
-Examples:
-
-\`\`\`bash
-phoenix-gql '{ projects { edges { node { name } } } }' | jq '.data'
-cat query.graphql | phoenix-gql --vars '{"id":"UHJvamVjdDox"}' --data-only
-phoenix-gql query.graphql --vars-file vars.json | jq '.data'
-phoenix-gql big-query.graphql --output /home/user/workspace/result.json
-\`\`\`
-
-Notes:
-- Allowed operation types (queries, mutations) depend on runtime permissions. The tool reports its current permissions on stderr with every invocation and in its --help output.
-- Subscriptions are never supported.
-- Large responses may spill to a workspace file unless you pass \`--stdout\`.
-- The GraphQL schema introspection is available at \`${PHOENIX_ROOT}/graphql/schema.json\`.
-`;
 
 export function formatJsonBlock(value: unknown) {
   return JSON.stringify(value, null, 2);

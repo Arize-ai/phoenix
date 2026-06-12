@@ -12,6 +12,7 @@ from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 
 from phoenix.server.agents.capabilities import MintlifyDocsMCPCapability
+from phoenix.server.agents.capabilities.skills import Skill, SkillsCapability, SkillsToolset
 from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
     RunGraphQLQueryCapability,
 )
@@ -36,12 +37,16 @@ def build_server_agent(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
+    skills: list[Skill] | None = None,
 ) -> AbstractAgent[None, str]:
     """Construct server agent.
 
     ``docs_mcp_server`` and ``enable_web_access`` are gated by the caller exactly as
     they are for the main agent, so the sub-agent gains the docs MCP and web
     search/fetch tools under the same conditions.
+
+    ``skills`` are exposed through the same progressive-disclosure skills toolset
+    the main agent uses (``load_skill`` / ``read_skill_resource``).
     """
     resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
@@ -56,6 +61,18 @@ def build_server_agent(
             instructions=resolved_prompts.run_graphql_query_tool.render(),
         ),
     ]
+    if skills:
+        capabilities.append(
+            SkillsCapability(
+                toolset=SkillsToolset[None](
+                    skills=skills,
+                    load_skill_template=resolved_prompts.load_skill,
+                    load_skill_tool_template=resolved_prompts.load_skill_tool,
+                    read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
+                ),
+                instructions=resolved_prompts.skills,
+            )
+        )
     if docs_mcp_server is not None:
         capabilities.append(
             MintlifyDocsMCPCapability(

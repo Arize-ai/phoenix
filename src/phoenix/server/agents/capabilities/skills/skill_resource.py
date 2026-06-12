@@ -7,8 +7,6 @@ from typing import Any, TypeAlias
 
 from pydantic_ai import RunContext, _function_schema
 
-from phoenix.server.agents.types import AgentDependencies
-
 ResourceFunction: TypeAlias = Callable[..., Any | Awaitable[Any]]
 """A resource function: any callable, sync or async, returning anything."""
 
@@ -23,7 +21,7 @@ class SkillResource(ABC):
     @abstractmethod
     async def load(
         self,
-        ctx: RunContext[AgentDependencies],
+        ctx: RunContext[Any],
         args: dict[str, Any] | None = None,
     ) -> Any:
         """Load and return the resource's value.
@@ -45,7 +43,7 @@ class ContentSkillResource(SkillResource):
 
     async def load(
         self,
-        ctx: RunContext[AgentDependencies],
+        ctx: RunContext[Any],
         args: dict[str, Any] | None = None,
     ) -> Any:
         return self.content
@@ -65,7 +63,7 @@ class FunctionSkillResource(SkillResource):
 
     async def load(
         self,
-        ctx: RunContext[AgentDependencies],
+        ctx: RunContext[Any],
         args: dict[str, Any] | None = None,
     ) -> Any:
         return await self.function_schema.call(args or {}, ctx)
