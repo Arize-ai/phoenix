@@ -198,6 +198,13 @@ class WebAccessContext(_ChatContextBase):
     enabled: bool
 
 
+class SubagentsContext(_ChatContextBase):
+    """User's per-turn request to expose the subagent-spawning tool."""
+
+    type: Literal["subagents"]
+    enabled: bool
+
+
 class ChatContext(
     RootModel[
         Annotated[
@@ -210,7 +217,8 @@ class ChatContext(
             | LlmEvaluatorContext
             | DatasetContext
             | GraphQLContext
-            | WebAccessContext,
+            | WebAccessContext
+            | SubagentsContext,
             Field(discriminator="type"),
         ]
     ]
@@ -230,6 +238,7 @@ class ResolvedContexts:
     dataset: DatasetContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
+    subagents: SubagentsContext | None = None
 
 
 def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
@@ -256,6 +265,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.graphql = context_value
         elif isinstance(context_value, WebAccessContext):
             resolved.web_access = context_value
+        elif isinstance(context_value, SubagentsContext):
+            resolved.subagents = context_value
         else:
             assert_never(context_value)
     return resolved

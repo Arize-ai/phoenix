@@ -86,6 +86,16 @@ function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
 }
 
 /**
+ * Build subagents context from the current capability snapshot.
+ */
+function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
+  return {
+    type: "subagents",
+    enabled: capabilities["subagents.enabled"],
+  };
+}
+
+/**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
  * are intentionally omitted because the server is the model-facing authority.
  */
@@ -110,6 +120,7 @@ export function buildAgentChatRequestBody({
     buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
+    buildSubagentsContext(capabilities),
     ...contexts,
   ];
   return {

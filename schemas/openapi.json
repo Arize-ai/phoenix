@@ -7318,6 +7318,9 @@
           },
           {
             "$ref": "#/components/schemas/WebAccessContext"
+          },
+          {
+            "$ref": "#/components/schemas/SubagentsContext"
           }
         ],
         "title": "ChatContext",
@@ -7333,6 +7336,7 @@
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
             "span": "#/components/schemas/AgentSpanContext",
+            "subagents": "#/components/schemas/SubagentsContext",
             "trace": "#/components/schemas/TraceContext",
             "web_access": "#/components/schemas/WebAccessContext"
           }
@@ -14347,6 +14351,26 @@
         "type": "object",
         "title": "StepStartUIPart",
         "description": "A step boundary part of a message."
+      },
+      "SubagentsContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "subagents",
+            "title": "Type"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "enabled"
+        ],
+        "title": "SubagentsContext",
+        "description": "User's per-turn request to expose the subagent-spawning tool."
       },
       "TextContentPart": {
         "properties": {

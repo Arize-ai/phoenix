@@ -31,6 +31,7 @@ function contextLabel(context: AgentContext): string {
     case "app":
     case "graphql":
     case "web_access":
+    case "subagents":
       // Request-only runtime metadata, not user-visible page context, so it
       // should never render as a pill.
       return "";
@@ -112,7 +113,8 @@ export function AgentContextPills() {
     if (
       context.type === "app" ||
       context.type === "graphql" ||
-      context.type === "web_access"
+      context.type === "web_access" ||
+      context.type === "subagents"
     ) {
       return [];
     }
