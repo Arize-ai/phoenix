@@ -4,6 +4,7 @@ import asyncio
 import logging
 from enum import Enum
 from sqlite3 import Connection
+from threading import Thread
 from typing import Any
 
 import aiosqlite
@@ -141,12 +142,7 @@ def aio_sqlite_engine(
     if not migrate:
         return engine
     if database.startswith(":memory:"):
-        try:
-            asyncio.get_running_loop()
-        except RuntimeError:
-            asyncio.run(init_models(engine))
-        else:
-            asyncio.create_task(init_models(engine))
+        _init_memory_models(engine)
     else:
         migration_engine = create_async_engine(
             url=url,
@@ -157,6 +153,55 @@ def aio_sqlite_engine(
         )
         migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
+
+
+def _init_memory_models(engine: AsyncEngine) -> None:
+    """
+    Create the tables for an in-memory SQLite engine, returning only
+    after they exist so the engine is safe to query immediately.
+
+    This is a sync function, so it cannot await ``init_models``. There
+    are two cases:
+
+    - No event loop is running in this thread (e.g. server startup):
+      ``asyncio.run`` executes the coroutine right here.
+    - A loop is already running (e.g. ``launch_app`` in a notebook):
+      ``asyncio.run`` would raise, and scheduling ``init_models`` as a
+      task on the caller's loop would not run it until the caller next
+      yields — the engine could be queried before its tables exist. So
+      a short-lived helper thread runs the coroutine on its own fresh
+      loop, and we block on ``join()``. Blocking the caller's loop is
+      acceptable: this happens once, at engine creation, and creating
+      tables in an in-memory database is fast.
+
+    In both cases the StaticPool's single aiosqlite connection is
+    created on an event loop that is closed by the time the application
+    uses the engine on its own loop. That is safe because aiosqlite
+    does not bind a connection to the loop it was created on: each
+    operation creates a fresh future on whatever loop is current at
+    call time, and the actual SQLite work runs on aiosqlite's dedicated
+    worker thread either way.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(init_models(engine))
+        return
+
+    exc: BaseException | None = None
+
+    def run() -> None:
+        nonlocal exc
+        try:
+            asyncio.run(init_models(engine))
+        except BaseException as error:
+            exc = error
+
+    thread = Thread(target=run, name="sqlite-init-models")
+    thread.start()
+    thread.join()
+    if exc is not None:
+        raise exc
 
 
 def aio_postgresql_engine(
