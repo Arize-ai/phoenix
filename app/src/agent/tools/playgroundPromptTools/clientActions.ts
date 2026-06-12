@@ -98,6 +98,7 @@ export function createWritePromptToolsClientAction({
         sessionId: writeContext.sessionId,
         instanceId,
         expectedRevision: parsed.expectedRevision,
+        provider,
         input: parsed,
         before,
         after,
