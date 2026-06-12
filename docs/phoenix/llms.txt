@@ -8,6 +8,7 @@
 - [User Guide](https://arize.com/docs/phoenix/user-guide): End-to-end workflows for development, production, and optimization
 - [Production Guide](https://arize.com/docs/phoenix/production-guide): Deploy Phoenix in production with best practices for scale and reliability
 - [Environments](https://arize.com/docs/phoenix/environments): Configure Phoenix across development, staging, and production environments
+- [PXI Agent](https://arize.com/docs/phoenix/pxi): Hand investigations to the built-in AI agent that inspects traces, iterates on prompts, runs experiments, and authors evaluators
 
 ## Quick Start
 
@@ -344,7 +345,7 @@
 - [CrewAI](https://arize.com/docs/phoenix/integrations/python/crewai): CrewAI is an open-source Python framework for orchestrating role-playing, autonomous AI agents into
 - [DSPy](https://arize.com/docs/phoenix/integrations/python/dspy): DSPy is an open-source Python framework for declaratively programming modular LLM pipelines and automatically
 - [Google ADK](https://arize.com/docs/phoenix/integrations/python/google-adk): Google ADK is a Python SDK for building AI applications with Google's Gemini models and agent framework
-- [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite): >-
+- [Graphite](https://arize.com/docs/phoenix/integrations/python/graphite): Instrument Graphite distributed agent workflows for tracing and observability in Phoenix
 - [Guardrails AI](https://arize.com/docs/phoenix/integrations/python/guardrails-ai): Guardrails is an open-source Python framework for adding programmable input/output validators to LLM
 - [Haystack](https://arize.com/docs/phoenix/integrations/python/haystack): Haystack is an open-source framework for building scalable semantic search and QA pipelines with document
 - [Hugging Face Smolagents](https://arize.com/docs/phoenix/integrations/python/hugging-face-smolagents): Hugging Face smolagents is a minimalist Python library for building powerful AI agents with simple
@@ -649,7 +650,7 @@
 - [Experiment with a Customer Support Agent](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent): This guide shows you how to create and evaluate agents with Phoenix to improve performance
 - [Prompt Template Iteration for a Summarization Service](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/summarization): Imagine you're deploying a service for your media company's summarization model that condenses daily news
 - [Text2SQL Experiments](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/text2sql): Building effective text-to-SQL systems requires rigorous evaluation and systematic experimentation. In this
-- [Code Readability Evaluation](https://arize.com/docs/phoenix/cookbook/evaluation/code-readability-evaluation): >-
+- [Code Readability Evaluation](https://arize.com/docs/phoenix/cookbook/evaluation/code-readability-evaluation): Classify LLM-generated code as readable or unreadable using a benchmark dataset with ground-truth labels
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks): Use Phoenix Evals to evaluate your application for faithfulness, toxicity, relevance of retrieved documents
 - [Evaluate a Talk-to-Your-Data Agent](https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent): Evaluate a Talk-to-Your-Data Agent
 - [Trace-level Evaluation: Beyond Input/Output Checks](https://arize.com/docs/phoenix/cookbook/evaluation/trace-level-evaluation): Evaluate an agent's intermediate reasoning, tool selection, and decision path — not just its final answer.
@@ -667,7 +668,7 @@
 - [Optimizing Prompts for LLM Classification - Prompt Learning](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification): Using Prompt Learning to boost accuracy on a classification dataset
 - [Prompt Optimization Techniques](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization): This tutorial will use Phoenix to compare the performance of different prompt optimization techniques
 - [ReAct Prompting](https://arize.com/docs/phoenix/cookbook/prompt-engineering/react-prompting): **ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking
-- [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): >-
+- [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): Trace a LlamaIndex ReAct agent that combines vector and SQL query tools
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/tracing/cookbooks): Trace through the execution of your LLM application to understand its internal structure and to troubleshoot
 - [Generating Synthetic Datasets for LLM Evaluators & Agents](https://arize.com/docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents): Learn different strategies for dataset generation and show how they can be used to run experiments and test
 - [Product Recommendation Agent: Google Agent Engine & LangGraph](https://arize.com/docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph): This notebook is adapted from Google's \"Building and Deploying a LangGraph Application with Agent Engine in
@@ -733,6 +734,11 @@
 - [05.13.2026 Playground Thinking Controls for Anthropic and Google](https://arize.com/docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls): Configure Anthropic extended thinking and Google thinking in the Playground — token budgets, effort levels, and display toggles
 - [05.15.2026 OTel GenAI Semantic Convention Auto-Conversion](https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion): Phoenix auto-converts gen_ai.* OTel attributes to OpenInference at ingest — OTel-native traces render with full message I/O and token counts without code changes
 - [05.15.2026 Session Trace Feedback and ATIF v1.7](https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif): Thumbs-up/down feedback toolbar on session turns; ATIF v1.7 trajectory upload with embedded subagents and deterministic dispatch steps
+- [05.21.2026 Code Evaluators](https://arize.com/docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators): Write Python or TypeScript evaluate() functions in the UI and run them server-side on every experiment — no SDK or deploy step
+- [05.27.2026 Drag-to-Zoom on Project Metric Charts](https://arize.com/docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom): Click and drag across any project metric chart or spans sparkline to zoom into a custom time window
+- [06.02.2026 Introducing PXI](https://arize.com/docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent): Hand investigations to PXI, the AI engineering agent built into Phoenix that inspects traces, prompts, and experiments for you
+- [06.10.2026 PXI Agent Update](https://arize.com/docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update): PXI gains a skills menu, parallel subagents, playground orchestration, evaluator authoring, and dataset management
+- [06.11.2026 Time Range Selector and PXI Slash Commands](https://arize.com/docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands): Search presets and type free-form durations in the time range selector; PXI adds local slash commands and dataset evaluator editing
 
 ### 2025
 
