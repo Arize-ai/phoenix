@@ -103,6 +103,10 @@ jobs:
               fi
             done <<< "$blocked_files"
           fi
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Only blocked files changed; restored them and skipping PR."
+            exit 0
+          fi
           git add -A
           git commit -m "docs: audit and update llms.txt"
           git push -u origin "$BRANCH"

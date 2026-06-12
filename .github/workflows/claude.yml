@@ -6,7 +6,10 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
+    # No `assigned` here: the action only honors assigned events via its
+    # assignee_trigger input (unset for us); its @claude body/title check
+    # applies only to `opened`, so an assigned run would always no-op.
+    types: [opened]
   pull_request_review:
     types: [submitted]
 
@@ -97,7 +100,7 @@ jobs:
             actions: read
 
           # Enable the file-editing tools. In tag mode the action omits
-          # Edit/Write/MultiEdit from its auto-generated --allowedTools and relies
+          # Edit/Write from its auto-generated --allowedTools and relies
           # on `--permission-mode acceptEdits` to allow edits inside the workspace.
           # The headless SDK has no interactive approval handler, so any tool that
           # is neither on the allowlist nor covered by the permission mode falls
@@ -106,5 +109,5 @@ jobs:
           # Listing the edit tools explicitly guarantees they are allowed
           # independent of permission mode; the action merges them with its own
           # git/Read/Grep tools.
-          claude_args: '--allowedTools Edit,MultiEdit,Write'
+          claude_args: '--allowedTools Edit,Write'
 

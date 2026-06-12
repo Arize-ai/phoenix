@@ -18,12 +18,11 @@ concurrency:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+    # Same-repo PRs only: fork-origin pull_request runs get neither repository
+    # secrets (ANTHROPIC_API_KEY is empty) nor an OIDC token (id-token: write
+    # is inert for forks), so the action's auth validation would fail the run
+    # on every external contribution. Skip instead of failing red.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     # Bound the run so a hung review can't hold the runner indefinitely;
     # a single-PR review finishes well under this.
