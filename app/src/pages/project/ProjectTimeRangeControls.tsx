@@ -2,11 +2,11 @@ import { startTransition, useCallback, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useLocation } from "react-router";
 
-import { Switch } from "@phoenix/components";
+import { TimeRangeControls, useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 
-import type { StreamToggle_data$key } from "./__generated__/StreamToggle_data.graphql";
+import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";
 
 /**
  * Check every few seconds for new data
@@ -18,12 +18,21 @@ const REFRESH_INTERVAL_MS = 2000;
  */
 const STREAMING_ENABLED_ROUTE_TAILS = ["spans", "traces", "sessions"];
 
-export function StreamToggle(props: { project: StreamToggle_data$key }) {
+/**
+ * The project page's time range control strip: pan/zoom buttons around a
+ * play/pause toggle for live streaming, rendered beside the time range
+ * selector. While streaming is playing, polls the project's last-updated
+ * timestamp and bumps the shared fetch key when new data lands.
+ */
+export function ProjectTimeRangeControls(props: {
+  project: ProjectTimeRangeControls_data$key;
+}) {
   const {
     isStreaming: isStreamingState,
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
+  const { timeRange, setTimeRange } = useTimeRange();
   const location = useLocation();
   const currentPathTail = location.pathname.split("/").pop() || "";
   // Take into account both the current path and the streaming state for whether streaming is enabled
@@ -33,8 +42,8 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
-      fragment StreamToggle_data on Project
-      @refetchable(queryName: "StreamToggleRefetchQuery") {
+      fragment ProjectTimeRangeControls_data on Project
+      @refetchable(queryName: "ProjectTimeRangeControlsRefetchQuery") {
         streamingLastUpdatedAt
       }
     `,
@@ -45,7 +54,7 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
     lastUpdatedAt.streamingLastUpdatedAt
   );
 
-  // Refetch lastUpdatedAt if the streaming toggle is on to detect when the underlying data changes
+  // Refetch lastUpdatedAt if streaming is playing to detect when the underlying data changes
   const refetchCountsIfStreaming = useCallback(() => {
     if (isStreamingEnabled) {
       startTransition(() => {
@@ -71,14 +80,15 @@ export function StreamToggle(props: { project: StreamToggle_data$key }) {
   useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
 
   return (
-    <Switch
-      labelPlacement="start"
-      isSelected={isStreamingState}
-      onChange={() => {
-        setIsStreaming(!isStreamingState);
+    <TimeRangeControls
+      value={timeRange}
+      onChange={(nextTimeRange) => {
+        startTransition(() => {
+          setTimeRange(nextTimeRange);
+        });
       }}
-    >
-      Stream
-    </Switch>
+      isLive={isStreamingState}
+      onIsLiveChange={setIsStreaming}
+    />
   );
 }

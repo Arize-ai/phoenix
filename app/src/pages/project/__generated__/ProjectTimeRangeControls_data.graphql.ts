@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<db47499276d3678b075fb071e7f6f1c2>>
+ * @generated SignedSource<<7b52fb3ca77407545e5165045a13a719>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,17 +10,17 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type StreamToggle_data$data = {
+export type ProjectTimeRangeControls_data$data = {
   readonly id: string;
   readonly streamingLastUpdatedAt: string | null;
-  readonly " $fragmentType": "StreamToggle_data";
+  readonly " $fragmentType": "ProjectTimeRangeControls_data";
 };
-export type StreamToggle_data$key = {
-  readonly " $data"?: StreamToggle_data$data;
-  readonly " $fragmentSpreads": FragmentRefs<"StreamToggle_data">;
+export type ProjectTimeRangeControls_data$key = {
+  readonly " $data"?: ProjectTimeRangeControls_data$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectTimeRangeControls_data">;
 };
 
-import StreamToggleRefetchQuery_graphql from './StreamToggleRefetchQuery.graphql';
+import ProjectTimeRangeControlsRefetchQuery_graphql from './ProjectTimeRangeControlsRefetchQuery.graphql';
 
 const node: ReaderFragment = {
   "argumentDefinitions": [],
@@ -31,14 +31,14 @@ const node: ReaderFragment = {
       "fragmentPathInResult": [
         "node"
       ],
-      "operation": StreamToggleRefetchQuery_graphql,
+      "operation": ProjectTimeRangeControlsRefetchQuery_graphql,
       "identifierInfo": {
         "identifierField": "id",
         "identifierQueryVariableName": "id"
       }
     }
   },
-  "name": "StreamToggle_data",
+  "name": "ProjectTimeRangeControls_data",
   "selections": [
     {
       "alias": null,
@@ -59,6 +59,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "30a8f0bcf1aa6021b2c9a47866f5dc49";
+(node as any).hash = "401b5dd6a1381f66c736661d739d069e";
 
 export default node;

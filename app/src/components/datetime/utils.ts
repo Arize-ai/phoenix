@@ -14,6 +14,7 @@ import { LAST_N_TIME_RANGES_MAP } from "./constants";
 import type {
   LastNTimeRangeKey,
   LastNTimeRangeUnit,
+  OpenTimeRangeWithKey,
   TimeRangeKey,
 } from "./types";
 
@@ -191,6 +192,181 @@ export function getTimeRangeSearchSuggestions(
     return [];
   }
   return [`${quantity}m`, `${quantity}h`, `${quantity}d`];
+}
+
+const PAN_SHIFT_FRACTION = 0.5;
+const ZOOM_FACTOR = 2;
+/** The smallest window zooming in will produce. */
+const MIN_ZOOM_WINDOW_MS = MINUTE_IN_MS;
+
+/**
+ * Resolve a (possibly open-ended) time range into a concrete window. An open
+ * end resolves to `now`. A range with no start (or an inverted window) has no
+ * duration to pan or zoom by, so it resolves to null.
+ */
+function getResolvedWindow(
+  value: OpenTimeRange,
+  now: Date
+): { startMs: number; endMs: number; durationMs: number } | null {
+  if (!value.start) {
+    return null;
+  }
+  const startMs = value.start.getTime();
+  const endMs = (value.end ?? now).getTime();
+  const durationMs = endMs - startMs;
+  if (durationMs <= 0) {
+    return null;
+  }
+  return { startMs, endMs, durationMs };
+}
+
+/**
+ * The last-N key matching the given duration, expressed in the largest
+ * readable unit (e.g. 90 minutes → "90m", 120 minutes → "2h", 48 hours →
+ * "2d"). Once a duration spans at least two of a unit it is rounded to that
+ * unit ("85d", not "2048h") — repeated zooming rarely lands on exact
+ * multiples, so windows would otherwise stay in small units forever. Below
+ * that, only exact multiples switch units. Durations are rounded to the
+ * nearest minute, with a one minute floor.
+ */
+function getLastNTimeRangeKeyFromDurationMs(ms: number): LastNTimeRangeKey {
+  const minutes = Math.max(1, Math.round(ms / MINUTE_IN_MS));
+  const days = minutes / (24 * 60);
+  if (days >= 2 || Number.isInteger(days)) {
+    return `${Math.round(days)}d`;
+  }
+  const hours = minutes / 60;
+  if (hours >= 2 || Number.isInteger(hours)) {
+    return `${Math.round(hours)}h`;
+  }
+  return `${minutes}m`;
+}
+
+/**
+ * Shift the window back in time by half its duration. Panning steps off the
+ * live edge, so the result is always a closed custom range. Returns null when
+ * the range has no resolvable window.
+ */
+export function panTimeRangeLeft(
+  value: OpenTimeRangeWithKey,
+  now: Date = new Date()
+): OpenTimeRangeWithKey | null {
+  const window = getResolvedWindow(value, now);
+  if (!window) {
+    return null;
+  }
+  const shiftMs = window.durationMs * PAN_SHIFT_FRACTION;
+  return {
+    timeRangeKey: "custom",
+    start: new Date(window.startMs - shiftMs),
+    end: new Date(window.endMs - shiftMs),
+  };
+}
+
+/**
+ * Shift the window forward in time by half its duration, clamped so it never
+ * extends past `now`. Returns null when the range is already live
+ * (open-ended) or there is no room left to shift.
+ */
+export function panTimeRangeRight(
+  value: OpenTimeRangeWithKey,
+  now: Date = new Date()
+): OpenTimeRangeWithKey | null {
+  if (!value.end) {
+    return null;
+  }
+  const window = getResolvedWindow(value, now);
+  if (!window) {
+    return null;
+  }
+  const shiftMs = Math.min(
+    window.durationMs * PAN_SHIFT_FRACTION,
+    now.getTime() - window.endMs
+  );
+  if (shiftMs <= 0) {
+    return null;
+  }
+  return {
+    timeRangeKey: "custom",
+    start: new Date(window.startMs + shiftMs),
+    end: new Date(window.endMs + shiftMs),
+  };
+}
+
+/**
+ * Halve the window duration, down to a one minute floor. Live (open-ended)
+ * ranges stay live and zoom toward `now`, mapping to the equivalent last-N
+ * key; closed ranges zoom around their center. Returns null when there is
+ * nothing to zoom.
+ */
+export function zoomTimeRangeIn(
+  value: OpenTimeRangeWithKey,
+  now: Date = new Date()
+): OpenTimeRangeWithKey | null {
+  return zoomTimeRange(value, now, 1 / ZOOM_FACTOR);
+}
+
+/**
+ * Double the window duration. Live (open-ended) ranges stay live and zoom
+ * out from `now`, mapping to the equivalent last-N key; closed ranges zoom
+ * around their center, sliding back any portion that would extend past `now`.
+ * Returns null when there is nothing to zoom.
+ */
+export function zoomTimeRangeOut(
+  value: OpenTimeRangeWithKey,
+  now: Date = new Date()
+): OpenTimeRangeWithKey | null {
+  return zoomTimeRange(value, now, ZOOM_FACTOR);
+}
+
+function zoomTimeRange(
+  value: OpenTimeRangeWithKey,
+  now: Date,
+  factor: number
+): OpenTimeRangeWithKey | null {
+  // For last-N presets the key is the duration's source of truth — the
+  // resolved start is snapped to the minute/hour, so deriving the duration
+  // from it would drift.
+  const parsedKey = parseLastNTimeRangeKey(value.timeRangeKey);
+  const window = getResolvedWindow(value, now);
+  const durationMs = parsedKey
+    ? getLastNTimeRangeDurationMs(parsedKey)
+    : window?.durationMs;
+  if (durationMs == null) {
+    return null;
+  }
+  const newDurationMs = Math.max(durationMs * factor, MIN_ZOOM_WINDOW_MS);
+  // Zooming in at (or below) the minimum window has nothing left to reveal.
+  if (factor < 1 ? newDurationMs >= durationMs : newDurationMs === durationMs) {
+    return null;
+  }
+  if (!value.end) {
+    // Live ranges stay live: re-anchor the new duration to now.
+    const timeRangeKey = getLastNTimeRangeKeyFromDurationMs(newDurationMs);
+    if (timeRangeKey === value.timeRangeKey) {
+      return null;
+    }
+    return {
+      timeRangeKey,
+      ...getTimeRangeFromLastNTimeRangeKey(timeRangeKey),
+    };
+  }
+  if (!window) {
+    return null;
+  }
+  const centerMs = (window.startMs + window.endMs) / 2;
+  let startMs = centerMs - newDurationMs / 2;
+  let endMs = centerMs + newDurationMs / 2;
+  const overflowMs = endMs - now.getTime();
+  if (overflowMs > 0) {
+    startMs -= overflowMs;
+    endMs -= overflowMs;
+  }
+  return {
+    timeRangeKey: "custom",
+    start: new Date(startMs),
+    end: new Date(endMs),
+  };
 }
 
 /**

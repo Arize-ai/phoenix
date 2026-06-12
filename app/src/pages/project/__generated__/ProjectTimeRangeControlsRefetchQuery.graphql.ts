@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9eb3eacba7aee412fa43e126660b9ec8>>
+ * @generated SignedSource<<6b8f70c7fef756f3b6d0e9853c40b49d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,17 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type StreamToggleRefetchQuery$variables = {
+export type ProjectTimeRangeControlsRefetchQuery$variables = {
   id: string;
 };
-export type StreamToggleRefetchQuery$data = {
+export type ProjectTimeRangeControlsRefetchQuery$data = {
   readonly node: {
-    readonly " $fragmentSpreads": FragmentRefs<"StreamToggle_data">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectTimeRangeControls_data">;
   };
 };
-export type StreamToggleRefetchQuery = {
-  response: StreamToggleRefetchQuery$data;
-  variables: StreamToggleRefetchQuery$variables;
+export type ProjectTimeRangeControlsRefetchQuery = {
+  response: ProjectTimeRangeControlsRefetchQuery$data;
+  variables: ProjectTimeRangeControlsRefetchQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -43,7 +43,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "StreamToggleRefetchQuery",
+    "name": "ProjectTimeRangeControlsRefetchQuery",
     "selections": [
       {
         "alias": null,
@@ -56,7 +56,7 @@ return {
           {
             "args": null,
             "kind": "FragmentSpread",
-            "name": "StreamToggle_data"
+            "name": "ProjectTimeRangeControls_data"
           }
         ],
         "storageKey": null
@@ -69,7 +69,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "StreamToggleRefetchQuery",
+    "name": "ProjectTimeRangeControlsRefetchQuery",
     "selections": [
       {
         "alias": null,
@@ -113,16 +113,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "70bebe4abe808b13c94decf17c7cd90d",
+    "cacheID": "0b8a37799ef4da27d1fd19012ab0bd24",
     "id": null,
     "metadata": {},
-    "name": "StreamToggleRefetchQuery",
+    "name": "ProjectTimeRangeControlsRefetchQuery",
     "operationKind": "query",
-    "text": "query StreamToggleRefetchQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...StreamToggle_data\n    id\n  }\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectTimeRangeControlsRefetchQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...ProjectTimeRangeControls_data\n    id\n  }\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "30a8f0bcf1aa6021b2c9a47866f5dc49";
+(node as any).hash = "401b5dd6a1381f66c736661d739d069e";
 
 export default node;

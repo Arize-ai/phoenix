@@ -19,6 +19,10 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Context (generic) | `Icons.InfoOutline` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
 | Bypass / unguarded approvals | `Icons.ShieldOutline` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
 | Undo / rewind | `Icons.RotateCcwOutline` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `HistoryOutline` (clock = history/session list). |
+| Play / resume live | `Icons.PlayOutline` | Lucide play triangle for resuming a live/streaming view. Distinct from `PlayCircleOutline` (video attachments). |
+| Pause | `Icons.PauseOutline` | Lucide pause bars for pausing a live/streaming view. |
+| Zoom in / out | `Icons.PlusOutline` / `Icons.MinusOutline` | Bare plus/minus for stepping a range narrower or wider (e.g. time range controls). |
+| Pan / step left, right | `Icons.ChevronLeftOutline` / `Icons.ChevronRightOutline` | Lucide chevrons for directional stepping through a range or list. |
 
 ## When you need an icon
 
