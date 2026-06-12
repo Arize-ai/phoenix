@@ -126,20 +126,24 @@ jobs:
           run python-format       make format-python
           run python-lint         make lint-python
           run python-typecheck    make typecheck-python
-          run app-fmt             bash -c "cd app && pnpm fmt:check"
-          run app-typecheck       bash -c "cd app && pnpm typecheck"
-          run app-lint            bash -c "cd app && pnpm lint"
-          run app-test            bash -c "cd app && pnpm test"
-          run app-build           bash -c "cd app && pnpm build"
-          run js-lint             bash -c "cd js && pnpm lint"
+          # Formatters run in write mode (like format-python above): style
+          # churn from a formatter upgrade rides along in the commit instead
+          # of failing the check.
+          run app-fmt             make format-frontend
+          run app-typecheck       make typecheck-frontend
+          run app-lint            make lint-frontend
+          run app-test            make test-frontend
+          run app-build           make build-frontend
+          run js-fmt              make format-ts
+          run js-lint             make lint-ts
           # Build before test: workspace packages resolve each other via dist/,
           # so running tests against unbuilt packages fails on module resolution
           # rather than real regressions. No `git diff --exit-code` here (unlike
           # typescript-packages-CI.yml): the upgrade itself is uncommitted at
           # this point, and anything the build regenerates is committed later
           # by `git add -A`.
-          run js-build            bash -c "cd js && pnpm run -r build"
-          run js-test             bash -c "cd js && pnpm test"
+          run js-build            make build-ts
+          run js-test             make test-ts
           # Write a one-line index of which checks failed for quick scanning.
           {
             echo "# Verify summary ($(date -u +%FT%TZ))"
@@ -268,6 +272,7 @@ jobs:
               - `.scratch/verify/app-lint.log`
               - `.scratch/verify/app-test.log`
               - `.scratch/verify/app-build.log`
+              - `.scratch/verify/js-fmt.log`
               - `.scratch/verify/js-lint.log`
               - `.scratch/verify/js-build.log`
               - `.scratch/verify/js-test.log`
