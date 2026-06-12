@@ -19,6 +19,10 @@ import {
   buildPromptRecipeFiles,
   buildPromptStarterFiles,
 } from "./graphql/prompt";
+import {
+  buildSessionRecipeFiles,
+  buildSessionStarterFiles,
+} from "./graphql/session";
 import { PHOENIX_GQL_GUIDE } from "./graphql/shared";
 import { buildTraceRecipeFiles, buildTraceStarterFiles } from "./graphql/trace";
 import type { GeneratedContextFile } from "./types";
@@ -89,10 +93,15 @@ function buildFallbackStarterFiles(): GeneratedContextFile[] {
 function buildStarterFiles(
   pageContext: AgentPageContext
 ): GeneratedContextFile[] {
-  const { projectId, traceId, datasetId, promptId } = pageContext.params;
+  const { projectId, traceId, sessionId, datasetId, promptId } =
+    pageContext.params;
 
   if (projectId && traceId) {
     return buildTraceStarterFiles(projectId, traceId);
+  }
+
+  if (projectId && sessionId) {
+    return buildSessionStarterFiles(sessionId);
   }
 
   if (projectId) {
@@ -113,10 +122,15 @@ function buildStarterFiles(
 function buildRecipeFiles(
   pageContext: AgentPageContext
 ): GeneratedContextFile[] {
-  const { projectId, traceId, datasetId, promptId } = pageContext.params;
+  const { projectId, traceId, sessionId, datasetId, promptId } =
+    pageContext.params;
 
   if (projectId && traceId) {
     return buildTraceRecipeFiles({ projectId, traceId });
+  }
+
+  if (projectId && sessionId) {
+    return buildSessionRecipeFiles(pageContext);
   }
 
   if (projectId) {

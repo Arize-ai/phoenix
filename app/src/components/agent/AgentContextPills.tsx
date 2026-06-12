@@ -41,6 +41,8 @@ function contextLabel(context: AgentContext): string {
       return "Project";
     case "trace":
       return "Trace";
+    case "session":
+      return "Session";
     case "span":
       return "Span";
     case "code_evaluator":
@@ -57,6 +59,8 @@ function contextDetail(context: AgentContext): string | undefined {
   switch (context.type) {
     case "trace":
       return truncateId(context.otelTraceId);
+    case "session":
+      return truncateId(context.sessionNodeId);
     case "span": {
       const spanId = context.spanNodeId ?? context.otelSpanId;
       if (spanId == null) {

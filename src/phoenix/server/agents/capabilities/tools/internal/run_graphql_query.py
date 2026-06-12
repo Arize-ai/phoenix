@@ -40,6 +40,8 @@ the query and retry. When errors indicate an unknown or misused field/argument, 
 introspection query to confirm the schema rather than guessing again.
 """
 
+RUN_GRAPHQL_QUERY_MAX_RETRIES = 15
+
 
 class RunGraphQLQueryToolset(FunctionToolset[None]):
     """Toolset exposing a tool to execute GraphQL queries, but not over the network."""
@@ -73,13 +75,14 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
             return {"data": result.data}
 
         super().__init__(
+            max_retries=RUN_GRAPHQL_QUERY_MAX_RETRIES,
             tools=[
                 Tool(
                     run_graphql_query,
                     takes_ctx=False,
                     description=RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION,
                 )
-            ]
+            ],
         )
 
 

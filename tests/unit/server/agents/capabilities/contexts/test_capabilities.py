@@ -15,6 +15,7 @@ from phoenix.server.agents.capabilities.contexts.llm_evaluator import (
 )
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
+from phoenix.server.agents.capabilities.contexts.session import SessionContextCapability
 from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
     PatchExperimentCapability,
 )
@@ -30,6 +31,7 @@ from phoenix.server.agents.context import (
     PlaygroundInstanceContext,
     ProjectContext,
     ResolvedContexts,
+    SessionContext,
 )
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
@@ -151,6 +153,28 @@ class TestProjectContextCapabilityRender:
         content = _render(capability, ctx)
         assert "… [truncated]" in content
         assert long_condition not in content
+
+
+class TestSessionContextCapabilityRender:
+    def test_renders_session_context(self) -> None:
+        capability = SessionContextCapability(instructions=_DEFAULT_PROMPTS.session_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                session=SessionContext(
+                    type="session",
+                    project_node_id="UHJvamVjdDox",
+                    session_node_id="UHJvamVjdFNlc3Npb246MQ==",
+                ),
+            )
+        )
+
+        content = _render(capability, ctx)
+
+        assert content.startswith("<phoenix_session_context>")
+        assert '<project_node_id format="phoenix_node_id">UHJvamVjdDox</project_node_id>' in content
+        assert (
+            '<session_node_id format="phoenix_node_id">UHJvamVjdFNlc3Npb246MQ==</session_node_id>'
+        ) in content
 
 
 class TestDatasetContextCapabilityRender:
