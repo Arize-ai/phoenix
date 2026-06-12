@@ -107,6 +107,15 @@ class CreatePromptResponseBody(ResponseBody[PromptVersion]):
     pass
 
 
+class PatchPromptRequestBody(V1RoutesBaseModel):
+    description: Optional[str] = None
+    metadata: Optional[dict[str, Any]] = None
+
+
+class PatchPromptResponseBody(ResponseBody[Prompt]):
+    pass
+
+
 router = APIRouter(tags=["prompts"])
 
 
@@ -756,6 +765,53 @@ async def delete_prompt_version_tag(
             raise HTTPException(404)
         await session.delete(tag)
     return None
+
+
+@router.patch(
+    "/prompts/{prompt_identifier}",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="patchPrompt",
+    summary="Update prompt metadata",
+    description="Update a prompt's description and metadata by identifier.",
+    response_description="The updated prompt",
+    responses=add_errors_to_responses([404, 422]),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def patch_prompt(
+    request: Request,
+    request_body: PatchPromptRequestBody,
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+) -> PatchPromptResponseBody:
+    values: dict[str, Any] = {}
+    if "description" in request_body.model_fields_set:
+        values["description"] = (
+            request_body.description.strip() if request_body.description is not None else None
+        )
+    if "metadata" in request_body.model_fields_set:
+        values["metadata_"] = request_body.metadata or {}
+
+    if not values:
+        raise HTTPException(status_code=422, detail="No fields provided to update")
+
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+
+    async with request.app.state.db() as session:
+        prompt = await session.scalar(select(models.Prompt).where(where_clause))
+        if prompt is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        for key, value in values.items():
+            setattr(prompt, key, value)
+        data = _prompt_from_orm_prompt(prompt)
+
+    return PatchPromptResponseBody(data=data)
 
 
 @router.delete(
