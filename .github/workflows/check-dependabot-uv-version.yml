@@ -97,16 +97,16 @@ jobs:
       - name: Run Claude Code
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
           # Surface the full Claude SDK message stream in the step log instead of
-          # the sanitized summary (denied-tool detail, tool calls, reasoning). Safe:
-          # inputs are public repo/PR/issue content, registered secrets stay masked,
-          # and the OIDC app token is never in Claude's context. Note: logs are public.
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
           show_full_output: 'true'
           prompt: |
             Bump the pinned uv CLI version across this repo from `${{ steps.repo.outputs.version }}` to `${{ steps.dependabot.outputs.version }}` so it matches the version Dependabot supports.
