@@ -122,6 +122,13 @@ jobs:
           run app-test            bash -c "cd app && pnpm test"
           run app-build           bash -c "cd app && pnpm build"
           run js-lint             bash -c "cd js && pnpm lint"
+          # Build before test: workspace packages resolve each other via dist/,
+          # so running tests against unbuilt packages fails on module resolution
+          # rather than real regressions. No `git diff --exit-code` here (unlike
+          # typescript-packages-CI.yml): the upgrade itself is uncommitted at
+          # this point, and anything the build regenerates is committed later
+          # by `git add -A`.
+          run js-build            bash -c "cd js && pnpm run -r build"
           run js-test             bash -c "cd js && pnpm test"
           # Write a one-line index of which checks failed for quick scanning.
           {
@@ -249,6 +256,7 @@ jobs:
               - `.scratch/verify/app-test.log`
               - `.scratch/verify/app-build.log`
               - `.scratch/verify/js-lint.log`
+              - `.scratch/verify/js-build.log`
               - `.scratch/verify/js-test.log`
 
             After applying fixes, re-run the failed check(s) your fixes target to
