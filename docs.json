@@ -1216,6 +1216,13 @@
             ]
           },
           {
+            "group": "Guardrails & Safety",
+            "icon": "shield-halved",
+            "pages": [
+              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense"
+            ]
+          },
+          {
             "group": "Datasets & Experiments",
             "icon": "flask",
             "pages": [
