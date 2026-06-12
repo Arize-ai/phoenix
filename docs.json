@@ -1197,6 +1197,13 @@
             ]
           },
           {
+            "group": "Guardrails",
+            "icon": "shield-check",
+            "pages": [
+              "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
+            ]
+          },
+          {
             "group": "Datasets & Experiments",
             "icon": "flask",
             "pages": [
