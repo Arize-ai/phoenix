@@ -18,25 +18,25 @@
     "test": "echo \"no tests\""
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.29",
+    "@ai-sdk/openai": "^3.0.68",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
-    "@mastra/arize": "^1.0.3",
-    "@mastra/client-js": "^1.5.0",
-    "@mastra/core": "^1.5.0",
-    "@mastra/evals": "^1.1.2",
-    "@mastra/libsql": "^1.5.0",
-    "@mastra/loggers": "^1.0.2",
-    "@mastra/memory": "^1.4.0",
-    "@mastra/observability": "^1.2.0",
-    "dotenv": "^16.4.7",
-    "zod": "^4.0.14"
+    "@mastra/arize": "^1.2.1",
+    "@mastra/client-js": "^1.23.2",
+    "@mastra/core": "^1.41.0",
+    "@mastra/evals": "^1.2.4",
+    "@mastra/libsql": "^1.12.1",
+    "@mastra/loggers": "^1.1.2",
+    "@mastra/memory": "^1.20.2",
+    "@mastra/observability": "^1.14.1",
+    "dotenv": "^17.4.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.0.9",
-    "mastra": "^1.3.2",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^25.9.2",
+    "mastra": "^1.12.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=22.13.0"
