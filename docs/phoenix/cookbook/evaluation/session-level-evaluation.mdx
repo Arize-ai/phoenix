@@ -1,0 +1,213 @@
+---
+title: "Session-level Evaluation: Scoring the Whole Conversation"
+description: Evaluate a multi-turn session as a whole - coherence, goal completion, and user frustration that turn-by-turn checks miss.
+---
+
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/session_level_evals.ipynb" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
+colab.research.google.com
+</Card>
+
+Most evals score a **single turn**: take one user message and one model reply, and judge whether the reply is good. That's the right unit for a one-shot task. But a tutor - like a support agent, a coach, or any assistant you talk to over time - isn't one turn. It's a **session**: many turns that are supposed to add up to something.
+
+The properties you actually care about in a session are **emergent** - they exist only across the whole conversation, and you can't see them one turn at a time:
+
+* **Coherence** - does the tutor stay consistent across turns and build on what was already said? A single turn can't be "incoherent with turn 3" - incoherence is a relationship *between* turns.
+* **Goal completion** - did the user actually get what they came for? A goal is reached (or abandoned) *over the arc of the session*, often many turns after it was stated.
+* **Behavior / affect** - is the user engaged, or quietly getting more frustrated with every reply? Frustration *builds*; it's a trend across turns, not a property of one.
+
+The trap: **every individual turn can look fine while the session as a whole fails.** The tutor can give a locally-correct answer on each turn and still never converge on the student's actual question. This cookbook traces a multi-turn AI tutor, aggregates each session into one transcript, and runs **session-scoped judges** over the whole conversation.
+
+This cookbook shows examples of:
+
+* Tracing a multi-turn tutor as **sessions** with a shared `session_id` (driven by a simulated student, so it runs end-to-end with no manual typing)
+* Aggregating a session's spans into one clean, ordered **transcript**
+* Running four session-level judges - **coherence, goal completion, frustration, and correctness**
+* Seeing a controlled example where every turn looks fine but the session fails
+* Logging the results back to Phoenix as **session annotations**
+
+## Notebook Walkthrough
+
+We will go through key code snippets on this page. To follow the full tutorial, check out the [full notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/session_level_evals.ipynb).
+
+After configuring tracing with `phoenix.otel.register(...)`, build a tutor that teaches Socratically. To keep the notebook runnable top-to-bottom, a second LLM call plays the **student**: only the tutor calls are wrapped in `using_attributes(session_id=...)` so each session's spans share a `session.id`, while the student calls run under `suppress_tracing()` to stay out of the project. Run a couple of sessions with different student personas, then pull the spans with `px_client.spans.get_spans_dataframe(...)` into `primary_df`. See the notebook for the full tutor loop.
+
+## Aggregate spans into a session transcript
+
+Session-level evaluation runs on the **whole conversation**, so we group spans by `attributes.session.id` and rebuild a clean, role-tagged transcript. Each tutor turn is one LLM span carrying structured `llm.input_messages` / `llm.output_messages` - we read those (not the raw request JSON) and walk the turns in order, so the judges receive exactly the `user:` / `assistant:` format their prompts describe.
+
+```python expandable
+import json
+
+import pandas as pd
+
+
+def _as_list(value):
+    """Span message attributes can arrive as a JSON string or an already-parsed list."""
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _message_text(message):
+    """Text of an OpenInference message (handles flat content and multi-part content)."""
+    content = message.get("message.content")
+    if content:
+        return content
+    parts = message.get("message.contents") or []
+    return " ".join(p.get("message_content.text", "") for p in parts if isinstance(p, dict)).strip()
+
+
+def prepare_sessions(df: pd.DataFrame, max_chars_per_session: int = 600_000) -> pd.DataFrame:
+    """Collapse each session's spans into one clean, ordered user/assistant transcript."""
+    df = df[df["attributes.session.id"].notna()]
+    sessions = []
+    for session_id, group in df.sort_values("start_time").groupby("attributes.session.id"):
+        lines = []
+        for _, row in group.iterrows():
+            inputs = _as_list(row.get("attributes.llm.input_messages"))
+            # The new user message this turn is the last user message in the request;
+            # earlier turns are replayed history we have already captured.
+            user_turns = [_message_text(m) for m in inputs if m.get("message.role") == "user"]
+            if user_turns and user_turns[-1]:
+                lines.append(f"user: {user_turns[-1]}")
+            for m in _as_list(row.get("attributes.llm.output_messages")):
+                text = _message_text(m)
+                if text:
+                    lines.append(f"assistant: {text}")
+
+        transcript = "\n\n".join(lines)
+        if len(transcript) > max_chars_per_session:  # keep recent context for long sessions
+            transcript = transcript[:max_chars_per_session] + "\n\n...(truncated)"
+
+        sessions.append(
+            {
+                "session_id": session_id,
+                "messages": transcript,
+                "trace_count": group["context.trace_id"].nunique(),
+            }
+        )
+
+    return pd.DataFrame(sessions)
+
+
+sessions_df = prepare_sessions(primary_df)
+```
+
+## Define the four session evaluators
+
+Each evaluator is an LLM-as-a-judge that reads the **entire transcript** (the `messages` column) and scores one session-only property. They run together in a single pass, wrapped in `suppress_tracing()` so the judges' own LLM calls don't get traced into the project.
+
+```python expandable
+from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
+from phoenix.trace import suppress_tracing
+
+judge = LLM(provider="anthropic", model="claude-sonnet-4-20250514")
+
+coherence_evaluator = ClassificationEvaluator(
+    name="coherence", llm=judge, prompt_template=SESSION_COHERENCE_PROMPT,
+    choices={"coherent": 1.0, "incoherent": 0.0},
+)
+goal_completion_evaluator = ClassificationEvaluator(
+    name="goal_completion", llm=judge, prompt_template=SESSION_GOAL_COMPLETION_PROMPT,
+    choices={"completed": 1.0, "not_completed": 0.0},
+)
+frustration_evaluator = ClassificationEvaluator(
+    name="frustration", llm=judge, prompt_template=SESSION_FRUSTRATION_PROMPT,
+    choices={"not_frustrated": 1.0, "frustrated": 0.0},
+)
+correctness_evaluator = ClassificationEvaluator(
+    name="correctness", llm=judge, prompt_template=SESSION_CORRECTNESS_PROMPT,
+    choices={"correct": 1.0, "incorrect": 0.0},
+)
+
+session_evaluators = [
+    coherence_evaluator, goal_completion_evaluator, frustration_evaluator, correctness_evaluator,
+]
+
+with suppress_tracing():
+    results_df = await async_evaluate_dataframe(
+        dataframe=sessions_df, evaluators=session_evaluators, concurrency=10,
+    )
+```
+
+Each prompt is written to judge only its own concern and to read the whole session. For example, the coherence judge:
+
+```python expandable
+SESSION_COHERENCE_PROMPT = """
+You are evaluating the COHERENCE of a multi-turn tutoring session between a student and an AI tutor.
+
+You will be given the full session transcript, in order. Messages from the student have the role `user`; messages from the AI tutor have the role `assistant`.
+
+A coherent session:
+- Stays internally consistent - the tutor never contradicts something it established in an earlier turn
+- Builds on previous turns instead of resetting or ignoring what was already said
+- Keeps track of the topic, the student's question, and prior answers as the conversation progresses
+
+##
+Session transcript:
+{messages}
+##
+
+Judge ONLY coherence across turns - not factual correctness, and not whether the student's goal was met.
+
+Respond with a single word: `coherent` or `incoherent`.
+"""
+```
+
+See the notebook for the goal-completion, frustration, and correctness prompts - each follows the same shape.
+
+## Seeing what session-level evals catch
+
+On a healthy session the four judges agree it's fine. The point of session-level evaluation is the sessions where **every turn looks locally correct, but the conversation fails as a whole** - exactly what a turn-by-turn check waves through. Running the judges on four hand-written transcripts, each built to exhibit one *dominant* session-level failure:
+
+| case | coherence | goal completion | frustration | correctness |
+| :--- | :--- | :--- | :--- | :--- |
+| clean | coherent | completed | not_frustrated | correct |
+| incoherent (tutor contradicts an earlier turn) | **incoherent** | not_completed | frustrated | incorrect |
+| goal not met (drifts onto tangents, never answers) | coherent | **not_completed** | not_frustrated | correct |
+| frustrated (correct answers, impatient student) | coherent | completed | **frustrated** | correct |
+
+A turn-by-turn correctness check would pass every individual turn in all four transcripts - yet three of them fail at the session level. The dimensions aren't fully independent: a blatant self-contradiction also reads as less sound and more confusing, so the incoherent case trips correctness, frustration, and goal completion too. That cascade is itself worth seeing. (The judge is probabilistic, so non-dominant labels can shift run-to-run; the **bolded** dimension is the one each case is built to expose.)
+
+## Log results back to Phoenix
+
+Finally, log the four evaluations as **session annotations** - scores attached to the whole session, not to any single span. `async_evaluate_dataframe` returns one result per evaluator in the `*_score` columns; expand them into Phoenix's long-form annotation schema (one row per session per evaluator), keyed by the `session_id` you traced under, and log with `sessions.log_session_annotations_dataframe(...)`.
+
+```python expandable
+# Each *_score cell is a result with name / label / score / explanation.
+score_columns = [c for c in results_df.columns if c.endswith("_score")]
+session_annotations_df = pd.DataFrame(
+    [
+        {
+            "session_id": row["session_id"],
+            "name": score.get("name"),
+            "label": score.get("label"),
+            "score": score.get("score"),
+            "explanation": score.get("explanation"),
+        }
+        for _, row in results_df.iterrows()
+        for score in (row[col] for col in score_columns)
+    ]
+)
+
+# Log as SESSION annotations (not span annotations) so they attach to the whole session.
+await px_client.sessions.log_session_annotations_dataframe(
+    dataframe=session_annotations_df,
+    annotator_kind="LLM",
+)
+```
+
+The four evaluations now appear on each session in the **Sessions** tab of your project.
+
+<Frame>
+![Session-level evaluations in Phoenix](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-session-level-evals-2026.png)
+</Frame>
+
+## Takeaway
+
+We evaluated whole **sessions**, not turns - scoring four properties that only exist across a full conversation: **coherence**, **goal completion**, **frustration**, and **correctness**. The controlled cases show why this matters: every transcript looked fine turn by turn, yet three failed at the session level, each on a different dimension.
+
+The pattern generalizes: for any session-only property you care about, aggregate the session's spans into one transcript, write a judge that reads the whole thing, and log it back as a session annotation - right next to your turn-level and trace-level evals.
