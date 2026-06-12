@@ -1,10 +1,12 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
-from phoenix.utilities.json import decode_df_from_json_string, encode_df_as_json_string
+from phoenix.utilities.json import decode_df_from_json_string, encode_df_as_json_string, jsonify
 
 
 class TestDataFrameJSONRoundtrip:
@@ -131,3 +133,17 @@ class TestDataFrameJSONRoundtrip:
         payload = encode_df_as_json_string(expected)
         received = decode_df_from_json_string(payload)
         assert_frame_equal(received, expected)
+
+
+class TestJsonify:
+    def test_drops_none_valued_optional_dataclass_fields(self) -> None:
+        @dataclass
+        class Record:
+            a: int
+            b: Optional[str] = None
+
+        # The None-valued Optional field `b` should be omitted, while the
+        # required field `a` is kept.
+        assert jsonify(Record(a=1)) == {"a": 1}
+        # A non-None Optional value is kept.
+        assert jsonify(Record(a=1, b="x")) == {"a": 1, "b": "x"}

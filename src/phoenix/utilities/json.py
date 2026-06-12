@@ -47,8 +47,8 @@ def jsonify(obj: Any) -> Any:
             for field in dataclasses.fields(obj)
             if not (
                 (v := getattr(obj, (k := field.name))) is None
-                and get_origin(field) is Union
-                and type(None) in get_args(field)
+                and get_origin(field.type) is Union
+                and type(None) in get_args(field.type)
             )
         }
     if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
