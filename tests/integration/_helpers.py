@@ -2251,6 +2251,8 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    # PATCH routes
+    (422, "PATCH", "v1/experiments/fake-id-{}"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),

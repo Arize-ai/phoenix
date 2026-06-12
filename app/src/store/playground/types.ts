@@ -14,6 +14,17 @@ export type CanonicalToolChoice = {
 };
 
 /**
+ * Name/description/metadata applied to the experiments produced by the next
+ * dataset-backed run; an absent field falls back to the server default
+ * (generated name, no description, empty metadata).
+ */
+export type ExperimentScaffold = {
+  name?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+};
+
+/**
  * Provider-agnostic canonical response format stored on ModelConfig.
  * Matches the GraphQL PromptResponseFormatJSONSchemaInput wire type.
  */
@@ -366,6 +377,13 @@ export interface PlaygroundProps {
    * @default true
    */
   recordExperiments: boolean;
+  /**
+   * Name/description/metadata to apply to the experiments created by the next
+   * dataset-backed run. Applied identically to every comparison instance and
+   * cleared once the run consumes it.
+   * @default null
+   */
+  nextExperimentScaffold: ExperimentScaffold | null;
 }
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
@@ -652,6 +670,15 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set whether to record experiments
    */
   setRecordExperiments: (recordExperiments: boolean) => void;
+  /**
+   * Stage the name/description/metadata for the experiments created by the next
+   * dataset-backed run. Passing null clears any staged scaffold.
+   */
+  setNextExperimentScaffold: (
+    nextExperimentScaffold: ExperimentScaffold | null
+  ) => void;
+  /** Return the staged scaffold and clear it. */
+  consumeNextExperimentScaffold: () => ExperimentScaffold | null;
   /**
    * Set the max concurrency for experiment execution
    */

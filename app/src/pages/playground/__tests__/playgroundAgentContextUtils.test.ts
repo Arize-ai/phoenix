@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 
 import {
+  areExperimentScaffoldsForAgentEqual,
   arePlaygroundInstancesForAgentEqual,
   buildPlaygroundAgentContext,
+  getExperimentScaffoldForAgent,
   getPlaygroundInstanceForAgent,
 } from "../playgroundAgentContextUtils";
 
@@ -104,6 +106,78 @@ describe("arePlaygroundInstancesForAgentEqual", () => {
   });
 });
 
+describe("getExperimentScaffoldForAgent", () => {
+  it("returns null when no scaffold is staged", () => {
+    expect(getExperimentScaffoldForAgent(null)).toBeNull();
+  });
+
+  it("advertises staged name/description and metadata presence, not the metadata itself", () => {
+    expect(
+      getExperimentScaffoldForAgent({
+        name: "Shorter prompt",
+        description: "Trimmed by half",
+        metadata: { hypothesis: "fewer tokens" },
+      })
+    ).toEqual({
+      name: "Shorter prompt",
+      description: "Trimmed by half",
+      hasMetadata: true,
+    });
+  });
+
+  it("reports hasMetadata false for an absent or empty metadata object", () => {
+    expect(getExperimentScaffoldForAgent({ name: "X" })).toEqual({
+      name: "X",
+      description: null,
+      hasMetadata: false,
+    });
+    expect(getExperimentScaffoldForAgent({ metadata: {} })).toEqual({
+      name: null,
+      description: null,
+      hasMetadata: false,
+    });
+  });
+});
+
+describe("areExperimentScaffoldsForAgentEqual", () => {
+  it("returns false when the staged name changes", () => {
+    expect(
+      areExperimentScaffoldsForAgentEqual(
+        getExperimentScaffoldForAgent({ name: "A" }),
+        getExperimentScaffoldForAgent({ name: "B" })
+      )
+    ).toBe(false);
+  });
+
+  it("returns false when metadata presence first appears", () => {
+    expect(
+      areExperimentScaffoldsForAgentEqual(
+        getExperimentScaffoldForAgent({ name: "A" }),
+        getExperimentScaffoldForAgent({ name: "A", metadata: { k: "v" } })
+      )
+    ).toBe(false);
+  });
+
+  it("returns false when a scaffold is staged or cleared", () => {
+    expect(
+      areExperimentScaffoldsForAgentEqual(
+        null,
+        getExperimentScaffoldForAgent({ name: "A" })
+      )
+    ).toBe(false);
+  });
+
+  it("returns true for equivalent advertised scaffolds", () => {
+    expect(
+      areExperimentScaffoldsForAgentEqual(
+        getExperimentScaffoldForAgent({ name: "A", metadata: { k: "v" } }),
+        getExperimentScaffoldForAgent({ name: "A", metadata: { k: "other" } })
+      )
+    ).toBe(true);
+    expect(areExperimentScaffoldsForAgentEqual(null, null)).toBe(true);
+  });
+});
+
 describe("buildPlaygroundAgentContext", () => {
   it("includes the current experiment recording mode and playground repetitions", () => {
     const instance = getPlaygroundInstanceForAgent(makeInstance());
@@ -112,12 +186,34 @@ describe("buildPlaygroundAgentContext", () => {
       buildPlaygroundAgentContext({
         recordExperiments: false,
         repetitions: 4,
+        nextExperimentScaffold: null,
         instances: [instance],
       })
     ).toEqual({
       type: "playground",
       recordExperiments: false,
       repetitions: 4,
+      nextExperimentScaffold: undefined,
+      instances: [instance],
+    });
+  });
+
+  it("surfaces the staged scaffold", () => {
+    const instance = getPlaygroundInstanceForAgent(makeInstance());
+    const scaffold = getExperimentScaffoldForAgent({ name: "Run with notes" });
+
+    expect(
+      buildPlaygroundAgentContext({
+        recordExperiments: true,
+        repetitions: 1,
+        nextExperimentScaffold: scaffold,
+        instances: [instance],
+      })
+    ).toEqual({
+      type: "playground",
+      recordExperiments: true,
+      repetitions: 1,
+      nextExperimentScaffold: scaffold,
       instances: [instance],
     });
   });

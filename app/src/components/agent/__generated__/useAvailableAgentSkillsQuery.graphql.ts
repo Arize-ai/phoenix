@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed9a6dae42cef0e9a9f313ff64b68db5>>
+ * @generated SignedSource<<15bf00be58485585f5852b7d02a8ceab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,6 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type AvailableAgentSkillsInput = {
+  hasCodeEvaluatorContext?: boolean;
   hasDatasetContext?: boolean;
   hasLlmEvaluatorContext?: boolean;
   hasPlaygroundContext?: boolean;

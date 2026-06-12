@@ -309,6 +309,30 @@ examples:
         assert any(example["id"] == "record-next-run" for example in dataset.examples)
         assert any(example["id"] == "save-prompt-not-run" for example in dataset.examples)
 
+    def test_loads_experiment_observations_dataset(self) -> None:
+        dataset = load_dataset("experiment_observations")
+        assert dataset.dataset_name == "experiment_observations"
+        assert len(dataset.examples) == 6
+        assert dataset.evaluators == [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ]
+        # The preservation case must assert the scaffold keys survive a
+        # whole-metadata replace alongside the appended observations.
+        preserve = next(
+            e for e in dataset.examples if e["id"] == "preserve-scaffold-when-appending"
+        )
+        has_keys = preserve["expected"]["tool_call_args"]["patch_experiment"]["metadata"][
+            "has_keys"
+        ]
+        assert set(has_keys) == {
+            "observations",
+            "hypothesis",
+            "changed_variable",
+            "baseline_experiment_id",
+        }
+
     def test_save_prompt_dataset_requires_descriptions_for_save_calls(self) -> None:
         dataset = load_dataset("save_prompt")
         assert dataset.dataset_name == "save_prompt"

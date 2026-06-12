@@ -88,6 +88,173 @@ class TestDeleteExperiment:
         )
 
 
+class TestPatchExperimentMutation:
+    MUTATION = """
+      mutation ($experimentId: ID!, $name: String, $description: String, $metadata: JSON) {
+        patchExperiment(
+          input: {
+            experimentId: $experimentId
+            name: $name
+            description: $description
+            metadata: $metadata
+          }
+        ) {
+          experiment {
+            id
+            name
+            description
+            metadata
+          }
+        }
+      }
+    """
+
+    async def test_patch_all_experiment_fields(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "name": "patched-experiment-name",
+                "description": "patched-experiment-description",
+                "metadata": {"patched-metadata-key": "patched-metadata-value"},
+            },
+        )
+        assert not response.errors
+        assert response.data == {
+            "patchExperiment": {
+                "experiment": {
+                    "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                    "name": "patched-experiment-name",
+                    "description": "patched-experiment-description",
+                    "metadata": {"patched-metadata-key": "patched-metadata-value"},
+                }
+            }
+        }
+
+    async def test_patching_only_metadata_leaves_name_and_description_unchanged(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "metadata": {"patched-metadata-key": "patched-metadata-value"},
+            },
+        )
+        assert not response.errors
+        assert response.data == {
+            "patchExperiment": {
+                "experiment": {
+                    "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                    "name": "experiment-1-name",
+                    "description": "experiment-1-description",
+                    "metadata": {"patched-metadata-key": "patched-metadata-value"},
+                }
+            }
+        }
+
+    async def test_only_description_field_can_be_set_to_null(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        # description is the only nullable field: an explicit null clears it, while name and
+        # metadata are left untouched.
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "description": None,
+            },
+        )
+        assert not response.errors
+        assert response.data == {
+            "patchExperiment": {
+                "experiment": {
+                    "id": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                    "name": "experiment-1-name",
+                    "description": None,
+                    "metadata": {"experiment-1-metadata-key": "experiment-1-metadata-value"},
+                }
+            }
+        }
+
+    async def test_null_name_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        # An explicit null name must be rejected even when paired with a valid field, rather
+        # than being silently dropped while the other field updates.
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "name": None,
+                "description": "x",
+            },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == "name cannot be null"
+
+    async def test_null_metadata_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+                "metadata": None,
+                "description": "x",
+            },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == "metadata cannot be null"
+
+    async def test_empty_effective_patch_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        # No mutable fields supplied (all UNSET) -> nothing to patch.
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(GlobalID(type_name="Experiment", node_id=str(1))),
+            },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == "No fields to patch."
+
+    async def test_patching_a_nonexistent_experiment_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        experiment_id = GlobalID(type_name="Experiment", node_id=str(3))
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentId": str(experiment_id),
+                "name": "patched-experiment-name",
+            },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == f"Experiment {experiment_id} not found"
+
+
 @pytest.fixture
 async def simple_experiments(db: DbSessionFactory) -> None:
     """

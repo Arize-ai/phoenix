@@ -2498,6 +2498,77 @@
           }
         }
       },
+      "patch": {
+        "tags": [
+          "experiments"
+        ],
+        "summary": "Update an experiment by ID",
+        "description": "Partially update an experiment's name, description, and/or metadata. Only the fields included in the request body are changed; omitted fields are left as-is. Patching an ephemeral experiment refreshes its last-update timestamp, which extends the window before it is swept away.",
+        "operationId": "updateExperiment",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Experiment ID"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExperimentRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Experiment updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateExperimentResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Experiment not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid experiment ID or request body"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "experiments"
@@ -9122,6 +9193,23 @@
             "title": "Dataset Version Id",
             "description": "The ID of the dataset version associated with the experiment"
           },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the experiment"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the experiment"
+          },
           "repetitions": {
             "type": "integer",
             "exclusiveMinimum": 0.0,
@@ -9184,6 +9272,8 @@
           "id",
           "dataset_id",
           "dataset_version_id",
+          "name",
+          "description",
           "repetitions",
           "metadata",
           "project_name",
@@ -11165,6 +11255,16 @@
             "title": "Repetitions",
             "default": 1
           },
+          "nextExperimentScaffold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaygroundExperimentScaffoldContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "instances": {
             "items": {
               "$ref": "#/components/schemas/PlaygroundInstanceContext"
@@ -11260,6 +11360,40 @@
         ],
         "title": "PlaygroundEvaluatorContext",
         "description": "One dataset evaluator on the mounted playground's roster. ``name`` is\nuser-controlled; sanitize at every model-visible boundary."
+      },
+      "PlaygroundExperimentScaffoldContext": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "hasMetadata": {
+            "type": "boolean",
+            "title": "Hasmetadata",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "PlaygroundExperimentScaffoldContext",
+        "description": "Experiment name/description/metadata the user has staged for the playground's\n*next* dataset-backed run, before that run has started.\n\nThe playground UI lets the user pre-set how the next recorded run's experiment\nwill be named, described, and tagged (via the ``set_playground_experiment_recording``\ntool or the recording form). That staged state is surfaced here so the agent can\nsee what is already set and avoid re-staging it.\n\nField semantics:\n- ``name`` / ``description``: the staged values, surfaced to the model verbatim,\n  or ``None`` when the user has not staged them.\n- ``has_metadata``: a presence flag, not the value. Only *whether* metadata has\n  been staged is model-relevant (so the agent knows not to re-attach it); the\n  metadata object itself is deliberately kept out of the prompt.\n\nA field left unstaged (``None`` / ``False``) falls back to the server default when\nthe run starts. The scaffold is consumed once that next run begins."
       },
       "PlaygroundInstanceContext": {
         "properties": {
@@ -15741,6 +15875,62 @@
           "data"
         ],
         "title": "UpdateAnnotationConfigResponseBody"
+      },
+      "UpdateExperimentRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "New name for the experiment (null is rejected; name is required)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the experiment (null clears the description)"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "New metadata object for the experiment (replaces the existing metadata as a whole; null is rejected)"
+          }
+        },
+        "type": "object",
+        "title": "UpdateExperimentRequestBody",
+        "description": "Fields to update on an experiment. Omit a field to leave it unchanged."
+      },
+      "UpdateExperimentResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Experiment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateExperimentResponseBody"
       },
       "UpdateProjectRequestBody": {
         "properties": {

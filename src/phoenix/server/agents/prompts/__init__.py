@@ -127,6 +127,9 @@ _ADD_SPANS_TO_DATASET_TOOL_INSTRUCTIONS = get_template(
 _LIST_DATASETS_TOOL_INSTRUCTIONS = get_template("tools/LIST_DATASETS_TOOL_INSTRUCTIONS.xml.j2")
 _LIST_LABELS_TOOL_INSTRUCTIONS = get_template("tools/LIST_LABELS_TOOL_INSTRUCTIONS.xml.j2")
 _CREATE_DATASET_TOOL_INSTRUCTIONS = get_template("tools/CREATE_DATASET_TOOL_INSTRUCTIONS.xml.j2")
+_PATCH_EXPERIMENT_TOOL_INSTRUCTIONS = get_template(
+    "tools/PATCH_EXPERIMENT_TOOL_INSTRUCTIONS.xml.j2"
+)
 _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
     "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -247,6 +250,7 @@ class AgentPrompts:
     list_datasets_tool: Template = _LIST_DATASETS_TOOL_INSTRUCTIONS
     list_labels_tool: Template = _LIST_LABELS_TOOL_INSTRUCTIONS
     create_dataset_tool: Template = _CREATE_DATASET_TOOL_INSTRUCTIONS
+    patch_experiment_tool: Template = _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
     read_code_evaluator_draft_tool: Template = _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     edit_code_evaluator_draft_tool: Template = _EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS

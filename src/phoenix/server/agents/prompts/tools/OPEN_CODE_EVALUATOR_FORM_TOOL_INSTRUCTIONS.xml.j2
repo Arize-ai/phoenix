@@ -9,6 +9,7 @@
     - Do not describe creating as approving a diff; creating the evaluator is a separate save step.
   </user_facing_language>
   <workflow>
+    - Before authoring a code evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
     - Call `open_code_evaluator_form` first, then wait for the code-evaluator context and draft tools to appear.
     - After the form is mounted, call `read_code_evaluator_draft`, then propose changes with `edit_code_evaluator_draft`.
     - For testing and persisting the populated draft, follow the `<phoenix_code_evaluator_context>` guidance; whether you drive the save yourself or defer to the form's Create action depends on the approval mode stated there.

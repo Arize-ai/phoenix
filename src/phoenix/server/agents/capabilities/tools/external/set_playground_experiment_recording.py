@@ -17,8 +17,10 @@ NAME = "set_playground_experiment_recording"
 DESCRIPTION = (
     "Set whether future dataset-backed playground runs in the currently mounted "
     "playground are recorded as persistent experiments or created as temporary "
-    "unrecorded runs. Use this before running when the user asks to record, persist, "
-    "save the run as an experiment, or explicitly run without recording."
+    "unrecorded runs, and optionally stage a name, description, and metadata for the "
+    "experiments the next run produces. Use this before running when the user asks to "
+    "record, persist, save the run as an experiment, run without recording, or label "
+    "the next experiment with notes such as a hypothesis."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -29,6 +31,28 @@ PARAMETERS: dict[str, Any] = {
             "description": (
                 "True to persist future dataset-backed playground runs as experiments; "
                 "false to make future dataset-backed runs temporary and unrecorded."
+            ),
+        },
+        "experimentName": {
+            "type": "string",
+            "description": (
+                "Optional name for the experiments the next dataset-backed run "
+                "produces. Omit to use the default generated name."
+            ),
+        },
+        "experimentDescription": {
+            "type": "string",
+            "description": (
+                "Optional description for the experiments the next dataset-backed run "
+                "produces. Omit to leave the description empty."
+            ),
+        },
+        "experimentMetadata": {
+            "type": "object",
+            "description": (
+                "Optional metadata object stored on the experiments the next "
+                "dataset-backed run produces (for example a hypothesis or the variable "
+                "being changed). Omit to leave metadata empty."
             ),
         },
     },

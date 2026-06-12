@@ -1,10 +1,16 @@
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
-import type { PlaygroundInstance } from "@phoenix/store/playground";
+import type {
+  ExperimentScaffold,
+  PlaygroundInstance,
+} from "@phoenix/store/playground";
 
 type PlaygroundAgentContext = Extract<AgentContext, { type: "playground" }>;
 type PlaygroundAgentInstance = NonNullable<
   PlaygroundAgentContext["instances"]
 >[number];
+type PlaygroundAgentScaffold = NonNullable<
+  PlaygroundAgentContext["nextExperimentScaffold"]
+>;
 
 export function getPlaygroundInstanceForAgent(
   instance: Pick<PlaygroundInstance, "id" | "model" | "experiment">
@@ -68,6 +74,34 @@ function arePlaygroundAgentModelsEqual(
   return true;
 }
 
+export function getExperimentScaffoldForAgent(
+  scaffold: ExperimentScaffold | null
+): PlaygroundAgentScaffold | null {
+  if (scaffold == null) {
+    return null;
+  }
+  return {
+    name: scaffold.name ?? null,
+    description: scaffold.description ?? null,
+    hasMetadata:
+      scaffold.metadata != null && Object.keys(scaffold.metadata).length > 0,
+  };
+}
+
+export function areExperimentScaffoldsForAgentEqual(
+  left: PlaygroundAgentScaffold | null,
+  right: PlaygroundAgentScaffold | null
+): boolean {
+  if (left == null || right == null) {
+    return left == null && right == null;
+  }
+  return (
+    left.name === right.name &&
+    left.description === right.description &&
+    left.hasMetadata === right.hasMetadata
+  );
+}
+
 export function arePlaygroundInstancesForAgentEqual(
   left: PlaygroundAgentInstance[],
   right: PlaygroundAgentInstance[]
@@ -89,16 +123,19 @@ export function arePlaygroundInstancesForAgentEqual(
 export function buildPlaygroundAgentContext({
   recordExperiments,
   repetitions,
+  nextExperimentScaffold,
   instances,
 }: {
   recordExperiments: boolean;
   repetitions: number;
+  nextExperimentScaffold: PlaygroundAgentScaffold | null;
   instances: PlaygroundAgentInstance[];
 }): PlaygroundAgentContext {
   return {
     type: "playground",
     recordExperiments,
     repetitions,
+    nextExperimentScaffold: nextExperimentScaffold ?? undefined,
     instances,
   };
 }

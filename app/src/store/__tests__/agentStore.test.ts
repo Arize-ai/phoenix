@@ -76,6 +76,59 @@ describe("agentStore", () => {
     });
   });
 
+  describe("pendingPatchExperiment cleanup", () => {
+    function setPendingPatch(
+      store: ReturnType<typeof createAgentStore>,
+      toolCallId: string,
+      sessionId: string
+    ) {
+      store.getState().setPendingPatchExperiment(toolCallId, {
+        toolCallId,
+        sessionId,
+        experimentId: "exp-1",
+        experimentName: "baseline",
+        expectedUpdatedAt: "2026-06-10T00:00:00Z",
+        payload: { name: "renamed" },
+        diff: [{ field: "name", previous: "baseline", next: "renamed" }],
+      });
+    }
+
+    it("drops a session's pending patch when that session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      setPendingPatch(store, "tool-call-1", sessionId);
+
+      store.getState().deleteSession(sessionId);
+
+      expect(
+        store.getState().pendingPatchExperimentsByToolCallId["tool-call-1"]
+      ).toBeUndefined();
+    });
+
+    it("clears all pending patches when all sessions are cleared", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      setPendingPatch(store, "tool-call-1", sessionId);
+
+      store.getState().clearAllSessions();
+
+      expect(store.getState().pendingPatchExperimentsByToolCallId).toEqual({});
+    });
+
+    it("prunes pending patches owned by sessions dropped on retention", () => {
+      const store = createAgentStore();
+      const firstSessionId = store.getState().createSession();
+      setPendingPatch(store, "tool-call-1", firstSessionId);
+
+      // Creating a new session without recent-session storage drops the first.
+      store.getState().createSession();
+
+      expect(
+        store.getState().pendingPatchExperimentsByToolCallId["tool-call-1"]
+      ).toBeUndefined();
+    });
+  });
+
   describe("updateSessionModelConfig", () => {
     it("partial-merges model config without clobbering other fields", () => {
       const store = createAgentStore();
