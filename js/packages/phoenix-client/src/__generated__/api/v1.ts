@@ -4207,6 +4207,21 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /**
+         * SessionContext
+         * @description Session the user is currently viewing.
+         */
+        SessionContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "session";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Sessionnodeid */
+            sessionNodeId: string;
+        };
         /** SessionData */
         SessionData: {
             /** Id */
@@ -5059,18 +5074,6 @@ export interface components {
             projectNodeId: string;
             /** Oteltraceid */
             otelTraceId: string;
-        };
-        /** SessionContext */
-        SessionContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "session";
-            /** Projectnodeid */
-            projectNodeId: string;
-            /** Sessionnodeid */
-            sessionNodeId: string;
         };
         /** TraceData */
         TraceData: {
