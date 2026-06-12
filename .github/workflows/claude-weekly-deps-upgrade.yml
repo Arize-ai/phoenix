@@ -14,8 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
     env:
       CI: "true"
 
@@ -199,6 +201,12 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
 
           # Surface the full Claude SDK message stream in the step log instead of
           # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs

@@ -14,14 +14,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          fetch-depth: 0
+          # Shallow clone: nothing here reads git history, and origin/main at
+          # the tip is enough for the publish step's blocked-file restore.
+          fetch-depth: 1
           persist-credentials: false
 
       - name: Get uv version supported by Dependabot
@@ -102,6 +106,12 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
 
           # Surface the full Claude SDK message stream in the step log instead of
           # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs

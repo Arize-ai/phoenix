@@ -22,7 +22,11 @@ jobs:
     # secrets (ANTHROPIC_API_KEY is empty) nor an OIDC token (id-token: write
     # is inert for forks), so the action's auth validation would fail the run
     # on every external contribution. Skip instead of failing red.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Also skip drafts: synchronize fires on every push to a draft, and
+    # ready_for_review already triggers a review when the PR leaves draft.
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     # Bound the run so a hung review can't hold the runner indefinitely;
     # a single-PR review finishes well under this.
