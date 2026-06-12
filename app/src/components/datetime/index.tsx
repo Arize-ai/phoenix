@@ -6,5 +6,6 @@ export * from "./TimeRangeContext";
 export * from "./TimeRangeSelector";
 export * from "./TimeRangeControls";
 export * from "./ConnectedTimeRangeSelector";
+export * from "./ConnectedTimeRangeControls";
 export * from "./TimeRangeForm";
 export type { TimeRangeKey, OpenTimeRangeWithKey } from "./types";

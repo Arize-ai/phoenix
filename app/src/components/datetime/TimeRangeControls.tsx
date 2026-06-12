@@ -20,9 +20,12 @@ export type TimeRangeControlsProps = {
   /** Called when a pan or zoom commits a new range. */
   onChange: (value: OpenTimeRangeWithKey) => void;
   /** Whether the view is live (streaming in new data). */
-  isLive: boolean;
-  /** Called when the user presses the play/pause toggle. */
-  onIsLiveChange: (isLive: boolean) => void;
+  isLive?: boolean;
+  /**
+   * Called when the user presses the play/pause toggle. When omitted, the
+   * toggle is not rendered and the strip is a pure pan/zoom control.
+   */
+  onIsLiveChange?: (isLive: boolean) => void;
   /** Disables every control. */
   isDisabled?: boolean;
   /** Visual size for the buttons. */
@@ -167,18 +170,18 @@ function ControlButton(props: {
 /**
  * A compact toolbar of icon buttons for steering the active time range,
  * designed to sit beside the time range selector and share its chrome.
- * Reading outward from the play/pause toggle in the center: minus/plus zoom
- * the window wider or narrower (live ranges stay live, anchored to now), and
- * the chevrons pan the window back or forward by half its width. Panning
- * forward is capped at the present and unavailable while the range is
- * open-ended (already at the live edge). While live, the toggle carries a
- * gently pulsing success tint.
+ * Minus/plus zoom the window wider or narrower (live ranges stay live,
+ * anchored to now), and the chevrons pan the window back or forward by half
+ * its width. Panning forward is capped at the present and unavailable while
+ * the range is open-ended (already at the live edge). When live-streaming
+ * props are provided a play/pause toggle sits in the center, carrying a
+ * gently pulsing success tint while live.
  */
 export function TimeRangeControls(props: TimeRangeControlsProps) {
   const {
     value,
     onChange,
-    isLive,
+    isLive = false,
     onIsLiveChange,
     isDisabled,
     size = "S",
@@ -217,25 +220,29 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
         isDisabled={isDisabled || !hasWindow}
         onPress={() => applyChange(zoomTimeRangeOut(value))}
       />
-      <TooltipTrigger>
-        <ToggleButton
-          size={size}
-          className="time-range-controls__live-toggle"
-          css={controlButtonCSS}
-          aria-label={isLive ? "Pause live streaming" : "Resume live streaming"}
-          isSelected={isLive}
-          isDisabled={isDisabled}
-          leadingVisual={
-            <Icon
-              svg={isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />}
-            />
-          }
-          onChange={onIsLiveChange}
-        />
-        <Tooltip>
-          {isLive ? "Pause live streaming" : "Resume live streaming"}
-        </Tooltip>
-      </TooltipTrigger>
+      {onIsLiveChange && (
+        <TooltipTrigger>
+          <ToggleButton
+            size={size}
+            className="time-range-controls__live-toggle"
+            css={controlButtonCSS}
+            aria-label={
+              isLive ? "Pause live streaming" : "Resume live streaming"
+            }
+            isSelected={isLive}
+            isDisabled={isDisabled}
+            leadingVisual={
+              <Icon
+                svg={isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />}
+              />
+            }
+            onChange={onIsLiveChange}
+          />
+          <Tooltip>
+            {isLive ? "Pause live streaming" : "Resume live streaming"}
+          </Tooltip>
+        </TooltipTrigger>
+      )}
       <ControlButton
         label="Zoom in"
         icon={<Icons.PlusOutline />}

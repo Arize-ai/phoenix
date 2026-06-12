@@ -22,8 +22,9 @@ const Template: StoryFn<
   TimeRangeControlsProps & {
     initialValue: OpenTimeRangeWithKey;
     withSelector?: boolean;
+    withoutLiveToggle?: boolean;
   }
-> = ({ initialValue, withSelector, ...args }) => {
+> = ({ initialValue, withSelector, withoutLiveToggle, ...args }) => {
   const [timeRange, setTimeRange] =
     useState<OpenTimeRangeWithKey>(initialValue);
   const [isLive, setIsLive] = useState(true);
@@ -32,8 +33,8 @@ const Template: StoryFn<
       {...args}
       value={timeRange}
       onChange={setTimeRange}
-      isLive={isLive}
-      onIsLiveChange={setIsLive}
+      isLive={withoutLiveToggle ? undefined : isLive}
+      onIsLiveChange={withoutLiveToggle ? undefined : setIsLive}
     />
   );
   return (
@@ -91,6 +92,22 @@ export const BesideTimeRangeSelector = {
     initialValue: {
       timeRangeKey: "7d",
       start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    },
+  },
+};
+
+/**
+ * Without live-streaming props the play/pause toggle is omitted and the strip
+ * is a pure pan/zoom control (e.g. the dashboards page).
+ */
+export const PanZoomOnly = {
+  render: Template,
+  args: {
+    withoutLiveToggle: true,
+    initialValue: {
+      timeRangeKey: "custom",
+      start: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      end: new Date(Date.now() - 2 * 60 * 60 * 1000),
     },
   },
 };

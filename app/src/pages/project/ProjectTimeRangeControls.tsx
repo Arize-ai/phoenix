@@ -2,7 +2,7 @@ import { startTransition, useCallback, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
 import { useLocation } from "react-router";
 
-import { TimeRangeControls, useTimeRange } from "@phoenix/components/datetime";
+import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
 
@@ -32,7 +32,6 @@ export function ProjectTimeRangeControls(props: {
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
-  const { timeRange, setTimeRange } = useTimeRange();
   const location = useLocation();
   const currentPathTail = location.pathname.split("/").pop() || "";
   // Take into account both the current path and the streaming state for whether streaming is enabled
@@ -80,13 +79,7 @@ export function ProjectTimeRangeControls(props: {
   useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
 
   return (
-    <TimeRangeControls
-      value={timeRange}
-      onChange={(nextTimeRange) => {
-        startTransition(() => {
-          setTimeRange(nextTimeRange);
-        });
-      }}
+    <ConnectedTimeRangeControls
       isLive={isStreamingState}
       onIsLiveChange={setIsStreaming}
     />
