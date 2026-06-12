@@ -625,6 +625,62 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1725,10 +1781,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1755,6 +1807,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/cookbooks</loc>
@@ -1787,6 +1843,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/prompt-engineering/llm-as-a-judge-prompt-optimization</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook</loc>
