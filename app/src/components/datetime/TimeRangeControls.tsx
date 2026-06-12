@@ -116,21 +116,24 @@ const controlButtonCSS = css`
     fill: currentColor;
   }
 
-  /* Streaming live reads as a quiet success tint that gently pulses rather
-     than a heavy primary fill. The tint lives on an overlay so the pulse
-     composes from the static token instead of animating between raw colors. */
+  /* Streaming live uses a gently pulsing neutral tint so the pause icon
+     doesn't compete with status colors elsewhere. The tint lives on an
+     overlay so the pulse composes from the static token instead of
+     animating between raw colors. */
   &[data-selected="true"] {
+    isolation: isolate;
     background-color: transparent;
-    color: var(--global-color-success);
+    color: var(--global-text-color-900);
     &:hover:not([data-disabled]) {
-      background-color: var(--global-color-success-100);
+      background-color: var(--global-input-field-background-color-active);
     }
     &::before {
       content: "";
       position: absolute;
       inset: 0;
+      z-index: -1;
       border-radius: inherit;
-      background-color: var(--global-color-success-100);
+      background-color: var(--global-input-field-background-color-active);
       animation: ${livePulseKeyframes} 3s ease-in-out infinite;
     }
   }
