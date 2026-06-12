@@ -135,6 +135,7 @@ const timeRangeSelectorCSS = css`
     font-variant-numeric: tabular-nums;
     color: var(--global-text-color-900);
     border-radius: var(--global-rounding-xsmall);
+    transition: color 0.1s ease-out;
 
     &[data-type="literal"] {
       padding: 0;
@@ -149,8 +150,9 @@ const timeRangeSelectorCSS = css`
       color: var(--global-text-color-500);
     }
     &:focus {
-      color: var(--global-text-color-900);
-      background: var(--global-color-primary-200);
+      color: var(--global-static-color-white-900);
+      background: var(--global-color-blue-500);
+      border-radius: var(--global-rounding-small);
       outline: none;
       caret-color: transparent;
     }
