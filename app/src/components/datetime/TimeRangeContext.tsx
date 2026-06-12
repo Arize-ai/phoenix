@@ -26,6 +26,12 @@ export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
   setTimeRange: (timeRange: OpenTimeRangeWithKey) => void;
   /**
+   * Set the time range with the state write wrapped in a transition so
+   * steering interactions (preset picks, pan/zoom) do not block the input
+   * event.
+   */
+  setTimeRangeInTransition: (timeRange: OpenTimeRangeWithKey) => void;
+  /**
    * Apply a closed time range as a custom selection. Wraps the state write in
    * a transition so brush-driven updates do not block the input event.
    */
@@ -96,6 +102,15 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     [setStoredLastNTimeRangeKey]
   );
 
+  const setTimeRangeInTransition = useCallback(
+    (timeRange: OpenTimeRangeWithKey) => {
+      startTransition(() => {
+        setTimeRange(timeRange);
+      });
+    },
+    [setTimeRange]
+  );
+
   const setCustomTimeRange = useCallback(
     (timeRange: TimeRange) => {
       startTransition(() => {
@@ -136,6 +151,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       value={{
         timeRange,
         setTimeRange,
+        setTimeRangeInTransition,
         setCustomTimeRange,
       }}
     >

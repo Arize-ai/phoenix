@@ -188,6 +188,9 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
   } = props;
   // Without a start there is no window to pan or zoom by.
   const hasWindow = value.start != null;
+  const liveToggleLabel = isLive
+    ? "Pause live streaming"
+    : "Resume live streaming";
   // An open-ended range is already at the live edge.
   const isAtLiveEdge = value.end == null;
 
@@ -226,9 +229,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
             size={size}
             className="time-range-controls__live-toggle"
             css={controlButtonCSS}
-            aria-label={
-              isLive ? "Pause live streaming" : "Resume live streaming"
-            }
+            aria-label={liveToggleLabel}
             isSelected={isLive}
             isDisabled={isDisabled}
             leadingVisual={
@@ -238,9 +239,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
             }
             onChange={onIsLiveChange}
           />
-          <Tooltip>
-            {isLive ? "Pause live streaming" : "Resume live streaming"}
-          </Tooltip>
+          <Tooltip>{liveToggleLabel}</Tooltip>
         </TooltipTrigger>
       )}
       <ControlButton

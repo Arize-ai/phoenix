@@ -1,9 +1,6 @@
-import { startTransition, useCallback } from "react";
-
 import { useTimeRange } from "./TimeRangeContext";
 import type { TimeRangeControlsProps } from "./TimeRangeControls";
 import { TimeRangeControls } from "./TimeRangeControls";
-import type { OpenTimeRangeWithKey } from "./types";
 
 /**
  * Time range controls wired to the shared time range context, for use beside
@@ -13,16 +10,12 @@ import type { OpenTimeRangeWithKey } from "./types";
 export function ConnectedTimeRangeControls(
   props: Omit<TimeRangeControlsProps, "value" | "onChange">
 ) {
-  const { timeRange, setTimeRange: _setTimeRange } = useTimeRange();
-  const setTimeRange = useCallback(
-    (timeRange: OpenTimeRangeWithKey) => {
-      startTransition(() => {
-        _setTimeRange(timeRange);
-      });
-    },
-    [_setTimeRange]
-  );
+  const { timeRange, setTimeRangeInTransition } = useTimeRange();
   return (
-    <TimeRangeControls {...props} value={timeRange} onChange={setTimeRange} />
+    <TimeRangeControls
+      {...props}
+      value={timeRange}
+      onChange={setTimeRangeInTransition}
+    />
   );
 }
