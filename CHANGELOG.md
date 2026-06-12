@@ -1,5 +1,35 @@
 # Changelog
 
+## [17.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.4.0...arize-phoenix-v17.5.0) (2026-06-12)
+
+
+### Features
+
+* **agent:** add a subagents toggle to assistant settings ([#13733](https://github.com/Arize-ai/phoenix/issues/13733)) ([1e8c6ac](https://github.com/Arize-ai/phoenix/commit/1e8c6ac262379f17f09519f67e6508704e00daa8))
+* **agents:** improve agent product knowledge ([#13705](https://github.com/Arize-ai/phoenix/issues/13705)) ([67ebb3a](https://github.com/Arize-ai/phoenix/commit/67ebb3a40a32602ee54f032a6724d8aa2509b980))
+* **ui:** pick a time range from a calendar in the time range selector ([#13713](https://github.com/Arize-ai/phoenix/issues/13713)) ([94b8fd0](https://github.com/Arize-ai/phoenix/commit/94b8fd01d6a4ac6238f00af24a9afe2f2a4e1c68))
+
+
+### Bug Fixes
+
+* add Anthropic computer-use beta header ([#13242](https://github.com/Arize-ai/phoenix/issues/13242)) ([3d33799](https://github.com/Arize-ai/phoenix/commit/3d3379904c0e28d2323d9e4ef465d04c941590a0))
+* **agent:** focus PXI input on open ([#13653](https://github.com/Arize-ai/phoenix/issues/13653)) ([d3d6e40](https://github.com/Arize-ai/phoenix/commit/d3d6e40d08c3f430da9676ca7d8887f087e15431))
+* **deps:** update arize-phoenix-client to 2.8.0 ([#13676](https://github.com/Arize-ai/phoenix/issues/13676)) ([f93b1d4](https://github.com/Arize-ai/phoenix/commit/f93b1d47a80e0d0371020f09826a3785a788d2cb))
+* **deps:** update arize-phoenix-evals to 3.1.0 ([#13011](https://github.com/Arize-ai/phoenix/issues/13011)) ([50f6227](https://github.com/Arize-ai/phoenix/commit/50f62275f2d720559cbc02a1d9bc04917eb62cac))
+* don't mask graphql syntax and validation errors ([#13730](https://github.com/Arize-ai/phoenix/issues/13730)) ([e4f5396](https://github.com/Arize-ai/phoenix/commit/e4f53968696cccd28c66c70487aaa1c470567439))
+* expire prompt tool diffs on provider change ([#13641](https://github.com/Arize-ai/phoenix/issues/13641)) ([d5ba51b](https://github.com/Arize-ai/phoenix/commit/d5ba51b4b97952b967181c0d4e92dc4c9731fd68))
+* **js:** run package docs cleanup in postpublish instead of postpack ([#13715](https://github.com/Arize-ai/phoenix/issues/13715)) ([9ef860a](https://github.com/Arize-ai/phoenix/commit/9ef860a6a55625316ab3a507ab4c0c2b42bb46ed))
+* **ui:** use design system tooltip for project view mode toggle ([#13724](https://github.com/Arize-ai/phoenix/issues/13724)) ([66fcfc0](https://github.com/Arize-ai/phoenix/commit/66fcfc0cefce851d32abe4c682e2ed2598aab6d0))
+* wait for in-memory sqlite schema initialization ([#13637](https://github.com/Arize-ai/phoenix/issues/13637)) ([6fd5a8c](https://github.com/Arize-ai/phoenix/commit/6fd5a8c928b6ad9e15d2f51210f5a3620e202998))
+
+
+### Documentation
+
+* **cookbook:** dedupe + reframe custom LLM evaluator, fix create_dataset CSV bug ([#13694](https://github.com/Arize-ai/phoenix/issues/13694)) ([174f4de](https://github.com/Arize-ai/phoenix/commit/174f4decfb13db9ca85bf922c5edc8d1d4a651f8))
+* June 10-11 release notes; allow PXI in release-notes skill ([#13710](https://github.com/Arize-ai/phoenix/issues/13710)) ([4294d9d](https://github.com/Arize-ai/phoenix/commit/4294d9dc1d6fa7d66b7a100f68e066645b40a2b8))
+* **tracing:** OpenInference best practices cookbook and concepts ([#13538](https://github.com/Arize-ai/phoenix/issues/13538)) ([4a52ae2](https://github.com/Arize-ai/phoenix/commit/4a52ae21520f59c3485e5c519db1658203f2345e))
+* **tutorials:** level up trace-level evaluation cookbook ([#13693](https://github.com/Arize-ai/phoenix/issues/13693)) ([fb6e2e6](https://github.com/Arize-ai/phoenix/commit/fb6e2e60fb6e6e137ac2ee38a1aeb992970fe26e))
+
 ## [17.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.3.0...arize-phoenix-v17.4.0) (2026-06-11)
 
 
