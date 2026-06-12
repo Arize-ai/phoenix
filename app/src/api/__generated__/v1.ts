@@ -1610,7 +1610,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -4586,6 +4586,19 @@ export interface components {
              * @constant
              */
             type?: "step-start";
+        };
+        /**
+         * SubagentsContext
+         * @description User's per-turn request to expose the subagent-spawning tool.
+         */
+        SubagentsContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "subagents";
+            /** Enabled */
+            enabled: boolean;
         };
         /** TextContentPart */
         TextContentPart: {

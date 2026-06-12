@@ -611,13 +611,20 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        server_agent = build_server_agent(
-            model=model,
-            schema=request.app.state.graphql_schema,
-            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-            docs_mcp_server=request.app.state.docs_mcp_server,
-            enable_web_access=web_access_enabled,
-            tracer_provider=tracer_provider,
+        subagents_enabled = (
+            resolved_contexts.subagents is not None and resolved_contexts.subagents.enabled
+        )
+        server_agent = (
+            build_server_agent(
+                model=model,
+                schema=request.app.state.graphql_schema,
+                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                enable_web_access=web_access_enabled,
+                tracer_provider=tracer_provider,
+            )
+            if subagents_enabled
+            else None
         )
         agent = build_agent(
             model=model,

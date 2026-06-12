@@ -79,5 +79,7 @@ export function agentContextKey(context: AgentContext): string {
       return "graphql";
     case "web_access":
       return "web_access";
+    case "subagents":
+      return "subagents";
   }
 }
