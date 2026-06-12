@@ -147,7 +147,7 @@
     "babel-plugin-relay": "^20.1.1",
     "chromatic": "^17.3.0",
     "cpy-cli": "^7.0.0",
-    "eslint-plugin-react-hooks": "~7.0.1",
+    "eslint-plugin-react-hooks": "~7.1.1",
     "graphql": "^16.14.1",
     "jsdom": "^29.1.1",
     "mprocs": "^0.9.6",

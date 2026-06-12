@@ -239,6 +239,7 @@ function BaseTable<T>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<T>({
     columns,
     data,

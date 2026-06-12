@@ -245,16 +245,33 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     placeholder = "filter condition (e.x. span_kind == 'LLM')",
   } = props;
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [isConditionValidState, setIsConditionValidState] =
-    useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string>("");
   const { filterCondition, setFilterCondition, appendFilterCondition } =
     useSpanFilters();
+  // A filter restored on mount starts as "not yet validated" so it isn't
+  // advertised as valid before the async validator resolves.
+  const [isConditionValidState, setIsConditionValidState] = useState<boolean>(
+    () => filterCondition.trim() === ""
+  );
+  const [errorMessage, setErrorMessage] = useState<string>("");
   const deferredFilterCondition = useDeferredValue(filterCondition);
+  const projectId = useTracingContext((state) => state.projectId);
+  // Mark "not yet validated" as soon as a new non-empty filter or project
+  // arrives, before the project-scoped async validator returns.
+  const [prevValidationInput, setPrevValidationInput] = useState(() => ({
+    deferredFilterCondition,
+    projectId,
+  }));
+  const hasValidationInputChanged =
+    prevValidationInput.deferredFilterCondition !== deferredFilterCondition ||
+    prevValidationInput.projectId !== projectId;
+  if (hasValidationInputChanged) {
+    setPrevValidationInput({ deferredFilterCondition, projectId });
+    if (deferredFilterCondition.trim() !== "") {
+      setIsConditionValidState(false);
+    }
+  }
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
-
-  const projectId = useTracingContext((state) => state.projectId);
 
   const filterConditionFieldRef = useRef<HTMLDivElement>(null);
 
@@ -285,10 +302,6 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
 
   useEffect(() => {
     let isCancelled = false;
-
-    if (deferredFilterCondition.trim() !== "") {
-      setIsConditionValidState(false);
-    }
 
     void validateSpanFilterCondition(deferredFilterCondition, projectId).then(
       (result) => {

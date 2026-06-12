@@ -278,6 +278,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
     },
   });
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const selectedFile = watch("file");
   const inputKeys = watch("input_keys");
   const outputKeys = watch("output_keys");

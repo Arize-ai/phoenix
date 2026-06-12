@@ -358,6 +358,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
     return cols;
   }, [filter, labelFilter, notifySuccess, refetch, canModify]);
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,

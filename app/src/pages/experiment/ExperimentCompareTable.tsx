@@ -493,6 +493,7 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
     return [...baseColumns, ...experimentColumns];
   }, [baseColumns, experimentColumns]);
 
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<TableRow>({
     columns: columns,
     data: tableData,

@@ -468,6 +468,7 @@ export function SessionsTable(props: SessionsTableProps) {
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const columnSizing = useTracingContext((state) => state.columnSizing);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

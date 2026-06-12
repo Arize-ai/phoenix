@@ -235,6 +235,16 @@ export function AgentFabPositioner({
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
     () => boundaryRef?.current ?? null
   );
+  // When the FAB no longer requires a boundary (e.g. modal closes), reset
+  // resolvedBoundary in render rather than in an effect.
+  const [prevRequiresBoundary, setPrevRequiresBoundary] =
+    useState(requiresBoundary);
+  if (prevRequiresBoundary !== requiresBoundary) {
+    setPrevRequiresBoundary(requiresBoundary);
+    if (!requiresBoundary) {
+      setResolvedBoundary(null);
+    }
+  }
   useModalFloatingLayerInteractivity(positionerRef, layer === "modal");
 
   // After a drag, an unwanted `click` event can still fire on pointerup. We
@@ -492,7 +502,6 @@ export function AgentFabPositioner({
 
   useLayoutEffect(() => {
     if (!requiresBoundary) {
-      setResolvedBoundary(null);
       return;
     }
 

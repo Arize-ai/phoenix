@@ -912,6 +912,7 @@ export function TracesTable(props: TracesTableProps) {
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

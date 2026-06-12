@@ -695,8 +695,17 @@ export function ResizableFloatingPanel({
   const [isMoving, setIsMoving] = useState(false);
   const [isResizeHandleHovered, setIsResizeHandleHovered] = useState(false);
   const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
-    () => boundaryRef?.current ?? null
+    () => (layer === "content" ? (boundaryRef?.current ?? null) : null)
   );
+  // Only the content layer tracks a boundary element; when the panel leaves
+  // it, reset resolvedBoundary in render rather than in an effect.
+  const [prevLayer, setPrevLayer] = useState(layer);
+  if (prevLayer !== layer) {
+    setPrevLayer(layer);
+    if (layer !== "content") {
+      setResolvedBoundary(null);
+    }
+  }
   const [currentBounds, setCurrentBounds] = useState(() =>
     getPanelBounds({
       boundary: boundaryRef?.current ?? null,
@@ -716,6 +725,31 @@ export function ResizableFloatingPanel({
       size,
     })
   );
+  // Re-apply the controlled size prop (clamped) whenever it, the bounds, or
+  // the minimum size change. Done in render rather than in an effect.
+  const [prevSizeSync, setPrevSizeSync] = useState({
+    currentBounds,
+    minSize,
+    size,
+  });
+  if (
+    prevSizeSync.currentBounds !== currentBounds ||
+    prevSizeSync.minSize !== minSize ||
+    prevSizeSync.size !== size
+  ) {
+    setPrevSizeSync({ currentBounds, minSize, size });
+    setCurrentGeometry((geometry) =>
+      clampGeometry({
+        bounds: currentBounds,
+        geometry: {
+          ...geometry,
+          height: size.height,
+          width: size.width,
+        },
+        minSize,
+      })
+    );
+  }
   useModalFloatingLayerInteractivity(panelRef, layer === "modal");
 
   const resizeLimits = getGeometryLimits({ bounds: currentBounds, minSize });
@@ -971,7 +1005,6 @@ export function ResizableFloatingPanel({
 
   useLayoutEffect(() => {
     if (layer !== "content") {
-      setResolvedBoundary(null);
       return;
     }
 
@@ -1049,20 +1082,6 @@ export function ResizableFloatingPanel({
       window.visualViewport?.removeEventListener("scroll", syncPanelBounds);
     };
   }, [anchorToViewport, layer, minSize, placement, resolvedBoundary]);
-
-  useEffect(() => {
-    setCurrentGeometry((geometry) =>
-      clampGeometry({
-        bounds: currentBounds,
-        geometry: {
-          ...geometry,
-          height: size.height,
-          width: size.width,
-        },
-        minSize,
-      })
-    );
-  }, [currentBounds, minSize, size]);
 
   useEffect(() => {
     const hasLayerChanged = previousLayerRef.current !== layer;

@@ -808,6 +808,7 @@ export function SpansTable(props: SpansTableProps) {
   );
   const setColumnSizing = useTracingContext((state) => state.setColumnSizing);
   const columnSizing = useTracingContext((state) => state.columnSizing);
+  // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable<TableRow>({
     columns,
     data: tableData,

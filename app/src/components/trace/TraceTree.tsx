@@ -110,8 +110,14 @@ function SpanTreeItem<TSpan extends ISpanItem>(
     overallTimeRange,
   } = props;
   const childNodes = node.children;
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const { isCollapsed: treeIsCollapsed } = useTraceTree();
+  const [isCollapsed, setIsCollapsed] = useState(treeIsCollapsed);
+  const [prevTreeIsCollapsed, setPrevTreeIsCollapsed] =
+    useState(treeIsCollapsed);
+  if (prevTreeIsCollapsed !== treeIsCollapsed) {
+    setPrevTreeIsCollapsed(treeIsCollapsed);
+    setIsCollapsed(treeIsCollapsed);
+  }
   const hasChildren = childNodes.length > 0;
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
@@ -128,11 +134,6 @@ function SpanTreeItem<TSpan extends ISpanItem>(
       });
     }
   }, [isSelected, scrollSelectedSpanIntoView]);
-
-  // React to global changes to the trace tree state and change local state
-  useEffect(() => {
-    setIsCollapsed(treeIsCollapsed);
-  }, [treeIsCollapsed]);
 
   const { name, latencyMs, statusCode, tokenCountTotal } = node.span;
   return (

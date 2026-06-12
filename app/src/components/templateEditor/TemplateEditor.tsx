@@ -5,7 +5,7 @@ import type {
   ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import CodeMirror, { EditorView, keymap } from "@uiw/react-codemirror";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
@@ -51,6 +51,11 @@ const baseExtensions = [
  * or, when the readOnly prop is true, the editor will reset on all value changes.
  * This is necessary because controlled react-codemirror editors incessantly reset
  * cursor position when value is updated.
+ *
+ * The `readOnly` prop must stay fixed for the lifetime of the component:
+ * toggling it from true to false would snap the displayed value back to the
+ * mount-time `defaultValue`, discarding any `defaultValue` updates mirrored
+ * while read-only. Re-mount (e.g. via `key`) instead of toggling.
  */
 export const TemplateEditor = ({
   templateFormat,
@@ -59,7 +64,10 @@ export const TemplateEditor = ({
   availablePaths,
   ...props
 }: TemplateEditorProps) => {
-  const [value, setValue] = useState(() => defaultValue);
+  const [value] = useState(() => defaultValue);
+  // In readOnly mode the editor mirrors defaultValue on every change; otherwise
+  // it stays at the initial value (CodeMirror itself is uncontrolled internally).
+  const displayValue = readOnly ? defaultValue : value;
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   const extensions = useMemo(() => {
@@ -88,12 +96,6 @@ export const TemplateEditor = ({
     return ext;
   }, [templateFormat, availablePaths, readOnly]);
 
-  useEffect(() => {
-    if (readOnly) {
-      setValue(defaultValue);
-    }
-  }, [readOnly, defaultValue]);
-
   return (
     <CodeMirror
       theme={codeMirrorTheme}
@@ -101,7 +103,7 @@ export const TemplateEditor = ({
       basicSetup={basicSetupOptions}
       readOnly={readOnly}
       {...props}
-      value={value}
+      value={displayValue}
     />
   );
 };

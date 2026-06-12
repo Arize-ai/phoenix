@@ -314,14 +314,18 @@ function PlaygroundRender(args: StoryArgs) {
   }, [args.promptCount, args.versionCount, args.tagCount]);
 
   // Reset selection if prompt count changes and current selection is out of range
-  React.useEffect(() => {
+  const [prevPromptsLength, setPrevPromptsLength] = React.useState(
+    prompts.length
+  );
+  if (prevPromptsLength !== prompts.length) {
+    setPrevPromptsLength(prompts.length);
     if (
       selection.selectedPromptIndex !== null &&
       selection.selectedPromptIndex >= prompts.length
     ) {
       setSelection((s) => ({ ...s, selectedPromptIndex: null }));
     }
-  }, [prompts.length, selection.selectedPromptIndex]);
+  }
 
   const selectedPrompt =
     selection.selectedPromptIndex !== null && selection.selectedPromptIndex >= 0

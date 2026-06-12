@@ -204,6 +204,14 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     (instance) => instance.activeRunId != null
   );
   const [apiError, setApiError] = useState<string | null>(null);
+  // Clear apiError when a new run starts (runInProgress false → true).
+  const [prevRunInProgress, setPrevRunInProgress] = useState(runInProgress);
+  if (prevRunInProgress !== runInProgress) {
+    setPrevRunInProgress(runInProgress);
+    if (runInProgress) {
+      setApiError(null);
+    }
+  }
 
   const handleChatCompletionSubscriptionPayload = useCallback(
     ({ chatCompletion }: PlaygroundOutputSubscription$data) => {
@@ -305,7 +313,6 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     if (!runInProgress) {
       return;
     }
-    setApiError(null);
     const input = getChatCompletionInput({
       playgroundStore,
       instanceId,
