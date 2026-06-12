@@ -3,11 +3,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 
-import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
+import type { SessionAnnotationScoreTimeSeriesQuery } from "./__generated__/SessionAnnotationScoreTimeSeriesQuery.graphql";
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
 
-export function SpanAnnotationScoreTimeSeries({
+export function SessionAnnotationScoreTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
@@ -15,16 +15,16 @@ export function SpanAnnotationScoreTimeSeries({
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<SpanAnnotationScoreTimeSeriesQuery>(
+  const data = useLazyLoadQuery<SessionAnnotationScoreTimeSeriesQuery>(
     graphql`
-      query SpanAnnotationScoreTimeSeriesQuery(
+      query SessionAnnotationScoreTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            spanAnnotationScoreTimeSeries(
+            sessionAnnotationScoreTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
@@ -56,8 +56,8 @@ export function SpanAnnotationScoreTimeSeries({
 
   return (
     <AnnotationScoreTimeSeriesChart
-      data={data.project.spanAnnotationScoreTimeSeries?.data ?? []}
-      names={data.project.spanAnnotationScoreTimeSeries?.names ?? []}
+      data={data.project.sessionAnnotationScoreTimeSeries?.data ?? []}
+      names={data.project.sessionAnnotationScoreTimeSeries?.names ?? []}
       scale={scale}
       timeRange={timeRange}
       onTimeRangeSelected={onTimeRangeSelected}

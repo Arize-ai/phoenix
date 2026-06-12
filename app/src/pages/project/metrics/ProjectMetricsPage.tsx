@@ -14,13 +14,14 @@ import { ErrorBoundary } from "@phoenix/components/exception";
 import { ONE_MONTH_MS } from "@phoenix/constants/timeConstants";
 import { TopModelsByCost } from "@phoenix/pages/project/metrics/TopModelsByCost";
 import { TopModelsByToken } from "@phoenix/pages/project/metrics/TopModelsByToken";
-import { TraceErrorsTimeSeries } from "@phoenix/pages/project/metrics/TraceErrorsTimeSeries";
 
 import { LLMSpanCountTimeSeries } from "./LLMSpanCountTimeSeries";
 import { LLMSpanErrorsTimeSeries } from "./LLMSpanErrorsTimeSeries";
+import { SessionAnnotationScoreTimeSeries } from "./SessionAnnotationScoreTimeSeries";
 import { SpanAnnotationScoreTimeSeries } from "./SpanAnnotationScoreTimeSeries";
 import { ToolSpanCountTimeSeries } from "./ToolSpanCountTimeSeries";
 import { ToolSpanErrorsTimeSeries } from "./ToolSpanErrorsTimeSeries";
+import { TraceAnnotationScoreTimeSeries } from "./TraceAnnotationScoreTimeSeries";
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
 import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
 import { TraceTokenCostTimeSeries } from "./TraceTokenCostTimeSeries";
@@ -230,30 +231,10 @@ const MetricPanels = memo(function MetricPanels({
             onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
-        <MetricPanel
-          title="Traces with errors"
-          subtitle="Overall volume of traces with errors"
-        >
-          <TraceErrorsTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-200">
         <MetricPanel title="Trace Latency" subtitle="Latency percentiles">
           <TraceLatencyPercentilesTimeSeries
-            projectId={projectId}
-            timeRange={timeRange}
-            onTimeRangeSelected={onTimeRangeSelected}
-          />
-        </MetricPanel>
-        <MetricPanel
-          title="Annotation scores"
-          subtitle="Average annotation scores"
-        >
-          <SpanAnnotationScoreTimeSeries
             projectId={projectId}
             timeRange={timeRange}
             onTimeRangeSelected={onTimeRangeSelected}
@@ -319,6 +300,42 @@ const MetricPanels = memo(function MetricPanels({
           subtitle="Tool spans with errors over time"
         >
           <ToolSpanErrorsTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Span annotation scores"
+          subtitle="Average span annotation scores"
+        >
+          <SpanAnnotationScoreTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Trace annotation scores"
+          subtitle="Average trace annotation scores"
+        >
+          <TraceAnnotationScoreTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Session annotation scores"
+          subtitle="Average session annotation scores"
+        >
+          <SessionAnnotationScoreTimeSeries
             projectId={projectId}
             timeRange={timeRange}
             onTimeRangeSelected={onTimeRangeSelected}

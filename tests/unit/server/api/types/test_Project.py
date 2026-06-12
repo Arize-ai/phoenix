@@ -4851,3 +4851,184 @@ async def test_trace_count_returns_expected_count(
     assert not response.errors
     assert response.data is not None
     assert response.data["project"]["traceCount"] == 1
+
+
+class TestAnnotationScoreTimeSeries:
+    @pytest.fixture
+    async def _annotation_score_data(self, db: DbSessionFactory) -> models.Project:
+        """Creates a project with annotated traces and sessions in two hourly buckets.
+
+        Hour one (01:00) has a trace with two "quality" trace annotations (scores 0.2
+        and 0.4) and a session with one "satisfaction" annotation (score 0.5). Hour two
+        (02:00) has a trace with "quality" (0.8) and "toxicity" (1.0) trace annotations
+        and a session with one "satisfaction" annotation (score 0.9). Annotations named
+        "incomplete" have null scores and must be excluded from the results.
+        """
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:20:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            session_one = await _add_project_session(session, project, start_time=hour_one)
+            session_two = await _add_project_session(session, project, start_time=hour_two)
+            trace_one = await _add_trace(session, project, session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, session_two, start_time=hour_two)
+
+            def trace_annotation(
+                trace: models.Trace,
+                name: str,
+                score: Optional[float],
+                identifier: str = "",
+            ) -> models.TraceAnnotation:
+                return models.TraceAnnotation(
+                    trace_rowid=trace.id,
+                    name=name,
+                    label=None,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier=identifier,
+                    source="APP",
+                    user_id=None,
+                )
+
+            def session_annotation(
+                project_session: models.ProjectSession,
+                name: str,
+                score: Optional[float],
+            ) -> models.ProjectSessionAnnotation:
+                return models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name=name,
+                    label=None,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier="",
+                    source="APP",
+                    user_id=None,
+                )
+
+            session.add_all(
+                [
+                    trace_annotation(trace_one, "quality", 0.2, identifier="a"),
+                    trace_annotation(trace_one, "quality", 0.4, identifier="b"),
+                    trace_annotation(trace_one, "incomplete", None),
+                    trace_annotation(trace_two, "quality", 0.8),
+                    trace_annotation(trace_two, "toxicity", 1.0),
+                    session_annotation(session_one, "satisfaction", 0.5),
+                    session_annotation(session_one, "incomplete", None),
+                    session_annotation(session_two, "satisfaction", 0.9),
+                ]
+            )
+        return project
+
+    @staticmethod
+    def _variables(project: models.Project) -> dict[str, Any]:
+        return {
+            "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+            "timeRange": {
+                "start": "2024-01-01T01:00:00+00:00",
+                "end": "2024-01-01T03:00:00+00:00",
+            },
+            "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+        }
+
+    @staticmethod
+    def _scores_by_timestamp(
+        data: list[dict[str, Any]],
+    ) -> dict[datetime, dict[str, float]]:
+        return {
+            datetime.fromisoformat(point["timestamp"]): {
+                score_with_label["label"]: score_with_label["score"]
+                for score_with_label in point["scoresWithLabels"]
+            }
+            for point in data
+            if point["scoresWithLabels"]
+        }
+
+    async def test_trace_annotation_score_time_series(
+        self,
+        _annotation_score_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        traceAnnotationScoreTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) {
+                            data {
+                                timestamp
+                                scoresWithLabels {
+                                    label
+                                    score
+                                }
+                            }
+                            names
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query, variables=self._variables(_annotation_score_data)
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["traceAnnotationScoreTimeSeries"]
+        assert res["names"] == ["quality", "toxicity"]
+        assert self._scores_by_timestamp(res["data"]) == {
+            datetime.fromisoformat("2024-01-01T01:00:00+00:00"): {
+                "quality": pytest.approx(0.3),
+            },
+            datetime.fromisoformat("2024-01-01T02:00:00+00:00"): {
+                "quality": pytest.approx(0.8),
+                "toxicity": pytest.approx(1.0),
+            },
+        }
+
+    async def test_session_annotation_score_time_series(
+        self,
+        _annotation_score_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        sessionAnnotationScoreTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) {
+                            data {
+                                timestamp
+                                scoresWithLabels {
+                                    label
+                                    score
+                                }
+                            }
+                            names
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query, variables=self._variables(_annotation_score_data)
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["sessionAnnotationScoreTimeSeries"]
+        assert res["names"] == ["satisfaction"]
+        assert self._scores_by_timestamp(res["data"]) == {
+            datetime.fromisoformat("2024-01-01T01:00:00+00:00"): {
+                "satisfaction": pytest.approx(0.5),
+            },
+            datetime.fromisoformat("2024-01-01T02:00:00+00:00"): {
+                "satisfaction": pytest.approx(0.9),
+            },
+        }

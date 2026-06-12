@@ -213,6 +213,21 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationScoreTimeSeries {
+  data: [AnnotationScoreTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationScoreTimeSeriesDataPoint {
+  timestamp: DateTime!
+  scoresWithLabels: [AnnotationScoreWithLabel!]!
+}
+
+type AnnotationScoreWithLabel {
+  label: String!
+  score: Float!
+}
+
 enum AnnotationSource {
   API
   APP
@@ -2688,7 +2703,9 @@ type Project implements Node {
   traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
   traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
-  spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
+  spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -3858,21 +3875,6 @@ enum SpanAnnotationColumn {
 type SpanAnnotationMutationPayload {
   spanAnnotations: [SpanAnnotation!]!
   query: Query!
-}
-
-type SpanAnnotationScoreTimeSeries {
-  data: [SpanAnnotationScoreTimeSeriesDataPoint!]!
-  names: [String!]!
-}
-
-type SpanAnnotationScoreTimeSeriesDataPoint {
-  timestamp: DateTime!
-  scoresWithLabels: [SpanAnnotationScoreWithLabel!]!
-}
-
-type SpanAnnotationScoreWithLabel {
-  label: String!
-  score: Float!
 }
 
 """The sort key and direction for SpanAnnotation connections"""
