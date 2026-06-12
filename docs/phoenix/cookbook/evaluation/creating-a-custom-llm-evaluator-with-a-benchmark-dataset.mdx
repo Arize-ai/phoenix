@@ -3,15 +3,23 @@ title: "Creating a Custom LLM Evaluator with a Benchmark Dataset"
 sidebarTitle: "Write Your First Custom Eval"
 description: Learn how to build a custom LLM-as-a-Judge evaluator by creating a benchmark dataset tailored to your use case, enabling rigorous evaluation beyond standard templates.
 ---
+<Card title="Google Colab" href="https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/creating_a_custom_llm_evaluator.ipynb" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/gc.ico" horizontal>
+colab.research.google.com
+</Card>
+
+A good evaluator measures what you actually care about — and the only way to know it does is to test it against examples you've judged yourself. Phoenix ships several [pre-built evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/running-pre-tested-evals) that have been validated against benchmark datasets, but these may not capture the nuances of your application.
+
+So how do you achieve that same rigor when your use case falls outside the scope of standard evaluators? You build the evaluator the same way the pre-built ones were built. This tutorial walks through the three steps:
+
+1. **Build a benchmark dataset** — a small set of human-annotated examples that capture your definition of "good."
+2. **Write the judge prompt** — the LLM-as-a-Judge template that encodes that definition.
+3. **Validate before you trust it** — measure how well the judge agrees with your human labels, and iterate until it does.
+
+Prefer to watch? The full walkthrough is below; otherwise, follow the key snippets on this page.
+
 <Frame>
 <iframe width="746" height="419" src="https://www.youtube.com/embed/NaCjm8rdxqk" title="Build Your First Eval: Creating a Custom LLM Evaluator with an Evaluation Benchmark Dataset" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </Frame>
-
-In this tutorial, you’ll learn how to build a custom LLM-as-a-Judge Evaluator tailored to your specific use case. While Phoenix provides several [pre-built evaluators](https://www.google.com/url?q=https%3A%2F%2Farize.com%2Fdocs%2Fphoenix%2Fevaluation%2Fhow-to-evals%2Frunning-pre-tested-evals) that have been tested against benchmark datasets, these may not always cover the nuances of your application.
-
-So how can you achieve the same level of rigor when your use case falls outside the scope of standard evaluators?
-
-We’ll walk through how to create your own benchmark dataset using a small set of human annotated examples. This dataset will allow you to build and refine a custom evaluator by revealing failure cases and guiding iteration.
 
 The diagram below provides an overview of the process we will follow in this walkthrough.
 
@@ -19,17 +27,40 @@ The diagram below provides an overview of the process we will follow in this wal
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-custom-eval.png)
 </Frame>
 
-## Notebook Walkthrough
+## Walkthrough
 
-We will go through key code snippets on this page. To follow the full tutorial, check out the video above.
+We will go through key code snippets on this page. To run the full tutorial end-to-end, open the [Colab notebook](https://colab.research.google.com/github/Arize-ai/phoenix/blob/main/tutorials/evals/creating_a_custom_llm_evaluator.ipynb) above, or check out the video for a guided walkthrough.
 
-## Generate Image Classification Traces
+## Generate Receipt Extraction Traces
 
-In this tutorial, we’ll ask an LLM to generate expense reports from receipt images provided as public URLs. Running the cells below will generate traces, which you can explore directly in Phoenix for annotation. We’ll use GPT-4.1, which supports image inputs.
+In this tutorial, we’ll ask an LLM to generate expense reports from receipt images provided as public URLs. Running the cells below will generate traces, which you can explore directly in Phoenix for annotation. We’ll use GPT-5.5, which supports image inputs.
 
 <Info>
-Dataset Information: Jakob (2024). Receipt or Invoice Dataset. Roboflow Universe. CC BY 4.0. Available at: https://universe.roboflow.com/jakob-awn1e/receipt-or-invoice (accessed on 2025‑07‑29)
+The sample images below are public receipt photos from the [Wikimedia Commons Receipts category](https://commons.wikimedia.org/wiki/Category:Receipts) (Creative Commons licensed). Swap in your own receipt URLs to build traces for your use case.
 </Info>
+
+First, connect to Phoenix and auto-instrument OpenAI so every call is traced to a project. We name the project `receipt-classification` — the same identifier we'll query when building the benchmark dataset below.
+
+```py
+# pip install arize-phoenix-client arize-phoenix-evals arize-phoenix-otel openinference-instrumentation-openai openai pandas
+import os
+from getpass import getpass
+
+from phoenix.otel import register
+
+# Prompt for any keys not already set in the environment (don't clobber real values).
+if not os.environ.get("PHOENIX_API_KEY"):
+    os.environ["PHOENIX_API_KEY"] = getpass("Enter your Phoenix API key: ")
+if not os.environ.get("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = getpass("Enter your OpenAI API key: ")
+# For Phoenix Cloud, also point at your space's collector endpoint, e.g.:
+# os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "https://app.phoenix.arize.com/s/your-space"
+
+tracer_provider = register(
+    project_name="receipt-classification",
+    auto_instrument=True,  # instruments installed libraries, including OpenAI
+)
+```
 
 ```py
 from openai import OpenAI
@@ -37,7 +68,7 @@ client = OpenAI()
 
 def extract_receipt_data(input):
   response = client.chat.completions.create(
-    model="gpt-4.1",
+    model="gpt-5.5",
     messages=[
         {
             "role": "user",
@@ -60,6 +91,13 @@ def extract_receipt_data(input):
 By following the auto-instrumentation setup, running the code below will automatically send traces to Phoenix.
 
 ```py
+# Public receipt images (Wikimedia Commons). Swap in your own to build traces.
+urls = [
+    "https://upload.wikimedia.org/wikipedia/commons/2/25/Receipt.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/d/df/Save_Mart_recipt_2010-10-23.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/9/9e/Restaurant_Bill_1_2013-07-08.jpg",
+]
+
 for url in urls:
   extract_receipt_data(url)
 ```
@@ -72,8 +110,9 @@ After generating traces, open Phoenix to begin annotating your dataset. In this 
 </Frame>
 
 ```py expandable
+import os
+
 import pandas as pd
-import phoenix as px
 from phoenix.client import Client
 from phoenix.client.types import spans
 
@@ -84,12 +123,26 @@ spans_df = client.spans.get_spans_dataframe(query=query, project_identifier="rec
 annotations_df = client.spans.get_span_annotations_dataframe(spans_dataframe = spans_df, project_identifier="receipt-classification")
 full_df = annotations_df.join(spans_df, how = "inner")
 
+# create_dataset serializes the DataFrame as CSV, so a nested column like
+# attributes.llm.output_messages is stored as a string and can't be indexed later.
+# Flatten the model's response to plain text up front so the evaluator can read it.
+def first_message_content(messages):
+    # get_spans_dataframe returns output_messages as a list of message dicts;
+    # guard against empty rows (and the occasional already-stringified value).
+    if isinstance(messages, list) and messages:
+        return messages[0].get("message.content", "")
+    if isinstance(messages, str):
+        return messages
+    return ""
+
+full_df["output_text"] = full_df["attributes.llm.output_messages"].apply(first_message_content)
+
 from phoenix.client import Client
 dataset = Client().datasets.create_dataset(
     name="annotated-receipts",
     dataframe=full_df,
     input_keys=["attributes.input.value"],
-    output_keys=["attributes.llm.output_messages"],
+    output_keys=["output_text"],
     metadata_keys=["result.label", "result.score", "result.explanation"],
 )
 ```
@@ -122,7 +175,7 @@ Evaluate whether the expense report is complete and well-structured. Assign one 
 ```py expandable
 from phoenix.evals import LLM, ClassificationEvaluator
 
-llm = LLM(provider="openai", model="gpt-4o")
+llm = LLM(provider="openai", model="gpt-5.5")
 receipt_evaluator = ClassificationEvaluator(
     name="receipt_accuracy",
     prompt_template=prompt_template,
@@ -131,7 +184,7 @@ receipt_evaluator = ClassificationEvaluator(
 )
 
 def task_function(input, reference):
-    output = reference[‘attributes.llm.output_messages’][0][‘message.content’]
+    output = reference["output_text"]
 
     result = receipt_evaluator.evaluate(
         eval_input={"output": output}
@@ -185,11 +238,18 @@ initial_experiment = run_experiment(
 )
 ```
 
-## Results
+## Validate Before You Trust It
 
-Once your evaluator reaches a performance level you're satisfied with, it's ready for use. The target score will depend on your benchmark dataset and specific use case. You can define different thresholds and metrics you hope the evaluator to achieve.
+Each experiment run reports how often the judge's label matched your human annotation — that agreement score is your validation signal. It's the number that tells you whether the evaluator measures what you actually care about, and it's exactly the kind of benchmarking the pre-built evaluators go through before they ship.
 
-That said, you can continue applying the techniques from this tutorial to refine and iterate until the evaluator meets your desired level of quality.
+Compare the two runs in Phoenix:
+
+- The **initial template** establishes your baseline agreement with the human-labeled benchmark.
+- The **improved template** should show measurably higher agreement, since its rules were written to close the specific gaps you saw in the first run.
+
+There's no universal pass mark — the target depends on your benchmark and how costly disagreements are for your use case. The key discipline is to **not trust the judge in production until it aligns with your benchmark.** A judge that agrees with you on the examples you've labeled is one you can extend to the traces you haven't.
+
+When agreement falls short, inspect the disagreements: each mismatch is either a gap in the judge prompt (tighten the rules and re-run) or a sign your own labels aren't consistent (refine the benchmark). Keep iterating until the evaluator meets the bar you've set.
 
 <Frame>
 ![](https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/build-your-first-eval-tutorial-2.png)
