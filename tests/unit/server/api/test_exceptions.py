@@ -25,64 +25,63 @@ class Query:
         raise BadRequest("you sent a bad request")
 
 
-def _build_schema() -> strawberry.Schema:
+@pytest.fixture
+def schema() -> strawberry.Schema:
     return strawberry.Schema(query=Query, extensions=[PhoenixErrorMasker])
 
 
 class TestPhoenixErrorMasker:
     def test_uncaught_resolver_exception_is_masked_when_enabled(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
-        result = _build_schema().execute_sync("{ boom }")
+        result = schema.execute_sync("{ boom }")
         assert isinstance(result, ExecutionResult)
         assert result.errors is not None
         assert len(result.errors) == 1
         assert result.errors[0].message == _GENERIC_MASK_MESSAGE
-        # the original exception detail must not leak to the client
         assert "super secret internal detail" not in result.errors[0].message
 
     def test_uncaught_resolver_exception_is_not_masked_when_disabled(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "false")
-        result = _build_schema().execute_sync("{ boom }")
+        result = schema.execute_sync("{ boom }")
         assert isinstance(result, ExecutionResult)
         assert result.errors is not None
         assert len(result.errors) == 1
         assert "super secret internal detail" in result.errors[0].message
 
     def test_custom_graphql_error_message_is_surfaced(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # masking is enabled, but a CustomGraphQLError should still surface its
-        # friendly message rather than the generic masked message
         monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
-        result = _build_schema().execute_sync("{ badRequest }")
+        result = schema.execute_sync("{ badRequest }")
         assert isinstance(result, ExecutionResult)
         assert result.errors is not None
         assert len(result.errors) == 1
         assert result.errors[0].message == "you sent a bad request"
 
-    def test_validation_error_is_not_masked(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # querying a field that does not exist is a validation error produced
-        # during the validate phase; it never reaches a resolver and must pass
-        # through to the client unmasked even when masking is enabled
+    def test_unknown_field_validation_error_passes_through_unmasked(
+        self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
-        result = _build_schema().execute_sync("{ doesNotExist }")
+        result = schema.execute_sync("{ doesNotExist }")
         assert isinstance(result, ExecutionResult)
         assert result.errors is not None
         assert len(result.errors) == 1
         message = result.errors[0].message
         assert message != _GENERIC_MASK_MESSAGE
-        assert "doesNotExist" in message
+        assert message == "Cannot query field 'doesNotExist' on type 'Query'."
 
-    def test_syntax_error_is_not_masked(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # a malformed query is a parse-phase error with no original_error and
-        # must not be masked
+    def test_malformed_query_syntax_error_passes_through_unmasked(
+        self, schema: strawberry.Schema, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv(ENV_PHOENIX_MASK_INTERNAL_SERVER_ERRORS, "true")
-        result = _build_schema().execute_sync("{ ok ")
+        result = schema.execute_sync("{ ok ")
         assert isinstance(result, ExecutionResult)
         assert result.errors is not None
         assert len(result.errors) == 1
-        assert result.errors[0].message != _GENERIC_MASK_MESSAGE
+        message = result.errors[0].message
+        assert message != _GENERIC_MASK_MESSAGE
+        assert message == "Syntax Error: Expected Name, found <EOF>."
