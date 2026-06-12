@@ -252,6 +252,6 @@ A public benchmark tells you how a model does on *someone else's* task, with *so
 * **Representative data** — a dataset built from your real inputs.
 * **A metric that measures what you care about** — and the discipline to notice when a convenient metric (string similarity) disagrees with the real one (field accuracy).
 * **Enough examples** to make the score stable.
-* **A fair, reproducible setup** — same dataset, same evaluators, same prompt; vary only the model.
+* **A fair, repeatable setup** — same dataset, same evaluators, same prompt; vary only the model. (At a fixed temperature the numbers are stable enough to compare; exact bit-for-bit reproducibility isn't the point — a difference in score tracing to the model is.)
 
 A Phoenix experiment gives you all four. Once you have it, comparing models — or prompts, or providers — is just swapping one argument and reading a number you can actually defend.
