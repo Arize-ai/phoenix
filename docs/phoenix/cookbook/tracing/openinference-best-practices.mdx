@@ -42,7 +42,7 @@ Create a new directory for your script and a Python virtual environment inside i
 Install all the dependencies you will use across the rest of the guide:
 
 ```bash
-pip install openai openai-agents arize-otel \
+pip install openai openai-agents arize-phoenix-otel \
     openinference-instrumentation-openai \
     openinference-instrumentation-openai-agents \
     opentelemetry-sdk opentelemetry-exporter-otlp
@@ -154,7 +154,7 @@ with using_session(session_id=session_id):
     ask_llm("How does it relate to OpenTelemetry?")
 ```
 
-Open [Phoenix](https://localhost:6006) and navigate to the `otel-best-practices` project to view your traces.
+Open [Phoenix](http://localhost:6006) and navigate to the `otel-best-practices` project to view your traces.
 
 ### Sessions, traces, and spans
 

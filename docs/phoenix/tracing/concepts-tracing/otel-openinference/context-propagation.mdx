@@ -100,8 +100,6 @@ The pattern:
 1. Inside the async function, `attach(ctx)` and store the returned token.
 1. In a `finally`, `detach(token)` to restore the previous context.
 
-For more patterns including `ThreadPoolExecutor`, see [Advanced Patterns: Manual Context Propagation](/docs/phoenix/tracing/how-to-tracing/setup-tracing#manual-context-propagation).
-
 # Across Microservices
 
 Crossing a service boundary is where propagators earn their keep. Service A injects the current context into outbound request headers; Service B extracts it on the inbound side and uses it as the parent for its own spans.

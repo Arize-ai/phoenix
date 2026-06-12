@@ -122,13 +122,15 @@ Context managers attach attributes to the OTel context. The `OITracer` reads tho
 Manual spans created with a raw OTel tracer do **not** automatically pick up these context attributes. If you mix manual spans with context managers, use the helper from `openinference.instrumentation`:
 
 ```python
+from contextlib import contextmanager
+
 from openinference.instrumentation import get_attributes_from_context
 
+@contextmanager
 def create_span_with_context(tracer, name, **kwargs):
     with tracer.start_as_current_span(name, **kwargs) as span:
-        context_attributes = dict(get_attributes_from_context())
-        span.set_attributes(context_attributes)
-        return span
+        span.set_attributes(dict(get_attributes_from_context()))
+        yield span
 
 # Usage
 with using_session(session_id="my-session-id"):
@@ -137,7 +139,7 @@ with using_session(session_id="my-session-id"):
         ...
 ```
 
-This pulls the current context attributes and applies them to the new span. For more on this pattern, see [Advanced Patterns: Inheriting Context Attributes in Manual Spans](/docs/phoenix/tracing/how-to-tracing/setup-tracing#inheriting-context-attributes-in-manual-spans).
+This pulls the current context attributes and applies them to the new span. The `@contextmanager` decorator (with `yield span` instead of `return span`) keeps the span open for the duration of the `with` block — returning the span directly would end it before the block runs.
 
 # When Context Managers Help (and When They Don't)
 
