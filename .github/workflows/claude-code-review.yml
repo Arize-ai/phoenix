@@ -10,15 +10,27 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
+# One review per PR: a new push (synchronize) cancels the in-flight review of
+# the now-stale commit, so only the latest state is reviewed.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+    # Same-repo PRs only: fork-origin pull_request runs get neither repository
+    # secrets (ANTHROPIC_API_KEY is empty) nor an OIDC token (id-token: write
+    # is inert for forks), so the action's auth validation would fail the run
+    # on every external contribution. Skip instead of failing red.
+    # Also skip drafts: synchronize fires on every push to a draft, and
+    # ready_for_review already triggers a review when the PR leaves draft.
+    if: |
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    # Bound the run so a hung review can't hold the runner indefinitely;
+    # a single-PR review finishes well under this.
+    timeout-minutes: 30
     permissions:
       # PR/issue read+write goes through the Claude App token minted by the
       # OIDC exchange below — the workflow GITHUB_TOKEN is only used for the
@@ -47,7 +59,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:

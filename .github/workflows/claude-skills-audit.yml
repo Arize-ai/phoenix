@@ -20,8 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
     env:
       AUDIT_WINDOW: ${{ inputs.window || '7 days ago' }}
 
@@ -65,17 +67,23 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Setting additional_permissions triggers the action to explicitly request
-          # contents/pull_requests/issues: write on the OIDC-minted app token, which
-          # the post-action "Commit and push" / "Open pull request" steps use via
-          # steps.claude.outputs.github_token.
-          additional_permissions: |
-            contents: write
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
+          show_full_output: 'true'
           prompt: |
             /phoenix-skills-audit
 
@@ -122,13 +130,18 @@ jobs:
       - name: Commit and push
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          # App token minted by the claude-code-action OIDC exchange — short-lived,
-          # auto-revoked at job end, and (unlike GITHUB_TOKEN) triggers downstream CI.
-          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           AUDIT_DATE: ${{ steps.branch.outputs.date }}
           AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
           git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
           git push origin "$AUDIT_BRANCH"
@@ -136,7 +149,7 @@ jobs:
       - name: Open pull request
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
           AUDIT_DATE: ${{ steps.branch.outputs.date }}
           AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
           SUMMARY_FILE: ${{ steps.summary.outputs.path }}
