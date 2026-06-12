@@ -88,11 +88,11 @@ jobs:
           # Note: logs are public.
           show_full_output: 'true'
 
-          # Lets Claude read CI results on PRs. NOTE: the OIDC app token already
-          # gets contents/pull_requests/issues: write — the action's token
-          # exchange merges those DEFAULT_PERMISSIONS in whenever
-          # additional_permissions is non-empty (see claude-code-action
-          # src/github/token.ts). So write access is NOT the thing to add here.
+          # Request actions:read on the Claude App token. The non-empty
+          # additional_permissions input also makes the action request its
+          # DEFAULT_PERMISSIONS (contents/pull_requests/issues: write), which tag
+          # mode needs for comments and branch pushes. The github_ci MCP server
+          # uses the workflow GITHUB_TOKEN instead, enabled by job permissions above.
           additional_permissions: |
             actions: read
 
