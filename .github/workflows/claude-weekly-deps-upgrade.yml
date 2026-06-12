@@ -126,6 +126,12 @@ jobs:
           run python-format       make format-python
           run python-lint         make lint-python
           run python-typecheck    make typecheck-python
+          # Same invocation as python-CI.yml's sqlite unit-test job (~5 min),
+          # with --python matching CI's setup-python (tox envs inherit tox's
+          # own interpreter). sqlite only: the postgres variant exercises the
+          # same code against a different backend, and integration tests need
+          # service containers this job doesn't run — PR CI still covers both.
+          run python-test         uvx --python 3.10 tox run -e unit_tests -- -ra --reruns 5 -n 16 --dist loadscope
           run app-fmt             bash -c "cd app && pnpm fmt:check"
           run app-typecheck       bash -c "cd app && pnpm typecheck"
           run app-lint            bash -c "cd app && pnpm lint"
@@ -263,6 +269,7 @@ jobs:
               - `.scratch/verify/python-format.log`
               - `.scratch/verify/python-lint.log`
               - `.scratch/verify/python-typecheck.log`
+              - `.scratch/verify/python-test.log`
               - `.scratch/verify/app-fmt.log`
               - `.scratch/verify/app-typecheck.log`
               - `.scratch/verify/app-lint.log`
