@@ -83,6 +83,12 @@ class PhoenixErrorMasker(SchemaExtension):
                 path=error.path,
                 original_error=None,
             )
+        # Only mask errors that bubbled up from an uncaught exception inside a
+        # resolver. Validation/syntax errors (missing fields, malformed queries)
+        # are produced during the parse/validate phase, have no original_error,
+        # and should pass through to the client unmasked.
+        if error.original_error is None:
+            return error
         if not get_env_mask_internal_server_errors():
             return error
         return GraphQLError(
