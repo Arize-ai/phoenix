@@ -200,6 +200,60 @@ const ZOOM_FACTOR = 2;
 const MIN_ZOOM_WINDOW_MS = MINUTE_IN_MS;
 
 /**
+ * Human-friendly durations that zooming snaps to. This prevents awkward
+ * values like 32m or 64m that arise from pure 2x multiplication.
+ */
+const EVEN_DURATIONS_MS = [
+  1, // 1m
+  2, // 2m
+  5, // 5m
+  10, // 10m
+  15, // 15m
+  30, // 30m
+  45, // 45m
+  60, // 1h
+  90, // 1.5h
+  120, // 2h
+  180, // 3h
+  240, // 4h
+  360, // 6h
+  480, // 8h
+  720, // 12h
+  1440, // 1d
+  2880, // 2d
+  4320, // 3d
+  5760, // 4d
+  7200, // 5d
+  10080, // 7d
+  14400, // 10d
+  21600, // 15d
+  43200, // 30d
+  64800, // 45d
+  86400, // 60d
+  129600, // 90d
+  259200, // 180d
+  525600, // 365d
+].map((m) => m * MINUTE_IN_MS);
+
+/**
+ * Snap a duration to the nearest value in EVEN_DURATIONS_MS. When
+ * equidistant between two values, prefers the larger one.
+ */
+function snapToEvenDuration(ms: number): number {
+  let closest = EVEN_DURATIONS_MS[0];
+  let minDiff = Math.abs(ms - closest);
+  for (const candidate of EVEN_DURATIONS_MS) {
+    const diff = Math.abs(ms - candidate);
+    // Use <= to prefer the larger value when equidistant.
+    if (diff <= minDiff) {
+      minDiff = diff;
+      closest = candidate;
+    }
+  }
+  return closest;
+}
+
+/**
  * Resolve a (possibly open-ended) time range into a concrete window. An open
  * end resolves to `now`. A range with no start (or an inverted window) has no
  * duration to pan or zoom by, so it resolves to null.
@@ -335,9 +389,10 @@ function zoomTimeRange(
   if (durationMs == null) {
     return null;
   }
-  const newDurationMs = Math.max(durationMs * factor, MIN_ZOOM_WINDOW_MS);
+  const rawDurationMs = Math.max(durationMs * factor, MIN_ZOOM_WINDOW_MS);
+  const newDurationMs = snapToEvenDuration(rawDurationMs);
   // Zooming in at (or below) the minimum window has nothing left to reveal.
-  if (factor < 1 ? newDurationMs >= durationMs : newDurationMs === durationMs) {
+  if (newDurationMs === snapToEvenDuration(durationMs)) {
     return null;
   }
   if (!value.end) {

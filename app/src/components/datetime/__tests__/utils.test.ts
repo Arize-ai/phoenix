@@ -233,11 +233,23 @@ describe("time range pan and zoom", () => {
     ).toBe("90m");
   });
 
-  it("snaps large zoomed windows to days instead of accumulating hours", () => {
+  it("snaps zoomed live windows to the nearest curated duration", () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
 
-    // Doubling out of "2048h" reads as days, not "4096h".
+    // Pure 2x zoom would land on 32m; curated snapping prefers 30m.
+    expect(
+      zoomTimeRangeOut(
+        {
+          timeRangeKey: "16m",
+          start: new Date(now.getTime() - 16 * 60 * 1000),
+          end: null,
+        },
+        now
+      )?.timeRangeKey
+    ).toBe("30m");
+    // Very large hour windows snap to curated day durations instead of
+    // accumulating odd rounded day counts.
     expect(
       zoomTimeRangeOut(
         {
@@ -247,18 +259,18 @@ describe("time range pan and zoom", () => {
         },
         now
       )?.timeRangeKey
-    ).toBe("171d");
-    // And once in days, zooming stays in days.
+    ).toBe("180d");
+    // Curated snapping also applies when zooming in.
     expect(
-      zoomTimeRangeOut(
+      zoomTimeRangeIn(
         {
-          timeRangeKey: "171d",
-          start: new Date(now.getTime() - 171 * 24 * 60 * 60 * 1000),
+          timeRangeKey: "16m",
+          start: new Date(now.getTime() - 16 * 60 * 1000),
           end: null,
         },
         now
       )?.timeRangeKey
-    ).toBe("342d");
+    ).toBe("10m");
   });
 
   it("stops zooming in at the one minute floor", () => {
