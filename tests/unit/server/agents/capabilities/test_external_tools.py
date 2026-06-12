@@ -130,19 +130,15 @@ def test_external_tool_schemas_avoid_provider_rejected_top_level_keywords() -> N
         assert "not" not in schema
 
 
-def test_patch_experiment_is_registered_as_external_tool() -> None:
+def test_patch_experiment_parameters_require_only_experiment_id() -> None:
+    """Pin the model-facing parameter contract: registered as an external tool,
+    ``experimentId`` required, the rest optional, and no top-level combinators."""
     tool_definition = get_external_tool_definition("patch_experiment")
-
     assert tool_definition is not None
     assert tool_definition.kind == "external"
     assert patch_experiment.NAME == "patch_experiment"
 
-
-def test_patch_experiment_parameters_require_only_experiment_id() -> None:
-    """Pin the model-facing parameter contract: experimentId required, the rest
-    optional, and no top-level combinators."""
     schema = patch_experiment.TOOL_DEFINITION.parameters_json_schema
-
     assert schema["type"] == "object"
     assert schema["required"] == ["experimentId"]
     assert set(schema["properties"]) == {
@@ -157,15 +153,22 @@ def test_patch_experiment_parameters_require_only_experiment_id() -> None:
     assert schema["additionalProperties"] is False
 
 
-def test_patch_experiment_instructions_teach_observations_append_convention() -> None:
-    """Pin the instruction structure, not its prose: the template must teach the
-    whole-metadata-replace foot-gun and the observations append, and must not use
-    'lab notebook' anywhere."""
+def test_patch_experiment_instructions_teach_metadata_conventions() -> None:
+    """Guard the load-bearing facts in the rendered patch_experiment instructions,
+    not their exact wording, so the prose can be reworded without breaking the test.
+
+    The template must keep teaching the metadata conventions the agent relies on to
+    edit an experiment safely; each assertion below pins one of those facts.
+    """
     rendered = AgentPrompts().patch_experiment_tool.render()
 
+    # Renders the patch_experiment tool block.
     assert '<tool name="patch_experiment">' in rendered
+    # Teaches recording findings under an appended ``observations`` array.
     assert "observations" in rendered
+    # Warns that metadata is replaced "as a whole" (no deep merge) — the key foot-gun.
     assert "as a whole" in rendered
+    # Stays off the earlier "lab notebook" metaphor we deliberately dropped.
     assert "lab notebook" not in rendered.lower()
 
 

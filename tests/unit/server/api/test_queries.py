@@ -2798,12 +2798,8 @@ async def test_available_agent_skills_base_catalog(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "debug-trace" in names
-    assert "annotate-spans" in names
-    assert "playground" not in names
-    assert "experiments" not in names
-    assert "evaluators" not in names
-    assert "llm-evaluator-authoring" not in names
+    # No context mounted: only the always-on skills, in catalog order, no gated ones.
+    assert names == ["debug-trace", "annotate-spans"]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
@@ -2819,7 +2815,8 @@ async def test_available_agent_skills_playground_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "playground" in names
+    # Playground context adds the playground skill on top of the always-on base.
+    assert names == ["debug-trace", "annotate-spans", "playground"]
 
 
 async def test_available_agent_skills_dataset_context(
@@ -2832,8 +2829,8 @@ async def test_available_agent_skills_dataset_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "experiments" in names
-    assert "evaluators" in names
+    # Dataset context unlocks the dataset-backed trio: datasets, experiments, evaluators.
+    assert names == ["debug-trace", "annotate-spans", "datasets", "experiments", "evaluators"]
 
 
 async def test_available_agent_skills_llm_evaluator_context(
@@ -2846,8 +2843,8 @@ async def test_available_agent_skills_llm_evaluator_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "evaluators" in names
-    assert "experiments" not in names
+    # An evaluator context (without a dataset) unlocks only the evaluators skill.
+    assert names == ["debug-trace", "annotate-spans", "evaluators"]
 
 
 async def test_available_agent_skills_code_evaluator_context(
@@ -2860,5 +2857,5 @@ async def test_available_agent_skills_code_evaluator_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "evaluators" in names
-    assert "experiments" not in names
+    # An evaluator context (without a dataset) unlocks only the evaluators skill.
+    assert names == ["debug-trace", "annotate-spans", "evaluators"]

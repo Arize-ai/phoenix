@@ -147,10 +147,23 @@ class PlaygroundEvaluatorContext(_ChatContextBase):
 
 
 class PlaygroundExperimentScaffoldContext(_ChatContextBase):
-    """Name/description/metadata staged for the next dataset-backed run's experiments.
+    """Experiment name/description/metadata the user has staged for the playground's
+    *next* dataset-backed run, before that run has started.
 
-    Each field is present only when the user has staged it; an absent field falls
-    back to the server default. The scaffold is consumed once the next run starts.
+    The playground UI lets the user pre-set how the next recorded run's experiment
+    will be named, described, and tagged (via the ``set_playground_experiment_recording``
+    tool or the recording form). That staged state is surfaced here so the agent can
+    see what is already set and avoid re-staging it.
+
+    Field semantics:
+    - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
+      or ``None`` when the user has not staged them.
+    - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
+      been staged is model-relevant (so the agent knows not to re-attach it); the
+      metadata object itself is deliberately kept out of the prompt.
+
+    A field left unstaged (``None`` / ``False``) falls back to the server default when
+    the run starts. The scaffold is consumed once that next run begins.
     """
 
     name: str | None = None
