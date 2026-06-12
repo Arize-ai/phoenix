@@ -129,6 +129,11 @@ jobs:
           AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
           git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
           git push origin "$AUDIT_BRANCH"

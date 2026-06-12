@@ -295,6 +295,11 @@ jobs:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Compose the PR body: fixed header (non-injectable) + Claude's
