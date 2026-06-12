@@ -13,8 +13,18 @@ concurrency:
 
 jobs:
   implement:
-    # Only run when good-agent-issue label is added
-    if: github.event.label.name == 'good-agent-issue'
+    # Only run when the good-agent-issue label is added by someone on the
+    # explicit allowlist of GitHub usernames — the same list (and rationale)
+    # as claude.yml: author_association misclassifies private org members,
+    # github.actor is always the user who triggered the event, and `contains`
+    # compares case-insensitively. Keep the two lists in sync.
+    if: |
+      github.event.label.name == 'good-agent-issue' &&
+      contains(fromJSON('[
+        "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
+        "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
+        "seldo", "yfrigui2"
+      ]'), github.actor)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -27,19 +37,12 @@ jobs:
       ISSUE_NUMBER: ${{ github.event.issue.number }}
 
     steps:
-      - name: Guard – check permissions and duplicates
+      - name: Guard – check duplicates
         id: guard
         env:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-          REPO: ${{ github.repository }}
-          SENDER: ${{ github.event.sender.login }}
         run: |
-          # Verify sender has write access
-          PERMISSION=$(gh api "repos/$REPO/collaborators/$SENDER/permission" -q '.permission')
-          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
-            echo "Sender $SENDER has '$PERMISSION' permission, skipping"
-            exit 0
-          fi
+          # The labeler is already vetted by the job-level username allowlist.
 
           # Skip if already assigned
           ASSIGNEES=$(gh issue view "$ISSUE_NUMBER" --json assignees -q '.assignees | length')
