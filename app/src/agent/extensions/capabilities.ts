@@ -70,7 +70,6 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Lets the assistant delegate work to subagents that run their own tool-using turns. Experimental and may consume large numbers of tokens.",
     defaultValue: false,
     scope: "global",
-    controlSurface: "experimental-settings",
   },
   {
     key: "web.access",
