@@ -928,13 +928,14 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
-    /* Accent variant of the highlight used for actively-edited fields: white
-       text on a strong brand blue. The blue ramp is inverted between themes
-       (blue-500 is a dark blue in dark mode but a pale tint in light mode), so
-       each theme picks the step that keeps white text legible rather than
-       pinning a single ramp value. */
-    --highlight-accent-foreground: var(--global-static-color-white-900);
-    --highlight-accent-background: ${theme === "dark"
+    /* The actively-edited field: white text on a strong brand blue, used to
+       mark the segment the user is currently editing (e.g. a focused date
+       segment). The blue ramp is inverted between themes (blue-500 is a dark
+       blue in dark mode but a pale tint in light mode), so each theme picks
+       the step that keeps white text legible rather than pinning a single
+       ramp value. */
+    --field-editing-foreground: var(--global-static-color-white-900);
+    --field-editing-background: ${theme === "dark"
       ? "var(--global-color-blue-500)"
       : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
