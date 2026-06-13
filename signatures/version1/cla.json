@@ -1623,6 +1623,14 @@
       "created_at": "2026-06-13T10:06:42Z",
       "repoId": 564072810,
       "pullRequestNo": 13731
+    },
+    {
+      "name": "kimnamu",
+      "id": 41357160,
+      "comment_id": 4700048994,
+      "created_at": "2026-06-13T23:01:07Z",
+      "repoId": 564072810,
+      "pullRequestNo": 13740
     }
   ]
 }
