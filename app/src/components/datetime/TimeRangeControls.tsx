@@ -104,6 +104,12 @@ const controlButtonCSS = css`
     font-size: var(--global-font-size-s);
   }
 
+  /* Solid play/pause glyphs give the center control a media-transport feel
+     and anchor it against the stroked pan/zoom icons around it. */
+  &.time-range-controls__live-toggle .icon-wrap svg :is(path, rect) {
+    fill: currentColor;
+  }
+
   &:hover:not([disabled]),
   &[data-hovered]:not([data-disabled]):not([data-selected="true"]) {
     background-color: var(--global-input-field-background-color-active);
@@ -224,6 +230,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
         <TooltipTrigger>
           <ToggleButton
             size={size}
+            className="time-range-controls__live-toggle"
             css={controlButtonCSS}
             aria-label={liveToggleLabel}
             isSelected={isLive}
