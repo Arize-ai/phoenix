@@ -224,10 +224,13 @@ type ZoomTimeRangeParams = {
  * end resolves to `now`. A range with no start (or an inverted window) has no
  * duration to pan or zoom by, so it resolves to null.
  */
-function getResolvedWindow(
-  value: OpenTimeRange,
-  now: Date
-): { startMs: number; endMs: number; durationMs: number } | null {
+function getResolvedWindow({
+  value,
+  now,
+}: {
+  value: OpenTimeRange;
+  now: Date;
+}): { startMs: number; endMs: number; durationMs: number } | null {
   if (!value.start) {
     return null;
   }
@@ -263,16 +266,16 @@ function getLastNTimeRangeKeyFromDurationMs(ms: number): LastNTimeRangeKey {
 }
 
 /**
- * Shift the window back in time by half its duration. Panning steps off the
- * live edge, so the result is always a closed custom range. Returns null when
- * the range has no resolvable window.
+ * Shift the window back in time by `shiftFraction` of its duration (half by
+ * default). Panning steps off the live edge, so the result is always a closed
+ * custom range. Returns null when the range has no resolvable window.
  */
 export function panTimeRangeLeft({
   value,
   now = new Date(),
   shiftFraction = DEFAULT_PAN_SHIFT_FRACTION,
 }: PanTimeRangeParams): OpenTimeRangeWithKey | null {
-  const window = getResolvedWindow(value, now);
+  const window = getResolvedWindow({ value, now });
   if (!window) {
     return null;
   }
@@ -285,9 +288,9 @@ export function panTimeRangeLeft({
 }
 
 /**
- * Shift the window forward in time by half its duration, clamped so it never
- * extends past `now`. Returns null when the range is already live
- * (open-ended) or there is no room left to shift.
+ * Shift the window forward in time by `shiftFraction` of its duration (half by
+ * default), clamped so it never extends past `now`. Returns null when the
+ * range is already live (open-ended) or there is no room left to shift.
  */
 export function panTimeRangeRight({
   value,
@@ -297,7 +300,7 @@ export function panTimeRangeRight({
   if (!value.end) {
     return null;
   }
-  const window = getResolvedWindow(value, now);
+  const window = getResolvedWindow({ value, now });
   if (!window) {
     return null;
   }
@@ -316,10 +319,10 @@ export function panTimeRangeRight({
 }
 
 /**
- * Halve the window duration, down to a one minute floor. Live (open-ended)
- * ranges stay live and zoom toward `now`, mapping to the equivalent last-N
- * key; closed ranges zoom around their center. Returns null when there is
- * nothing to zoom.
+ * Narrow the window by `zoomFactor` (halving it by default), down to a
+ * `minWindowMs` floor. Live (open-ended) ranges stay live and zoom toward
+ * `now`, mapping to the equivalent last-N key; closed ranges zoom around their
+ * center. Returns null when there is nothing to zoom.
  */
 export function zoomTimeRangeIn({
   value,
@@ -331,10 +334,10 @@ export function zoomTimeRangeIn({
 }
 
 /**
- * Double the window duration. Live (open-ended) ranges stay live and zoom
- * out from `now`, mapping to the equivalent last-N key; closed ranges zoom
- * around their center, sliding back any portion that would extend past `now`.
- * Returns null when there is nothing to zoom.
+ * Widen the window by `zoomFactor` (doubling it by default). Live (open-ended)
+ * ranges stay live and zoom out from `now`, mapping to the equivalent last-N
+ * key; closed ranges zoom around their center, sliding back any portion that
+ * would extend past `now`. Returns null when there is nothing to zoom.
  */
 export function zoomTimeRangeOut({
   value,
@@ -363,7 +366,7 @@ function zoomTimeRange({
     const parsedKey = parseLastNTimeRangeKey(value.timeRangeKey);
     const liveDurationMs = parsedKey
       ? getLastNTimeRangeDurationMs(parsedKey)
-      : getResolvedWindow(value, now)?.durationMs;
+      : getResolvedWindow({ value, now })?.durationMs;
     if (liveDurationMs == null) {
       return null;
     }
@@ -383,7 +386,7 @@ function zoomTimeRange({
   }
 
   // Closed (custom) ranges zoom around their center by the exact factor.
-  const window = getResolvedWindow(value, now);
+  const window = getResolvedWindow({ value, now });
   if (!window) {
     return null;
   }
