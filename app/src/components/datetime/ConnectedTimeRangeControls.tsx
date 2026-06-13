@@ -12,10 +12,6 @@ export function ConnectedTimeRangeControls(
 ) {
   const { timeRange, setTimeRange } = useTimeRange();
   return (
-    <TimeRangeControls
-      {...props}
-      value={timeRange}
-      onChange={setTimeRange}
-    />
+    <TimeRangeControls {...props} value={timeRange} onChange={setTimeRange} />
   );
 }

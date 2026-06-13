@@ -10,10 +10,6 @@ export function ConnectedTimeRangeSelector({
 }) {
   const { timeRange, setTimeRange } = useTimeRange();
   return (
-    <TimeRangeSelector
-      value={timeRange}
-      onChange={setTimeRange}
-      size={size}
-    />
+    <TimeRangeSelector value={timeRange} onChange={setTimeRange} size={size} />
   );
 }
