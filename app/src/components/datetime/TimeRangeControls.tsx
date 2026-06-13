@@ -22,7 +22,7 @@ export type TimeRangeControlsProps = {
   /** Whether the view is live (streaming in new data). */
   isLive?: boolean;
   /**
-   * Called when the user presses the play/pause toggle. When omitted, the
+   * Called when the user presses the live play/stop toggle. When omitted, the
    * toggle is not rendered and the strip is a pure pan/zoom control.
    */
   onIsLiveChange?: (isLive: boolean) => void;
@@ -110,13 +110,7 @@ const controlButtonCSS = css`
     color: var(--global-text-color-900);
   }
 
-  /* Solid play/pause glyphs give the center control a media-transport feel
-     and anchor it against the stroked icons around it. */
-  &.time-range-controls__live-toggle .icon-wrap svg :is(polygon, rect) {
-    fill: currentColor;
-  }
-
-  /* Streaming live uses a gently pulsing neutral tint so the pause icon
+  /* Streaming live uses a gently pulsing neutral tint so the center control
      doesn't compete with status colors elsewhere. The tint lives on an
      overlay so the pulse composes from the static token instead of
      animating between raw colors. */
@@ -177,8 +171,8 @@ function ControlButton(props: {
  * anchored to now), and the chevrons pan the window back or forward by half
  * its width. Panning forward is capped at the present and unavailable while
  * the range is open-ended (already at the live edge). When live-streaming
- * props are provided a play/pause toggle sits in the center, carrying a
- * gently pulsing success tint while live.
+ * props are provided a play/stop toggle sits in the center, carrying a gently
+ * pulsing active tint while live.
  */
 export function TimeRangeControls(props: TimeRangeControlsProps) {
   const {
@@ -192,7 +186,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
   // Without a start there is no window to pan or zoom by.
   const hasWindow = value.start != null;
   const liveToggleLabel = isLive
-    ? "Pause live streaming"
+    ? "Stop live streaming"
     : "Resume live streaming";
   // An open-ended range is already at the live edge.
   const isAtLiveEdge = value.end == null;
@@ -214,7 +208,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
     >
       <ControlButton
         label="Pan back in time"
-        icon={<Icons.ChevronLeftOutline />}
+        icon={<Icons.ChevronLeft />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
         onPress={() => applyChange(panTimeRangeLeft(value))}
@@ -230,14 +224,15 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
         <TooltipTrigger>
           <ToggleButton
             size={size}
-            className="time-range-controls__live-toggle"
             css={controlButtonCSS}
             aria-label={liveToggleLabel}
             isSelected={isLive}
             isDisabled={isDisabled}
             leadingVisual={
               <Icon
-                svg={isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />}
+                svg={
+                  isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />
+                }
               />
             }
             onChange={onIsLiveChange}
@@ -254,7 +249,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
       />
       <ControlButton
         label="Pan forward in time"
-        icon={<Icons.ChevronRightOutline />}
+        icon={<Icons.ChevronRight />}
         size={size}
         isDisabled={isDisabled || !hasWindow || isAtLiveEdge}
         onPress={() => applyChange(panTimeRangeRight(value))}

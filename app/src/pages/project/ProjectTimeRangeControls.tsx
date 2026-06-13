@@ -1,10 +1,10 @@
-import { startTransition, useCallback, useEffect, useRef } from "react";
+import { startTransition, useEffect, useRef } from "react";
 import { graphql, useRefetchableFragment } from "react-relay";
-import { useLocation } from "react-router";
 
 import { ConnectedTimeRangeControls } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useInterval } from "@phoenix/hooks/useInterval";
+import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 
 import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectTimeRangeControls_data.graphql";
 
@@ -14,15 +14,15 @@ import type { ProjectTimeRangeControls_data$key } from "./__generated__/ProjectT
 const REFRESH_INTERVAL_MS = 2000;
 
 /**
- * Routes where streaming is enabled
+ * Project tabs where live streaming is available.
  */
-const STREAMING_ENABLED_ROUTE_TAILS = ["spans", "traces", "sessions"];
+const STREAMING_ENABLED_TABS = ["spans", "traces", "sessions"];
 
 /**
  * The project page's time range control strip: pan/zoom buttons around a
- * play/pause toggle for live streaming, rendered beside the time range
- * selector. While streaming is playing, polls the project's last-updated
- * timestamp and bumps the shared fetch key when new data lands.
+ * live streaming toggle, rendered beside the time range selector. While
+ * streaming is playing on a streamable tab, polls the project's
+ * last-updated timestamp and bumps the shared fetch key when new data lands.
  */
 export function ProjectTimeRangeControls(props: {
   project: ProjectTimeRangeControls_data$key;
@@ -32,12 +32,9 @@ export function ProjectTimeRangeControls(props: {
     setIsStreaming,
     setFetchKey,
   } = useStreamState();
-  const location = useLocation();
-  const currentPathTail = location.pathname.split("/").pop() || "";
-  // Take into account both the current path and the streaming state for whether streaming is enabled
-  // E.g. we don't want to stream when there is a sub-route active
-  const isStreamingEnabled =
-    STREAMING_ENABLED_ROUTE_TAILS.includes(currentPathTail) && isStreamingState;
+  const { tab } = useProjectRootPath();
+  const isStreamingTab = STREAMING_ENABLED_TABS.includes(tab);
+  const isLiveStreaming = isStreamingTab && isStreamingState;
 
   const [lastUpdatedAt, refetchLastUpdatedAt] = useRefetchableFragment(
     graphql`
@@ -53,14 +50,14 @@ export function ProjectTimeRangeControls(props: {
     lastUpdatedAt.streamingLastUpdatedAt
   );
 
-  // Refetch lastUpdatedAt if streaming is playing to detect when the underlying data changes
-  const refetchCountsIfStreaming = useCallback(() => {
-    if (isStreamingEnabled) {
+  useInterval(
+    () => {
       startTransition(() => {
         refetchLastUpdatedAt({}, { fetchPolicy: "store-and-network" });
       });
-    }
-  }, [isStreamingEnabled, refetchLastUpdatedAt]);
+    },
+    isLiveStreaming ? REFRESH_INTERVAL_MS : null
+  );
 
   // We want to refetch higher up the render tree when lastUpdatedAt changes
   const currentLastUpdatedAt = lastUpdatedAt.streamingLastUpdatedAt;
@@ -76,12 +73,10 @@ export function ProjectTimeRangeControls(props: {
     }
   }, [setFetchKey, currentLastUpdatedAt]);
 
-  useInterval(refetchCountsIfStreaming, REFRESH_INTERVAL_MS);
-
   return (
     <ConnectedTimeRangeControls
-      isLive={isStreamingState}
-      onIsLiveChange={setIsStreaming}
+      isLive={isLiveStreaming}
+      onIsLiveChange={isStreamingTab ? setIsStreaming : undefined}
     />
   );
 }

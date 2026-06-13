@@ -10,12 +10,12 @@ import { TimeRangeControls } from "./TimeRangeControls";
 export function ConnectedTimeRangeControls(
   props: Omit<TimeRangeControlsProps, "value" | "onChange">
 ) {
-  const { timeRange, setTimeRangeInTransition } = useTimeRange();
+  const { timeRange, setTimeRange } = useTimeRange();
   return (
     <TimeRangeControls
       {...props}
       value={timeRange}
-      onChange={setTimeRangeInTransition}
+      onChange={setTimeRange}
     />
   );
 }

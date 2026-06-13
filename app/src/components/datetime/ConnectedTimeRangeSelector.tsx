@@ -8,11 +8,11 @@ export function ConnectedTimeRangeSelector({
 }: {
   size?: ComponentSize;
 }) {
-  const { timeRange, setTimeRangeInTransition } = useTimeRange();
+  const { timeRange, setTimeRange } = useTimeRange();
   return (
     <TimeRangeSelector
       value={timeRange}
-      onChange={setTimeRangeInTransition}
+      onChange={setTimeRange}
       size={size}
     />
   );

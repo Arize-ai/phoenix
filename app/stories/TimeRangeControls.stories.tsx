@@ -52,7 +52,7 @@ const Template: StoryFn<
 };
 
 /**
- * The composite strip on its own: pan back, zoom out, play/pause, zoom in,
+ * The composite strip on its own: pan back, zoom out, play/stop, zoom in,
  * pan forward. The range starts live (open-ended), so panning forward is
  * unavailable until a pan or zoom steps off the live edge.
  */
@@ -97,7 +97,7 @@ export const BesideTimeRangeSelector = {
 };
 
 /**
- * Without live-streaming props the play/pause toggle is omitted and the strip
+ * Without live-streaming props the play/stop toggle is omitted and the strip
  * is a pure pan/zoom control (e.g. the dashboards page).
  */
 export const PanZoomOnly = {
