@@ -233,23 +233,11 @@ describe("time range pan and zoom", () => {
     ).toBe("90m");
   });
 
-  it("snaps zoomed live windows to the nearest curated duration", () => {
+  it("rounds large zoomed live windows to days instead of accumulating hours", () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
 
-    // Pure 2x zoom would land on 32m; curated snapping prefers 30m.
-    expect(
-      zoomTimeRangeOut(
-        {
-          timeRangeKey: "16m",
-          start: new Date(now.getTime() - 16 * 60 * 1000),
-          end: null,
-        },
-        now
-      )?.timeRangeKey
-    ).toBe("30m");
-    // Very large hour windows snap to curated day durations instead of
-    // accumulating odd rounded day counts.
+    // Doubling out of "2048h" reads as days, not "4096h".
     expect(
       zoomTimeRangeOut(
         {
@@ -259,18 +247,34 @@ describe("time range pan and zoom", () => {
         },
         now
       )?.timeRangeKey
-    ).toBe("180d");
-    // Curated snapping also applies when zooming in.
+    ).toBe("171d");
+    // And once in days, zooming stays in days.
     expect(
-      zoomTimeRangeIn(
+      zoomTimeRangeOut(
         {
-          timeRangeKey: "16m",
-          start: new Date(now.getTime() - 16 * 60 * 1000),
+          timeRangeKey: "171d",
+          start: new Date(now.getTime() - 171 * 24 * 60 * 60 * 1000),
           end: null,
         },
         now
       )?.timeRangeKey
-    ).toBe("10m");
+    ).toBe("342d");
+  });
+
+  it("zooms a closed range by the exact factor, preserving its span", () => {
+    // A 50-minute custom window doubles to exactly 100 minutes around its
+    // center; custom windows show concrete datetimes, so the span is exact.
+    const fiftyMinutes = {
+      timeRangeKey: "custom" as const,
+      start: new Date("2026-06-09T10:00:00.000Z"),
+      end: new Date("2026-06-09T10:50:00.000Z"),
+    };
+    expect(zoomTimeRangeOut(fiftyMinutes, now)).toEqual({
+      timeRangeKey: "custom",
+      // Center 10:25 ± 50m → 09:35–11:15, fully before now (12:00).
+      start: new Date("2026-06-09T09:35:00.000Z"),
+      end: new Date("2026-06-09T11:15:00.000Z"),
+    });
   });
 
   it("stops zooming in at the one minute floor", () => {

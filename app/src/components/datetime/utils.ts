@@ -200,60 +200,6 @@ const ZOOM_FACTOR = 2;
 const MIN_ZOOM_WINDOW_MS = MINUTE_IN_MS;
 
 /**
- * Human-friendly durations that zooming snaps to. This prevents awkward
- * values like 32m or 64m that arise from pure 2x multiplication.
- */
-const EVEN_DURATIONS_MS = [
-  1, // 1m
-  2, // 2m
-  5, // 5m
-  10, // 10m
-  15, // 15m
-  30, // 30m
-  45, // 45m
-  60, // 1h
-  90, // 1.5h
-  120, // 2h
-  180, // 3h
-  240, // 4h
-  360, // 6h
-  480, // 8h
-  720, // 12h
-  1440, // 1d
-  2880, // 2d
-  4320, // 3d
-  5760, // 4d
-  7200, // 5d
-  10080, // 7d
-  14400, // 10d
-  21600, // 15d
-  43200, // 30d
-  64800, // 45d
-  86400, // 60d
-  129600, // 90d
-  259200, // 180d
-  525600, // 365d
-].map((m) => m * MINUTE_IN_MS);
-
-/**
- * Snap a duration to the nearest value in EVEN_DURATIONS_MS. When
- * equidistant between two values, prefers the larger one.
- */
-function snapToEvenDuration(ms: number): number {
-  let closest = EVEN_DURATIONS_MS[0];
-  let minDiff = Math.abs(ms - closest);
-  for (const candidate of EVEN_DURATIONS_MS) {
-    const diff = Math.abs(ms - candidate);
-    // Use <= to prefer the larger value when equidistant.
-    if (diff <= minDiff) {
-      minDiff = diff;
-      closest = candidate;
-    }
-  }
-  return closest;
-}
-
-/**
  * Resolve a (possibly open-ended) time range into a concrete window. An open
  * end resolves to `now`. A range with no start (or an inverted window) has no
  * duration to pan or zoom by, so it resolves to null.
@@ -378,25 +324,22 @@ function zoomTimeRange(
   now: Date,
   factor: number
 ): OpenTimeRangeWithKey | null {
-  // For last-N presets the key is the duration's source of truth — the
-  // resolved start is snapped to the minute/hour, so deriving the duration
-  // from it would drift.
-  const parsedKey = parseLastNTimeRangeKey(value.timeRangeKey);
-  const window = getResolvedWindow(value, now);
-  const durationMs = parsedKey
-    ? getLastNTimeRangeDurationMs(parsedKey)
-    : window?.durationMs;
-  if (durationMs == null) {
-    return null;
-  }
-  const rawDurationMs = Math.max(durationMs * factor, MIN_ZOOM_WINDOW_MS);
-  const newDurationMs = snapToEvenDuration(rawDurationMs);
-  // Zooming in at (or below) the minimum window has nothing left to reveal.
-  if (newDurationMs === snapToEvenDuration(durationMs)) {
-    return null;
-  }
   if (!value.end) {
-    // Live ranges stay live: re-anchor the new duration to now.
+    // Live (open-ended) ranges stay live and re-anchor to now. The duration
+    // comes from the last-N key — its resolved start is snapped to the
+    // minute/hour, so deriving the duration from the window would drift.
+    const parsedKey = parseLastNTimeRangeKey(value.timeRangeKey);
+    const liveDurationMs = parsedKey
+      ? getLastNTimeRangeDurationMs(parsedKey)
+      : getResolvedWindow(value, now)?.durationMs;
+    if (liveDurationMs == null) {
+      return null;
+    }
+    const newDurationMs = Math.max(liveDurationMs * factor, MIN_ZOOM_WINDOW_MS);
+    // Zooming in at (or below) the minimum window has nothing left to reveal.
+    if (factor < 1 && newDurationMs >= liveDurationMs) {
+      return null;
+    }
     const timeRangeKey = getLastNTimeRangeKeyFromDurationMs(newDurationMs);
     if (timeRangeKey === value.timeRangeKey) {
       return null;
@@ -406,7 +349,22 @@ function zoomTimeRange(
       ...getTimeRangeFromLastNTimeRangeKey(timeRangeKey),
     };
   }
+
+  // Closed (custom) ranges zoom around their center by the exact factor.
+  const window = getResolvedWindow(value, now);
   if (!window) {
+    return null;
+  }
+  const newDurationMs = Math.max(
+    window.durationMs * factor,
+    MIN_ZOOM_WINDOW_MS
+  );
+  // Zooming in at (or below) the minimum window has nothing left to reveal.
+  if (
+    factor < 1
+      ? newDurationMs >= window.durationMs
+      : newDurationMs === window.durationMs
+  ) {
     return null;
   }
   const centerMs = (window.startMs + window.endMs) / 2;
