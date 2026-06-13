@@ -194,10 +194,30 @@ export function getTimeRangeSearchSuggestions(
   return [`${quantity}m`, `${quantity}h`, `${quantity}d`];
 }
 
-const PAN_SHIFT_FRACTION = 0.5;
-const ZOOM_FACTOR = 2;
-/** The smallest window zooming in will produce. */
-const MIN_ZOOM_WINDOW_MS = MINUTE_IN_MS;
+/** Default fraction of the window a pan step shifts by. */
+const DEFAULT_PAN_SHIFT_FRACTION = 0.5;
+/** Default multiplier applied to the window duration when zooming. */
+const DEFAULT_ZOOM_FACTOR = 2;
+/** Default smallest window zooming in will produce. */
+const DEFAULT_MIN_ZOOM_WINDOW_MS = MINUTE_IN_MS;
+
+type PanTimeRangeParams = {
+  value: OpenTimeRangeWithKey;
+  /** Reference "now" for resolving open-ended ranges. Defaults to the current time. */
+  now?: Date;
+  /** Fraction of the window to shift by. */
+  shiftFraction?: number;
+};
+
+type ZoomTimeRangeParams = {
+  value: OpenTimeRangeWithKey;
+  /** Reference "now" for resolving open-ended ranges. Defaults to the current time. */
+  now?: Date;
+  /** Multiplier applied to the window duration. */
+  zoomFactor?: number;
+  /** Smallest window zooming in will produce. */
+  minWindowMs?: number;
+};
 
 /**
  * Resolve a (possibly open-ended) time range into a concrete window. An open
@@ -247,15 +267,16 @@ function getLastNTimeRangeKeyFromDurationMs(ms: number): LastNTimeRangeKey {
  * live edge, so the result is always a closed custom range. Returns null when
  * the range has no resolvable window.
  */
-export function panTimeRangeLeft(
-  value: OpenTimeRangeWithKey,
-  now: Date = new Date()
-): OpenTimeRangeWithKey | null {
+export function panTimeRangeLeft({
+  value,
+  now = new Date(),
+  shiftFraction = DEFAULT_PAN_SHIFT_FRACTION,
+}: PanTimeRangeParams): OpenTimeRangeWithKey | null {
   const window = getResolvedWindow(value, now);
   if (!window) {
     return null;
   }
-  const shiftMs = window.durationMs * PAN_SHIFT_FRACTION;
+  const shiftMs = window.durationMs * shiftFraction;
   return {
     timeRangeKey: "custom",
     start: new Date(window.startMs - shiftMs),
@@ -268,10 +289,11 @@ export function panTimeRangeLeft(
  * extends past `now`. Returns null when the range is already live
  * (open-ended) or there is no room left to shift.
  */
-export function panTimeRangeRight(
-  value: OpenTimeRangeWithKey,
-  now: Date = new Date()
-): OpenTimeRangeWithKey | null {
+export function panTimeRangeRight({
+  value,
+  now = new Date(),
+  shiftFraction = DEFAULT_PAN_SHIFT_FRACTION,
+}: PanTimeRangeParams): OpenTimeRangeWithKey | null {
   if (!value.end) {
     return null;
   }
@@ -280,7 +302,7 @@ export function panTimeRangeRight(
     return null;
   }
   const shiftMs = Math.min(
-    window.durationMs * PAN_SHIFT_FRACTION,
+    window.durationMs * shiftFraction,
     now.getTime() - window.endMs
   );
   if (shiftMs <= 0) {
@@ -299,11 +321,13 @@ export function panTimeRangeRight(
  * key; closed ranges zoom around their center. Returns null when there is
  * nothing to zoom.
  */
-export function zoomTimeRangeIn(
-  value: OpenTimeRangeWithKey,
-  now: Date = new Date()
-): OpenTimeRangeWithKey | null {
-  return zoomTimeRange(value, now, 1 / ZOOM_FACTOR);
+export function zoomTimeRangeIn({
+  value,
+  now = new Date(),
+  zoomFactor = DEFAULT_ZOOM_FACTOR,
+  minWindowMs = DEFAULT_MIN_ZOOM_WINDOW_MS,
+}: ZoomTimeRangeParams): OpenTimeRangeWithKey | null {
+  return zoomTimeRange({ value, now, factor: 1 / zoomFactor, minWindowMs });
 }
 
 /**
@@ -312,18 +336,26 @@ export function zoomTimeRangeIn(
  * around their center, sliding back any portion that would extend past `now`.
  * Returns null when there is nothing to zoom.
  */
-export function zoomTimeRangeOut(
-  value: OpenTimeRangeWithKey,
-  now: Date = new Date()
-): OpenTimeRangeWithKey | null {
-  return zoomTimeRange(value, now, ZOOM_FACTOR);
+export function zoomTimeRangeOut({
+  value,
+  now = new Date(),
+  zoomFactor = DEFAULT_ZOOM_FACTOR,
+  minWindowMs = DEFAULT_MIN_ZOOM_WINDOW_MS,
+}: ZoomTimeRangeParams): OpenTimeRangeWithKey | null {
+  return zoomTimeRange({ value, now, factor: zoomFactor, minWindowMs });
 }
 
-function zoomTimeRange(
-  value: OpenTimeRangeWithKey,
-  now: Date,
-  factor: number
-): OpenTimeRangeWithKey | null {
+function zoomTimeRange({
+  value,
+  now,
+  factor,
+  minWindowMs,
+}: {
+  value: OpenTimeRangeWithKey;
+  now: Date;
+  factor: number;
+  minWindowMs: number;
+}): OpenTimeRangeWithKey | null {
   if (!value.end) {
     // Live (open-ended) ranges stay live and re-anchor to now. The duration
     // comes from the last-N key — its resolved start is snapped to the
@@ -335,7 +367,7 @@ function zoomTimeRange(
     if (liveDurationMs == null) {
       return null;
     }
-    const newDurationMs = Math.max(liveDurationMs * factor, MIN_ZOOM_WINDOW_MS);
+    const newDurationMs = Math.max(liveDurationMs * factor, minWindowMs);
     // Zooming in at (or below) the minimum window has nothing left to reveal.
     if (factor < 1 && newDurationMs >= liveDurationMs) {
       return null;
@@ -355,10 +387,7 @@ function zoomTimeRange(
   if (!window) {
     return null;
   }
-  const newDurationMs = Math.max(
-    window.durationMs * factor,
-    MIN_ZOOM_WINDOW_MS
-  );
+  const newDurationMs = Math.max(window.durationMs * factor, minWindowMs);
   // Zooming in at (or below) the minimum window has nothing left to reveal.
   if (
     factor < 1

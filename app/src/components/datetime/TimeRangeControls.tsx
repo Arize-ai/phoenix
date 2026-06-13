@@ -211,14 +211,14 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
         icon={<Icons.ChevronLeft />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
-        onPress={() => applyChange(panTimeRangeLeft(value))}
+        onPress={() => applyChange(panTimeRangeLeft({ value }))}
       />
       <ControlButton
         label="Zoom out"
         icon={<Icons.MinusOutline />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
-        onPress={() => applyChange(zoomTimeRangeOut(value))}
+        onPress={() => applyChange(zoomTimeRangeOut({ value }))}
       />
       {onIsLiveChange && (
         <TooltipTrigger>
@@ -230,9 +230,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
             isDisabled={isDisabled}
             leadingVisual={
               <Icon
-                svg={
-                  isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />
-                }
+                svg={isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />}
               />
             }
             onChange={onIsLiveChange}
@@ -245,14 +243,14 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
         icon={<Icons.PlusOutline />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
-        onPress={() => applyChange(zoomTimeRangeIn(value))}
+        onPress={() => applyChange(zoomTimeRangeIn({ value }))}
       />
       <ControlButton
         label="Pan forward in time"
         icon={<Icons.ChevronRight />}
         size={size}
         isDisabled={isDisabled || !hasWindow || isAtLiveEdge}
-        onPress={() => applyChange(panTimeRangeRight(value))}
+        onPress={() => applyChange(panTimeRangeRight({ value }))}
       />
     </div>
   );
