@@ -16,6 +16,7 @@ type AvailableAgentSkillsInput = {
   hasPlaygroundContext: boolean;
   hasDatasetContext: boolean;
   hasLlmEvaluatorContext: boolean;
+  hasCodeEvaluatorContext: boolean;
 };
 
 function buildAvailableAgentSkillsInput(
@@ -28,6 +29,9 @@ function buildAvailableAgentSkillsInput(
     hasDatasetContext: contexts.some((context) => context.type === "dataset"),
     hasLlmEvaluatorContext: contexts.some(
       (context) => context.type === "llm_evaluator"
+    ),
+    hasCodeEvaluatorContext: contexts.some(
+      (context) => context.type === "code_evaluator"
     ),
   };
 }

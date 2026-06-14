@@ -20,3 +20,7 @@ class AvailableAgentSkillsInput:
         default=False,
         description="Whether an LLM evaluator is mounted in the current UI context.",
     )
+    has_code_evaluator_context: bool = strawberry.field(
+        default=False,
+        description="Whether a code evaluator is mounted in the current UI context.",
+    )

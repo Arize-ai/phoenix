@@ -14,6 +14,7 @@ import {
   AgentExperimentalSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
+  AgentSubagentsSettings,
   AgentWebAccessSettings,
   SystemSettingsWarning,
 } from "@phoenix/components/agent";
@@ -133,6 +134,7 @@ function PersonalSettingsSection() {
       <AssistantAgentEnabledSetting />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
+        <AgentSubagentsSettings />
         <AgentObservabilitySettings />
       </AgentSettingsForm>
     </Flex>

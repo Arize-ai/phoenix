@@ -5,6 +5,7 @@
     - The user wants to scope a playground run to a single split of a dataset.
   </when_to_use>
   <preflight>
+    - Loading a dataset begins experiment work: if the `experiments` skill is not already loaded, `load_skill` it for the iteration methodology before designing the run.
     - If you are unsure the dataset or split exists, or which exact name to pass, discover it first with `bash` and `phoenix-gql` rather than guessing. Pass `datasetName` (and `splitName`) exactly as Phoenix reports them; the browser resolves names to IDs.
     - When the user names a dataset directly and you are confident it exists, you may pass that name without a discovery query.
   </preflight>

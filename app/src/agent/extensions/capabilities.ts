@@ -10,6 +10,7 @@ export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"
   | "graphql.mutations"
   | "session.storeSessions"
+  | "subagents.enabled"
   | "web.access";
 
 /** Describes one capability and how it should appear across the app. */
@@ -29,6 +30,7 @@ const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
   "session.storeSessions": false,
+  "subagents.enabled": false,
   "web.access": false,
 };
 
@@ -60,6 +62,14 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",
+  },
+  {
+    key: "subagents.enabled",
+    label: "Subagents",
+    description:
+      "Lets the assistant delegate work to subagents that run their own tool-using turns. Experimental and may consume large numbers of tokens.",
+    defaultValue: false,
+    scope: "global",
   },
   {
     key: "web.access",

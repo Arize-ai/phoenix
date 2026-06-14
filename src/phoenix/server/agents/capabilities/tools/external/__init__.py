@@ -42,6 +42,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     patch_dataset,
     patch_dataset_examples,
     patch_dataset_split,
+    patch_experiment,
     read_code_evaluator_draft,
     read_dataset_evaluator_definition,
     read_llm_evaluator_draft,
@@ -164,6 +165,9 @@ from phoenix.server.agents.capabilities.tools.external.patch_dataset_examples im
 from phoenix.server.agents.capabilities.tools.external.patch_dataset_split import (
     PatchDatasetSplitCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
+    PatchExperimentCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
 )
@@ -280,6 +284,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         open_code_evaluator_form.TOOL_DEFINITION,
         open_dataset_evaluator_for_edit.TOOL_DEFINITION,
         open_llm_evaluator_form.TOOL_DEFINITION,
+        patch_experiment.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
         read_dataset_evaluator_definition.TOOL_DEFINITION,
         read_llm_evaluator_draft.TOOL_DEFINITION,
@@ -384,6 +389,7 @@ def get_external_tool_capability_function(
         ReadDatasetEvaluatorDefinitionCapability(
             instructions=prompts.read_dataset_evaluator_definition_tool
         ),
+        PatchExperimentCapability(instructions=prompts.patch_experiment_tool),
         OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         OpenLlmEvaluatorFormCapability(instructions=prompts.open_llm_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
@@ -439,6 +445,7 @@ __all__ = [
     "OpenCodeEvaluatorFormCapability",
     "OpenDatasetEvaluatorForEditCapability",
     "OpenLlmEvaluatorFormCapability",
+    "PatchExperimentCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadDatasetEvaluatorDefinitionCapability",
     "ReadLlmEvaluatorDraftCapability",

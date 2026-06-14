@@ -1158,6 +1158,7 @@ export function PlaygroundDatasetExamplesTable({
       const subscription = requestSubscription(environment, config);
       subscriptions.push(subscription);
     }
+    playgroundStore.getState().consumeNextExperimentScaffold();
     return () => {
       resetPendingExperimentMetrics();
       for (const subscription of subscriptions) {

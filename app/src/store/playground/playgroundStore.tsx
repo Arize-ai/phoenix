@@ -19,6 +19,7 @@ import {
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import {
   type ChatMessage,
+  type ExperimentScaffold,
   type GenAIOperationType,
   type InitialPlaygroundState,
   type PlaygroundChatTemplate,
@@ -259,6 +260,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     streaming: true,
     repetitions: 1,
     recordExperiments: true,
+    nextExperimentScaffold: null,
     operationType: "chat",
     inputMode: "manual",
     dirtyInstances: {},
@@ -929,6 +931,22 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setRecordExperiments: (recordExperiments: boolean) => {
       set({ recordExperiments }, false, { type: "setRecordExperiments" });
+    },
+    setNextExperimentScaffold: (
+      nextExperimentScaffold: ExperimentScaffold | null
+    ) => {
+      set({ nextExperimentScaffold }, false, {
+        type: "setNextExperimentScaffold",
+      });
+    },
+    consumeNextExperimentScaffold: () => {
+      const { nextExperimentScaffold } = get();
+      if (nextExperimentScaffold != null) {
+        set({ nextExperimentScaffold: null }, false, {
+          type: "consumeNextExperimentScaffold",
+        });
+      }
+      return nextExperimentScaffold;
     },
     setMaxConcurrency: ({
       maxConcurrency,

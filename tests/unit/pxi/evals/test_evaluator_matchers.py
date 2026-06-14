@@ -231,6 +231,102 @@ class TestEqualsMatcher:
         assert evaluate_tool_call_args(output, expected)["score"] == 1.0
 
 
+class TestHasKeysMatcher:
+    def test_passes_when_all_keys_present(self) -> None:
+        output = _output_with_tool_call(
+            "patch_experiment",
+            {"experimentId": "RXhwOjE=", "metadata": {"observations": [{"note": "hi"}]}},
+        )
+        expected = {
+            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["observations"]}}}
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    def test_extra_keys_are_ignored(self) -> None:
+        # The preservation case: scaffold keys must survive a whole-metadata
+        # replace, and the agent may carry additional keys beyond those asserted.
+        output = _output_with_tool_call(
+            "patch_experiment",
+            {
+                "experimentId": "RXhwOjE=",
+                "metadata": {
+                    "hypothesis": "tighter system prompt cuts hedging",
+                    "changed_variable": "system_prompt",
+                    "baseline_experiment_id": "RXhwOjA=",
+                    "observations": [
+                        {"at": "2026-06-11T00:00:00Z", "note": "still hedges on edge cases"}
+                    ],
+                    "owner": "dngo",
+                },
+            },
+        )
+        expected = {
+            "tool_call_args": {
+                "patch_experiment": {
+                    "metadata": {
+                        "has_keys": [
+                            "observations",
+                            "hypothesis",
+                            "changed_variable",
+                            "baseline_experiment_id",
+                        ]
+                    }
+                }
+            }
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    def test_fails_when_a_key_is_missing(self) -> None:
+        # Clobbering the scaffold (dropping ``hypothesis``) must fail the check.
+        output = _output_with_tool_call(
+            "patch_experiment",
+            {"experimentId": "RXhwOjE=", "metadata": {"observations": [{"note": "hi"}]}},
+        )
+        expected = {
+            "tool_call_args": {
+                "patch_experiment": {"metadata": {"has_keys": ["observations", "hypothesis"]}}
+            }
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+    def test_fails_when_observed_value_is_not_a_dict(self) -> None:
+        output = _output_with_tool_call(
+            "patch_experiment", {"experimentId": "RXhwOjE=", "metadata": "observations"}
+        )
+        expected = {
+            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["observations"]}}}
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+    def test_fails_when_key_absent(self) -> None:
+        output = _output_with_tool_call("patch_experiment", {"experimentId": "RXhwOjE="})
+        expected = {
+            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["observations"]}}}
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+    def test_literal_dict_expectation_is_not_a_has_keys_matcher(self) -> None:
+        # A dict whose keys are not all matcher names stays a literal -- exact
+        # equality -- so an arg that happens to carry a ``has_keys`` field
+        # alongside others is compared whole, not treated as a matcher.
+        output = _output_with_tool_call(
+            "patch_experiment", {"metadata": {"has_keys": ["x"], "other": 1}}
+        )
+        expected = {
+            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": ["x"], "other": 1}}}
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    def test_malformed_has_keys_fails_with_error(self) -> None:
+        output = _output_with_tool_call("patch_experiment", {"metadata": {"observations": []}})
+        expected = {
+            "tool_call_args": {"patch_experiment": {"metadata": {"has_keys": "observations"}}}
+        }
+        result = evaluate_tool_call_args(output, expected)
+        assert result["score"] == 0.0
+        assert "patch_experiment" in result.get("metadata", {})
+
+
 class TestUnconstrainedArgsAreIgnored:
     def test_args_not_in_expected_are_not_checked(self) -> None:
         # ``rootSpansOnly`` not in expected at all -- evaluator ignores it.

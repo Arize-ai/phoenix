@@ -9,7 +9,7 @@
     - Do not describe creating as approving a diff; creating the evaluator is a separate save step.
   </user_facing_language>
   <workflow>
-    - Before authoring an LLM evaluator, `load_skill` the `llm-evaluator-authoring` skill for the judge-prompt authoring methodology.
+    - Before authoring an LLM evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
     - Call `open_llm_evaluator_form` first, then wait for the LLM-evaluator context and draft tools to appear.
     - After the form is mounted, call `read_llm_evaluator_draft`, then propose changes with `edit_llm_evaluator_draft`.
     - For testing and persisting the populated draft, follow the `<phoenix_llm_evaluator_context>` guidance; whether you drive the save yourself or defer to the form's Create action depends on the approval mode stated there.

@@ -59,6 +59,7 @@ import {
   submitLlmEvaluatorDraftAgentTool,
   testLlmEvaluatorDraftAgentTool,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { patchExperimentAgentTool } from "@phoenix/agent/tools/patchExperiment";
 import { setAppendedMessagesPathAgentTool } from "@phoenix/agent/tools/playgroundAppendedMessagesPath";
 import { setPlaygroundExperimentRecordingAgentTool } from "@phoenix/agent/tools/playgroundExperimentRecording";
 import { loadDatasetAgentTool } from "@phoenix/agent/tools/playgroundLoadDataset";
@@ -176,12 +177,12 @@ const datasetTools: AgentToolDefinition[] = [
  * - `bash` executes in the browser sandbox runtime;
  * - `get_route_info` resolves route info from the catalog and returns it directly;
  * - `render_generative_ui` synchronously acknowledges an out-of-band chart render;
- * - `ask_user` and `batch_span_annotate` write a pending-approval store entry and
- *   defer their output to a later accept/reject.
+ * - `ask_user`, `batch_span_annotate`, and `patch_experiment` write a
+ *   pending-approval store entry and defer their output to a later accept/reject.
  *
  * Requiring an active session is orthogonal to this split: the session-gated
- * tools here (`ask_user`, `batch_span_annotate`) compose the same
- * `requireToolSession` guard that `defineClientActionTool` uses for its
+ * tools here (`ask_user`, `batch_span_annotate`, `patch_experiment`) compose the
+ * same `requireToolSession` guard that `defineClientActionTool` uses for its
  * `requireSession` knob, so the guard lives in one place rather than per tool.
  */
 const tools: AgentToolDefinition[] = [
@@ -190,6 +191,7 @@ const tools: AgentToolDefinition[] = [
   renderGenerativeUIAgentTool,
   askUserAgentTool,
   batchSpanAnnotateAgentTool,
+  patchExperimentAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */
