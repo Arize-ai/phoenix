@@ -435,6 +435,11 @@ def get_dataset_fixtures(fixture_name: str) -> Iterable[DatasetFixture]:
     return (fixture.load() for fixture in get_trace_fixture_by_name(fixture_name).dataset_fixtures)
 
 
+#: Timeout (in seconds) for uploading a dataset fixture. httpx's implicit 5s
+#: default is too short for larger fixtures, so set an explicit, adequate value.
+DATASET_UPLOAD_TIMEOUT_SECONDS = 30
+
+
 def send_dataset_fixtures(
     endpoint: str,
     fixtures: Iterable[DatasetFixture],
@@ -443,7 +448,10 @@ def send_dataset_fixtures(
     while time() < expiration:
         try:
             url = urljoin(endpoint, "/healthz")
-            httpx.get(url=url).raise_for_status()
+            # Bound each readiness probe to the remaining startup budget so a
+            # single slow response can't push the total wait past the deadline.
+            timeout_seconds = max(expiration - time(), 0.1)
+            httpx.get(url=url, timeout=timeout_seconds).raise_for_status()
         except ConnectError:
             sleep(0.1)
             continue
@@ -475,6 +483,7 @@ def send_dataset_fixtures(
                     "metadata_keys[]": sorted(keys.metadata),
                 },
                 params={"sync": True},
+                timeout=DATASET_UPLOAD_TIMEOUT_SECONDS,
             ).raise_for_status()
         except HTTPStatusError as e:
             print(e.response.content.decode())

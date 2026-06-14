@@ -12,6 +12,11 @@ def parse_file_extension(file_path: str) -> str:
     return os.path.splitext(file_path)[-1]
 
 
+#: Bounded timeout (in seconds) for fixture downloads. ``urllib`` applies no
+#: default timeout, so without this a stalled connection hangs indefinitely.
+DEFAULT_FIXTURE_DOWNLOAD_TIMEOUT_SECONDS = 30
+
+
 def download_json_traces_fixture(
     url: str,
 ) -> list[str]:
@@ -19,7 +24,7 @@ def download_json_traces_fixture(
     Stores the traces fixture as list of jsons from the jsonl files in the phoenix bucket.
     """
 
-    with request.urlopen(url) as f:
+    with request.urlopen(url, timeout=DEFAULT_FIXTURE_DOWNLOAD_TIMEOUT_SECONDS) as f:
         return cast(list[str], f.readlines())
 
 
