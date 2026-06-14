@@ -2227,7 +2227,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "PUT", "v1/secrets"),
 )
 
-# Write operations blocked for viewers (POST/PUT/DELETE)
+# Write operations blocked for viewers (POST/PUT/PATCH/DELETE)
 # Viewers always receive 403, non-viewers (admins/members) get expected_non_viewer_status
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
@@ -2251,6 +2251,8 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    # PATCH routes
+    (404, "PATCH", "v1/prompts/fake-id-{}"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
@@ -2330,7 +2332,8 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
                 f"Add these to _helpers.py:\n"
                 f"  - GET routes → _COMMON_RESOURCE_ENDPOINTS\n"
                 f"  - Admin-only routes (users, project CRUD) → _ADMIN_ONLY_ENDPOINTS\n"
-                f"  - Write operations (POST/PUT/DELETE) → _VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
+                f"  - Write operations (POST/PUT/PATCH/DELETE) → "
+                f"_VIEWER_BLOCKED_WRITE_OPERATIONS\n\n"
                 f"Format: (expected_status_code, method, endpoint_path)\n"
                 f'Example: (404, "GET", "v1/projects/fake-id-{{}}") or (422, "POST", "v1/datasets/upload")'
             )
