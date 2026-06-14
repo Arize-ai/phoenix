@@ -245,6 +245,8 @@ CREATE TABLE public.traces (
 
 CREATE INDEX ix_traces_project_rowid_start_time ON public.traces
     USING btree (project_rowid, start_time DESC);
+CREATE INDEX ix_traces_project_rowid_end_time ON public.traces
+    USING btree (project_rowid, end_time DESC);
 CREATE INDEX ix_traces_project_session_rowid ON public.traces
     USING btree (project_session_rowid);
 
