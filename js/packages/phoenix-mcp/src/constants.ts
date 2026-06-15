@@ -46,3 +46,13 @@ export const MS_PER_MINUTE = 60_000;
 
 /** Provenance tag applied to dataset examples created through the MCP server. */
 export const MCP_SYNTHETIC_SOURCE = "Synthetic Example added via MCP";
+
+/**
+ * User-Agent sent with Phoenix REST requests.
+ *
+ * Node's global `fetch` (undici) sends `User-Agent: undici` by default. Some
+ * Phoenix Cloud edges 302-redirect requests carrying that User-Agent to an HTML
+ * landing page, so the client receives `<!DOCTYPE html…>` and fails to parse the
+ * response as JSON (see #13742). Sending an explicit User-Agent avoids the redirect.
+ */
+export const USER_AGENT = "phoenix-mcp";
