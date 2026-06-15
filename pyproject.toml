@@ -75,7 +75,6 @@ dependencies = [
   # powers the networkless server-agent bash tool. Vendored so it runs on 3.10 too.
   "aiofiles",
   "aiohttp",
-  "nest-asyncio",
 ]
 dynamic = ["version"]
 

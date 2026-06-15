@@ -3,28 +3,20 @@
 Example usage:
     from just_bash import Bash
 
-    # Synchronous usage (for REPL, scripts)
-    bash = Bash()
-    result = bash.run("echo hello world")
-    print(result.stdout)  # "hello world\n"
-
-    # Async usage (for async applications)
+    # Async usage
     bash = Bash()
     result = await bash.exec("echo hello world")
     print(result.stdout)  # "hello world\n"
 
     # With initial files
     bash = Bash(files={"/data.txt": "hello\\n"})
-    result = bash.run("cat /data.txt")
+    result = await bash.exec("cat /data.txt")
 
     # With execution limits
     bash = Bash(limits=ExecutionLimits(max_command_count=1000))
 """
 
-import asyncio
 from typing import Optional
-
-import nest_asyncio  # type: ignore[import-untyped]
 
 from .commands import create_command_registry
 from .commands.registry import create_network_lazy_commands
@@ -214,42 +206,6 @@ class Bash:
                 exit_code=error.exit_code,
                 env=dict(self._interpreter.state.env),
             )
-
-    def run(
-        self,
-        script: str,
-        *,
-        env: Optional[dict[str, str]] = None,
-        cwd: Optional[str] = None,
-    ) -> ExecResult:
-        """Execute a bash script synchronously.
-
-        This is a convenience wrapper around exec() that works in any context,
-        including Jupyter notebooks and async frameworks.
-
-        Args:
-            script: The bash script to execute.
-            env: Additional environment variables for this execution.
-            cwd: Working directory for this execution.
-
-        Returns:
-            ExecResult with stdout, stderr, exit_code, and final env.
-
-        Example:
-            >>> bash = Bash()
-            >>> result = bash.run('echo "Hello, World!"')
-            >>> print(result.stdout)
-            Hello, World!
-        """
-        try:
-            asyncio.get_running_loop()
-            # We're in an existing event loop (Jupyter, async framework, etc.)
-            # Apply nest_asyncio to allow nested event loops
-            nest_asyncio.apply()
-        except RuntimeError:
-            # No running event loop, asyncio.run() will work fine
-            pass
-        return asyncio.run(self.exec(script, env=env, cwd=cwd))
 
     def reset(self) -> None:
         """Reset the interpreter state to initial values."""

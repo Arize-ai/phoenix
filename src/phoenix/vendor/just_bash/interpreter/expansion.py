@@ -529,11 +529,6 @@ def _expand_subscript_vars(ctx: "InterpreterContext", subscript: str) -> str:
                         cmd_content = subscript[i + 2:j - 1]
                         # Execute command substitution
                         import asyncio
-                        try:
-                            import nest_asyncio
-                            nest_asyncio.apply()
-                        except Exception:
-                            pass
                         # Parse and execute the command
                         from ..parser.parser import Parser
                         try:
