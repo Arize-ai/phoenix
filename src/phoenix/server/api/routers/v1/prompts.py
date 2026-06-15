@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from pydantic import ValidationError, field_validator, model_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
@@ -781,20 +781,9 @@ async def delete_prompt_version_tag(
 )
 async def patch_prompt(
     request: Request,
-    request_body: PatchPromptRequestBody,
     prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+    request_body: PatchPromptRequestBody = Body(default_factory=PatchPromptRequestBody),
 ) -> PatchPromptResponseBody:
-    values: dict[str, Any] = {}
-    if "description" in request_body.model_fields_set:
-        values["description"] = (
-            request_body.description.strip() if request_body.description is not None else None
-        )
-    if "metadata" in request_body.model_fields_set:
-        values["metadata_"] = request_body.metadata or {}
-
-    if not values:
-        raise HTTPException(status_code=422, detail="No fields provided to update")
-
     identifier = _parse_prompt_identifier(prompt_identifier)
     if isinstance(identifier, _PromptId):
         where_clause = models.Prompt.id == int(identifier)
@@ -807,6 +796,16 @@ async def patch_prompt(
         prompt = await session.scalar(select(models.Prompt).where(where_clause))
         if prompt is None:
             raise HTTPException(status_code=404, detail="Prompt not found")
+        values: dict[str, Any] = {}
+        if "description" in request_body.model_fields_set:
+            values["description"] = (
+                request_body.description.strip() if request_body.description is not None else None
+            )
+        if "metadata" in request_body.model_fields_set:
+            values["metadata_"] = request_body.metadata or {}
+
+        if not values:
+            raise HTTPException(status_code=422, detail="No fields provided to update")
         for key, value in values.items():
             setattr(prompt, key, value)
         data = _prompt_from_orm_prompt(prompt)
