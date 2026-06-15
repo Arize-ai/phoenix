@@ -178,7 +178,7 @@ describe("TimeRangeProvider", () => {
     expect(renderedTimeRanges.at(-1)?.end).toBeNull();
   });
 
-  it("initializes from concrete last-N URL bounds before stored preferences", () => {
+  it("treats a last-N URL key as live, ignoring any bounds it carries", () => {
     const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
 
     renderTimeRangeProvider({
@@ -191,27 +191,26 @@ describe("TimeRangeProvider", () => {
       },
     });
 
+    // The preset key wins: the window resolves live against "now", not the
+    // (stale) bounds carried in the URL. This keeps legacy URLs working.
     expect(renderedTimeRanges.at(-1)?.timeRangeKey).toBe("1h");
     expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
-      "2026-06-09T08:00:00.000Z"
-    );
-    expect(renderedTimeRanges.at(-1)?.end?.toISOString()).toBe(
       "2026-06-09T09:00:00.000Z"
     );
+    expect(renderedTimeRanges.at(-1)?.end).toBeNull();
 
     act(() => {
       vi.advanceTimersByTime(60_000);
     });
 
+    // And it keeps ticking forward like any live preset.
     expect(renderedTimeRanges.at(-1)?.start?.toISOString()).toBe(
-      "2026-06-09T08:00:00.000Z"
+      "2026-06-09T09:01:00.000Z"
     );
-    expect(renderedTimeRanges.at(-1)?.end?.toISOString()).toBe(
-      "2026-06-09T09:00:00.000Z"
-    );
+    expect(renderedTimeRanges.at(-1)?.end).toBeNull();
   });
 
-  it("canonicalizes relative last-N URLs with concrete bounds", () => {
+  it("keeps a relative last-N URL declarative, without adding bounds", () => {
     const renderedLocations: string[] = [];
 
     renderTimeRangeProvider({
@@ -224,19 +223,16 @@ describe("TimeRangeProvider", () => {
       },
     });
 
+    // A live preset is represented by its key alone; no bounds are written.
     const latestSearchParams = new URLSearchParams(
       renderedLocations.at(-1) ?? ""
     );
     expect(latestSearchParams.get("timeRangeKey")).toBe("7d");
-    expect(latestSearchParams.get("timeRangeStart")).toBe(
-      "2026-06-02T10:00:00.000Z"
-    );
-    expect(latestSearchParams.get("timeRangeEnd")).toBe(
-      "2026-06-09T10:00:30.000Z"
-    );
+    expect(latestSearchParams.get("timeRangeStart")).toBeNull();
+    expect(latestSearchParams.get("timeRangeEnd")).toBeNull();
   });
 
-  it("keeps locally selected last-N ranges live when unrelated params change", () => {
+  it("keeps locally selected last-N ranges live and key-only when unrelated params change", () => {
     const renderedTimeRanges: OpenTimeRangeWithKey[] = [];
     const renderedLocations: string[] = [];
     let navigate: NavigateFunction | null = null;
@@ -275,12 +271,11 @@ describe("TimeRangeProvider", () => {
     );
     expect(renderedTimeRanges.at(-1)?.end).toBeNull();
     expect(latestSearchParams.get(SELECTED_SPAN_NODE_ID_PARAM)).toBe("span-1");
-    expect(latestSearchParams.get("timeRangeStart")).toBe(
-      "2026-06-09T09:46:00.000Z"
-    );
-    expect(latestSearchParams.get("timeRangeEnd")).toBe(
-      "2026-06-09T10:01:00.000Z"
-    );
+    // The live preset stays declarative: only the key is in the URL, never
+    // bounds, even as the window advances on refresh.
+    expect(latestSearchParams.get("timeRangeKey")).toBe("15m");
+    expect(latestSearchParams.get("timeRangeStart")).toBeNull();
+    expect(latestSearchParams.get("timeRangeEnd")).toBeNull();
   });
 
   it("writes selected time ranges to the URL while preserving unrelated params", () => {

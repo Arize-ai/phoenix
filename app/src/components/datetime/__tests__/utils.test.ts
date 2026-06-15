@@ -84,6 +84,7 @@ describe("datetime utils", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-09T10:20:30.000Z"));
 
+    // A preset key is always live, resolved against "now" with no bounds.
     const lastN = getTimeRangeFromSearchParams(
       new URLSearchParams("timeRangeKey=15m")
     );
@@ -91,25 +92,19 @@ describe("datetime utils", () => {
     expect(lastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
     expect(lastN?.end).toBeNull();
 
-    const concreteLastN = getTimeRangeFromSearchParams(
+    // A preset key wins over any bounds in the URL, re-resolving live rather
+    // than honoring the (now-stale) bounds. This also keeps legacy URLs that
+    // carry both working as live presets.
+    const presetWithStaleBounds = getTimeRangeFromSearchParams(
       new URLSearchParams(
         "timeRangeKey=15m&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
       )
     );
-    expect(concreteLastN).toEqual({
-      timeRangeKey: "15m",
-      start: new Date("2026-06-09T09:00:00.000Z"),
-      end: new Date("2026-06-09T10:00:00.000Z"),
-    });
-
-    const liveLastN = getTimeRangeFromSearchParams(
-      new URLSearchParams(
-        "timeRangeKey=15m&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
-      ),
-      Date.now(),
-      { preferConcreteBounds: false }
+    expect(presetWithStaleBounds?.timeRangeKey).toBe("15m");
+    expect(presetWithStaleBounds?.start?.toISOString()).toBe(
+      "2026-06-09T10:05:00.000Z"
     );
-    expect(liveLastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
+    expect(presetWithStaleBounds?.end).toBeNull();
 
     const custom = getTimeRangeFromSearchParams(
       new URLSearchParams(
@@ -147,6 +142,7 @@ describe("datetime utils", () => {
     const searchParams = new URLSearchParams(
       "timeRangeKey=7d&selectedSpanNodeId=span-1"
     );
+    // A custom range is written as its bounds only, clearing any preset key.
     const customParams = setTimeRangeSearchParams({
       searchParams,
       timeRange: {
@@ -154,25 +150,27 @@ describe("datetime utils", () => {
         start: new Date("2026-06-09T09:00:00.000Z"),
         end: null,
       },
-      now: new Date("2026-06-09T10:20:30.000Z"),
     });
     expect(customParams.get("timeRangeKey")).toBeNull();
     expect(customParams.get("timeRangeStart")).toBe("2026-06-09T09:00:00.000Z");
     expect(customParams.get("timeRangeEnd")).toBeNull();
     expect(customParams.get("selectedSpanNodeId")).toBe("span-1");
 
-    const presetNow = new Date("2026-06-09T10:20:30.000Z");
+    // A preset is written as just the key, clearing any bounds, so the URL is
+    // unambiguously a live range.
     const presetParams = setTimeRangeSearchParams({
       searchParams: customParams,
       timeRange: {
         timeRangeKey: "1h",
-        ...getTimeRangeFromLastNTimeRangeKey("1h", presetNow.getTime()),
+        ...getTimeRangeFromLastNTimeRangeKey(
+          "1h",
+          new Date("2026-06-09T10:20:30.000Z").getTime()
+        ),
       },
-      now: presetNow,
     });
     expect(presetParams.get("timeRangeKey")).toBe("1h");
-    expect(presetParams.get("timeRangeStart")).toBe("2026-06-09T09:20:00.000Z");
-    expect(presetParams.get("timeRangeEnd")).toBe("2026-06-09T10:20:30.000Z");
+    expect(presetParams.get("timeRangeStart")).toBeNull();
+    expect(presetParams.get("timeRangeEnd")).toBeNull();
     expect(presetParams.get("selectedSpanNodeId")).toBe("span-1");
   });
 });
