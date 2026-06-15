@@ -81,6 +81,26 @@ async def _add_span_cost(
     return span_cost
 
 
+async def _add_span_cost_detail(
+    session: AsyncSession,
+    span_cost: models.SpanCost,
+    token_type: str,
+    is_prompt: bool,
+    tokens: Optional[float],
+) -> models.SpanCostDetail:
+    span_cost_detail = models.SpanCostDetail(
+        span_cost_id=span_cost.id,
+        token_type=token_type,
+        is_prompt=is_prompt,
+        tokens=tokens,
+        cost=None,
+        cost_per_token=None,
+    )
+    session.add(span_cost_detail)
+    await session.flush()
+    return span_cost_detail
+
+
 @dataclass
 class _CostTestData:
     project: models.Project
@@ -450,6 +470,170 @@ class TestTopModels:
         assert not empty_cost_response.errors
         assert (empty_cost_data := empty_cost_response.data) is not None
         assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
+
+
+class TestTraceTokenCountTimeSeries:
+    _QUERY = """
+        query ($projectId: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceTokenCountTimeSeries(
+                        timeRange: $timeRange
+                        timeBinConfig: $timeBinConfig
+                    ) {
+                        data {
+                            timestamp
+                            promptTokenCount
+                            completionTokenCount
+                            totalTokenCount
+                            promptTokenCountDetails {
+                                tokenType
+                                tokenCount
+                            }
+                            completionTokenCountDetails {
+                                tokenType
+                                tokenCount
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    async def test_token_detail_breakdowns_match_prompt_and_completion_totals(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session, name="token-detail-time-series-project")
+            model = await _add_generative_model(session, name="gpt-4o-mini", provider="openai")
+
+            trace_with_details = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=10),
+                end_time=base_time + timedelta(minutes=12),
+            )
+            span_with_details = await _add_span(
+                session,
+                trace=trace_with_details,
+                start_time=trace_with_details.start_time,
+                end_time=trace_with_details.end_time,
+            )
+            span_cost_with_details = await _add_span_cost(
+                session,
+                span=span_with_details,
+                trace=trace_with_details,
+                model=model,
+                total_tokens=170,
+                prompt_tokens=120,
+                completion_tokens=50,
+                span_start_time=span_with_details.start_time,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="input",
+                is_prompt=True,
+                tokens=50,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="cache_read",
+                is_prompt=True,
+                tokens=40,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="cache_write",
+                is_prompt=True,
+                tokens=30,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="output",
+                is_prompt=False,
+                tokens=45,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="reasoning",
+                is_prompt=False,
+                tokens=5,
+            )
+
+            trace_without_details = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=35),
+                end_time=base_time + timedelta(minutes=37),
+            )
+            span_without_details = await _add_span(
+                session,
+                trace=trace_without_details,
+                start_time=trace_without_details.start_time,
+                end_time=trace_without_details.end_time,
+            )
+            await _add_span_cost(
+                session,
+                span=span_without_details,
+                trace=trace_without_details,
+                model=model,
+                total_tokens=80,
+                prompt_tokens=60,
+                completion_tokens=20,
+                span_start_time=span_without_details.start_time,
+            )
+            await session.commit()
+
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "projectId": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": base_time.isoformat(),
+                    "end": (base_time + timedelta(hours=2)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+
+        data = response.data["node"]["traceTokenCountTimeSeries"]["data"]
+        bucket = next(data_point for data_point in data if data_point["totalTokenCount"] == 250)
+        assert bucket["promptTokenCount"] == 180
+        assert bucket["completionTokenCount"] == 70
+
+        prompt_details = {
+            detail["tokenType"]: detail["tokenCount"]
+            for detail in bucket["promptTokenCountDetails"]
+        }
+        completion_details = {
+            detail["tokenType"]: detail["tokenCount"]
+            for detail in bucket["completionTokenCountDetails"]
+        }
+        assert prompt_details == {
+            "input": 110,
+            "cache_read": 40,
+            "cache_write": 30,
+        }
+        assert completion_details == {
+            "output": 65,
+            "reasoning": 5,
+        }
+        assert sum(prompt_details.values()) == bucket["promptTokenCount"]
+        assert sum(completion_details.values()) == bucket["completionTokenCount"]
+        assert (
+            bucket["promptTokenCount"] + bucket["completionTokenCount"] == bucket["totalTokenCount"]
+        )
 
 
 @pytest.mark.parametrize(

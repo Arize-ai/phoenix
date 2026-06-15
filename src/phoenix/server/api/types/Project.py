@@ -54,8 +54,58 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
+_TOKEN_COUNT_DETAIL_EPSILON = 1e-9
+_TOKEN_COUNT_DETAIL_SORT_ORDER = {
+    "input": 0,
+    "output": 0,
+    "cache_read": 1,
+    "cache_write": 2,
+    "reasoning": 3,
+    "audio": 4,
+}
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+
+
+def _merge_token_count_detail(
+    details: list["TraceTokenCountDetailsTimeSeriesEntry"],
+    token_type: str,
+    token_count: float,
+) -> None:
+    if token_count <= _TOKEN_COUNT_DETAIL_EPSILON:
+        return
+    for detail in details:
+        if detail.token_type == token_type:
+            detail.token_count = (detail.token_count or 0) + token_count
+            return
+    details.append(
+        TraceTokenCountDetailsTimeSeriesEntry(
+            token_type=token_type,
+            token_count=token_count,
+        )
+    )
+
+
+def _ensure_token_count_details_total(
+    details: list["TraceTokenCountDetailsTimeSeriesEntry"],
+    total_token_count: Optional[float],
+    default_token_type: str,
+) -> None:
+    if total_token_count is None:
+        return
+    detail_token_count = sum(detail.token_count or 0 for detail in details)
+    remainder = total_token_count - detail_token_count
+    if remainder > _TOKEN_COUNT_DETAIL_EPSILON:
+        _merge_token_count_detail(details, default_token_type, remainder)
+
+
+def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEntry"]) -> None:
+    details.sort(
+        key=lambda detail: (
+            _TOKEN_COUNT_DETAIL_SORT_ORDER.get(detail.token_type, 100),
+            detail.token_type,
+        )
+    )
 
 
 @strawberry.type
@@ -1171,6 +1221,35 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Trace.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
+        details_stmt = (
+            select(
+                bucket,
+                models.SpanCostDetail.is_prompt,
+                models.SpanCostDetail.token_type,
+                func.sum(func.coalesce(models.SpanCostDetail.tokens, 0)),
+            )
+            .join_from(
+                models.Trace,
+                models.SpanCost,
+                onclause=models.SpanCost.trace_rowid == models.Trace.id,
+            )
+            .join(
+                models.SpanCostDetail,
+                models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+            )
+            .where(models.Trace.project_rowid == self.id)
+            .group_by(bucket, models.SpanCostDetail.is_prompt, models.SpanCostDetail.token_type)
+            .order_by(
+                bucket,
+                models.SpanCostDetail.is_prompt.desc(),
+                models.SpanCostDetail.token_type,
+            )
+        )
+        if time_range:
+            if time_range.start:
+                details_stmt = details_stmt.where(time_range.start <= models.Trace.start_time)
+            if time_range.end:
+                details_stmt = details_stmt.where(models.Trace.start_time < time_range.end)
         data: dict[datetime, TraceTokenCountTimeSeriesDataPoint] = {}
         async with info.context.db.read() as session:
             async for (
@@ -1186,6 +1265,37 @@ class Project(Node):
                     completion_token_count=completion_tokens,
                     total_token_count=total_tokens,
                 )
+            async for (
+                t,
+                is_prompt,
+                token_type,
+                token_count,
+            ) in await session.stream(details_stmt):
+                timestamp = _as_datetime(t)
+                data_point = data.setdefault(
+                    timestamp,
+                    TraceTokenCountTimeSeriesDataPoint(timestamp=timestamp),
+                )
+                details = (
+                    data_point.prompt_token_count_details
+                    if is_prompt
+                    else data_point.completion_token_count_details
+                )
+                _merge_token_count_detail(details, token_type, token_count)
+
+        for data_point in data.values():
+            _ensure_token_count_details_total(
+                data_point.prompt_token_count_details,
+                data_point.prompt_token_count,
+                "input",
+            )
+            _ensure_token_count_details_total(
+                data_point.completion_token_count_details,
+                data_point.completion_token_count,
+                "output",
+            )
+            _sort_token_count_details(data_point.prompt_token_count_details)
+            _sort_token_count_details(data_point.completion_token_count_details)
 
         data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
         min_time = min([*data_timestamps, time_range.start])
@@ -1570,11 +1680,23 @@ class TraceLatencyPercentileTimeSeries:
 
 
 @strawberry.type
+class TraceTokenCountDetailsTimeSeriesEntry:
+    token_type: str
+    token_count: Optional[float] = None
+
+
+@strawberry.type
 class TraceTokenCountTimeSeriesDataPoint:
     timestamp: datetime
     prompt_token_count: Optional[float] = None
     completion_token_count: Optional[float] = None
     total_token_count: Optional[float] = None
+    prompt_token_count_details: list[TraceTokenCountDetailsTimeSeriesEntry] = strawberry.field(
+        default_factory=list
+    )
+    completion_token_count_details: list[TraceTokenCountDetailsTimeSeriesEntry] = strawberry.field(
+        default_factory=list
+    )
 
 
 @strawberry.type
