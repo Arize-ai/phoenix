@@ -63,6 +63,11 @@ export function useTimeRange() {
   return context;
 }
 
+/**
+ * Resolve the time range to fall back to when the URL carries none, from the
+ * user's stored last-N preference. Defaults to the last 7 days when the stored
+ * value is missing or invalid.
+ */
 function getStoredTimeRange({
   storedLastNTimeRangeKey,
   now,
@@ -70,7 +75,7 @@ function getStoredTimeRange({
   storedLastNTimeRangeKey: unknown;
   now: number;
 }): OpenTimeRangeWithKey {
-  // Just to be safe, we check if the stored time range key is valid
+  // Guard against a malformed stored value before trusting it.
   if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
     return {
       timeRangeKey: storedLastNTimeRangeKey,
@@ -84,6 +89,21 @@ function getStoredTimeRange({
   };
 }
 
+/**
+ * Builds a stable string signature of just the time-range-related search
+ * params ({@link TIME_RANGE_KEY_PARAM}, {@link TIME_RANGE_START_PARAM},
+ * {@link TIME_RANGE_END_PARAM}), ignoring all other params in the URL.
+ *
+ * The params are collected in a fixed order so the resulting string is
+ * deterministic regardless of how they happen to be ordered in the URL. This
+ * lets callers cheaply compare whether the time range encoded in the URL has
+ * changed (e.g. against `lastWrittenTimeRangeSearchRef`) without reacting to
+ * unrelated search param updates.
+ *
+ * @param searchParams - The current URL search params.
+ * @returns A normalized query string containing only the present time-range
+ *   params, or an empty string if none are set.
+ */
 function getTimeRangeSearchSignature(searchParams: URLSearchParams) {
   const scopedSearchParams = new URLSearchParams();
   for (const param of [
@@ -99,31 +119,62 @@ function getTimeRangeSearchSignature(searchParams: URLSearchParams) {
   return scopedSearchParams.toString();
 }
 
+/**
+ * Provides the active tracing time range to the app and keeps it in sync with
+ * the URL.
+ *
+ * The active range takes one of two shapes:
+ * - **Live (last-N):** a relative window like "7d" that always ends at "now"
+ *   and refreshes on a timer (see {@link LastNTimeRangeKey}).
+ * - **Custom:** a fixed, closed window with concrete start/end bounds.
+ *
+ * State is sourced with the following precedence:
+ * 1. The URL search params — the canonical, shareable source of truth.
+ * 2. The user's stored last-N preference — used when the URL carries no time
+ *    range (e.g. a fresh visit).
+ *
+ * The subtle part is telling a *live* last-N range that we wrote ourselves
+ * (which should keep tracking "now") apart from a *shared or restored* URL that
+ * pins concrete bounds (which must be honored verbatim). Two refs disambiguate:
+ * - `liveTimeRangeKeyRef`: the last-N key currently ticking live, or null.
+ * - `lastWrittenTimeRangeSearchRef`: a signature of the time-range params we
+ *   last wrote, so a URL matching it is known to be ours rather than external.
+ */
 export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  /**
-   * Load in the last N time range key from preferences
-   */
   const storedLastNTimeRangeKey = usePreferencesContext(
     (state) => state.lastNTimeRangeKey
   );
-
   const setStoredLastNTimeRangeKey = usePreferencesContext(
     (state) => state.setLastNTimeRangeKey
   );
 
+  // The "now" anchor for resolving relative (last-N) windows. Bumped on a timer
+  // so live windows slide forward, and reset whenever a new last-N range is set.
   const [timeRangeNow, setTimeRangeNow] = useState(() => Date.now());
+  // The last-N key currently tracking "now" live, or null when the active range
+  // is a fixed custom window.
   const liveTimeRangeKeyRef = useRef<LastNTimeRangeKey | null>(null);
+  // Signature of the time-range params we last wrote, used to recognize our own
+  // URL writes versus an externally supplied (shared/restored) range.
   const lastWrittenTimeRangeSearchRef = useRef<string | null>(null);
+
   const currentTimeRangeSearch = getTimeRangeSearchSignature(searchParams);
   const urlTimeRangeKey = searchParams.get(TIME_RANGE_KEY_PARAM);
   const hasUrlTimeRangeBounds =
     searchParams.has(TIME_RANGE_START_PARAM) ||
     searchParams.has(TIME_RANGE_END_PARAM);
+
+  // The URL range is "live" only when it is a last-N key that we wrote and have
+  // been ticking — i.e. its params still match our last write. We then recompute
+  // the window from the key rather than honoring any now-stale bounds in the URL.
   const isLiveUrlTimeRange =
     isLastNTimeRangeKey(urlTimeRangeKey) &&
     liveTimeRangeKeyRef.current === urlTimeRangeKey &&
     lastWrittenTimeRangeSearchRef.current === currentTimeRangeSearch;
+
+  // A shared/restored URL keeps its concrete bounds; a live one re-derives them
+  // from the key against `timeRangeNow`.
   const urlTimeRange = getTimeRangeFromSearchParams(
     searchParams,
     timeRangeNow,
@@ -135,16 +186,31 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     storedLastNTimeRangeKey,
     now: timeRangeNow,
   });
+  // The URL wins when it carries a usable range; otherwise fall back to the
+  // stored preference.
   const timeRange = urlTimeRange ?? storedTimeRange;
   const timeRangeStartMs = timeRange.start?.getTime();
+
+  // A relative URL range is a last-N key with no concrete bounds pinned.
   const isRelativeUrlTimeRange =
     isLastNTimeRangeKey(urlTimeRangeKey) && !hasUrlTimeRangeBounds;
+  // Whether the active range should keep ticking live against "now": a last-N
+  // key that we are already tracking, that came from a relative URL, or that
+  // came from the stored preference (no URL range at all).
   const isLiveLastNTimeRange =
     isLastNTimeRangeKey(timeRange.timeRangeKey) &&
     (liveTimeRangeKeyRef.current === timeRange.timeRangeKey ||
       isRelativeUrlTimeRange ||
       urlTimeRange == null);
 
+  /**
+   * Set the active time range and reflect it in the URL.
+   *
+   * Last-N keys are resolved to a concrete window at call time (anchored to
+   * "now") and marked live so they keep refreshing; custom ranges are written
+   * as-is. The URL write replaces history (no new entry per change) and any
+   * last-N key is persisted as the user's preference.
+   */
   const setTimeRange = (timeRange: OpenTimeRangeWithKey) => {
     const now = Date.now();
     const nextTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey)
@@ -153,11 +219,11 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
           ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey, now),
         }
       : timeRange;
-    if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
-      liveTimeRangeKeyRef.current = timeRange.timeRangeKey;
-    } else {
-      liveTimeRangeKeyRef.current = null;
-    }
+    // Track (last-N) or clear (custom) the live key so the URL sync can tell
+    // this write apart from an externally supplied range.
+    liveTimeRangeKeyRef.current = isLastNTimeRangeKey(timeRange.timeRangeKey)
+      ? timeRange.timeRangeKey
+      : null;
     startTransition(() => {
       setSearchParams(
         (currentSearchParams) => {
@@ -172,7 +238,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
         },
         { replace: true }
       );
-      // Store the last N time range key in preferences
+      // Persist the preset and re-anchor "now" so the live window refreshes.
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
         setTimeRangeNow(now);
@@ -188,6 +254,11 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Keep the URL in sync with the active range. This covers the cases that
+  // `setTimeRange` does not write directly: seeding a fresh URL from the stored
+  // preference on first load, and advancing a live window's end on each refresh.
+  // The write is skipped when the params already match to avoid redundant
+  // history updates.
   useEffect(() => {
     if (isLiveLastNTimeRange) {
       liveTimeRangeKeyRef.current = timeRange.timeRangeKey as LastNTimeRangeKey;
@@ -211,6 +282,9 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     timeRangeNow,
   ]);
 
+  // Drive live refreshes. While a last-N range is live, schedule a bump of
+  // `timeRangeNow` for when its window next rolls over (the start of the next
+  // minute or hour) so the displayed window keeps tracking "now".
   useEffect(() => {
     if (!isLiveLastNTimeRange || !isLastNTimeRangeKey(timeRange.timeRangeKey)) {
       return;
