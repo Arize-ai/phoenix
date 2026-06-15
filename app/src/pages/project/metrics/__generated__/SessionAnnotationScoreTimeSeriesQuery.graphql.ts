@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09227f0f5daeccc0801e369ca7094011>>
+ * @generated SignedSource<<ba7157b75dcf83eb8f03fa191a81e233>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,25 +18,28 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type TraceErrorsTimeSeriesQuery$variables = {
+export type SessionAnnotationScoreTimeSeriesQuery$variables = {
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type TraceErrorsTimeSeriesQuery$data = {
+export type SessionAnnotationScoreTimeSeriesQuery$data = {
   readonly project: {
-    readonly traceCountByStatusTimeSeries?: {
+    readonly sessionAnnotationScoreTimeSeries?: {
       readonly data: ReadonlyArray<{
-        readonly errorCount: number;
+        readonly scoresWithLabels: ReadonlyArray<{
+          readonly label: string;
+          readonly score: number;
+        }>;
         readonly timestamp: string;
-        readonly totalCount: number;
       }>;
+      readonly names: ReadonlyArray<string>;
     };
   };
 };
-export type TraceErrorsTimeSeriesQuery = {
-  response: TraceErrorsTimeSeriesQuery$data;
-  variables: TraceErrorsTimeSeriesQuery$variables;
+export type SessionAnnotationScoreTimeSeriesQuery = {
+  response: SessionAnnotationScoreTimeSeriesQuery$data;
+  variables: SessionAnnotationScoreTimeSeriesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -79,15 +82,15 @@ v4 = {
           "variableName": "timeRange"
         }
       ],
-      "concreteType": "TraceCountByStatusTimeSeries",
+      "concreteType": "AnnotationScoreTimeSeries",
       "kind": "LinkedField",
-      "name": "traceCountByStatusTimeSeries",
+      "name": "sessionAnnotationScoreTimeSeries",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "TraceCountByStatusTimeSeriesDataPoint",
+          "concreteType": "AnnotationScoreTimeSeriesDataPoint",
           "kind": "LinkedField",
           "name": "data",
           "plural": true,
@@ -102,18 +105,36 @@ v4 = {
             {
               "alias": null,
               "args": null,
-              "kind": "ScalarField",
-              "name": "errorCount",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "totalCount",
+              "concreteType": "AnnotationScoreWithLabel",
+              "kind": "LinkedField",
+              "name": "scoresWithLabels",
+              "plural": true,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "label",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "score",
+                  "storageKey": null
+                }
+              ],
               "storageKey": null
             }
           ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "names",
           "storageKey": null
         }
       ],
@@ -132,7 +153,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "TraceErrorsTimeSeriesQuery",
+    "name": "SessionAnnotationScoreTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -158,7 +179,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "TraceErrorsTimeSeriesQuery",
+    "name": "SessionAnnotationScoreTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -189,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "af40f7805883aad1b7c55dd4122fbd9f",
+    "cacheID": "7883ad68336633bb6aa4f65a45983d5a",
     "id": null,
     "metadata": {},
-    "name": "TraceErrorsTimeSeriesQuery",
+    "name": "SessionAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceErrorsTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          errorCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SessionAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      sessionAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "654925c22f25366d4cc7c22c323d1044";
+(node as any).hash = "29705120976c4ef736259704531046e8";
 
 export default node;

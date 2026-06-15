@@ -3,11 +3,11 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 
-import type { SpanAnnotationScoreTimeSeriesQuery } from "./__generated__/SpanAnnotationScoreTimeSeriesQuery.graphql";
+import type { TraceAnnotationScoreTimeSeriesQuery } from "./__generated__/TraceAnnotationScoreTimeSeriesQuery.graphql";
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
 
-export function SpanAnnotationScoreTimeSeries({
+export function TraceAnnotationScoreTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
@@ -15,16 +15,16 @@ export function SpanAnnotationScoreTimeSeries({
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<SpanAnnotationScoreTimeSeriesQuery>(
+  const data = useLazyLoadQuery<TraceAnnotationScoreTimeSeriesQuery>(
     graphql`
-      query SpanAnnotationScoreTimeSeriesQuery(
+      query TraceAnnotationScoreTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
       ) {
         project: node(id: $projectId) {
           ... on Project {
-            spanAnnotationScoreTimeSeries(
+            traceAnnotationScoreTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
             ) {
@@ -56,8 +56,8 @@ export function SpanAnnotationScoreTimeSeries({
 
   return (
     <AnnotationScoreTimeSeriesChart
-      data={data.project.spanAnnotationScoreTimeSeries?.data ?? []}
-      names={data.project.spanAnnotationScoreTimeSeries?.names ?? []}
+      data={data.project.traceAnnotationScoreTimeSeries?.data ?? []}
+      names={data.project.traceAnnotationScoreTimeSeries?.names ?? []}
       scale={scale}
       timeRange={timeRange}
       onTimeRangeSelected={onTimeRangeSelected}

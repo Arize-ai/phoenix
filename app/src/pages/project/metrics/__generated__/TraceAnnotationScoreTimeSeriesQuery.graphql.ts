@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e23573641ebe929b5307d638f38e9965>>
+ * @generated SignedSource<<1e497ab7dca71fc579543e723123ab82>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,14 +18,14 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type SpanAnnotationScoreTimeSeriesQuery$variables = {
+export type TraceAnnotationScoreTimeSeriesQuery$variables = {
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type SpanAnnotationScoreTimeSeriesQuery$data = {
+export type TraceAnnotationScoreTimeSeriesQuery$data = {
   readonly project: {
-    readonly spanAnnotationScoreTimeSeries?: {
+    readonly traceAnnotationScoreTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly scoresWithLabels: ReadonlyArray<{
           readonly label: string;
@@ -37,9 +37,9 @@ export type SpanAnnotationScoreTimeSeriesQuery$data = {
     };
   };
 };
-export type SpanAnnotationScoreTimeSeriesQuery = {
-  response: SpanAnnotationScoreTimeSeriesQuery$data;
-  variables: SpanAnnotationScoreTimeSeriesQuery$variables;
+export type TraceAnnotationScoreTimeSeriesQuery = {
+  response: TraceAnnotationScoreTimeSeriesQuery$data;
+  variables: TraceAnnotationScoreTimeSeriesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -84,7 +84,7 @@ v4 = {
       ],
       "concreteType": "AnnotationScoreTimeSeries",
       "kind": "LinkedField",
-      "name": "spanAnnotationScoreTimeSeries",
+      "name": "traceAnnotationScoreTimeSeries",
       "plural": false,
       "selections": [
         {
@@ -153,7 +153,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "SpanAnnotationScoreTimeSeriesQuery",
+    "name": "TraceAnnotationScoreTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -179,7 +179,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "SpanAnnotationScoreTimeSeriesQuery",
+    "name": "TraceAnnotationScoreTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -210,16 +210,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7f0d6f5b5da2c7e87daa43a6f5f4bf3c",
+    "cacheID": "8fc8b8201e9b9bc39d374ab5a06c8d4b",
     "id": null,
     "metadata": {},
-    "name": "SpanAnnotationScoreTimeSeriesQuery",
+    "name": "TraceAnnotationScoreTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query SpanAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceAnnotationScoreTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceAnnotationScoreTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          scoresWithLabels {\n            label\n            score\n          }\n        }\n        names\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "709170f6d6e7e1273b1d5d924a3ba262";
+(node as any).hash = "595076367e665ffa321498d8ab8bab14";
 
 export default node;
