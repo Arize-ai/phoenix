@@ -279,7 +279,7 @@ class ExperimentMutationMixin:
             project_names = [
                 project_name
                 for project_name in await session.scalars(project_names_stmt)
-                if is_experiment_project_name(project_name)
+                if project_name is not None and is_experiment_project_name(project_name)
             ]
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             savepoint = await session.begin_nested()
