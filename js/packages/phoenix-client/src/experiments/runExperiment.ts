@@ -83,6 +83,15 @@ export type RunExperimentParams = ClientFn & {
    */
   experimentMetadata?: Record<string, unknown>;
   /**
+   * The name of the project into which the experiment's traces are recorded.
+   *
+   * If omitted, the server generates a hidden, single-use project. When provided, the project
+   * is treated as user-owned: it stays visible in project lists and is not auto-deleted with
+   * the experiment, letting multiple experiments consolidate their traces into one named
+   * project.
+   */
+  projectName?: string;
+  /**
    * The dataset to run the experiment on
    */
   dataset: DatasetSelector;
@@ -171,6 +180,7 @@ export async function runExperiment({
   experimentName,
   experimentDescription,
   experimentMetadata = {},
+  projectName: userProjectName,
   client: _client,
   dataset: datasetSelector,
   task,
@@ -204,7 +214,10 @@ export async function runExperiment({
       ? Math.min(dryRun, dataset.examples.length)
       : dataset.examples.length;
 
-  let projectName = `${dataset.name}-exp-${new Date().toISOString()}`;
+  // Fall back to a local, descriptive name only for tracing-side use (dry runs, or before the
+  // server echoes back the project name). This local default is never sent to the server.
+  let projectName =
+    userProjectName ?? `${dataset.name}-exp-${new Date().toISOString()}`;
   // initialize the tracer into scope
   let taskTracer: Tracer;
   let experiment: ExperimentInfo;
@@ -240,7 +253,10 @@ export async function runExperiment({
           name: experimentName,
           description: experimentDescription,
           metadata: experimentMetadata,
-          project_name: projectName,
+          // Only send project_name when the caller explicitly set it. Sending the
+          // auto-generated local default would make the server create a visible, user-owned
+          // project on every run — an unintended behavior change.
+          ...(userProjectName ? { project_name: userProjectName } : {}),
           repetitions,
           // @todo: the dataset should return splits in response body
           ...(datasetSelector?.splits

@@ -27,7 +27,6 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 
 
@@ -392,16 +391,34 @@ async def insert_experiment_with_examples_snapshot(
 _AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
 
 
+# Auto-generated experiment projects are named "Experiment-<24 lowercase hex chars>"
+# (see phoenix.server.experiments.utils.generate_experiment_project_name). Classifying
+# these projects by name pattern — rather than by whether any experiment references them —
+# lets user-supplied project names (which the create-experiment route forbids from matching
+# this pattern) stay visible in project lists and never be auto-deleted with an experiment.
+# The pattern mirrors EXPERIMENT_PROJECT_NAME_PATTERN in that module.
+_GENERATED_EXPERIMENT_PROJECT_NAME_REGEX = "^Experiment-[0-9a-f]{24}$"  # PostgreSQL regex
+_GENERATED_EXPERIMENT_PROJECT_NAME_GLOB = "Experiment-" + "[0-9a-f]" * 24  # SQLite GLOB
+
+
+def generated_experiment_project_name_clause(
+    name: SQLColumnExpression[str],
+    dialect: SupportedSQLDialect,
+) -> SQLColumnExpression[bool]:
+    """SQL predicate that is true when ``name`` is an auto-generated experiment project name."""
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        return name.op("~")(_GENERATED_EXPERIMENT_PROJECT_NAME_REGEX)
+    if dialect is SupportedSQLDialect.SQLITE:
+        # GLOB is case-sensitive and supports character classes, unlike LIKE.
+        return name.op("GLOB")(_GENERATED_EXPERIMENT_PROJECT_NAME_GLOB)
+    assert_never(dialect)
+
+
 def exclude_experiment_projects(
     stmt: Select[_AnyTuple],
+    dialect: SupportedSQLDialect,
 ) -> Select[_AnyTuple]:
-    return stmt.outerjoin(
-        models.Experiment,
-        and_(
-            models.Project.name == models.Experiment.project_name,
-            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
-        ),
-    ).where(models.Experiment.project_name.is_(None))
+    return stmt.where(~generated_experiment_project_name_clause(models.Project.name, dialect))
 
 
 def exclude_dataset_evaluator_projects(

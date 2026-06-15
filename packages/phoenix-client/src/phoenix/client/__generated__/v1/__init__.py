@@ -64,6 +64,7 @@ class CreateExperimentRequestBody(TypedDict):
     version_id: NotRequired[str]
     splits: NotRequired[Sequence[str]]
     repetitions: NotRequired[int]
+    project_name: NotRequired[str]
 
 
 class CreateExperimentRunRequestBody(TypedDict):

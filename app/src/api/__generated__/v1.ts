@@ -1800,6 +1800,11 @@ export interface components {
              * @default 1
              */
             repetitions?: number;
+            /**
+             * Project Name
+             * @description Name of the project into which the experiment's traces are recorded. If omitted, a hidden, single-use project is generated automatically (the default behavior). When provided, the project is treated as user-owned: it is created if it does not already exist (without modifying an existing project), stays visible in project lists, and is not automatically deleted when the experiment is deleted. The name must not match the reserved pattern for auto-generated experiment projects (Experiment-<24 hex characters>).
+             */
+            project_name?: string | null;
         };
         /** CreateExperimentResponseBody */
         CreateExperimentResponseBody: {

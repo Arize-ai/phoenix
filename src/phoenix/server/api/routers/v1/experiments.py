@@ -6,7 +6,7 @@ from typing import Any, Optional
 import pandas as pd
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from sqlalchemy import and_, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -20,14 +20,17 @@ from phoenix.db.helpers import (
     get_experiment_incomplete_runs_query,
     insert_experiment_with_examples_snapshot,
 )
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.datasets import DatasetExample
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.authorization import is_not_locked
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import ExperimentInsertEvent
-from phoenix.server.experiments.utils import generate_experiment_project_name
+from phoenix.server.experiments.utils import (
+    generate_experiment_project_name,
+    is_experiment_project_name,
+)
 
 from .datasets import _resolve_split_identifiers
 from .models import V1RoutesBaseModel
@@ -105,6 +108,37 @@ class CreateExperimentRequestBody(V1RoutesBaseModel):
     repetitions: int = Field(
         default=1, description="Number of times the experiment should be repeated for each example"
     )
+    project_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "Name of the project into which the experiment's traces are recorded. If omitted, "
+            "a hidden, single-use project is generated automatically (the default behavior). "
+            "When provided, the project is treated as user-owned: it is created if it does not "
+            "already exist (without modifying an existing project), stays visible in project "
+            "lists, and is not automatically deleted when the experiment is deleted. The name "
+            "must not match the reserved pattern for auto-generated experiment projects "
+            "(Experiment-<24 hex characters>)."
+        ),
+    )
+
+    @field_validator("project_name")
+    @classmethod
+    def _normalize_and_validate_project_name(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        # Treat blank/whitespace-only names as omitted so callers can pass an empty string
+        # without accidentally creating a project named "".
+        stripped = value.strip()
+        if not stripped:
+            return None
+        # Reserve the auto-generated naming scheme so the generated/user-owned classification
+        # (used for project hiding and auto-deletion) stays unambiguous.
+        if is_experiment_project_name(stripped):
+            raise ValueError(
+                "project_name must not match the reserved pattern for auto-generated "
+                "experiment projects (Experiment-<24 hex characters>)"
+            )
+        return stripped
 
 
 class CreateExperimentResponseBody(ResponseBody[Experiment]):
@@ -200,7 +234,11 @@ async def create_experiment(
 
         # generate a semi-unique name for the experiment
         experiment_name = request_body.name or _generate_experiment_name(dataset_name)
-        project_name = generate_experiment_project_name()
+        # A caller-supplied project_name is treated as a user-owned project: it is fetched or
+        # created without clobbering an existing project, and is never auto-deleted. Otherwise a
+        # hidden, single-use project is generated (the default, fully backward-compatible behavior).
+        user_owned_project = request_body.project_name is not None
+        project_name = request_body.project_name or generate_experiment_project_name()
         project_description = (
             f"dataset_id: {dataset_globalid}\ndataset_version_id: {dataset_version_globalid}"
         )
@@ -231,19 +269,37 @@ async def create_experiment(
         await insert_experiment_with_examples_snapshot(session, experiment)
 
         dialect = SupportedSQLDialect(session.bind.dialect.name)
+        if user_owned_project:
+            # Get-or-create: DO NOTHING preserves an existing project's description, gradient
+            # colors, retention policy, and updated_at when the name already exists.
+            project_values = dict(
+                name=project_name,
+                created_at=experiment.created_at,
+                updated_at=experiment.updated_at,
+            )
+            on_conflict = OnConflict.DO_NOTHING
+        else:
+            project_values = dict(
+                name=project_name,
+                description=project_description,
+                created_at=experiment.created_at,
+                updated_at=experiment.updated_at,
+            )
+            on_conflict = OnConflict.DO_UPDATE
         project_rowid = await session.scalar(
             insert_on_conflict(
-                dict(
-                    name=project_name,
-                    description=project_description,
-                    created_at=experiment.created_at,
-                    updated_at=experiment.updated_at,
-                ),
+                project_values,
                 dialect=dialect,
                 table=models.Project,
                 unique_by=("name",),
+                on_conflict=on_conflict,
             ).returning(models.Project.id)
         )
+        if project_rowid is None:
+            # DO NOTHING returns no row when the project already exists; fetch its id.
+            project_rowid = await session.scalar(
+                select(models.Project.id).where(models.Project.name == project_name)
+            )
         assert project_rowid is not None
 
         experiment_globalid = GlobalID("Experiment", str(experiment.id))
@@ -599,7 +655,9 @@ async def delete_experiment(
         if result is None:
             raise HTTPException(detail="Experiment does not exist", status_code=404)
         project_name = result.project_name
-        if delete_project and project_name:
+        # Only auto-delete projects with auto-generated names. User-owned projects (any other
+        # name) are left intact so a shared project and its traces are never destroyed.
+        if delete_project and project_name and is_experiment_project_name(project_name):
             delete_project_stmt = sa.delete(models.Project).where(
                 models.Project.name == project_name
             )

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timezone
 from io import StringIO
 from secrets import token_hex
@@ -238,6 +239,143 @@ async def test_experiment_404s_with_missing_version(
         json={"version_id": str(incorrect_version_gid)},
     )
     assert response.status_code == 404
+
+
+class TestExperimentProjectName:
+    """Tests for the optional ``project_name`` field on experiment creation."""
+
+    DATASET_GID = str(GlobalID("Dataset", "0"))
+
+    async def _create(
+        self, httpx_client: httpx.AsyncClient, body: dict[str, Any]
+    ) -> httpx.Response:
+        return await httpx_client.post(f"v1/datasets/{self.DATASET_GID}/experiments", json=body)
+
+    async def test_omitted_project_name_generates_hidden_project(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+    ) -> None:
+        response = await self._create(httpx_client, {"version_id": None, "repetitions": 1})
+        assert response.status_code == 200
+        project_name = response.json()["data"]["project_name"]
+        # The default project name follows the auto-generated pattern.
+        assert re.match(r"^Experiment-[0-9a-f]{24}$", project_name)
+        # It is hidden from the default project list ...
+        listed = (await httpx_client.get("v1/projects")).json()["data"]
+        assert all(p["name"] != project_name for p in listed)
+        # ... but surfaced when explicitly requested.
+        listed_all = (
+            await httpx_client.get("v1/projects", params={"include_experiment_projects": True})
+        ).json()["data"]
+        assert any(p["name"] == project_name for p in listed_all)
+
+    async def test_user_supplied_project_name_is_used_and_visible(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+    ) -> None:
+        response = await self._create(
+            httpx_client, {"version_id": None, "project_name": "team-feature-x"}
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["project_name"] == "team-feature-x"
+        # A user-named experiment project stays visible in the default project list.
+        listed = (await httpx_client.get("v1/projects")).json()["data"]
+        assert any(p["name"] == "team-feature-x" for p in listed)
+
+    async def test_blank_project_name_falls_back_to_generated(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+    ) -> None:
+        response = await self._create(httpx_client, {"version_id": None, "project_name": "   "})
+        assert response.status_code == 200
+        project_name = response.json()["data"]["project_name"]
+        assert re.match(r"^Experiment-[0-9a-f]{24}$", project_name)
+
+    async def test_user_supplied_project_name_does_not_clobber_existing(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            session.add(models.Project(name="shared-eval", description="keep me"))
+        response = await self._create(
+            httpx_client, {"version_id": None, "project_name": "shared-eval"}
+        )
+        assert response.status_code == 200
+        async with db() as session:
+            project = (
+                await session.execute(
+                    select(models.Project).where(models.Project.name == "shared-eval")
+                )
+            ).scalar_one()
+        # Get-or-create must not overwrite the existing project's description.
+        assert project.description == "keep me"
+
+    @pytest.mark.parametrize(
+        "reserved_name",
+        [
+            "Experiment-0123456789abcdef01234567",
+            "Experiment-" + "a" * 24,
+        ],
+    )
+    async def test_reserved_project_name_is_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+        reserved_name: str,
+    ) -> None:
+        response = await self._create(
+            httpx_client, {"version_id": None, "project_name": reserved_name}
+        )
+        assert response.status_code == 422
+
+    async def test_delete_experiment_leaves_user_project_intact(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+        db: DbSessionFactory,
+    ) -> None:
+        response = await self._create(
+            httpx_client, {"version_id": None, "project_name": "keep-me-proj"}
+        )
+        experiment_id = response.json()["data"]["id"]
+        delete_response = await httpx_client.delete(
+            f"v1/experiments/{experiment_id}", params={"delete_project": True}
+        )
+        assert delete_response.status_code == 204
+        async with db() as session:
+            project = (
+                await session.execute(
+                    select(models.Project).where(models.Project.name == "keep-me-proj")
+                )
+            ).scalar()
+        # A user-owned project is never auto-deleted, even with delete_project=true.
+        assert project is not None
+
+    async def test_delete_experiment_deletes_generated_project(
+        self,
+        httpx_client: httpx.AsyncClient,
+        simple_dataset: Any,
+        db: DbSessionFactory,
+    ) -> None:
+        response = await self._create(httpx_client, {"version_id": None})
+        experiment_id = response.json()["data"]["id"]
+        generated_name = response.json()["data"]["project_name"]
+        delete_response = await httpx_client.delete(
+            f"v1/experiments/{experiment_id}", params={"delete_project": True}
+        )
+        assert delete_response.status_code == 204
+        async with db() as session:
+            project = (
+                await session.execute(
+                    select(models.Project).where(models.Project.name == generated_name)
+                )
+            ).scalar()
+        assert project is None
 
 
 async def test_reading_experiments(

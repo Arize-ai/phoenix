@@ -554,6 +554,7 @@ class Experiments:
         experiment_name: Optional[str] = None,
         experiment_description: Optional[str] = None,
         experiment_metadata: Optional[Mapping[str, Any]] = None,
+        project_name: Optional[str] = None,
         splits: Optional[Sequence[str]] = None,
         repetitions: int = 1,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -572,6 +573,11 @@ class Experiments:
                 None.
             experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
                 experiment. Defaults to None.
+            project_name (Optional[str]): The name of the project into which the experiment's
+                traces are recorded. If omitted, a hidden, single-use project is generated
+                automatically. When provided, the project is treated as user-owned: it is
+                created if needed (without modifying an existing project), stays visible in
+                project lists, and is not auto-deleted with the experiment. Defaults to None.
             splits (Optional[Sequence[str]]): List of dataset split identifiers (IDs or names)
                 to filter by. Defaults to None.
             repetitions (int): The number of times the task will be run on each example.
@@ -621,6 +627,9 @@ class Experiments:
         if dataset_version_id and dataset_version_id.strip():
             payload["version_id"] = dataset_version_id.strip()
 
+        if project_name and project_name.strip():
+            payload["project_name"] = project_name.strip()
+
         if splits:
             payload["splits"] = list(splits)
 
@@ -642,6 +651,7 @@ class Experiments:
         experiment_name: Optional[str] = None,
         experiment_description: Optional[str] = None,
         experiment_metadata: Optional[Mapping[str, Any]] = None,
+        project_name: Optional[str] = None,
         rate_limit_errors: Optional[RateLimitErrors] = None,
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
@@ -701,6 +711,12 @@ class Experiments:
                 None.
             experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
                 experiment. Defaults to None.
+            project_name (Optional[str]): The name of the project into which the experiment's
+                traces are recorded. If omitted, a hidden, single-use project is generated
+                automatically. When provided, the project is treated as user-owned: it stays
+                visible in project lists and is not auto-deleted with the experiment, letting
+                multiple experiments consolidate their traces into one named project.
+                Defaults to None.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions to
                 adaptively throttle on. Defaults to None.
             dry_run (Union[bool, int]): Run the experiment in dry-run mode. When set,
@@ -738,6 +754,7 @@ class Experiments:
                 experiment_name=experiment_name,
                 experiment_description=experiment_description,
                 experiment_metadata=experiment_metadata,
+                project_name=project_name,
                 splits=dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
                 repetitions=repetitions,
                 timeout=timeout,
@@ -2297,6 +2314,7 @@ class AsyncExperiments:
         experiment_name: Optional[str] = None,
         experiment_description: Optional[str] = None,
         experiment_metadata: Optional[Mapping[str, Any]] = None,
+        project_name: Optional[str] = None,
         splits: Optional[Sequence[str]] = None,
         repetitions: int = 1,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
@@ -2315,6 +2333,11 @@ class AsyncExperiments:
                 None.
             experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
                 experiment. Defaults to None.
+            project_name (Optional[str]): The name of the project into which the experiment's
+                traces are recorded. If omitted, a hidden, single-use project is generated
+                automatically. When provided, the project is treated as user-owned: it is
+                created if needed (without modifying an existing project), stays visible in
+                project lists, and is not auto-deleted with the experiment. Defaults to None.
             splits (Optional[Sequence[str]]): List of dataset split identifiers (IDs or names)
                 to filter by. Defaults to None.
             repetitions (int): The number of times the task will be run on each example.
@@ -2364,6 +2387,9 @@ class AsyncExperiments:
         if dataset_version_id and dataset_version_id.strip():
             payload["version_id"] = dataset_version_id.strip()
 
+        if project_name and project_name.strip():
+            payload["project_name"] = project_name.strip()
+
         if splits:
             payload["splits"] = list(splits)
 
@@ -2385,6 +2411,7 @@ class AsyncExperiments:
         experiment_name: Optional[str] = None,
         experiment_description: Optional[str] = None,
         experiment_metadata: Optional[Mapping[str, Any]] = None,
+        project_name: Optional[str] = None,
         rate_limit_errors: Optional[RateLimitErrors] = None,
         dry_run: Union[bool, int] = False,
         print_summary: bool = True,
@@ -2444,6 +2471,12 @@ class AsyncExperiments:
                 None.
             experiment_metadata (Optional[Mapping[str, Any]]): Metadata to associate with the
                 experiment. Defaults to None.
+            project_name (Optional[str]): The name of the project into which the experiment's
+                traces are recorded. If omitted, a hidden, single-use project is generated
+                automatically. When provided, the project is treated as user-owned: it stays
+                visible in project lists and is not auto-deleted with the experiment, letting
+                multiple experiments consolidate their traces into one named project.
+                Defaults to None.
             rate_limit_errors (Optional[RateLimitErrors]): An exception or sequence of exceptions to
                 adaptively throttle on. Defaults to None.
             dry_run (Union[bool, int]): Run the experiment in dry-run mode. When set,
@@ -2482,6 +2515,7 @@ class AsyncExperiments:
                 experiment_name=experiment_name,
                 experiment_description=experiment_description,
                 experiment_metadata=experiment_metadata,
+                project_name=project_name,
                 splits=dataset._filtered_split_names,  # pyright: ignore[reportPrivateUsage]
                 repetitions=repetitions,
                 timeout=timeout,

@@ -21,6 +21,7 @@ from phoenix.server.api.types.ExperimentJob import ExperimentJob
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import ExperimentDeleteEvent
+from phoenix.server.experiments.utils import is_experiment_project_name
 
 
 @strawberry.type
@@ -272,7 +273,14 @@ class ExperimentMutationMixin:
         project_names_stmt = get_project_names_for_experiments(*experiment_ids)
         eval_trace_ids_stmt = get_eval_trace_ids_for_experiments(*experiment_ids)
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
+            # Only auto-delete projects with auto-generated names. User-owned projects (names
+            # that do not match the generated pattern) are left intact so a shared project and
+            # its traces are never destroyed when an experiment is deleted.
+            project_names = [
+                project_name
+                for project_name in await session.scalars(project_names_stmt)
+                if is_experiment_project_name(project_name)
+            ]
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             savepoint = await session.begin_nested()
             experiments = {

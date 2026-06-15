@@ -43,6 +43,7 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Span import Span
 from phoenix.server.api.utils import delete_projects, delete_traces
 from phoenix.server.dml_event import DatasetDeleteEvent, DatasetInsertEvent
+from phoenix.server.experiments.utils import is_experiment_project_name
 
 _MAX_REPORTED_EXTERNAL_ID_CONFLICTS = 10
 
@@ -415,7 +416,14 @@ class DatasetMutationMixin:
             delete(models.Dataset).where(models.Dataset.id == dataset_id).returning(models.Dataset)
         )
         async with info.context.db() as session:
-            project_names = await session.scalars(project_names_stmt)
+            # Only auto-delete projects with auto-generated names. User-owned projects (names
+            # that do not match the generated pattern) are left intact so a shared project and
+            # its traces are never destroyed when the dataset's experiments are deleted.
+            project_names = [
+                project_name
+                for project_name in await session.scalars(project_names_stmt)
+                if is_experiment_project_name(project_name)
+            ]
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
             if not (dataset := await session.scalar(stmt)):
                 raise NotFound(f"Unknown dataset: {input.dataset_id}")
