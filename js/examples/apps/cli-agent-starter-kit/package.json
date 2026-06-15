@@ -39,17 +39,17 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.81",
     "@ai-sdk/anthropic-v5": "npm:@ai-sdk/anthropic@3.0.81",
-    "@ai-sdk/mcp": "^1.0.46",
+    "@ai-sdk/mcp": "^1.0.49",
     "@arizeai/openinference-core": "^2.2.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "@clack/prompts": "^1.5.1",
-    "ai": "^6.0.198",
+    "ai": "^6.0.203",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^25.9.3",
     "glob": "^13.0.6",
     "tsx": "^4.22.4"
   },

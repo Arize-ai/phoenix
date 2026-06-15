@@ -728,6 +728,11 @@ class StepStartUIPart(TypedDict):
     type: Literal["step-start"]
 
 
+class SubagentsContext(TypedDict):
+    type: Literal["subagents"]
+    enabled: bool
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -1548,6 +1553,7 @@ class ChatRegenerateMessage(TypedDict):
                 DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
+                SubagentsContext,
             ]
         ]
     ]
@@ -1575,6 +1581,7 @@ class ChatSubmitMessage(TypedDict):
                 DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
+                SubagentsContext,
             ]
         ]
     ]

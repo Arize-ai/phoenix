@@ -86,7 +86,7 @@
   },
   "dependencies": {
     "@arizeai/openinference-semantic-conventions": "^2.5.0",
-    "@arizeai/openinference-vercel": "^2.7.7",
+    "@arizeai/openinference-vercel": "^2.7.8",
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
@@ -95,14 +95,14 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^3.0.68",
+    "@ai-sdk/openai": "^3.0.71",
     "@anthropic-ai/sdk": "^0.102.0",
     "@arizeai/phoenix-evals": "workspace:*",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/sdk-trace-node": "^2.7.1",
+    "@opentelemetry/sdk-trace-node": "^2.8.0",
     "@types/async": "^3.2.25",
-    "@types/node": "^25.9.2",
-    "ai": "^6.0.198",
+    "@types/node": "^25.9.3",
+    "ai": "^6.0.203",
     "openai": "^6.42.0",
     "openapi-typescript": "^7.13.0",
     "tsx": "^4.22.4",
