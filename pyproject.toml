@@ -73,8 +73,8 @@ dependencies = [
   "ldap3",
   # Runtime deps of the vendored just-bash (src/phoenix/vendor/just_bash), which
   # powers the networkless server-agent bash tool. Vendored so it runs on 3.10 too.
+  # (curl uses the already-core httpx; aiohttp is dev-only, for the test server.)
   "aiofiles",
-  "aiohttp",
 ]
 dynamic = ["version"]
 
@@ -88,6 +88,7 @@ dev = [
   "twine",
   "aiobotocore>=3.1.1",
   "aioboto3",
+  "aiohttp",  # test server (aiohttp.web) for the vendored just-bash network tests
   "aiosqlite>=0.22.1",
   "anthropic>=0.79.0",
   "arize>=8.1.0",

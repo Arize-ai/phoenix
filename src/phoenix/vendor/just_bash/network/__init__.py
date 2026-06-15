@@ -9,8 +9,8 @@ from collections.abc import Sequence
 from typing import Any
 from urllib.parse import SplitResult, urljoin, urlsplit
 
-import aiohttp
-from aiohttp.abc import AbstractResolver, ResolveResult
+import httpcore
+import httpx
 
 from ..types import AllowedUrl, NetworkConfig, RequestTransform
 
@@ -274,47 +274,94 @@ def _is_private_hostname(hostname: str) -> bool:
     return _is_private_ipv6(ip)
 
 
-async def _resolve_host(hostname: str, port: int) -> list[ResolveResult]:
+async def _resolve_host(hostname: str, port: int) -> list[str]:
+    """Resolve a hostname to its distinct IP addresses."""
     loop = asyncio.get_running_loop()
     infos = await loop.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
-    results: list[ResolveResult] = []
-    seen: set[tuple[str, int]] = set()
-    for family, _, proto, _, sockaddr in infos:
+    addresses: list[str] = []
+    seen: set[str] = set()
+    for *_, sockaddr in infos:
         address = str(sockaddr[0])
-        key = (address, family)
-        if key in seen:
+        if address in seen:
             continue
-        seen.add(key)
-        results.append(
-            {
-                "hostname": hostname,
-                "host": address,
-                "port": port,
-                "family": family,
-                "proto": proto,
-                "flags": socket.AI_NUMERICHOST,
-            }
-        )
-    return results
+        seen.add(address)
+        addresses.append(address)
+    return addresses
 
 
-class _PinnedResolver(AbstractResolver):
-    def __init__(self, hostname: str, records: list[ResolveResult]) -> None:
+class _PinnedBackend(httpcore.AsyncNetworkBackend):
+    """Pin a hostname's TCP connections to a set of pre-vetted IP addresses.
+
+    The addresses are resolved once and checked against the private-range
+    denylist up front; pinning the connection to exactly those addresses closes
+    the DNS-rebinding TOCTOU window between the allow-list check and connect.
+    Non-pinned hosts fall through to the wrapped backend unchanged.
+    """
+
+    def __init__(
+        self,
+        hostname: str,
+        addresses: list[str],
+        inner: httpcore.AsyncNetworkBackend,
+    ) -> None:
         self._hostname = hostname
-        self._records = records
+        self._addresses = addresses
+        self._inner = inner
 
-    async def resolve(
+    async def connect_tcp(
         self,
         host: str,
-        port: int = 0,
-        family: socket.AddressFamily = socket.AF_INET,
-    ) -> list[ResolveResult]:
-        if host == self._hostname:
-            return [{**record, "port": port} for record in self._records]
-        return await _resolve_host(host, port)
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options: Any = None,
+    ) -> httpcore.AsyncNetworkStream:
+        if host != self._hostname:
+            return await self._inner.connect_tcp(
+                host,
+                port,
+                timeout=timeout,
+                local_address=local_address,
+                socket_options=socket_options,
+            )
+        # Connect to a vetted address; the original hostname is still used for
+        # the Host header and TLS SNI, so certificate verification is unchanged.
+        last_error: Exception | None = None
+        for address in self._addresses:
+            try:
+                return await self._inner.connect_tcp(
+                    address,
+                    port,
+                    timeout=timeout,
+                    local_address=local_address,
+                    socket_options=socket_options,
+                )
+            except Exception as exc:  # try the next vetted address
+                last_error = exc
+        assert last_error is not None
+        raise last_error
 
-    async def close(self) -> None:
-        return None
+    async def connect_unix_socket(
+        self,
+        path: str,
+        timeout: float | None = None,
+        socket_options: Any = None,
+    ) -> httpcore.AsyncNetworkStream:
+        return await self._inner.connect_unix_socket(
+            path, timeout=timeout, socket_options=socket_options
+        )
+
+    async def sleep(self, seconds: float) -> None:
+        await self._inner.sleep(seconds)
+
+
+def _pinned_transport(hostname: str, addresses: list[str]) -> httpx.AsyncHTTPTransport:
+    """An httpx transport that pins ``hostname`` to ``addresses`` at connect time."""
+    transport = httpx.AsyncHTTPTransport()
+    transport._pool._network_backend = _PinnedBackend(
+        hostname, addresses, transport._pool._network_backend
+    )
+    return transport
 
 
 def _merge_headers(
@@ -331,7 +378,7 @@ def _merge_headers(
 
 
 def make_default_fetch(config: NetworkConfig):
-    """Create an aiohttp-backed secure fetch function for curl."""
+    """Create an httpx-backed secure fetch function for curl."""
 
     entries = config.allowed_url_prefixes
     if not config.dangerously_allow_full_internet_access:
@@ -345,7 +392,7 @@ def make_default_fetch(config: NetworkConfig):
         else [method.upper() for method in config.allowed_methods]
     )
 
-    async def check_allowed(url: str) -> list[ResolveResult] | None:
+    async def check_allowed(url: str) -> list[str] | None:
         parsed = _parse_http_url(url)
         if parsed is None:
             raise NetworkAccessDeniedError(url, "invalid URL")
@@ -363,13 +410,13 @@ def make_default_fetch(config: NetworkConfig):
             raise NetworkAccessDeniedError(url, "private/loopback IP address blocked")
 
         port = parsed.port or _default_port(parsed.scheme.lower()) or 80
-        records = await _resolve_host(hostname, port)
-        for record in records:
-            if _is_private_hostname(record["host"]):
+        addresses = await _resolve_host(hostname, port)
+        for address in addresses:
+            if _is_private_hostname(address):
                 raise NetworkAccessDeniedError(
                     url, "hostname resolves to private/loopback IP address"
                 )
-        return records
+        return addresses
 
     def check_method_allowed(method: str) -> None:
         if config.dangerously_allow_full_internet_access:
@@ -415,46 +462,42 @@ def make_default_fetch(config: NetworkConfig):
             body = None
 
         while True:
-            pinned_records = await check_allowed(current_url)
-            timeout = aiohttp.ClientTimeout(total=timeout_ms / 1000)
-            connector = (
-                aiohttp.TCPConnector(
-                    resolver=_PinnedResolver(urlsplit(current_url).hostname or "", pinned_records)
-                )
-                if pinned_records
+            pinned_addresses = await check_allowed(current_url)
+            transport = (
+                _pinned_transport(urlsplit(current_url).hostname or "", pinned_addresses)
+                if pinned_addresses
                 else None
             )
+            timeout = httpx.Timeout(timeout_ms / 1000)
+            headers = _merge_headers(
+                options.get("headers") or {},
+                firewall_headers(current_url),
+            )
             try:
-                async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-                    headers = _merge_headers(
-                        options.get("headers") or {},
-                        firewall_headers(current_url),
-                    )
-                    async with session.request(
-                        method,
-                        current_url,
-                        headers=headers,
-                        data=body,
-                        allow_redirects=False,
-                        auto_decompress=False,
-                        # Don't let aiohttp auto-advertise `Accept-Encoding:
-                        # gzip, deflate`. The curl layer only opts into
-                        # compression under --compressed (and then decompresses
-                        # itself); with auto_decompress=False an auto-injected
-                        # header makes the server return raw gzip bytes that
-                        # plain `curl` never asked for and won't decode. Honor
-                        # only an Accept-Encoding the caller set explicitly.
-                        skip_auto_headers=["Accept-Encoding"],
+                async with httpx.AsyncClient(
+                    timeout=timeout,
+                    transport=transport,
+                    follow_redirects=False,
+                ) as client:
+                    # Never auto-advertise compression. Real `curl` only sends
+                    # Accept-Encoding under --compressed (and then decompresses
+                    # itself); httpx otherwise injects `gzip, deflate`, making
+                    # servers return raw gzip bytes plain `curl` never asked for.
+                    # aiter_raw() in _read_limited_body likewise leaves the body
+                    # undecoded so the curl layer controls decompression.
+                    client.headers.pop("accept-encoding", None)
+                    async with client.stream(
+                        method, current_url, headers=headers, content=body
                     ) as resp:
-                        if resp.status in {301, 302, 303, 307, 308} and follow_redirects:
+                        if resp.status_code in {301, 302, 303, 307, 308} and follow_redirects:
                             location = resp.headers.get("location")
                             if not location:
                                 response_body = await _read_limited_body(
                                     resp, config.max_response_size
                                 )
                                 return {
-                                    "status": resp.status,
-                                    "statusText": resp.reason or "",
+                                    "status": resp.status_code,
+                                    "statusText": resp.reason_phrase or "",
                                     "headers": {k.lower(): v for k, v in resp.headers.items()},
                                     "body": response_body,
                                     "url": current_url,
@@ -476,22 +519,20 @@ def make_default_fetch(config: NetworkConfig):
 
                         response_body = await _read_limited_body(resp, config.max_response_size)
                         return {
-                            "status": resp.status,
-                            "statusText": resp.reason or "",
+                            "status": resp.status_code,
+                            "statusText": resp.reason_phrase or "",
                             "headers": {k.lower(): v for k, v in resp.headers.items()},
                             "body": response_body,
                             "url": str(resp.url),
                             "redirectCount": redirect_count,
                         }
-            # Python <3.11 raises asyncio.TimeoutError, which is a distinct
-            # class from the builtin TimeoutError (they were unified in 3.11).
-            except (asyncio.TimeoutError, TimeoutError) as exc:
+            except httpx.TimeoutException as exc:
                 raise TimeoutError("operation timeout") from exc
 
     return fetch
 
 
-async def _read_limited_body(resp: aiohttp.ClientResponse, max_size: int) -> bytes:
+async def _read_limited_body(resp: httpx.Response, max_size: int) -> bytes:
     chunks: list[bytes] = []
     total = 0
 
@@ -505,7 +546,7 @@ async def _read_limited_body(resp: aiohttp.ClientResponse, max_size: int) -> byt
             if size is not None and size > max_size:
                 raise ResponseTooLargeError(max_size)
 
-    async for chunk in resp.content.iter_chunked(_BODY_CHUNK_SIZE):
+    async for chunk in resp.aiter_raw(_BODY_CHUNK_SIZE):
         total += len(chunk)
         if max_size > 0 and total > max_size:
             raise ResponseTooLargeError(max_size)

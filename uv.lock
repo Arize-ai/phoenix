@@ -464,7 +464,6 @@ name = "arize-phoenix"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
-    { name = "aiohttp" },
     { name = "aioitertools" },
     { name = "aiosqlite" },
     { name = "alembic" },
@@ -577,6 +576,7 @@ wasm = [
 dev = [
     { name = "aioboto3" },
     { name = "aiobotocore" },
+    { name = "aiohttp" },
     { name = "aiosqlite" },
     { name = "anthropic" },
     { name = "arize" },
@@ -680,7 +680,6 @@ requires-dist = [
     { name = "aioboto3", marker = "extra == 'aws'" },
     { name = "aioboto3", marker = "extra == 'container'" },
     { name = "aiofiles" },
-    { name = "aiohttp" },
     { name = "aiohttp", marker = "extra == 'azure'" },
     { name = "aiohttp", marker = "extra == 'container'" },
     { name = "aioitertools" },
@@ -771,6 +770,7 @@ provides-extras = ["aws", "azure", "container", "daytona", "e2b", "evals", "expe
 dev = [
     { name = "aioboto3" },
     { name = "aiobotocore", specifier = ">=3.1.1" },
+    { name = "aiohttp" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "anthropic", specifier = ">=0.79.0" },
     { name = "arize", specifier = ">=8.1.0" },

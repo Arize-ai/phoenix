@@ -88,13 +88,11 @@ async def test_private_ranges_blocked_even_with_full_access(url):
 
 @pytest.mark.asyncio
 async def test_malformed_content_length_falls_back_to_streamed_size_check():
-    class FakeContent:
-        async def iter_chunked(self, _size):
-            yield b"ok"
-
     class FakeResponse:
         headers = {"content-length": "nope"}
-        content = FakeContent()
+
+        async def aiter_raw(self, _size):
+            yield b"ok"
 
     assert await _read_limited_body(FakeResponse(), 3) == b"ok"
 
