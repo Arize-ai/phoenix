@@ -1,7 +1,7 @@
 import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
-import { USER_AGENT } from "./constants.js";
 import type { PhoenixMcpConfig } from "./config.js";
+import { USER_AGENT } from "./constants.js";
 
 export interface CreatePhoenixClientOptions {
   config: PhoenixMcpConfig;
