@@ -734,14 +734,20 @@ class ProjectSession(HasId):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
         uselist=True,
+    )
+    __table_args__ = (
+        Index(
+            "ix_project_sessions_project_id_start_time",
+            "project_id",
+            text("start_time DESC"),
+        ),
     )
 
 
@@ -750,14 +756,13 @@ class Trace(HasId):
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     trace_id: Mapped[str]
     project_session_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
     @hybrid_property
@@ -796,6 +801,11 @@ class Trace(HasId):
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
+        ),
+        Index(
+            "ix_traces_project_rowid_start_time",
+            "project_rowid",
+            text("start_time DESC"),
         ),
     )
 
