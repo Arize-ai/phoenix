@@ -2,10 +2,8 @@ import type { PropsWithChildren } from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SELECTED_TRACE_ID_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SELECTION_SCOPED_SEARCH_PARAMS } from "@phoenix/constants/searchParams";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 /**
  * A sequence of session node IDs used to navigate between sessions.
@@ -26,19 +24,12 @@ export const useSessionPagination = () => {
   return useContext(SessionPaginationContext);
 };
 
-const SESSION_DETAILS_SEARCH_PARAMS_TO_CLEAR = [
-  SELECTED_TRACE_ID_PARAM,
-  SELECTED_SPAN_NODE_ID_PARAM,
-];
-
-const getPreservedSearch = (search: string) => {
-  const searchParams = new URLSearchParams(search);
-  for (const searchParam of SESSION_DETAILS_SEARCH_PARAMS_TO_CLEAR) {
-    searchParams.delete(searchParam);
-  }
-  const nextSearch = searchParams.toString();
-  return nextSearch ? `?${nextSearch}` : "";
-};
+const getPreservedSearch = (search: string) =>
+  withSearchParams(search, (params) => {
+    for (const param of SELECTION_SCOPED_SEARCH_PARAMS) {
+      params.delete(param);
+    }
+  });
 
 /**
  * Get the next and previous sessionIds based on the current sessionId.

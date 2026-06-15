@@ -18,11 +18,14 @@ export const SESSION_VIEW_PARAM = "sessionView";
 export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";
 
 /**
- * Legacy search param that contained the selected tracing time range key.
- * Retained for parsing existing links and canonicalizing them to the
- * bounds-first URL contract.
+ * Search params scoped to a specific selection within trace/session detail
+ * views. These are dropped when navigating away from a selection while
+ * recreatable params (such as the time range) are preserved.
  */
-export const LEGACY_TIME_RANGE_PARAM = "timeRange";
+export const SELECTION_SCOPED_SEARCH_PARAMS = [
+  SELECTED_TRACE_ID_PARAM,
+  SELECTED_SPAN_NODE_ID_PARAM,
+] as const;
 
 /**
  * Optional search param that contains UI metadata for the selected tracing

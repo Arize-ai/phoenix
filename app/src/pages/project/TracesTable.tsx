@@ -55,12 +55,12 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpanStatusCode,
@@ -88,25 +88,6 @@ type TracesTableProps = {
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const NUM_DESCENDANTS = 50;
-
-function getTraceDetailsPath({
-  traceId,
-  spanNodeId,
-  searchParams,
-}: {
-  traceId: string;
-  spanNodeId?: string | null;
-  searchParams: URLSearchParams;
-}) {
-  const nextSearchParams = new URLSearchParams(searchParams);
-  if (spanNodeId) {
-    nextSearchParams.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
-  } else {
-    nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-  }
-  const nextSearch = nextSearchParams.toString();
-  return `${traceId}${nextSearch ? `?${nextSearch}` : ""}`;
-}
 
 interface IAdditionalSpansIndicator {
   /**

@@ -13,7 +13,6 @@ import {
   type SetTimeRangeInput,
 } from "@phoenix/agent/tools/timeRange";
 import {
-  LEGACY_TIME_RANGE_PARAM,
   TIME_RANGE_END_PARAM,
   TIME_RANGE_KEY_PARAM,
   TIME_RANGE_START_PARAM,
@@ -88,7 +87,6 @@ function getStoredTimeRange({
 function getTimeRangeSearchSignature(searchParams: URLSearchParams) {
   const scopedSearchParams = new URLSearchParams();
   for (const param of [
-    LEGACY_TIME_RANGE_PARAM,
     TIME_RANGE_KEY_PARAM,
     TIME_RANGE_START_PARAM,
     TIME_RANGE_END_PARAM,
@@ -118,9 +116,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const liveTimeRangeKeyRef = useRef<LastNTimeRangeKey | null>(null);
   const lastWrittenTimeRangeSearchRef = useRef<string | null>(null);
   const currentTimeRangeSearch = getTimeRangeSearchSignature(searchParams);
-  const urlTimeRangeKey =
-    searchParams.get(TIME_RANGE_KEY_PARAM) ??
-    searchParams.get(LEGACY_TIME_RANGE_PARAM);
+  const urlTimeRangeKey = searchParams.get(TIME_RANGE_KEY_PARAM);
   const hasUrlTimeRangeBounds =
     searchParams.has(TIME_RANGE_START_PARAM) ||
     searchParams.has(TIME_RANGE_END_PARAM);

@@ -19,13 +19,11 @@ import {
 } from "@phoenix/components";
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SELECTED_TRACE_ID_PARAM,
-} from "@phoenix/constants/searchParams";
+import { SELECTION_SCOPED_SEARCH_PARAMS } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import { SessionDetails } from "./SessionDetails";
 
@@ -39,10 +37,11 @@ export function SessionPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
-  const parentSearchParams = new URLSearchParams(location.search);
-  parentSearchParams.delete(SELECTED_TRACE_ID_PARAM);
-  parentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-  const parentSearch = parentSearchParams.toString();
+  const parentSearch = withSearchParams(location.search, (params) => {
+    for (const param of SELECTION_SCOPED_SEARCH_PARAMS) {
+      params.delete(param);
+    }
+  });
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "session-details",
   });
@@ -53,7 +52,7 @@ export function SessionPage() {
       onClose={() =>
         navigate({
           pathname: `${rootPath}/${tab}`,
-          search: parentSearch ? `?${parentSearch}` : "",
+          search: parentSearch,
           hash: location.hash,
         })
       }

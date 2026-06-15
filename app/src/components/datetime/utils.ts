@@ -9,7 +9,6 @@ import {
 import type { DateValue } from "react-aria-components";
 
 import {
-  LEGACY_TIME_RANGE_PARAM,
   TIME_RANGE_END_PARAM,
   TIME_RANGE_KEY_PARAM,
   TIME_RANGE_START_PARAM,
@@ -145,9 +144,7 @@ export function getTimeRangeFromSearchParams(
     preferConcreteBounds?: boolean;
   } = {}
 ): OpenTimeRangeWithKey | null {
-  const urlTimeRangeKey =
-    searchParams.get(TIME_RANGE_KEY_PARAM) ??
-    searchParams.get(LEGACY_TIME_RANGE_PARAM);
+  const urlTimeRangeKey = searchParams.get(TIME_RANGE_KEY_PARAM);
   const hasCustomBounds =
     searchParams.has(TIME_RANGE_START_PARAM) ||
     searchParams.has(TIME_RANGE_END_PARAM);
@@ -203,7 +200,6 @@ export function setTimeRangeSearchParams({
 }): URLSearchParams {
   const nextSearchParams = new URLSearchParams(searchParams);
   const isLastNTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey);
-  nextSearchParams.delete(LEGACY_TIME_RANGE_PARAM);
   if (isLastNTimeRange) {
     nextSearchParams.set(TIME_RANGE_KEY_PARAM, timeRange.timeRangeKey);
   } else {

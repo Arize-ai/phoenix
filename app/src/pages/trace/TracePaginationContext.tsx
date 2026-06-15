@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 /**
  * A sequence of traceId/spanId pairs that represent the trace sequence.
@@ -77,14 +78,14 @@ export const makeTraceUrls = (
   const makeUrl = (traceId: string, currentSpanId?: string) => {
     // we always navigate directly to a traceId
     const path = `/${projects}/${projectId}/${resource}/${traceId}`;
-    const searchParams = new URLSearchParams(location.search);
-    if (currentSpanId) {
-      searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, currentSpanId);
-    } else {
-      searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-    }
-    const nextSearch = searchParams.toString();
-    return `${path}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`;
+    const search = withSearchParams(location.search, (params) => {
+      if (currentSpanId) {
+        params.set(SELECTED_SPAN_NODE_ID_PARAM, currentSpanId);
+      } else {
+        params.delete(SELECTED_SPAN_NODE_ID_PARAM);
+      }
+    });
+    return `${path}${search}${location.hash}`;
   };
   const hasNext = !!nextTraceId;
   const hasPrevious = !!previousTraceId;

@@ -26,6 +26,7 @@ import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import { TraceDetails } from "./TraceDetails";
 
@@ -39,9 +40,9 @@ export function TracePage() {
   const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
-  const parentSearchParams = new URLSearchParams(searchParams);
-  parentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-  const parentSearch = parentSearchParams.toString();
+  const parentSearch = withSearchParams(searchParams, (params) => {
+    params.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  });
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "trace-details",
   });
@@ -56,7 +57,7 @@ export function TracePage() {
       onClose={() =>
         navigate({
           pathname: `${rootPath}/${tab}`,
-          search: parentSearch ? `?${parentSearch}` : "",
+          search: parentSearch,
           hash: location.hash,
         })
       }

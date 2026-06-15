@@ -91,13 +91,6 @@ describe("datetime utils", () => {
     expect(lastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
     expect(lastN?.end).toBeNull();
 
-    const legacyLastN = getTimeRangeFromSearchParams(
-      new URLSearchParams("timeRange=15m")
-    );
-    expect(legacyLastN?.timeRangeKey).toBe("15m");
-    expect(legacyLastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
-    expect(legacyLastN?.end).toBeNull();
-
     const concreteLastN = getTimeRangeFromSearchParams(
       new URLSearchParams(
         "timeRangeKey=15m&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
@@ -152,7 +145,7 @@ describe("datetime utils", () => {
 
   it("serializes selected time ranges to URL search params", () => {
     const searchParams = new URLSearchParams(
-      "timeRange=7d&selectedSpanNodeId=span-1"
+      "timeRangeKey=7d&selectedSpanNodeId=span-1"
     );
     const customParams = setTimeRangeSearchParams({
       searchParams,
@@ -163,7 +156,6 @@ describe("datetime utils", () => {
       },
       now: new Date("2026-06-09T10:20:30.000Z"),
     });
-    expect(customParams.get("timeRange")).toBeNull();
     expect(customParams.get("timeRangeKey")).toBeNull();
     expect(customParams.get("timeRangeStart")).toBe("2026-06-09T09:00:00.000Z");
     expect(customParams.get("timeRangeEnd")).toBeNull();
@@ -178,7 +170,6 @@ describe("datetime utils", () => {
       },
       now: presetNow,
     });
-    expect(presetParams.get("timeRange")).toBeNull();
     expect(presetParams.get("timeRangeKey")).toBe("1h");
     expect(presetParams.get("timeRangeStart")).toBe("2026-06-09T09:20:00.000Z");
     expect(presetParams.get("timeRangeEnd")).toBe("2026-06-09T10:20:30.000Z");

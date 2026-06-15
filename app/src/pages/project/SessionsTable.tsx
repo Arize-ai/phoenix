@@ -40,14 +40,11 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
-import {
-  SELECTED_SPAN_NODE_ID_PARAM,
-  SELECTED_TRACE_ID_PARAM,
-} from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
+import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import {
   CellWithControlsWrap,
@@ -76,20 +73,6 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
-
-function getSessionDetailsPath({
-  sessionId,
-  searchParams,
-}: {
-  sessionId: string;
-  searchParams: URLSearchParams;
-}) {
-  const nextSearchParams = new URLSearchParams(searchParams);
-  nextSearchParams.delete(SELECTED_TRACE_ID_PARAM);
-  nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-  const nextSearch = nextSearchParams.toString();
-  return `${encodeURIComponent(sessionId)}${nextSearch ? `?${nextSearch}` : ""}`;
-}
 
 const TableBody = <T extends { id: string }>({
   table,

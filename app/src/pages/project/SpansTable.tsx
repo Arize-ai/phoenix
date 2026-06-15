@@ -67,6 +67,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpansTable_spans$key,
@@ -108,25 +109,6 @@ type RootSpanFilterValue = "root" | "all";
 const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
-
-function getTraceDetailsPath({
-  traceId,
-  spanNodeId,
-  searchParams,
-}: {
-  traceId: string;
-  spanNodeId?: string;
-  searchParams: URLSearchParams;
-}) {
-  const nextSearchParams = new URLSearchParams(searchParams);
-  if (spanNodeId) {
-    nextSearchParams.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
-  } else {
-    nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
-  }
-  const nextSearch = nextSearchParams.toString();
-  return `${traceId}${nextSearch ? `?${nextSearch}` : ""}`;
-}
 
 function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
   return val === "root" || val === "all";

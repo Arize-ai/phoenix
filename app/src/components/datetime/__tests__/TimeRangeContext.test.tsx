@@ -164,7 +164,7 @@ describe("TimeRangeProvider", () => {
 
     renderTimeRangeProvider({
       root,
-      initialEntry: "/projects/project-1/traces?timeRange=1h",
+      initialEntry: "/projects/project-1/traces?timeRangeKey=1h",
       lastNTimeRangeKey: "15m",
       onRender: (timeRange) => {
         renderedTimeRanges.push(timeRange);
@@ -216,7 +216,7 @@ describe("TimeRangeProvider", () => {
 
     renderTimeRangeProvider({
       root,
-      initialEntry: "/projects/project-1/traces?timeRange=7d",
+      initialEntry: "/projects/project-1/traces?timeRangeKey=7d",
       lastNTimeRangeKey: "15m",
       onRender: () => null,
       onLocation: (search) => {
@@ -227,7 +227,6 @@ describe("TimeRangeProvider", () => {
     const latestSearchParams = new URLSearchParams(
       renderedLocations.at(-1) ?? ""
     );
-    expect(latestSearchParams.get("timeRange")).toBeNull();
     expect(latestSearchParams.get("timeRangeKey")).toBe("7d");
     expect(latestSearchParams.get("timeRangeStart")).toBe(
       "2026-06-02T10:00:00.000Z"
@@ -293,7 +292,7 @@ describe("TimeRangeProvider", () => {
     renderTimeRangeProvider({
       root,
       initialEntry:
-        "/projects/project-1/traces?selectedSpanNodeId=span-1&timeRange=15m",
+        "/projects/project-1/traces?selectedSpanNodeId=span-1&timeRangeKey=15m",
       onRender: () => null,
       onLocation: (search) => {
         renderedLocations.push(search);
@@ -311,7 +310,6 @@ describe("TimeRangeProvider", () => {
       renderedLocations.at(-1) ?? ""
     );
     expect(latestSearchParams.get("selectedSpanNodeId")).toBe("span-1");
-    expect(latestSearchParams.get("timeRange")).toBeNull();
     expect(latestSearchParams.get("timeRangeKey")).toBeNull();
     expect(latestSearchParams.get("timeRangeStart")).toBe(
       "2026-06-09T09:00:00.000Z"
