@@ -261,14 +261,14 @@ sends the bearer token in cleartext.
 
 ## Phoenix env vars
 
-| Env var                                       | Purpose                              |
-| --------------------------------------------- | ------------------------------------ |
-| `PHOENIX_HOST` / `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix base URL                     |
-| `PHOENIX_API_KEY`                             | Bearer token for Phoenix             |
-| `PHOENIX_PROJECT_NAME`                        | Override project name for traces     |
-| `PHOENIX_TEST_TRACKING=false`                 | Disable sync to Phoenix for this run |
+| Env var                                       | Purpose                                |
+| --------------------------------------------- | -------------------------------------- |
+| `PHOENIX_HOST` / `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix base URL                       |
+| `PHOENIX_API_KEY`                             | Bearer token for Phoenix               |
+| `PHOENIX_PROJECT_NAME`                        | Override project name for traces       |
+| `PHOENIX_TEST_TRACKING=false`                 | Disable sync to Phoenix for this run   |
 | `PHOENIX_TEST_DRY_RUN=true`                   | Alias of `PHOENIX_TEST_TRACKING=false` |
-| `PHOENIX_TEST_REPETITIONS`                    | Default repetition count per test    |
+| `PHOENIX_TEST_REPETITIONS`                    | Default repetition count per test      |
 
 `@arizeai/phoenix-test` reuses the same configuration surface as
 `@arizeai/phoenix-client` and `@arizeai/phoenix-otel` — see those READMEs
