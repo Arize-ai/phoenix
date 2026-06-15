@@ -750,14 +750,13 @@ class Trace(HasId):
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     trace_id: Mapped[str]
     project_session_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
     @hybrid_property
