@@ -1,5 +1,10 @@
 import { Suspense } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import {
   Dialog,
@@ -31,8 +36,12 @@ export function TracePage() {
   const { traceId, projectId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const parentSearchParams = new URLSearchParams(searchParams);
+  parentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  const parentSearch = parentSearchParams.toString();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "trace-details",
   });
@@ -44,7 +53,13 @@ export function TracePage() {
   return (
     <Drawer
       isOpen
-      onClose={() => navigate(`${rootPath}/${tab}`)}
+      onClose={() =>
+        navigate({
+          pathname: `${rootPath}/${tab}`,
+          search: parentSearch ? `?${parentSearch}` : "",
+          hash: location.hash,
+        })
+      }
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}

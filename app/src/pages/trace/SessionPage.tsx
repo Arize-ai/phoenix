@@ -1,4 +1,9 @@
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import {
+  useLoaderData,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -14,6 +19,10 @@ import {
 } from "@phoenix/components";
 import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
 import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
@@ -28,7 +37,12 @@ export function SessionPage() {
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
+  const parentSearchParams = new URLSearchParams(location.search);
+  parentSearchParams.delete(SELECTED_TRACE_ID_PARAM);
+  parentSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  const parentSearch = parentSearchParams.toString();
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "session-details",
   });
@@ -36,7 +50,13 @@ export function SessionPage() {
   return (
     <Drawer
       isOpen
-      onClose={() => navigate(`${rootPath}/${tab}`)}
+      onClose={() =>
+        navigate({
+          pathname: `${rootPath}/${tab}`,
+          search: parentSearch ? `?${parentSearch}` : "",
+          hash: location.hash,
+        })
+      }
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}

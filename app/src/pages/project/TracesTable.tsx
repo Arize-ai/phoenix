@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -89,6 +89,25 @@ type TracesTableProps = {
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const NUM_DESCENDANTS = 50;
 
+function getTraceDetailsPath({
+  traceId,
+  spanNodeId,
+  searchParams,
+}: {
+  traceId: string;
+  spanNodeId?: string | null;
+  searchParams: URLSearchParams;
+}) {
+  const nextSearchParams = new URLSearchParams(searchParams);
+  if (spanNodeId) {
+    nextSearchParams.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+  } else {
+    nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  }
+  const nextSearch = nextSearchParams.toString();
+  return `${traceId}${nextSearch ? `?${nextSearch}` : ""}`;
+}
+
 interface IAdditionalSpansIndicator {
   /**
    * A flag that if set, indicates that this row is just there to show that there are N more spans under this span
@@ -119,6 +138,7 @@ const TableBody = <
   "use no memo";
   const navigate = useNavigate();
   const { traceId } = useParams();
+  const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -126,7 +146,14 @@ const TableBody = <
         return (
           <tr
             key={row.id}
-            onClick={() => navigate(`${row.original.trace.traceId}`)}
+            onClick={() =>
+              navigate(
+                getTraceDetailsPath({
+                  traceId: row.original.trace.traceId,
+                  searchParams,
+                })
+              )
+            }
             data-is-additional-row={row.original.__additionalRow}
             data-selected={isSelected}
             css={css(trCSS)}
@@ -200,6 +227,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
@@ -716,7 +744,11 @@ export function TracesTable(props: TracesTableProps) {
           const spanId = row.original.__additionalRow ? null : row.original.id;
           return (
             <Link
-              to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
+              to={getTraceDetailsPath({
+                traceId,
+                spanNodeId: spanId,
+                searchParams,
+              })}
             >
               {getValue() as string}
             </Link>
@@ -847,7 +879,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns]
+    [annotationColumns, searchParams]
   );
 
   useEffect(() => {

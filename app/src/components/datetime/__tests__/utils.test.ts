@@ -3,12 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getLastNTimeRangeLabel,
   getMillisecondsUntilNextLastNTimeRangeRefresh,
+  getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
   getTimeRangeSearchSuggestions,
   isLastNTimeRangeKey,
   panTimeRangeLeft,
   panTimeRangeRight,
   parseTimeRangeSearchText,
+  setTimeRangeSearchParams,
   zoomTimeRangeIn,
   zoomTimeRangeOut,
 } from "../utils";
@@ -76,6 +78,111 @@ describe("datetime utils", () => {
     expect(getTimeRangeSearchSuggestions("")).toEqual([]);
     expect(getTimeRangeSearchSuggestions("0")).toEqual([]);
     expect(getTimeRangeSearchSuggestions("hour")).toEqual([]);
+  });
+
+  it("parses selected time ranges from URL search params", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-09T10:20:30.000Z"));
+
+    const lastN = getTimeRangeFromSearchParams(
+      new URLSearchParams("timeRangeKey=15m")
+    );
+    expect(lastN?.timeRangeKey).toBe("15m");
+    expect(lastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
+    expect(lastN?.end).toBeNull();
+
+    const legacyLastN = getTimeRangeFromSearchParams(
+      new URLSearchParams("timeRange=15m")
+    );
+    expect(legacyLastN?.timeRangeKey).toBe("15m");
+    expect(legacyLastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
+    expect(legacyLastN?.end).toBeNull();
+
+    const concreteLastN = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "timeRangeKey=15m&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+      )
+    );
+    expect(concreteLastN).toEqual({
+      timeRangeKey: "15m",
+      start: new Date("2026-06-09T09:00:00.000Z"),
+      end: new Date("2026-06-09T10:00:00.000Z"),
+    });
+
+    const liveLastN = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "timeRangeKey=15m&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+      ),
+      Date.now(),
+      { preferConcreteBounds: false }
+    );
+    expect(liveLastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
+
+    const custom = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+      )
+    );
+    expect(custom).toEqual({
+      timeRangeKey: "custom",
+      start: new Date("2026-06-09T09:00:00.000Z"),
+      end: new Date("2026-06-09T10:00:00.000Z"),
+    });
+
+    expect(
+      getTimeRangeFromSearchParams(new URLSearchParams("timeRange=bogus"))
+    ).toBeNull();
+    expect(
+      getTimeRangeFromSearchParams(
+        new URLSearchParams(
+          "timeRangeKey=bogus&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+        )
+      )
+    ).toEqual({
+      timeRangeKey: "custom",
+      start: new Date("2026-06-09T09:00:00.000Z"),
+      end: new Date("2026-06-09T10:00:00.000Z"),
+    });
+    expect(
+      getTimeRangeFromSearchParams(
+        new URLSearchParams("timeRangeStart=not-a-date")
+      )
+    ).toBeNull();
+  });
+
+  it("serializes selected time ranges to URL search params", () => {
+    const searchParams = new URLSearchParams(
+      "timeRange=7d&selectedSpanNodeId=span-1"
+    );
+    const customParams = setTimeRangeSearchParams({
+      searchParams,
+      timeRange: {
+        timeRangeKey: "custom",
+        start: new Date("2026-06-09T09:00:00.000Z"),
+        end: null,
+      },
+      now: new Date("2026-06-09T10:20:30.000Z"),
+    });
+    expect(customParams.get("timeRange")).toBeNull();
+    expect(customParams.get("timeRangeKey")).toBeNull();
+    expect(customParams.get("timeRangeStart")).toBe("2026-06-09T09:00:00.000Z");
+    expect(customParams.get("timeRangeEnd")).toBeNull();
+    expect(customParams.get("selectedSpanNodeId")).toBe("span-1");
+
+    const presetNow = new Date("2026-06-09T10:20:30.000Z");
+    const presetParams = setTimeRangeSearchParams({
+      searchParams: customParams,
+      timeRange: {
+        timeRangeKey: "1h",
+        ...getTimeRangeFromLastNTimeRangeKey("1h", presetNow.getTime()),
+      },
+      now: presetNow,
+    });
+    expect(presetParams.get("timeRange")).toBeNull();
+    expect(presetParams.get("timeRangeKey")).toBe("1h");
+    expect(presetParams.get("timeRangeStart")).toBe("2026-06-09T09:20:00.000Z");
+    expect(presetParams.get("timeRangeEnd")).toBe("2026-06-09T10:20:30.000Z");
+    expect(presetParams.get("selectedSpanNodeId")).toBe("span-1");
   });
 });
 

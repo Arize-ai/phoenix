@@ -8,6 +8,12 @@ import {
 } from "date-fns";
 import type { DateValue } from "react-aria-components";
 
+import {
+  LEGACY_TIME_RANGE_PARAM,
+  TIME_RANGE_END_PARAM,
+  TIME_RANGE_KEY_PARAM,
+  TIME_RANGE_START_PARAM,
+} from "@phoenix/constants/searchParams";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { LAST_N_TIME_RANGES_MAP } from "./constants";
@@ -61,13 +67,13 @@ function getLastNTimeRangeDurationMs({
 }
 
 export function getTimeRangeFromLastNTimeRangeKey(
-  key: LastNTimeRangeKey
+  key: LastNTimeRangeKey,
+  now = Date.now()
 ): OpenTimeRange {
   const parsed = parseLastNTimeRangeKey(key);
   if (!parsed) {
     throw new Error(`Invalid last N time range key: ${key}`);
   }
-  const now = Date.now();
   const { quantity, unit } = parsed;
   let start: Date;
   switch (unit) {
@@ -115,6 +121,107 @@ export function isLastNTimeRangeKey(key: unknown): key is LastNTimeRangeKey {
  */
 export function isTimeRangeKey(key: unknown): key is TimeRangeKey {
   return isLastNTimeRangeKey(key) || key === "custom";
+}
+
+function getDateFromSearchParamValue(value: string | null) {
+  if (value == null || value.trim() === "") {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/**
+ * Parses a selected time range from URL search params. Invalid or incomplete
+ * params return null so callers can fall back to the user's stored preference.
+ */
+export function getTimeRangeFromSearchParams(
+  searchParams: URLSearchParams,
+  now = Date.now(),
+  {
+    preferConcreteBounds = true,
+  }: {
+    /** Whether concrete URL bounds should override a relative last-N key. */
+    preferConcreteBounds?: boolean;
+  } = {}
+): OpenTimeRangeWithKey | null {
+  const urlTimeRangeKey =
+    searchParams.get(TIME_RANGE_KEY_PARAM) ??
+    searchParams.get(LEGACY_TIME_RANGE_PARAM);
+  const hasCustomBounds =
+    searchParams.has(TIME_RANGE_START_PARAM) ||
+    searchParams.has(TIME_RANGE_END_PARAM);
+  const start = getDateFromSearchParamValue(
+    searchParams.get(TIME_RANGE_START_PARAM)
+  );
+  const end = getDateFromSearchParamValue(
+    searchParams.get(TIME_RANGE_END_PARAM)
+  );
+  if (start === undefined || end === undefined) {
+    return null;
+  }
+  if (start != null && end != null && start > end) {
+    return null;
+  }
+  const hasConcreteBounds = start != null || end != null;
+  if (isLastNTimeRangeKey(urlTimeRangeKey)) {
+    if (preferConcreteBounds && hasConcreteBounds) {
+      return {
+        timeRangeKey: urlTimeRangeKey,
+        start,
+        end,
+      };
+    }
+    return {
+      timeRangeKey: urlTimeRangeKey,
+      ...getTimeRangeFromLastNTimeRangeKey(urlTimeRangeKey, now),
+    };
+  }
+  if (!hasCustomBounds || !hasConcreteBounds) {
+    return null;
+  }
+  return {
+    timeRangeKey: "custom",
+    start,
+    end,
+  };
+}
+
+/**
+ * Writes the selected time range to URL search params while preserving
+ * unrelated params such as selected span/session state.
+ */
+export function setTimeRangeSearchParams({
+  searchParams,
+  timeRange,
+  now = new Date(),
+}: {
+  searchParams: URLSearchParams;
+  timeRange: OpenTimeRangeWithKey;
+  /** Reference end time for open-ended last-N ranges. Defaults to now. */
+  now?: Date;
+}): URLSearchParams {
+  const nextSearchParams = new URLSearchParams(searchParams);
+  const isLastNTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey);
+  nextSearchParams.delete(LEGACY_TIME_RANGE_PARAM);
+  if (isLastNTimeRange) {
+    nextSearchParams.set(TIME_RANGE_KEY_PARAM, timeRange.timeRangeKey);
+  } else {
+    nextSearchParams.delete(TIME_RANGE_KEY_PARAM);
+  }
+  if (timeRange.start != null) {
+    nextSearchParams.set(TIME_RANGE_START_PARAM, timeRange.start.toISOString());
+  } else {
+    nextSearchParams.delete(TIME_RANGE_START_PARAM);
+  }
+  const end =
+    timeRange.end ?? (isLastNTimeRange && timeRange.start != null ? now : null);
+  if (end != null) {
+    nextSearchParams.set(TIME_RANGE_END_PARAM, end.toISOString());
+  } else {
+    nextSearchParams.delete(TIME_RANGE_END_PARAM);
+  }
+  return nextSearchParams;
 }
 
 const LAST_N_UNIT_LABELS: Record<

@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useNavigate, useParams } from "react-router";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -16,6 +16,10 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -164,6 +168,7 @@ function ProjectPageContentBody({
       ProjectPageQueriesProjectConfigQuery
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  const location = useLocation();
   useEffect(() => {
     startTransition(() => {
       if (tabIndex === TAB_INDEX_MAP.spans) {
@@ -202,25 +207,50 @@ function ProjectPageContentBody({
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
+        const nextSearchParams = new URLSearchParams(location.search);
+        nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+        nextSearchParams.delete(SELECTED_TRACE_ID_PARAM);
+        const nextSearch = nextSearchParams.toString();
+        const search = nextSearch ? `?${nextSearch}` : "";
         if (index === 1) {
           // navigate to the traces tab
-          navigate(`${rootPath}/traces`);
+          navigate({
+            pathname: `${rootPath}/traces`,
+            search,
+            hash: location.hash,
+          });
         } else if (index === 2) {
           // navigate to the sessions tab
-          navigate(`${rootPath}/sessions`);
+          navigate({
+            pathname: `${rootPath}/sessions`,
+            search,
+            hash: location.hash,
+          });
         } else if (index === 3) {
           // navigate to the metrics tab
-          navigate(`${rootPath}/metrics`);
+          navigate({
+            pathname: `${rootPath}/metrics`,
+            search,
+            hash: location.hash,
+          });
         } else if (index === 4) {
           // navigate to the config tab
-          navigate(`${rootPath}/config`);
+          navigate({
+            pathname: `${rootPath}/config`,
+            search,
+            hash: location.hash,
+          });
         } else {
           // navigate to the spans tab
-          navigate(`${rootPath}/spans`);
+          navigate({
+            pathname: `${rootPath}/spans`,
+            search,
+            hash: location.hash,
+          });
         }
       });
     },
-    [navigate, rootPath]
+    [location.hash, location.search, navigate, rootPath]
   );
 
   return (

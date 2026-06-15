@@ -3,22 +3,32 @@ import React, {
   startTransition,
   useEffect,
   useEffectEvent,
+  useRef,
   useState,
 } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   SET_TIME_RANGE_TOOL_NAME,
   type SetTimeRangeInput,
 } from "@phoenix/agent/tools/timeRange";
+import {
+  LEGACY_TIME_RANGE_PARAM,
+  TIME_RANGE_END_PARAM,
+  TIME_RANGE_KEY_PARAM,
+  TIME_RANGE_START_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import type { OpenTimeRangeWithKey } from "./types";
+import type { LastNTimeRangeKey, OpenTimeRangeWithKey } from "./types";
 import {
   getMillisecondsUntilNextLastNTimeRangeRefresh,
+  getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
   isLastNTimeRangeKey,
+  setTimeRangeSearchParams,
 } from "./utils";
 
 export type TimeRangeContextType = {
@@ -54,7 +64,45 @@ export function useTimeRange() {
   return context;
 }
 
+function getStoredTimeRange({
+  storedLastNTimeRangeKey,
+  now,
+}: {
+  storedLastNTimeRangeKey: unknown;
+  now: number;
+}): OpenTimeRangeWithKey {
+  // Just to be safe, we check if the stored time range key is valid
+  if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
+    return {
+      timeRangeKey: storedLastNTimeRangeKey,
+      ...getTimeRangeFromLastNTimeRangeKey(storedLastNTimeRangeKey, now),
+    };
+  }
+  // Fall back to the default time range
+  return {
+    timeRangeKey: "7d",
+    ...getTimeRangeFromLastNTimeRangeKey("7d", now),
+  };
+}
+
+function getTimeRangeSearchSignature(searchParams: URLSearchParams) {
+  const scopedSearchParams = new URLSearchParams();
+  for (const param of [
+    LEGACY_TIME_RANGE_PARAM,
+    TIME_RANGE_KEY_PARAM,
+    TIME_RANGE_START_PARAM,
+    TIME_RANGE_END_PARAM,
+  ]) {
+    const value = searchParams.get(param);
+    if (value != null) {
+      scopedSearchParams.set(param, value);
+    }
+  }
+  return scopedSearchParams.toString();
+}
+
 export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   /**
    * Load in the last N time range key from preferences
    */
@@ -66,35 +114,72 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     (state) => state.setLastNTimeRangeKey
   );
 
-  // Default to the last N time range stored in preferences
-  const [timeRange, _setTimeRange] = useState<OpenTimeRangeWithKey>(() => {
-    // Just to be safe, we check if the stored time range key is valid
-    if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
-      return {
-        timeRangeKey: storedLastNTimeRangeKey,
-        ...getTimeRangeFromLastNTimeRangeKey(storedLastNTimeRangeKey),
-      };
-    } else {
-      // Fall back to the default time range
-      return {
-        timeRangeKey: "7d",
-        ...getTimeRangeFromLastNTimeRangeKey("7d"),
-      };
+  const [timeRangeNow, setTimeRangeNow] = useState(() => Date.now());
+  const liveTimeRangeKeyRef = useRef<LastNTimeRangeKey | null>(null);
+  const lastWrittenTimeRangeSearchRef = useRef<string | null>(null);
+  const currentTimeRangeSearch = getTimeRangeSearchSignature(searchParams);
+  const urlTimeRangeKey =
+    searchParams.get(TIME_RANGE_KEY_PARAM) ??
+    searchParams.get(LEGACY_TIME_RANGE_PARAM);
+  const hasUrlTimeRangeBounds =
+    searchParams.has(TIME_RANGE_START_PARAM) ||
+    searchParams.has(TIME_RANGE_END_PARAM);
+  const isLiveUrlTimeRange =
+    isLastNTimeRangeKey(urlTimeRangeKey) &&
+    liveTimeRangeKeyRef.current === urlTimeRangeKey &&
+    lastWrittenTimeRangeSearchRef.current === currentTimeRangeSearch;
+  const urlTimeRange = getTimeRangeFromSearchParams(
+    searchParams,
+    timeRangeNow,
+    {
+      preferConcreteBounds: !isLiveUrlTimeRange,
     }
+  );
+  const storedTimeRange = getStoredTimeRange({
+    storedLastNTimeRangeKey,
+    now: timeRangeNow,
   });
+  const timeRange = urlTimeRange ?? storedTimeRange;
+  const timeRangeStartMs = timeRange.start?.getTime();
+  const isRelativeUrlTimeRange =
+    isLastNTimeRangeKey(urlTimeRangeKey) && !hasUrlTimeRangeBounds;
+  const isLiveLastNTimeRange =
+    isLastNTimeRangeKey(timeRange.timeRangeKey) &&
+    (liveTimeRangeKeyRef.current === timeRange.timeRangeKey ||
+      isRelativeUrlTimeRange ||
+      urlTimeRange == null);
 
   const setTimeRange = (timeRange: OpenTimeRangeWithKey) => {
+    const now = Date.now();
     const nextTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey)
       ? {
           timeRangeKey: timeRange.timeRangeKey,
-          ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey),
+          ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey, now),
         }
       : timeRange;
+    if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+      liveTimeRangeKeyRef.current = timeRange.timeRangeKey;
+    } else {
+      liveTimeRangeKeyRef.current = null;
+    }
     startTransition(() => {
-      _setTimeRange(nextTimeRange);
+      setSearchParams(
+        (currentSearchParams) => {
+          const nextSearchParams = setTimeRangeSearchParams({
+            searchParams: currentSearchParams,
+            timeRange: nextTimeRange,
+            now: new Date(now),
+          });
+          lastWrittenTimeRangeSearchRef.current =
+            getTimeRangeSearchSignature(nextSearchParams);
+          return nextSearchParams;
+        },
+        { replace: true }
+      );
       // Store the last N time range key in preferences
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
+        setTimeRangeNow(now);
       }
     });
   };
@@ -108,24 +193,40 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+    if (isLiveLastNTimeRange) {
+      liveTimeRangeKeyRef.current = timeRange.timeRangeKey as LastNTimeRangeKey;
+    }
+    const nextSearchParams = setTimeRangeSearchParams({
+      searchParams,
+      timeRange,
+      now: new Date(timeRangeNow),
+    });
+    if (nextSearchParams.toString() === searchParams.toString()) {
       return;
     }
+    lastWrittenTimeRangeSearchRef.current =
+      getTimeRangeSearchSignature(nextSearchParams);
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [
+    isLiveLastNTimeRange,
+    searchParams,
+    setSearchParams,
+    timeRange,
+    timeRangeNow,
+  ]);
+
+  useEffect(() => {
+    if (!isLiveLastNTimeRange || !isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+      return;
+    }
+    const timeRangeKey = timeRange.timeRangeKey;
     const timeoutId = window.setTimeout(() => {
-      _setTimeRange((currentTimeRange) => {
-        if (!isLastNTimeRangeKey(currentTimeRange.timeRangeKey)) {
-          return currentTimeRange;
-        }
-        return {
-          timeRangeKey: currentTimeRange.timeRangeKey,
-          ...getTimeRangeFromLastNTimeRangeKey(currentTimeRange.timeRangeKey),
-        };
-      });
-    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRange.timeRangeKey));
+      setTimeRangeNow(Date.now());
+    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey));
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [timeRange]);
+  }, [isLiveLastNTimeRange, timeRange.timeRangeKey, timeRangeStartMs]);
 
   useRegisterSetTimeRangeClientAction({ setTimeRange });
 

@@ -194,7 +194,11 @@ function TraceHeader({
   sessionId?: string | null;
   projectId: string;
 }) {
+  const [searchParams] = useSearchParams();
   const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
+  const sessionSearchParams = new URLSearchParams(searchParams);
+  sessionSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  const sessionSearch = sessionSearchParams.toString();
   return (
     <View
       paddingTop="size-100"
@@ -288,7 +292,10 @@ function TraceHeader({
             <LinkButton
               size="S"
               variant="primary"
-              to={`/projects/${projectId}/sessions/${sessionId}`}
+              to={{
+                pathname: `/projects/${projectId}/sessions/${sessionId}`,
+                search: sessionSearch ? `?${sessionSearch}` : "",
+              }}
             >
               View Session
             </LinkButton>

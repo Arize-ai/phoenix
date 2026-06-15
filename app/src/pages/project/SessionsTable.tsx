@@ -20,7 +20,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -40,6 +40,10 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCosts } from "@phoenix/components/trace/SessionTokenCosts";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -73,6 +77,20 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
+function getSessionDetailsPath({
+  sessionId,
+  searchParams,
+}: {
+  sessionId: string;
+  searchParams: URLSearchParams;
+}) {
+  const nextSearchParams = new URLSearchParams(searchParams);
+  nextSearchParams.delete(SELECTED_TRACE_ID_PARAM);
+  nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  const nextSearch = nextSearchParams.toString();
+  return `${encodeURIComponent(sessionId)}${nextSearch ? `?${nextSearch}` : ""}`;
+}
+
 const TableBody = <T extends { id: string }>({
   table,
 }: {
@@ -81,6 +99,7 @@ const TableBody = <T extends { id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const { sessionId } = useParams();
+  const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -89,7 +108,14 @@ const TableBody = <T extends { id: string }>({
           <tr
             key={row.id}
             data-selected={isSelected}
-            onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
+            onClick={() =>
+              navigate(
+                getSessionDetailsPath({
+                  sessionId: row.original.id,
+                  searchParams,
+                })
+              )
+            }
           >
             {row.getVisibleCells().map((cell) => {
               return (

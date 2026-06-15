@@ -76,12 +76,15 @@ export const makeTraceUrls = (
     .filter((part) => part !== "");
   const makeUrl = (traceId: string, currentSpanId?: string) => {
     // we always navigate directly to a traceId
-    let path = `/${projects}/${projectId}/${resource}/${traceId}`;
-    // we add a selected span node id if provided to makeUrl
+    const path = `/${projects}/${projectId}/${resource}/${traceId}`;
+    const searchParams = new URLSearchParams(location.search);
     if (currentSpanId) {
-      path += `?${SELECTED_SPAN_NODE_ID_PARAM}=${currentSpanId}`;
+      searchParams.set(SELECTED_SPAN_NODE_ID_PARAM, currentSpanId);
+    } else {
+      searchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
     }
-    return path;
+    const nextSearch = searchParams.toString();
+    return `${path}${nextSearch ? `?${nextSearch}` : ""}${location.hash}`;
   };
   const hasNext = !!nextTraceId;
   const hasPrevious = !!previousTraceId;

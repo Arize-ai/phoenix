@@ -17,6 +17,29 @@ export const SESSION_VIEW_PARAM = "sessionView";
  */
 export const SELECTED_TRACE_ID_PARAM = "selectedTraceId";
 
+/**
+ * Legacy search param that contained the selected tracing time range key.
+ * Retained for parsing existing links and canonicalizing them to the
+ * bounds-first URL contract.
+ */
+export const LEGACY_TIME_RANGE_PARAM = "timeRange";
+
+/**
+ * Optional search param that contains UI metadata for the selected tracing
+ * time range key. Canonical URL state lives in the start/end params below.
+ */
+export const TIME_RANGE_KEY_PARAM = "timeRangeKey";
+
+/**
+ * The canonical ISO datetime lower bound for the tracing time range.
+ */
+export const TIME_RANGE_START_PARAM = "timeRangeStart";
+
+/**
+ * The canonical ISO datetime upper bound for the tracing time range.
+ */
+export const TIME_RANGE_END_PARAM = "timeRangeEnd";
+
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";

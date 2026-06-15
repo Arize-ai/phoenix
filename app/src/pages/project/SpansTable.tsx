@@ -109,6 +109,25 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
+function getTraceDetailsPath({
+  traceId,
+  spanNodeId,
+  searchParams,
+}: {
+  traceId: string;
+  spanNodeId?: string;
+  searchParams: URLSearchParams;
+}) {
+  const nextSearchParams = new URLSearchParams(searchParams);
+  if (spanNodeId) {
+    nextSearchParams.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+  } else {
+    nextSearchParams.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  }
+  const nextSearch = nextSearchParams.toString();
+  return `${traceId}${nextSearch ? `?${nextSearch}` : ""}`;
+}
+
 function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
   return val === "root" || val === "all";
 }
@@ -141,7 +160,11 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             data-selected={isSelected}
             onClick={() =>
               navigate(
-                `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
+                getTraceDetailsPath({
+                  traceId: row.original.trace.traceId,
+                  spanNodeId: row.original.id,
+                  searchParams,
+                })
               )
             }
           >
@@ -202,6 +225,7 @@ function SpansTableAsideSkeleton() {
 }
 
 export function SpansTable(props: SpansTableProps) {
+  const [searchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -602,7 +626,13 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
+          <Link
+            to={getTraceDetailsPath({
+              traceId,
+              spanNodeId: span.id,
+              searchParams,
+            })}
+          >
             {getValue() as string}
           </Link>
         );
