@@ -888,7 +888,11 @@ export interface paths {
         delete: operations["deletePrompt"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update prompt metadata
+         * @description Update a prompt's description and metadata by identifier.
+         */
+        patch: operations["patchPrompt"];
         trace?: never;
     };
     "/v1/projects": {
@@ -3153,6 +3157,19 @@ export interface components {
              * @description A developer-facing human readable error message.
              */
             message?: string | null;
+        };
+        /** PatchPromptRequestBody */
+        PatchPromptRequestBody: {
+            /** Description */
+            description?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** PatchPromptResponseBody */
+        PatchPromptResponseBody: {
+            data: components["schemas"]["Prompt"];
         };
         /**
          * PlaygroundBuiltinModelContext
@@ -8136,6 +8153,60 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    patchPrompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The identifier of the prompt, i.e. name or ID. */
+                prompt_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchPromptRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The updated prompt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PatchPromptResponseBody"];
+                };
             };
             /** @description Forbidden */
             403: {

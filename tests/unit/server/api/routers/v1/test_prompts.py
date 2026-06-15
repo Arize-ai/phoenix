@@ -300,6 +300,16 @@ class TestPrompts:
 
         assert response.status_code == 404
 
+    async def test_patch_prompt_not_found_without_body(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        url = "v1/prompts/nonexistent-prompt-name"
+
+        response = await httpx_client.patch(url)
+
+        assert response.status_code == 404
+
     @pytest.mark.parametrize(
         "name",
         [
