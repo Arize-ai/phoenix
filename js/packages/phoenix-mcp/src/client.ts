@@ -1,7 +1,7 @@
 import { createClient, type PhoenixClient } from "@arizeai/phoenix-client";
 
-import { USER_AGENT } from "./constants.js";
 import type { PhoenixMcpConfig } from "./config.js";
+import { USER_AGENT } from "./constants.js";
 
 export interface CreatePhoenixClientOptions {
   config: PhoenixMcpConfig;
@@ -17,9 +17,8 @@ export function createPhoenixClient({
   config,
 }: CreatePhoenixClientOptions): PhoenixClient {
   const headers: Record<string, string> = {
-    // Node's global fetch (undici) defaults to `User-Agent: undici`, which some
-    // Phoenix Cloud edges 302-redirect to HTML, breaking JSON parsing (#13742).
-    // Set an explicit User-Agent first so caller-supplied headers can override it.
+    // Set an explicit User-Agent first so caller-supplied headers can override
+    // it. See USER_AGENT in constants.ts for why this is required (#13742).
     "User-Agent": USER_AGENT,
     ...(config.headers || {}),
   };
