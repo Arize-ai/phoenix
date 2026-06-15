@@ -92,7 +92,7 @@ class ExperimentMutationMixin:
             result = await session.execute(stmt)
             updated_config = await session.get(models.ExperimentJob, exp_rowid)
 
-            if result.rowcount == 0:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 # 0 rows updated - diagnose why
                 config = await session.get(models.ExperimentJob, exp_rowid)
                 if config is None:
@@ -102,6 +102,8 @@ class ExperimentMutationMixin:
                     return StopExperimentPayload(job=ExperimentJob(id=config.id, db_record=config))
                 # Only remaining case: cooldown not elapsed
                 raise BadRequest(f"Experiment {experiment_id} is still in cooldown")
+            if updated_config is None:
+                raise BadRequest(f"Experiment {experiment_id} not found")
 
         await info.context.experiment_runner.stop_experiment(updated_config.id)
         return StopExperimentPayload(
@@ -149,7 +151,7 @@ class ExperimentMutationMixin:
             result = await session.execute(stmt)
             updated_config = await session.get(models.ExperimentJob, exp_rowid)
 
-            if result.rowcount == 0:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 # 0 rows updated - diagnose why
                 config = await session.get(models.ExperimentJob, exp_rowid)
                 if config is None:
@@ -161,6 +163,8 @@ class ExperimentMutationMixin:
                     )
                 # Only remaining case: cooldown not elapsed
                 raise BadRequest(f"Experiment {experiment_id} is still in cooldown")
+            if updated_config is None:
+                raise BadRequest(f"Experiment {experiment_id} not found")
 
         await info.context.experiment_runner.start_experiment(
             updated_config.id,

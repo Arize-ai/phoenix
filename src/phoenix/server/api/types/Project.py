@@ -709,10 +709,10 @@ class Project(Node):
             dialect = info.context.db.dialect
             if dialect is SupportedSQLDialect.POSTGRESQL:
                 str(stmt.compile(dialect=sqlite.dialect()))
-                str(stmt.compile(dialect=mysql.dialect()))  # type: ignore[no-untyped-call]
+                str(stmt.compile(dialect=mysql.dialect()))
             elif dialect is SupportedSQLDialect.SQLITE:
                 str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
-                str(stmt.compile(dialect=mysql.dialect()))  # type: ignore[no-untyped-call]
+                str(stmt.compile(dialect=mysql.dialect()))
             elif dialect is SupportedSQLDialect.MYSQL:
                 str(stmt.compile(dialect=sqlite.dialect()))
                 str(stmt.compile(dialect=postgresql.dialect()))  # type: ignore[no-untyped-call]
@@ -1082,7 +1082,7 @@ class Project(Node):
                         float(latency_ms)
                     )
 
-            data = {
+            mysql_data = {
                 timestamp: TraceLatencyMsPercentileTimeSeriesDataPoint(
                     timestamp=timestamp,
                     p50=percentile_cont_value(values, 0.50),
@@ -1095,11 +1095,11 @@ class Project(Node):
                 )
                 for timestamp, values in values_by_timestamp.items()
             }
-            data_timestamps = [data_point.timestamp for data_point in data.values()]
-            min_time = min([*data_timestamps, time_range.start])
+            mysql_data_timestamps = [data_point.timestamp for data_point in mysql_data.values()]
+            min_time = min([*mysql_data_timestamps, time_range.start])
             max_time = max(
                 [
-                    *data_timestamps,
+                    *mysql_data_timestamps,
                     *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
                 ],
             )
@@ -1109,12 +1109,12 @@ class Project(Node):
                 stride=field,
                 utc_offset_minutes=utc_offset_minutes,
             ):
-                if timestamp not in data:
-                    data[timestamp] = TraceLatencyMsPercentileTimeSeriesDataPoint(
+                if timestamp not in mysql_data:
+                    mysql_data[timestamp] = TraceLatencyMsPercentileTimeSeriesDataPoint(
                         timestamp=timestamp
                     )
             return TraceLatencyPercentileTimeSeries(
-                data=sorted(data.values(), key=lambda x: x.timestamp)
+                data=sorted(mysql_data.values(), key=lambda x: x.timestamp)
             )
 
         if dialect is SupportedSQLDialect.POSTGRESQL:
@@ -1897,8 +1897,11 @@ async def _paginate_span_by_trace_start_time(
     # Use DISTINCT for PostgreSQL, manual grouping for SQLite and MySQL
     if db.dialect is SupportedSQLDialect.POSTGRESQL:
         stmt = stmt.distinct(traces_cte.c.start_time, traces_cte.c.id)
-    elif db.dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
-        # too complicated for these dialects, so we rely on groupby() below
+    elif db.dialect is SupportedSQLDialect.SQLITE:
+        # too complicated for this dialect, so we rely on groupby() below
+        pass
+    elif db.dialect is SupportedSQLDialect.MYSQL:
+        # too complicated for this dialect, so we rely on groupby() below
         pass
     else:
         assert_never(db.dialect)

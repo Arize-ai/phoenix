@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from pydantic import SecretStr
@@ -6,7 +6,7 @@ from sqlalchemy.dialects import mysql
 
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.server.jwt_store import JwtStore
-from phoenix.server.types import UserId
+from phoenix.server.types import DbSessionFactory, UserId
 
 
 class _ScalarResult:
@@ -52,7 +52,7 @@ def _compile_mysql(stmt: Any) -> str:
 @pytest.mark.asyncio
 async def test_log_out_avoids_returning_for_mysql() -> None:
     db = _Db()
-    store = JwtStore(db, SecretStr("secret"))
+    store = JwtStore(cast(DbSessionFactory, db), SecretStr("secret"))
 
     await store.log_out(UserId(1))
 

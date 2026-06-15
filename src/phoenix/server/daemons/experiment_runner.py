@@ -2483,7 +2483,7 @@ class ExperimentRunner(DaemonTask):
             )
         )
         result = await session.execute(stmt)
-        if result.rowcount == 0:
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(
                 f"Experiment {experiment_id} is owned by another replica, cannot start"
             )
@@ -2828,7 +2828,7 @@ class ExperimentRunner(DaemonTask):
             with anyio.fail_after(5, shield=True):
                 async with self._db() as session:
                     result = await session.execute(stmt)
-                    updated = result.rowcount > 0
+                    updated = result.rowcount > 0  # type: ignore[attr-defined]
                     if updated and error_message:
                         session.add(
                             models.ExperimentJobLog(

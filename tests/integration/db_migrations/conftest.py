@@ -16,6 +16,18 @@ from phoenix.db.engines import get_async_db_url
 from .._helpers import _SCHEMA_PREFIX, _random_schema
 
 
+@pytest.fixture(autouse=True)
+def _skip_historical_mysql_migration_tests(
+    request: pytest.FixtureRequest,
+    _sql_database_url: URL,
+) -> None:
+    if _sql_database_url.get_backend_name() != "mysql":
+        return
+    if request.node.name == "test_mysql_new_install_bootstrap":
+        return
+    pytest.skip("MySQL only supports bootstrapping new installs from the current schema")
+
+
 @pytest.fixture
 def _alembic_config() -> Config:
     root = Path(phoenix.db.__path__[0])

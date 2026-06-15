@@ -241,7 +241,7 @@ def sqlalchemy_dialect(dialect: str) -> Any:
     elif dialect == "postgresql":
         return postgresql.dialect()  # type: ignore[no-untyped-call]
     elif dialect == "mysql":
-        return mysql.dialect()  # type: ignore[no-untyped-call]
+        return mysql.dialect()
     else:
         raise ValueError(f"Unsupported dialect: {dialect}")
 

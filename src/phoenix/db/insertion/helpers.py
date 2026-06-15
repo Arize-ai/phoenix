@@ -1,7 +1,7 @@
 from abc import ABC
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from sqlalchemy import Insert, func, select
@@ -79,7 +79,7 @@ def insert_on_conflict(
         stmt_mysql = insert_mysql(table).values(records)
         if on_conflict is OnConflict.DO_NOTHING:
             return stmt_mysql.on_duplicate_key_update(
-                **{column.name: column for column in table.__table__.primary_key.columns}
+                **{column.name: column for column in table.__table__.primary_key}
             )
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_mysql.on_duplicate_key_update(
@@ -110,19 +110,21 @@ async def insert_on_conflict_returning_id(
         constraint_name=constraint_name,
     )
     if dialect is not SupportedSQLDialect.MYSQL:
-        id_ = await session.scalar(stmt.returning(table.id))
+        id_ = await session.scalar(stmt.returning(getattr(table, "id")))
         assert id_ is not None
-        return id_
+        return cast(int, id_)
 
     if not unique_by:
         raise ValueError("MySQL upserts require at least one unique key to fetch inserted IDs")
 
     await session.execute(stmt)
     id_ = await session.scalar(
-        select(table.id).where(*(getattr(table, key) == record[key] for key in unique_by))
+        select(getattr(table, "id")).where(
+            *(getattr(table, key) == record[key] for key in unique_by)
+        )
     )
     assert id_ is not None
-    return id_
+    return cast(int, id_)
 
 
 def _clean(
@@ -151,10 +153,10 @@ def _mysql_update_values(
             update_values[column.name] = func.now()
             continue
         if column.key in record_keys or column.name in record_keys:
-            update_values[column.name] = getattr(stmt.inserted, column.name)
+            update_values[column.name] = getattr(cast(Any, stmt).inserted, column.name)
     if update_values:
         return update_values
-    return {column.name: column for column in table.__table__.primary_key.columns}
+    return {column.name: column for column in table.__table__.primary_key}
 
 
 def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:

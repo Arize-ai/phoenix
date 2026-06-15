@@ -140,10 +140,9 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         *records: Mapping[str, Any],
     ) -> tuple[int, ...]:
         stmt = self._insert_on_conflict(*records)
+        id_column = getattr(self.table, "id")
         if self._db.dialect is not SupportedSQLDialect.MYSQL:
-            return tuple(
-                [_ async for _ in await session.stream_scalars(stmt.returning(self.table.id))]
-            )
+            return tuple([_ async for _ in await session.stream_scalars(stmt.returning(id_column))])
 
         await session.execute(stmt)
         if not self.unique_by:
@@ -152,13 +151,13 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
         if len(self.unique_by) == 1:
             key = self.unique_by[0]
             values = {record[key] for record in records}
-            id_stmt = select(self.table.id, getattr(self.table, key)).where(
+            id_stmt = select(id_column, getattr(self.table, key)).where(
                 getattr(self.table, key).in_(values)
             )
         else:
             columns = tuple(getattr(self.table, key) for key in self.unique_by)
             values = {tuple(record[key] for key in self.unique_by) for record in records}
-            id_stmt = select(self.table.id, *columns).where(tuple_(*columns).in_(values))
+            id_stmt = select(id_column, *columns).where(tuple_(*columns).in_(values))
         rows = tuple([_ async for _ in await session.stream(id_stmt)])
         return _ordered_ids_for_records(records, self.unique_by, rows)
 

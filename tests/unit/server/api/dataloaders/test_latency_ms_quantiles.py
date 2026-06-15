@@ -17,7 +17,7 @@ from phoenix.server.types import DbSessionFactory
 
 
 def test_percentile_cont_value_uses_linear_interpolation() -> None:
-    values = [10, 20, 40, 80]
+    values = [10.0, 20.0, 40.0, 80.0]
 
     assert _percentile_cont_value(values, 0.00) == 10
     assert _percentile_cont_value(values, 0.25) == 17.5

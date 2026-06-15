@@ -1,7 +1,6 @@
 import itertools
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
-from types import SimpleNamespace
 from typing import Any, Iterable, Literal, Sequence, Union, cast
 
 import pandas as pd
@@ -91,7 +90,7 @@ class TestMySQLCompilation:
 
     @pytest.mark.parametrize("repetitions", [1, 3])
     def test_experiment_incomplete_runs_compiles_for_mysql(self, repetitions: int) -> None:
-        experiment = SimpleNamespace(id=1, repetitions=repetitions)
+        experiment = models.Experiment(id=1, repetitions=repetitions)
         stmt = get_experiment_incomplete_runs_query(
             experiment,
             SupportedSQLDialect.MYSQL,

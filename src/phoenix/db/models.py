@@ -615,7 +615,7 @@ class _InputMapping(TypeDecorator[InputMapping]):
         self, value: Optional[InputMapping], _: Dialect
     ) -> Optional[dict[str, Any]]:
         if value is None:
-            raise ValueError("Input mapping cannot be None")
+            return None
         return value.model_dump()
 
     def process_result_value(self, value: Optional[dict[str, Any]], _: Dialect) -> InputMapping:
@@ -1932,7 +1932,7 @@ class ExperimentPromptTask(ExperimentJob):
             "NOT (custom_provider_id IS NOT NULL AND connection IS NOT NULL)",
             name="custom_provider_or_connection",
             # MySQL rejects this CHECK because custom_provider_id participates in a SET NULL FK.
-        ).ddl_if(dialect=("postgresql", "sqlite")),
+        ).ddl_if(dialect=("postgresql", "sqlite")),  # type: ignore[arg-type]
     )
 
 

@@ -24,13 +24,13 @@ class _SessionWithBind:
 
 def test_on_conflict_do_nothing_compiles_for_mysql() -> None:
     stmt = _on_conflict_do_nothing(
-        _SessionWithBind(),
+        cast(Any, _SessionWithBind()),
         models.Language,
         [{"name": "PYTHON"}],
         unique_columns=["name"],
     )
 
-    sql = str(stmt.compile(dialect=_SessionWithBind.bind.dialect))
+    sql = str(cast(Any, stmt).compile(dialect=_SessionWithBind.bind.dialect))
 
     assert "ON DUPLICATE KEY UPDATE" in sql
     assert "ON CONFLICT" not in sql

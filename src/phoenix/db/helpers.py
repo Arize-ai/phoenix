@@ -54,7 +54,7 @@ async def latest_code_evaluator_versions_by_evaluator_id(
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     if dialect == SupportedSQLDialect.POSTGRESQL:
         stmt = _latest_code_evaluator_versions_postgresql_stmt(distinct_ids)
-    elif dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
+    elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
         stmt = _latest_code_evaluator_versions_sqlite_stmt(distinct_ids)
     else:
         assert_never(dialect)
@@ -751,7 +751,7 @@ def generate_expected_repetitions_cte(
             .where(run_counts_subquery.c.successful_count > 0)  # Only partially complete!
             .cte("expected_runs")
         )
-    elif dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
+    elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
         # Recursive CTE only for partially complete examples
         expected_runs_cte = (
             select(
@@ -1216,7 +1216,7 @@ def get_experiment_incomplete_runs_query(
         empty_array: Any
         if dialect is SupportedSQLDialect.POSTGRESQL:
             empty_array = literal_column("ARRAY[]::int[]")
-        elif dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
+        elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             empty_array = literal_column("'[]'")
         else:
             assert_never(dialect)
@@ -1237,7 +1237,7 @@ def get_experiment_incomplete_runs_query(
         empty_array_inner: Any
         if dialect is SupportedSQLDialect.POSTGRESQL:
             empty_array_inner = literal_column("ARRAY[]::int[]")
-        elif dialect in (SupportedSQLDialect.SQLITE, SupportedSQLDialect.MYSQL):
+        elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             empty_array_inner = literal_column("'[]'")
         else:
             assert_never(dialect)

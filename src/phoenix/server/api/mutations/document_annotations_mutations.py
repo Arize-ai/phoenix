@@ -141,7 +141,7 @@ class DocumentAnnotationMutationMixin:
                     )
 
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            annotation_ids = [
+            inserted_annotation_ids = [
                 await insert_on_conflict_returning_id(
                     cast(dict[str, Any], record),
                     session=session,
@@ -156,16 +156,18 @@ class DocumentAnnotationMutationMixin:
                 annotation.id: annotation
                 for annotation in await session.scalars(
                     select(models.DocumentAnnotation).where(
-                        models.DocumentAnnotation.id.in_(annotation_ids)
+                        models.DocumentAnnotation.id.in_(inserted_annotation_ids)
                     )
                 )
             }
-            annotations = [annotations_by_id[annotation_id] for annotation_id in annotation_ids]
+            annotations = [
+                annotations_by_id[annotation_id] for annotation_id in inserted_annotation_ids
+            ]
 
         # Publish event after successful commit (context manager auto-commits)
-        annotation_ids = tuple(anno.id for anno in annotations)
-        if annotation_ids:
-            info.context.event_queue.put(DocumentAnnotationInsertEvent(annotation_ids))
+        event_annotation_ids = tuple(anno.id for anno in annotations)
+        if event_annotation_ids:
+            info.context.event_queue.put(DocumentAnnotationInsertEvent(event_annotation_ids))
 
         return DocumentAnnotationMutationPayload(
             document_annotations=[

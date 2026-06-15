@@ -39,7 +39,7 @@ def test_metadata_compiles_for_mysql() -> None:
     ddl: list[str] = []
     engine = create_mock_engine(
         "mysql+pymysql://user:password@localhost/phoenix",
-        lambda sql, *multiparams, **params: ddl.append(str(sql.compile(dialect=engine.dialect))),
+        lambda sql, *multiparams, **params: ddl.append(str(sql.compile(dialect=mysql.dialect()))),
     )
 
     models.Base.metadata.create_all(engine, checkfirst=False)

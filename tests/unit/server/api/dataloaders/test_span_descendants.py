@@ -7,7 +7,7 @@ from phoenix.server.api.dataloaders.span_descendants import _descendants_stmt
 def test_descendants_stmt_uses_values_for_postgresql() -> None:
     sql = str(
         _descendants_stmt([(1, 3), (2, None)], SupportedSQLDialect.POSTGRESQL).compile(
-            dialect=postgresql.dialect(),
+            dialect=postgresql.dialect(),  # type: ignore[no-untyped-call]
             compile_kwargs={"literal_binds": True},
         )
     )

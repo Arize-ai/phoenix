@@ -10,7 +10,7 @@ from sqlalchemy import Connection, Engine, Row, text
 from sqlalchemy.ext.asyncio import AsyncEngine
 from typing_extensions import TypeAlias, assert_never
 
-_DBBackend: TypeAlias = Literal["sqlite", "postgresql", "mysql"]
+_DBBackend: TypeAlias = Literal["sqlite", "postgresql"]
 _AnyEngine: TypeAlias = Union[Engine, AsyncEngine]
 
 T = TypeVar("T")
@@ -87,7 +87,7 @@ class _TableSchemaInfo(TypedDict):
 def _get_table_schema_info(
     conn: Connection,
     table_name: str,
-    db_backend: Literal["sqlite", "postgresql", "mysql"],
+    db_backend: Literal["sqlite", "postgresql"],
     schema: str,
 ) -> Optional[_TableSchemaInfo]:
     """Get schema information for a database table.
@@ -255,63 +255,6 @@ def _get_table_schema_info(
                     constraint_name = match.group(1)
                     if constraint_name:
                         constraint_names.add(constraint_name)
-    elif db_backend == "mysql":
-        table_exists = conn.execute(
-            text(
-                """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM information_schema.tables
-                    WHERE table_schema = DATABASE()
-                    AND table_name = :table_name
-                )
-                """
-            ),
-            {"table_name": table_name},
-        ).scalar_one()
-        if not table_exists:
-            return None
-
-        columns_result = conn.execute(
-            text(
-                """
-                SELECT column_name, is_nullable
-                FROM information_schema.columns
-                WHERE table_schema = DATABASE()
-                AND table_name = :table_name
-                ORDER BY ordinal_position
-                """
-            ),
-            {"table_name": table_name},
-        ).fetchall()
-        column_names = {col[0] for col in columns_result}
-        nullable_column_names = {col[0] for col in columns_result if col[1] == "YES"}
-
-        indices_result = conn.execute(
-            text(
-                """
-                SELECT DISTINCT index_name
-                FROM information_schema.statistics
-                WHERE table_schema = DATABASE()
-                AND table_name = :table_name
-                """
-            ),
-            {"table_name": table_name},
-        ).fetchall()
-        index_names = {idx[0] for idx in indices_result}
-
-        constraints_result = conn.execute(
-            text(
-                """
-                SELECT constraint_name
-                FROM information_schema.table_constraints
-                WHERE table_schema = DATABASE()
-                AND table_name = :table_name
-                """
-            ),
-            {"table_name": table_name},
-        ).fetchall()
-        constraint_names = {con[0] for con in constraints_result}
     else:
         assert_never(db_backend)
 

@@ -164,7 +164,7 @@ async def insert_span(
         assert span_model.id is not None
         span_rowid = span_model.id
     else:
-        span_rowid = await session.scalar(
+        inserted_span_rowid = await session.scalar(
             insert_on_conflict(
                 span_values,
                 dialect=dialect,
@@ -173,8 +173,9 @@ async def insert_span(
                 on_conflict=OnConflict.DO_NOTHING,
             ).returning(models.Span.id)
         )
-        if span_rowid is None:
+        if inserted_span_rowid is None:
             return None
+        span_rowid = inserted_span_rowid
     # Propagate cumulative values to ancestors. This is usually a no-op, since
     # the parent usually arrives after the child. But in the event that a
     # child arrives after its parent, we need to make sure that all the

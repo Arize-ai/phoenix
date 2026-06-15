@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.dialects.mysql import insert as mysql_insert
@@ -32,6 +32,14 @@ ContentHash: TypeAlias = bytes
 SplitName: TypeAlias = str
 DatasetSplitId: TypeAlias = int
 SplitAssignment: TypeAlias = tuple[DatasetExampleId, DatasetSplitId]
+
+
+def _require_ids(ids: Iterable[Optional[int]]) -> list[int]:
+    ids_: list[int] = []
+    for id_ in ids:
+        assert id_ is not None
+        ids_.append(id_)
+    return ids_
 
 
 @dataclass(frozen=True)
@@ -246,8 +254,7 @@ async def bulk_insert_dataset_examples(
                 insert(models.DatasetExample).values(records).returning(models.DatasetExample.id)
             )
             batch_ids = [row[0] for row in result.fetchall()]
-        assert all(id_ is not None for id_ in batch_ids)
-        all_ids.extend(cast(list[DatasetExampleId], batch_ids))
+        all_ids.extend(_require_ids(batch_ids))
 
     return all_ids
 
@@ -321,8 +328,7 @@ async def bulk_insert_dataset_example_revisions(
                 .returning(models.DatasetExampleRevision.id)
             )
             batch_ids = [row[0] for row in result.fetchall()]
-        assert all(id_ is not None for id_ in batch_ids)
-        all_ids.extend(cast(list[DatasetExampleRevisionId], batch_ids))
+        all_ids.extend(_require_ids(batch_ids))
 
     return all_ids
 

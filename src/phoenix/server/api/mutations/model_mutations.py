@@ -193,6 +193,7 @@ class ModelMutationMixin:
             model.deleted_at = datetime.now(timezone.utc)
             session.add(model)
             await session.flush()
+            await session.refresh(model)
         return DeleteModelMutationPayload(
             model=GenerativeModel(id=model.id, db_record=model),
             query=Query(),
