@@ -1,5 +1,19 @@
 # Changelog
 
+## [17.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.5.0...arize-phoenix-v17.6.0) (2026-06-15)
+
+
+### Features
+
+* **agents:** experiment editing & eval skills ([#13704](https://github.com/Arize-ai/phoenix/issues/13704)) ([50b376e](https://github.com/Arize-ai/phoenix/commit/50b376e1d833e69bff2ae4a5e0251d68f33e3af4))
+* **metrics:** add trace and session annotation score time series ([#13722](https://github.com/Arize-ai/phoenix/issues/13722)) ([4c1791c](https://github.com/Arize-ai/phoenix/commit/4c1791ca404b5c2cb3e6db51ef108ce27825a6a8))
+* **ui:** pan and zoom time range controls with live streaming toggle ([#13725](https://github.com/Arize-ai/phoenix/issues/13725)) ([af5f983](https://github.com/Arize-ai/phoenix/commit/af5f983ad03cf927790247def8141b10e2d357ef))
+
+
+### Bug Fixes
+
+* sort projects by trace start_time to use composite index ([#13752](https://github.com/Arize-ai/phoenix/issues/13752)) ([32a464a](https://github.com/Arize-ai/phoenix/commit/32a464a2975d0b7ed6c5b2077c2bc799951b121d))
+
 ## [17.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.4.0...arize-phoenix-v17.5.0) (2026-06-12)
 
 
