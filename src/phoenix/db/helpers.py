@@ -392,17 +392,17 @@ _AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
 
 
 # Auto-generated experiment projects are named "Experiment-<24 lowercase hex chars>"
-# (see phoenix.server.experiments.utils.generate_experiment_project_name). Classifying
-# these projects by name pattern — rather than by whether any experiment references them —
-# lets user-supplied project names (which the create-experiment route forbids from matching
-# this pattern) stay visible in project lists and never be auto-deleted with an experiment.
+# (see phoenix.server.experiments.utils.generate_experiment_project_name). Matching this
+# name pattern lets project hiding and auto-deletion leave user-supplied project names alone
+# (the create-experiment route forbids them from matching this pattern), so a user-named
+# project stays visible in project lists and is never auto-deleted with an experiment.
 # The pattern mirrors EXPERIMENT_PROJECT_NAME_PATTERN in that module.
 _GENERATED_EXPERIMENT_PROJECT_NAME_REGEX = "^Experiment-[0-9a-f]{24}$"  # PostgreSQL regex
 _GENERATED_EXPERIMENT_PROJECT_NAME_GLOB = "Experiment-" + "[0-9a-f]" * 24  # SQLite GLOB
 
 
 def generated_experiment_project_name_clause(
-    name: SQLColumnExpression[str],
+    name: SQLColumnExpression[Any],
     dialect: SupportedSQLDialect,
 ) -> SQLColumnExpression[bool]:
     """SQL predicate that is true when ``name`` is an auto-generated experiment project name."""
@@ -418,7 +418,20 @@ def exclude_experiment_projects(
     stmt: Select[_AnyTuple],
     dialect: SupportedSQLDialect,
 ) -> Select[_AnyTuple]:
-    return stmt.where(~generated_experiment_project_name_clause(models.Project.name, dialect))
+    # Hide a project only when an experiment references it AND its name matches the
+    # auto-generated pattern. Restricting to the generated pattern keeps user-supplied
+    # project names visible (the create-experiment route forbids them from matching the
+    # pattern), while the experiment-reference join preserves the prior behavior for
+    # generated projects — including surfacing an orphaned generated project once the
+    # experiment that created it is deleted. The playground project is never hidden
+    # because its name does not match the pattern.
+    return stmt.outerjoin(
+        models.Experiment,
+        and_(
+            models.Project.name == models.Experiment.project_name,
+            generated_experiment_project_name_clause(models.Experiment.project_name, dialect),
+        ),
+    ).where(models.Experiment.project_name.is_(None))
 
 
 def exclude_dataset_evaluator_projects(
