@@ -463,7 +463,6 @@ wheels = [
 name = "arize-phoenix"
 source = { editable = "." }
 dependencies = [
-    { name = "aiofiles" },
     { name = "aioitertools" },
     { name = "aiosqlite" },
     { name = "alembic" },
@@ -679,7 +678,6 @@ dev = [
 requires-dist = [
     { name = "aioboto3", marker = "extra == 'aws'" },
     { name = "aioboto3", marker = "extra == 'container'" },
-    { name = "aiofiles" },
     { name = "aiohttp", marker = "extra == 'azure'" },
     { name = "aiohttp", marker = "extra == 'container'" },
     { name = "aioitertools" },

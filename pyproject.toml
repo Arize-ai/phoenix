@@ -71,10 +71,6 @@ dependencies = [
   "orjson",
   "jmespath",
   "ldap3",
-  # Runtime deps of the vendored just-bash (src/phoenix/vendor/just_bash), which
-  # powers the networkless server-agent bash tool. Vendored so it runs on 3.10 too.
-  # (curl uses the already-core httpx; aiohttp is dev-only, for the test server.)
-  "aiofiles",
 ]
 dynamic = ["version"]
 
