@@ -118,13 +118,11 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
   const [timeRangeNow, setTimeRangeNow] = useState(() => Date.now());
 
   // The URL wins when it carries a usable range; otherwise fall back to the
-  // stored preference.
+  // stored preference (computed lazily, only when the URL carries no range).
   const urlTimeRange = getTimeRangeFromSearchParams(searchParams, timeRangeNow);
-  const storedTimeRange = getStoredTimeRange({
-    storedLastNTimeRangeKey,
-    now: timeRangeNow,
-  });
-  const timeRange = urlTimeRange ?? storedTimeRange;
+  const timeRange =
+    urlTimeRange ??
+    getStoredTimeRange({ storedLastNTimeRangeKey, now: timeRangeNow });
   const timeRangeStartMs = timeRange.start?.getTime();
 
   /**

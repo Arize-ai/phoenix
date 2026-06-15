@@ -30,6 +30,22 @@ export function withSearchParams(
 }
 
 /**
+ * Drop the selection-scoped params (such as the selected trace/span) from the
+ * given search, preserving everything else. Used to build navigation targets
+ * that leave a detail selection while keeping recreatable state like the time
+ * range.
+ */
+export function clearSelectionScopedParams(
+  search: string | URLSearchParams
+): string {
+  return withSearchParams(search, (params) => {
+    for (const param of SELECTION_SCOPED_SEARCH_PARAMS) {
+      params.delete(param);
+    }
+  });
+}
+
+/**
  * Build a relative path to a trace's details, preserving recreatable URL state
  * (such as the selected time range) while setting or clearing the selected
  * span.
@@ -63,12 +79,7 @@ export function getSessionDetailsPath({
   sessionId: string;
   searchParams: URLSearchParams;
 }): string {
-  return `${encodeURIComponent(sessionId)}${withSearchParams(
-    searchParams,
-    (params) => {
-      for (const param of SELECTION_SCOPED_SEARCH_PARAMS) {
-        params.delete(param);
-      }
-    }
+  return `${encodeURIComponent(sessionId)}${clearSelectionScopedParams(
+    searchParams
   )}`;
 }

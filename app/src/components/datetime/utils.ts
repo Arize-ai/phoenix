@@ -195,6 +195,13 @@ export function setTimeRangeSearchParams({
   timeRange: OpenTimeRangeWithKey;
 }): URLSearchParams {
   const nextSearchParams = new URLSearchParams(searchParams);
+  const setOrDelete = (param: string, value: Date | null | undefined) => {
+    if (value != null) {
+      nextSearchParams.set(param, value.toISOString());
+    } else {
+      nextSearchParams.delete(param);
+    }
+  };
   if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
     nextSearchParams.set(TIME_RANGE_KEY_PARAM, timeRange.timeRangeKey);
     nextSearchParams.delete(TIME_RANGE_START_PARAM);
@@ -202,16 +209,8 @@ export function setTimeRangeSearchParams({
     return nextSearchParams;
   }
   nextSearchParams.delete(TIME_RANGE_KEY_PARAM);
-  if (timeRange.start != null) {
-    nextSearchParams.set(TIME_RANGE_START_PARAM, timeRange.start.toISOString());
-  } else {
-    nextSearchParams.delete(TIME_RANGE_START_PARAM);
-  }
-  if (timeRange.end != null) {
-    nextSearchParams.set(TIME_RANGE_END_PARAM, timeRange.end.toISOString());
-  } else {
-    nextSearchParams.delete(TIME_RANGE_END_PARAM);
-  }
+  setOrDelete(TIME_RANGE_START_PARAM, timeRange.start);
+  setOrDelete(TIME_RANGE_END_PARAM, timeRange.end);
   return nextSearchParams;
 }
 

@@ -16,11 +16,10 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
-import { SELECTION_SCOPED_SEARCH_PARAMS } from "@phoenix/constants/searchParams";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
-import { withSearchParams } from "@phoenix/utils/urlUtils";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
@@ -209,11 +208,7 @@ function ProjectPageContentBody({
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
-        const search = withSearchParams(location.search, (params) => {
-          for (const param of SELECTION_SCOPED_SEARCH_PARAMS) {
-            params.delete(param);
-          }
-        });
+        const search = clearSelectionScopedParams(location.search);
         const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
         navigate({
           pathname: `${rootPath}/${tab}`,

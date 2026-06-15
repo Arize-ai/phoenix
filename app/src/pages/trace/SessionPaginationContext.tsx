@@ -2,8 +2,7 @@ import type { PropsWithChildren } from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
-import { SELECTION_SCOPED_SEARCH_PARAMS } from "@phoenix/constants/searchParams";
-import { withSearchParams } from "@phoenix/utils/urlUtils";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 /**
  * A sequence of session node IDs used to navigate between sessions.
@@ -23,13 +22,6 @@ export const SessionPaginationContext =
 export const useSessionPagination = () => {
   return useContext(SessionPaginationContext);
 };
-
-const getPreservedSearch = (search: string) =>
-  withSearchParams(search, (params) => {
-    for (const param of SELECTION_SCOPED_SEARCH_PARAMS) {
-      params.delete(param);
-    }
-  });
 
 /**
  * Get the next and previous sessionIds based on the current sessionId.
@@ -63,7 +55,7 @@ export const makeSessionUrls = (
   const [projects, projectId, resource] = location.pathname
     .split("/")
     .filter((part) => part !== "");
-  const preservedSearch = getPreservedSearch(location.search);
+  const preservedSearch = clearSelectionScopedParams(location.search);
   const makeUrl = (sessionId: string) =>
     `/${projects}/${projectId}/${resource}/${encodeURIComponent(sessionId)}${preservedSearch}${location.hash}`;
   return {
