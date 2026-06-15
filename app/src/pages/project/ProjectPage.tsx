@@ -32,7 +32,7 @@ import {
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import { StreamToggle } from "./StreamToggle";
+import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -137,7 +137,7 @@ function ProjectPageContentBody({
         project: node(id: $id) {
           ... on Project {
             ...ProjectStats_project
-            ...StreamToggle_data
+            ...ProjectTimeRangeControls_data
           }
         }
       }
@@ -225,8 +225,8 @@ function ProjectPageContentBody({
 
   return (
     <main css={mainCSS}>
-      <TopNavActions order={-1}>
-        <StreamToggle project={data.project} />
+      <TopNavActions order={1}>
+        <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
       <ProjectPageQueryReferenceContext.Provider
         value={{

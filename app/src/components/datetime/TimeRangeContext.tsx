@@ -1,7 +1,6 @@
 import React, {
   createContext,
   startTransition,
-  useCallback,
   useEffect,
   useEffectEvent,
   useState,
@@ -24,6 +23,11 @@ import {
 
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
+  /**
+   * Set the time range with the state write wrapped in a transition so
+   * steering interactions (preset picks, pan/zoom) do not block the input
+   * event.
+   */
   setTimeRange: (timeRange: OpenTimeRangeWithKey) => void;
   /**
    * Apply a closed time range as a custom selection. Wraps the state write in
@@ -79,35 +83,29 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     }
   });
 
-  const setTimeRange = useCallback(
-    (timeRange: OpenTimeRangeWithKey) => {
-      const nextTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey)
-        ? {
-            timeRangeKey: timeRange.timeRangeKey,
-            ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey),
-          }
-        : timeRange;
+  const setTimeRange = (timeRange: OpenTimeRangeWithKey) => {
+    const nextTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey)
+      ? {
+          timeRangeKey: timeRange.timeRangeKey,
+          ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey),
+        }
+      : timeRange;
+    startTransition(() => {
       _setTimeRange(nextTimeRange);
       // Store the last N time range key in preferences
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
       }
-    },
-    [setStoredLastNTimeRangeKey]
-  );
+    });
+  };
 
-  const setCustomTimeRange = useCallback(
-    (timeRange: TimeRange) => {
-      startTransition(() => {
-        setTimeRange({
-          timeRangeKey: "custom",
-          start: timeRange.start,
-          end: timeRange.end,
-        });
-      });
-    },
-    [setTimeRange]
-  );
+  const setCustomTimeRange = (timeRange: TimeRange) => {
+    setTimeRange({
+      timeRangeKey: "custom",
+      start: timeRange.start,
+      end: timeRange.end,
+    });
+  };
 
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
