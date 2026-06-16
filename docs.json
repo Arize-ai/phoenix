@@ -880,10 +880,15 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/evals-as-tests",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/vitest",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/jest",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/eval-annotations"
+                  {
+                    "group": "CI eval tests",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations"
+                    ]
+                  }
                 ]
               },
               {

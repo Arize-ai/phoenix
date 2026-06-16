@@ -1,10 +1,11 @@
 ---
-title: "Eval Tests"
+title: "CI Eval Tests"
 description: "Run dataset-backed Phoenix evaluations as Vitest or Jest tests"
 ---
 
 `@arizeai/phoenix-client/vitest` and `@arizeai/phoenix-client/jest` let
-you write evaluations as ordinary Vitest or Jest tests. Each `describe()`
+you write evaluations as ordinary Vitest or Jest tests that fit cleanly
+into local development and CI. Each `describe()`
 block becomes a Phoenix dataset and a new experiment; each `test()`
 becomes a dataset example plus a recorded experiment run; the assertion
 outcome is captured as a `pass` boolean annotation. Anything you log via
@@ -101,7 +102,8 @@ standard Phoenix env vars.
 
 `describe()` also accepts `repetitions` and `dryRun` on its config object,
 and `test()` accepts `repetitions` and `dryRun` on its params — see
-[Vitest](./vitest) / [Jest](./jest).
+[CI Eval Tests: Vitest](./ci-evals-vitest) /
+[CI Eval Tests: Jest](./ci-evals-jest).
 
 ## Repetitions
 
@@ -126,10 +128,10 @@ reporter still prints a local summary.
 
 ## Where To Start
 
-- [Vitest](./vitest) — config, reporter, and the full `describe` /
+- [CI Eval Tests: Vitest](./ci-evals-vitest) — config, reporter, and the full `describe` /
   `test` / `test.each` API as it surfaces in Vitest
-- [Jest](./jest) — the same API surface in a Jest project
-- [Eval Annotations](./eval-annotations) — `logAnnotation`, `wrapEvaluator`, and
+- [CI Eval Tests: Jest](./ci-evals-jest) — the same API surface in a Jest project
+- [CI Eval Test Annotations](./ci-evals-annotations) — `logAnnotation`, `wrapEvaluator`, and
   the `Annotation` shape
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">

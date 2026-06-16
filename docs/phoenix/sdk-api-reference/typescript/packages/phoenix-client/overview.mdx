@@ -3,7 +3,7 @@ title: "Overview"
 description: "Typed TypeScript client for Phoenix platform APIs"
 ---
 
-`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, traces, and dataset-backed eval tests.
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, traces, and CI-friendly dataset-backed eval tests.
 
 ## Install
 
@@ -160,7 +160,7 @@ Prefer this layer when:
 
 - [Prompts](./prompts), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
 - [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
-- [Eval Tests](./evals-as-tests) — Vitest/Jest eval suites backed by Phoenix datasets and experiments
+- [CI Eval Tests](./ci-evals) — Vitest/Jest eval suites backed by Phoenix datasets and experiments
 - [Spans](./spans), [Sessions](./sessions), [Traces](./traces) — retrieval and maintenance
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
