@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // Only the Vitest examples; the `jest/` folder is run by Jest.
+    // Pick up the example eval files under evals/.
     include: ["evals/**/*.eval.?(c|m)[jt]s"],
     // The Phoenix reporter prints the end-of-run summary (output table,
     // annotation scores, dataset / experiment links).

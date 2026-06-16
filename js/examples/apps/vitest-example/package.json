@@ -1,13 +1,11 @@
 {
-  "name": "phoenix-client-test-quickstart",
+  "name": "vitest-example",
   "version": "1.0.0",
   "private": true,
-  "description": "Runnable examples for @arizeai/phoenix-client test integrations — dataset-backed evals as Vitest / Jest tests",
+  "description": "Runnable Vitest examples for @arizeai/phoenix-client — dataset-backed evals as Vitest tests",
   "type": "module",
   "scripts": {
     "eval": "cross-env PHOENIX_TEST_TRACKING=false vitest run --config phoenix.vitest.config.ts",
-    "eval:jest": "cross-env PHOENIX_TEST_TRACKING=false jest --config phoenix.jest.config.cjs",
-    "eval:jest:phoenix": "jest --config phoenix.jest.config.cjs",
     "eval:phoenix": "vitest run --config phoenix.vitest.config.ts",
     "eval:watch": "cross-env PHOENIX_TEST_TRACKING=false vitest watch --config phoenix.vitest.config.ts",
     "eval:watch:phoenix": "vitest watch --config phoenix.vitest.config.ts",
@@ -19,12 +17,9 @@
     "openai": "^6.9.1"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
     "@types/node": "^20.17.22",
     "cross-env": "^7.0.3",
     "dotenv": "^16.4.7",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
     "typescript": "^5.6.3",
     "vitest": "^4.1.0"
   }

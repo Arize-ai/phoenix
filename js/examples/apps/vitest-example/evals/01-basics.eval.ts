@@ -6,6 +6,10 @@
  * plus a recorded experiment **run**. Each assertion becomes a `pass`
  * annotation on that run.
  *
+ * These two cases are the app's bread and butter, so we can assert the exact
+ * SQL. Later files (02, 03) move to graded evaluators for the harder cases
+ * where an exact match is too strict.
+ *
  * Run offline (no Phoenix server needed):
  *   pnpm eval evals/01-basics.eval.ts
  */
@@ -19,7 +23,7 @@ px.describe("text-to-sql: basics", () => {
     "select all from a table",
     {
       // `input` becomes the dataset example's input.
-      input: { userQuery: "Get all users from the customers table" },
+      input: { userQuery: "Show all customers" },
       // `expected` becomes the example's reference output.
       expected: { sql: "SELECT * FROM customers;" },
     },

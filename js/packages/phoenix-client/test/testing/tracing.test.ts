@@ -6,8 +6,8 @@ import {
   trace,
   type GlobalTracerProviderRegistration,
   type NodeTracerProvider,
+  type SpanProcessor,
 } from "@arizeai/phoenix-otel";
-import type { SpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { describe, expect, it } from "vitest";
 
 import { recordOutput, traceEvaluator } from "../../src/testing/helpers";

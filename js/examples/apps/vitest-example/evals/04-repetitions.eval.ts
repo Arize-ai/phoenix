@@ -4,7 +4,11 @@
  * Run a test (or a whole suite) multiple times against the same dataset
  * example. Each repetition is a separate experiment run carrying a distinct
  * `repetition_number`, so Phoenix's compare view shows them side by side.
- * This is how you measure non-determinism in a real (LLM-backed) app.
+ *
+ * Our deterministic app returns the same SQL every time, so these runs are
+ * identical by design. Against a real LLM they wouldn't be — repetitions are
+ * how you measure that non-determinism and decide whether a flaky case is the
+ * model's fault or your prompt's.
  *
  * Resolution order: per-test `repetitions` → suite `repetitions` →
  * `PHOENIX_TEST_REPETITIONS` env var → 1.
@@ -25,8 +29,10 @@ px.describe(
     px.test(
       "is stable across runs",
       {
-        input: { userQuery: "list all invoices" },
-        expected: { sql: "SELECT * FROM invoices;" },
+        input: { userQuery: "Top 5 products by price" },
+        expected: {
+          sql: "SELECT * FROM products ORDER BY price DESC LIMIT 5;",
+        },
         repetitions: 3,
       },
       async ({ input, expected }) => {
@@ -39,7 +45,7 @@ px.describe(
     // This test inherits the suite-level 2 repetitions.
     px.test(
       "inherits suite repetitions",
-      { input: { userQuery: "how many customers are there?" } },
+      { input: { userQuery: "How many customers are there?" } },
       async ({ input }) => {
         const { sql } = generateSql(input.userQuery);
         px.recordOutput({ sql });

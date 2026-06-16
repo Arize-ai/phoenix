@@ -99,9 +99,7 @@ suite(
         px.recordOutput({ sql });
         await correctness({ output: sql, expected: expected?.sql ?? "" });
         expect(sql.toUpperCase()).toContain("SELECT");
-      },
-      // LLM calls are slow; bump the per-test timeout.
-      30_000
+      }
     );
   },
   { metadata: { model: "gpt-4o-mini" } }

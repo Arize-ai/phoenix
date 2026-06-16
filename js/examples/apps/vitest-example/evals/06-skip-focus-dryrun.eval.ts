@@ -20,7 +20,7 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
   px.test(
     "runs and uploads normally",
     {
-      input: { userQuery: "show all products" },
+      input: { userQuery: "Show all products" },
       expected: { sql: "SELECT * FROM products;" },
     },
     async ({ input, expected }) => {
@@ -31,8 +31,13 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
   );
 
   px.test.skip(
-    "skipped — never executes",
-    { input: { userQuery: "this case is not ready" } },
+    "skipped — JOINs aren't supported yet",
+    {
+      input: { userQuery: "Total revenue per customer" },
+      expected: {
+        sql: "SELECT customer_id, SUM(total) FROM orders GROUP BY customer_id;",
+      },
+    },
     async () => {
       throw new Error("should not run");
     }
@@ -41,7 +46,7 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
   px.test(
     "runs locally but is NOT uploaded to Phoenix",
     {
-      input: { userQuery: "draft case under development" },
+      input: { userQuery: "Draft: customers who churned last quarter" },
       // No dataset example / run / annotations are created for a dryRun test,
       // even when the rest of the suite syncs.
       dryRun: true,
@@ -56,7 +61,7 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
   // Uncomment to run ONLY this test in the suite:
   // px.test.only(
   //   "the only test that runs",
-  //   { input: { userQuery: "count all users" } },
+  //   { input: { userQuery: "How many users are there?" } },
   //   async ({ input }) => {
   //     const { sql } = generateSql(input.userQuery);
   //     px.recordOutput({ sql });
