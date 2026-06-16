@@ -1,5 +1,24 @@
 # Changelog
 
+## [17.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.6.0...arize-phoenix-v17.7.0) (2026-06-16)
+
+
+### Features
+
+* Add token detail metrics charts ([#13764](https://github.com/Arize-ai/phoenix/issues/13764)) ([91b5f2d](https://github.com/Arize-ai/phoenix/commit/91b5f2db3588291a01092fa902275431ddceea6b))
+* **agents:** Add session context ([#13727](https://github.com/Arize-ai/phoenix/issues/13727)) ([031975c](https://github.com/Arize-ai/phoenix/commit/031975ccbe60e50967d8f192b6dfe6ca6de1daa7))
+* Make trace time range URLs shareable ([#13761](https://github.com/Arize-ai/phoenix/issues/13761)) ([4e1d228](https://github.com/Arize-ai/phoenix/commit/4e1d2280cac1cc70924ecdc6e53df2f74c0324d5))
+
+
+### Bug Fixes
+
+* **ui:** encode trace IDs when building trace/span routes ([#13785](https://github.com/Arize-ai/phoenix/issues/13785)) ([c5d39ab](https://github.com/Arize-ai/phoenix/commit/c5d39ab268d78771c982b52345dead4c724bad19))
+
+
+### Documentation
+
+* **cookbook:** Jailbreak and prompt injection defense cookbook ([#13729](https://github.com/Arize-ai/phoenix/issues/13729)) ([5a5e832](https://github.com/Arize-ai/phoenix/commit/5a5e8326e3175137afc98ec1ab9b3ee841ef28ad))
+
 ## [17.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.5.0...arize-phoenix-v17.6.0) (2026-06-15)
 
 
