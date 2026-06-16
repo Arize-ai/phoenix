@@ -1,3 +1,7 @@
+import {
+  createAcceptanceFailureError,
+  evaluateAcceptanceCriteria,
+} from "./acceptance";
 import { flushAnnotations } from "./helpers";
 import {
   initializeSuite,
@@ -94,10 +98,27 @@ export function declareDescribe(
       await initializeSuite(suite);
     });
     hooks.afterAll(async () => {
+      let teardownError: unknown;
+      let acceptanceError: Error | undefined;
       try {
         await teardownSuite(suite);
+      } catch (err) {
+        teardownError = err;
+      }
+      try {
+        suite.acceptanceResults = evaluateAcceptanceCriteria({
+          criteria: suite.config.acceptanceCriteria,
+          results: suite.results,
+        });
+        acceptanceError = createAcceptanceFailureError(suite.acceptanceResults);
       } finally {
         writeSuiteSummaryArtifact(suite);
+      }
+      if (teardownError) {
+        throw teardownError;
+      }
+      if (acceptanceError) {
+        throw acceptanceError;
       }
     });
   });

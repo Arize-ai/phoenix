@@ -2,6 +2,9 @@ import { createPhoenixTestApi } from "../testing/define-api";
 import type { RunnerHooks } from "../testing/runner";
 
 export type {
+  AcceptanceCriterion,
+  AcceptanceMetric,
+  AcceptanceResult,
   Annotation,
   AnnotatorKind,
   EvaluatorResult,

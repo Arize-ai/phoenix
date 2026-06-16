@@ -1,5 +1,6 @@
+import { formatAcceptanceResult } from "./acceptance";
 import type { TestResult } from "./state";
-import type { Annotation } from "./types";
+import type { AcceptanceResult, Annotation } from "./types";
 
 /**
  * The serializable summary of one suite that the reporter renders. This is the
@@ -19,6 +20,8 @@ export interface SuiteSummary {
   uploadFailureCount?: number;
   /** Per-test outcomes shown in the summary. */
   results: TestResult[];
+  /** Aggregate acceptance results shown in the summary. */
+  acceptanceResults?: AcceptanceResult[];
   /** Phoenix UI links (dataset / experiment) printed at the end of the block. */
   links: Array<{ label: string; url: string }>;
 }
@@ -57,6 +60,12 @@ export function formatSuiteSummary(suite: SuiteSummary): string {
   const aggregated = aggregateAnnotations(suite.results);
   for (const [name, summary] of Object.entries(aggregated)) {
     lines.push(`    ${name}: ${summary}`);
+  }
+  if (suite.acceptanceResults && suite.acceptanceResults.length > 0) {
+    lines.push("  Acceptance Criteria:");
+    for (const result of suite.acceptanceResults) {
+      lines.push(`    ${formatAcceptanceResult(result)}`);
+    }
   }
 
   for (const result of suite.results) {

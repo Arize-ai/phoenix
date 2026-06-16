@@ -63,6 +63,16 @@ describe("report artifacts", () => {
             durationMs: 12,
           },
         ],
+        acceptanceResults: [
+          {
+            annotationName: "quality",
+            metric: "average",
+            threshold: 0.8,
+            value: 0.9,
+            sampleCount: 1,
+            passed: true,
+          },
+        ],
         links: [{ label: "Experiment", url: "https://app.example/compare" }],
       },
     ]);
@@ -103,6 +113,16 @@ function createSuiteState(): SuiteState {
           },
         ],
         durationMs: 12,
+      },
+    ],
+    acceptanceResults: [
+      {
+        annotationName: "quality",
+        metric: "average",
+        threshold: 0.8,
+        value: 0.9,
+        sampleCount: 1,
+        passed: true,
       },
     ],
     links: [{ label: "Experiment", url: "https://app.example/compare" }],

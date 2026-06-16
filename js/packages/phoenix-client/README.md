@@ -324,17 +324,23 @@ px.describe("text-to-sql", () => {
       expect(sql).toEqual(expected?.sql);
     }
   );
+}, {
+  acceptanceCriteria: [
+    { annotationName: "pass", metric: "passRate", threshold: 1 },
+  ],
 });
 ```
 
 Use `@arizeai/phoenix-client/vitest/reporter` or
 `@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
-experiment links at the end of a run.
+experiment links, annotation aggregates, and acceptance criteria at the end
+of a run. Acceptance criteria gate graded metrics after the suite finishes,
+so CI can allow an 80% score while still running every case.
 
 See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
 `ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
-`describe` / `test` / `test.each` API, repetitions, dry-run mode, and
-annotation details.
+`describe` / `test` / `test.each` API, acceptance criteria, repetitions,
+dry-run mode, and annotation details.
 
 ## Traces
 

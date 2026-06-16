@@ -7,6 +7,7 @@ import type {
 
 import type { PhoenixClient } from "../index";
 import type {
+  AcceptanceResult,
   Annotation,
   KVMap,
   PhoenixSuiteConfig,
@@ -51,6 +52,8 @@ export interface SuiteState {
   trackingDisabled: boolean;
   /** Recorded test results for the reporter / summary. */
   results: TestResult[];
+  /** Computed aggregate acceptance results for this suite. */
+  acceptanceResults?: AcceptanceResult[];
   /** Links printed at the end of the suite (Phoenix dataset / experiment URLs). */
   links: Array<{ label: string; url: string }>;
   /** Reason the suite became inert (no tracking), if applicable. */

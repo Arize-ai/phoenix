@@ -68,6 +68,10 @@ px.describe("my suite", () => { ... }, {
   metadata: { model: "gpt-4o-mini" },
   client: myCustomPhoenixClient, // overrides createClient()
   repetitions: 3,                // run each test in this suite 3x
+  acceptanceCriteria: [
+    { annotationName: "token_f1", metric: "average", threshold: 0.8 },
+    { annotationName: "valid_sql", metric: "passRate", threshold: 1 },
+  ],
   dryRun: true,                  // run this suite locally; sync nothing
 });
 ```
@@ -79,6 +83,7 @@ px.describe("my suite", () => { ... }, {
 | `metadata` | `Record<string, unknown>` | Suite-level metadata applied to the experiment. |
 | `client` | `PhoenixClient` | Pre-configured `@arizeai/phoenix-client` instance. |
 | `repetitions` | `number` | Run each test in the suite this many times (default `1`; `PHOENIX_TEST_REPETITIONS` overrides the default). Per-test `repetitions` wins. |
+| `acceptanceCriteria` | `AcceptanceCriterion[]` | Aggregate annotation thresholds that fail the suite after all tests run. |
 | `dryRun` | `boolean` | Run the whole suite locally — no dataset, experiment, runs, or annotations are created in Phoenix. Same effect as `PHOENIX_TEST_TRACKING=false`, scoped to this suite. |
 
 ### `test(name, params, fn, timeout?)`
@@ -144,11 +149,45 @@ The name template supports `%i`, `%s`, and `%j` for parity with Vitest's
 
 See [CI Eval Test Annotations](./ci-evals-annotations) for the full annotation shape.
 
+### Acceptance Criteria
+
+Use `acceptanceCriteria` when a graded metric is allowed to miss some cases
+but must clear an aggregate bar in CI. Criteria run after the suite finishes,
+so all cases still execute and the reporter can show the full scorecard.
+
+```ts
+px.describe("text-to-sql scorecard", () => {
+  // tests log token_f1 and valid_sql annotations
+}, {
+  acceptanceCriteria: [
+    { annotationName: "token_f1", metric: "average", threshold: 0.8 },
+    { annotationName: "valid_sql", metric: "passRate", threshold: 1 },
+    {
+      annotationName: "correctness",
+      metric: "passRate",
+      threshold: 0.8,
+      passingScore: 0.7,
+    },
+  ],
+});
+```
+
+| Field | Description |
+|-------|-------------|
+| `annotationName` | Annotation score to aggregate. If a run logs the same annotation more than once, the last score counts. |
+| `metric` | `"average"` averages numeric scores and boolean scores (`true` = `1`, `false` = `0`); `"passRate"` computes the fraction of passing scores. |
+| `threshold` | Minimum acceptable aggregate value. Use `0.8` for an 80% bar. |
+| `passingScore` | For numeric `passRate`, the per-run score that counts as passing. Defaults to `1`. Boolean `passRate` uses `true`. |
+
+Missing annotations or annotations without numeric/boolean scores fail the
+criterion. Skipped tests do not count; dry-run tests do count because they
+still execute locally.
+
 ## Reporter Output
 
 When `@arizeai/phoenix-client/vitest/reporter` is loaded, the runner prints
 a per-suite block at the end of the run with pass/fail counts,
-annotation aggregates, and links to the Phoenix dataset and experiment.
+annotation aggregates, acceptance criteria, and links to the Phoenix dataset and experiment.
 The default Vitest reporter still runs alongside it.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
@@ -157,5 +196,6 @@ The default Vitest reporter still runs alongside it.
     <li><code>src/vitest/index.ts</code></li>
     <li><code>src/vitest/reporter.ts</code></li>
     <li><code>src/testing/runner.ts</code></li>
+    <li><code>src/testing/acceptance.ts</code></li>
   </ul>
 </section>

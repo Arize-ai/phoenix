@@ -50,6 +50,36 @@ export interface PhoenixTestConfig {
   metadata?: KVMap;
 }
 
+/** Aggregate metric used to gate an eval suite in CI. */
+export type AcceptanceMetric = "average" | "passRate";
+
+/** One aggregate acceptance rule for annotation scores collected in a suite. */
+export interface AcceptanceCriterion {
+  /** Annotation name to aggregate across completed test runs. */
+  annotationName: string;
+  /** Aggregate metric to compute for the annotation. */
+  metric: AcceptanceMetric;
+  /** Minimum acceptable aggregate value. */
+  threshold: number;
+  /**
+   * Minimum per-run score that counts as passing for `passRate`.
+   * Boolean scores pass when `true`; numeric scores default to `1`.
+   */
+  passingScore?: number;
+}
+
+/** Computed result for one aggregate acceptance rule. */
+export interface AcceptanceResult extends AcceptanceCriterion {
+  /** Aggregate value, or `null` when no valid scores were available. */
+  value: number | null;
+  /** Number of numeric or boolean scores included in the aggregate. */
+  sampleCount: number;
+  /** Whether the aggregate value met the configured threshold. */
+  passed: boolean;
+  /** Human-readable failure reason for invalid or empty aggregates. */
+  failureReason?: string;
+}
+
 /** Suite-level configuration accepted by `describe()`. */
 export interface PhoenixSuiteConfig {
   /** Override the dataset / experiment name used for the suite. */
@@ -73,6 +103,11 @@ export interface PhoenixSuiteConfig {
    * suite. The reporter still prints a local summary.
    */
   dryRun?: boolean;
+  /**
+   * Aggregate annotation thresholds that gate the suite after all tests run.
+   * Each criterion fails the suite when its aggregate value is below threshold.
+   */
+  acceptanceCriteria?: AcceptanceCriterion[];
 }
 
 /**

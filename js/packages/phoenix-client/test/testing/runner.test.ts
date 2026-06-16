@@ -86,6 +86,23 @@ pxDescribe("phoenix client test dry run", () => {
   );
 });
 
+pxDescribe(
+  "phoenix client test acceptance",
+  () => {
+    pxTest("strong case", { input: { n: 1 } }, async () => {
+      logAnnotation({ name: "quality", score: 1 });
+    });
+    pxTest("weak case", { input: { n: 2 } }, async () => {
+      logAnnotation({ name: "quality", score: 0.8 });
+    });
+  },
+  {
+    acceptanceCriteria: [
+      { annotationName: "quality", metric: "average", threshold: 0.9 },
+    ],
+  }
+);
+
 describe("runner registry", () => {
   it("records suite results after the inner describe completes", async () => {
     // The test above runs in the same file, so by the time this assertion
@@ -140,5 +157,22 @@ describe("runner registry", () => {
     const local = suite!.results.find((r) => r.testName === "local-only case");
     expect(local?.dryRun).toBe(true);
     expect(local?.status).toBe("passed");
+  });
+
+  it("records passing acceptance results after a suite completes", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const suite = getAllSuites().find(
+      (s) => s.name === "phoenix client test acceptance"
+    );
+    expect(suite).toBeDefined();
+    expect(suite!.acceptanceResults).toHaveLength(1);
+    expect(suite!.acceptanceResults?.[0]).toMatchObject({
+      annotationName: "quality",
+      metric: "average",
+      threshold: 0.9,
+      value: 0.9,
+      sampleCount: 2,
+      passed: true,
+    });
   });
 });

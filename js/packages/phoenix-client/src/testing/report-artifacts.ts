@@ -180,6 +180,7 @@ function createSuiteSummary(suite: SuiteState): SuiteSummary {
       : undefined,
     uploadFailureCount: suite.uploadFailureCount,
     results: suite.results.map(createTestResultSummary),
+    acceptanceResults: suite.acceptanceResults,
     links: suite.links.map(({ label, url }) => ({ label, url })),
   };
 }
