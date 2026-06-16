@@ -40,17 +40,7 @@ def build_server_agent(
     allow_mutations: bool = False,
     tracer_provider: TracerProvider | None = None,
 ) -> AbstractAgent[None, str]:
-    """Construct server agent.
-
-        ``docs_mcp_server`` and ``enable_web_access`` are gated by the caller exactly as
-        they are for the main agent, so the sub-agent gains the docs MCP and web
-    search/fetch tools under the same conditions. ``allow_mutations`` controls whether
-    the bash ``phoenix-gql`` command may execute GraphQL mutations, mirroring the
-    frontend command's permission gating.
-
-    The server agent always receives the GraphQL skill through the same
-    progressive-disclosure skills toolset the main agent uses.
-    """
+    """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
     tracer: Tracer = OITracer(
