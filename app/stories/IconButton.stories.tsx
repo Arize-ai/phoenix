@@ -6,11 +6,11 @@ import { IconButton } from "../src/components/core/button/IconButton";
 import { Icon } from "../src/components/core/icon/Icon";
 import {
   AlertTriangleOutline,
-  ArrowRight,
+  CaretRightFilled,
   CloseOutline,
   EditOutline,
   PlusOutline,
-  SearchOutline,
+  Search,
   SettingsOutline,
   TrashOutline,
 } from "../src/components/core/icon/Icons";
@@ -54,7 +54,7 @@ export default meta;
 
 export const Default = {
   args: {
-    children: <Icon svg={<SearchOutline />} />,
+    children: <Icon svg={<Search />} />,
     "aria-label": "Search",
   },
 };
@@ -68,10 +68,10 @@ export const Sizes = () => (
     `}
   >
     <IconButton size="S" aria-label="Small search">
-      <Icon svg={<SearchOutline />} />
+      <Icon svg={<Search />} />
     </IconButton>
     <IconButton size="M" aria-label="Medium search">
-      <Icon svg={<SearchOutline />} />
+      <Icon svg={<Search />} />
     </IconButton>
   </div>
 );
@@ -86,7 +86,7 @@ export const DifferentIcons = () => (
     `}
   >
     <IconButton aria-label="Search">
-      <Icon svg={<SearchOutline />} />
+      <Icon svg={<Search />} />
     </IconButton>
     <IconButton aria-label="Settings">
       <Icon svg={<SettingsOutline />} />
@@ -104,7 +104,7 @@ export const DifferentIcons = () => (
       <Icon svg={<CloseOutline />} />
     </IconButton>
     <IconButton aria-label="Next">
-      <Icon svg={<ArrowRight />} />
+      <Icon svg={<CaretRightFilled />} />
     </IconButton>
   </div>
 );
@@ -119,7 +119,7 @@ export const Disabled = {
 
 export const CustomStyling = {
   args: {
-    children: <Icon svg={<SearchOutline />} />,
+    children: <Icon svg={<Search />} />,
     "aria-label": "Custom search",
     css: css`
       --global-text-color-700: var(--global-color-blue-600);
@@ -184,7 +184,7 @@ export const SizeVariations = () => (
 
 export const Interactive = {
   args: {
-    children: <Icon svg={<SearchOutline />} />,
+    children: <Icon svg={<Search />} />,
     "aria-label": "Interactive search",
     onPress: () => alert("IconButton pressed!"),
   },
@@ -200,13 +200,13 @@ export const ButtonColors = () => (
     `}
   >
     <IconButton aria-label="Default color">
-      <Icon svg={<SearchOutline />} />
+      <Icon svg={<Search />} />
     </IconButton>
     <IconButton color="text-500" aria-label="Muted search">
-      <Icon svg={<SearchOutline />} />
+      <Icon svg={<Search />} />
     </IconButton>
     <IconButton color="blue-600" aria-label="Blue search">
-      <Icon svg={<SearchOutline />} />
+      <Icon svg={<Search />} />
     </IconButton>
     <IconButton color="red-600" aria-label="Red delete">
       <Icon svg={<TrashOutline />} />
@@ -246,9 +246,9 @@ export const SizeComparison = () => (
         Small:
       </span>
       <IconButton size="S" aria-label="Small icon button">
-        <Icon svg={<SearchOutline />} />
+        <Icon svg={<Search />} />
       </IconButton>
-      <Button size="S" leadingVisual={<Icon svg={<SearchOutline />} />}>
+      <Button size="S" leadingVisual={<Icon svg={<Search />} />}>
         Button
       </Button>
     </div>

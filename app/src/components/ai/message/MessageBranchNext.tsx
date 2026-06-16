@@ -25,7 +25,7 @@ export function MessageBranchNext({
       onPress={() => setActiveBranch(activeBranch + 1)}
       {...restProps}
     >
-      <Icon svg={<Icons.ArrowIosForwardOutline />} />
+      <Icon svg={<Icons.ChevronRight />} />
     </Button>
   );
 }

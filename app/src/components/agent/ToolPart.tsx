@@ -571,7 +571,7 @@ function ToolInvocationPartDetails({
           <span className="tool-part__title">
             <span className="tool-part__icon-slot">
               <Icon
-                svg={<Icons.ChevronDown />}
+                svg={<Icons.ChevronDownSmall />}
                 className="tool-part__chevron"
               />
               <Icon

@@ -75,7 +75,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       prompt: "Filter the spans to show only the ones with errors.",
     },
     {
-      icon: <Icons.SearchOutline />,
+      icon: <Icons.Search />,
       label: "Search this project",
       prompt: "Search this project for spans related to a topic I describe.",
     },
@@ -99,7 +99,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       prompt: "Explain what this span is doing.",
     },
     {
-      icon: <Icons.SearchOutline />,
+      icon: <Icons.Search />,
       label: "Debug this span",
       prompt: "Help me debug this span.",
     },

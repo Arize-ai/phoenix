@@ -380,7 +380,7 @@ function TableCopyButton({
   return (
     <ActionIconButton
       label={copied ? "Copied table" : "Copy table as markdown"}
-      icon={copied ? <Icons.CheckmarkOutline /> : <Icons.DuplicateOutline />}
+      icon={copied ? <Icons.Checkmark /> : <Icons.DuplicateOutline />}
       onPress={() => void onPress()}
     />
   );

@@ -132,11 +132,11 @@ export function ColumnBucket({
       let newIndex = focusedIndex;
 
       switch (e.key) {
-        case "ArrowDown":
+        case "CaretDownFilled":
           e.preventDefault();
           newIndex = focusedIndex < columns.length - 1 ? focusedIndex + 1 : 0;
           break;
-        case "ArrowUp":
+        case "CaretUpFilled":
           e.preventDefault();
           newIndex = focusedIndex > 0 ? focusedIndex - 1 : columns.length - 1;
           break;

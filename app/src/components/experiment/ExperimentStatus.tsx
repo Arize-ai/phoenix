@@ -29,7 +29,7 @@ function getStatusIcon(status: ExperimentStatusValue) {
     case "RUNNING":
       return <Icons.LoadingOutline />;
     case "COMPLETED":
-      return <Icons.CheckmarkCircleOutline />;
+      return <Icons.CheckmarkCircle />;
     case "ERROR":
       return <Icons.CloseCircleOutline />;
     case "STOPPED":

@@ -182,7 +182,7 @@ export function SkillPromptInput({
     if (skillCommand.isOpen) {
       const lastIndex = skillCommand.filteredItems.length - 1;
       switch (event.key) {
-        case "ArrowDown":
+        case "CaretDownFilled":
           event.preventDefault();
           skillCommand.setActiveIndex(
             skillCommand.activeIndex >= lastIndex
@@ -190,7 +190,7 @@ export function SkillPromptInput({
               : skillCommand.activeIndex + 1
           );
           return;
-        case "ArrowUp":
+        case "CaretUpFilled":
           event.preventDefault();
           skillCommand.setActiveIndex(
             skillCommand.activeIndex <= 0

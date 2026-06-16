@@ -49,7 +49,7 @@ function Breadcrumb({
       {({ isCurrent }) => (
         <>
           {children}
-          {!isCurrent && <Icon svg={<Icons.ChevronRight />} />}
+          {!isCurrent && <Icon svg={<Icons.ChevronRightSmall />} />}
         </>
       )}
     </AriaBreadcrumb>

@@ -260,7 +260,7 @@ export function Drawer({
         event.preventDefault();
         commitSize(sizePercent + KEYBOARD_RESIZE_STEP_PERCENT);
         break;
-      case "ArrowRight":
+      case "CaretRightFilled":
         event.preventDefault();
         commitSize(sizePercent - KEYBOARD_RESIZE_STEP_PERCENT);
         break;
