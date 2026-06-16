@@ -331,6 +331,11 @@ Use `@arizeai/phoenix-client/vitest/reporter` or
 `@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
 experiment links at the end of a run.
 
+See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
+`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+`describe` / `test` / `test.each` API, repetitions, dry-run mode, and
+annotation details.
+
 ## Traces
 
 The `@arizeai/phoenix-client` package provides a `traces` export for retrieving trace data from Phoenix projects.

@@ -1,13 +1,25 @@
 import type { TestResult } from "./state";
 import type { Annotation } from "./types";
 
+/**
+ * The serializable summary of one suite that the reporter renders. This is the
+ * payload written to and read from the artifact files in `report-artifacts.ts`,
+ * so it holds only plain data — no clients, tracers, or live state.
+ */
 export interface SuiteSummary {
+  /** Suite name (also the dataset / experiment name in Phoenix). */
   name: string;
+  /** True when the suite did not sync to Phoenix (dry run, disabled, or error). */
   trackingDisabled?: boolean;
+  /** Human-readable reason tracking was disabled, when known. */
   trackingDisabledReason?: string;
+  /** Setup failure that disabled tracking, reduced to its message for printing. */
   setupError?: { message: string };
+  /** Number of best-effort uploads (runs + annotations) that failed. */
   uploadFailureCount?: number;
+  /** Per-test outcomes shown in the summary. */
   results: TestResult[];
+  /** Phoenix UI links (dataset / experiment) printed at the end of the block. */
   links: Array<{ label: string; url: string }>;
 }
 

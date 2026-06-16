@@ -1,15 +1,5 @@
-import {
-  declareDescribe,
-  declareTest,
-  type RunnerHooks,
-} from "../testing/runner";
-import type {
-  KVMap,
-  PhoenixSuiteConfig,
-  PhoenixTestEachRow,
-  PhoenixTestFn,
-  PhoenixTestParams,
-} from "../testing/types";
+import { createPhoenixTestApi } from "../testing/define-api";
+import type { RunnerHooks } from "../testing/runner";
 
 export type {
   Annotation,
@@ -93,9 +83,16 @@ interface JestTest {
   ) => void;
 }
 
-function buildHooks(): RunnerHooks {
+/**
+ * Build the runner hooks from the (lazily-resolved) jest globals. Memoized so
+ * repeated declarations don't re-read `globalThis` on every call; jest injects
+ * its globals once per worker before any test file is evaluated.
+ */
+let cachedHooks: RunnerHooks | undefined;
+function getHooks(): RunnerHooks {
+  if (cachedHooks) return cachedHooks;
   const g = getJestGlobals();
-  return {
+  cachedHooks = {
     describe: (name, fn) => g.describe(name, fn),
     describeOnly: (name, fn) => g.describe.only(name, fn),
     describeSkip: (name, fn) => g.describe.skip(name, fn),
@@ -105,79 +102,7 @@ function buildHooks(): RunnerHooks {
     beforeAll: (fn) => g.beforeAll(fn),
     afterAll: (fn) => g.afterAll(fn),
   };
+  return cachedHooks;
 }
 
-export function describe(
-  name: string,
-  fn: () => void,
-  config?: PhoenixSuiteConfig
-): void {
-  declareDescribe(buildHooks(), name, fn, config ?? {});
-}
-describe.only = (
-  name: string,
-  fn: () => void,
-  config?: PhoenixSuiteConfig
-): void => {
-  declareDescribe(buildHooks(), name, fn, config ?? {}, "only");
-};
-describe.skip = (
-  name: string,
-  fn: () => void,
-  config?: PhoenixSuiteConfig
-): void => {
-  declareDescribe(buildHooks(), name, fn, config ?? {}, "skip");
-};
-
-export function test<I extends KVMap = KVMap, E extends KVMap = KVMap>(
-  name: string,
-  params: PhoenixTestParams<I, E>,
-  fn: PhoenixTestFn<I, E>,
-  timeout?: number
-): void {
-  declareTest(buildHooks(), name, params, fn, "default", timeout);
-}
-test.only = <I extends KVMap = KVMap, E extends KVMap = KVMap>(
-  name: string,
-  params: PhoenixTestParams<I, E>,
-  fn: PhoenixTestFn<I, E>,
-  timeout?: number
-): void => {
-  declareTest(buildHooks(), name, params, fn, "only", timeout);
-};
-test.skip = <I extends KVMap = KVMap, E extends KVMap = KVMap>(
-  name: string,
-  params: PhoenixTestParams<I, E>,
-  fn: PhoenixTestFn<I, E>,
-  timeout?: number
-): void => {
-  declareTest(buildHooks(), name, params, fn, "skip", timeout);
-};
-
-test.each = <I extends KVMap, E extends KVMap>(
-  table: PhoenixTestEachRow<I, E>[]
-): ((name: string, fn: PhoenixTestFn<I, E>, timeout?: number) => void) => {
-  return (name, fn, timeout) => {
-    table.forEach((row, i) => {
-      const interpolated = name.includes("%") ? name : `${name} #${i + 1}`;
-      declareTest(
-        buildHooks(),
-        interpolated,
-        {
-          id: row.id,
-          input: row.input,
-          expected: row.expected,
-          metadata: row.metadata,
-          repetitions: row.repetitions,
-          dryRun: row.dryRun,
-        },
-        fn,
-        "default",
-        timeout
-      );
-    });
-  };
-};
-
-/** `it` is the canonical alias for `test`. */
-export const it = test;
+export const { describe, test, it } = createPhoenixTestApi(getHooks);

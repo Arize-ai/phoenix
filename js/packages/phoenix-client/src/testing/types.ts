@@ -44,7 +44,9 @@ export interface PhoenixTestParams<
 
 /** Per-test runtime configuration. */
 export interface PhoenixTestConfig {
+  /** Tags recorded on the experiment run for filtering in the Phoenix UI. */
   tags?: string[];
+  /** Extra metadata recorded on the experiment run. */
   metadata?: KVMap;
 }
 
@@ -73,13 +75,19 @@ export interface PhoenixSuiteConfig {
   dryRun?: boolean;
 }
 
-/** Arguments passed to a `test()` body. */
+/**
+ * Arguments passed to a `test()` body. These are read straight from the
+ * test's {@link PhoenixTestParams} — the runner does not transform them.
+ */
 export interface PhoenixTestArgs<
   I extends KVMap = KVMap,
   E extends KVMap = KVMap,
 > {
+  /** The example input under test. */
   input: I;
+  /** The reference (expected) output, when one was supplied. */
   expected?: E;
+  /** Any metadata attached to the example. */
   metadata?: KVMap;
 }
 
@@ -92,11 +100,17 @@ export type AnnotatorKind = "LLM" | "CODE" | "HUMAN";
  * on the evaluation body.
  */
 export interface Annotation {
+  /** Phoenix evaluation name. Required, and unique per run (last write wins). */
   name: string;
+  /** Numeric or boolean score; booleans are stored as `1` / `0`. */
   score?: number | boolean | null;
+  /** Categorical label for the result (e.g. `"correct"`). */
   label?: string | null;
+  /** Free-form explanation, shown alongside the score in the Phoenix UI. */
   explanation?: string | null;
+  /** Arbitrary metadata stored with the evaluation. */
   metadata?: KVMap;
+  /** Who or what produced the annotation. Defaults to `"CODE"`. */
   annotatorKind?: AnnotatorKind;
   /** Trace id for this evaluation, when the annotation was produced by a traced evaluator. */
   traceId?: string | null;

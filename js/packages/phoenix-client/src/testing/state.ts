@@ -128,18 +128,25 @@ export const runStorage = new AsyncLocalStorage<RunState>();
  */
 const suiteStack: SuiteState[] = [];
 
+/** Push a suite onto the stack as we enter its `describe` callback. */
 export function pushSuite(suite: SuiteState): void {
   suiteStack.push(suite);
 }
 
+/** Pop the current suite as we leave its `describe` callback. */
 export function popSuite(): SuiteState | undefined {
   return suiteStack.pop();
 }
 
+/** The suite currently being declared, or `undefined` outside any `describe`. */
 export function currentSuite(): SuiteState | undefined {
   return suiteStack[suiteStack.length - 1];
 }
 
+/**
+ * The state for the test currently executing, or `undefined` when called
+ * outside a Phoenix test body. Backed by {@link runStorage}.
+ */
 export function currentRun(): RunState | undefined {
   return runStorage.getStore();
 }

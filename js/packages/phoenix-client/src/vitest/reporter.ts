@@ -1,12 +1,8 @@
-import {
-  clearSuiteSummaryArtifacts,
-  readSuiteSummaryArtifacts,
-} from "../testing/report-artifacts";
+import { SuiteSummaryReportRun } from "../testing/report-run";
 import {
   formatSuiteSummary,
   printSuiteSummaries,
 } from "../testing/reporter-format";
-import { clearAllSuites, getAllSuites } from "../testing/runner";
 
 /**
  * Vitest reporter for `@arizeai/phoenix-client/vitest`.
@@ -19,34 +15,17 @@ import { clearAllSuites, getAllSuites } from "../testing/runner";
  * than nominally so we don't have to import a CJS type from `vitest/reporters`.
  */
 export default class PhoenixVitestReporter {
-  private hasPrinted = false;
-  private runStartedAtMs = Date.now();
+  private readonly report = new SuiteSummaryReportRun();
 
-  // Clear the suite registry at the start of each run so suites from
-  // previous watch-mode runs don't leak forward.
   onTestRunStart(): void {
-    this.hasPrinted = false;
-    this.runStartedAtMs = Date.now();
-    clearAllSuites();
-    clearSuiteSummaryArtifacts();
+    this.report.begin();
   }
   onTestRunEnd(): void {
-    this.printSummaries();
+    this.report.finish();
   }
   // Vitest also calls `onFinished` on legacy reporters; alias for safety.
   onFinished(): void {
-    this.printSummaries();
-  }
-
-  private printSummaries(): void {
-    if (this.hasPrinted) return;
-    const artifactSuites = readSuiteSummaryArtifacts({
-      sinceMs: this.runStartedAtMs,
-    });
-    const suites = artifactSuites.length > 0 ? artifactSuites : getAllSuites();
-    if (suites.length === 0) return;
-    this.hasPrinted = true;
-    printSuiteSummaries(suites);
+    this.report.finish();
   }
 }
 

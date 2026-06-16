@@ -15,7 +15,15 @@ import {
 import type { Span } from "@opentelemetry/api";
 
 import { createDataset } from "../datasets";
+import { cleanupOwnedTracerProvider } from "../experiments/tracing";
 import { createClient, type PhoenixClient } from "../index";
+import { ensureString } from "../utils/ensureString";
+import { toObjectHeaders } from "../utils/toObjectHeaders";
+import {
+  getDatasetExperimentsUrl,
+  getDatasetUrl,
+  getExperimentUrl,
+} from "../utils/urlUtils";
 import { currentRun, type RunState, type SuiteState } from "./state";
 import type { Annotation, KVMap } from "./types";
 
@@ -75,17 +83,6 @@ export function resolveRepetitions(
   return 1;
 }
 
-/** Stringify a value for OpenInference span attributes. */
-function stringify(value: unknown): string {
-  if (value == null) return "";
-  if (typeof value === "string") return value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
 /**
  * Deterministic key for matching dataset examples by content. Uses sorted
  * keys so two inputs that differ only in property order hash the same.
@@ -116,7 +113,8 @@ function stableStringify(value: unknown): string {
   );
 }
 
-function outputMimeType(value: unknown): MimeType {
+/** TEXT for raw strings, JSON for everything else. */
+function mimeTypeFor(value: unknown): MimeType {
   return typeof value === "string" ? MimeType.TEXT : MimeType.JSON;
 }
 
@@ -148,8 +146,8 @@ function maybeWarnHttpScheme(
   if (parsed.protocol !== "http:") return;
   if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
     return;
-  const picked = pickHeaders(headers);
-  if (!picked) return;
+  if (!headers) return;
+  const picked = toObjectHeaders(headers);
   const hasAuth = Object.keys(picked).some(
     (h) => h.toLowerCase() === "authorization"
   );
@@ -163,23 +161,6 @@ function maybeWarnHttpScheme(
   );
 }
 
-function inputMimeType(value: unknown): MimeType {
-  return typeof value === "string" ? MimeType.TEXT : MimeType.JSON;
-}
-
-function pickHeaders(
-  headers: PhoenixClient["config"]["headers"]
-): Record<string, string> | undefined {
-  if (!headers) return undefined;
-  if (Array.isArray(headers)) return Object.fromEntries(headers);
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(headers)) {
-    if (v == null) continue;
-    out[k] = Array.isArray(v) ? v.join(", ") : String(v);
-  }
-  return out;
-}
-
 function buildLinks(
   client: PhoenixClient,
   datasetId: string,
@@ -187,19 +168,15 @@ function buildLinks(
 ): Array<{ label: string; url: string }> {
   const baseUrl = client.config.baseUrl;
   if (!baseUrl) return [];
-  const trimmed = baseUrl.replace(/\/$/, "");
   return [
-    {
-      label: "Dataset",
-      url: `${trimmed}/datasets/${datasetId}/examples`,
-    },
+    { label: "Dataset", url: getDatasetUrl({ baseUrl, datasetId }) },
     {
       label: "Experiments",
-      url: `${trimmed}/datasets/${datasetId}/experiments`,
+      url: getDatasetExperimentsUrl({ baseUrl, datasetId }),
     },
     {
       label: "Experiment",
-      url: `${trimmed}/datasets/${datasetId}/compare?experimentId=${experimentId}`,
+      url: getExperimentUrl({ baseUrl, datasetId, experimentId }),
     },
   ];
 }
@@ -349,7 +326,9 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
     provider = register({
       projectName: suite.projectName,
       url: baseUrl,
-      headers: pickHeaders(client.config.headers),
+      headers: client.config.headers
+        ? toObjectHeaders(client.config.headers)
+        : undefined,
       batch: false,
       global: false,
     });
@@ -408,7 +387,7 @@ export async function runTaskWithTracing<T>(
       if (run) {
         endTaskSpan({ run, fallbackOutput: result });
       } else {
-        endSpanAsTask({ span, output: result });
+        endSpanAsTask({ span, input: undefined, output: result });
       }
       return { traceId, result };
     } catch (err) {
@@ -427,10 +406,6 @@ export async function runTaskWithTracing<T>(
       }
     }
   });
-}
-
-function currentInput(): unknown {
-  return currentRun()?.params.input;
 }
 
 function hasTaskSpanEnded(run: RunState): boolean {
@@ -462,17 +437,15 @@ function endTaskSpan({
       code: SpanStatusCode.ERROR,
       message: error.message,
     });
-  } else {
-    endSpanAsTask({ span: lifecycle.span, output });
-  }
-  if (error) {
     lifecycle.span.setAttributes({
       [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
         OpenInferenceSpanKind.CHAIN,
-      [SemanticConventions.INPUT_MIME_TYPE]: inputMimeType(run.params.input),
-      [SemanticConventions.INPUT_VALUE]: stringify(run.params.input),
+      [SemanticConventions.INPUT_MIME_TYPE]: mimeTypeFor(run.params.input),
+      [SemanticConventions.INPUT_VALUE]: ensureString(run.params.input),
     });
     lifecycle.span.end();
+  } else {
+    endSpanAsTask({ span: lifecycle.span, input: run.params.input, output });
   }
   run.traceId = lifecycle.traceId;
   run.taskEndTime = new Date();
@@ -481,18 +454,19 @@ function endTaskSpan({
 
 function endSpanAsTask({
   span,
+  input,
   output,
 }: {
   span: Span;
+  input: unknown;
   output: unknown;
 }): void {
-  const input = currentInput();
   span.setAttributes({
     [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.CHAIN,
-    [SemanticConventions.INPUT_MIME_TYPE]: inputMimeType(input),
-    [SemanticConventions.INPUT_VALUE]: stringify(input),
-    [SemanticConventions.OUTPUT_MIME_TYPE]: outputMimeType(output),
-    [SemanticConventions.OUTPUT_VALUE]: stringify(output),
+    [SemanticConventions.INPUT_MIME_TYPE]: mimeTypeFor(input),
+    [SemanticConventions.INPUT_VALUE]: ensureString(input),
+    [SemanticConventions.OUTPUT_MIME_TYPE]: mimeTypeFor(output),
+    [SemanticConventions.OUTPUT_VALUE]: ensureString(output),
   });
   span.setStatus({ code: SpanStatusCode.OK });
   span.end();
@@ -607,9 +581,9 @@ export async function runEvaluatorWithTracing<P extends KVMap, R>(
           [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
             OpenInferenceSpanKind.EVALUATOR,
           [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-          [SemanticConventions.INPUT_VALUE]: stringify(params),
+          [SemanticConventions.INPUT_VALUE]: ensureString(params),
           [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
-          [SemanticConventions.OUTPUT_VALUE]: stringify(result),
+          [SemanticConventions.OUTPUT_VALUE]: ensureString(result),
         });
         span.setStatus({ code: SpanStatusCode.OK });
         return { result, traceId };
@@ -630,18 +604,15 @@ export async function runEvaluatorWithTracing<P extends KVMap, R>(
  */
 export async function teardownSuite(suite: SuiteState): Promise<void> {
   const provider = suite.tracerProvider;
-  const reg = suite.globalRegistration;
   if (!provider) return;
   try {
-    await provider.forceFlush();
+    await cleanupOwnedTracerProvider({
+      provider,
+      globalRegistration: suite.globalRegistration,
+    });
   } finally {
-    try {
-      await provider.shutdown();
-    } finally {
-      reg?.detach();
-      suite.tracerProvider = undefined;
-      suite.globalRegistration = null;
-    }
+    suite.tracerProvider = undefined;
+    suite.globalRegistration = null;
   }
 }
 
