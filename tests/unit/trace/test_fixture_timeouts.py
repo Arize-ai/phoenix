@@ -1,36 +1,43 @@
 """Regression tests: trace fixture HTTP calls must use bounded timeouts.
 
-Covers issues #13744, #13745, #13746. Previously the fixture download used
+Covers issues #13744, #13745, #13746. The fixture download previously used
 ``urllib.request.urlopen`` with no timeout (genuinely unbounded), and the
 readiness probe / upload relied on httpx's implicit 5s default (too long for the
-startup budget, too short for large uploads).
+fixed startup budget, too short for large uploads).
 """
 
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 
-import phoenix.trace.fixtures as fixtures
-import phoenix.trace.utils as trace_utils
+from phoenix.trace import fixtures
+from phoenix.trace import utils as trace_utils
+
+
+class _FakeResponse:
+    def __enter__(self) -> "_FakeResponse":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def readlines(self) -> list[str]:
+        return ["{}"]
+
+
+class _FakeOkResponse:
+    def raise_for_status(self) -> None:
+        return None
 
 
 def test_download_json_traces_fixture_passes_bounded_timeout() -> None:
-    captured: dict = {}
+    captured: dict[str, Any] = {}
 
-    class _Resp:
-        def __enter__(self) -> "_Resp":
-            return self
-
-        def __exit__(self, *exc: object) -> bool:
-            return False
-
-        def readlines(self) -> list[str]:
-            return ["{}"]
-
-    def fake_urlopen(url: str, *args: object, **kwargs: object) -> "_Resp":
+    def fake_urlopen(url: str, *args: object, **kwargs: object) -> _FakeResponse:
         captured["timeout"] = kwargs.get("timeout")
-        return _Resp()
+        return _FakeResponse()
 
-    with mock.patch.object(trace_utils.request, "urlopen", side_effect=fake_urlopen):
+    with mock.patch("phoenix.trace.utils.request.urlopen", side_effect=fake_urlopen):
         trace_utils.download_json_traces_fixture("https://example.com/traces.jsonl")
 
     assert captured["timeout"] == trace_utils.DEFAULT_FIXTURE_DOWNLOAD_TIMEOUT_SECONDS
@@ -38,17 +45,13 @@ def test_download_json_traces_fixture_passes_bounded_timeout() -> None:
 
 
 def test_send_dataset_fixtures_readiness_probe_is_bounded() -> None:
-    captured: dict = {}
+    captured: dict[str, Any] = {}
 
-    class _Ok:
-        def raise_for_status(self) -> None:
-            return None
-
-    def fake_get(url: str, **kwargs: object) -> "_Ok":
+    def fake_get(url: str, **kwargs: object) -> _FakeOkResponse:
         captured["timeout"] = kwargs.get("timeout")
-        return _Ok()
+        return _FakeOkResponse()
 
-    with mock.patch.object(fixtures.httpx, "get", side_effect=fake_get):
+    with mock.patch("phoenix.trace.fixtures.httpx.get", side_effect=fake_get):
         fixtures.send_dataset_fixtures(endpoint="http://localhost:6006", fixtures=[])
 
     # Bounded, and within the ~5s startup budget (not httpx's implicit 5s default).
@@ -57,17 +60,13 @@ def test_send_dataset_fixtures_readiness_probe_is_bounded() -> None:
 
 
 def test_send_dataset_fixtures_upload_is_bounded() -> None:
-    captured: dict = {}
+    captured: dict[str, Any] = {}
 
-    class _Ok:
-        def raise_for_status(self) -> None:
-            return None
-
-    def fake_post(url: str, **kwargs: object) -> "_Ok":
+    def fake_post(url: str, **kwargs: object) -> _FakeOkResponse:
         captured["timeout"] = kwargs.get("timeout")
-        return _Ok()
+        return _FakeOkResponse()
 
-    fixture = SimpleNamespace(
+    fixture: Any = SimpleNamespace(
         input_keys=["question"],
         output_keys=["answer"],
         metadata_keys=[],
@@ -77,11 +76,17 @@ def test_send_dataset_fixtures_upload_is_bounded() -> None:
         dataframe=[0, 0],
     )
 
-    with mock.patch.object(fixtures.httpx, "get", return_value=_Ok()), mock.patch.object(
-        fixtures.httpx, "post", side_effect=fake_post
-    ), mock.patch.object(
-        fixtures, "_prepare_csv_bytes", return_value=("demo.csv", b"data", "text/csv", {})
+    with (
+        mock.patch("phoenix.trace.fixtures.httpx.get", return_value=_FakeOkResponse()),
+        mock.patch("phoenix.trace.fixtures.httpx.post", side_effect=fake_post),
+        mock.patch(
+            "phoenix.trace.fixtures._prepare_csv_bytes",
+            return_value=("demo.csv", b"data", "text/csv", {}),
+        ),
     ):
-        fixtures.send_dataset_fixtures(endpoint="http://localhost:6006", fixtures=[fixture])
+        fixtures.send_dataset_fixtures(
+            endpoint="http://localhost:6006",
+            fixtures=[fixture],
+        )
 
     assert captured["timeout"] == fixtures.DATASET_UPLOAD_TIMEOUT_SECONDS
