@@ -14,7 +14,7 @@ Key fields: `spanId` (OTel hex), `name`, `spanKind`, `statusCode`, `startTime`, 
 
 ## Trace
 
-Key fields: `traceId`, `latencyMs`, `numSpans`, `spans(first, after)`, `projectSessionId`.
+Key fields: `traceId`, `latencyMs`, `numSpans`, `rootSpan { ... }` (the entry span — use it for a one-line turn/trace summary), `spans(first, after)`, `projectSessionId`.
 
 ## Examples
 
