@@ -35,8 +35,11 @@ export async function spanRedirectLoader({ params }: LoaderFunctionArgs) {
 
   if (response?.span) {
     const { id: spanId, trace, project } = response.span;
+    // encode the trace ID because the ingested value is not guaranteed to be
+    // path-safe; a path- or protocol-relative value would otherwise escape the
+    // intended route
     return redirect(
-      `/projects/${project.id}/spans/${trace.traceId}?selectedSpanNodeId=${spanId}`
+      `/projects/${project.id}/spans/${encodeURIComponent(trace.traceId)}?selectedSpanNodeId=${encodeURIComponent(spanId)}`
     );
   } else {
     throw new Error(`Span with id "${span_otel_id}" not found`);
