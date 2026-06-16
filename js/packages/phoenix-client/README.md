@@ -311,24 +311,28 @@ npm install -D @arizeai/phoenix-client vitest dotenv
 import * as px from "@arizeai/phoenix-client/vitest";
 import { expect } from "vitest";
 
-px.describe("text-to-sql", () => {
-  px.test(
-    "select all",
-    {
-      input: { userQuery: "Get all users" },
-      expected: { sql: "SELECT * FROM users;" },
-    },
-    async ({ input, expected }) => {
-      const sql = await generateSql(input.userQuery);
-      px.recordOutput({ sql });
-      expect(sql).toEqual(expected?.sql);
-    }
-  );
-}, {
-  acceptanceCriteria: [
-    { annotationName: "pass", metric: "passRate", threshold: 1 },
-  ],
-});
+px.describe(
+  "text-to-sql",
+  () => {
+    px.test(
+      "select all",
+      {
+        input: { userQuery: "Get all users" },
+        expected: { sql: "SELECT * FROM users;" },
+      },
+      async ({ input, expected }) => {
+        const sql = await generateSql(input.userQuery);
+        px.recordOutput({ sql });
+        expect(sql).toEqual(expected?.sql);
+      }
+    );
+  },
+  {
+    acceptanceCriteria: [
+      { annotationName: "pass", metric: "passRate", threshold: 1 },
+    ],
+  }
+);
 ```
 
 Use `@arizeai/phoenix-client/vitest/reporter` or
