@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 import strawberry
+from graphql import OperationType
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
@@ -11,6 +12,7 @@ from pydantic_ai.usage import RunUsage
 from phoenix.server.agents.capabilities.tools.internal.bash import (
     _BASH_TOOL_DESCRIPTION_TEMPLATE,
     BashToolset,
+    _operation_types,
 )
 from phoenix.server.api.context import Context
 
@@ -153,6 +155,19 @@ async def test_subscription_rejected_even_when_mutations_enabled(
     assert "Subscriptions are not supported" in result["stderr"]
 
 
+def test_operation_types_classifies_via_ast() -> None:
+    # Comments abutting the keyword and shorthand syntax defeat a naive regex, but the
+    # AST-based classifier handles them. Invalid syntax yields an empty set and is left
+    # for ``schema.execute`` to report.
+    assert _operation_types("mutation# do it later\n{ deleteEverything }") == {
+        OperationType.MUTATION
+    }
+    assert _operation_types("# subscription example\nquery { hello }") == {OperationType.QUERY}
+    assert _operation_types("subscription { hello }") == {OperationType.SUBSCRIPTION}
+    assert _operation_types("{ hello }") == {OperationType.QUERY}
+    assert _operation_types("this is not graphql !!") == set()
+
+
 async def test_graphql_errors_are_reported(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql '{ boom }'")
 
@@ -193,21 +208,22 @@ async def test_output_path_writes_file(run_bash: RunBash) -> None:
     assert json.loads(read_back["stdout"]) == {"data": {"hello": "world"}}
 
 
-async def test_large_response_spills_to_workspace_file(run_bash: RunBash) -> None:
+async def test_large_response_returned_inline(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql '{ big(size: 200000) }'")
 
     assert result["exit_code"] == 0
-    spill = json.loads(result["stdout"])
-    assert spill["spilled"] is True
-    assert spill["path"].startswith("/home/user/workspace/phoenix-gql-result-")
-    assert "Response exceeded stdout budget" in result["stderr"]
+    assert json.loads(result["stdout"]) == {"data": {"big": "x" * 200000}}
+    assert "truncated" not in result
 
 
-async def test_stdout_flag_disables_spill(run_bash: RunBash) -> None:
-    result = await run_bash("phoenix-gql --stdout '{ big(size: 200000) }'")
+async def test_oversized_response_truncated_natively(run_bash: RunBash) -> None:
+    # bashkit caps command output at 1 MiB; the wrapper surfaces that as ``truncated``
+    # rather than spilling the payload to a workspace file.
+    result = await run_bash("phoenix-gql '{ big(size: 2000000) }'")
 
     assert result["exit_code"] == 0
-    assert json.loads(result["stdout"]) == {"data": {"big": "x" * 200000}}
+    assert result["truncated"] is True
+    assert len(result["stdout"]) <= 1024 * 1024
 
 
 async def test_network_disabled_by_default(run_bash: RunBash) -> None:

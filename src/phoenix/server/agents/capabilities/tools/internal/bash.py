@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 import posixpath
-import re
-import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
+from graphql import GraphQLSyntaxError
+from graphql import OperationType as GraphQLOperationType
+from graphql import parse as parse_graphql
+from graphql.language.ast import OperationDefinitionNode
 from jinja2 import Template
 from pydantic_ai import Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
@@ -17,13 +19,7 @@ from strawberry.types.graphql import OperationType
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
 
-# Scratch space for command output, mirroring the just-bash frontend bash runtime.
 WORKSPACE_ROOT = "/home/user/workspace"
-
-# Responses larger than this are written to a workspace file instead of stdout, so a
-# single large GraphQL payload cannot blow the model's context budget. Mirrors the
-# frontend ``phoenix-gql`` command.
-DEFAULT_SPILL_THRESHOLD_BYTES = 128 * 1024
 
 _BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
     """\
@@ -50,31 +46,35 @@ Args:
 
 Returns a dict with the command's `stdout`, `stderr`, and `exit_code`.
 """,
-    trim_blocks=True,
-    lstrip_blocks=True,
 )
 
 
-def _strip_graphql_comments(query: str) -> str:
-    return re.sub(r"#[^\n]*", "", query)
-
-
-def _is_non_query_operation(query: str) -> bool:
-    stripped = _strip_graphql_comments(query)
-    return re.search(r"^\s*(mutation|subscription)[\s({]", stripped, re.MULTILINE) is not None
-
-
-def _is_subscription_operation(query: str) -> bool:
-    stripped = _strip_graphql_comments(query)
-    return re.search(r"^\s*subscription[\s({]", stripped, re.MULTILINE) is not None
-
-
-def _byte_length(content: str) -> int:
-    return len(content.encode("utf-8"))
+def _operation_types(query: str) -> set[GraphQLOperationType]:
+    """Return the set of GraphQL operation types declared in ``query``."""
+    try:
+        document = parse_graphql(query)
+    except GraphQLSyntaxError:
+        return set()
+    return {
+        definition.operation
+        for definition in document.definitions
+        if isinstance(definition, OperationDefinitionNode)
+    }
 
 
 def _resolve_path(cwd: str, path: str) -> str:
-    """Resolve ``path`` against ``cwd`` the way the frontend ``fs.resolvePath`` does."""
+    """Resolve ``path`` against ``cwd``.resolvePath`` does.
+
+    Relative paths are joined onto ``cwd``; absolute paths ignore it. The result is
+    normalized, collapsing ``.`` and ``..`` segments.
+
+    >>> _resolve_path("/home/user/workspace", "out.json")
+    '/home/user/workspace/out.json'
+    >>> _resolve_path("/home/user/workspace", "/etc/passwd")
+    '/etc/passwd'
+    >>> _resolve_path("/home/user/workspace", "../shared/q.graphql")
+    '/home/user/shared/q.graphql'
+    """
     if path.startswith("/"):
         return posixpath.normpath(path)
     return posixpath.normpath(posixpath.join(cwd, path))
@@ -85,18 +85,17 @@ def _format_graphql_errors(messages: list[str]) -> str:
     return f"GraphQL errors:\n{formatted}\n"
 
 
-def _get_help_text(mutations_enabled: bool) -> str:
-    permissions_line = (
-        "Permissions: queries and mutations are ENABLED."
-        if mutations_enabled
-        else "Permissions: queries only (mutations are disabled)."
-    )
-    return f"""Usage: phoenix-gql [query] [options] [query-or-file]
+_HELP_TEXT_TEMPLATE = Template(
+    """\
+Usage: phoenix-gql [query] [options] [query-or-file]
 
 Execute GraphQL operations against Phoenix.
 
-{permissions_line}
-
+{% if mutations_enabled -%}
+Permissions: queries and mutations are ENABLED.
+{% else -%}
+Permissions: queries only (mutations are disabled).
+{% endif %}
 Recommended flow:
   1. start with a tiny query or an introspection query to confirm the schema
   2. add filters, sorting, and deeper fields only after the base query works
@@ -107,14 +106,18 @@ Options:
   --vars-file <path>    Read GraphQL variables from a file
   --output <path>       Write JSON response to a file instead of stdout
   --data-only           Print only the .data payload
-  --stdout              Disable automatic spill-to-file for large responses
   --help                Show this help text
 
 Examples:
-  phoenix-gql '{{ projects {{ edges {{ node {{ name }} }} }} }}'
-  cat query.graphql | phoenix-gql --vars '{{"id":"abc"}}'
+  phoenix-gql '{ projects { edges { node { name } } } }'
+  cat query.graphql | phoenix-gql --vars '{"id":"abc"}'
   phoenix-gql query.graphql --vars-file vars.json | jq '.data'
 """
+)
+
+
+def _get_help_text(mutations_enabled: bool) -> str:
+    return _HELP_TEXT_TEMPLATE.render(mutations_enabled=mutations_enabled)
 
 
 @dataclass
@@ -124,7 +127,6 @@ class _ParsedArgs:
     variables_file_path: Optional[str]
     output_path: Optional[str]
     data_only: bool
-    force_stdout: bool
     show_help: bool
 
 
@@ -141,7 +143,6 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
     variables_file_path: Optional[str] = None
     output_path: Optional[str] = None
     data_only = False
-    force_stdout = False
     show_help = False
 
     index = 0
@@ -151,8 +152,6 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
             show_help = True
         elif arg == "--data-only":
             data_only = True
-        elif arg == "--stdout":
-            force_stdout = True
         elif arg == "--vars":
             variables_text = args[index + 1] if index + 1 < len(args) else None
             index += 1
@@ -176,7 +175,6 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
         variables_file_path=variables_file_path,
         output_path=output_path,
         data_only=data_only,
-        force_stdout=force_stdout,
         show_help=show_help,
     )
 
@@ -210,10 +208,6 @@ def _resolve_variables(parsed: _ParsedArgs, ctx: BuiltinContext) -> Optional[dic
     return parsed_variables
 
 
-def _get_automatic_spill_path() -> str:
-    return f"{WORKSPACE_ROOT}/phoenix-gql-result-{int(time.time() * 1000)}.json"
-
-
 def _write_file(ctx: BuiltinContext, path: str, content: str) -> None:
     parent = path[: path.rfind("/")] or "/"
     if not ctx.fs.exists(parent):
@@ -227,12 +221,7 @@ def create_phoenix_gql_builtin(
     build_graphql_context: Callable[[], Context],
     allow_mutations: bool,
 ) -> Callable[[BuiltinContext], Any]:
-    """Build the ``phoenix-gql`` custom shell command.
-
-    Behavior mirrors the frontend just-bash ``phoenix-gql`` command, except the query is
-    executed directly against the in-process GraphQL ``schema`` rather than over the
-    network.
-    """
+    """Build the ``phoenix-gql`` custom shell command."""
     allowed_operation_types = (
         {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
     )
@@ -246,15 +235,17 @@ def create_phoenix_gql_builtin(
 
             query = _resolve_query_text(parsed, ctx)
 
-            if _is_non_query_operation(query) and not allow_mutations:
+            operation_types = _operation_types(query)
+
+            if GraphQLOperationType.SUBSCRIPTION in operation_types:
+                raise ValueError("Subscriptions are not supported by phoenix-gql")
+
+            if GraphQLOperationType.MUTATION in operation_types and not allow_mutations:
                 raise ValueError(
                     "Mutations are not currently permitted. "
                     "The user can enable the 'Dangerously enable mutations' agent "
                     "capability from the debug menu."
                 )
-
-            if _is_subscription_operation(query):
-                raise ValueError("Subscriptions are not supported by phoenix-gql")
 
             variables = _resolve_variables(parsed, ctx)
 
@@ -297,30 +288,6 @@ def create_phoenix_gql_builtin(
                     exit_code=1 if has_only_errors else 0,
                 )
 
-            if (
-                not parsed.force_stdout
-                and _byte_length(serialized_output) > DEFAULT_SPILL_THRESHOLD_BYTES
-            ):
-                spill_path = _get_automatic_spill_path()
-                _write_file(ctx, spill_path, serialized_output)
-                return BuiltinResult(
-                    stdout=json.dumps(
-                        {
-                            "spilled": True,
-                            "path": spill_path,
-                            "bytes": _byte_length(serialized_output),
-                        },
-                        indent=2,
-                    )
-                    + "\n",
-                    stderr=(
-                        f"{permissions_notice}Response exceeded stdout budget and was "
-                        "written to a workspace file. Re-run with --stdout to force raw "
-                        "output.\n"
-                    ),
-                    exit_code=0,
-                )
-
             return BuiltinResult(
                 stdout=serialized_output,
                 stderr=f"{permissions_notice}{graphql_error_text}",
@@ -361,11 +328,15 @@ class BashToolset(FunctionToolset[None]):
 
         async def bash(command: str) -> dict[str, Any]:
             result = await shell.execute(command)
-            return {
+            payload = result.to_dict()
+            output: dict[str, Any] = {
                 "stdout": result.stdout,
                 "stderr": result.stderr,
                 "exit_code": result.exit_code,
             }
+            if payload.get("stdout_truncated") or payload.get("stderr_truncated"):
+                output["truncated"] = True
+            return output
 
         super().__init__(
             tools=[
