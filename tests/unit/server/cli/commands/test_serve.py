@@ -90,9 +90,8 @@ def postgresql_primary_and_replica_urls(
         janitor.drop()
 
 
-@pytest.mark.parametrize("dialect", ["postgresql"], indirect=True)
+@pytest.mark.postgres_only
 async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
-    dialect: str,
     postgresql_primary_and_replica_urls: PostgresPrimaryAndReplicaUrls,
 ) -> None:
     factory, shutdown_callbacks = _create_db_session_factory(
@@ -117,9 +116,8 @@ async def test_create_db_session_factory_routes_reads_to_replica_for_postgres(
         await _run_shutdown_callbacks(shutdown_callbacks)
 
 
-@pytest.mark.parametrize("dialect", ["postgresql"], indirect=True)
+@pytest.mark.postgres_only
 async def test_create_db_session_factory_uses_primary_when_replica_not_configured_for_postgres(
-    dialect: str,
     postgresql_primary_and_replica_urls: PostgresPrimaryAndReplicaUrls,
 ) -> None:
     factory, shutdown_callbacks = _create_db_session_factory(
