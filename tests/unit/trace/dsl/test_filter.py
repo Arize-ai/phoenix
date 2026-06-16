@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.dialects import mysql
 
 import phoenix.trace.dsl.filter
 from phoenix.db import models
@@ -215,6 +216,15 @@ async def test_filter_translated(
     # next line is only to test that the syntax is accepted
     async with db() as session:
         await session.execute(f(select(models.Span.id)))
+
+
+def test_filter_contains_compiles_for_mysql() -> None:
+    statement = SpanFilter("'abc' in name")(select(models.Span.id))
+
+    sql = str(statement.compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True}))
+
+    assert "instr(" in sql.lower()
+    assert "text_contains(" not in sql
 
 
 @pytest.mark.parametrize(

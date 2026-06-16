@@ -14,7 +14,6 @@ from typing import NamedTuple, Optional, Union
 import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.orm import InstrumentedAttribute, joinedload
-from sqlalchemy.sql.dml import ReturningDelete
 
 from phoenix import config
 from phoenix.auth import (
@@ -36,6 +35,7 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.types.annotation_configs import (
     AnnotationType,
     CategoricalAnnotationConfig,
@@ -291,20 +291,20 @@ async def _ensure_admins(
 _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS = 1
 
 
-def _stmt_to_delete_expired_childless_records(
+def _expired_childless_record_predicates(
     table: type[models.HasId],
     foreign_key: Union[InstrumentedAttribute[int], InstrumentedAttribute[Optional[int]]],
-) -> ReturningDelete[tuple[int]]:
+) -> tuple[sa.ColumnElement[bool], ...]:
     """
-    Creates a SQLAlchemy DELETE statement to permanently remove childless records.
+    Creates SQLAlchemy predicates for permanently removing childless records.
 
     Args:
         table: The table model class that has a deleted_at column
         foreign_key: The foreign key attribute to check for child relationships
 
     Returns:
-        A DELETE statement that removes childless records marked for deletion more than
-        _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS days ago
+        Predicates that match records marked for deletion more than
+        _CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS days ago with no children
     """  # noqa: E501
     if not hasattr(table, "deleted_at"):
         raise TypeError("Table must have a 'deleted_at' column")
@@ -312,11 +312,9 @@ def _stmt_to_delete_expired_childless_records(
         days=_CHILDLESS_RECORD_DELETION_GRACE_PERIOD_DAYS
     )
     return (
-        sa.delete(table)
-        .where(table.deleted_at.isnot(None))
-        .where(table.deleted_at < cutoff_time)
-        .where(~sa.exists().where(table.id == foreign_key))
-        .returning(table.id)
+        table.deleted_at.isnot(None),
+        table.deleted_at < cutoff_time,
+        ~sa.exists().where(table.id == foreign_key),
     )
 
 
@@ -334,12 +332,24 @@ async def _delete_expired_childless_records_on_generative_models(
     This cleanup is necessary to remove orphaned records that may have been left behind
     due to previous migrations or deletions.
     """  # noqa: E501
-    stmt = _stmt_to_delete_expired_childless_records(
+    predicates = _expired_childless_record_predicates(
         models.GenerativeModel,
         models.SpanCost.model_id,
     )
     async with db() as session:
-        result = (await session.scalars(stmt)).all()
+        if db.dialect is SupportedSQLDialect.MYSQL:
+            result = (
+                await session.scalars(select(models.GenerativeModel.id).where(*predicates))
+            ).all()
+            await session.execute(sa.delete(models.GenerativeModel).where(*predicates))
+        else:
+            result = (
+                await session.scalars(
+                    sa.delete(models.GenerativeModel)
+                    .where(*predicates)
+                    .returning(models.GenerativeModel.id)
+                )
+            ).all()
     if result:
         logger.info(f"Permanently deleted {len(result)} expired childless GenerativeModel records")
     else:

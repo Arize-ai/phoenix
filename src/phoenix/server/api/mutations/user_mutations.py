@@ -355,9 +355,13 @@ class UserMutationMixin:
                     select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_rowids))
                 )
             ]
-            deleted_user_ids = await session.scalars(
-                delete(models.User).where(models.User.id.in_(user_rowids)).returning(models.User.id)
-            )
+            deleted_user_ids = [
+                id_
+                async for id_ in await session.stream_scalars(
+                    select(models.User.id).where(models.User.id.in_(user_rowids))
+                )
+            ]
+            await session.execute(delete(models.User).where(models.User.id.in_(user_rowids)))
         await token_store.revoke(
             *password_reset_token_ids,
             *access_token_ids,

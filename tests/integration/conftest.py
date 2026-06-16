@@ -102,7 +102,7 @@ def _ports(request: pytest.FixtureRequest, worker_id: str) -> Iterator[int]:
 @pytest.fixture(scope="session")
 def _db_backend() -> _DB_BACKEND:
     backend = os.getenv("CI_TEST_DB_BACKEND", "sqlite").lower()
-    assert backend in ("sqlite", "postgresql")
+    assert backend in ("sqlite", "postgresql", "mysql")
     return cast(_DB_BACKEND, backend)
 
 
@@ -114,6 +114,10 @@ def _sql_database_url(
         return make_url("sqlite:///:memory:")
     if _db_backend == "postgresql":
         return make_url("postgresql://127.0.0.1:5432/postgres?user=postgres&password=phoenix")
+    if _db_backend == "mysql":
+        return make_url(
+            os.getenv("CI_TEST_MYSQL_DATABASE_URL", "mysql://root@127.0.0.1:3306/phoenix")
+        )
     assert_never(_db_backend)
 
 

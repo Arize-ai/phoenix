@@ -167,10 +167,50 @@ async def _get_results(
         results = _get_results_postgresql(session, stmt, latency_column, params)
     elif dialect is SupportedSQLDialect.SQLITE:
         results = _get_results_sqlite(session, stmt, latency_column, params)
+    elif dialect is SupportedSQLDialect.MYSQL:
+        results = _get_results_mysql(session, stmt, latency_column, params)
     else:
         assert_never(dialect)
     async for position, quantile_value in results:
         yield position, quantile_value
+
+
+def _percentile_cont_value(values: list[float], probability: float) -> Optional[float]:
+    if not values:
+        return None
+    position = (len(values) - 1) * probability
+    lower_index = int(position)
+    upper_index = min(lower_index + 1, len(values) - 1)
+    lower_value = values[lower_index]
+    upper_value = values[upper_index]
+    return lower_value + (upper_value - lower_value) * (position - lower_index)
+
+
+async def _get_results_mysql(
+    session: AsyncSession,
+    base_stmt: Select[Any],
+    latency_column: FloatCol,
+    params: Mapping[Param, list[ResultPosition]],
+) -> AsyncIterator[tuple[ResultPosition, QuantileValue]]:
+    project_rowids = {project_rowid for project_rowid, _ in params}
+    pid = models.Trace.project_rowid
+    stmt = (
+        base_stmt.add_columns(latency_column)
+        .where(pid.in_(project_rowids))
+        .where(latency_column.is_not(None))
+        .order_by(pid, latency_column)
+    )
+    values_by_project: defaultdict[ProjectRowId, list[float]] = defaultdict(list)
+    data = await session.stream(stmt)
+    async for project_rowid, latency_ms in data:
+        values_by_project[project_rowid].append(float(latency_ms))
+
+    for project_rowid, probability in params:
+        quantile_value = _percentile_cont_value(values_by_project[project_rowid], probability)
+        if quantile_value is None:
+            continue
+        for position in params[(project_rowid, probability)]:
+            yield position, quantile_value
 
 
 async def _get_results_sqlite(

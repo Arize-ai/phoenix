@@ -50,6 +50,17 @@ def _unalias(key: str) -> str:
     return _ALIASES.get(key, key)
 
 
+def _json_type_is_array(
+    array: SQLColumnExpression[Any],
+    dialect: SupportedSQLDialect,
+) -> SQLColumnExpression[bool]:
+    if dialect is SupportedSQLDialect.SQLITE:
+        return func.json_type(array) == "array"
+    if dialect is SupportedSQLDialect.MYSQL:
+        return func.JSON_TYPE(array) == "ARRAY"
+    raise ValueError(f"Unsupported JSON array type check dialect: {dialect.value}")
+
+
 @dataclass(frozen=True)
 class _Base:
     """The sole purpose of this class is for `super().__post_init__()` to work"""
@@ -142,12 +153,12 @@ class Explosion(_HasTmpSuffix, Projection):
         dialect: SupportedSQLDialect,
     ) -> Select[Any]:
         array = self()
-        if dialect is SupportedSQLDialect.SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
             stmt = stmt.where(
-                func.json_type(array) == "array",
+                _json_type_is_array(array, dialect),
             ).add_columns(
                 array.label(self._array_tmp_col_label),
             )
@@ -199,10 +210,10 @@ class Explosion(_HasTmpSuffix, Projection):
             )
             df = pd.DataFrame(columns=columns).set_index(self.index_keys)
             return df
-        if dialect != SupportedSQLDialect.SQLITE and self.kwargs:
+        if dialect is SupportedSQLDialect.POSTGRESQL and self.kwargs:
             df = df.set_index(self.index_keys)
             return df
-        if dialect is SupportedSQLDialect.SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             # Because sqlite doesn't support `WITH ORDINALITY`, the order of
             # the returned (table) values is not guaranteed. So we resort to
             # post hoc processing using pandas.
@@ -243,7 +254,7 @@ class Explosion(_HasTmpSuffix, Projection):
             records.loc[not_na].to_list(),
             index=records.index[not_na],
         )
-        if dialect is SupportedSQLDialect.SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             df = _outer_join(df, df_explode)
         elif dialect is SupportedSQLDialect.POSTGRESQL:
             df = pd.concat([df, df_explode], axis=1)
@@ -301,12 +312,12 @@ class Concatenation(_HasTmpSuffix, Projection):
         dialect: SupportedSQLDialect,
     ) -> Select[Any]:
         array = self()
-        if dialect is SupportedSQLDialect.SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             # Because SQLite doesn't support `WITH ORDINALITY`, the order of
             # the returned table-values is not guaranteed. So we resort to
             # post hoc processing using pandas.
             stmt = stmt.where(
-                func.json_type(array) == "array",
+                _json_type_is_array(array, dialect),
             ).add_columns(
                 array.label(self._array_tmp_col_label),
             )
@@ -371,7 +382,7 @@ class Concatenation(_HasTmpSuffix, Projection):
                 )
             )
             return pd.DataFrame(columns=columns, index=df.index)
-        if dialect is SupportedSQLDialect.SQLITE:
+        if dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             # Because SQLite doesn't support `WITH ORDINALITY`, the order of
             # the returned table-values is not guaranteed. So we resort to
             # post hoc processing using pandas.

@@ -10,7 +10,7 @@ from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict_returning_id
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import ExperimentRunAnnotationInsertEvent
 
@@ -111,16 +111,15 @@ async def upsert_experiment_evaluation(
             trace_id=payload.get("trace_id"),
         )
         dialect = SupportedSQLDialect(session.bind.dialect.name)
-        exp_eval_run = await session.scalar(
-            insert_on_conflict(
-                values,
-                dialect=dialect,
-                table=models.ExperimentRunAnnotation,
-                unique_by=("experiment_run_id", "name"),
-            ).returning(models.ExperimentRunAnnotation)
+        exp_eval_run_id = await insert_on_conflict_returning_id(
+            values,
+            session=session,
+            dialect=dialect,
+            table=models.ExperimentRunAnnotation,
+            unique_by=("experiment_run_id", "name"),
         )
-    evaluation_gid = GlobalID("ExperimentEvaluation", str(exp_eval_run.id))
-    request.state.event_queue.put(ExperimentRunAnnotationInsertEvent((exp_eval_run.id,)))
+    evaluation_gid = GlobalID("ExperimentEvaluation", str(exp_eval_run_id))
+    request.state.event_queue.put(ExperimentRunAnnotationInsertEvent((exp_eval_run_id,)))
     return UpsertExperimentEvaluationResponseBody(
         data=UpsertExperimentEvaluationResponseBodyData(id=str(evaluation_gid))
     )

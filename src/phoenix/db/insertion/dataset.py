@@ -4,9 +4,10 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from itertools import chain
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from sqlalchemy import delete, func, insert, select
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
@@ -31,6 +32,14 @@ ContentHash: TypeAlias = bytes
 SplitName: TypeAlias = str
 DatasetSplitId: TypeAlias = int
 SplitAssignment: TypeAlias = tuple[DatasetExampleId, DatasetSplitId]
+
+
+def _require_ids(ids: Iterable[Optional[int]]) -> list[int]:
+    ids_: list[int] = []
+    for id_ in ids:
+        assert id_ is not None
+        ids_.append(id_)
+    return ids_
 
 
 @dataclass(frozen=True)
@@ -114,17 +123,16 @@ async def insert_dataset(
     metadata: Optional[Mapping[str, Any]] = None,
     user_id: Optional[int] = None,
 ) -> DatasetId:
-    id_ = await session.scalar(
-        insert(models.Dataset)
-        .values(
-            name=name,
-            description=description,
-            metadata_=metadata,
-            user_id=user_id,
-        )
-        .returning(models.Dataset.id)
+    dataset = models.Dataset(
+        name=name,
+        description=description,
+        metadata_=metadata,
+        user_id=user_id,
     )
-    return cast(DatasetId, id_)
+    session.add(dataset)
+    await session.flush()
+    assert dataset.id is not None
+    return dataset.id
 
 
 async def insert_dataset_version(
@@ -134,17 +142,16 @@ async def insert_dataset_version(
     metadata: Optional[Mapping[str, Any]] = None,
     user_id: Optional[int] = None,
 ) -> DatasetVersionId:
-    id_ = await session.scalar(
-        insert(models.DatasetVersion)
-        .values(
-            dataset_id=dataset_id,
-            description=description,
-            metadata_=metadata,
-            user_id=user_id,
-        )
-        .returning(models.DatasetVersion.id)
+    version = models.DatasetVersion(
+        dataset_id=dataset_id,
+        description=description,
+        metadata_=metadata,
+        user_id=user_id,
     )
-    return cast(DatasetVersionId, id_)
+    session.add(version)
+    await session.flush()
+    assert version.id is not None
+    return version.id
 
 
 async def insert_dataset_example(
@@ -153,16 +160,15 @@ async def insert_dataset_example(
     span_rowid: Optional[SpanRowId] = None,
     external_id: Optional[str] = None,
 ) -> DatasetExampleId:
-    id_ = await session.scalar(
-        insert(models.DatasetExample)
-        .values(
-            dataset_id=dataset_id,
-            span_rowid=span_rowid,
-            external_id=external_id,
-        )
-        .returning(models.DatasetExample.id)
+    example = models.DatasetExample(
+        dataset_id=dataset_id,
+        span_rowid=span_rowid,
+        external_id=external_id,
     )
-    return cast(DatasetExampleId, id_)
+    session.add(example)
+    await session.flush()
+    assert example.id is not None
+    return example.id
 
 
 async def insert_dataset_example_revision(
@@ -175,20 +181,19 @@ async def insert_dataset_example_revision(
     revision_kind: RevisionKind = RevisionKind.CREATE,
     content_hash: Optional[bytes] = None,
 ) -> DatasetExampleRevisionId:
-    id_ = await session.scalar(
-        insert(models.DatasetExampleRevision)
-        .values(
-            dataset_version_id=dataset_version_id,
-            dataset_example_id=dataset_example_id,
-            input=input,
-            output=output,
-            metadata_=metadata,
-            revision_kind=revision_kind.value,
-            content_hash=content_hash,
-        )
-        .returning(models.DatasetExampleRevision.id)
+    revision = models.DatasetExampleRevision(
+        dataset_version_id=dataset_version_id,
+        dataset_example_id=dataset_example_id,
+        input=input,
+        output=output,
+        metadata_=metadata,
+        revision_kind=revision_kind.value,
+        content_hash=content_hash,
     )
-    return cast(DatasetExampleRevisionId, id_)
+    session.add(revision)
+    await session.flush()
+    assert revision.id is not None
+    return revision.id
 
 
 async def bulk_insert_dataset_examples(
@@ -217,6 +222,7 @@ async def bulk_insert_dataset_examples(
         return []
 
     all_ids: list[DatasetExampleId] = []
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
 
     # Process in batches
     for i in range(0, len(span_rowids), batch_size):
@@ -229,17 +235,26 @@ async def bulk_insert_dataset_examples(
                 "external_id": batch_external_ids[batch_idx]
                 if batch_external_ids is not None
                 else None,
-                "created_at": created_at,
+                **({"created_at": created_at} if created_at is not None else {}),
             }
             for batch_idx, span_rowid in enumerate(batch)
         ]
 
-        # Use INSERT ... RETURNING to get IDs in order
-        result = await session.execute(
-            insert(models.DatasetExample).values(records).returning(models.DatasetExample.id)
-        )
-        batch_ids = [cast(DatasetExampleId, row[0]) for row in result.fetchall()]
-        all_ids.extend(batch_ids)
+        # Preserve ID order across dialects. MySQL uses ORM flush because it
+        # does not support INSERT ... RETURNING; other dialects keep the
+        # original RETURNING path.
+        if dialect is SupportedSQLDialect.MYSQL:
+            examples = [models.DatasetExample(**record) for record in records]
+            session.add_all(examples)
+            await session.flush()
+            batch_ids = [example.id for example in examples]
+        else:
+            # Use INSERT ... RETURNING to get IDs in order
+            result = await session.execute(
+                insert(models.DatasetExample).values(records).returning(models.DatasetExample.id)
+            )
+            batch_ids = [row[0] for row in result.fetchall()]
+        all_ids.extend(_require_ids(batch_ids))
 
     return all_ids
 
@@ -277,6 +292,7 @@ async def bulk_insert_dataset_example_revisions(
         )
 
     all_ids: list[DatasetExampleRevisionId] = []
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
 
     # Process in batches
     for i in range(0, len(example_ids), batch_size):
@@ -292,18 +308,27 @@ async def bulk_insert_dataset_example_revisions(
                 "metadata_": example.content.metadata,
                 "content_hash": example.content_hash,
                 "revision_kind": revision_kind.value,
-                "created_at": created_at,
+                **({"created_at": created_at} if created_at is not None else {}),
             }
             for example_id, example in zip(batch_example_ids, batch_examples)
         ]
 
-        result = await session.execute(
-            insert(models.DatasetExampleRevision)
-            .values(records)
-            .returning(models.DatasetExampleRevision.id)
-        )
-        batch_ids = [cast(DatasetExampleRevisionId, row[0]) for row in result.fetchall()]
-        all_ids.extend(batch_ids)
+        # Preserve ID order across dialects. MySQL uses ORM flush because it
+        # does not support INSERT ... RETURNING; other dialects keep the
+        # original RETURNING path.
+        if dialect is SupportedSQLDialect.MYSQL:
+            revisions = [models.DatasetExampleRevision(**record) for record in records]
+            session.add_all(revisions)
+            await session.flush()
+            batch_ids = [revision.id for revision in revisions]
+        else:
+            result = await session.execute(
+                insert(models.DatasetExampleRevision)
+                .values(records)
+                .returning(models.DatasetExampleRevision.id)
+            )
+            batch_ids = [row[0] for row in result.fetchall()]
+        all_ids.extend(_require_ids(batch_ids))
 
     return all_ids
 
@@ -450,6 +475,13 @@ async def bulk_assign_examples_to_splits(
             await session.execute(
                 sqlite_stmt.on_conflict_do_nothing(
                     index_elements=["dataset_split_id", "dataset_example_id"]
+                )
+            )
+        elif dialect is SupportedSQLDialect.MYSQL:
+            mysql_stmt = mysql_insert(models.DatasetSplitDatasetExample).values(records)
+            await session.execute(
+                mysql_stmt.on_duplicate_key_update(
+                    dataset_split_id=mysql_stmt.inserted.dataset_split_id
                 )
             )
         else:
@@ -750,23 +782,32 @@ async def _rebuild_dataset_splits(
             )
         return set()
 
-    deleted = await session.execute(
-        delete(models.DatasetSplitDatasetExample)
-        .where(
-            models.DatasetSplitDatasetExample.dataset_example_id.in_(
-                select(models.DatasetExample.id).where(
-                    models.DatasetExample.dataset_id == dataset_id
-                )
-            )
-        )
-        .returning(
-            models.DatasetSplitDatasetExample.dataset_example_id,
-            models.DatasetSplitDatasetExample.dataset_split_id,
-        )
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    deleted_predicate = models.DatasetSplitDatasetExample.dataset_example_id.in_(
+        select(models.DatasetExample.id).where(models.DatasetExample.dataset_id == dataset_id)
     )
     old_split_ids_by_example_id: dict[DatasetExampleId, set[DatasetSplitId]] = {}
-    for example_id, split_id in deleted.all():
-        old_split_ids_by_example_id.setdefault(example_id, set()).add(split_id)
+    if dialect is SupportedSQLDialect.MYSQL:
+        existing = await session.execute(
+            select(
+                models.DatasetSplitDatasetExample.dataset_example_id,
+                models.DatasetSplitDatasetExample.dataset_split_id,
+            ).where(deleted_predicate)
+        )
+        for example_id, split_id in existing.all():
+            old_split_ids_by_example_id.setdefault(example_id, set()).add(split_id)
+        await session.execute(delete(models.DatasetSplitDatasetExample).where(deleted_predicate))
+    else:
+        deleted = await session.execute(
+            delete(models.DatasetSplitDatasetExample)
+            .where(deleted_predicate)
+            .returning(
+                models.DatasetSplitDatasetExample.dataset_example_id,
+                models.DatasetSplitDatasetExample.dataset_split_id,
+            )
+        )
+        for example_id, split_id in deleted.all():
+            old_split_ids_by_example_id.setdefault(example_id, set()).add(split_id)
 
     example_splits: list[tuple[DatasetExampleId, frozenset[SplitName]]] = [
         (example.example_id, example.content.splits)
@@ -808,17 +849,32 @@ async def _update_splits(
 
     touched_example_ids = [e.example_id for e in examples]
 
-    deleted = await session.execute(
-        delete(models.DatasetSplitDatasetExample)
-        .where(models.DatasetSplitDatasetExample.dataset_example_id.in_(touched_example_ids))
-        .returning(
-            models.DatasetSplitDatasetExample.dataset_example_id,
-            models.DatasetSplitDatasetExample.dataset_split_id,
-        )
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    deleted_predicate = models.DatasetSplitDatasetExample.dataset_example_id.in_(
+        touched_example_ids
     )
     old_split_ids_by_example_id: dict[DatasetExampleId, set[DatasetSplitId]] = {}
-    for example_id, split_id in deleted.all():
-        old_split_ids_by_example_id.setdefault(example_id, set()).add(split_id)
+    if dialect is SupportedSQLDialect.MYSQL:
+        existing = await session.execute(
+            select(
+                models.DatasetSplitDatasetExample.dataset_example_id,
+                models.DatasetSplitDatasetExample.dataset_split_id,
+            ).where(deleted_predicate)
+        )
+        for example_id, split_id in existing.all():
+            old_split_ids_by_example_id.setdefault(example_id, set()).add(split_id)
+        await session.execute(delete(models.DatasetSplitDatasetExample).where(deleted_predicate))
+    else:
+        deleted = await session.execute(
+            delete(models.DatasetSplitDatasetExample)
+            .where(deleted_predicate)
+            .returning(
+                models.DatasetSplitDatasetExample.dataset_example_id,
+                models.DatasetSplitDatasetExample.dataset_split_id,
+            )
+        )
+        for example_id, split_id in deleted.all():
+            old_split_ids_by_example_id.setdefault(example_id, set()).add(split_id)
 
     example_id_split_name_pairs = [
         (example.example_id, name) for example in examples for name in example.content.splits

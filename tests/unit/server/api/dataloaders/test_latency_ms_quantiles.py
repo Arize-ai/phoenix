@@ -7,11 +7,25 @@ import pytest
 from sqlalchemy import select
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders.latency_ms_quantile import Key, LatencyMsQuantileDataLoader
+from phoenix.server.api.dataloaders.latency_ms_quantile import (
+    Key,
+    LatencyMsQuantileDataLoader,
+    _percentile_cont_value,
+)
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 
 
+def test_percentile_cont_value_uses_linear_interpolation() -> None:
+    values = [10.0, 20.0, 40.0, 80.0]
+
+    assert _percentile_cont_value(values, 0.00) == 10
+    assert _percentile_cont_value(values, 0.25) == 17.5
+    assert _percentile_cont_value(values, 0.50) == 30
+    assert _percentile_cont_value(values, 1.00) == 80
+
+
+@pytest.mark.mysql_compatible
 async def test_latency_ms_quantiles_p25_p50_p75(
     db: DbSessionFactory,
     data_for_testing_dataloaders: None,

@@ -91,7 +91,7 @@ from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
 from phoenix.server.thread_server import ThreadServer
 
-_DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
+_DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql", "mysql"]
 
 _ADMIN = UserRoleInput.ADMIN
 _MEMBER = UserRoleInput.MEMBER

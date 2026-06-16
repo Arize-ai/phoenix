@@ -257,17 +257,14 @@ class PromptMutationMixin:
             raise BadRequest("No fields provided to update")
 
         async with info.context.db() as session:
-            stmt = (
-                update(models.Prompt)
-                .where(models.Prompt.id == prompt_id)
-                .values(**values)
-                .returning(models.Prompt)
+            prompt = await session.scalar(
+                select(models.Prompt).where(models.Prompt.id == prompt_id)
             )
-
-            result = await session.execute(stmt)
-            prompt = result.scalar_one_or_none()
-
             if prompt is None:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
+            await session.execute(
+                update(models.Prompt).where(models.Prompt.id == prompt_id).values(**values)
+            )
+            await session.flush()
 
         return Prompt(id=prompt.id, db_record=prompt)

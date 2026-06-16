@@ -21,6 +21,7 @@ from phoenix.auth import (
 )
 from phoenix.config import get_env_enable_prometheus
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import UserRoleName
 from phoenix.server.types import (
     AccessToken,
@@ -183,8 +184,18 @@ class JwtStore:
         async with self._db() as session:
             for cls in (AccessTokenId, RefreshTokenId):
                 table = cls.table
-                stmt = delete(table).where(table.user_id == int(user_id)).returning(table.id)
-                async for id_ in await session.stream_scalars(stmt):
+                if self._db.dialect is SupportedSQLDialect.MYSQL:
+                    token_ids = (
+                        await session.scalars(select(table.id).where(table.user_id == int(user_id)))
+                    ).all()
+                    await session.execute(delete(table).where(table.user_id == int(user_id)))
+                else:
+                    token_ids = (
+                        await session.scalars(
+                            delete(table).where(table.user_id == int(user_id)).returning(table.id)
+                        )
+                    ).all()
+                for id_ in token_ids:
                     await self._evict(cls(id_))
 
 

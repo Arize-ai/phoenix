@@ -55,3 +55,14 @@ async def test_memory_sqlite_init_failure_propagates_to_caller() -> None:
     with mock.patch("phoenix.db.engines.init_models", fail):
         with pytest.raises(RuntimeError, match="init failed"):
             aio_sqlite_engine(get_async_db_url("sqlite:///:memory:"), migrate=True)
+
+
+def test_get_async_mysql_db_url() -> None:
+    connection_str = "mysql://user:password@localhost:3306/phoenix?charset=utf8mb4"
+    url = get_async_db_url(connection_str)
+    assert url.drivername == "mysql+aiomysql"
+    assert url.database == "phoenix"
+    assert url.host == "localhost"
+    assert url.username == "user"
+    assert url.password == "password"
+    assert url.query["charset"] == "utf8mb4"

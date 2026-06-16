@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timezone
 
 import strawberry
-from sqlalchemy import delete, or_, update
+from sqlalchemy import delete, or_, select, update
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -88,11 +88,11 @@ class ExperimentMutationMixin:
                     status="STOPPED",
                     cooldown_until=now + EXPERIMENT_TOGGLE_COOLDOWN,
                 )
-                .returning(models.ExperimentJob)
             )
-            updated_config = await session.scalar(stmt)
+            result = await session.execute(stmt)
+            updated_config = await session.get(models.ExperimentJob, exp_rowid)
 
-            if updated_config is None:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 # 0 rows updated - diagnose why
                 config = await session.get(models.ExperimentJob, exp_rowid)
                 if config is None:
@@ -102,6 +102,8 @@ class ExperimentMutationMixin:
                     return StopExperimentPayload(job=ExperimentJob(id=config.id, db_record=config))
                 # Only remaining case: cooldown not elapsed
                 raise BadRequest(f"Experiment {experiment_id} is still in cooldown")
+            if updated_config is None:
+                raise BadRequest(f"Experiment {experiment_id} not found")
 
         await info.context.experiment_runner.stop_experiment(updated_config.id)
         return StopExperimentPayload(
@@ -145,11 +147,11 @@ class ExperimentMutationMixin:
                     status="RUNNING",
                     cooldown_until=now + EXPERIMENT_TOGGLE_COOLDOWN,
                 )
-                .returning(models.ExperimentJob)
             )
-            updated_config = await session.scalar(stmt)
+            result = await session.execute(stmt)
+            updated_config = await session.get(models.ExperimentJob, exp_rowid)
 
-            if updated_config is None:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 # 0 rows updated - diagnose why
                 config = await session.get(models.ExperimentJob, exp_rowid)
                 if config is None:
@@ -161,6 +163,8 @@ class ExperimentMutationMixin:
                     )
                 # Only remaining case: cooldown not elapsed
                 raise BadRequest(f"Experiment {experiment_id} is still in cooldown")
+            if updated_config is None:
+                raise BadRequest(f"Experiment {experiment_id} not found")
 
         await info.context.experiment_runner.start_experiment(
             updated_config.id,
@@ -182,15 +186,14 @@ class ExperimentMutationMixin:
         """
         exp_rowid = from_global_id_with_expected_type(experiment_id, Experiment.__name__)
         async with info.context.db() as session:
-            stmt = (
-                update(models.Experiment)
-                .where(models.Experiment.id == exp_rowid)
-                .values(is_ephemeral=True)
-                .returning(models.Experiment)
+            experiment = await session.scalar(
+                select(models.Experiment).where(models.Experiment.id == exp_rowid)
             )
-            experiment = await session.scalar(stmt)
             if experiment is None:
                 raise BadRequest(f"Experiment {experiment_id} not found")
+            experiment.is_ephemeral = True
+            session.add(experiment)
+            await session.flush()
         return DismissExperimentPayload(experiment=to_gql_experiment(experiment))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
@@ -204,15 +207,14 @@ class ExperimentMutationMixin:
         """
         exp_rowid = from_global_id_with_expected_type(experiment_id, Experiment.__name__)
         async with info.context.db() as session:
-            stmt = (
-                update(models.Experiment)
-                .where(models.Experiment.id == exp_rowid)
-                .values(is_ephemeral=False)
-                .returning(models.Experiment)
+            experiment = await session.scalar(
+                select(models.Experiment).where(models.Experiment.id == exp_rowid)
             )
-            experiment = await session.scalar(stmt)
             if experiment is None:
                 raise BadRequest(f"Experiment {experiment_id} not found")
+            experiment.is_ephemeral = False
+            session.add(experiment)
+            await session.flush()
         return ReinstateExperimentPayload(experiment=to_gql_experiment(experiment))
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
@@ -274,19 +276,15 @@ class ExperimentMutationMixin:
         async with info.context.db() as session:
             project_names = await session.scalars(project_names_stmt)
             eval_trace_ids = await session.scalars(eval_trace_ids_stmt)
-            savepoint = await session.begin_nested()
             experiments = {
                 experiment.id: experiment
                 async for experiment in (
                     await session.stream_scalars(
-                        delete(models.Experiment)
-                        .where(models.Experiment.id.in_(experiment_ids))
-                        .returning(models.Experiment)
+                        select(models.Experiment).where(models.Experiment.id.in_(experiment_ids))
                     )
                 )
             }
             if unknown_experiment_ids := set(experiment_ids) - set(experiments.keys()):
-                await savepoint.rollback()
                 raise CustomGraphQLError(
                     "Failed to delete experiment(s), "
                     "probably due to invalid input experiment ID(s): "
@@ -297,6 +295,9 @@ class ExperimentMutationMixin:
                         ]
                     )
                 )
+            await session.execute(
+                delete(models.Experiment).where(models.Experiment.id.in_(experiment_ids))
+            )
         await asyncio.gather(
             delete_projects(info.context.db, *project_names),
             delete_traces(info.context.db, *eval_trace_ids),

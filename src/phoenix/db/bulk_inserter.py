@@ -11,6 +11,7 @@ from openinference.semconv.trace import SpanAttributes
 from typing_extensions import TypeAlias
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.document_annotation import DocumentAnnotationQueueInserter
 from phoenix.db.insertion.helpers import (
@@ -157,6 +158,9 @@ class BulkInserter:
     async def _insert_spans(self, num_spans_to_insert: int) -> None:
         if not num_spans_to_insert or not self._spans:
             return
+        if self._db.dialect is SupportedSQLDialect.MYSQL:
+            await self._insert_spans_without_savepoints(num_spans_to_insert)
+            return
         project_ids = set()
         span_costs: list[models.SpanCost] = []
         try:
@@ -201,6 +205,53 @@ class BulkInserter:
         except Exception:
             BULK_LOADER_SPAN_EXCEPTIONS.inc()
             logger.exception("Failed to insert spans")
+        if project_ids:
+            self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
+        if not span_costs:
+            return
+        try:
+            async with self._db() as session:
+                session.add_all(span_costs)
+        except Exception:
+            logger.exception("Failed to insert span costs")
+
+    async def _insert_spans_without_savepoints(self, num_spans_to_insert: int) -> None:
+        project_ids = set()
+        span_costs: list[models.SpanCost] = []
+        start = perf_counter()
+        while num_spans_to_insert > 0:
+            num_spans_to_insert -= 1
+            if not self._spans:
+                break
+            span, project_name = self._spans.popleft()
+            result: Optional[SpanInsertionEvent] = None
+            try:
+                async with self._db() as session:
+                    result = await insert_span(session, span, project_name)
+            except Exception:
+                BULK_LOADER_SPAN_EXCEPTIONS.inc()
+                logger.exception(f"Failed to insert span with span_id={span.context.span_id}")
+            if result is None:
+                continue
+            project_ids.add(result.project_rowid)
+            try:
+                if not should_calculate_span_cost(span.attributes):
+                    continue
+                span_cost = self._span_cost_calculator.calculate_cost(
+                    span.start_time,
+                    span.attributes,
+                )
+            except Exception:
+                logger.exception(
+                    f"Failed to calculate span cost for span with span_id={span.context.span_id}"
+                )
+            else:
+                if span_cost is None:
+                    continue
+                span_cost.span_rowid = result.span_rowid
+                span_cost.trace_rowid = result.trace_rowid
+                span_costs.append(span_cost)
+        BULK_LOADER_SPAN_INSERTION_TIME.observe(perf_counter() - start)
         if project_ids:
             self._event_queue.put(SpanInsertEvent(tuple(project_ids)))
         if not span_costs:

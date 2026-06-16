@@ -9,16 +9,27 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Generic, Optional, Protocol, TypeVar, cast
 
+from sqlalchemy import select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Insert
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.constants import DEFAULT_RETRY_ALLOWANCE, DEFAULT_RETRY_DELAY_SEC
 from phoenix.db.insertion.helpers import insert_on_conflict
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+
+def _ordered_ids_for_records(
+    records: Sequence[Mapping[str, Any]],
+    unique_by: Sequence[str],
+    rows: Sequence[Sequence[Any]],
+) -> tuple[int, ...]:
+    id_by_key = {tuple(row)[1:]: tuple(row)[0] for row in rows}
+    return tuple(id_by_key[tuple(record[key] for key in unique_by)] for record in records)
 
 
 class Insertable(Protocol):
@@ -122,6 +133,33 @@ class QueueInserter(ABC, Generic[_PrecursorT, _InsertableT, _RowT, _DmlEventT]):
             constraint_name=self.constraint_name,
             dialect=self._db.dialect,
         )
+
+    async def _insert_records_returning_ids(
+        self,
+        session: AsyncSession,
+        *records: Mapping[str, Any],
+    ) -> tuple[int, ...]:
+        stmt = self._insert_on_conflict(*records)
+        id_column = getattr(self.table, "id")
+        if self._db.dialect is not SupportedSQLDialect.MYSQL:
+            return tuple([_ async for _ in await session.stream_scalars(stmt.returning(id_column))])
+
+        await session.execute(stmt)
+        if not self.unique_by:
+            raise ValueError("MySQL upserts require at least one unique key to fetch inserted IDs")
+
+        if len(self.unique_by) == 1:
+            key = self.unique_by[0]
+            values = {record[key] for record in records}
+            id_stmt = select(id_column, getattr(self.table, key)).where(
+                getattr(self.table, key).in_(values)
+            )
+        else:
+            columns = tuple(getattr(self.table, key) for key in self.unique_by)
+            values = {tuple(record[key] for key in self.unique_by) for record in records}
+            id_stmt = select(id_column, *columns).where(tuple_(*columns).in_(values))
+        rows = tuple([_ async for _ in await session.stream(id_stmt)])
+        return _ordered_ids_for_records(records, self.unique_by, rows)
 
     @abstractmethod
     async def _events(

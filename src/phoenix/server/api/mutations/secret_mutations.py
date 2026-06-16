@@ -20,7 +20,6 @@ from strawberry import Info, field
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -160,7 +159,7 @@ class SecretMutationMixin:
         if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
             user_id = int(user.identity)
 
-        dialect = SupportedSQLDialect(info.context.db.dialect.name)
+        dialect = info.context.db.dialect
         keys_to_delete: list[str] = []
         records_to_upsert: list[dict[str, object]] = []
         seen: set[str] = set()

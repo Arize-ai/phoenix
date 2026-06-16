@@ -34,6 +34,7 @@ from phoenix.db import models
 class SupportedSQLDialect(Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
+    MYSQL = "mysql"
 
     @classmethod
     def _missing_(cls, v: Any) -> "SupportedSQLDialect":
@@ -53,8 +54,10 @@ async def latest_code_evaluator_versions_by_evaluator_id(
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     if dialect == SupportedSQLDialect.POSTGRESQL:
         stmt = _latest_code_evaluator_versions_postgresql_stmt(distinct_ids)
-    else:
+    elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
         stmt = _latest_code_evaluator_versions_sqlite_stmt(distinct_ids)
+    else:
+        assert_never(dialect)
     return {
         version.code_evaluator_id: version async for version in await session.stream_scalars(stmt)
     }
@@ -427,7 +430,7 @@ def date_trunc(
     by applying the offset before truncation and then converting back to UTC.
 
     Args:
-        dialect: The SQL dialect to use (PostgreSQL or SQLite).
+        dialect: The SQL dialect to use.
         field: The time unit to truncate to. Valid values are:
             - "minute": Truncate to the start of the minute (seconds set to 0)
             - "hour": Truncate to the start of the hour (minutes and seconds set to 0)
@@ -475,6 +478,8 @@ def date_trunc(
         return sa.func.date_trunc(field, source, timezone)
     elif dialect is SupportedSQLDialect.SQLITE:
         return _date_trunc_for_sqlite(field, source, utc_offset_minutes)
+    elif dialect is SupportedSQLDialect.MYSQL:
+        return _date_trunc_for_mysql(field, source, utc_offset_minutes)
     else:
         assert_never(dialect)
 
@@ -563,6 +568,47 @@ def _date_trunc_for_sqlite(
 
     # Convert back to UTC by subtracting the offset
     return func.datetime(t, f"{-utc_offset_minutes} minutes")
+
+
+def _date_trunc_for_mysql(
+    field: Literal["minute", "hour", "day", "week", "month", "year"],
+    source: Union[QueryableAttribute[datetime], sa.TextClause],
+    utc_offset_minutes: int = 0,
+) -> SQLColumnExpression[datetime]:
+    offset_source = func.date_add(source, literal_column(f"INTERVAL {utc_offset_minutes} MINUTE"))
+
+    if field == "minute":
+        truncated = func.str_to_date(
+            func.date_format(offset_source, "%Y-%m-%d %H:%i:00"),
+            "%Y-%m-%d %H:%i:%s",
+        )
+    elif field == "hour":
+        truncated = func.str_to_date(
+            func.date_format(offset_source, "%Y-%m-%d %H:00:00"),
+            "%Y-%m-%d %H:%i:%s",
+        )
+    elif field == "day":
+        truncated = func.date(offset_source)
+    elif field == "week":
+        truncated = func.timestampadd(
+            literal_column("DAY"),
+            -func.weekday(offset_source),
+            func.date(offset_source),
+        )
+    elif field == "month":
+        truncated = func.str_to_date(
+            func.date_format(offset_source, "%Y-%m-01 00:00:00"),
+            "%Y-%m-%d %H:%i:%s",
+        )
+    elif field == "year":
+        truncated = func.str_to_date(
+            func.date_format(offset_source, "%Y-01-01 00:00:00"),
+            "%Y-%m-%d %H:%i:%s",
+        )
+    else:
+        raise ValueError(f"Unsupported field for date truncation: {field}")
+
+    return func.date_sub(truncated, literal_column(f"INTERVAL {utc_offset_minutes} MINUTE"))
 
 
 def get_ancestor_span_rowids(parent_id: str) -> Select[tuple[int]]:
@@ -705,7 +751,7 @@ def generate_expected_repetitions_cte(
             .where(run_counts_subquery.c.successful_count > 0)  # Only partially complete!
             .cte("expected_runs")
         )
-    elif dialect is SupportedSQLDialect.SQLITE:
+    elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
         # Recursive CTE only for partially complete examples
         expected_runs_cte = (
             select(
@@ -770,6 +816,11 @@ def get_incomplete_repetitions_query(
     elif dialect is SupportedSQLDialect.SQLITE:
         agg_func = func.coalesce(
             func.json_group_array(expected_runs_cte.c.repetition_number),
+            literal_column("'[]'"),
+        )
+    elif dialect is SupportedSQLDialect.MYSQL:
+        agg_func = func.coalesce(
+            func.json_arrayagg(expected_runs_cte.c.repetition_number),
             literal_column("'[]'"),
         )
     else:
@@ -1044,7 +1095,7 @@ def get_runs_with_incomplete_evaluations_query(
                 ),
                 sa.String,
             )
-        else:  # SQLite
+        elif dialect is SupportedSQLDialect.SQLITE:
             json_agg_expr = func.cast(
                 func.coalesce(
                     func.json_group_array(models.ExperimentRunAnnotation.name),
@@ -1052,6 +1103,16 @@ def get_runs_with_incomplete_evaluations_query(
                 ),
                 sa.String,
             )
+        elif dialect is SupportedSQLDialect.MYSQL:
+            json_agg_expr = func.cast(
+                func.coalesce(
+                    func.json_arrayagg(models.ExperimentRunAnnotation.name),
+                    literal_column("'[]'"),
+                ),
+                sa.String,
+            )
+        else:
+            assert_never(dialect)
 
         successful_annotations_json = (
             select(
@@ -1155,7 +1216,7 @@ def get_experiment_incomplete_runs_query(
         empty_array: Any
         if dialect is SupportedSQLDialect.POSTGRESQL:
             empty_array = literal_column("ARRAY[]::int[]")
-        elif dialect is SupportedSQLDialect.SQLITE:
+        elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             empty_array = literal_column("'[]'")
         else:
             assert_never(dialect)
@@ -1176,7 +1237,7 @@ def get_experiment_incomplete_runs_query(
         empty_array_inner: Any
         if dialect is SupportedSQLDialect.POSTGRESQL:
             empty_array_inner = literal_column("ARRAY[]::int[]")
-        elif dialect is SupportedSQLDialect.SQLITE:
+        elif dialect is SupportedSQLDialect.SQLITE or dialect is SupportedSQLDialect.MYSQL:
             empty_array_inner = literal_column("'[]'")
         else:
             assert_never(dialect)

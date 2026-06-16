@@ -144,6 +144,14 @@ class TestGetEnvDatabaseSchema:
         monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
         assert get_env_database_schema() is None
 
+    def test_mysql_url_returns_none_regardless_of_schema_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._clear_db_env(monkeypatch)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "mysql://user:pass@localhost/phoenix")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "custom")
+        assert get_env_database_schema() is None
+
     def test_postgres_empty_string_schema_returns_none(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

@@ -20,37 +20,39 @@ async def data_for_testing_dataloaders(
     num_spans_per_trace = 10
     async with db() as session:
         for i in range(num_projects):
-            project_row_id = await session.scalar(
-                insert(models.Project).values(name=f"{i}").returning(models.Project.id)
-            )
+            project = models.Project(name=f"{i}")
+            session.add(project)
+            await session.flush()
+            project_row_id = project.id
+            assert project_row_id is not None
             for l in range(num_sessions_per_project):  # noqa: E741
                 seconds = randint(1, 1000)
                 start_time = orig_time + timedelta(seconds=seconds)
-                session_row_id = await session.scalar(
-                    insert(models.ProjectSession)
-                    .values(
-                        session_id=f"proj{i}_sess{l}",
-                        project_id=project_row_id,
-                        start_time=start_time,
-                        end_time=start_time,
-                    )
-                    .returning(models.ProjectSession.id)
+                project_session = models.ProjectSession(
+                    session_id=f"proj{i}_sess{l}",
+                    project_id=project_row_id,
+                    start_time=start_time,
+                    end_time=start_time,
                 )
+                session.add(project_session)
+                await session.flush()
+                session_row_id = project_session.id
+                assert session_row_id is not None
                 for j in range(num_traces_per_session):
                     seconds = randint(1, 1000)
                     start_time = orig_time + timedelta(seconds=seconds)
                     end_time = orig_time + timedelta(seconds=seconds * j * 2)
-                    trace_row_id = await session.scalar(
-                        insert(models.Trace)
-                        .values(
-                            trace_id=f"proj{i}_sess{l}_trace{j}",
-                            project_rowid=project_row_id,
-                            start_time=start_time,
-                            end_time=end_time,
-                            project_session_rowid=session_row_id,
-                        )
-                        .returning(models.Trace.id)
+                    trace = models.Trace(
+                        trace_id=f"proj{i}_sess{l}_trace{j}",
+                        project_rowid=project_row_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                        project_session_rowid=session_row_id,
                     )
+                    session.add(trace)
+                    await session.flush()
+                    trace_row_id = trace.id
+                    assert trace_row_id is not None
                     for name in "ABCD":
                         await session.execute(
                             insert(models.TraceAnnotation).values(
@@ -71,35 +73,35 @@ async def data_for_testing_dataloaders(
                         seconds = randint(1, 1000)
                         start_time = orig_time + timedelta(seconds=seconds)
                         end_time = orig_time + timedelta(seconds=seconds * 2)
-                        span_row_id = await session.scalar(
-                            insert(models.Span)
-                            .values(
-                                trace_rowid=trace_row_id,
-                                span_id=f"proj{i}_sess{l}_trace{j}_span{k}",
-                                parent_id=None,
-                                name=f"proj{i}_sess{l}_trace{j}_span{k}",
-                                span_kind="LLM",
-                                start_time=start_time,
-                                end_time=end_time,
-                                attributes={
-                                    "llm": {
-                                        "token_count": {
-                                            "prompt": llm_token_count_prompt,
-                                            "completion": llm_token_count_completion,
-                                        }
+                        span = models.Span(
+                            trace_rowid=trace_row_id,
+                            span_id=f"proj{i}_sess{l}_trace{j}_span{k}",
+                            parent_id=None,
+                            name=f"proj{i}_sess{l}_trace{j}_span{k}",
+                            span_kind="LLM",
+                            start_time=start_time,
+                            end_time=end_time,
+                            attributes={
+                                "llm": {
+                                    "token_count": {
+                                        "prompt": llm_token_count_prompt,
+                                        "completion": llm_token_count_completion,
                                     }
-                                },
-                                events=[],
-                                status_code="OK",
-                                status_message="okay",
-                                cumulative_error_count=0,
-                                cumulative_llm_token_count_prompt=0,
-                                cumulative_llm_token_count_completion=0,
-                                llm_token_count_prompt=llm_token_count_prompt,
-                                llm_token_count_completion=llm_token_count_completion,
-                            )
-                            .returning(models.Span.id)
+                                }
+                            },
+                            events=[],
+                            status_code="OK",
+                            status_message="okay",
+                            cumulative_error_count=0,
+                            cumulative_llm_token_count_prompt=0,
+                            cumulative_llm_token_count_completion=0,
+                            llm_token_count_prompt=llm_token_count_prompt,
+                            llm_token_count_completion=llm_token_count_completion,
                         )
+                        session.add(span)
+                        await session.flush()
+                        span_row_id = span.id
+                        assert span_row_id is not None
                         for name in "ABCD":
                             await session.execute(
                                 insert(models.SpanAnnotation).values(

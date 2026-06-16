@@ -129,6 +129,7 @@ By default, Phoenix uses an SQLite database and stores it in the working directo
 Phoenix supports two types of database URLs:
 - SQLite: 'sqlite:///path/to/database.db'
 - PostgreSQL: 'postgresql://@host/dbname?user=user&password=password' or 'postgresql://user:password@host/dbname'
+- MySQL: 'mysql://user:password@host:3306/dbname'
 
 Note that if you plan on using SQLite, it's advised to to use a persistent volume
 and simply point the PHOENIX_WORKING_DIR to that volume.
@@ -3039,7 +3040,7 @@ def get_env_log_sql() -> bool:
 
 
 def get_env_database_schema() -> Optional[str]:
-    if get_env_database_connection_str().startswith("sqlite"):
+    if not get_env_database_connection_str().startswith("postgresql"):
         return None
     return getenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA) or None
 

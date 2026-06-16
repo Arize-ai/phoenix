@@ -1,7 +1,7 @@
 from typing import Any, Optional, cast
 
 import strawberry
-from sqlalchemy import delete, insert, select
+from sqlalchemy import delete, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
 
@@ -105,10 +105,9 @@ class SpanAnnotationMutationMixin:
                     processed_annotation = existing_annotation
 
                 if processed_annotation is None:
-                    stmt = insert(models.SpanAnnotation).values(**values)
-                    stmt = stmt.returning(models.SpanAnnotation)
-                    result = await session.scalars(stmt)
-                    processed_annotation = result.one()
+                    processed_annotation = models.SpanAnnotation(**values)
+                    session.add(processed_annotation)
+                    await session.flush()
 
                 processed_annotations_map[idx] = processed_annotation
 
@@ -179,10 +178,9 @@ class SpanAnnotationMutationMixin:
                 "user_id": user_id,
             }
 
-            stmt = insert(models.SpanAnnotation).values(**values)
-            stmt = stmt.returning(models.SpanAnnotation)
-            result = await session.scalars(stmt)
-            processed_annotation = result.one()
+            processed_annotation = models.SpanAnnotation(**values)
+            session.add(processed_annotation)
+            await session.flush()
 
             info.context.event_queue.put(SpanAnnotationInsertEvent((processed_annotation.id,)))
             returned_annotation = SpanAnnotation(
@@ -298,12 +296,11 @@ class SpanAnnotationMutationMixin:
             span_annotation_ids[span_annotation_id] = None
 
         async with info.context.db() as session:
-            stmt = (
-                delete(models.SpanAnnotation)
-                .where(models.SpanAnnotation.id.in_(span_annotation_ids.keys()))
-                .returning(models.SpanAnnotation)
+            result = await session.scalars(
+                select(models.SpanAnnotation).where(
+                    models.SpanAnnotation.id.in_(span_annotation_ids.keys())
+                )
             )
-            result = await session.scalars(stmt)
             deleted_annotations_by_id = {annotation.id: annotation for annotation in result.all()}
 
             if not user_is_admin and any(
@@ -321,6 +318,12 @@ class SpanAnnotationMutationMixin:
                 raise NotFound(
                     f"Could not find span annotations with IDs: {missing_span_annotation_ids}"
                 )
+
+            await session.execute(
+                delete(models.SpanAnnotation).where(
+                    models.SpanAnnotation.id.in_(span_annotation_ids.keys())
+                )
+            )
 
         deleted_annotations_gql = [
             SpanAnnotation(

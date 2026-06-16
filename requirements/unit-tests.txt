@@ -26,4 +26,5 @@ vcrpy
 pytest-smtpd
 freezegun
 aiosqlite>=0.22.1
+aiomysql>=0.2.0
 azure-identity>1.18.0

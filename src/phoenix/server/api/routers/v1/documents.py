@@ -8,7 +8,7 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.db.insertion.helpers import as_kv, insert_on_conflict_returning_id
 from phoenix.server.api.routers.v1.annotations import SpanDocumentAnnotationData
 from phoenix.server.api.types.DocumentAnnotation import DocumentAnnotation
 from phoenix.server.authorization import is_not_locked
@@ -119,14 +119,13 @@ async def annotate_span_documents(
         for anno in precursors:
             span_rowid, _ = existing_spans[anno.span_id]
             values = dict(as_kv(anno.as_insertable(span_rowid).row))
-            span_document_annotation_id = await session.scalar(
-                insert_on_conflict(
-                    values,
-                    dialect=dialect,
-                    table=models.DocumentAnnotation,
-                    unique_by=("name", "span_rowid", "identifier", "document_position"),
-                    constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
-                ).returning(models.DocumentAnnotation.id)
+            span_document_annotation_id = await insert_on_conflict_returning_id(
+                values,
+                session=session,
+                dialect=dialect,
+                table=models.DocumentAnnotation,
+                unique_by=("name", "span_rowid", "identifier", "document_position"),
+                constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
             )
             inserted_document_annotation_ids.append(span_document_annotation_id)
 

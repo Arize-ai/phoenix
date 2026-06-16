@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from pytest import FixtureRequest
 from pytest_postgresql.janitor import DatabaseJanitor
 from sqlalchemy import URL, StaticPool
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
 
@@ -31,6 +31,7 @@ from phoenix.db.engines import (
     _dumps as _json_serializer,
 )
 from phoenix.db.engines import (
+    aio_mysql_engine,
     aio_postgresql_engine,
     aio_sqlite_engine,
     set_sqlite_pragma,
@@ -49,15 +50,48 @@ def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     if db == "sqlite":
         skip_marker = pytest.mark.skip(reason="Skipping Postgres tests (--db sqlite)")
         for item in items:
-            if "dialect" in item.fixturenames:
-                if "postgresql" in item.callspec.params.values():
-                    item.add_marker(skip_marker)
+            if _is_dialect_item(item) and _item_uses_any_dialect(item, "postgresql", "mysql"):
+                item.add_marker(skip_marker)
     elif db == "postgresql":
-        skip_marker = pytest.mark.skip(reason="Skipping SQLite tests (--db postgresql)")
+        skip_marker = pytest.mark.skip(reason="Skipping non-Postgres tests (--db postgresql)")
         for item in items:
-            if "dialect" in item.fixturenames:
-                if "sqlite" in item.callspec.params.values():
-                    item.add_marker(skip_marker)
+            if _is_dialect_item(item) and not _item_uses_any_dialect(item, "postgresql"):
+                item.add_marker(skip_marker)
+    elif db == "mysql":
+        skip_marker = pytest.mark.skip(reason="Skipping non-MySQL tests (--db mysql)")
+        incompatible_marker = pytest.mark.skip(
+            reason="Skipping tests not marked mysql_compatible (--db mysql)"
+        )
+        for item in items:
+            if not _is_dialect_item(item):
+                continue
+            if not _item_uses_any_dialect(item, "mysql"):
+                item.add_marker(skip_marker)
+            elif not _is_mysql_compatible(item):
+                item.add_marker(incompatible_marker)
+    elif db == "all":
+        incompatible_marker = pytest.mark.skip(
+            reason="Skipping MySQL tests not marked mysql_compatible (--db all)"
+        )
+        for item in items:
+            if (
+                _is_dialect_item(item)
+                and _item_uses_any_dialect(item, "mysql")
+                and not _is_mysql_compatible(item)
+            ):
+                item.add_marker(incompatible_marker)
+
+
+def _is_dialect_item(item: Any) -> bool:
+    return "dialect" in item.fixturenames and hasattr(item, "callspec")
+
+
+def _item_uses_any_dialect(item: Any, *dialects: str) -> bool:
+    return any(dialect in item.callspec.params.values() for dialect in dialects)
+
+
+def _is_mysql_compatible(item: Any) -> bool:
+    return item.get_closest_marker("mysql_compatible") is not None
 
 
 @pytest.fixture
@@ -149,7 +183,53 @@ async def postgresql_engine(
     janitor.drop()
 
 
-@pytest.fixture(params=["sqlite", "postgresql"])
+@pytest.fixture(scope="function")
+async def mysql_engine() -> AsyncIterator[AsyncEngine]:
+    url = URL.create("mysql+aiomysql")
+    if raw_url := os.getenv("CI_TEST_MYSQL_DATABASE_URL"):
+        url = sqlalchemy.make_url(raw_url).set(drivername="mysql+aiomysql")
+    else:
+        url = URL.create(
+            "mysql+aiomysql",
+            username="root",
+            host="127.0.0.1",
+            port=3306,
+            database="phoenix",
+        )
+    engine = aio_mysql_engine(url, migrate=False)
+    await _drop_mysql_tables(engine)
+    async with engine.connect() as conn:
+        await conn.run_sync(_create_mysql_tables)
+    yield engine
+    await _drop_mysql_tables(engine)
+    await engine.dispose()
+
+
+def _create_mysql_tables(conn: Any) -> None:
+    # Keep each table visible before creating dependent foreign keys.
+    for table in models.Base.metadata.sorted_tables:
+        table.create(conn, checkfirst=True)
+        conn.commit()
+
+
+async def _drop_mysql_tables(engine: AsyncEngine) -> None:
+    async with engine.begin() as conn:
+        await conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 0"))
+        tables = await conn.execute(
+            sqlalchemy.text(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = DATABASE()
+                """
+            )
+        )
+        for (table_name,) in tables:
+            await conn.execute(sqlalchemy.text(f"DROP TABLE IF EXISTS `{table_name}`"))
+        await conn.execute(sqlalchemy.text("SET FOREIGN_KEY_CHECKS = 1"))
+
+
+@pytest.fixture(params=["sqlite", "postgresql", "mysql"])
 def dialect(request: SubRequest) -> str:
     return str(request.param)
 
@@ -160,6 +240,8 @@ def sqlalchemy_dialect(dialect: str) -> Any:
         return sqlite.dialect()
     elif dialect == "postgresql":
         return postgresql.dialect()  # type: ignore[no-untyped-call]
+    elif dialect == "mysql":
+        return mysql.dialect()
     else:
         raise ValueError(f"Unsupported dialect: {dialect}")
 
@@ -260,6 +342,9 @@ def db(
         return DbSessionFactory(db=_db(conn), dialect=dialect)
     elif dialect == "postgresql":
         engine = request.getfixturevalue("postgresql_engine")
+        return DbSessionFactory(db=_db(engine), dialect=dialect)
+    elif dialect == "mysql":
+        engine = request.getfixturevalue("mysql_engine")
         return DbSessionFactory(db=_db(engine), dialect=dialect)
     else:
         raise ValueError(f"Unknown db fixture: {dialect}")

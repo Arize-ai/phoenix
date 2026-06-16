@@ -110,7 +110,10 @@ from phoenix.db.helpers import (
     get_experiment_incomplete_runs_query,
     get_runs_with_incomplete_evaluations_query,
 )
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import (
+    OnConflict,
+    insert_on_conflict_returning_id,
+)
 from phoenix.db.types.annotation_configs import OutputConfigType
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.db.types.experiment_log import (
@@ -495,7 +498,7 @@ class TaskWorkItem(WorkItem):
             async with self._db() as session:
                 if db_traces:
                     session.add_all(db_traces)
-                stmt = insert_on_conflict(
+                run_id = await insert_on_conflict_returning_id(
                     {
                         "experiment_id": db_run.experiment_id,
                         "dataset_example_id": db_run.dataset_example_id,
@@ -508,6 +511,7 @@ class TaskWorkItem(WorkItem):
                         "prompt_token_count": db_run.prompt_token_count,
                         "completion_token_count": db_run.completion_token_count,
                     },
+                    session=session,
                     table=models.ExperimentRun,
                     dialect=self._db.dialect,
                     unique_by=[
@@ -516,8 +520,8 @@ class TaskWorkItem(WorkItem):
                         "repetition_number",
                     ],
                     on_conflict=OnConflict.DO_UPDATE,
-                ).returning(models.ExperimentRun)
-                result = await session.scalar(stmt)
+                )
+                result = await session.get(models.ExperimentRun, run_id)
                 assert result is not None
                 return result
 
@@ -994,32 +998,28 @@ class EvalWorkItem(WorkItem):
 
         async def _persist_annotations() -> None:
             async with self._db() as session:
-                stmt = insert_on_conflict(
-                    *[
+                for annotation in annotations:
+                    annotation.id = await insert_on_conflict_returning_id(
                         {
-                            "experiment_run_id": a.experiment_run_id,
-                            "name": a.name,
-                            "annotator_kind": a.annotator_kind,
-                            "label": a.label,
-                            "score": a.score,
-                            "explanation": a.explanation,
-                            "trace_id": a.trace_id,
-                            "error": a.error,
-                            "metadata_": a.metadata_,
-                            "start_time": a.start_time,
-                            "end_time": a.end_time,
-                        }
-                        for a in annotations
-                    ],
-                    table=models.ExperimentRunAnnotation,
-                    dialect=self._db.dialect,
-                    unique_by=["experiment_run_id", "name"],
-                    on_conflict=OnConflict.DO_UPDATE,
-                    constraint_name="uq_experiment_run_annotations_experiment_run_id_name",
-                )
-                result = await session.execute(stmt.returning(models.ExperimentRunAnnotation.id))
-                for a, (id_,) in zip(annotations, result):
-                    a.id = id_
+                            "experiment_run_id": annotation.experiment_run_id,
+                            "name": annotation.name,
+                            "annotator_kind": annotation.annotator_kind,
+                            "label": annotation.label,
+                            "score": annotation.score,
+                            "explanation": annotation.explanation,
+                            "trace_id": annotation.trace_id,
+                            "error": annotation.error,
+                            "metadata_": annotation.metadata_,
+                            "start_time": annotation.start_time,
+                            "end_time": annotation.end_time,
+                        },
+                        session=session,
+                        table=models.ExperimentRunAnnotation,
+                        dialect=self._db.dialect,
+                        unique_by=["experiment_run_id", "name"],
+                        on_conflict=OnConflict.DO_UPDATE,
+                        constraint_name="uq_experiment_run_annotations_experiment_run_id_name",
+                    )
 
         with anyio.fail_after(5, shield=True):
             async with anyio.create_task_group() as tg:
@@ -2481,10 +2481,9 @@ class ExperimentRunner(DaemonTask):
                 claimed_by=self._replica_id,
                 status="RUNNING",
             )
-            .returning(models.ExperimentJob.id)
         )
-        claimed = await session.scalar(stmt)
-        if claimed is None:
+        result = await session.execute(stmt)
+        if result.rowcount == 0:  # type: ignore[attr-defined]
             raise ValueError(
                 f"Experiment {experiment_id} is owned by another replica, cannot start"
             )
@@ -2681,16 +2680,23 @@ class ExperimentRunner(DaemonTask):
                 # RETURNING tells us which ones were actually updated
                 with anyio.fail_after(5, shield=True):
                     async with self._db() as session:
-                        stmt = (
-                            update(models.ExperimentJob)
-                            .where(models.ExperimentJob.id.in_(experiment_ids))
-                            .where(models.ExperimentJob.claimed_by == self._replica_id)
-                            .where(models.ExperimentJob.claimed_at.is_not(None))
-                            .values(claimed_at=now)
-                            .returning(models.ExperimentJob.id)
+                        predicate = (
+                            models.ExperimentJob.id.in_(experiment_ids),
+                            models.ExperimentJob.claimed_by == self._replica_id,
+                            models.ExperimentJob.claimed_at.is_not(None),
                         )
-                        result = await session.execute(stmt)
-                        updated_ids = {row.id for row in result}
+                        await session.execute(
+                            update(models.ExperimentJob).where(*predicate).values(claimed_at=now)
+                        )
+                        updated_ids = set(
+                            await session.scalars(
+                                select(models.ExperimentJob.id).where(
+                                    models.ExperimentJob.id.in_(experiment_ids),
+                                    models.ExperimentJob.claimed_by == self._replica_id,
+                                    models.ExperimentJob.claimed_at == now,
+                                )
+                            )
+                        )
 
                 logger.debug(
                     f"Heartbeat: UPDATE affected {len(updated_ids)} rows: {updated_ids} "
@@ -2817,12 +2823,12 @@ class ExperimentRunner(DaemonTask):
             .where(models.ExperimentJob.id == experiment_id)
             .where(models.ExperimentJob.claimed_by == self._replica_id)
             .values(claimed_at=None, claimed_by=None, status=status)
-            .returning(models.ExperimentJob.id)
         )
         try:
             with anyio.fail_after(5, shield=True):
                 async with self._db() as session:
-                    updated = await session.scalar(stmt)
+                    result = await session.execute(stmt)
+                    updated = result.rowcount > 0  # type: ignore[attr-defined]
                     if updated and error_message:
                         session.add(
                             models.ExperimentJobLog(

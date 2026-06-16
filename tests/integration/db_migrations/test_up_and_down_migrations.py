@@ -9,9 +9,41 @@ across SQLite and PostgreSQL backends using Alembic.
 import pytest
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from . import _down, _up, _verify_clean_state
+from phoenix.config import DEFAULT_PROJECT_NAME
+from phoenix.db import models
+from phoenix.db.migrate import _run_alembic_upgrade
+
+from . import _down, _up, _verify_clean_state, _version_num
+
+
+async def test_mysql_new_install_bootstrap(
+    _engine: AsyncEngine,
+    _alembic_config: Config,
+    _schema: str,
+) -> None:
+    if _engine.url.get_backend_name() != "mysql":
+        pytest.skip("MySQL uses current-schema bootstrap only")
+
+    await _verify_clean_state(_engine, _schema)
+    async with _engine.connect() as conn:
+        await conn.run_sync(_run_alembic_upgrade, _alembic_config)
+
+    script = ScriptDirectory.from_config(_alembic_config)
+    assert await _version_num(_engine, _schema) == (script.get_current_head(),)
+    async with _engine.connect() as conn:
+        project_name = await conn.scalar(select(models.Project.name))
+    assert project_name == DEFAULT_PROJECT_NAME
+
+    async with _engine.connect() as conn:
+        await conn.run_sync(_run_alembic_upgrade, _alembic_config)
+
+    assert await _version_num(_engine, _schema) == (script.get_current_head(),)
+    async with _engine.connect() as conn:
+        project_count = await conn.scalar(select(func.count()).select_from(models.Project))
+    assert project_count == 1
 
 
 @pytest.mark.parametrize(
@@ -54,6 +86,9 @@ async def test_up_and_down_migrations(
         AssertionError: If migrations fail or history is non-linear
         sqlalchemy.exc.SQLAlchemyError: If database operations fail
     """
+    if _engine.url.get_backend_name() == "mysql":
+        pytest.skip("MySQL new installs bootstrap from the current schema baseline")
+
     if migrate_index_concurrently:
         monkeypatch.setenv("PHOENIX_MIGRATE_INDEX_CONCURRENTLY", "true")
     else:

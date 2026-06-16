@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import strawberry
 from sqlalchemy import delete, select, tuple_
@@ -7,7 +7,7 @@ from strawberry import UNSET, Info
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
-from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.insertion.helpers import insert_on_conflict_returning_id
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
@@ -141,22 +141,33 @@ class DocumentAnnotationMutationMixin:
                     )
 
             dialect = SupportedSQLDialect(session.bind.dialect.name)
-            stmt = insert_on_conflict(
-                *records,
-                dialect=dialect,
-                table=models.DocumentAnnotation,
-                unique_by=("name", "span_rowid", "document_position", "identifier"),
-                on_conflict=OnConflict.DO_UPDATE,
-                constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
-            ).returning(models.DocumentAnnotation)
-
-            result = await session.scalars(stmt)
-            annotations = result.all()
+            inserted_annotation_ids = [
+                await insert_on_conflict_returning_id(
+                    cast(dict[str, Any], record),
+                    session=session,
+                    dialect=dialect,
+                    table=models.DocumentAnnotation,
+                    unique_by=("name", "span_rowid", "document_position", "identifier"),
+                    constraint_name="uq_document_annotations_name_span_rowid_document_pos_identifier",
+                )
+                for record in records
+            ]
+            annotations_by_id = {
+                annotation.id: annotation
+                for annotation in await session.scalars(
+                    select(models.DocumentAnnotation).where(
+                        models.DocumentAnnotation.id.in_(inserted_annotation_ids)
+                    )
+                )
+            }
+            annotations = [
+                annotations_by_id[annotation_id] for annotation_id in inserted_annotation_ids
+            ]
 
         # Publish event after successful commit (context manager auto-commits)
-        annotation_ids = tuple(anno.id for anno in annotations)
-        if annotation_ids:
-            info.context.event_queue.put(DocumentAnnotationInsertEvent(annotation_ids))
+        event_annotation_ids = tuple(anno.id for anno in annotations)
+        if event_annotation_ids:
+            info.context.event_queue.put(DocumentAnnotationInsertEvent(event_annotation_ids))
 
         return DocumentAnnotationMutationPayload(
             document_annotations=[

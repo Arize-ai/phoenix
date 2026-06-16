@@ -28,6 +28,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolInputAvailableChunk,
 )
 from sqlalchemy import Insert, exists, func, select
+from sqlalchemy.dialects.mysql import insert as insert_mysql
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -530,9 +531,29 @@ async def _upsert_project_sessions(
                 ),
             },
         )
+    elif dialect is SupportedSQLDialect.MYSQL:
+        mysql_insert = insert_mysql(models.ProjectSession).values(records)
+        upsert = mysql_insert.on_duplicate_key_update(
+            start_time=func.least(
+                models.ProjectSession.start_time,
+                mysql_insert.inserted.start_time,
+            ),
+            end_time=func.greatest(
+                models.ProjectSession.end_time,
+                mysql_insert.inserted.end_time,
+            ),
+        )
     else:
         assert_never(dialect)
-    returned_rows = await session.scalars(upsert.returning(models.ProjectSession))
+    if dialect is SupportedSQLDialect.MYSQL:
+        await session.execute(upsert)
+        returned_rows = await session.scalars(
+            select(models.ProjectSession).where(
+                models.ProjectSession.session_id.in_(project_sessions_by_session_id)
+            )
+        )
+    else:
+        returned_rows = await session.scalars(upsert.returning(models.ProjectSession))
     return {row.session_id: row for row in returned_rows}
 
 

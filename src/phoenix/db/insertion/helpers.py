@@ -1,10 +1,11 @@
 from abc import ABC
 from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, Sequence
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
-from sqlalchemy import Insert
+from sqlalchemy import Insert, func, select
+from sqlalchemy.dialects.mysql import insert as insert_mysql
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,7 +75,56 @@ def insert_on_conflict(
                 set_=set_ if set_ else dict(_clean(stmt_sqlite.excluded.items())),
             )
         assert_never(on_conflict)
+    if dialect is SupportedSQLDialect.MYSQL:
+        stmt_mysql = insert_mysql(table).values(records)
+        if on_conflict is OnConflict.DO_NOTHING:
+            return stmt_mysql.on_duplicate_key_update(
+                **{column.name: column for column in table.__table__.primary_key}
+            )
+        if on_conflict is OnConflict.DO_UPDATE:
+            return stmt_mysql.on_duplicate_key_update(
+                **(set_ if set_ else _mysql_update_values(stmt_mysql, table, records))
+            )
+        assert_never(on_conflict)
     assert_never(dialect)
+
+
+async def insert_on_conflict_returning_id(
+    record: Mapping[str, Any],
+    *,
+    session: AsyncSession,
+    table: type[Base],
+    dialect: SupportedSQLDialect,
+    unique_by: Sequence[str],
+    on_conflict: OnConflict = OnConflict.DO_UPDATE,
+    set_: Optional[Mapping[str, Any]] = None,
+    constraint_name: Optional[str] = None,
+) -> int:
+    stmt = insert_on_conflict(
+        record,
+        table=table,
+        dialect=dialect,
+        unique_by=unique_by,
+        on_conflict=on_conflict,
+        set_=set_,
+        constraint_name=constraint_name,
+    )
+    if dialect is not SupportedSQLDialect.MYSQL:
+        id_ = await session.scalar(stmt.returning(getattr(table, "id")))
+        assert id_ is not None
+        return cast(int, id_)
+
+    if not unique_by:
+        raise ValueError("MySQL upserts require at least one unique key to fetch inserted IDs")
+
+    await session.execute(stmt)
+    id_ = await session.scalar(
+        select(getattr(table, "id")).where(
+            *(getattr(table, key) == record[key] for key in unique_by)
+        )
+    )
+    assert id_ is not None
+    return cast(int, id_)
 
 
 def _clean(
@@ -87,6 +137,26 @@ def _clean(
             yield "metadata", v
         else:
             yield k, v
+
+
+def _mysql_update_values(
+    stmt: Insert,
+    table: type[Base],
+    records: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    record_keys = {key for record in records for key in record}
+    update_values: dict[str, Any] = {}
+    for column in table.__table__.columns:
+        if column.primary_key or column.name == "created_at":
+            continue
+        if column.name == "updated_at":
+            update_values[column.name] = func.now()
+            continue
+        if column.key in record_keys or column.name in record_keys:
+            update_values[column.name] = getattr(cast(Any, stmt).inserted, column.name)
+    if update_values:
+        return update_values
+    return {column.name: column for column in table.__table__.primary_key}
 
 
 def as_kv(obj: models.Base) -> Iterator[tuple[str, Any]]:

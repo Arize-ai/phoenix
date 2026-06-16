@@ -70,6 +70,8 @@ def get_async_db_url(connection_str: str) -> URL:
                 username=None,
             )
         return url
+    elif backend is SupportedSQLDialect.MYSQL:
+        return url.set(drivername="mysql+aiomysql")
     else:
         assert_never(backend)
 
@@ -97,6 +99,13 @@ def create_engine(
         )
     elif backend is SupportedSQLDialect.POSTGRESQL:
         return aio_postgresql_engine(
+            url=url,
+            migrate=migrate,
+            log_to_stdout=log_to_stdout,
+            log_migrations=log_migrations,
+        )
+    elif backend is SupportedSQLDialect.MYSQL:
+        return aio_mysql_engine(
             url=url,
             migrate=migrate,
             log_to_stdout=log_to_stdout,
@@ -301,6 +310,32 @@ def aio_postgresql_engine(
             json_serializer=_dumps,
             poolclass=NullPool,
         )
+    migrate_in_thread(migration_engine, log_migrations=log_migrations)
+    return engine
+
+
+def aio_mysql_engine(
+    url: URL,
+    migrate: bool = True,
+    log_to_stdout: bool = False,
+    log_migrations: bool = True,
+) -> AsyncEngine:
+    engine = create_async_engine(
+        url=url,
+        echo=log_to_stdout,
+        json_serializer=_dumps,
+        pool_pre_ping=True,
+        pool_recycle=_POOL_RECYCLE_SECONDS,
+    )
+    if not migrate:
+        return engine
+
+    migration_engine = create_async_engine(
+        url=url,
+        echo=log_migrations,
+        json_serializer=_dumps,
+        poolclass=NullPool,
+    )
     migrate_in_thread(migration_engine, log_migrations=log_migrations)
     return engine
 

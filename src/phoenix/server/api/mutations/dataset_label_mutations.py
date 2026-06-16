@@ -134,15 +134,20 @@ class DatasetLabelMutationMixin:
                 raise BadRequest(f"Unknown dataset label: {dataset_label_node_id}")
             dataset_label_row_ids[dataset_label_row_id] = None
         async with info.context.db() as session:
-            stmt = (
-                delete(models.DatasetLabel)
-                .where(models.DatasetLabel.id.in_(dataset_label_row_ids.keys()))
-                .returning(models.DatasetLabel)
-            )
-            deleted_dataset_labels = (await session.scalars(stmt)).all()
+            deleted_dataset_labels = (
+                await session.scalars(
+                    select(models.DatasetLabel).where(
+                        models.DatasetLabel.id.in_(dataset_label_row_ids.keys())
+                    )
+                )
+            ).all()
             if len(deleted_dataset_labels) < len(dataset_label_row_ids):
-                await session.rollback()
                 raise NotFound("Could not find one or more dataset labels with given IDs")
+            await session.execute(
+                delete(models.DatasetLabel).where(
+                    models.DatasetLabel.id.in_(dataset_label_row_ids.keys())
+                )
+            )
         deleted_dataset_labels_by_id = {
             dataset_label.id: dataset_label for dataset_label in deleted_dataset_labels
         }
