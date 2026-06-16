@@ -16,6 +16,7 @@ Example usage:
     bash = Bash(limits=ExecutionLimits(max_command_count=1000))
 """
 
+from dataclasses import replace
 from typing import Optional
 
 from .commands import create_command_registry
@@ -52,7 +53,7 @@ class Bash:
         limits: Optional[ExecutionLimits] = None,
         network: Optional[NetworkConfig] = None,
         fetch: Optional[SecureFetch] = None,
-        timeout_seconds: float = 5.0,
+        timeout_seconds: Optional[float] = None,
         commands: Optional[dict[str, Command]] = None,
         errexit: bool = False,
         pipefail: bool = False,
@@ -69,7 +70,8 @@ class Bash:
             limits: Execution limits for security.
             network: Network configuration (for curl command).
             fetch: Custom secure fetch function (for curl command).
-            timeout_seconds: Per-command wall-clock timeout budget in seconds (used by sqlite3).
+            timeout_seconds: Convenience override for the sqlite3 query timeout
+                (limits.sqlite_timeout_seconds); defaults to that value (5s).
             commands: Custom command registry. If not provided, uses built-in commands.
             errexit: Enable errexit (set -e) mode.
             pipefail: Enable pipefail mode.
@@ -84,13 +86,15 @@ class Bash:
         else:
             self._fs = InMemoryFs(initial_files=files or {})
 
-        # Set up limits
+        # Set up limits. The sqlite3 timeout lives in ExecutionLimits; the
+        # timeout_seconds kwarg is a convenience override for it.
         self._limits = limits or ExecutionLimits()
+        if timeout_seconds is not None:
+            self._limits = replace(self._limits, sqlite_timeout_seconds=timeout_seconds)
 
         # Set up network config
         self._network = network
         self._fetch = fetch or (make_default_fetch(network) if network is not None else None)
-        self._timeout_seconds = timeout_seconds
 
         # Set up commands
         if commands is None:
@@ -143,7 +147,6 @@ class Bash:
             limits=self._limits,
             state=self._initial_state,
             fetch=self._fetch,
-            timeout_seconds=self._timeout_seconds,
         )
 
     @property
@@ -218,7 +221,6 @@ class Bash:
             commands=self._commands,
             limits=self._limits,
             fetch=self._fetch,
-            timeout_seconds=self._timeout_seconds,
             state=InterpreterState(
                 env=self._initial_state.env.copy() if isinstance(self._initial_state.env, VariableStore) else VariableStore(self._initial_state.env),
                 cwd=self._initial_state.cwd,

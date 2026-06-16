@@ -35,6 +35,7 @@ class ExecutionLimits:
     max_loop_iterations: int = 10_000
     max_awk_iterations: int = 10_000
     max_sed_iterations: int = 10_000
+    sqlite_timeout_seconds: float = 5.0
 
 
 @dataclass
@@ -184,9 +185,6 @@ class CommandContext:
 
     limits: ExecutionLimits | None = None
     """Execution limits configuration."""
-
-    timeout_seconds: float = 5.0
-    """Per-command wall-clock timeout budget, in seconds (used by sqlite3)."""
 
     exec: Optional[Callable[[str, dict[str, Any]], Awaitable[ExecResult]]] = None
     """Execute a subcommand (for xargs, bash -c, etc.)."""

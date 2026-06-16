@@ -25,7 +25,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from ...types import CommandContext, ExecResult
+from ...types import CommandContext, ExecResult, ExecutionLimits
 
 
 # How often (in SQLite VM opcodes) the progress handler runs to check the
@@ -491,7 +491,8 @@ class Sqlite3Command:
             # 3. Bound runaway queries (e.g. recursive CTEs) on wall-clock time.
             #    The progress handler runs every PROGRESS_HANDLER_OPCODES VM
             #    opcodes; returning non-zero interrupts the running statement.
-            deadline = time.monotonic() + ctx.timeout_seconds
+            timeout_seconds = (ctx.limits or ExecutionLimits()).sqlite_timeout_seconds
+            deadline = time.monotonic() + timeout_seconds
             timed_out = False
 
             def _progress() -> int:
@@ -536,7 +537,7 @@ class Sqlite3Command:
                         return ExecResult(
                             stdout=stdout,
                             stderr=(
-                                f"sqlite3: query exceeded {ctx.timeout_seconds:g}s time limit\n"
+                                f"sqlite3: query exceeded {timeout_seconds:g}s time limit\n"
                             ),
                             exit_code=1,
                         )
