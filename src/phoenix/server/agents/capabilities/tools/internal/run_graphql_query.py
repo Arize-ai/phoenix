@@ -30,6 +30,17 @@ Useful introspection patterns (run these before guessing):
 `{ __type(name: "Project") { fields { name args { name } type { name kind } } } }`
 - Available root queries: `{ __schema { queryType { fields { name } } } }`
 
+GraphQL query-shaping rules:
+- If selecting the same field more than once with different arguments, use aliases. \
+For example: `{ traceType: __type(name: "Trace") { fields { name } } spanType: \
+__type(name: "Span") { fields { name } } }`.
+- Do not batch repeated unaliased `__type(...)` fields.
+- For aggregate/list object fields, introspect the concrete child type before selecting \
+child fields.
+- If a generic error says `an unexpected error occurred`, assume the query may be \
+invalid or too broad. Simplify, introspect the exact type/field, and retry with \
+corrected fields.
+
 Args:
     query: A GraphQL query document string (a normal query or an introspection query).
     variable_values: Optional mapping of GraphQL variable names to values.
@@ -39,6 +50,8 @@ GraphQL errors, the tool raises with the formatted error messages so you can cor
 the query and retry. When errors indicate an unknown or misused field/argument, run an \
 introspection query to confirm the schema rather than guessing again.
 """
+
+RUN_GRAPHQL_QUERY_MAX_RETRIES = 3
 
 
 class RunGraphQLQueryToolset(FunctionToolset[None]):
@@ -73,13 +86,14 @@ class RunGraphQLQueryToolset(FunctionToolset[None]):
             return {"data": result.data}
 
         super().__init__(
+            max_retries=RUN_GRAPHQL_QUERY_MAX_RETRIES,
             tools=[
                 Tool(
                     run_graphql_query,
                     takes_ctx=False,
                     description=RUN_GRAPHQL_QUERY_TOOL_DESCRIPTION,
                 )
-            ]
+            ],
         )
 
 

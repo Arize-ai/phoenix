@@ -645,6 +645,12 @@ class SessionAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SessionContext(TypedDict):
+    type: Literal["session"]
+    projectNodeId: str
+    sessionNodeId: str
+
+
 class SessionNoteData(TypedDict):
     session_id: str
     note: str
@@ -1546,6 +1552,7 @@ class ChatRegenerateMessage(TypedDict):
                 AppContext,
                 ProjectContext,
                 TraceContext,
+                SessionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
@@ -1574,6 +1581,7 @@ class ChatSubmitMessage(TypedDict):
                 AppContext,
                 ProjectContext,
                 TraceContext,
+                SessionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,

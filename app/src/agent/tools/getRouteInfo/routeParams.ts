@@ -46,6 +46,9 @@ export function buildParamsFromContexts(
     } else if (context.type === "trace") {
       params.projectId = context.projectNodeId;
       params.traceId = context.otelTraceId;
+    } else if (context.type === "session") {
+      params.projectId = context.projectNodeId;
+      params.sessionId = context.sessionNodeId;
     } else if (context.type === "span" && context.spanNodeId) {
       params.spanId = context.spanNodeId;
       if (context.projectNodeId) {

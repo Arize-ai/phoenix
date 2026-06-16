@@ -68,6 +68,8 @@ export function agentContextKey(context: AgentContext): string {
       return `project:${context.projectNodeId}`;
     case "trace":
       return `trace:${context.projectNodeId}:${context.otelTraceId}`;
+    case "session":
+      return `session:${context.projectNodeId}:${context.sessionNodeId}`;
     case "span": {
       const project = context.projectNodeId ?? "";
       const span = context.spanNodeId

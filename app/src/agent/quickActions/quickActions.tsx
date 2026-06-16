@@ -30,6 +30,7 @@ const MAX_QUICK_ACTIONS = 3;
 const CONTEXT_SPECIFICITY: AgentContextType[] = [
   "span",
   "trace",
+  "session",
   "project",
   "playground",
 ];
@@ -90,6 +91,18 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       icon: <Icons.Trace />,
       label: "Find what went wrong",
       prompt: "Find what went wrong in this trace.",
+    },
+  ],
+  session: [
+    {
+      icon: <Icons.MessageSquareOutline />,
+      label: "Summarize this session",
+      prompt: "Summarize what happened in this session.",
+    },
+    {
+      icon: <Icons.Trace />,
+      label: "Find session issues",
+      prompt: "Find the most important issues in this session.",
     },
   ],
   span: [

@@ -166,6 +166,7 @@ _SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
+_SESSION_CONTEXT_TEMPLATE = get_template("context/SESSION_CONTEXT_INSTRUCTIONS.xml.j2")
 _SPAN_CONTEXT_TEMPLATE = get_template("context/SPAN_CONTEXT_INSTRUCTIONS.xml.j2")
 _PLAYGROUND_CONTEXT_TEMPLATE = get_template("context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml.j2")
 _CODE_EVALUATOR_CONTEXT_TEMPLATE = get_template(
@@ -265,6 +266,7 @@ class AgentPrompts:
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE
+    session_context: Template = _SESSION_CONTEXT_TEMPLATE
     span_context: Template = _SPAN_CONTEXT_TEMPLATE
     playground_context: Template = _PLAYGROUND_CONTEXT_TEMPLATE
     code_evaluator_context: Template = _CODE_EVALUATOR_CONTEXT_TEMPLATE

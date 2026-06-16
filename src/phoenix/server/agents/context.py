@@ -67,6 +67,14 @@ class TraceContext(_ChatContextBase):
     otel_trace_id: str = Field(alias="otelTraceId")
 
 
+class SessionContext(_ChatContextBase):
+    """Session the user is currently viewing."""
+
+    type: Literal["session"]
+    project_node_id: str = Field(alias="projectNodeId")
+    session_node_id: str = Field(alias="sessionNodeId")
+
+
 class AgentSpanContext(_ChatContextBase):
     """Span the user has selected.
 
@@ -239,6 +247,7 @@ class ChatContext(
             AppContext
             | ProjectContext
             | TraceContext
+            | SessionContext
             | AgentSpanContext
             | PlaygroundContext
             | CodeEvaluatorContext
@@ -259,6 +268,7 @@ class ResolvedContexts:
     app: AppContext | None = None
     project: ProjectContext | None = None
     trace: TraceContext | None = None
+    session: SessionContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
@@ -287,6 +297,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.project = context_value
         elif isinstance(context_value, TraceContext):
             resolved.trace = context_value
+        elif isinstance(context_value, SessionContext):
+            resolved.session = context_value
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
