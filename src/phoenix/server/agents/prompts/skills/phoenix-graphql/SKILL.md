@@ -15,89 +15,68 @@ summary: Answer data questions with efficient GraphQL queries, or get working Gr
 - **Internal data analysis** — you are querying Phoenix yourself to answer a question. Apply the schema facts, efficiency rules, and patterns below directly.
 - **Helping the user integrate** — the user wants GraphQL queries for their own code or tools. Use the same schema facts and patterns, plus the "External API usage" section for endpoint, auth, and client examples. Queries you hand to the user should use variables and include pagination handling.
 
-### Schema essentials
+### Entrypoints
 
-Top-level `Query` fields you will use most:
+Top-level `Query` entrypoints get you to a starting entity; per-entity schema details live in the resources listed under "Schema map" below.
 
-- `projects(first, after, sort: ProjectSort, filter: ProjectFilter)` → connection of `Project`
-- `getProjectByName(name: String!)` → `Project` (skip the connection when you know the name)
-- `node(id: ID!)` — global lookup for any entity; resolve with an inline fragment, e.g. `node(id: $id) { ... on Project { name } }`
-- `getSpanByOtelId(...)`, `getTraceByOtelId(...)`, `getProjectSessionById(...)` — lookups by OTel/session identifiers
-- `datasets(...)`, `prompts(...)`, `evaluators(...)` → connections
-- `viewer` → the authenticated `User`
-- `projectCount`, `datasetCount`, `promptCount` — cheap counts
+- `node(id: ID!)` — global lookup for **any** entity by its Relay global id; resolve with an inline fragment, e.g. `node(id: $id) { ... on Dataset { name } }`. This is the primary way to fetch datasets, prompts, experiments, sessions, and annotations, which have **no** by-name/by-id helpers.
+- `projects(...)`, `datasets(...)`, `prompts(...)`, `evaluators(...)` → Relay connections, each with `filter`/`sort` inputs to find an entity when you only have a name.
+- By-X helpers (the only ones that exist): `getProjectByName(name: String!)`, `getProjectSessionById(sessionId: String!)`, `getDatasetExampleByExternalId(datasetId: GlobalID!, externalId: String!)`, `getSpanByOtelId(spanId: String!)`, `getTraceByOtelId(traceId: String!)`. There is **no** `getDatasetByName`, `getPromptByName`, or `getExperimentById` — use `node(id:)` or a connection `filter` instead.
+- `viewer` → the authenticated `User`; `projectCount`, `datasetCount`, `promptCount` — cheap counts.
+- `compareExperiments(baseExperimentId: GlobalID!, compareExperimentIds: [GlobalID!]!, first, after, filterCondition)` → experiment comparison.
 
-Key `Project` fields:
+### Schema map
 
-- `spans(timeRange, first, after, sort: SpanSort, rootSpansOnly: Boolean, filterCondition: String)` → connection of `Span`. There is **no `traces` connection on `Project`** — use `spans(rootSpansOnly: true)` for one row per trace.
-- `trace(traceId: ID!)` → `Trace` — lookup by OTel hex trace id.
-- `sessions(timeRange, first, after, sort, filterIoSubstring, sessionId)` → connection of `ProjectSession`.
-- Aggregates, most accepting `timeRange` and `filterCondition`: `traceCount`, `recordCount` (span count), `tokenCountTotal`, `tokenCountPrompt`, `tokenCountCompletion`, `costSummary`, `latencyMsQuantile(probability: Float!)`, `spanLatencyMsQuantile(probability: Float!)`.
-- `spanAnnotationNames`, `traceAnnotationsNames`, `spanAnnotationSummary`, `documentEvaluationNames` — discover what evals/annotations exist before querying them.
-- `validateSpanFilterCondition(condition: String!)` — check a filter string without running it.
+Per-entity field references and examples are split into resources. Read **only** the one(s) you need with `read_skill_resource`, after loading this skill:
 
-Conventions:
+- `project-spans-traces` — Project aggregates and `spans`; Span and Trace fields. The starting point for most trace analysis.
+- `sessions` — ProjectSession: multi-turn session metrics, token/cost, session traces.
+- `datasets` — Dataset and DatasetExample: examples, versions, splits, labels.
+- `experiments` — Experiment and ExperimentRun: runs, aggregate metrics, comparison.
+- `prompts` — Prompt and PromptVersion: versions, templates, tags.
+- `annotations` — Span/Trace/ExperimentRun annotation fields and how to read them.
 
-- **Pagination** is Relay-style: `first`/`after` args; responses have `edges { node { ... } }` and `pageInfo { hasNextPage endCursor }`. Cursors are opaque strings. Some connections (e.g. `Project.spans`) are forward-only.
-- **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. The `spanId` and `traceId` fields are OpenTelemetry hex IDs — use those for OTel lookups and `/redirects/spans/<spanId>` / `/redirects/traces/<traceId>` links. Never mix the two.
+### Conventions
+
+These apply to every entity:
+
+- **Pagination** is Relay-style: `first`/`after` args; responses have `edges { node { ... } }` and `pageInfo { hasNextPage endCursor }`. Cursors are opaque strings. Some connections (e.g. `Project.spans`, `Experiment.runs`, `ProjectSession.traces`) are forward-only.
+- **IDs**: the `id` field on any node is a Relay global ID (base64 of `TypeName:rowId`) — use it with `node(id:)`. OpenTelemetry hex IDs come from `Span.spanId` and `Trace.traceId` — use those for OTel lookups and `/redirects/spans/<spanId>` / `/redirects/traces/<traceId>` links. Note a `Span` has **no** `traceId` field; read it via the nested `trace { traceId }`. Never mix global IDs with OTel IDs.
 - **`TimeRange`** input: `{ start: DateTime, end: DateTime }` — ISO 8601 strings; `end` is exclusive; both optional.
 - **`SpanSort`** input: `{ col: SpanColumn, dir: SortDir }`, e.g. `{ col: startTime, dir: desc }`. Useful `SpanColumn` values: `startTime`, `latencyMs`, `tokenCountTotal`, `cumulativeTokenCountTotal`, `tokenCostTotal`.
 - **`filterCondition`** is a Python-like DSL string over span fields, e.g. `span_kind == 'LLM'`, `status_code == 'ERROR'`, `latency_ms > 1000`, `'timeout' in output.value`, `evals['Hallucination'].label == 'hallucinated'`, `annotations['note'].score < 0.5`. Combine with `and`/`or`.
 
 ### Efficiency rules
 
-- **Do not run full schema introspection.** The facts above cover most analysis queries. When you genuinely need to verify a field or argument, introspect one type at a time: `{ __type(name: "Project") { fields { name args { name type { name kind } } } } }`.
+- **Do not run full schema introspection.** Read the relevant `Schema map` resource instead; it covers the fields and arguments for that entity. Only when a resource does not cover a field you need, introspect a single type: `{ __type(name: "Project") { fields { name args { name type { name kind } } } } }`.
 - **Batch independent lookups with aliases** in one query instead of multiple round trips, e.g. `p50: latencyMsQuantile(probability: 0.5) p99: latencyMsQuantile(probability: 0.99)`.
 - Select only the fields you need; keep page sizes small (10–50) and paginate only when necessary.
 - Pass values via query variables, never string interpolation.
 - Span `input`/`output` payloads can be huge — request `input { truncatedValue }` (first 100 chars) when surveying; fetch `input { value }` (full payload) only for spans you intend to read closely.
 
-### Common patterns
+### Patterns
 
-Project overview in one round trip:
+Two canonical shapes to orient you; entity-specific examples live in each resource.
+
+Reach an entity and read fields via `node(id:)` + an inline fragment:
+
+```graphql
+query GetEntity($id: ID!) {
+  node(id: $id) {
+    ... on Dataset { name exampleCount }
+  }
+}
+```
+
+Batch independent project aggregates with aliases in one round trip:
 
 ```graphql
 query Overview($name: String!, $timeRange: TimeRange) {
   getProjectByName(name: $name) {
-    id
     traceCount(timeRange: $timeRange)
-    recordCount(timeRange: $timeRange)
-    tokenCountTotal(timeRange: $timeRange)
     p50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
     p99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)
     errorCount: recordCount(timeRange: $timeRange, filterCondition: "status_code == 'ERROR'")
-    spanAnnotationNames
-  }
-}
-```
-
-Recent root spans (one per trace), slowest first:
-
-```graphql
-query RecentTraces($id: ID!, $first: Int = 20) {
-  node(id: $id) {
-    ... on Project {
-      spans(first: $first, rootSpansOnly: true, sort: { col: latencyMs, dir: desc }) {
-        edges {
-          node { spanId traceId name latencyMs statusCode startTime cumulativeTokenCountTotal }
-        }
-        pageInfo { hasNextPage endCursor }
-      }
-    }
-  }
-}
-```
-
-Filtered spans (error LLM spans):
-
-```graphql
-query ErrorSpans($id: ID!) {
-  node(id: $id) {
-    ... on Project {
-      spans(first: 20, filterCondition: "span_kind == 'LLM' and status_code == 'ERROR'") {
-        edges { node { spanId traceId name statusCode } }
-      }
-    }
   }
 }
 ```
