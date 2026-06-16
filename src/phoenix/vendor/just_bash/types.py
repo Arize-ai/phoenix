@@ -185,6 +185,9 @@ class CommandContext:
     limits: ExecutionLimits | None = None
     """Execution limits configuration."""
 
+    timeout_seconds: float = 5.0
+    """Per-command wall-clock timeout budget, in seconds (used by sqlite3)."""
+
     exec: Optional[Callable[[str, dict[str, Any]], Awaitable[ExecResult]]] = None
     """Execute a subcommand (for xargs, bash -c, etc.)."""
 

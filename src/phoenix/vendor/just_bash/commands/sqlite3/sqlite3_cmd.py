@@ -21,15 +21,23 @@ Options:
 
 import json
 import sqlite3
+import time
 from dataclasses import dataclass
 from typing import Any
 
 from ...types import CommandContext, ExecResult
 
 
+# How often (in SQLite VM opcodes) the progress handler runs to check the
+# deadline. Small enough to interrupt tight loops promptly, large enough to add
+# negligible overhead to normal queries.
+PROGRESS_HANDLER_OPCODES = 1000
+
+
 @dataclass
 class Sqlite3Options:
     """Parsed sqlite3 options."""
+
     mode: str = "list"
     header: bool = False
     separator: str = "|"
@@ -292,9 +300,10 @@ def split_statements(sql: str) -> list[str]:
 def is_write_statement(sql: str) -> bool:
     """Check if SQL statement modifies database."""
     trimmed = sql.strip().upper()
-    return any(trimmed.startswith(kw) for kw in [
-        "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "REPLACE", "VACUUM"
-    ])
+    return any(
+        trimmed.startswith(kw)
+        for kw in ["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER", "REPLACE", "VACUUM"]
+    )
 
 
 class Sqlite3Command:
@@ -412,7 +421,10 @@ class Sqlite3Command:
                 opt_name = arg[1:] if arg.startswith("--") else arg
                 return ExecResult(
                     stdout="",
-                    stderr=f"sqlite3: Error: unknown option: {opt_name}\nUse -help for a list of options.\n",
+                    stderr=(
+                        f"sqlite3: Error: unknown option: {opt_name}\n"
+                        "Use -help for a list of options.\n"
+                    ),
                     exit_code=1,
                 )
             elif database is None:
@@ -455,6 +467,42 @@ class Sqlite3Command:
         # Execute SQL in memory
         try:
             conn = sqlite3.connect(":memory:")
+
+            # --- Security hardening for untrusted SQL ------------------------
+            # 1. Never load native extensions (arbitrary code execution). This
+            #    is the CPython default; assert it explicitly so a future change
+            #    can't silently re-enable it. Some builds omit the API entirely.
+            try:
+                conn.enable_load_extension(False)
+            except (AttributeError, sqlite3.NotSupportedError):
+                pass
+
+            # 2. Deny filesystem access. ATTACH opens an arbitrary host file as
+            #    a database, and VACUUM INTO is implemented internally via
+            #    ATTACH, so denying SQLITE_ATTACH closes both file read and
+            #    write paths even though only :memory: is the main database.
+            def _authorizer(action: int, *_: Any) -> int:
+                if action in (sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH):
+                    return sqlite3.SQLITE_DENY
+                return sqlite3.SQLITE_OK
+
+            conn.set_authorizer(_authorizer)
+
+            # 3. Bound runaway queries (e.g. recursive CTEs) on wall-clock time.
+            #    The progress handler runs every PROGRESS_HANDLER_OPCODES VM
+            #    opcodes; returning non-zero interrupts the running statement.
+            deadline = time.monotonic() + ctx.timeout_seconds
+            timed_out = False
+
+            def _progress() -> int:
+                nonlocal timed_out
+                if time.monotonic() > deadline:
+                    timed_out = True
+                    return 1
+                return 0
+
+            conn.set_progress_handler(_progress, PROGRESS_HANDLER_OPCODES)
+
             cursor = conn.cursor()
             stdout = ""
 
@@ -472,13 +520,26 @@ class Sqlite3Command:
 
                     # Fetch results for non-write statements
                     if not is_write_statement(stmt):
-                        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                        columns = (
+                            [desc[0] for desc in cursor.description] if cursor.description else []
+                        )
                         rows = cursor.fetchall()
 
                         if rows or options.header:
                             stdout += format_output(columns, rows, options)
 
                 except sqlite3.Error as e:
+                    # A timeout aborts the whole run regardless of -bail; the
+                    # interrupted statement surfaces as a generic sqlite3.Error.
+                    if timed_out:
+                        conn.close()
+                        return ExecResult(
+                            stdout=stdout,
+                            stderr=(
+                                f"sqlite3: query exceeded {ctx.timeout_seconds:g}s time limit\n"
+                            ),
+                            exit_code=1,
+                        )
                     if options.bail:
                         conn.close()
                         return ExecResult(

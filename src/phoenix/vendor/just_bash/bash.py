@@ -52,6 +52,7 @@ class Bash:
         limits: Optional[ExecutionLimits] = None,
         network: Optional[NetworkConfig] = None,
         fetch: Optional[SecureFetch] = None,
+        timeout_seconds: float = 5.0,
         commands: Optional[dict[str, Command]] = None,
         errexit: bool = False,
         pipefail: bool = False,
@@ -68,6 +69,7 @@ class Bash:
             limits: Execution limits for security.
             network: Network configuration (for curl command).
             fetch: Custom secure fetch function (for curl command).
+            timeout_seconds: Per-command wall-clock timeout budget in seconds (used by sqlite3).
             commands: Custom command registry. If not provided, uses built-in commands.
             errexit: Enable errexit (set -e) mode.
             pipefail: Enable pipefail mode.
@@ -88,6 +90,7 @@ class Bash:
         # Set up network config
         self._network = network
         self._fetch = fetch or (make_default_fetch(network) if network is not None else None)
+        self._timeout_seconds = timeout_seconds
 
         # Set up commands
         if commands is None:
@@ -140,6 +143,7 @@ class Bash:
             limits=self._limits,
             state=self._initial_state,
             fetch=self._fetch,
+            timeout_seconds=self._timeout_seconds,
         )
 
     @property
@@ -214,6 +218,7 @@ class Bash:
             commands=self._commands,
             limits=self._limits,
             fetch=self._fetch,
+            timeout_seconds=self._timeout_seconds,
             state=InterpreterState(
                 env=self._initial_state.env.copy() if isinstance(self._initial_state.env, VariableStore) else VariableStore(self._initial_state.env),
                 cwd=self._initial_state.cwd,

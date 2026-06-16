@@ -1,6 +1,9 @@
 """Tests for sqlite3 command."""
 
+import os
+
 import pytest
+
 from phoenix.vendor.just_bash import Bash
 
 
@@ -40,9 +43,7 @@ class TestSqlite3Basic:
     async def test_sql_from_stdin(self):
         """Execute SQL from stdin."""
         bash = Bash()
-        result = await bash.exec(
-            "echo 'SELECT 1 + 1;' | sqlite3 :memory:"
-        )
+        result = await bash.exec("echo 'SELECT 1 + 1;' | sqlite3 :memory:")
         assert result.exit_code == 0
         assert "2" in result.stdout
 
@@ -71,9 +72,7 @@ class TestSqlite3OutputModes:
     async def test_list_mode_default(self):
         """Default list mode with pipe separator."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 :memory: "SELECT 1 as a, 2 as b;"'
-        )
+        result = await bash.exec('sqlite3 :memory: "SELECT 1 as a, 2 as b;"')
         assert result.exit_code == 0
         assert "1|2" in result.stdout
 
@@ -81,9 +80,7 @@ class TestSqlite3OutputModes:
     async def test_csv_mode(self):
         """CSV output mode."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -csv :memory: "SELECT 1 as a, 2 as b;"'
-        )
+        result = await bash.exec('sqlite3 -csv :memory: "SELECT 1 as a, 2 as b;"')
         assert result.exit_code == 0
         assert "1,2" in result.stdout
 
@@ -104,9 +101,7 @@ class TestSqlite3OutputModes:
     async def test_line_mode(self):
         """Line output mode (column = value)."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -line :memory: "SELECT 1 as col1, 2 as col2;"'
-        )
+        result = await bash.exec('sqlite3 -line :memory: "SELECT 1 as col1, 2 as col2;"')
         assert result.exit_code == 0
         assert "col1 = 1" in result.stdout
         assert "col2 = 2" in result.stdout
@@ -115,9 +110,7 @@ class TestSqlite3OutputModes:
     async def test_column_mode(self):
         """Column output mode (fixed-width)."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -column -header :memory: "SELECT 1 as a, 2 as b;"'
-        )
+        result = await bash.exec('sqlite3 -column -header :memory: "SELECT 1 as a, 2 as b;"')
         assert result.exit_code == 0
         assert "a" in result.stdout
         assert "b" in result.stdout
@@ -128,9 +121,7 @@ class TestSqlite3OutputModes:
     async def test_tabs_mode(self):
         """Tab-separated output mode."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -tabs :memory: "SELECT 1 as a, 2 as b;"'
-        )
+        result = await bash.exec('sqlite3 -tabs :memory: "SELECT 1 as a, 2 as b;"')
         assert result.exit_code == 0
         assert "1\t2" in result.stdout
 
@@ -138,9 +129,7 @@ class TestSqlite3OutputModes:
     async def test_markdown_mode(self):
         """Markdown table output mode."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -markdown :memory: "SELECT 1 as a, 2 as b;"'
-        )
+        result = await bash.exec('sqlite3 -markdown :memory: "SELECT 1 as a, 2 as b;"')
         assert result.exit_code == 0
         assert "|" in result.stdout  # Markdown table uses pipes
         assert "-" in result.stdout  # Header separator
@@ -149,9 +138,7 @@ class TestSqlite3OutputModes:
     async def test_table_mode(self):
         """ASCII table output mode."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -table -header :memory: "SELECT 1 as a, 2 as b;"'
-        )
+        result = await bash.exec('sqlite3 -table -header :memory: "SELECT 1 as a, 2 as b;"')
         assert result.exit_code == 0
         assert "+" in result.stdout  # Table uses + for corners
         assert "|" in result.stdout
@@ -164,9 +151,7 @@ class TestSqlite3Headers:
     async def test_header_flag(self):
         """Show headers with -header flag."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -header :memory: "SELECT 1 as mycolumn;"'
-        )
+        result = await bash.exec('sqlite3 -header :memory: "SELECT 1 as mycolumn;"')
         assert result.exit_code == 0
         assert "mycolumn" in result.stdout
 
@@ -174,9 +159,7 @@ class TestSqlite3Headers:
     async def test_noheader_flag(self):
         """Hide headers with -noheader flag."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -noheader :memory: "SELECT 1 as mycolumn;"'
-        )
+        result = await bash.exec('sqlite3 -noheader :memory: "SELECT 1 as mycolumn;"')
         assert result.exit_code == 0
         assert "mycolumn" not in result.stdout
         assert "1" in result.stdout
@@ -189,9 +172,7 @@ class TestSqlite3Options:
     async def test_separator_flag(self):
         """Custom separator with -separator flag."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -separator ";" :memory: "SELECT 1, 2, 3;"'
-        )
+        result = await bash.exec('sqlite3 -separator ";" :memory: "SELECT 1, 2, 3;"')
         assert result.exit_code == 0
         assert "1;2;3" in result.stdout
 
@@ -199,9 +180,7 @@ class TestSqlite3Options:
     async def test_nullvalue_flag(self):
         """Custom NULL representation with -nullvalue flag."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -nullvalue "NULL" :memory: "SELECT NULL;"'
-        )
+        result = await bash.exec('sqlite3 -nullvalue "NULL" :memory: "SELECT NULL;"')
         assert result.exit_code == 0
         assert "NULL" in result.stdout
 
@@ -209,9 +188,7 @@ class TestSqlite3Options:
     async def test_echo_flag(self):
         """Echo SQL before execution with -echo flag."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -echo :memory: "SELECT 42;"'
-        )
+        result = await bash.exec('sqlite3 -echo :memory: "SELECT 42;"')
         assert result.exit_code == 0
         assert "SELECT 42" in result.stdout
         assert "42" in result.stdout
@@ -220,9 +197,7 @@ class TestSqlite3Options:
     async def test_bail_flag(self):
         """Stop on first error with -bail flag."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 -bail :memory: "SELECT * FROM nonexistent; SELECT 1;"'
-        )
+        result = await bash.exec('sqlite3 -bail :memory: "SELECT * FROM nonexistent; SELECT 1;"')
         # Should fail on first error
         assert result.exit_code == 1
         assert "Error" in result.stdout or "Error" in result.stderr
@@ -235,9 +210,7 @@ class TestSqlite3Errors:
     async def test_sql_error(self):
         """SQL syntax error."""
         bash = Bash()
-        result = await bash.exec(
-            'sqlite3 :memory: "SELECT * FROM nonexistent_table;"'
-        )
+        result = await bash.exec('sqlite3 :memory: "SELECT * FROM nonexistent_table;"')
         # Should report error
         assert "error" in result.stdout.lower() or "error" in result.stderr.lower()
 
@@ -311,3 +284,65 @@ class TestSqlite3Queries:
         assert "2" in result.stdout
         assert "3" in result.stdout
         # 1 should not be in the filtered output (only in setup)
+
+
+class TestSqlite3Security:
+    """Test sandbox hardening against filesystem escape and runaway queries."""
+
+    @pytest.mark.asyncio
+    async def test_attach_database_denied(self, tmp_path):
+        """ATTACH must not be able to open a host file as a database."""
+        target = tmp_path / "escaped.db"
+        bash = Bash()
+        result = await bash.exec(
+            f"sqlite3 :memory: \"ATTACH DATABASE '{target}' AS pwn; "
+            "CREATE TABLE pwn.t(x); "
+            "INSERT INTO pwn.t VALUES('data');\""
+        )
+        assert not os.path.exists(target), "ATTACH wrote a file to the host filesystem"
+        assert "not authorized" in result.stdout.lower()
+
+    @pytest.mark.asyncio
+    async def test_attach_database_denied_with_bail(self, tmp_path):
+        """ATTACH denial surfaces as an error under -bail too."""
+        target = tmp_path / "escaped.db"
+        bash = Bash()
+        result = await bash.exec(f"sqlite3 -bail :memory: \"ATTACH DATABASE '{target}' AS pwn;\"")
+        assert not os.path.exists(target)
+        assert result.exit_code == 1
+        assert "not authorized" in (result.stdout + result.stderr).lower()
+
+    @pytest.mark.asyncio
+    async def test_vacuum_into_denied(self, tmp_path):
+        """VACUUM INTO is an ATTACH-backed write primitive and must be denied.
+
+        Run it as the first statement so it reaches the authorizer rather than
+        being incidentally blocked by SQLite's implicit-transaction guard.
+        """
+        target = tmp_path / "via_vacuum.db"
+        bash = Bash()
+        result = await bash.exec(f"sqlite3 :memory: \"VACUUM INTO '{target}';\"")
+        assert not os.path.exists(target), "VACUUM INTO wrote a file to the host filesystem"
+        assert "auth" in result.stdout.lower(), result.stdout
+
+    @pytest.mark.asyncio
+    async def test_normal_writes_still_work(self):
+        """Hardening must not break ordinary CREATE/INSERT/SELECT."""
+        bash = Bash()
+        result = await bash.exec(
+            'sqlite3 :memory: "CREATE TABLE t(x); INSERT INTO t VALUES(1),(2); '
+            'SELECT SUM(x) FROM t;"'
+        )
+        assert result.exit_code == 0
+        assert "3" in result.stdout
+
+    @pytest.mark.asyncio
+    async def test_runaway_query_times_out(self):
+        """An unbounded recursive CTE is interrupted instead of hanging."""
+        bash = Bash(timeout_seconds=0.1)
+        result = await bash.exec(
+            'sqlite3 :memory: "WITH RECURSIVE r(x) AS '
+            '(SELECT 1 UNION ALL SELECT x+1 FROM r) SELECT count(*) FROM r;"'
+        )
+        assert result.exit_code == 1
+        assert "time limit" in result.stderr.lower()

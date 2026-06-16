@@ -130,6 +130,7 @@ class Interpreter:
         limits: ExecutionLimits,
         state: Optional[InterpreterState] = None,
         fetch: Optional[SecureFetch] = None,
+        timeout_seconds: float = 5.0,
     ):
         """Initialize the interpreter.
 
@@ -139,11 +140,13 @@ class Interpreter:
             limits: Execution limits
             state: Optional initial state (creates default if not provided)
             fetch: Optional secure fetch function for network-enabled commands
+            timeout_seconds: Per-command wall-clock timeout budget (used by sqlite3)
         """
         self._fs = fs
         self._commands = commands
         self._limits = limits
         self._fetch = fetch
+        self._timeout_seconds = timeout_seconds
         self._state = state or InterpreterState(
             env=VariableStore({
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
@@ -1186,6 +1189,7 @@ class Interpreter:
                     env=self._state.env,
                     stdin=stdin,
                     limits=self._limits,
+                    timeout_seconds=self._timeout_seconds,
                     exec=lambda script, opts: self._exec_fn(
                         script, opts.get("env"), opts["cwd"]
                     ),
