@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useNavigate, useParams } from "react-router";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -19,6 +19,7 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
@@ -99,6 +100,10 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   config: 4,
 };
 
+const TAB_PATH_BY_INDEX = Object.fromEntries(
+  Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
+) as Record<number, (typeof TABS)[number]>;
+
 export function ProjectPageContent({
   projectId,
   timeRange,
@@ -164,6 +169,7 @@ function ProjectPageContentBody({
       ProjectPageQueriesProjectConfigQuery
     );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  const location = useLocation();
   useEffect(() => {
     startTransition(() => {
       if (tabIndex === TAB_INDEX_MAP.spans) {
@@ -202,25 +208,16 @@ function ProjectPageContentBody({
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
-        if (index === 1) {
-          // navigate to the traces tab
-          navigate(`${rootPath}/traces`);
-        } else if (index === 2) {
-          // navigate to the sessions tab
-          navigate(`${rootPath}/sessions`);
-        } else if (index === 3) {
-          // navigate to the metrics tab
-          navigate(`${rootPath}/metrics`);
-        } else if (index === 4) {
-          // navigate to the config tab
-          navigate(`${rootPath}/config`);
-        } else {
-          // navigate to the spans tab
-          navigate(`${rootPath}/spans`);
-        }
+        const search = clearSelectionScopedParams(location.search);
+        const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
+        navigate({
+          pathname: `${rootPath}/${tab}`,
+          search,
+          hash: location.hash,
+        });
       });
     },
-    [navigate, rootPath]
+    [location.hash, location.search, navigate, rootPath]
   );
 
   return (

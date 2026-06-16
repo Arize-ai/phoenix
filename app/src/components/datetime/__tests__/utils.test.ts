@@ -3,12 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getLastNTimeRangeLabel,
   getMillisecondsUntilNextLastNTimeRangeRefresh,
+  getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
   getTimeRangeSearchSuggestions,
   isLastNTimeRangeKey,
   panTimeRangeLeft,
   panTimeRangeRight,
   parseTimeRangeSearchText,
+  setTimeRangeSearchParams,
   zoomTimeRangeIn,
   zoomTimeRangeOut,
 } from "../utils";
@@ -76,6 +78,100 @@ describe("datetime utils", () => {
     expect(getTimeRangeSearchSuggestions("")).toEqual([]);
     expect(getTimeRangeSearchSuggestions("0")).toEqual([]);
     expect(getTimeRangeSearchSuggestions("hour")).toEqual([]);
+  });
+
+  it("parses selected time ranges from URL search params", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-09T10:20:30.000Z"));
+
+    // A preset key is always live, resolved against "now" with no bounds.
+    const lastN = getTimeRangeFromSearchParams(
+      new URLSearchParams("timeRangeKey=15m")
+    );
+    expect(lastN?.timeRangeKey).toBe("15m");
+    expect(lastN?.start?.toISOString()).toBe("2026-06-09T10:05:00.000Z");
+    expect(lastN?.end).toBeNull();
+
+    // A preset key wins over any bounds in the URL, re-resolving live rather
+    // than honoring the (now-stale) bounds. This also keeps legacy URLs that
+    // carry both working as live presets.
+    const presetWithStaleBounds = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "timeRangeKey=15m&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+      )
+    );
+    expect(presetWithStaleBounds?.timeRangeKey).toBe("15m");
+    expect(presetWithStaleBounds?.start?.toISOString()).toBe(
+      "2026-06-09T10:05:00.000Z"
+    );
+    expect(presetWithStaleBounds?.end).toBeNull();
+
+    const custom = getTimeRangeFromSearchParams(
+      new URLSearchParams(
+        "timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+      )
+    );
+    expect(custom).toEqual({
+      timeRangeKey: "custom",
+      start: new Date("2026-06-09T09:00:00.000Z"),
+      end: new Date("2026-06-09T10:00:00.000Z"),
+    });
+
+    expect(
+      getTimeRangeFromSearchParams(new URLSearchParams("timeRange=bogus"))
+    ).toBeNull();
+    expect(
+      getTimeRangeFromSearchParams(
+        new URLSearchParams(
+          "timeRangeKey=bogus&timeRangeStart=2026-06-09T09%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A00.000Z"
+        )
+      )
+    ).toEqual({
+      timeRangeKey: "custom",
+      start: new Date("2026-06-09T09:00:00.000Z"),
+      end: new Date("2026-06-09T10:00:00.000Z"),
+    });
+    expect(
+      getTimeRangeFromSearchParams(
+        new URLSearchParams("timeRangeStart=not-a-date")
+      )
+    ).toBeNull();
+  });
+
+  it("serializes selected time ranges to URL search params", () => {
+    const searchParams = new URLSearchParams(
+      "timeRangeKey=7d&selectedSpanNodeId=span-1"
+    );
+    // A custom range is written as its bounds only, clearing any preset key.
+    const customParams = setTimeRangeSearchParams({
+      searchParams,
+      timeRange: {
+        timeRangeKey: "custom",
+        start: new Date("2026-06-09T09:00:00.000Z"),
+        end: null,
+      },
+    });
+    expect(customParams.get("timeRangeKey")).toBeNull();
+    expect(customParams.get("timeRangeStart")).toBe("2026-06-09T09:00:00.000Z");
+    expect(customParams.get("timeRangeEnd")).toBeNull();
+    expect(customParams.get("selectedSpanNodeId")).toBe("span-1");
+
+    // A preset is written as just the key, clearing any bounds, so the URL is
+    // unambiguously a live range.
+    const presetParams = setTimeRangeSearchParams({
+      searchParams: customParams,
+      timeRange: {
+        timeRangeKey: "1h",
+        ...getTimeRangeFromLastNTimeRangeKey(
+          "1h",
+          new Date("2026-06-09T10:20:30.000Z").getTime()
+        ),
+      },
+    });
+    expect(presetParams.get("timeRangeKey")).toBe("1h");
+    expect(presetParams.get("timeRangeStart")).toBeNull();
+    expect(presetParams.get("timeRangeEnd")).toBeNull();
+    expect(presetParams.get("selectedSpanNodeId")).toBe("span-1");
   });
 });
 

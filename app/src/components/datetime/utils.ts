@@ -8,6 +8,11 @@ import {
 } from "date-fns";
 import type { DateValue } from "react-aria-components";
 
+import {
+  TIME_RANGE_END_PARAM,
+  TIME_RANGE_KEY_PARAM,
+  TIME_RANGE_START_PARAM,
+} from "@phoenix/constants/searchParams";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { LAST_N_TIME_RANGES_MAP } from "./constants";
@@ -61,13 +66,13 @@ function getLastNTimeRangeDurationMs({
 }
 
 export function getTimeRangeFromLastNTimeRangeKey(
-  key: LastNTimeRangeKey
+  key: LastNTimeRangeKey,
+  now = Date.now()
 ): OpenTimeRange {
   const parsed = parseLastNTimeRangeKey(key);
   if (!parsed) {
     throw new Error(`Invalid last N time range key: ${key}`);
   }
-  const now = Date.now();
   const { quantity, unit } = parsed;
   let start: Date;
   switch (unit) {
@@ -115,6 +120,98 @@ export function isLastNTimeRangeKey(key: unknown): key is LastNTimeRangeKey {
  */
 export function isTimeRangeKey(key: unknown): key is TimeRangeKey {
   return isLastNTimeRangeKey(key) || key === "custom";
+}
+
+function getDateFromSearchParamValue(value: string | null) {
+  if (value == null || value.trim() === "") {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+/**
+ * Parses a selected time range from URL search params.
+ *
+ * The URL encodes exactly one representation of the range (see
+ * {@link setTimeRangeSearchParams}):
+ * - a preset key ({@link TIME_RANGE_KEY_PARAM}), which is always live and
+ *   re-resolves against `now`, owning no bounds; or
+ * - an explicit (custom) range defined purely by its
+ *   {@link TIME_RANGE_START_PARAM}/{@link TIME_RANGE_END_PARAM} bounds.
+ *
+ * A preset key therefore always wins — bounds are only consulted when no preset
+ * key is present, which also means a legacy URL carrying both is read as a live
+ * preset. Invalid or incomplete params return null so callers can fall back to
+ * the user's stored preference.
+ */
+export function getTimeRangeFromSearchParams(
+  searchParams: URLSearchParams,
+  now = Date.now()
+): OpenTimeRangeWithKey | null {
+  const urlTimeRangeKey = searchParams.get(TIME_RANGE_KEY_PARAM);
+  if (isLastNTimeRangeKey(urlTimeRangeKey)) {
+    return {
+      timeRangeKey: urlTimeRangeKey,
+      ...getTimeRangeFromLastNTimeRangeKey(urlTimeRangeKey, now),
+    };
+  }
+  const start = getDateFromSearchParamValue(
+    searchParams.get(TIME_RANGE_START_PARAM)
+  );
+  const end = getDateFromSearchParamValue(
+    searchParams.get(TIME_RANGE_END_PARAM)
+  );
+  // Non-parseable bounds, no bounds at all, or an inverted window are unusable.
+  if (start === undefined || end === undefined) {
+    return null;
+  }
+  if (start == null && end == null) {
+    return null;
+  }
+  if (start != null && end != null && start > end) {
+    return null;
+  }
+  return {
+    timeRangeKey: "custom",
+    start,
+    end,
+  };
+}
+
+/**
+ * Writes the selected time range to URL search params while preserving
+ * unrelated params such as selected span/session state.
+ *
+ * Exactly one representation is written and the other is cleared, so the URL is
+ * never ambiguous (see {@link getTimeRangeFromSearchParams}): a preset key is
+ * live and carries no bounds; a custom range is defined solely by its bounds.
+ */
+export function setTimeRangeSearchParams({
+  searchParams,
+  timeRange,
+}: {
+  searchParams: URLSearchParams;
+  timeRange: OpenTimeRangeWithKey;
+}): URLSearchParams {
+  const nextSearchParams = new URLSearchParams(searchParams);
+  const setOrDelete = (param: string, value: Date | null | undefined) => {
+    if (value != null) {
+      nextSearchParams.set(param, value.toISOString());
+    } else {
+      nextSearchParams.delete(param);
+    }
+  };
+  if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
+    nextSearchParams.set(TIME_RANGE_KEY_PARAM, timeRange.timeRangeKey);
+    nextSearchParams.delete(TIME_RANGE_START_PARAM);
+    nextSearchParams.delete(TIME_RANGE_END_PARAM);
+    return nextSearchParams;
+  }
+  nextSearchParams.delete(TIME_RANGE_KEY_PARAM);
+  setOrDelete(TIME_RANGE_START_PARAM, timeRange.start);
+  setOrDelete(TIME_RANGE_END_PARAM, timeRange.end);
+  return nextSearchParams;
 }
 
 const LAST_N_UNIT_LABELS: Record<

@@ -20,7 +20,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   ContextualHelp,
@@ -44,6 +44,7 @@ import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { useSessionPagination } from "@phoenix/pages/trace/SessionPaginationContext";
+import { getSessionDetailsPath } from "@phoenix/utils/urlUtils";
 
 import {
   CellWithControlsWrap,
@@ -81,6 +82,7 @@ const TableBody = <T extends { id: string }>({
   "use no memo";
   const navigate = useNavigate();
   const { sessionId } = useParams();
+  const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -89,7 +91,14 @@ const TableBody = <T extends { id: string }>({
           <tr
             key={row.id}
             data-selected={isSelected}
-            onClick={() => navigate(`${encodeURIComponent(row.original.id)}`)}
+            onClick={() =>
+              navigate(
+                getSessionDetailsPath({
+                  sessionId: row.original.id,
+                  searchParams,
+                })
+              )
+            }
           >
             {row.getVisibleCells().map((cell) => {
               return (

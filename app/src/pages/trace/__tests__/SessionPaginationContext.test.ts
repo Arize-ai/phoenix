@@ -7,7 +7,7 @@ describe("makeSessionUrls", () => {
     const location = {
       pathname: "/projects/project-1/sessions/current-session",
       search:
-        "?sessionView=traces&timeRange=7d&selectedTraceId=trace-1&selectedSpanNodeId=span-1",
+        "?sessionView=traces&timeRangeKey=7d&timeRangeStart=2026-06-02T10%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A30.000Z&selectedTraceId=trace-1&selectedSpanNodeId=span-1",
       hash: "#details",
     } as Parameters<typeof makeSessionUrls>[0];
 
@@ -20,7 +20,7 @@ describe("makeSessionUrls", () => {
       makeSessionUrls(location, sessionSequence, "current-session")
         .nextSessionPath
     ).toBe(
-      "/projects/project-1/sessions/next-session?sessionView=traces&timeRange=7d#details"
+      "/projects/project-1/sessions/next-session?sessionView=traces&timeRangeKey=7d&timeRangeStart=2026-06-02T10%3A00%3A00.000Z&timeRangeEnd=2026-06-09T10%3A00%3A30.000Z#details"
     );
   });
 

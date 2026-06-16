@@ -30,6 +30,7 @@ import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
@@ -194,7 +195,9 @@ function TraceHeader({
   sessionId?: string | null;
   projectId: string;
 }) {
+  const [searchParams] = useSearchParams();
   const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
+  const sessionSearch = clearSelectionScopedParams(searchParams);
   return (
     <View
       paddingTop="size-100"
@@ -288,7 +291,10 @@ function TraceHeader({
             <LinkButton
               size="S"
               variant="primary"
-              to={`/projects/${projectId}/sessions/${sessionId}`}
+              to={{
+                pathname: `/projects/${projectId}/sessions/${sessionId}`,
+                search: sessionSearch,
+              }}
             >
               View Session
             </LinkButton>

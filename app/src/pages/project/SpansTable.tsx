@@ -67,6 +67,7 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpansTable_spans$key,
@@ -141,7 +142,11 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             data-selected={isSelected}
             onClick={() =>
               navigate(
-                `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
+                getTraceDetailsPath({
+                  traceId: row.original.trace.traceId,
+                  spanNodeId: row.original.id,
+                  searchParams,
+                })
               )
             }
           >
@@ -202,6 +207,7 @@ function SpansTableAsideSkeleton() {
 }
 
 export function SpansTable(props: SpansTableProps) {
+  const [searchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -602,7 +608,13 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
+          <Link
+            to={getTraceDetailsPath({
+              traceId,
+              spanNodeId: span.id,
+              searchParams,
+            })}
+          >
             {getValue() as string}
           </Link>
         );
