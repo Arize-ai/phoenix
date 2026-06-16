@@ -72,6 +72,13 @@ def _merge_token_count_detail(
     token_type: str,
     token_count: float,
 ) -> None:
+    """Add ``token_count`` tokens of ``token_type`` into ``details`` in place.
+
+    If an entry for ``token_type`` already exists, its count is incremented;
+    otherwise a new entry is appended. Contributions at or below
+    ``_TOKEN_COUNT_DETAIL_EPSILON`` are ignored so the breakdown does not
+    accumulate entries that round to zero.
+    """
     if token_count <= _TOKEN_COUNT_DETAIL_EPSILON:
         return
     for detail in details:
@@ -91,6 +98,14 @@ def _ensure_token_count_details_total(
     total_token_count: Optional[float],
     default_token_type: str,
 ) -> None:
+    """Reconcile the per-type breakdown against the authoritative total.
+
+    The detail rows may not account for every token in ``total_token_count``
+    (the totals query is the source of truth, the breakdown only refines it).
+    Any unaccounted remainder is folded into ``default_token_type`` (e.g.
+    ``"input"`` for prompts, ``"output"`` for completions) so the entries sum
+    to the total. Does nothing when the total is unknown or already covered.
+    """
     if total_token_count is None:
         return
     detail_token_count = sum(detail.token_count or 0 for detail in details)
@@ -100,6 +115,11 @@ def _ensure_token_count_details_total(
 
 
 def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEntry"]) -> None:
+    """Sort ``details`` in place into display order.
+
+    Entries are ordered by the rank in ``_TOKEN_COUNT_DETAIL_SORT_ORDER``;
+    unrecognized token types sort last and are then ordered alphabetically.
+    """
     details.sort(
         key=lambda detail: (
             _TOKEN_COUNT_DETAIL_SORT_ORDER.get(
