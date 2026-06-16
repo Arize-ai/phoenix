@@ -879,7 +879,11 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/evals-as-tests",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/vitest",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/jest",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/eval-annotations"
                 ]
               },
               {
@@ -902,16 +906,6 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/tracing-helpers",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/context-attributes",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans"
-                ]
-              },
-              {
-                "group": "@arizeai/phoenix-test",
-                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-test",
-                "pages": [
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/overview",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/vitest",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/jest",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/annotations"
                 ]
               },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",

@@ -3,7 +3,7 @@ title: "Overview"
 description: "Typed TypeScript client for Phoenix platform APIs"
 ---
 
-`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, and traces.
+`@arizeai/phoenix-client` is the typed TypeScript client for Phoenix platform APIs. It ships a small root REST client plus focused module entrypoints for prompts, datasets, experiments, spans, sessions, traces, and dataset-backed eval tests.
 
 ## Install
 
@@ -43,6 +43,10 @@ That gives the agent version-matched docs plus the exact implementation and gene
 | `@arizeai/phoenix-client/spans` | Span search, notes, and span/document annotations |
 | `@arizeai/phoenix-client/sessions` | Session listing, retrieval, and session annotations |
 | `@arizeai/phoenix-client/traces` | Project trace retrieval and trace annotations |
+| `@arizeai/phoenix-client/vitest` | Vitest entrypoint for dataset-backed eval tests |
+| `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter for Phoenix eval summaries |
+| `@arizeai/phoenix-client/jest` | Jest entrypoint for dataset-backed eval tests |
+| `@arizeai/phoenix-client/jest/reporter` | Jest reporter for Phoenix eval summaries |
 
 ## Configuration
 
@@ -156,6 +160,7 @@ Prefer this layer when:
 
 - [Prompts](./prompts), [Datasets](./datasets), [Experiments](./experiments) — higher-level workflows
 - [Annotations](./annotations) — annotation concepts, then [Span](./span-annotations), [Document](./document-annotations), and [Session](./session-annotations) annotations for detailed usage
+- [Eval Tests](./evals-as-tests) — Vitest/Jest eval suites backed by Phoenix datasets and experiments
 - [Spans](./spans), [Sessions](./sessions), [Traces](./traces) — retrieval and maintenance
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
@@ -171,6 +176,9 @@ Prefer this layer when:
     <li><code>src/spans/</code></li>
     <li><code>src/sessions/</code></li>
     <li><code>src/traces/</code></li>
+    <li><code>src/vitest/</code></li>
+    <li><code>src/jest/</code></li>
+    <li><code>src/testing/core/</code></li>
     <li><code>src/types/</code></li>
   </ul>
 </section>

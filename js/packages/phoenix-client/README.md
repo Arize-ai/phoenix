@@ -298,6 +298,39 @@ const experiment = await runExperiment({
 
 > **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
 
+## Eval Tests
+
+The package also exposes Vitest and Jest submodules for writing
+dataset-backed evaluations as normal test suites.
+
+```bash
+npm install -D @arizeai/phoenix-client vitest dotenv
+```
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+px.describe("text-to-sql", () => {
+  px.test(
+    "select all",
+    {
+      input: { userQuery: "Get all users" },
+      expected: { sql: "SELECT * FROM users;" },
+    },
+    async ({ input, expected }) => {
+      const sql = await generateSql(input.userQuery);
+      px.logOutput({ sql });
+      expect(sql).toEqual(expected?.sql);
+    }
+  );
+});
+```
+
+Use `@arizeai/phoenix-client/vitest/reporter` or
+`@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
+experiment links at the end of a run.
+
 ## Traces
 
 The `@arizeai/phoenix-client` package provides a `traces` export for retrieving trace data from Phoenix projects.

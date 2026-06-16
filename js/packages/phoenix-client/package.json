@@ -7,10 +7,12 @@
     "datasets",
     "evaluation",
     "experiments",
+    "jest",
     "llm",
     "phoenix",
     "prompts",
-    "tracing"
+    "tracing",
+    "vitest"
   ],
   "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-client",
   "bugs": {
@@ -63,6 +65,26 @@
       "import": "./dist/esm/datasets/index.js",
       "require": "./dist/src/datasets/index.js"
     },
+    "./vitest": {
+      "types": "./dist/src/vitest/index.d.ts",
+      "import": "./dist/esm/vitest/index.js",
+      "require": "./dist/src/vitest/index.js"
+    },
+    "./vitest/reporter": {
+      "types": "./dist/src/vitest/reporter.d.ts",
+      "import": "./dist/esm/vitest/reporter.js",
+      "require": "./dist/src/vitest/reporter.js"
+    },
+    "./jest": {
+      "types": "./dist/src/jest/index.d.ts",
+      "import": "./dist/esm/jest/index.js",
+      "require": "./dist/src/jest/index.js"
+    },
+    "./jest/reporter": {
+      "types": "./dist/src/jest/reporter.d.ts",
+      "import": "./dist/esm/jest/reporter.js",
+      "require": "./dist/src/jest/reporter.js"
+    },
     "./utils/*": {
       "import": "./dist/esm/utils/*.js",
       "require": "./dist/src/utils/*.js"
@@ -103,6 +125,8 @@
     "@types/async": "^3.2.25",
     "@types/node": "^25.9.3",
     "ai": "^6.0.203",
+    "dotenv": "^16.4.7",
+    "jest": "^29.7.0",
     "openai": "^6.42.0",
     "openapi-typescript": "^7.13.0",
     "tsx": "^4.22.4",
@@ -111,7 +135,9 @@
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
     "ai": "^6.0.90",
-    "openai": "^6.10.0"
+    "jest": ">=27",
+    "openai": "^6.10.0",
+    "vitest": ">=1"
   },
   "peerDependenciesMeta": {
     "@anthropic-ai/sdk": {
@@ -120,7 +146,13 @@
     "ai": {
       "optional": true
     },
+    "jest": {
+      "optional": true
+    },
     "openai": {
+      "optional": true
+    },
+    "vitest": {
       "optional": true
     }
   },

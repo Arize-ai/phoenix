@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    // Bundler resolution matches how Vitest (Vite) and ts-jest actually resolve
+    // these files: no `.js` extensions on relative imports, and the package
+    // `exports` map (e.g. `@arizeai/phoenix-client/jest`) is honored.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts", "evals/**/*.ts", "jest/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

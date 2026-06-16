@@ -15,9 +15,6 @@ Phoenix's TypeScript SDK is modular by design, allowing you to install only what
   <Card title="@arizeai/phoenix-evals" icon="clipboard-check" href="https://www.npmjs.com/package/@arizeai/phoenix-evals">
     LLM evaluation and metrics toolkit
   </Card>
-  <Card title="@arizeai/phoenix-test" icon="vial" href="https://www.npmjs.com/package/@arizeai/phoenix-test">
-    Vitest / Jest runner for dataset-backed evals
-  </Card>
   <Card title="@arizeai/openinference-core" icon="puzzle-piece" href="/docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core">
     Instrumentation helpers
   </Card>
@@ -81,6 +78,7 @@ TypeScript client for the Phoenix REST API. Manage prompts, datasets, experiment
 - **Prompts** — Create, version, and retrieve prompt templates with SDK helpers for OpenAI, Anthropic, and Vercel AI
 - **Datasets** — Create and manage datasets for experiments and evaluation
 - **Experiments** — Run evaluations and track experiment results with automatic tracing
+- **Eval tests** — Run dataset-backed evaluations as Vitest or Jest tests via `@arizeai/phoenix-client/vitest` and `/jest`
 - **REST API** — Full access to all Phoenix endpoints with strongly-typed requests
 
 <CardGroup cols={3}>
