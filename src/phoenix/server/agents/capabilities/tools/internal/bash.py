@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import posixpath
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -15,6 +15,7 @@ from jinja2 import Template
 from pydantic_ai import Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
+from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
@@ -180,6 +181,13 @@ def _parse_args(args: list[str]) -> _ParsedArgs:
 
 
 def _resolve_query_text(parsed: _ParsedArgs, ctx: BuiltinContext) -> str:
+    """Return the GraphQL query text selected by ``parsed``.
+
+    A ``query_source`` that resolves to an existing file under ``ctx.cwd`` is read
+    from the filesystem; otherwise it is taken as a literal inline query. With no
+    ``query_source``, the stripped piped stdin is used, and an empty stdin is an
+    error.
+    """
     if parsed.query_source:
         resolved_path = _resolve_path(ctx.cwd, parsed.query_source)
         if ctx.fs.exists(resolved_path):
@@ -211,7 +219,7 @@ def _resolve_variables(parsed: _ParsedArgs, ctx: BuiltinContext) -> Optional[dic
 def _write_file(ctx: BuiltinContext, path: str, content: str) -> None:
     parent = path[: path.rfind("/")] or "/"
     if not ctx.fs.exists(parent):
-        ctx.fs.mkdir(parent, True)
+        ctx.fs.mkdir(parent, recursive=True)
     ctx.fs.write_file(path, content.encode("utf-8"))
 
 
@@ -220,7 +228,7 @@ def create_phoenix_gql_builtin(
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
     allow_mutations: bool,
-) -> Callable[[BuiltinContext], Any]:
+) -> Callable[[BuiltinContext], Awaitable[BuiltinResult]]:
     """Build the ``phoenix-gql`` custom shell command."""
     allowed_operation_types = (
         {OperationType.QUERY, OperationType.MUTATION} if allow_mutations else {OperationType.QUERY}
@@ -241,11 +249,7 @@ def create_phoenix_gql_builtin(
                 raise ValueError("Subscriptions are not supported by phoenix-gql")
 
             if GraphQLOperationType.MUTATION in operation_types and not allow_mutations:
-                raise ValueError(
-                    "Mutations are not currently permitted. "
-                    "The user can enable the 'Dangerously enable mutations' agent "
-                    "capability from the debug menu."
-                )
+                raise ValueError("Mutations are not permitted.")
 
             variables = _resolve_variables(parsed, ctx)
 
@@ -254,12 +258,6 @@ def create_phoenix_gql_builtin(
                 variable_values=variables,
                 context_value=build_graphql_context(),
                 allowed_operation_types=allowed_operation_types,
-            )
-
-            permissions_notice = (
-                "[permissions: queries + mutations]\n"
-                if allow_mutations
-                else "[permissions: queries only]\n"
             )
 
             errors = list(result.errors or [])
@@ -280,17 +278,14 @@ def create_phoenix_gql_builtin(
                 return BuiltinResult(
                     stdout=f"{output_path}\n",
                     stderr=(
-                        f"{permissions_notice}{graphql_error_text}"
-                        f"Response written to {output_path}\n"
-                        if errors
-                        else permissions_notice
+                        f"{graphql_error_text}Response written to {output_path}\n" if errors else ""
                     ),
                     exit_code=1 if has_only_errors else 0,
                 )
 
             return BuiltinResult(
                 stdout=serialized_output,
-                stderr=f"{permissions_notice}{graphql_error_text}",
+                stderr=graphql_error_text,
                 exit_code=1 if has_only_errors else 0,
             )
         except Exception as error:
@@ -299,12 +294,16 @@ def create_phoenix_gql_builtin(
     return phoenix_gql
 
 
-class BashToolset(FunctionToolset[None]):
-    """Toolset exposing a server-side ``bash`` tool backed by an in-process virtual shell.
+class BashToolResult(TypedDict):
+    """Result returned by the ``bash`` tool."""
 
-    The shell carries a custom ``phoenix-gql`` command whose behavior mirrors the
-    just-bash frontend command, executing GraphQL against the in-process ``schema``.
-    """
+    stdout: str
+    stderr: str
+    exit_code: int
+
+
+class BashToolset(FunctionToolset[None]):
+    """Toolset exposing a ``bash`` tool backed by a virtual shell."""
 
     def __init__(
         self,
@@ -326,17 +325,13 @@ class BashToolset(FunctionToolset[None]):
             },
         )
 
-        async def bash(command: str) -> dict[str, Any]:
+        async def bash(command: str) -> BashToolResult:
             result = await shell.execute(command)
-            payload = result.to_dict()
-            output: dict[str, Any] = {
+            return {
                 "stdout": result.stdout,
                 "stderr": result.stderr,
                 "exit_code": result.exit_code,
             }
-            if payload.get("stdout_truncated") or payload.get("stderr_truncated"):
-                output["truncated"] = True
-            return output
 
         super().__init__(
             tools=[
@@ -353,7 +348,7 @@ class BashToolset(FunctionToolset[None]):
 
 @dataclass
 class BashCapability(AbstractStaticCapability[None]):
-    """Capability that adds the server-side ``bash`` tool (with ``phoenix-gql``) to an agent."""
+    """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
     build_graphql_context: Callable[[], Context]

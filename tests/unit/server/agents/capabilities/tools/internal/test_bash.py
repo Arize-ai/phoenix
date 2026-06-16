@@ -78,7 +78,7 @@ async def test_query_returns_data_payload(run_bash: RunBash) -> None:
 
     assert result["exit_code"] == 0
     assert json.loads(result["stdout"]) == {"data": {"hello": "world"}}
-    assert "[permissions: queries only]" in result["stderr"]
+    assert result["stderr"] == ""
 
 
 async def test_data_only_drops_envelope(run_bash: RunBash) -> None:
@@ -135,7 +135,7 @@ async def test_mutation_rejected_when_disabled(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql 'mutation { deleteEverything }'")
 
     assert result["exit_code"] == 1
-    assert "Mutations are not currently permitted" in result["stderr"]
+    assert "Mutations are not permitted" in result["stderr"]
 
 
 async def test_mutation_allowed_when_enabled(run_bash_with_mutations: RunBash) -> None:
@@ -143,7 +143,7 @@ async def test_mutation_allowed_when_enabled(run_bash_with_mutations: RunBash) -
 
     assert result["exit_code"] == 0
     assert json.loads(result["stdout"]) == {"data": {"deleteEverything": "deleted"}}
-    assert "[permissions: queries + mutations]" in result["stderr"]
+    assert result["stderr"] == ""
 
 
 async def test_subscription_rejected_even_when_mutations_enabled(
@@ -213,17 +213,14 @@ async def test_large_response_returned_inline(run_bash: RunBash) -> None:
 
     assert result["exit_code"] == 0
     assert json.loads(result["stdout"]) == {"data": {"big": "x" * 200000}}
-    assert "truncated" not in result
 
 
-async def test_oversized_response_truncated_natively(run_bash: RunBash) -> None:
-    # bashkit caps command output at 1 MiB; the wrapper surfaces that as ``truncated``
-    # rather than spilling the payload to a workspace file.
+async def test_oversized_response_truncated(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql '{ big(size: 2000000) }'")
 
     assert result["exit_code"] == 0
-    assert result["truncated"] is True
-    assert len(result["stdout"]) <= 1024 * 1024
+    assert len(result["stdout"]) == 1024 * 1024
+    assert result["stdout"].endswith("x")
 
 
 async def test_network_disabled_by_default(run_bash: RunBash) -> None:
