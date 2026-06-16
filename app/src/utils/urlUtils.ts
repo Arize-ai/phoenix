@@ -59,13 +59,14 @@ export function getTraceDetailsPath({
   spanNodeId?: string | null;
   searchParams: URLSearchParams;
 }): string {
-  return `${traceId}${withSearchParams(searchParams, (params) => {
-    if (spanNodeId) {
-      params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
-    } else {
-      params.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  return `${traceId}${withSearchParams(
+    clearSelectionScopedParams(searchParams),
+    (params) => {
+      if (spanNodeId) {
+        params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+      }
     }
-  })}`;
+  )}`;
 }
 
 /**

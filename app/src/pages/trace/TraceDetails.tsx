@@ -28,9 +28,8 @@ import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeToolbar } from "@phoenix/components/trace/TraceTreeToolbar";
 import type { SpanStatusCodeType } from "@phoenix/components/trace/types";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
-import { withSearchParams } from "@phoenix/utils/urlUtils";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { RichTokenBreakdown } from "../../components/RichTokenCostBreakdown";
 import type {
@@ -197,9 +196,7 @@ function TraceHeader({
 }) {
   const [searchParams] = useSearchParams();
   const statusCode = (rootSpan?.statusCode ?? "UNSET") as SpanStatusCodeType;
-  const sessionSearch = withSearchParams(searchParams, (params) => {
-    params.delete(SELECTED_SPAN_NODE_ID_PARAM);
-  });
+  const sessionSearch = clearSelectionScopedParams(searchParams);
   return (
     <View
       paddingTop="size-100"
