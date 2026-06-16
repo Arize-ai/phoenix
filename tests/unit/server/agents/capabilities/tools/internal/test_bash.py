@@ -8,9 +8,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.capabilities.tools.internal.bash import (
-    BashToolset,
-)
+from phoenix.server.agents.capabilities.tools.internal.bash import BashToolset
 from phoenix.server.api.context import Context
 
 
@@ -55,7 +53,10 @@ def _build_run_bash(*, allow_mutations: bool, enable_web_access: bool = False) -
 
     async def run(command: str) -> dict[str, Any]:
         tools = await toolset.get_tools(ctx)
-        return await toolset.call_tool("bash", {"command": command}, ctx, tools["bash"])
+        result: dict[str, Any] = await toolset.call_tool(
+            "bash", {"command": command}, ctx, tools["bash"]
+        )
+        return result
 
     return run
 
@@ -213,15 +214,42 @@ async def test_large_response_returned_inline(run_bash: RunBash) -> None:
     assert result["exit_code"] == 0
     assert json.loads(result["stdout"]) == {"data": {"big": "x" * 200000}}
     assert result["stderr"] == ""
+    assert result["stdout_truncated"] is False
+    assert result["stderr_truncated"] is False
 
 
 async def test_oversized_response_truncated(run_bash: RunBash) -> None:
-    result = await run_bash("phoenix-gql '{ big(size: 2000000) }'")
+    # A payload large enough to exceed bashkit's internal per-stream output cap.
+    oversized_payload_chars = 2_000_000
+    result = await run_bash(f"phoenix-gql '{{ big(size: {oversized_payload_chars}) }}'")
 
     assert result["exit_code"] == 0
-    assert len(result["stdout"]) == 1024 * 1024
+    # bashkit caps the stream, so the agent sees less than the full payload.
+    assert len(result["stdout"]) < oversized_payload_chars
     assert result["stdout"].endswith("x")
+    assert result["stdout_truncated"] is True
     assert result["stderr"] == ""
+    assert result["stderr_truncated"] is False
+
+
+async def test_output_to_disk_is_not_truncated(run_bash: RunBash) -> None:
+    # A payload large enough to exceed bashkit's internal per-stream output cap.
+    oversized_payload_chars = 2_000_000
+    await run_bash("mkdir -p /home/user/workspace")
+    write = await run_bash(
+        f"phoenix-gql '{{ big(size: {oversized_payload_chars}) }}' "
+        "--output /home/user/workspace/big.json"
+    )
+
+    assert write["exit_code"] == 0
+    assert write["stdout"].strip() == "/home/user/workspace/big.json"
+    assert write["stdout_truncated"] is False
+    assert write["stderr_truncated"] is False
+
+    # The on-disk file keeps the full payload even though it exceeds the inline
+    # stream cap; only the streams returned to the agent are truncated.
+    size = await run_bash("wc -c < /home/user/workspace/big.json")
+    assert int(size["stdout"]) >= oversized_payload_chars
 
 
 async def test_network_disabled_by_default(run_bash: RunBash) -> None:

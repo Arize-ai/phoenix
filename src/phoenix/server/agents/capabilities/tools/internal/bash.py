@@ -323,6 +323,8 @@ class BashToolResult(TypedDict):
     stdout: str
     stderr: str
     exit_code: int
+    stdout_truncated: bool
+    stderr_truncated: bool
 
 
 class BashToolset(FunctionToolset[None]):
@@ -350,10 +352,13 @@ class BashToolset(FunctionToolset[None]):
 
         async def bash(command: str) -> BashToolResult:
             result = await shell.execute(command)
+            result_dict = result.to_dict()
             return {
                 "stdout": result.stdout,
                 "stderr": result.stderr,
                 "exit_code": result.exit_code,
+                "stdout_truncated": result_dict["stdout_truncated"],
+                "stderr_truncated": result_dict["stderr_truncated"],
             }
 
         super().__init__(
