@@ -77,7 +77,7 @@ function SpanPlaygroundBanners({
               leadingVisual={<Icon svg={<Icons.ArrowBack />} />}
               onPress={() => {
                 navigate(
-                  `/projects/${span.project.id}/traces/${span.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`
+                  `/projects/${span.project.id}/traces/${encodeURIComponent(span.trace.traceId)}?${SELECTED_SPAN_NODE_ID_PARAM}=${encodeURIComponent(span.id)}`
                 );
               }}
             >

@@ -49,6 +49,12 @@ export function clearSelectionScopedParams(
  * Build a relative path to a trace's details, preserving recreatable URL state
  * (such as the selected time range) while setting or clearing the selected
  * span.
+ *
+ * The trace ID is URL-encoded because it originates from ingested span data
+ * and is not guaranteed to be a path-safe value. Encoding collapses it into a
+ * single same-origin path segment, so a value beginning with `//` cannot be
+ * resolved by React Router or the browser as a protocol-relative, cross-origin
+ * `href`.
  */
 export function getTraceDetailsPath({
   traceId,
@@ -59,7 +65,7 @@ export function getTraceDetailsPath({
   spanNodeId?: string | null;
   searchParams: URLSearchParams;
 }): string {
-  return `${traceId}${withSearchParams(
+  return `${encodeURIComponent(traceId)}${withSearchParams(
     clearSelectionScopedParams(searchParams),
     (params) => {
       if (spanNodeId) {
