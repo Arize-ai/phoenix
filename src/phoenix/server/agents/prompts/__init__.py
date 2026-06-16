@@ -184,9 +184,7 @@ _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 _LOAD_SKILL_TOOL_TEMPLATE = get_template("skills/LOAD_SKILL_TOOL.xml.j2")
 _READ_SKILL_RESOURCE_TOOL_TEMPLATE = get_template("skills/READ_SKILL_RESOURCE_TOOL.xml.j2")
 _CALL_SUBAGENT_TOOL_INSTRUCTIONS = get_template("tools/CALL_SUBAGENT_TOOL_INSTRUCTIONS.xml.j2")
-_RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS = get_template(
-    "tools/RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS.xml.j2"
-)
+_SERVER_BASH_TOOL_INSTRUCTIONS = get_template("tools/SERVER_BASH_TOOL_INSTRUCTIONS.xml.j2")
 
 SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -291,7 +289,7 @@ class ServerAgentPrompts:
     """Every prompt template the server agent uses."""
 
     base: Template = _BASE_SUBAGENT_INSTRUCTIONS
-    run_graphql_query_tool: Template = _RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS
+    bash_tool: Template = _SERVER_BASH_TOOL_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE
