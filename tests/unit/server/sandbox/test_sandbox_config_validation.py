@@ -54,13 +54,13 @@ class TestConfigModelValidation:
             adapter.config_model.model_validate({})
 
 
-@pytest.mark.parametrize(
-    "model_cls,payload",
-    [
-        (InternetAccessConfig, {"mode": "allow", "extra": "bad"}),
-        (DependenciesConfig, {"packages": [], "unknown": "x"}),
-    ],
-)
+_NESTED_LEAF_EXTRA_FIELD_CASES: list[tuple[type[BaseModel], dict[str, Any]]] = [
+    (InternetAccessConfig, {"mode": "allow", "extra": "bad"}),
+    (DependenciesConfig, {"packages": [], "unknown": "x"}),
+]
+
+
+@pytest.mark.parametrize("model_cls,payload", _NESTED_LEAF_EXTRA_FIELD_CASES)
 def test_nested_leaf_models_forbid_extra_fields(
     model_cls: type[BaseModel], payload: dict[str, Any]
 ) -> None:
