@@ -5,7 +5,7 @@ import posixpath
 import re
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import Any, Callable, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
@@ -16,11 +16,6 @@ from strawberry.types.graphql import OperationType
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
-
-if TYPE_CHECKING:
-    # NetworkConfig is a TypedDict that only exists in bashkit's type stubs, not at
-    # runtime, so it is imported for annotations only.
-    from bashkit._bashkit import NetworkConfig
 
 # Scratch space for command output, mirroring the just-bash frontend bash runtime.
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -352,14 +347,9 @@ class BashToolset(FunctionToolset[None]):
         allow_mutations: bool,
         enable_web_access: bool = False,
     ) -> None:
-        # When web access is toggled on, allow network built-ins (curl, wget, http) to
-        # reach external URLs, keeping the SSRF guard against private IPs in place.
-        network: NetworkConfig | None = None
-        if enable_web_access:
-            network = {"allow_all": True, "block_private_ips": True}
         shell = Bash(
             python=False,
-            network=network,
+            network=({"allow_all": True, "block_private_ips": True} if enable_web_access else None),
             custom_builtins={
                 "phoenix-gql": create_phoenix_gql_builtin(
                     schema=schema,
