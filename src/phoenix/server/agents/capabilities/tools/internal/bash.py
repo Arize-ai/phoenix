@@ -5,16 +5,22 @@ import posixpath
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import strawberry
 from bashkit import Bash, BuiltinContext, BuiltinResult
+from jinja2 import Template
 from pydantic_ai import Tool
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from strawberry.types.graphql import OperationType
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
+
+if TYPE_CHECKING:
+    # NetworkConfig is a TypedDict that only exists in bashkit's type stubs, not at
+    # runtime, so it is imported for annotations only.
+    from bashkit._bashkit import NetworkConfig
 
 # Scratch space for command output, mirroring the just-bash frontend bash runtime.
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -24,14 +30,20 @@ WORKSPACE_ROOT = "/home/user/workspace"
 # frontend ``phoenix-gql`` command.
 DEFAULT_SPILL_THRESHOLD_BYTES = 128 * 1024
 
-BASH_TOOL_DESCRIPTION = """\
+_BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
+    """\
 Run a shell command inside a server-side virtual shell to run built-in utilities and \
 operate on a scratch filesystem.
 
 - Runs inside an in-process virtual shell, not a host machine or container.
 - Write scratch files only under /home/user/workspace.
+{% if enable_web_access -%}
+- Network access is enabled: the curl, wget, and http built-ins may reach external \
+URLs, though remote package installs should still not be assumed to work.
+{% else -%}
 - General-purpose network access is disabled, so curl/wget and remote package installs \
 should not be assumed to work.
+{% endif -%}
 - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or \
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
@@ -42,7 +54,10 @@ Args:
     command: The shell command to execute.
 
 Returns a dict with the command's `stdout`, `stderr`, and `exit_code`.
-"""
+""",
+    trim_blocks=True,
+    lstrip_blocks=True,
+)
 
 
 def _strip_graphql_comments(query: str) -> str:
@@ -335,9 +350,16 @@ class BashToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
+        enable_web_access: bool = False,
     ) -> None:
+        # When web access is toggled on, allow network built-ins (curl, wget, http) to
+        # reach external URLs, keeping the SSRF guard against private IPs in place.
+        network: NetworkConfig | None = None
+        if enable_web_access:
+            network = {"allow_all": True, "block_private_ips": True}
         shell = Bash(
             python=False,
+            network=network,
             custom_builtins={
                 "phoenix-gql": create_phoenix_gql_builtin(
                     schema=schema,
@@ -360,7 +382,9 @@ class BashToolset(FunctionToolset[None]):
                 Tool(
                     bash,
                     takes_ctx=False,
-                    description=BASH_TOOL_DESCRIPTION,
+                    description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(
+                        enable_web_access=enable_web_access
+                    ),
                 )
             ]
         )
@@ -374,12 +398,14 @@ class BashCapability(AbstractStaticCapability[None]):
     build_graphql_context: Callable[[], Context]
     instructions: str
     allow_mutations: bool = False
+    enable_web_access: bool = False
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
+            enable_web_access=self.enable_web_access,
         )
 
     def get_static_instructions(self) -> str:

@@ -8,7 +8,10 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.capabilities.tools.internal.bash import BashToolset
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    _BASH_TOOL_DESCRIPTION_TEMPLATE,
+    BashToolset,
+)
 from phoenix.server.api.context import Context
 
 
@@ -42,11 +45,12 @@ class RunBash(Protocol):
     def __call__(self, command: str) -> Awaitable[dict[str, Any]]: ...
 
 
-def _build_run_bash(*, allow_mutations: bool) -> RunBash:
+def _build_run_bash(*, allow_mutations: bool, enable_web_access: bool = False) -> RunBash:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
         allow_mutations=allow_mutations,
+        enable_web_access=enable_web_access,
     )
     ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
@@ -204,3 +208,29 @@ async def test_stdout_flag_disables_spill(run_bash: RunBash) -> None:
 
     assert result["exit_code"] == 0
     assert json.loads(result["stdout"]) == {"data": {"big": "x" * 200000}}
+
+
+async def test_network_disabled_by_default(run_bash: RunBash) -> None:
+    result = await run_bash("curl -s http://example.com/")
+
+    assert result["exit_code"] != 0
+    assert "network access not configured" in result["stderr"]
+
+
+async def test_network_enabled_when_web_access_on() -> None:
+    run_bash = _build_run_bash(allow_mutations=False, enable_web_access=True)
+
+    # With web access on, the network builtin is wired up — it no longer reports the
+    # "network access not configured" gate (any failure is from the request itself).
+    result = await run_bash("curl -s --max-time 1 http://127.0.0.1:1/")
+
+    assert "network access not configured" not in result["stderr"]
+
+
+def test_tool_description_reflects_network_access() -> None:
+    disabled = _BASH_TOOL_DESCRIPTION_TEMPLATE.render(enable_web_access=False)
+    enabled = _BASH_TOOL_DESCRIPTION_TEMPLATE.render(enable_web_access=True)
+
+    assert "network access is disabled" in disabled
+    assert "Network access is enabled" in enabled
+    assert "curl, wget, and http" in enabled
