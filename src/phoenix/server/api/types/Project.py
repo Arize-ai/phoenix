@@ -102,7 +102,9 @@ def _ensure_token_count_details_total(
 def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEntry"]) -> None:
     details.sort(
         key=lambda detail: (
-            _TOKEN_COUNT_DETAIL_SORT_ORDER.get(detail.token_type, 100),
+            _TOKEN_COUNT_DETAIL_SORT_ORDER.get(
+                detail.token_type, len(_TOKEN_COUNT_DETAIL_SORT_ORDER)
+            ),
             detail.token_type,
         )
     )
