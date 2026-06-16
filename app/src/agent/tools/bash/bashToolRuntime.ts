@@ -8,6 +8,7 @@ import {
 import {
   applyBashToolFilesystemPolicy,
   BASH_TOOL_READONLY_ROOT,
+  BASH_TOOL_TMP_ROOT,
   BASH_TOOL_WORKSPACE_ROOT,
   captureBashToolFilesystemMutationMethods,
   type BashToolFilesystemMutationMethods,
@@ -223,6 +224,7 @@ export async function createBashToolRuntime({
   const originalMutationMethods = captureBashToolFilesystemMutationMethods(
     bash.fs as InMemoryFs
   );
+  await originalMutationMethods.mkdir(BASH_TOOL_TMP_ROOT, { recursive: true });
   applyBashToolFilesystemPolicy(bash.fs);
 
   const runtime: BashToolRuntime = {
