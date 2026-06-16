@@ -256,7 +256,7 @@ function ExampleDetailsDialogContent({
           {sourceSpanInfo ? (
             <LinkButton
               size="S"
-              to={`/projects/${sourceSpanInfo.projectId}/traces/${sourceSpanInfo.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${sourceSpanInfo.id}`}
+              to={`/projects/${sourceSpanInfo.projectId}/traces/${encodeURIComponent(sourceSpanInfo.traceId)}?${SELECTED_SPAN_NODE_ID_PARAM}=${encodeURIComponent(sourceSpanInfo.id)}`}
             >
               View Source Span
             </LinkButton>

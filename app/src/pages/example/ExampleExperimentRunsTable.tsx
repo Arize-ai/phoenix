@@ -186,7 +186,7 @@ export function ExampleExperimentRunsTable({
                     onClick={() => {
                       if (annotation.trace) {
                         navigate(
-                          `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
+                          `/projects/${annotation.trace.projectId}/traces/${encodeURIComponent(annotation.trace.traceId)}`
                         );
                       }
                     }}
@@ -209,7 +209,7 @@ export function ExampleExperimentRunsTable({
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               onPress={() => {
                 navigate(
-                  `/projects/${trace.projectId}/traces/${trace.traceId}`
+                  `/projects/${trace.projectId}/traces/${encodeURIComponent(trace.traceId)}`
                 );
               }}
               aria-label="view trace"
