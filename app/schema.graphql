@@ -4365,6 +4365,11 @@ type TraceTokenCostTimeSeriesDataPoint {
   totalCost: Float
 }
 
+type TraceTokenCountDetailsTimeSeriesEntry {
+  tokenType: String!
+  tokenCount: Float
+}
+
 type TraceTokenCountTimeSeries {
   data: [TraceTokenCountTimeSeriesDataPoint!]!
 }
@@ -4374,6 +4379,8 @@ type TraceTokenCountTimeSeriesDataPoint {
   promptTokenCount: Float
   completionTokenCount: Float
   totalTokenCount: Float
+  promptTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
+  completionTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
 }
 
 type UnparsableConfig {

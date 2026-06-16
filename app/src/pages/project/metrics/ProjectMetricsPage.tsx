@@ -25,7 +25,11 @@ import { TraceAnnotationScoreTimeSeries } from "./TraceAnnotationScoreTimeSeries
 import { TraceCountTimeSeries } from "./TraceCountTimeSeries";
 import { TraceLatencyPercentilesTimeSeries } from "./TraceLatencyPercentilesTimeSeries";
 import { TraceTokenCostTimeSeries } from "./TraceTokenCostTimeSeries";
-import { TraceTokenCountTimeSeries } from "./TraceTokenCountTimeSeries";
+import {
+  TraceCompletionTokenDetailsTimeSeries,
+  TracePromptTokenDetailsTimeSeries,
+  TraceTokenCountTimeSeries,
+} from "./TraceTokenCountTimeSeries";
 
 interface MetricPanelHeaderProps {
   title: string;
@@ -266,6 +270,28 @@ const MetricPanels = memo(function MetricPanels({
         </MetricPanel>
         <MetricPanel title="Top models by tokens">
           <TopModelsByToken projectId={projectId} timeRange={timeRange} />
+        </MetricPanel>
+      </Flex>
+      <Flex direction="row" gap="size-200">
+        <MetricPanel
+          title="Prompt token details"
+          subtitle="Prompt tokens by input, cache, and audio parts"
+        >
+          <TracePromptTokenDetailsTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
+        </MetricPanel>
+        <MetricPanel
+          title="Completion token details"
+          subtitle="Completion tokens by output, reasoning, and audio parts"
+        >
+          <TraceCompletionTokenDetailsTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-200">

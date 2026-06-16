@@ -304,7 +304,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Metrics",
                     description:
-                      "View time-series metrics and observability charts for a project.",
+                      "View project time-series metrics, token usage breakdowns, cache read/write token charts, and observability panels.",
                   },
                 }}
               />
