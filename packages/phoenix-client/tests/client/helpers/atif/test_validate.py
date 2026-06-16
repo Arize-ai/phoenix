@@ -190,6 +190,18 @@ class TestAgentValidation:
         with pytest.raises(ValueError, match="model_name must be a string"):
             _validate_atif_trajectory(simple_trajectory)
 
+    def test_extra_must_be_dict_if_present(self, simple_trajectory: Dict[str, Any]) -> None:
+        simple_trajectory["agent"]["extra"] = "oops"
+        with pytest.raises(ValueError, match="agent.extra must be a dict"):
+            _validate_atif_trajectory(simple_trajectory)
+
+
+class TestFinalMetricsValidation:
+    def test_final_metrics_must_be_dict_if_present(self, simple_trajectory: Dict[str, Any]) -> None:
+        simple_trajectory["final_metrics"] = "oops"
+        with pytest.raises(ValueError, match="final_metrics must be a dict"):
+            _validate_atif_trajectory(simple_trajectory)
+
 
 class TestV17Validation:
     def test_session_id_optional(self, v17_embedded_subagents: Dict[str, Any]) -> None:
@@ -392,6 +404,21 @@ class TestStepValidation:
         for step in simple_trajectory["steps"]:
             step.pop("timestamp", None)
         _validate_atif_trajectory(simple_trajectory)  # should not raise
+
+    def test_timestamp_must_be_iso_8601_if_present(self, simple_trajectory: Dict[str, Any]) -> None:
+        simple_trajectory["steps"][0]["timestamp"] = "not-a-date"
+        with pytest.raises(ValueError, match="timestamp must be ISO 8601"):
+            _validate_atif_trajectory(simple_trajectory)
+
+    def test_metrics_must_be_dict_if_present(self, simple_trajectory: Dict[str, Any]) -> None:
+        simple_trajectory["steps"][1]["metrics"] = "oops"
+        with pytest.raises(ValueError, match="metrics must be a dict"):
+            _validate_atif_trajectory(simple_trajectory)
+
+    def test_token_metrics_must_be_numeric(self, simple_trajectory: Dict[str, Any]) -> None:
+        simple_trajectory["steps"][1]["metrics"] = {"prompt_tokens": "abc"}
+        with pytest.raises(ValueError, match="metrics.prompt_tokens must be numeric"):
+            _validate_atif_trajectory(simple_trajectory)
 
     def test_observation_allowed_on_system_step(self, simple_trajectory: Dict[str, Any]) -> None:
         """observation is allowed on any source since ATIF v1.2."""
