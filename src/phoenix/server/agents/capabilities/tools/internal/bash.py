@@ -51,7 +51,30 @@ Returns a dict with the command's `stdout`, `stderr`, and `exit_code`.
 
 
 def _operation_types(query: str) -> set[GraphQLOperationType]:
-    """Return the set of GraphQL operation types declared in ``query``."""
+    """Return the set of GraphQL operation types declared in ``query``.
+
+    Comments abutting the keyword and shorthand syntax defeat a naive regex, but the
+    AST-based classifier handles them. Invalid syntax yields an empty set and is left
+    for ``schema.execute`` to report.
+
+    >>> _operation_types("mutation# do it later\\n{ deleteEverything }")
+    {<OperationType.MUTATION: 'mutation'>}
+    >>> _operation_types("# subscription example\\nquery { hello }")
+    {<OperationType.QUERY: 'query'>}
+    >>> _operation_types("subscription { hello }")
+    {<OperationType.SUBSCRIPTION: 'subscription'>}
+    >>> _operation_types("{ hello }")
+    {<OperationType.QUERY: 'query'>}
+    >>> _operation_types("this is not graphql !!")
+    set()
+
+    A document declaring several operations reports every type it contains (sorted here
+    for a stable repr):
+
+    >>> doc = "query A { hello }\\nmutation B { deleteEverything }"
+    >>> sorted(op.value for op in _operation_types(doc))
+    ['mutation', 'query']
+    """
     try:
         document = parse_graphql(query)
     except GraphQLSyntaxError:

@@ -4,15 +4,12 @@ from unittest.mock import Mock
 
 import pytest
 import strawberry
-from graphql import OperationType
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import RunContext
 from pydantic_ai.usage import RunUsage
 
 from phoenix.server.agents.capabilities.tools.internal.bash import (
-    _BASH_TOOL_DESCRIPTION_TEMPLATE,
     BashToolset,
-    _operation_types,
 )
 from phoenix.server.api.context import Context
 
@@ -155,19 +152,6 @@ async def test_subscription_rejected_even_when_mutations_enabled(
     assert "Subscriptions are not supported" in result["stderr"]
 
 
-def test_operation_types_classifies_via_ast() -> None:
-    # Comments abutting the keyword and shorthand syntax defeat a naive regex, but the
-    # AST-based classifier handles them. Invalid syntax yields an empty set and is left
-    # for ``schema.execute`` to report.
-    assert _operation_types("mutation# do it later\n{ deleteEverything }") == {
-        OperationType.MUTATION
-    }
-    assert _operation_types("# subscription example\nquery { hello }") == {OperationType.QUERY}
-    assert _operation_types("subscription { hello }") == {OperationType.SUBSCRIPTION}
-    assert _operation_types("{ hello }") == {OperationType.QUERY}
-    assert _operation_types("this is not graphql !!") == set()
-
-
 async def test_graphql_errors_are_reported(run_bash: RunBash) -> None:
     result = await run_bash("phoenix-gql '{ boom }'")
 
@@ -240,9 +224,19 @@ async def test_network_enabled_when_web_access_on() -> None:
     assert "network access not configured" not in result["stderr"]
 
 
+def _bash_description(*, enable_web_access: bool) -> str:
+    toolset = BashToolset(
+        schema=strawberry.Schema(query=Query, mutation=Mutation),
+        build_graphql_context=lambda: Mock(spec=Context),
+        allow_mutations=False,
+        enable_web_access=enable_web_access,
+    )
+    return toolset.tools["bash"].description or ""
+
+
 def test_tool_description_reflects_network_access() -> None:
-    disabled = _BASH_TOOL_DESCRIPTION_TEMPLATE.render(enable_web_access=False)
-    enabled = _BASH_TOOL_DESCRIPTION_TEMPLATE.render(enable_web_access=True)
+    disabled = _bash_description(enable_web_access=False)
+    enabled = _bash_description(enable_web_access=True)
 
     assert "network access is disabled" in disabled
     assert "Network access is enabled" in enabled
