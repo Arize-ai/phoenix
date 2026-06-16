@@ -29,7 +29,7 @@ px.describe(
       },
       async ({ input, expected }) => {
         const { sql } = generateSql(input.userQuery);
-        px.logOutput({ sql });
+        px.recordOutput({ sql });
         expect(sql).toEqual(expected?.sql);
       }
     );

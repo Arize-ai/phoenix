@@ -3,15 +3,15 @@
  *
  * `PHOENIX_TEST_TRACKING=false` is set globally so no network calls are made
  * to a Phoenix server. We assert that the public API records the run's
- * output, annotations, and `wrapEvaluator` results into the suite registry.
+ * output, annotations, and `traceEvaluator` results into the suite registry.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { getAllSuites } from "../../src/testing/core/runner";
+import { getAllSuites } from "../../src/testing/runner";
 import {
   logAnnotation,
-  logOutput,
-  wrapEvaluator,
+  recordOutput,
+  traceEvaluator,
   describe as pxDescribe,
   test as pxTest,
 } from "../../src/vitest";
@@ -37,9 +37,9 @@ pxDescribe("phoenix client test selftest", () => {
     },
     async ({ input, expected }) => {
       const greeting = `hello ${input.name}`;
-      logOutput({ greeting });
+      recordOutput({ greeting });
       logAnnotation({ name: "manual", score: 0.42 });
-      const evalFn = wrapEvaluator(
+      const evalFn = traceEvaluator(
         async ({ output, expected }: { output: string; expected: string }) => {
           return { name: "exact_match", score: output === expected };
         }
@@ -75,13 +75,13 @@ pxDescribe(
 
 pxDescribe("phoenix client test dry run", () => {
   pxTest("tracked case", { input: { kind: "tracked" } }, async () => {
-    logOutput({ ok: true });
+    recordOutput({ ok: true });
   });
   pxTest(
     "local-only case",
     { input: { kind: "local" }, dryRun: true },
     async () => {
-      logOutput({ ok: true });
+      recordOutput({ ok: true });
     }
   );
 });

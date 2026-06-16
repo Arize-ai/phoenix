@@ -21,7 +21,7 @@ px.describe("text-to-sql (jest): basics", () => {
     },
     async ({ input, expected }) => {
       const { sql } = generateSql(input.userQuery as string);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
       expect(sql).toEqual(expected?.sql);
     }
   );
@@ -31,7 +31,7 @@ px.describe("text-to-sql (jest): basics", () => {
     { input: { userQuery: "tell me a joke" }, expected: { sql: OFFTOPIC_SQL } },
   ])("refuses offtopic", async ({ input, expected }) => {
     const { sql } = generateSql(input.userQuery as string);
-    px.logOutput({ sql });
+    px.recordOutput({ sql });
     expect(sql).toEqual(expected?.sql);
   });
 });

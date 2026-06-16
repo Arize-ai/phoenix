@@ -46,7 +46,7 @@ px.describe("demo", () => {
     { input: { x: 1 }, expected: { y: 2 } },
     async ({ input, expected }) => {
       const result = myApp(input.x);
-      px.logOutput({ y: result });
+      px.recordOutput({ y: result });
 
       px.logAnnotation({
         name: "harmfulness",
@@ -59,17 +59,17 @@ px.describe("demo", () => {
 });
 ```
 
-## `wrapEvaluator(fn, options?)`
+## `traceEvaluator(fn, options?)`
 
-Wraps an evaluator function so its execution shows up as a separate
+Traces an evaluator function so its execution shows up as a separate
 OpenInference `EVALUATOR` span in Phoenix. If the return value is
-`{ name, score, ... }`-shaped it is automatically logged as an
+`{ name, score, ... }`-shaped it is automatically recorded as an
 annotation on the current run; otherwise it's just traced.
 
 ```ts
 import * as px from "@arizeai/phoenix-client/vitest";
 
-const correctness = px.wrapEvaluator(
+const correctness = px.traceEvaluator(
   async ({ output, expected }: {
     output: { sql: string };
     expected: { sql: string };
@@ -93,7 +93,7 @@ px.describe("generate sql", () => {
     },
     async ({ input, expected }) => {
       const sql = await myApp(input.userQuery);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
       // Records a `correctness` annotation as a side effect:
       await correctness({
         output: { sql },
@@ -104,18 +104,18 @@ px.describe("generate sql", () => {
 });
 ```
 
-The annotation `name` defaults to the wrapped function's name (or
+The annotation `name` defaults to the traced function's name (or
 `"evaluator"` if the function is anonymous). Override it explicitly
-when you have several wrappers around the same callable:
+when you trace the same callable several ways:
 
 ```ts
-const harshJudge = px.wrapEvaluator(judge, { name: "correctness-strict" });
-const lenientJudge = px.wrapEvaluator(judge, { name: "correctness-lenient" });
+const harshJudge = px.traceEvaluator(judge, { name: "correctness-strict" });
+const lenientJudge = px.traceEvaluator(judge, { name: "correctness-lenient" });
 ```
 
 ## Using `@arizeai/phoenix-evals`
 
-`wrapEvaluator()` accepts any function whose return value is
+`traceEvaluator()` accepts any function whose return value is
 annotation-shaped, so the built-in classifiers from
 `@arizeai/phoenix-evals` can be wired in directly:
 
@@ -127,7 +127,7 @@ const isHallucination = createClassifier({
   /* ... */
 });
 
-const hallucination = px.wrapEvaluator(
+const hallucination = px.traceEvaluator(
   async ({ output }: { output: { answer: string } }) => {
     const result = await isHallucination({ answer: output.answer });
     return {
@@ -150,8 +150,8 @@ included in the reporter summary and on the run in Phoenix.
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
   <ul>
-    <li><code>src/testing/core/helpers.ts</code></li>
-    <li><code>src/testing/core/phoenix.ts</code></li>
-    <li><code>src/testing/core/types.ts</code></li>
+    <li><code>src/testing/helpers.ts</code></li>
+    <li><code>src/testing/phoenix-test-tracking.ts</code></li>
+    <li><code>src/testing/types.ts</code></li>
   </ul>
 </section>

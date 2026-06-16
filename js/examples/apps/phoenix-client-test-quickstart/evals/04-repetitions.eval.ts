@@ -31,7 +31,7 @@ px.describe(
       },
       async ({ input, expected }) => {
         const { sql } = generateSql(input.userQuery);
-        px.logOutput({ sql });
+        px.recordOutput({ sql });
         expect(sql).toEqual(expected?.sql);
       }
     );
@@ -42,7 +42,7 @@ px.describe(
       { input: { userQuery: "how many customers are there?" } },
       async ({ input }) => {
         const { sql } = generateSql(input.userQuery);
-        px.logOutput({ sql });
+        px.recordOutput({ sql });
         expect(sql).toContain("COUNT(*)");
       }
     );

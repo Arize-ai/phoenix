@@ -98,7 +98,7 @@ px.test(
   },
   async ({ input, expected, metadata }) => {
     const sql = await myApp(input.userQuery);
-    px.logOutput({ sql });
+    px.recordOutput({ sql });
     expect(sql).toEqual(expected?.sql);
   },
 );
@@ -126,7 +126,7 @@ const DATASET = [
 px.describe("offtopic inputs", () => {
   px.test.each(DATASET)("offtopic input", async ({ input, expected }) => {
     const sql = await myApp(input.userQuery);
-    px.logOutput({ sql });
+    px.recordOutput({ sql });
   });
 });
 ```
@@ -136,9 +136,9 @@ The name template supports `%i`, `%s`, and `%j` for parity with Vitest's
 
 ### Logging
 
-- `px.logOutput(value)` records the actual `output` for the run.
+- `px.recordOutput(value)` records the actual `output` for the run.
 - `px.logAnnotation({ name, score, ... })` records an annotation.
-- `px.wrapEvaluator(fn)` traces the wrapped call as an OpenInference
+- `px.traceEvaluator(fn)` traces the evaluator call as an OpenInference
   `EVALUATOR` span and auto-files `{ name, score }`-shaped return
   values as annotations.
 
@@ -156,6 +156,6 @@ The default Vitest reporter still runs alongside it.
   <ul>
     <li><code>src/vitest/index.ts</code></li>
     <li><code>src/vitest/reporter.ts</code></li>
-    <li><code>src/testing/core/runner.ts</code></li>
+    <li><code>src/testing/runner.ts</code></li>
   </ul>
 </section>

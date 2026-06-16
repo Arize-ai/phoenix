@@ -1,5 +1,6 @@
 import {
   attachGlobalTracerProvider,
+  context,
   createNoOpProvider,
   type GlobalTracerProviderRegistration,
   MimeType,
@@ -8,11 +9,13 @@ import {
   register,
   SemanticConventions,
   SpanStatusCode,
+  trace,
   type Tracer,
 } from "@arizeai/phoenix-otel";
+import type { Span } from "@opentelemetry/api";
 
-import { createDataset } from "../../datasets";
-import { createClient, type PhoenixClient } from "../../index";
+import { createDataset } from "../datasets";
+import { createClient, type PhoenixClient } from "../index";
 import { currentRun, type RunState, type SuiteState } from "./state";
 import type { Annotation, KVMap } from "./types";
 
@@ -116,6 +119,14 @@ function stableStringify(value: unknown): string {
 function outputMimeType(value: unknown): MimeType {
   return typeof value === "string" ? MimeType.TEXT : MimeType.JSON;
 }
+
+interface TaskSpanLifecycle {
+  span: Span;
+  traceId: string;
+  ended: boolean;
+}
+
+const taskSpansByRun = new WeakMap<RunState, TaskSpanLifecycle>();
 
 /**
  * Warn once when `PHOENIX_HOST` is plain `http:` while an `Authorization`
@@ -380,35 +391,112 @@ export async function runTaskWithTracing<T>(
   suite: SuiteState,
   testName: string,
   fn: () => Promise<T>
-): Promise<{ traceId: string; result: T } | { traceId: string; error: Error }> {
+): Promise<
+  | { traceId: string; result: T }
+  | { traceId: string; error: Error; isTaskError: boolean }
+> {
   const tracer: Tracer = taskTracer(suite);
   return tracer.startActiveSpan(`Test: ${testName}`, async (span) => {
     const traceId = span.spanContext().traceId;
+    const run = currentRun();
+    if (run) {
+      run.traceId = traceId;
+      taskSpansByRun.set(run, { span, traceId, ended: false });
+    }
     try {
       const result = await fn();
-      const input = currentInput();
-      span.setAttributes({
-        [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
-          OpenInferenceSpanKind.CHAIN,
-        [SemanticConventions.INPUT_MIME_TYPE]: inputMimeType(input),
-        [SemanticConventions.INPUT_VALUE]: stringify(input),
-        [SemanticConventions.OUTPUT_MIME_TYPE]: outputMimeType(result),
-        [SemanticConventions.OUTPUT_VALUE]: stringify(result),
-      });
-      span.setStatus({ code: SpanStatusCode.OK });
+      if (run) {
+        endTaskSpan({ run, fallbackOutput: result });
+      } else {
+        endSpanAsTask({ span, output: result });
+      }
       return { traceId, result };
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-      return { traceId, error };
+      const isTaskError = run ? !hasTaskSpanEnded(run) : true;
+      if (run && isTaskError) {
+        endTaskSpan({ run, error });
+      } else if (!run) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+        span.end();
+      }
+      return { traceId, error, isTaskError };
     } finally {
-      span.end();
+      if (run) {
+        taskSpansByRun.delete(run);
+      }
     }
   });
 }
 
 function currentInput(): unknown {
   return currentRun()?.params.input;
+}
+
+function hasTaskSpanEnded(run: RunState): boolean {
+  return taskSpansByRun.get(run)?.ended ?? false;
+}
+
+/**
+ * End the current run's task span. `recordOutput()` calls this immediately so
+ * evaluator work that follows is not included in the task span duration.
+ */
+export function endTaskSpanForRun(run: RunState): void {
+  endTaskSpan({ run });
+}
+
+function endTaskSpan({
+  run,
+  fallbackOutput,
+  error,
+}: {
+  run: RunState;
+  fallbackOutput?: unknown;
+  error?: Error;
+}): void {
+  const lifecycle = taskSpansByRun.get(run);
+  if (!lifecycle || lifecycle.ended) return;
+  const output = run.outputSet ? run.output : fallbackOutput;
+  if (error) {
+    lifecycle.span.setStatus({
+      code: SpanStatusCode.ERROR,
+      message: error.message,
+    });
+  } else {
+    endSpanAsTask({ span: lifecycle.span, output });
+  }
+  if (error) {
+    lifecycle.span.setAttributes({
+      [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+        OpenInferenceSpanKind.CHAIN,
+      [SemanticConventions.INPUT_MIME_TYPE]: inputMimeType(run.params.input),
+      [SemanticConventions.INPUT_VALUE]: stringify(run.params.input),
+    });
+    lifecycle.span.end();
+  }
+  run.traceId = lifecycle.traceId;
+  run.taskEndTime = new Date();
+  lifecycle.ended = true;
+}
+
+function endSpanAsTask({
+  span,
+  output,
+}: {
+  span: Span;
+  output: unknown;
+}): void {
+  const input = currentInput();
+  span.setAttributes({
+    [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+      OpenInferenceSpanKind.CHAIN,
+    [SemanticConventions.INPUT_MIME_TYPE]: inputMimeType(input),
+    [SemanticConventions.INPUT_VALUE]: stringify(input),
+    [SemanticConventions.OUTPUT_MIME_TYPE]: outputMimeType(output),
+    [SemanticConventions.OUTPUT_VALUE]: stringify(output),
+  });
+  span.setStatus({ code: SpanStatusCode.OK });
+  span.end();
 }
 
 /**
@@ -445,9 +533,13 @@ export async function postExperimentRun(
             : null,
           repetition_number: run.repetitionNumber,
           start_time: run.startTime.toISOString(),
-          end_time: (run.endTime ?? new Date()).toISOString(),
-          trace_id: run.traceId ?? null,
+          end_time: (
+            run.taskEndTime ??
+            run.endTime ??
+            new Date()
+          ).toISOString(),
           error: run.error ?? null,
+          trace_id: run.traceId ?? null,
         },
       }
     );
@@ -488,7 +580,7 @@ export async function postAnnotation(
           explanation: annotation.explanation ?? null,
         },
         error: null,
-        trace_id: null,
+        trace_id: annotation.traceId ?? null,
       },
     });
   } catch {
@@ -496,37 +588,41 @@ export async function postAnnotation(
   }
 }
 
-/** Wrap an evaluator in an OpenInference evaluator span. */
+/** Run an evaluator in an OpenInference evaluator span. */
 export async function runEvaluatorWithTracing<P extends KVMap, R>(
   suite: SuiteState,
   name: string,
   params: P,
   fn: (params: P) => R | Promise<R>
-): Promise<R> {
+): Promise<{ result: R; traceId: string | null }> {
   const tracer: Tracer = currentRun()?.dryRun
     ? getNoOpTracer()
     : (suite.evaluatorTracer ?? suite.tracer ?? getNoOpTracer());
-  return tracer.startActiveSpan(`Evaluation: ${name}`, async (span) => {
-    try {
-      const result = await fn(params);
-      span.setAttributes({
-        [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
-          OpenInferenceSpanKind.EVALUATOR,
-        [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
-        [SemanticConventions.INPUT_VALUE]: stringify(params),
-        [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
-        [SemanticConventions.OUTPUT_VALUE]: stringify(result),
-      });
-      span.setStatus({ code: SpanStatusCode.OK });
-      return result;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-      throw error;
-    } finally {
-      span.end();
-    }
-  });
+  const parentlessContext = trace.deleteSpan(context.active());
+  return context.with(parentlessContext, () =>
+    tracer.startActiveSpan(`Evaluation: ${name}`, async (span) => {
+      const traceId = span.spanContext().traceId;
+      try {
+        const result = await fn(params);
+        span.setAttributes({
+          [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+            OpenInferenceSpanKind.EVALUATOR,
+          [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
+          [SemanticConventions.INPUT_VALUE]: stringify(params),
+          [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
+          [SemanticConventions.OUTPUT_VALUE]: stringify(result),
+        });
+        span.setStatus({ code: SpanStatusCode.OK });
+        return { result, traceId };
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+        throw error;
+      } finally {
+        span.end();
+      }
+    })
+  );
 }
 
 /**

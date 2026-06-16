@@ -2,14 +2,14 @@ import {
   declareDescribe,
   declareTest,
   type RunnerHooks,
-} from "../testing/core/runner";
+} from "../testing/runner";
 import type {
   KVMap,
   PhoenixSuiteConfig,
   PhoenixTestEachRow,
   PhoenixTestFn,
   PhoenixTestParams,
-} from "../testing/core/types";
+} from "../testing/types";
 
 export type {
   Annotation,
@@ -22,13 +22,13 @@ export type {
   PhoenixTestEachRow,
   PhoenixTestFn,
   PhoenixTestParams,
-} from "../testing/core/types";
+} from "../testing/types";
 
 export {
   logAnnotation,
-  logOutput,
-  wrapEvaluator,
-} from "../testing/core/helpers";
+  recordOutput,
+  traceEvaluator,
+} from "../testing/helpers";
 
 /**
  * Resolve jest globals lazily. Jest injects `describe`, `test`, `it`,

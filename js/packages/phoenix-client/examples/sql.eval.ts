@@ -38,7 +38,7 @@ async function generateSql(userQuery: string): Promise<string> {
   return result.choices[0]?.message.content ?? "";
 }
 
-const correctness = px.wrapEvaluator(
+const correctness = px.traceEvaluator(
   async ({
     output,
     expected,
@@ -74,7 +74,7 @@ px.describe("generate sql demo", () => {
     },
     async ({ input, expected }) => {
       const sql = await generateSql(input.userQuery as string);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
       await correctness({
         output: { sql },
         expected: expected ?? { sql: "" },
@@ -94,7 +94,7 @@ px.describe("generate sql demo", () => {
     },
   ])("offtopic input", async ({ input, expected }) => {
     const sql = await generateSql(input.userQuery as string);
-    px.logOutput({ sql });
+    px.recordOutput({ sql });
     await correctness({
       output: { sql },
       expected: expected ?? { sql: "" },

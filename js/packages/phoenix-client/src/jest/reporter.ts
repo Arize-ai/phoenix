@@ -1,9 +1,9 @@
 import {
   clearSuiteSummaryArtifacts,
   readSuiteSummaryArtifacts,
-} from "../testing/core/report-artifacts";
-import { printSuiteSummaries } from "../testing/core/reporter-format";
-import { clearAllSuites, getAllSuites } from "../testing/core/runner";
+} from "../testing/report-artifacts";
+import { printSuiteSummaries } from "../testing/reporter-format";
+import { clearAllSuites, getAllSuites } from "../testing/runner";
 
 /**
  * Jest reporter for `@arizeai/phoenix-client/jest`.

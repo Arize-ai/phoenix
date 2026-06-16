@@ -23,7 +23,7 @@ px.describe("text-to-sql: offtopic guardrails", () => {
   // `%s` interpolates the row's stringified input into the test name.
   px.test.each(OFFTOPIC_CASES)("refuses offtopic: %s", async ({ input, expected }) => {
     const { sql } = generateSql(input.userQuery);
-    px.logOutput({ sql });
+    px.recordOutput({ sql });
     expect(sql).toEqual(expected?.sql);
   });
 });

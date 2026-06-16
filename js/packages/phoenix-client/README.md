@@ -320,7 +320,7 @@ px.describe("text-to-sql", () => {
     },
     async ({ input, expected }) => {
       const sql = await generateSql(input.userQuery);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
       expect(sql).toEqual(expected?.sql);
     }
   );

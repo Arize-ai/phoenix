@@ -5,7 +5,7 @@ import {
   resolveRepetitions,
   runTaskWithTracing,
   teardownSuite,
-} from "./phoenix";
+} from "./phoenix-test-tracking";
 import { writeSuiteSummaryArtifact } from "./report-artifacts";
 import {
   currentSuite,
@@ -200,6 +200,7 @@ async function executeRun(opts: {
   const start = Date.now();
   let status: "passed" | "failed" = "passed";
   let thrown: unknown;
+  let testError: string | undefined;
   await runStorage.run(run, async () => {
     const taskOutcome = await runTaskWithTracing(
       suite,
@@ -211,7 +212,7 @@ async function executeRun(opts: {
           metadata: opts.params.metadata,
         };
         const result = await opts.fn(args);
-        // If the user returned a value and didn't call logOutput(),
+        // If the user returned a value and didn't call recordOutput(),
         // adopt the return value as the run's output.
         if (
           result !== undefined &&
@@ -227,7 +228,10 @@ async function executeRun(opts: {
     run.traceId = taskOutcome.traceId;
     if ("error" in taskOutcome && taskOutcome.error) {
       status = "failed";
-      run.error = taskOutcome.error.message;
+      testError = taskOutcome.error.message;
+      if (taskOutcome.isTaskError) {
+        run.error = taskOutcome.error.message;
+      }
       thrown = taskOutcome.error;
     }
     run.endTime = new Date();
@@ -251,7 +255,7 @@ async function executeRun(opts: {
     status,
     output: run.outputSet ? run.output : undefined,
     annotations: run.annotations,
-    error: run.error,
+    error: testError,
     durationMs: Date.now() - start,
     repetitionNumber: repetitions > 1 ? repetitionNumber : undefined,
     repetitions: repetitions > 1 ? repetitions : undefined,

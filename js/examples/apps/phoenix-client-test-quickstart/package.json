@@ -10,6 +10,7 @@
     "eval:jest:phoenix": "jest --config phoenix.jest.config.cjs",
     "eval:phoenix": "vitest run --config phoenix.vitest.config.ts",
     "eval:watch": "cross-env PHOENIX_TEST_TRACKING=false vitest watch --config phoenix.vitest.config.ts",
+    "eval:watch:phoenix": "vitest watch --config phoenix.vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

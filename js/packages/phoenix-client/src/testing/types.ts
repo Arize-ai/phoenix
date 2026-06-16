@@ -1,4 +1,4 @@
-import type { PhoenixClient } from "../../index";
+import type { PhoenixClient } from "../index";
 
 /** A JSON-serializable map. */
 export type KVMap = Record<string, unknown>;
@@ -98,9 +98,11 @@ export interface Annotation {
   explanation?: string | null;
   metadata?: KVMap;
   annotatorKind?: AnnotatorKind;
+  /** Trace id for this evaluation, when the annotation was produced by a traced evaluator. */
+  traceId?: string | null;
 }
 
-/** Result returned by `wrapEvaluator` for any evaluator-shaped value. */
+/** Result returned by `traceEvaluator` for any evaluator-shaped value. */
 export type EvaluatorResult = Annotation | (KVMap & { name: string });
 
 /** Test handler signature. */

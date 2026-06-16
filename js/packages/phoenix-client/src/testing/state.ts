@@ -5,7 +5,7 @@ import type {
   Tracer,
 } from "@arizeai/phoenix-otel";
 
-import type { PhoenixClient } from "../../index";
+import type { PhoenixClient } from "../index";
 import type {
   Annotation,
   KVMap,
@@ -89,6 +89,8 @@ export interface RunState {
   outputSet: boolean;
   annotations: Annotation[];
   startTime: Date;
+  /** End time for the task span/run, which may be before the test body ends. */
+  taskEndTime?: Date;
   endTime?: Date;
   traceId?: string;
   runId?: string;
@@ -115,7 +117,7 @@ export interface TestResult {
 }
 
 /**
- * AsyncLocalStorage that lets `logOutput` / `logAnnotation` / `wrapEvaluator`
+ * AsyncLocalStorage that lets `recordOutput` / `logAnnotation` / `traceEvaluator`
  * reach the running test's state without threading it through arguments.
  */
 export const runStorage = new AsyncLocalStorage<RunState>();

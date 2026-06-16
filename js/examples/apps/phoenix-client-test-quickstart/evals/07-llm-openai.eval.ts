@@ -20,12 +20,16 @@ import { expect } from "vitest";
 
 const HAS_OPENAI = Boolean(process.env.OPENAI_API_KEY);
 
-// The Phoenix client test integration attaches a global OpenTelemetry tracer provider for the suite.
-// Manually instrument the OpenAI module so its requests become child spans of
-// each test's task span. (Manual instrumentation works regardless of import
-// order, which keeps this example to a single file.)
-if (HAS_OPENAI) {
+let isOpenAIInstrumented = false;
+
+function ensureOpenAIInstrumented(): void {
+  if (!HAS_OPENAI || isOpenAIInstrumented) {
+    return;
+  }
+  // Phoenix attaches the suite tracer provider in beforeAll. Construct the
+  // OpenAI instrumentation after that so it uses the Phoenix provider.
   new OpenAIInstrumentation().manuallyInstrument(OpenAI);
+  isOpenAIInstrumented = true;
 }
 
 // Only declare the suite when we have a key; otherwise skip it cleanly.
@@ -38,7 +42,10 @@ suite(
     // even for a skipped suite, so building `new OpenAI()` here (rather than
     // inside the test bodies) would throw when `OPENAI_API_KEY` is unset.
     let client: OpenAI | undefined;
-    const openai = () => (client ??= new OpenAI());
+    const openai = () => {
+      ensureOpenAIInstrumented();
+      return (client ??= new OpenAI());
+    };
 
     async function generateSql(userQuery: string): Promise<string> {
       const result = await openai().chat.completions.create({
@@ -56,9 +63,9 @@ suite(
       return result.choices[0]?.message.content?.trim() ?? "";
     }
 
-    // An LLM-as-a-judge. Same `wrapEvaluator` shape as the offline evaluators —
+    // An LLM-as-a-judge. Same `traceEvaluator` shape as the offline evaluators —
     // it just awaits a model call. Traced as its own EVALUATOR span.
-    const correctness = px.wrapEvaluator(
+    const correctness = px.traceEvaluator(
       async ({ output, expected }: { output: string; expected: string }) => {
         const grade = await openai().chat.completions.create({
           model: "gpt-4o-mini",
@@ -86,7 +93,7 @@ suite(
       },
       async ({ input, expected }) => {
         const sql = await generateSql(input.userQuery);
-        px.logOutput({ sql });
+        px.recordOutput({ sql });
         await correctness({ output: sql, expected: expected?.sql ?? "" });
         expect(sql.toUpperCase()).toContain("SELECT");
       },

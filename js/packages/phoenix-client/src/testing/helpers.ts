@@ -1,23 +1,28 @@
-import { postAnnotation, runEvaluatorWithTracing } from "./phoenix";
+import {
+  endTaskSpanForRun,
+  postAnnotation,
+  runEvaluatorWithTracing,
+} from "./phoenix-test-tracking";
 import { currentRun, type SuiteState } from "./state";
 import type { Annotation, KVMap } from "./types";
 
 /**
  * Record the actual output produced by the test for the current run.
  *
- * Calling this multiple times overwrites the previously logged value.
+ * Calling this multiple times overwrites the previously recorded value.
  * The argument can be any JSON-serializable value — typically an object
  * matching the shape of the example's `expected` field.
  */
-export function logOutput(output: unknown): void {
+export function recordOutput(output: unknown): void {
   const run = currentRun();
   if (!run) {
     throw new Error(
-      "logOutput() must be called inside a Phoenix eval test body"
+      "recordOutput() must be called inside a Phoenix eval test body"
     );
   }
   run.output = output;
   run.outputSet = true;
+  endTaskSpanForRun(run);
 }
 
 /**
@@ -45,14 +50,14 @@ export function logAnnotation(annotation: Annotation): void {
 }
 
 /**
- * Wrap an evaluator function so its execution shows up as a separate
+ * Trace an evaluator function so its execution shows up as a separate
  * `EVALUATOR` span in Phoenix and any `{ name, score }`-shaped return
  * value is automatically captured as an annotation on the current run.
  *
- * The annotation name defaults to the wrapped function's name, falling
+ * The annotation name defaults to the traced function's name, falling
  * back to `"evaluator"`.
  */
-export function wrapEvaluator<P extends KVMap, R>(
+export function traceEvaluator<P extends KVMap, R>(
   fn: (params: P) => R | Promise<R>,
   options?: { name?: string }
 ): (params: P) => Promise<R> {
@@ -64,14 +69,14 @@ export function wrapEvaluator<P extends KVMap, R>(
       // outside a test context, just call the function plainly
       return await fn(params);
     }
-    const result = await runEvaluatorWithTracing(
+    const { result, traceId } = await runEvaluatorWithTracing(
       run.suite,
       evaluatorName,
       params,
       fn
     );
     if (isAnnotationShaped(result)) {
-      logAnnotation(result);
+      logAnnotation({ ...result, traceId });
     }
     return result;
   };

@@ -1,12 +1,12 @@
 import {
   clearSuiteSummaryArtifacts,
   readSuiteSummaryArtifacts,
-} from "../testing/core/report-artifacts";
+} from "../testing/report-artifacts";
 import {
   formatSuiteSummary,
   printSuiteSummaries,
-} from "../testing/core/reporter-format";
-import { clearAllSuites, getAllSuites } from "../testing/core/runner";
+} from "../testing/reporter-format";
+import { clearAllSuites, getAllSuites } from "../testing/runner";
 
 /**
  * Vitest reporter for `@arizeai/phoenix-client/vitest`.

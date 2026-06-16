@@ -28,7 +28,7 @@ px.describe("text-to-sql: basics", () => {
       const { sql } = generateSql(input.userQuery);
 
       // Record what the app actually produced for this run.
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
 
       // Any assertion failure flips the run's built-in `pass` annotation to 0.
       expect(sql).toEqual(expected?.sql);
@@ -43,7 +43,7 @@ px.describe("text-to-sql: basics", () => {
     },
     async ({ input, expected }) => {
       const { sql } = generateSql(input.userQuery);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
       expect(sql).toEqual(expected?.sql);
     }
   );

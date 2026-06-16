@@ -2,7 +2,7 @@
  * 02 — Annotations (evaluators + manual scores).
  *
  * Two ways to attach scores to a run:
- *   - `px.wrapEvaluator(fn)` — runs `fn` as a traced EVALUATOR span and, when
+ *   - `px.traceEvaluator(fn)` — runs `fn` as a traced EVALUATOR span and, when
  *     it returns `{ name, score }`, files the annotation automatically.
  *   - `px.logAnnotation({ ... })` — record a score you computed inline.
  *
@@ -24,7 +24,7 @@ px.describe("text-to-sql: annotations", () => {
     },
     async ({ input, expected }) => {
       const { sql } = generateSql(input.userQuery);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
 
       // Reusable evaluators — each lands as its own annotation on the run.
       await exactMatch({ output: sql, expected: expected?.sql ?? "" });

@@ -18,8 +18,8 @@ real Phoenix instance when you're ready.
 | `params.input`          | `Example.input`                             |
 | `params.expected`       | `Example.output` (reference)                |
 | each `expect(...)`      | a `pass` annotation on the run              |
-| `px.logOutput(...)`     | the run's actual output                     |
-| `px.wrapEvaluator` / `px.logAnnotation` | annotations on the run      |
+| `px.recordOutput(...)`     | the run's actual output                     |
+| `px.traceEvaluator` / `px.logAnnotation` | annotations on the run      |
 
 ## Run it
 
@@ -51,19 +51,21 @@ pnpm eval evals/02-annotations.eval.ts
    ```bash
    pnpm eval:phoenix         # Vitest, syncing to Phoenix
    pnpm eval:jest:phoenix    # Jest, syncing to Phoenix
+   pnpm eval:watch:phoenix   # Vitest watch, syncing to Phoenix
    ```
 
 ## What each example shows
 
 | File                                  | Demonstrates                                            |
 | ------------------------------------- | ------------------------------------------------------- |
-| `evals/01-basics.eval.ts`             | `describe` / `test`, `input` / `expected`, `logOutput`, assertions |
-| `evals/02-annotations.eval.ts`        | `wrapEvaluator` (auto-annotation) and `logAnnotation`   |
+| `evals/01-basics.eval.ts`             | `describe` / `test`, `input` / `expected`, `recordOutput`, assertions |
+| `evals/02-annotations.eval.ts`        | `traceEvaluator` (auto-annotation) and `logAnnotation`   |
 | `evals/03-test-each.eval.ts`          | data-driven evals with `test.each`                      |
 | `evals/04-repetitions.eval.ts`        | per-test and suite-level `repetitions`                  |
 | `evals/05-suite-config.eval.ts`       | `datasetName` / `description` / `metadata`, per-test tags |
 | `evals/06-skip-focus-dryrun.eval.ts`  | `.skip`, `.only`, and per-test `dryRun`                 |
 | `evals/07-llm-openai.eval.ts`         | the production shape: a live OpenAI call + LLM-as-a-judge (skipped unless `OPENAI_API_KEY` is set) |
+| `evals/08-four-tests.eval.ts`         | four explicit `px.test` cases under one `px.describe`   |
 | `jest/basics.eval.ts`                 | the same patterns under Jest (`@arizeai/phoenix-client/jest`) |
 
 `src/app.ts` is a deterministic, rule-based stand-in for the "app under test"

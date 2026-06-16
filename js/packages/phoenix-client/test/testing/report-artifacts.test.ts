@@ -8,8 +8,8 @@ import {
   clearSuiteSummaryArtifacts,
   readSuiteSummaryArtifacts,
   writeSuiteSummaryArtifact,
-} from "../../src/testing/core/report-artifacts";
-import type { SuiteState } from "../../src/testing/core/state";
+} from "../../src/testing/report-artifacts";
+import type { SuiteState } from "../../src/testing/state";
 
 const originalReportDir = process.env[PHOENIX_TEST_REPORT_DIR_ENV_VAR];
 

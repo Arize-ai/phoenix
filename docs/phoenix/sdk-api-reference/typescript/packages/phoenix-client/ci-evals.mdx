@@ -9,7 +9,7 @@ into local development and CI. Each `describe()`
 block becomes a Phoenix dataset and a new experiment; each `test()`
 becomes a dataset example plus a recorded experiment run; the assertion
 outcome is captured as a `pass` boolean annotation. Anything you log via
-`logOutput()` / `logAnnotation()` / `wrapEvaluator()` lands on the run.
+`recordOutput()` / `logAnnotation()` / `traceEvaluator()` lands on the run.
 
 Tracing is provided by `@arizeai/phoenix-otel` (OpenInference). LLM and
 agent calls instrumented with OpenInference appear as child spans of
@@ -38,7 +38,7 @@ px.describe("generate sql demo", () => {
     },
     async ({ input, expected }) => {
       const sql = await myApp(input.userQuery);
-      px.logOutput({ sql });
+      px.recordOutput({ sql });
       expect(sql).toEqual(expected?.sql);
     },
   );
@@ -61,7 +61,7 @@ that shipped with your project.
 
 | Import | Purpose |
 |--------|---------|
-| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `logOutput`, `logAnnotation`, `wrapEvaluator`) |
+| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `recordOutput`, `logAnnotation`, `traceEvaluator`) |
 | `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter that prints a Phoenix-flavored summary at the end of the run |
 | `@arizeai/phoenix-client/jest` | Same API surface, wired to Jest globals |
 | `@arizeai/phoenix-client/jest/reporter` | Jest reporter |
@@ -78,7 +78,7 @@ the Phoenix UI and the REST API.
 | `expected`                  | `Example.output` (reference)             |
 | `metadata`                  | `Example.metadata`                       |
 | `id`                        | `Example.id` (stable upsert id)          |
-| `logOutput(value)`          | `ExperimentRun.output`                   |
+| `recordOutput(value)`          | `ExperimentRun.output`                   |
 | `Annotation.name`           | `ExperimentEvaluation.name`              |
 | `Annotation.score`          | `ExperimentEvaluationResult.score`       |
 | `Annotation.label`          | `ExperimentEvaluationResult.label`       |
@@ -131,7 +131,7 @@ reporter still prints a local summary.
 - [CI Eval Tests: Vitest](./ci-evals-vitest) — config, reporter, and the full `describe` /
   `test` / `test.each` API as it surfaces in Vitest
 - [CI Eval Tests: Jest](./ci-evals-jest) — the same API surface in a Jest project
-- [CI Eval Test Annotations](./ci-evals-annotations) — `logAnnotation`, `wrapEvaluator`, and
+- [CI Eval Test Annotations](./ci-evals-annotations) — `logAnnotation`, `traceEvaluator`, and
   the `Annotation` shape
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
@@ -141,11 +141,11 @@ reporter still prints a local summary.
     <li><code>src/vitest/reporter.ts</code></li>
     <li><code>src/jest/index.ts</code></li>
     <li><code>src/jest/reporter.ts</code></li>
-    <li><code>src/testing/core/runner.ts</code></li>
-    <li><code>src/testing/core/helpers.ts</code></li>
-    <li><code>src/testing/core/phoenix.ts</code></li>
-    <li><code>src/testing/core/state.ts</code></li>
-    <li><code>src/testing/core/types.ts</code></li>
-    <li><code>src/testing/core/reporter-format.ts</code></li>
+    <li><code>src/testing/runner.ts</code></li>
+    <li><code>src/testing/helpers.ts</code></li>
+    <li><code>src/testing/phoenix-test-tracking.ts</code></li>
+    <li><code>src/testing/state.ts</code></li>
+    <li><code>src/testing/types.ts</code></li>
+    <li><code>src/testing/reporter-format.ts</code></li>
   </ul>
 </section>

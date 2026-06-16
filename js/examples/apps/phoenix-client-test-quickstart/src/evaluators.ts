@@ -1,14 +1,14 @@
 /**
- * Reusable, code-based evaluators built with `px.wrapEvaluator`.
+ * Reusable, code-based evaluators built with `px.traceEvaluator`.
  *
- * `wrapEvaluator` does two things:
- *   1. Traces the wrapped call as its own `EVALUATOR` span in Phoenix.
+ * `traceEvaluator` does two things:
+ *   1. Traces the evaluator call as its own `EVALUATOR` span in Phoenix.
  *   2. If the return value is `{ name, score }`-shaped, files it as an
  *      annotation on the current run automatically — no `logAnnotation` needed.
  *
  * These are deterministic (string comparisons) so the examples stay offline.
  * An LLM-as-a-judge would have the exact same shape — just `await` a model
- * call inside the wrapped function (see `evals/07-llm-openai.eval.ts`).
+ * call inside the traced function (see `evals/07-llm-openai.eval.ts`).
  */
 import * as px from "@arizeai/phoenix-client/vitest";
 
@@ -25,7 +25,7 @@ function normalizeSql(sql: string): string {
  * Exact-match (after light normalization). Returns a boolean score, which
  * Phoenix records as 1 / 0.
  */
-export const exactMatch = px.wrapEvaluator(
+export const exactMatch = px.traceEvaluator(
   async ({ output, expected }: { output: string; expected: string }) => ({
     name: "exact_match",
     score: normalizeSql(output) === normalizeSql(expected),
@@ -37,7 +37,7 @@ export const exactMatch = px.wrapEvaluator(
  * Demonstrates a richer annotation: a numeric score plus a `label` and
  * `explanation`, which show up as separate columns in the Phoenix compare view.
  */
-export const containsSelect = px.wrapEvaluator(
+export const containsSelect = px.traceEvaluator(
   async ({ output }: { output: string }) => {
     const ok = /\bselect\b/i.test(output);
     return {
