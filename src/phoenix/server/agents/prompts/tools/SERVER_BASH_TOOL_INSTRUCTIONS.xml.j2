@@ -16,7 +16,7 @@
     - It is read-only by default: only `query` operations are permitted. Mutations and subscriptions are rejected unless mutations have been explicitly enabled.
     - Do not guess field, type, or argument names. When you are not certain the schema matches what you intend to query, run an introspection query first (e.g. `phoenix-gql '{ __type(name: "Project") { fields { name args { name } type { name kind } } } }'`) and write your query against what it returns.
     - Pass query variables with `--vars '{...}'` rather than string interpolation, and request exactly the fields you need.
-    - Large responses are written to a workspace file instead of stdout; read that file (or re-run with `--stdout`) to inspect the payload. Use `--data-only` to drop the GraphQL envelope, and pipe through `jq` to narrow large results.
+    - Responses are returned on stdout by default; for large responses, write them to a workspace file with `--output <path>` and read that file to inspect the payload. Use `--data-only` to drop the GraphQL envelope, and pipe through `jq` to narrow large results.
     - On errors, phoenix-gql reports the GraphQL error messages on stderr — read them, introspect the schema if a field or argument may be wrong, correct the query, and retry.
   </phoenix-gql>
 </tool>
