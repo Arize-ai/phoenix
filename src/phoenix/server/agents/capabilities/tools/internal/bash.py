@@ -1,6 +1,6 @@
 """A networkless ``bash`` tool for the server agent.
 
-Runs commands inside an in-memory just-bash virtual shell (no host access, no
+Runs commands inside an in-memory bashkit virtual shell (no host access, no
 network) and exposes a custom ``phoenix-gql`` binary that executes read-only
 GraphQL against the Strawberry schema in-process. The agent can therefore run
 GraphQL and pipe the JSON result through sandbox tools such as ``jq``.
@@ -11,16 +11,18 @@ filesystem is effectively scoped to a single sub-agent invocation: files written
 under the workspace persist across the bash calls within that invocation, but not
 across separate invocations.
 
-just-bash is vendored under :mod:`phoenix.vendor.just_bash` (a pure-Python bash
-interpreter), so the tool is available on every supported interpreter, including
-Python 3.10.
+The sandbox is `bashkit <https://pypi.org/project/bashkit/>`_, a Rust bash
+interpreter exposed to Python as a native (PyO3) extension. It ships as a small
+per-platform wheel, so the heavy interpreter no longer lives in the Phoenix
+source tree (it replaces the vendored ``phoenix.vendor.just_bash`` port).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Dict, Optional, Union
 
+import bashkit
 import strawberry
 from jinja2 import Template
 from pydantic_ai import Tool
@@ -28,7 +30,6 @@ from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
-from phoenix.vendor.just_bash import Bash, InMemoryFs, NetworkConfig
 
 NAME = "bash"
 
@@ -39,17 +40,23 @@ MAX_OUTPUT_CHARS = 30_000
 #: Working directory for the sandbox; the only place writes are expected to land.
 WORKSPACE_ROOT = "/home/user/workspace"
 
+#: Wall-clock cap on a single ``exec`` so a runaway command cannot hang the agent.
+EXEC_TIMEOUT_SECONDS = 30
+
+#: bashkit's initial-files mapping: VFS path -> contents (or a lazy callable).
+FileSeed = Dict[str, Union[str, Callable[[], str]]]
+
 _DESCRIPTION_TEMPLATE = Template(
     """\
-Run a shell command in a just-bash virtual filesystem.
-Runs inside an in-memory just-bash shell, not a host machine or container.
+Run a shell command in a bashkit virtual filesystem.
+Runs inside an in-memory bashkit shell, not a host machine or container.
 Write scratch files under /home/user/workspace (the working directory).
 {% if network_enabled -%}
 curl is available for HTTP(S) requests.
 {%- else -%}
 General-purpose network access is disabled; curl/wget and remote installs do not work.
 {%- endif %}
-Built-in just-bash commands (cat, grep, sed, awk, sort, jq, sqlite3, etc.) are available; \
+Built-in bashkit commands (cat, grep, sed, awk, sort, jq, sqlite3, etc.) are available; \
 do not assume host binaries like python, node, git, uv, or apt exist.
 phoenix-gql is available for read-only GraphQL against the Phoenix schema (executed \
 in-process, not over the network). Run `phoenix-gql --help` for usage. Pipe its JSON \
@@ -59,37 +66,60 @@ output through jq to extract what you need, e.g. \
 )
 
 
-def _new_filesystem() -> InMemoryFs:
-    """Create a fresh in-memory filesystem seeded with the scratch workspace."""
+def _new_filesystem() -> FileSeed:
+    """Seed files for a fresh sandbox: just the scratch workspace.
 
-    return InMemoryFs(initial_files={f"{WORKSPACE_ROOT}/.keep": ""})
+    bashkit takes initial files as a ``{path: contents}`` mapping (creating parent
+    directories as needed), so a single placeholder file is enough to materialize
+    the workspace directory the tool ``cd``s into.
+    """
+
+    return {f"{WORKSPACE_ROOT}/.keep": ""}
+
+
+class _BashkitRuntime:
+    """Thin adapter giving a :class:`bashkit.Bash` the ``exec`` surface this tool uses.
+
+    bashkit resets shell state (including the working directory) between
+    ``execute`` calls but keeps the filesystem, so each command is prefixed with a
+    ``cd`` into the workspace to mirror the old persistent ``cwd`` behavior.
+    """
+
+    def __init__(self, bash: "bashkit.Bash") -> None:
+        self._bash = bash
+
+    async def exec(self, command: str) -> "bashkit.ExecResult":
+        script = f"cd {WORKSPACE_ROOT}\n{command}"
+        return await self._bash.execute(script)
 
 
 def _build_runtime(
     *,
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
-    filesystem: InMemoryFs,
-    network_config: Optional[NetworkConfig] = None,
-) -> Bash:
-    """Construct a just-bash runtime around ``filesystem`` with ``phoenix-gql``."""
+    filesystem: FileSeed,
+    network_enabled: bool = False,
+) -> _BashkitRuntime:
+    """Construct a bashkit runtime around ``filesystem`` with ``phoenix-gql``."""
     from phoenix.server.agents.capabilities.tools.internal.phoenix_gql_command import (
         PhoenixGqlCommand,
     )
-    from phoenix.vendor.just_bash import Bash
-    from phoenix.vendor.just_bash.commands.registry import create_command_registry
 
-    registry = create_command_registry(include_network=False)
-    registry[PhoenixGqlCommand.name] = PhoenixGqlCommand(
+    phoenix_gql = PhoenixGqlCommand(
         schema=schema,
         build_graphql_context=build_graphql_context,
     )
-    return Bash(
-        commands=registry,
-        fs=filesystem,
-        cwd=WORKSPACE_ROOT,
-        network=network_config,
+    bash = bashkit.Bash(
+        files=filesystem,
+        custom_builtins={phoenix_gql.name: phoenix_gql},
+        # bashkit's network is allowlist/allow-all based; ``None`` leaves
+        # ``curl``/``wget`` unavailable (the networkless default).
+        network={"allow_all": True} if network_enabled else None,
+        sqlite=True,
+        python=False,
+        timeout_seconds=EXEC_TIMEOUT_SECONDS,
     )
+    return _BashkitRuntime(bash)
 
 
 def _format_result(stdout: str, stderr: str, exit_code: int) -> str:
@@ -120,7 +150,7 @@ class BashToolset(FunctionToolset[None]):
 
     A fresh filesystem and runtime are created per toolset and reused across bash
     calls within an agent run, so workspace files persist for the lifetime of that
-    sub-agent invocation. Pass ``filesystem`` to reuse an existing one (e.g. tests).
+    sub-agent invocation. Pass ``filesystem`` to seed extra files (e.g. tests).
     """
 
     def __init__(
@@ -128,22 +158,14 @@ class BashToolset(FunctionToolset[None]):
         *,
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
-        filesystem: Optional[InMemoryFs] = None,
+        filesystem: Optional[FileSeed] = None,
         network_enabled: bool = False,
     ) -> None:
-        network_config = (
-            NetworkConfig(
-                dangerously_allow_full_internet_access=True,
-                deny_private_ranges=True,
-            )
-            if network_enabled
-            else None
-        )
         runtime = _build_runtime(
             schema=schema,
             build_graphql_context=build_graphql_context,
             filesystem=filesystem if filesystem is not None else _new_filesystem(),
-            network_config=network_config,
+            network_enabled=network_enabled,
         )
         description = _DESCRIPTION_TEMPLATE.render(network_enabled=network_enabled)
 

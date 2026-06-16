@@ -1,4 +1,4 @@
-"""A ``phoenix-gql`` command for the just-bash sandbox.
+"""A ``phoenix-gql`` command for the bashkit sandbox.
 
 This is the server-side counterpart of the browser tool's ``phoenix-gql`` command
 (``app/src/agent/tools/bash/phoenixGqlCommand.ts``). It mirrors that CLI surface
@@ -6,21 +6,29 @@ but executes queries *networklessly* against the Strawberry schema (calling
 ``schema.execute`` directly) instead of issuing an HTTP request, so the bash
 agent can run GraphQL and pipe the JSON result through ``jq`` and friends.
 
-It builds on the vendored just-bash (:mod:`phoenix.vendor.just_bash`).
+It is wired into the sandbox as a `bashkit <https://pypi.org/project/bashkit/>`_
+*custom builtin*: a plain async callable that bashkit invokes on the host event
+loop, which is what lets it ``await schema.execute(...)`` against the live
+(async) Strawberry context in-process. See :mod:`bashkit` and the
+``custom_builtins`` argument of :class:`bashkit.Bash`.
 """
 
 from __future__ import annotations
 
 import json
+import posixpath
 import re
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
+import bashkit
 import strawberry
 from strawberry.schema.exceptions import InvalidOperationTypeError
 from strawberry.types.graphql import OperationType
 
 from phoenix.server.api.context import Context
-from phoenix.vendor.just_bash.types import CommandContext, ExecResult
+
+if TYPE_CHECKING:
+    from bashkit import BuiltinContext
 
 #: Scratch directory the sandbox can write to (mirrors the browser tool).
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -73,11 +81,21 @@ def _strip_graphql_comments(query: str) -> str:
     return re.sub(r"#[^\n]*", "", query)
 
 
-class PhoenixGqlCommand:
-    """just-bash ``Command`` exposing networkless GraphQL execution as a binary.
+def _resolve_path(cwd: str, path: str) -> str:
+    """Resolve ``path`` against ``cwd`` the way the sandbox shell would."""
 
-    Conforms structurally to ``phoenix.vendor.just_bash.types.Command`` (a ``name`` attribute and
-    an async ``execute(args, ctx)`` returning an ``ExecResult``).
+    return posixpath.normpath(posixpath.join(cwd, path))
+
+
+class PhoenixGqlCommand:
+    """A bashkit custom builtin exposing networkless GraphQL execution.
+
+    bashkit treats any callable in ``custom_builtins`` as a command, invoking it
+    with a single :class:`bashkit.BuiltinContext` (whose ``argv`` excludes the
+    command name) and expecting a :class:`bashkit.BuiltinResult` back. Because
+    bashkit awaits async builtins on the host's running event loop, ``__call__``
+    can ``await self._schema.execute(...)`` directly against the live async
+    context.
     """
 
     name = "phoenix-gql"
@@ -93,19 +111,21 @@ class PhoenixGqlCommand:
         # Monotonic counter for deterministic spill filenames within a session.
         self._spill_counter = 0
 
-    async def execute(self, args: list[str], ctx: CommandContext) -> ExecResult:
+    async def __call__(self, ctx: "BuiltinContext") -> "bashkit.BuiltinResult":
         try:
-            parsed = _parse_args(args)
+            parsed = _parse_args(list(ctx.argv))
         except _Usage as usage:
-            return ExecResult(stderr=f"phoenix-gql: {usage.message}\n", exit_code=usage.exit_code)
+            return bashkit.BuiltinResult(
+                stdout="", stderr=f"phoenix-gql: {usage.message}\n", exit_code=usage.exit_code
+            )
 
         if parsed["show_help"]:
-            return ExecResult(stdout=_HELP_TEXT)
+            return bashkit.BuiltinResult(stdout=_HELP_TEXT, stderr="", exit_code=0)
 
         try:
-            query = await _resolve_query_text(parsed["query_source"], ctx)
+            query = _resolve_query_text(parsed["query_source"], ctx)
             self._reject_unsupported_operations(query)
-            variable_values = await _resolve_variables(parsed, ctx)
+            variable_values = _resolve_variables(parsed, ctx)
             result = await self._schema.execute(
                 query,
                 variable_values=variable_values,
@@ -113,7 +133,8 @@ class PhoenixGqlCommand:
                 allowed_operation_types={OperationType.QUERY},
             )
         except InvalidOperationTypeError:
-            return ExecResult(
+            return bashkit.BuiltinResult(
+                stdout="",
                 stderr=(
                     "phoenix-gql: this command is read-only; only `query` operations are "
                     "permitted (mutations and subscriptions are disabled)\n"
@@ -121,7 +142,9 @@ class PhoenixGqlCommand:
                 exit_code=1,
             )
         except _Usage as usage:
-            return ExecResult(stderr=f"phoenix-gql: {usage.message}\n", exit_code=usage.exit_code)
+            return bashkit.BuiltinResult(
+                stdout="", stderr=f"phoenix-gql: {usage.message}\n", exit_code=usage.exit_code
+            )
 
         formatted_errors = [error.formatted for error in result.errors] if result.errors else []
         has_only_errors = bool(formatted_errors) and result.data is None
@@ -137,9 +160,9 @@ class PhoenixGqlCommand:
             error_notice = f"GraphQL errors:\n{messages}\n"
 
         if parsed["output_path"] is not None:
-            written = await _write_output(serialized, parsed["output_path"], ctx)
+            written = _write_output(serialized, parsed["output_path"], ctx)
             stderr = error_notice + f"Response written to {written}\n" if error_notice else ""
-            return ExecResult(
+            return bashkit.BuiltinResult(
                 stdout=f"{written}\n",
                 stderr=stderr,
                 exit_code=1 if has_only_errors else 0,
@@ -149,12 +172,12 @@ class PhoenixGqlCommand:
             DEFAULT_SPILL_THRESHOLD_BYTES
         ):
             spill_path = self._next_spill_path()
-            await _write_output(serialized, spill_path, ctx)
+            _write_output(serialized, spill_path, ctx)
             summary = json.dumps(
                 {"spilled": True, "path": spill_path, "bytes": len(serialized.encode("utf-8"))},
                 indent=2,
             )
-            return ExecResult(
+            return bashkit.BuiltinResult(
                 stdout=f"{summary}\n",
                 stderr=(
                     "Response exceeded the stdout budget and was written to a workspace file. "
@@ -163,7 +186,7 @@ class PhoenixGqlCommand:
                 exit_code=0,
             )
 
-        return ExecResult(
+        return bashkit.BuiltinResult(
             stdout=serialized,
             stderr=error_notice,
             exit_code=1 if has_only_errors else 0,
@@ -231,25 +254,24 @@ def _parse_args(args: list[str]) -> dict[str, Any]:
     return parsed
 
 
-async def _resolve_query_text(query_source: Optional[str], ctx: CommandContext) -> str:
+def _resolve_query_text(query_source: Optional[str], ctx: "BuiltinContext") -> str:
     if query_source:
-        resolved = ctx.fs.resolve_path(ctx.cwd, query_source)
-        if await ctx.fs.exists(resolved):
-            return await ctx.fs.read_file(resolved)
+        resolved = _resolve_path(ctx.cwd, query_source)
+        if ctx.fs.exists(resolved):
+            return ctx.fs.read_file(resolved).decode("utf-8")
         return query_source
 
-    piped = ctx.stdin.strip()
+    # bashkit types pipeline stdin as ``str | None``; treat absent input as empty.
+    piped = (ctx.stdin or "").strip()
     if not piped:
         raise _Usage("provide a GraphQL query string, file path, or stdin")
     return piped
 
 
-async def _resolve_variables(
-    parsed: dict[str, Any], ctx: CommandContext
-) -> Optional[dict[str, Any]]:
+def _resolve_variables(parsed: dict[str, Any], ctx: "BuiltinContext") -> Optional[dict[str, Any]]:
     if parsed["variables_file_path"]:
-        resolved = ctx.fs.resolve_path(ctx.cwd, parsed["variables_file_path"])
-        text: Optional[str] = await ctx.fs.read_file(resolved)
+        resolved = _resolve_path(ctx.cwd, parsed["variables_file_path"])
+        text: Optional[str] = ctx.fs.read_file(resolved).decode("utf-8")
     else:
         text = parsed["variables_text"]
 
@@ -265,10 +287,11 @@ async def _resolve_variables(
     return value
 
 
-async def _write_output(content: str, path: str, ctx: CommandContext) -> str:
-    resolved = ctx.fs.resolve_path(ctx.cwd, path)
+def _write_output(content: str, path: str, ctx: "BuiltinContext") -> str:
+    resolved = _resolve_path(ctx.cwd, path)
     parent = resolved.rsplit("/", 1)[0] or "/"
-    if not await ctx.fs.exists(parent):
-        await ctx.fs.mkdir(parent, recursive=True)
-    await ctx.fs.write_file(resolved, content)
+    if not ctx.fs.exists(parent):
+        ctx.fs.mkdir(parent, recursive=True)
+    # bashkit's virtual filesystem stores bytes; encode before writing.
+    ctx.fs.write_file(resolved, content.encode("utf-8"))
     return resolved

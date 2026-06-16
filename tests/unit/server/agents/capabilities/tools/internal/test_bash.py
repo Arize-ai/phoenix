@@ -182,5 +182,6 @@ async def test_filesystem_is_isolated_between_toolsets() -> None:
 
     other = _toolset()
     result = await _run_bash(other, "cat /home/user/workspace/note.txt 2>&1; echo exit=$?")
-    assert "No such file" in result
+    # bashkit reports a missing file as "file not found" (just-bash said "No such file").
+    assert "not found" in result
     assert "exit=1" in result
