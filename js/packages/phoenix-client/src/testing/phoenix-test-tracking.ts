@@ -488,8 +488,7 @@ function endSpanAsTask({
 }): void {
   const input = currentInput();
   span.setAttributes({
-    [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
-      OpenInferenceSpanKind.CHAIN,
+    [SemanticConventions.OPENINFERENCE_SPAN_KIND]: OpenInferenceSpanKind.CHAIN,
     [SemanticConventions.INPUT_MIME_TYPE]: inputMimeType(input),
     [SemanticConventions.INPUT_VALUE]: stringify(input),
     [SemanticConventions.OUTPUT_MIME_TYPE]: outputMimeType(output),

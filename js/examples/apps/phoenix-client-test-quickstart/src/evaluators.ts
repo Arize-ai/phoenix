@@ -14,11 +14,7 @@ import * as px from "@arizeai/phoenix-client/vitest";
 
 /** Normalize SQL for comparison: collapse whitespace, drop case + trailing `;`. */
 function normalizeSql(sql: string): string {
-  return sql
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/;$/, "")
-    .toLowerCase();
+  return sql.trim().replace(/\s+/g, " ").replace(/;$/, "").toLowerCase();
 }
 
 /**

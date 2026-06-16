@@ -11,15 +11,15 @@ real Phoenix instance when you're ready.
 
 ## How it maps to Phoenix
 
-| In your test            | In Phoenix                                  |
-| ----------------------- | ------------------------------------------- |
-| `px.describe(...)`      | a **dataset** + a new **experiment**        |
-| `px.test(name, params)` | a dataset **example** + an experiment **run** |
-| `params.input`          | `Example.input`                             |
-| `params.expected`       | `Example.output` (reference)                |
-| each `expect(...)`      | a `pass` annotation on the run              |
-| `px.recordOutput(...)`     | the run's actual output                     |
-| `px.traceEvaluator` / `px.logAnnotation` | annotations on the run      |
+| In your test                             | In Phoenix                                    |
+| ---------------------------------------- | --------------------------------------------- |
+| `px.describe(...)`                       | a **dataset** + a new **experiment**          |
+| `px.test(name, params)`                  | a dataset **example** + an experiment **run** |
+| `params.input`                           | `Example.input`                               |
+| `params.expected`                        | `Example.output` (reference)                  |
+| each `expect(...)`                       | a `pass` annotation on the run                |
+| `px.recordOutput(...)`                   | the run's actual output                       |
+| `px.traceEvaluator` / `px.logAnnotation` | annotations on the run                        |
 
 ## Run it
 
@@ -56,17 +56,17 @@ pnpm eval evals/02-annotations.eval.ts
 
 ## What each example shows
 
-| File                                  | Demonstrates                                            |
-| ------------------------------------- | ------------------------------------------------------- |
-| `evals/01-basics.eval.ts`             | `describe` / `test`, `input` / `expected`, `recordOutput`, assertions |
-| `evals/02-annotations.eval.ts`        | `traceEvaluator` (auto-annotation) and `logAnnotation`   |
-| `evals/03-test-each.eval.ts`          | data-driven evals with `test.each`                      |
-| `evals/04-repetitions.eval.ts`        | per-test and suite-level `repetitions`                  |
-| `evals/05-suite-config.eval.ts`       | `datasetName` / `description` / `metadata`, per-test tags |
-| `evals/06-skip-focus-dryrun.eval.ts`  | `.skip`, `.only`, and per-test `dryRun`                 |
-| `evals/07-llm-openai.eval.ts`         | the production shape: a live OpenAI call + LLM-as-a-judge (skipped unless `OPENAI_API_KEY` is set) |
-| `evals/08-four-tests.eval.ts`         | four explicit `px.test` cases under one `px.describe`   |
-| `jest/basics.eval.ts`                 | the same patterns under Jest (`@arizeai/phoenix-client/jest`) |
+| File                                 | Demonstrates                                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `evals/01-basics.eval.ts`            | `describe` / `test`, `input` / `expected`, `recordOutput`, assertions                              |
+| `evals/02-annotations.eval.ts`       | `traceEvaluator` (auto-annotation) and `logAnnotation`                                             |
+| `evals/03-test-each.eval.ts`         | data-driven evals with `test.each`                                                                 |
+| `evals/04-repetitions.eval.ts`       | per-test and suite-level `repetitions`                                                             |
+| `evals/05-suite-config.eval.ts`      | `datasetName` / `description` / `metadata`, per-test tags                                          |
+| `evals/06-skip-focus-dryrun.eval.ts` | `.skip`, `.only`, and per-test `dryRun`                                                            |
+| `evals/07-llm-openai.eval.ts`        | the production shape: a live OpenAI call + LLM-as-a-judge (skipped unless `OPENAI_API_KEY` is set) |
+| `evals/08-four-tests.eval.ts`        | four explicit `px.test` cases under one `px.describe`                                              |
+| `jest/basics.eval.ts`                | the same patterns under Jest (`@arizeai/phoenix-client/jest`)                                      |
 
 `src/app.ts` is a deterministic, rule-based stand-in for the "app under test"
 (a toy text-to-SQL feature) so the examples stay hermetic. Swap it for your real

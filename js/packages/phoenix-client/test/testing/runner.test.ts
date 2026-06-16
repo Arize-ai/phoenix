@@ -93,9 +93,7 @@ describe("runner registry", () => {
     // afterAll-style hook by polling the registry.
     await new Promise((resolve) => setImmediate(resolve));
     const suites = getAllSuites();
-    const suite = suites.find(
-      (s) => s.name === "phoenix client test selftest"
-    );
+    const suite = suites.find((s) => s.name === "phoenix client test selftest");
     expect(
       suite,
       "phoenix client test selftest suite is registered"

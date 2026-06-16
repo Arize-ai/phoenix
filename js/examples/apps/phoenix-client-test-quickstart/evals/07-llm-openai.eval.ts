@@ -76,7 +76,10 @@ suite(
                 "You grade SQL. Reply with 1 if ACTUAL and EXPECTED are " +
                 "semantically equivalent, otherwise 0. Reply with only the digit.",
             },
-            { role: "user", content: `ACTUAL: ${output}\nEXPECTED: ${expected}` },
+            {
+              role: "user",
+              content: `ACTUAL: ${output}\nEXPECTED: ${expected}`,
+            },
           ],
         });
         const score = grade.choices[0]?.message.content?.includes("1") ? 1 : 0;

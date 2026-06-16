@@ -15,15 +15,21 @@ import { generateSql, OFFTOPIC_SQL } from "../src/app";
 
 const OFFTOPIC_CASES = [
   { input: { userQuery: "whats up" }, expected: { sql: OFFTOPIC_SQL } },
-  { input: { userQuery: "what color is the sky?" }, expected: { sql: OFFTOPIC_SQL } },
+  {
+    input: { userQuery: "what color is the sky?" },
+    expected: { sql: OFFTOPIC_SQL },
+  },
   { input: { userQuery: "tell me a joke" }, expected: { sql: OFFTOPIC_SQL } },
 ];
 
 px.describe("text-to-sql: offtopic guardrails", () => {
   // `%s` interpolates the row's stringified input into the test name.
-  px.test.each(OFFTOPIC_CASES)("refuses offtopic: %s", async ({ input, expected }) => {
-    const { sql } = generateSql(input.userQuery);
-    px.recordOutput({ sql });
-    expect(sql).toEqual(expected?.sql);
-  });
+  px.test.each(OFFTOPIC_CASES)(
+    "refuses offtopic: %s",
+    async ({ input, expected }) => {
+      const { sql } = generateSql(input.userQuery);
+      px.recordOutput({ sql });
+      expect(sql).toEqual(expected?.sql);
+    }
+  );
 });
