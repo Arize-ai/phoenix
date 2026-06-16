@@ -35,7 +35,7 @@ class ExecutionLimits:
     max_loop_iterations: int = 10_000
     max_awk_iterations: int = 10_000
     max_sed_iterations: int = 10_000
-    sqlite_timeout_seconds: float = 5.0
+    timeout_seconds: float = 5.0
 
 
 @dataclass

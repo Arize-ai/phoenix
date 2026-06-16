@@ -16,7 +16,6 @@ Example usage:
     bash = Bash(limits=ExecutionLimits(max_command_count=1000))
 """
 
-from dataclasses import replace
 from typing import Optional
 
 from .commands import create_command_registry
@@ -53,7 +52,6 @@ class Bash:
         limits: Optional[ExecutionLimits] = None,
         network: Optional[NetworkConfig] = None,
         fetch: Optional[SecureFetch] = None,
-        timeout_seconds: Optional[float] = None,
         commands: Optional[dict[str, Command]] = None,
         errexit: bool = False,
         pipefail: bool = False,
@@ -70,8 +68,6 @@ class Bash:
             limits: Execution limits for security.
             network: Network configuration (for curl command).
             fetch: Custom secure fetch function (for curl command).
-            timeout_seconds: Convenience override for the sqlite3 query timeout
-                (limits.sqlite_timeout_seconds); defaults to that value (5s).
             commands: Custom command registry. If not provided, uses built-in commands.
             errexit: Enable errexit (set -e) mode.
             pipefail: Enable pipefail mode.
@@ -86,11 +82,8 @@ class Bash:
         else:
             self._fs = InMemoryFs(initial_files=files or {})
 
-        # Set up limits. The sqlite3 timeout lives in ExecutionLimits; the
-        # timeout_seconds kwarg is a convenience override for it.
+        # Set up limits
         self._limits = limits or ExecutionLimits()
-        if timeout_seconds is not None:
-            self._limits = replace(self._limits, sqlite_timeout_seconds=timeout_seconds)
 
         # Set up network config
         self._network = network

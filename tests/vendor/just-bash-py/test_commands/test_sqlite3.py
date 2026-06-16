@@ -5,6 +5,7 @@ import os
 import pytest
 
 from phoenix.vendor.just_bash import Bash
+from phoenix.vendor.just_bash.types import ExecutionLimits
 
 
 class TestSqlite3Basic:
@@ -338,8 +339,13 @@ class TestSqlite3Security:
 
     @pytest.mark.asyncio
     async def test_runaway_query_times_out(self):
-        """An unbounded recursive CTE is interrupted instead of hanging."""
-        bash = Bash(timeout_seconds=0.1)
+        """An unbounded recursive CTE is interrupted instead of hanging.
+
+        The timeout is a real wall-clock deadline enforced by SQLite's progress
+        handler between opcodes, so we inject a short budget via ExecutionLimits
+        to keep the test fast rather than faking the clock.
+        """
+        bash = Bash(limits=ExecutionLimits(timeout_seconds=0.1))
         result = await bash.exec(
             'sqlite3 :memory: "WITH RECURSIVE r(x) AS '
             '(SELECT 1 UNION ALL SELECT x+1 FROM r) SELECT count(*) FROM r;"'

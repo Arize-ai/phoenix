@@ -491,7 +491,7 @@ class Sqlite3Command:
             # 3. Bound runaway queries (e.g. recursive CTEs) on wall-clock time.
             #    The progress handler runs every PROGRESS_HANDLER_OPCODES VM
             #    opcodes; returning non-zero interrupts the running statement.
-            timeout_seconds = (ctx.limits or ExecutionLimits()).sqlite_timeout_seconds
+            timeout_seconds = (ctx.limits or ExecutionLimits()).timeout_seconds
             deadline = time.monotonic() + timeout_seconds
             timed_out = False
 
