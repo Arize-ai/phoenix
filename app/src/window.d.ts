@@ -13,6 +13,7 @@ declare global {
       basename: string;
       platformVersion: string;
       authenticationEnabled: boolean;
+      accessControlEnabled: boolean;
       basicAuthDisabled: boolean;
       oAuth2Idps: OAuth2Idp[];
       ldapEnabled: boolean;

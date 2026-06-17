@@ -62,6 +62,7 @@ import {
   usePreferencesContext,
   useViewerCanModify,
 } from "@phoenix/contexts";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { useInterval } from "@phoenix/hooks";
 import type {
   ProjectsPageProjectMetricsQuery,
@@ -187,6 +188,7 @@ export function ProjectsPageContent({
             project: node {
               id
               name
+              accessPosture
               gradientStartColor
               gradientEndColor
               endTime
@@ -503,6 +505,45 @@ function ProjectsGrid({
   );
 }
 
+const POSTURE_META = {
+  ADMINS_ONLY: { label: "Admins only", icon: <Icons.Lock /> },
+  SHARED: { label: "Shared", icon: <Icons.Share /> },
+  ALL_USERS: { label: "All users", icon: <Icons.Globe /> },
+} as const;
+
+/**
+ * A compact, at-a-glance indicator of how a project is shared. Rendered only when access
+ * control is enforced: with enforcement off, every authenticated user can see every project
+ * regardless of grants, so a badge would imply a restriction that is not actually applied.
+ */
+function VisibilityBadge({
+  posture,
+}: {
+  posture: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"]["accessPosture"];
+}) {
+  const meta = POSTURE_META[posture as keyof typeof POSTURE_META];
+  if (!meta) return null;
+  return (
+    <Flex
+      direction="row"
+      gap="size-50"
+      alignItems="center"
+      css={css`
+        flex: none;
+        padding: var(--global-dimension-size-25)
+          var(--global-dimension-size-100);
+        border-radius: var(--global-rounding-medium);
+        background-color: var(--global-color-gray-100);
+      `}
+    >
+      <Icon svg={meta.icon} />
+      <Text size="XS" color="text-700">
+        {meta.label}
+      </Text>
+    </Flex>
+  );
+}
+
 type ProjectItemProps = {
   project: ProjectsPageProjectsFragment$data["projects"]["edges"][number]["project"];
   onProjectDelete: () => void;
@@ -522,6 +563,7 @@ function ProjectItem({
   timeRange,
 }: ProjectItemProps) {
   const { gradientStartColor, gradientEndColor, endTime } = project;
+  const { accessControlEnabled } = useFunctionality();
   const lastUpdatedText = useMemo(() => {
     if (endTime) {
       return `Last updated  ${formatDistance(new Date(endTime), new Date(), { addSuffix: true })}`;
@@ -571,15 +613,20 @@ function ProjectItem({
             </Text>
           </Flex>
         </Flex>
-        <CanModify>
-          <ProjectActionMenu
-            projectId={project.id}
-            projectName={project.name}
-            onProjectDelete={onProjectDelete}
-            onProjectClear={onProjectClear}
-            onProjectRemoveData={onProjectRemoveData}
-          />
-        </CanModify>
+        <Flex direction="row" gap="size-100" alignItems="center" flex="none">
+          {accessControlEnabled && (
+            <VisibilityBadge posture={project.accessPosture} />
+          )}
+          <CanModify>
+            <ProjectActionMenu
+              projectId={project.id}
+              projectName={project.name}
+              onProjectDelete={onProjectDelete}
+              onProjectClear={onProjectClear}
+              onProjectRemoveData={onProjectRemoveData}
+            />
+          </CanModify>
+        </Flex>
       </Flex>
       <ProjectMetrics projectId={project.id} timeRange={timeRange} />
     </div>

@@ -14,6 +14,8 @@ import {
   Flex,
   Input,
   Label,
+  Radio,
+  RadioGroup,
   Text,
   TextArea,
   TextField,
@@ -27,10 +29,18 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
+/**
+ * The access scope of the key. "FULL" is the legacy behavior (the key acts
+ * with its owner's role) and is represented as a null scope in the API;
+ * "INGEST" keys can only send traces.
+ */
+export type APIKeyFormScope = "FULL" | "INGEST";
+
 export type APIKeyFormParams = {
   name: string;
   description: string | null;
   expiresAt: DateValue | null;
+  scope: APIKeyFormScope;
 };
 
 /**
@@ -51,6 +61,7 @@ export function CreateAPIKeyDialog(props: {
       name: defaultName ?? "New Key",
       description: "",
       expiresAt: null,
+      scope: "FULL",
     },
   });
 
@@ -117,6 +128,26 @@ export function CreateAPIKeyDialog(props: {
                       </Text>
                     )}
                   </TextField>
+                )}
+              />
+              <Controller
+                name="scope"
+                control={control}
+                render={({ field }) => (
+                  <RadioGroup
+                    {...field}
+                    aria-label="Access scope"
+                    data-testid="api-key-scope-picker"
+                  >
+                    <Label>Access Scope</Label>
+                    <Radio value="FULL">Full access</Radio>
+                    <Radio value="INGEST">Ingest only</Radio>
+                    <Text slot="description">
+                      Ingest-only keys can send traces but cannot read data or
+                      access any other API. The scope cannot be changed after
+                      the key is created.
+                    </Text>
+                  </RadioGroup>
                 )}
               />
               <Controller

@@ -259,6 +259,11 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
                 "Access denied. Your account does not belong to any authorized groups."
             )
 
+    def extract_groups(self, claims: dict[str, Any]) -> list[str]:
+        """The user's groups from their claims, or [] if groups aren't configured.
+        Used to materialize group memberships at login (see phoenix.server.access)."""
+        return self._extract_groups_from_claims(claims)
+
     def _extract_groups_from_claims(self, claims: dict[str, Any]) -> list[str]:
         """Extract group values from claims using the configured JMESPath expression."""
         if not self._compiled_groups_path:

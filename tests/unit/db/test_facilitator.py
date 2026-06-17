@@ -11,15 +11,22 @@ from sqlalchemy.orm import joinedload
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
+    _ensure_access_control_latch,
     _ensure_admins,
     _ensure_default_project_trace_retention_policy,
     _ensure_enums,
     _ensure_model_costs,
+    _ensure_permission_sets,
+    _ensure_role_permissions,
 )
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
     TraceRetentionRule,
+)
+from phoenix.server.access import (
+    ACCESS_CONTROL_ENABLED_KEY,
+    BUILTIN_ROLE_PERMISSIONS,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -780,3 +787,192 @@ class TestEnsureUserFeedbackAnnotationConfig:
 
         assert len(annotation_configs) == 1
         assert isinstance(annotation_configs[0].config, FreeformAnnotationConfig)
+
+
+class TestEnsureRolePermissions:
+    async def _permissions_by_role(self, db: DbSessionFactory) -> dict[str, set[str]]:
+        async with db() as session:
+            rows = await session.execute(
+                select(models.UserRole.name, models.RolePermission.permission).join_from(
+                    models.RolePermission, models.UserRole
+                )
+            )
+        result: dict[str, set[str]] = {}
+        for name, permission in rows:
+            result.setdefault(name, set()).add(permission)
+        return result
+
+    async def test_seeds_builtin_bundles(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        await _ensure_role_permissions(db)
+        expected = {
+            role: {permission.value for permission in permissions}
+            for role, permissions in BUILTIN_ROLE_PERMISSIONS.items()
+        }
+        assert await self._permissions_by_role(db) == expected
+
+    async def test_is_idempotent(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        await _ensure_role_permissions(db)
+        first = await self._permissions_by_role(db)
+        await _ensure_role_permissions(db)
+        await _ensure_role_permissions(db)
+        async with db() as session:
+            total = await session.scalar(select(sa.func.count()).select_from(models.RolePermission))
+        # No duplicate rows accumulate across reseeds.
+        assert total == sum(len(v) for v in first.values())
+        assert await self._permissions_by_role(db) == first
+
+    async def test_reseed_repairs_drift(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        await _ensure_role_permissions(db)
+        async with db() as session:
+            viewer_id = await session.scalar(
+                select(models.UserRole.id).where(models.UserRole.name == "VIEWER")
+            )
+            # A stray permission on a built-in role, and a missing one.
+            session.add(models.RolePermission(user_role_id=viewer_id, permission="administer"))
+            await session.execute(
+                sa.delete(models.RolePermission).where(
+                    models.RolePermission.user_role_id == viewer_id,
+                    models.RolePermission.permission == "read",
+                )
+            )
+        await _ensure_role_permissions(db)
+        # The built-in bundle is restored exactly: the constant is authoritative.
+        assert (await self._permissions_by_role(db))["VIEWER"] == {"read"}
+
+    async def test_builtin_roles_are_marked_immutable(self, db: DbSessionFactory) -> None:
+        await _ensure_enums(db)
+        async with db() as session:
+            built_in = await session.scalars(
+                select(models.UserRole.is_built_in).where(
+                    models.UserRole.name.in_(BUILTIN_ROLE_PERMISSIONS.keys())
+                )
+            )
+        assert all(built_in)
+
+
+class TestEnsurePermissionSets:
+    async def _permissions_by_role(self, db: DbSessionFactory) -> dict[str, set[str]]:
+        async with db() as session:
+            rows = await session.execute(
+                select(models.PermissionSet.name, models.PermissionSetItem.permission).join_from(
+                    models.PermissionSetItem, models.PermissionSet
+                )
+            )
+        result: dict[str, set[str]] = {}
+        for name, permission in rows:
+            result.setdefault(name, set()).add(permission)
+        return result
+
+    async def test_seeds_builtin_permission_sets(self, db: DbSessionFactory) -> None:
+        await _ensure_permission_sets(db)
+        by_role = await self._permissions_by_role(db)
+        assert by_role["Resource Viewer"] == {"obj_view"}
+        assert by_role["Resource Editor"] == {"obj_view", "obj_edit"}
+        assert by_role["Resource Manager"] == {"obj_view", "obj_edit", "obj_manage_access"}
+        async with db() as session:
+            built_in = await session.scalars(select(models.PermissionSet.is_built_in))
+        assert all(built_in)
+
+    async def test_is_idempotent_and_repairs_drift(self, db: DbSessionFactory) -> None:
+        await _ensure_permission_sets(db)
+        async with db() as session:
+            viewer_id = await session.scalar(
+                select(models.PermissionSet.id).where(
+                    models.PermissionSet.name == "Resource Viewer"
+                )
+            )
+            session.add(
+                models.PermissionSetItem(permission_set_id=viewer_id, permission="obj_edit")
+            )
+        await _ensure_permission_sets(db)
+        await _ensure_permission_sets(db)
+        # Stray permission removed, no duplicates.
+        assert (await self._permissions_by_role(db))["Resource Viewer"] == {"obj_view"}
+
+
+class TestEnsureAccessControlLatch:
+    async def _latch(self, db: DbSessionFactory) -> object:
+        async with db() as session:
+            return await session.scalar(
+                sa.select(models.SystemSetting.value).where(
+                    models.SystemSetting.key == ACCESS_CONTROL_ENABLED_KEY
+                )
+            )
+
+    async def _set_latch(self, db: DbSessionFactory, enabled: bool) -> None:
+        async with db() as session:
+            session.add(
+                models.SystemSetting(key=ACCESS_CONTROL_ENABLED_KEY, value={"enabled": enabled})
+            )
+
+    async def test_env_on_bootstraps_latch_when_absent(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PHOENIX_ACCESS_CONTROL_ENABLED", "true")
+        monkeypatch.setenv("PHOENIX_ENABLE_AUTH", "true")  # access control presupposes auth
+        await _ensure_access_control_latch(db)
+        assert await self._latch(db) == {"enabled": True}
+
+    async def test_env_on_is_one_way_and_respects_deliberate_off(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        # An operator deliberately disabled the persisted latch; bootstrap must not re-enable.
+        await self._set_latch(db, enabled=False)
+        monkeypatch.setenv("PHOENIX_ACCESS_CONTROL_ENABLED", "true")
+        await _ensure_access_control_latch(db)
+        assert await self._latch(db) == {"enabled": False}
+
+    async def test_env_on_with_latch_on_is_noop(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        await self._set_latch(db, enabled=True)
+        monkeypatch.setenv("PHOENIX_ACCESS_CONTROL_ENABLED", "true")
+        monkeypatch.setenv("PHOENIX_ENABLE_AUTH", "true")
+        await _ensure_access_control_latch(db)
+        assert await self._latch(db) == {"enabled": True}
+
+    async def test_env_off_with_no_latch_is_noop(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PHOENIX_ACCESS_CONTROL_ENABLED", raising=False)
+        await _ensure_access_control_latch(db)
+        assert await self._latch(db) is None
+
+    async def test_env_off_with_latch_off_is_noop(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        await self._set_latch(db, enabled=False)
+        monkeypatch.delenv("PHOENIX_ACCESS_CONTROL_ENABLED", raising=False)
+        await _ensure_access_control_latch(db)
+        assert await self._latch(db) == {"enabled": False}
+
+    async def test_env_off_while_enforcing_refuses_to_start(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        await self._set_latch(db, enabled=True)
+        monkeypatch.delenv("PHOENIX_ACCESS_CONTROL_ENABLED", raising=False)
+        monkeypatch.setenv("PHOENIX_ENABLE_AUTH", "true")  # isolate drift guard from auth guard
+        with pytest.raises(RuntimeError, match="PHOENIX_ACCESS_CONTROL_ENABLED"):
+            await _ensure_access_control_latch(db)
+
+    async def test_env_on_with_auth_off_refuses_to_start(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        # Access control presupposes authentication: enabling it with auth off would degrade
+        # enforcement to a silent allow-all. Refuse to bootstrap the latch in that state.
+        monkeypatch.setenv("PHOENIX_ACCESS_CONTROL_ENABLED", "true")
+        monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
+        with pytest.raises(RuntimeError, match="authentication"):
+            await _ensure_access_control_latch(db)
+        assert await self._latch(db) is None
+
+    async def test_latched_on_with_auth_off_refuses_to_start(
+        self, db: DbSessionFactory, monkeypatch: MonkeyPatch
+    ) -> None:
+        await self._set_latch(db, enabled=True)
+        monkeypatch.delenv("PHOENIX_ENABLE_AUTH", raising=False)
+        with pytest.raises(RuntimeError, match="authentication"):
+            await _ensure_access_control_latch(db)

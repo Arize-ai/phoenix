@@ -61,6 +61,7 @@ from phoenix.config import (
     ENV_PHOENIX_CSRF_TRUSTED_ORIGINS,
     SERVER_DIR,
     OAuth2ClientConfig,
+    get_env_access_control_enabled,
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_csrf_trusted_origins,
@@ -97,6 +98,7 @@ from phoenix.server.api.routers import (
 from phoenix.server.api.routers.auth_md import router as auth_md_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
+from phoenix.server.api_key_scope import ApiKeyScopeEnforcementMiddleware
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
@@ -209,6 +211,8 @@ class AppConfig(NamedTuple):
     auth_error_messages: dict[AuthErrorCode, str]
     """ Mapping of auth error codes to user-friendly messages """
     oauth2_idps: Sequence[OAuth2Idp]
+    access_control_enabled: bool = False
+    """ Whether PHOENIX_ACCESS_CONTROL_ENABLED is set for this server process """
     basic_auth_disabled: bool = False
     ldap_enabled: bool = False
     """ Whether LDAP authentication is configured """
@@ -284,6 +288,7 @@ class Static(StaticFiles):
                     "vite_port": self._app_config.dev_vite_port,
                     "manifest": self._web_manifest,
                     "authentication_enabled": self._app_config.authentication_enabled,
+                    "access_control_enabled": self._app_config.access_control_enabled,
                     "oauth2_idps": self._app_config.oauth2_idps,
                     "basic_auth_disabled": self._app_config.basic_auth_disabled,
                     "ldap_enabled": self._app_config.ldap_enabled,
@@ -710,6 +715,7 @@ def create_graphql_router(
     secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
+    access_control_enabled: bool = False,
 ) -> GraphQLRouter[Context, None]:
     """Creates the GraphQL router.
 
@@ -747,6 +753,7 @@ def create_graphql_router(
             allowed_provider_names=allowed_provider_names,
             read_only=read_only,
             auth_enabled=authentication_enabled,
+            access_control_enabled=access_control_enabled,
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,
@@ -862,6 +869,7 @@ def create_app(
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
     startup_callbacks_list.append(prefetch_wasm_binary_if_needed)
+    access_control_enabled = get_env_access_control_enabled()
     initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -905,6 +913,10 @@ def create_app(
                 backend=BearerTokenAuthBackend(token_store),
             )
         )
+        # Must come after AuthenticationMiddleware so request.user is
+        # populated: this is the single chokepoint that enforces API-key
+        # scope attenuation across every HTTP surface (REST, GraphQL, OTLP).
+        middlewares.append(Middleware(ApiKeyScopeEnforcementMiddleware))
     else:
         token_store = None
     dml_event_handler = DmlEventHandler(
@@ -979,6 +991,7 @@ def create_app(
         sandbox_session_manager=sandbox_session_manager,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
+        access_control_enabled=access_control_enabled,
     )
     if enable_prometheus:
         from phoenix.server.prometheus import PrometheusMiddleware
@@ -1028,7 +1041,12 @@ def create_app(
             "defaultModelsExpandDepth": -1,  # hides the schema section in the Swagger UI
         },
     )
-    app.include_router(create_v1_router(authentication_enabled))
+    app.include_router(
+        create_v1_router(
+            authentication_enabled,
+            access_control_enabled=access_control_enabled,
+        )
+    )
     if not get_env_disable_agent_assistant():
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
@@ -1092,6 +1110,7 @@ def create_app(
                     authentication_enabled=authentication_enabled,
                     web_manifest_path=web_manifest_path,
                     oauth2_idps=oauth2_idps,
+                    access_control_enabled=access_control_enabled,
                     basic_auth_disabled=basic_auth_disabled,
                     ldap_enabled=ldap_config is not None,
                     # Disable manual user creation when LDAP disabled or no email attr
@@ -1152,6 +1171,7 @@ def create_app(
         allowed_provider_names=get_env_allowed_providers(),
         read_only=read_only,
         authentication_enabled=authentication_enabled,
+        access_control_enabled=access_control_enabled,
         secret=secret,
         token_store=token_store,
         email_sender=email_sender,
@@ -1225,6 +1245,7 @@ def _get_build_graphql_context_function(
     secret: Optional[SecretStr],
     token_store: Optional[TokenStore],
     email_sender: Optional[EmailSender],
+    access_control_enabled: bool,
 ) -> Callable[[Optional[PhoenixUser]], Context]:
     """Factory for creating GraphQL context."""
 
@@ -1249,6 +1270,7 @@ def _get_build_graphql_context_function(
             allowed_provider_names=allowed_provider_names,
             read_only=read_only,
             auth_enabled=authentication_enabled,
+            access_control_enabled=access_control_enabled,
             secret=secret,
             token_store=token_store,
             email_sender=email_sender,

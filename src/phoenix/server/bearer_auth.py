@@ -20,6 +20,8 @@ from phoenix.auth import (
 )
 from phoenix.config import get_env_phoenix_admin_secret
 from phoenix.db import models
+from phoenix.server.access import Permission, permissions_for_role
+from phoenix.server.api_key_scope import deny_unknown_grpc_scope
 from phoenix.server.types import (
     AccessToken,
     AccessTokenAttributes,
@@ -72,20 +74,29 @@ class PhoenixUser(BaseUser):
         self._user_id = user_id
         self.claims = claims
         assert claims.attributes
-        self._is_admin = (
-            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "ADMIN"
+        # The role is authoritative only for a valid claim set; otherwise the
+        # user resolves to no permissions (the oracle fails closed).
+        self._role_name: Optional[str] = (
+            claims.attributes.user_role if claims.status is ClaimSetStatus.VALID else None
         )
-        self._is_viewer = (
-            claims.status is ClaimSetStatus.VALID and claims.attributes.user_role == "VIEWER"
-        )
+
+    @cached_property
+    def permissions(self) -> frozenset[Permission]:
+        """The user's permissions, resolved from their role through the oracle."""
+        return permissions_for_role(self._role_name) if self._role_name else frozenset()
+
+    def can(self, permission: Permission) -> bool:
+        return permission in self.permissions
 
     @cached_property
     def is_admin(self) -> bool:
-        return self._is_admin
+        # An admin is anyone holding the ADMINISTER permission (SYSTEM, ADMIN).
+        return Permission.ADMINISTER in self.permissions
 
     @cached_property
     def is_viewer(self) -> bool:
-        return self._is_viewer
+        # A viewer is a valid user who cannot write — i.e. read-only.
+        return self._role_name is not None and Permission.WRITE not in self.permissions
 
     @cached_property
     def identity(self) -> UserId:
@@ -99,12 +110,8 @@ class PhoenixUser(BaseUser):
 class PhoenixSystemUser(PhoenixUser):
     def __init__(self, user_id: UserId) -> None:
         self._user_id = user_id
-        self._is_admin = True  # System users have admin privileges
-        self._is_viewer = False  # System users are not viewers
-
-    @property
-    def is_admin(self) -> bool:
-        return True
+        # System users carry the SYSTEM role and therefore every permission.
+        self._role_name = "SYSTEM"
 
 
 class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
@@ -138,6 +145,15 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                     or claims.status is not ClaimSetStatus.VALID
                 ):
                     break
+                # The gRPC server serves only OTLP trace export, so the
+                # "ingest" scope (and the absence of a scope) passes; any
+                # unrecognized scope fails closed.
+                if (
+                    isinstance(claims, ApiKeyClaims)
+                    and claims.attributes is not None
+                    and deny_unknown_grpc_scope(claims.attributes.scope)
+                ):
+                    await context.abort(grpc.StatusCode.PERMISSION_DENIED)
                 return await method(request_or_iterator, context)
         await context.abort(grpc.StatusCode.UNAUTHENTICATED)
 

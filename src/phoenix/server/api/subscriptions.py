@@ -20,7 +20,7 @@ from sqlalchemy import func as sa_func
 from strawberry.types import Info
 from typing_extensions import TypeAlias
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
+from phoenix.config import PLAYGROUND_PROJECT_NAME, get_env_access_control_enabled
 from phoenix.db import models
 from phoenix.db.helpers import (
     get_dataset_example_revisions,
@@ -213,19 +213,41 @@ class Subscription:
                 connection=connection,
                 headers=headers,
             )
+            # Playground prompts are the most sensitive data in the system, so
+            # under enforcement the playground is per-user (kind=PLAYGROUND, with a
+            # creator grant) rather than the shared singleton. Flag off → unchanged.
+            playground_user_id = get_user(info)
+            enforcing = get_env_access_control_enabled()
+            playground_name = (
+                f"{PLAYGROUND_PROJECT_NAME}:{playground_user_id}"
+                if enforcing and playground_user_id is not None
+                else PLAYGROUND_PROJECT_NAME
+            )
             if (
                 playground_project_id := await session.scalar(
-                    select(models.Project.id).where(models.Project.name == PLAYGROUND_PROJECT_NAME)
+                    select(models.Project.id).where(models.Project.name == playground_name)
                 )
             ) is None:
                 playground_project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
-                        name=PLAYGROUND_PROJECT_NAME,
+                        name=playground_name,
                         description="Traces from prompt playground",
+                        kind="PLAYGROUND",
                     )
                 )
+                if enforcing and playground_user_id is not None:
+                    session.add(
+                        models.AccessGrant(
+                            subject_kind="user",
+                            subject_id=playground_user_id,
+                            object_type="project",
+                            object_id=playground_project_id,
+                            selector_kind="ids",
+                            effect="allow",
+                        )
+                    )
 
         not_started: deque[tuple[RepetitionNumber, ChatStream]] = deque(
             (
@@ -363,17 +385,17 @@ class Subscription:
 
             # === Create project (same as chat_completion_over_dataset) ===
             project_name = generate_experiment_project_name()
-            if (
-                await session.scalar(
-                    select(models.Project.id).where(models.Project.name == project_name)
-                )
-            ) is None:
-                await session.scalar(
+            experiment_project_id = await session.scalar(
+                select(models.Project.id).where(models.Project.name == project_name)
+            )
+            if experiment_project_id is None:
+                experiment_project_id = await session.scalar(
                     insert(models.Project)
                     .returning(models.Project.id)
                     .values(
                         name=project_name,
                         description="Traces from prompt playground",
+                        kind="EXPERIMENT",
                     )
                 )
 
@@ -388,7 +410,7 @@ class Subscription:
                 repetitions=input.repetitions,
                 metadata_=input.experiment_metadata or dict(),
                 is_ephemeral=bool(input.create_ephemeral_experiment),
-                project_name=project_name,
+                project_id=experiment_project_id,
                 user_id=user_id,
             )
             if resolved_split_ids:

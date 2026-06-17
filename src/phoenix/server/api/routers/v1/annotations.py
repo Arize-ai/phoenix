@@ -7,12 +7,18 @@ from typing import Annotated, Any, Literal, Optional
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field
 from sqlalchemy import ColumnElement, delete, exists, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
+from phoenix.config import get_env_access_control_enabled
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.access import (
+    OBJECT_TYPE_PROJECT,
+    can_access,
+)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.types.ProjectSessionAnnotation import (
     ProjectSessionAnnotation as SessionAnnotationNodeType,
@@ -291,6 +297,7 @@ async def list_span_annotations(
                 status_code=404,
                 detail=f"Project with identifier {project_identifier} not found",
             )
+        await _assert_project_accessible(session, request, project.id, project_identifier)
 
         # Build the base query
         where_conditions = [models.Project.id == project.id]
@@ -471,6 +478,7 @@ async def list_trace_annotations(
                 status_code=404,
                 detail=f"Project with identifier {project_identifier} not found",
             )
+        await _assert_project_accessible(session, request, project.id, project_identifier)
 
         # Build the base query
         where_conditions = [models.Project.id == project.id]
@@ -647,6 +655,7 @@ async def list_session_annotations(
                 status_code=404,
                 detail=f"Project with identifier {project_identifier} not found",
             )
+        await _assert_project_accessible(session, request, project.id, project_identifier)
 
         # Build the base query
         where_conditions = [models.Project.id == project.id]
@@ -737,6 +746,36 @@ async def list_session_annotations(
         ]
 
     return SessionAnnotationsResponseBody(data=data, next_cursor=next_cursor)
+
+
+async def _assert_project_accessible(
+    session: "AsyncSession",
+    request: Request,
+    project_id: int,
+    project_identifier: str,
+) -> None:
+    """Gate a project-scoped read by the caller's access to the project, so the
+    project's containment children (here, annotations) inherit it. Unauthorized
+    is surfaced as 404 — indistinguishable from not-found. A no-op when access
+    control is not enforcing or auth is disabled (access control presupposes
+    auth). Admins pass via the oracle's ADMINISTER rule."""
+    if not get_env_access_control_enabled():
+        return
+    user = request.user if request.app.state.authentication_enabled else None
+    user_id = int(user.identity) if isinstance(user, PhoenixUser) else None
+    if user_id is None:
+        return
+    if not await can_access(
+        session,
+        user_id=user_id,
+        object_type=OBJECT_TYPE_PROJECT,
+        object_id=project_id,
+        enabled=True,
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project with identifier {project_identifier} not found",
+        )
 
 
 def _resolve_non_admin_user_id(request: Request) -> Optional[int]:

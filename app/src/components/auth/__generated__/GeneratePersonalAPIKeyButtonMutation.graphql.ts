@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ee9f7b5c87995aade65d4fe2eca2e466>>
+ * @generated SignedSource<<37e06abb24bfcbb2db3e3a2cc2995bf5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,12 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type ApiKeyScope = "INGEST";
 export type CreateUserApiKeyInput = {
   description?: string | null;
   expiresAt?: string | null;
   name: string;
+  scope?: ApiKeyScope | null;
 };
 export type GeneratePersonalAPIKeyButtonMutation$variables = {
   input: CreateUserApiKeyInput;

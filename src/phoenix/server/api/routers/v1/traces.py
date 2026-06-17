@@ -22,6 +22,7 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_trace
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.access import OBJECT_TYPE_PROJECT
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -46,6 +47,7 @@ from .utils import (
     RequestBody,
     ResponseBody,
     add_errors_to_responses,
+    assert_can_read,
     get_project_by_identifier,
 )
 
@@ -158,6 +160,13 @@ async def list_project_traces(
 ) -> GetTracesResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROJECT,
+            object_id=project.id,
+            not_found_detail=f"Project with identifier {project_identifier} not found",
+        )
         project_rowid = project.id
 
         # Build query with sort order

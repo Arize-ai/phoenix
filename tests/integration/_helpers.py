@@ -250,8 +250,9 @@ class _User:
         *,
         name: Optional[_Name] = None,
         expires_at: Optional[datetime] = None,
+        scope: Optional[str] = None,
     ) -> _ApiKey:
-        return _create_api_key(app, self, kind, name=name, expires_at=expires_at)
+        return _create_api_key(app, self, kind, name=name, expires_at=expires_at, scope=scope)
 
     def delete_api_key(self, app: _AppInfo, api_key: _ApiKey, /) -> None:
         return _delete_api_key(app, api_key, self)
@@ -1052,10 +1053,13 @@ def _create_api_key(
     *,
     name: Optional[_Name] = None,
     expires_at: Optional[datetime] = None,
+    scope: Optional[str] = None,
 ) -> _ApiKey:
     if name is None:
         name = datetime.now(timezone.utc).isoformat()
     exp = f' expiresAt:"{expires_at.isoformat()}"' if expires_at else ""
+    # scope is a GraphQL enum (e.g. INGEST), so it is not quoted
+    exp += f" scope:{scope}" if scope else ""
     args, out = (f'name:"{name}"' + exp), "jwt apiKey{id name expiresAt}"
     field = f"create{kind}ApiKey"
     query = "mutation{" + field + "(input:{" + args + "}){" + out + "}}"
@@ -2225,6 +2229,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/projects/fake-id-{}/traces"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
+    # Access (per-object audit read; invalid ids → 422)
 )
 
 # Admin-only endpoints (user management, project CRUD)
@@ -2236,6 +2241,7 @@ _ADMIN_ONLY_ENDPOINTS = (
     (422, "PUT", "v1/projects/fake-id-{}"),
     (404, "DELETE", "v1/projects/fake-id-{}"),
     (422, "PUT", "v1/secrets"),
+    # Access (org-wide administration)
 )
 
 # Write operations blocked for viewers (POST/PUT/DELETE)
@@ -2261,6 +2267,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/trace_annotations"),
     (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
+    # Access (per-object grant authoring)
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
     (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
@@ -2310,14 +2317,22 @@ def _get_api_route_methods_and_paths(
             )
 
 
+def _format_test_endpoint(endpoint: str) -> str:
+    while "fake-id-{}" in endpoint:
+        endpoint = endpoint.replace("fake-id-{}", f"fake-id-{token_hex(4)}", 1)
+    return endpoint
+
+
 def _ensure_endpoint_coverage_is_exhaustive() -> None:
     """Verify that test constants cover all actual v1 API routes.
 
     This runs at module import time as a prerequisite check. If endpoint
     coverage is incomplete, all tests that import this module will fail fast.
     """
-    # Get all actual routes from the v1 router
-    router = create_v1_router(authentication_enabled=False)
+    # Get all actual routes from the v1 router. Match the no-auth app under test: access
+    # control cannot run with auth disabled (the boot guard refuses it), so its routes are
+    # never mounted here and are covered separately by the access-control integration tests.
+    router = create_v1_router(authentication_enabled=False, access_control_enabled=False)
     actual_routes = set(_get_api_route_methods_and_paths(router.routes))
 
     # Get all routes from test constants

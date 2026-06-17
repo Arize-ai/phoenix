@@ -1,5 +1,6 @@
 import strawberry
 
+from phoenix.server.api.mutations.access_grant_mutations import AccessGrantMutationMixin
 from phoenix.server.api.mutations.annotation_config_mutations import AnnotationConfigMutationMixin
 from phoenix.server.api.mutations.api_key_mutations import ApiKeyMutationMixin
 from phoenix.server.api.mutations.chat_mutations import (
@@ -17,6 +18,7 @@ from phoenix.server.api.mutations.generative_model_custom_provider_mutations imp
     GenerativeModelCustomProviderMutationMixin,
 )
 from phoenix.server.api.mutations.model_mutations import ModelMutationMixin
+from phoenix.server.api.mutations.permission_set_mutations import PermissionSetMutationMixin
 from phoenix.server.api.mutations.project_annotations_mutations import (
     ProjectAnnotationMutationMixin,
 )
@@ -36,11 +38,13 @@ from phoenix.server.api.mutations.span_annotations_mutations import SpanAnnotati
 from phoenix.server.api.mutations.system_settings_mutations import SystemSettingsMutationMixin
 from phoenix.server.api.mutations.trace_annotations_mutations import TraceAnnotationMutationMixin
 from phoenix.server.api.mutations.trace_mutations import TraceMutationMixin
+from phoenix.server.api.mutations.user_group_mutations import UserGroupMutationMixin
 from phoenix.server.api.mutations.user_mutations import UserMutationMixin
 
 
 @strawberry.type
 class Mutation(
+    AccessGrantMutationMixin,
     AnnotationConfigMutationMixin,
     ApiKeyMutationMixin,
     ChatCompletionMutationMixin,
@@ -52,6 +56,7 @@ class Mutation(
     ExperimentMutationMixin,
     GenerativeModelCustomProviderMutationMixin,
     ModelMutationMixin,
+    PermissionSetMutationMixin,
     ProjectAnnotationMutationMixin,
     ProjectMutationMixin,
     ProjectTraceRetentionPolicyMutationMixin,
@@ -65,6 +70,7 @@ class Mutation(
     ProjectSessionAnnotationMutationMixin,
     TraceAnnotationMutationMixin,
     TraceMutationMixin,
+    UserGroupMutationMixin,
     UserMutationMixin,
 ):
     pass

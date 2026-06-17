@@ -6,6 +6,7 @@ from strawberry.permission import BasePermission
 from typing_extensions import override
 
 from phoenix.config import get_env_support_email
+from phoenix.server.access import Permission
 from phoenix.server.api.exceptions import InsufficientStorage, Unauthorized
 from phoenix.server.bearer_auth import PhoenixUser
 
@@ -25,10 +26,14 @@ class IsNotReadOnly(Authorization):
 class IsNotViewer(Authorization):
     message = "Viewers cannot perform this action"
 
-    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+    async def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         if not info.context.auth_enabled:
             return True
-        return isinstance((user := info.context.user), PhoenixUser) and not user.is_viewer
+        if not isinstance(info.context.user, PhoenixUser):
+            return False
+        # Resolved live from the database: a user demoted to viewer loses write on
+        # their next request, without re-login.
+        return Permission.WRITE in await info.context.actor_permissions()
 
 
 class IsLocked(BasePermission):
@@ -69,16 +74,20 @@ MSG_ADMIN_ONLY = "Only admin can perform this action"
 class IsAdmin(Authorization):
     message = MSG_ADMIN_ONLY
 
-    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+    async def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         if not info.context.auth_enabled:
             return False
-        return isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        if not isinstance(info.context.user, PhoenixUser):
+            return False
+        return Permission.ADMINISTER in await info.context.actor_permissions()
 
 
 class IsAdminIfAuthEnabled(Authorization):
     message = MSG_ADMIN_ONLY
 
-    def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
+    async def has_permission(self, source: Any, info: Info, **kwargs: Any) -> bool:
         if not info.context.auth_enabled:
             return True
-        return isinstance((user := info.context.user), PhoenixUser) and user.is_admin
+        if not isinstance(info.context.user, PhoenixUser):
+            return False
+        return Permission.ADMINISTER in await info.context.actor_permissions()

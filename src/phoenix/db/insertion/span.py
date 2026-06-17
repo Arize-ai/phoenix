@@ -74,8 +74,11 @@ async def insert_span(
             select(models.ProjectSession).filter_by(id=trace.project_session_rowid)
         )
     elif session_id:
+        # Resolve the session *within this project*. session_id values collide
+        # across projects (e.g. "default", a conversation id), so a global lookup
+        # would attach this trace to another project's session.
         project_session = await session.scalar(
-            select(models.ProjectSession).filter_by(session_id=session_id)
+            select(models.ProjectSession).filter_by(project_id=project_rowid, session_id=session_id)
         ) or models.ProjectSession(session_id=session_id)
 
     if project_session is not None:

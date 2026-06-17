@@ -18,7 +18,12 @@ from phoenix.server.authorization import is_not_locked
 from phoenix.server.dml_event import ExperimentRunInsertEvent
 
 from .models import V1RoutesBaseModel
-from .utils import PaginatedResponseBody, ResponseBody, add_errors_to_responses
+from .utils import (
+    PaginatedResponseBody,
+    ResponseBody,
+    add_errors_to_responses,
+    assert_can_read_experiment,
+)
 
 router = APIRouter(tags=["experiments"], include_in_schema=True)
 
@@ -234,6 +239,12 @@ async def list_experiment_runs(
         stmt = stmt.limit(limit + 1)
 
     async with request.app.state.db() as session:
+        await assert_can_read_experiment(
+            session,
+            request,
+            experiment_rowid,
+            not_found_detail=f"Experiment with ID {experiment_gid} does not exist",
+        )
         experiment_runs = (await session.scalars(stmt)).all()
 
     if not experiment_runs:
@@ -361,6 +372,12 @@ async def get_incomplete_evaluations(
                 detail=f"Experiment with ID {experiment_globalid} does not exist",
                 status_code=404,
             )
+        await assert_can_read_experiment(
+            session,
+            request,
+            experiment_rowid,
+            not_found_detail=f"Experiment with ID {experiment_globalid} does not exist",
+        )
 
         # Query for runs with incomplete evaluations in a single query
         # This fetches runs, revisions, and annotations together to minimize round-trips

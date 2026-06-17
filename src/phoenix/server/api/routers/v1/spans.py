@@ -21,6 +21,7 @@ from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.access import OBJECT_TYPE_PROJECT
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
@@ -56,6 +57,7 @@ from .utils import (
     RequestBody,
     ResponseBody,
     add_errors_to_responses,
+    assert_can_read,
     get_project_by_identifier,
 )
 
@@ -619,6 +621,17 @@ async def query_spans_handler(
         )
 
     async with request.app.state.db.read() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == project_name)
+        )
+        if project_id is not None:
+            await assert_can_read(
+                session,
+                request,
+                object_type=OBJECT_TYPE_PROJECT,
+                object_id=project_id,
+                not_found_detail=f"Project with name {project_name} not found",
+            )
         results: list[pd.DataFrame] = []
         for query in span_queries:
             df = await session.run_sync(
@@ -761,6 +774,13 @@ async def span_search_otlpv1(
 
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROJECT,
+            object_id=project.id,
+            not_found_detail=f"Project with identifier {project_identifier} not found",
+        )
 
     project_id: int = project.id
     order_by = [models.Span.id.desc()]
@@ -943,6 +963,13 @@ async def span_search(
 ) -> SpansResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        await assert_can_read(
+            session,
+            request,
+            object_type=OBJECT_TYPE_PROJECT,
+            object_id=project.id,
+            not_found_detail=f"Project with identifier {project_identifier} not found",
+        )
 
     project_id: int = project.id
     order_by = [models.Span.id.desc()]

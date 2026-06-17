@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c8b16535855ce9899471aef1ea978b0e>>
+ * @generated SignedSource<<179243d052ce79bf00e7628e6399212a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -145,6 +145,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "accessPosture",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "gradientStartColor",
                     "storageKey": null
                   },
@@ -244,16 +251,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "4ce729574f508383c8126b9947ee799c",
+    "cacheID": "1add6ce312771afa09d6c9c7fb54c0cc",
     "id": null,
     "metadata": {},
     "name": "ProjectsPageProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectsPageProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $sort: ProjectSort = null\n) {\n  ...ProjectsPageProjectsFragment_3JsJJ3\n}\n\nfragment ProjectsPageProjectsFragment_3JsJJ3 on Query {\n  projects(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n        accessPosture\n        gradientStartColor\n        gradientEndColor\n        endTime\n        startTime\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
+(node as any).hash = "a0babffd230994bfcd23bf00859b3883";
 
 export default node;

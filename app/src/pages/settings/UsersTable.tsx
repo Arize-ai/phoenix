@@ -211,6 +211,11 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
             <Flex direction="row" justifyContent="end" width="100%">
               <UserActionMenu
                 userId={row.original.id}
+                userLabel={
+                  row.original.email
+                    ? `${row.original.username} (${row.original.email})`
+                    : row.original.username
+                }
                 connectionIds={[
                   ConnectionHandler.getConnectionID(
                     "client:root",

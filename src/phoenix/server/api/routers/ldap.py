@@ -183,6 +183,9 @@ async def get_or_create_ldap_user(
     )
     user.role = role  # Set relationship for eager access after session closes
     session.add(user)
+    # Flush so user.id is populated before callers (e.g. group sync) reference it —
+    # a membership insert with a null user_id would otherwise violate NOT NULL.
+    await session.flush()
     return user
 
 

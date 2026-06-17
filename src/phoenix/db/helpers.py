@@ -27,7 +27,6 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 
 
@@ -395,22 +394,15 @@ _AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
 def exclude_experiment_projects(
     stmt: Select[_AnyTuple],
 ) -> Select[_AnyTuple]:
-    return stmt.outerjoin(
-        models.Experiment,
-        and_(
-            models.Project.name == models.Experiment.project_name,
-            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
-        ),
-    ).where(models.Experiment.project_name.is_(None))
+    # Hide-internal by the server-set kind discriminator rather than a name
+    # pattern + outerjoin. Playground (kind=PLAYGROUND) stays visible, as before.
+    return stmt.where(models.Project.kind != "EXPERIMENT")
 
 
 def exclude_dataset_evaluator_projects(
     stmt: Select[_AnyTuple],
 ) -> Select[_AnyTuple]:
-    return stmt.outerjoin(
-        models.DatasetEvaluators,
-        models.Project.id == models.DatasetEvaluators.project_id,
-    ).where(models.DatasetEvaluators.project_id.is_(None))
+    return stmt.where(models.Project.kind != "EVALUATOR")
 
 
 def date_trunc(

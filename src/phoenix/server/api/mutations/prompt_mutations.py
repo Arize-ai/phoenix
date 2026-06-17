@@ -15,6 +15,11 @@ from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import is_sdk_compatible_with_model_provider
 from phoenix.db.types.prompts import normalize_invocation_parameters_for_write
+from phoenix.server.access import (
+    OBJECT_TYPE_PROMPT,
+    delete_object_grants,
+    delete_object_tags,
+)
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -168,6 +173,8 @@ class PromptMutationMixin:
             if result.rowcount == 0:  # type: ignore[attr-defined]
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
+            await delete_object_grants(session, OBJECT_TYPE_PROMPT, prompt_id)
+            await delete_object_tags(session, OBJECT_TYPE_PROMPT, prompt_id)
             await session.commit()
         return DeletePromptMutationPayload(query=Query())
 

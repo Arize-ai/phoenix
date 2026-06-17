@@ -56,9 +56,11 @@ export function ViewerAPIKeys({
       commit({
         variables: {
           input: {
-            ...data,
+            name: data.name,
+            description: data.description,
             expiresAt:
               data.expiresAt?.toDate(getLocalTimeZone()).toISOString() || null,
+            scope: data.scope === "INGEST" ? "INGEST" : null,
           },
         },
         onCompleted: (response) => {

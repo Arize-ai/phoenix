@@ -1458,18 +1458,12 @@ class RunningExperiment:
                     assert session.bind is not None
                     dialect = SupportedSQLDialect(session.bind.dialect.name)
 
-                    # Get project_id from cache or DB
+                    # The experiment's trace project, by FK (the durable link).
                     if self._project_id is None:
-                        self._project_id = await session.scalar(
-                            select(models.Project.id).where(
-                                models.Project.name == self._experiment.project_name
-                            )
-                        )
+                        self._project_id = self._experiment.project_id
                         if self._project_id is None:
                             logger.error(
-                                f"Project '{self._experiment.project_name}' "
-                                "not found for experiment "
-                                f"{self._experiment.id}"
+                                f"No trace project linked to experiment {self._experiment.id}"
                             )
                             self._task_db_exhausted = True
                             return

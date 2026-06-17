@@ -23,6 +23,7 @@ from .._helpers import (
     _COMMON_RESOURCE_ENDPOINTS,
     _VIEWER_BLOCKED_WRITE_OPERATIONS,
     _AppInfo,
+    _format_test_endpoint,
     _get,
     _get_gql_spans,
     _grpc_span_exporter,
@@ -215,7 +216,7 @@ class TestLaunchApp:
             _ADMIN_ONLY_ENDPOINTS,
             _VIEWER_BLOCKED_WRITE_OPERATIONS,
         ):
-            response = client.request(method, endpoint.format(token_hex(4)))
+            response = client.request(method, _format_test_endpoint(endpoint))
             assert response.status_code == expected_status_code, (
                 f"Expected {expected_status_code} but "
                 f"got {response.status_code} for {method} {endpoint}"

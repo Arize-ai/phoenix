@@ -355,6 +355,17 @@ class UserMutationMixin:
                     select(models.ApiKey.id).where(models.ApiKey.user_id.in_(user_rowids))
                 )
             ]
+            # Sweep this user's access grants in the same transaction. acls.subject_id
+            # is polymorphic and carries no FK, so nothing cascades; left behind, a
+            # user-subject grant becomes a dangling row that a recycled user id could
+            # silently inherit. Remove it before the id can be reused (the write-time
+            # half of the dangling/reuse fix; read-time inertness is the other half).
+            await session.execute(
+                delete(models.AccessGrant).where(
+                    models.AccessGrant.subject_kind == "user",
+                    models.AccessGrant.subject_id.in_(user_rowids),
+                )
+            )
             deleted_user_ids = await session.scalars(
                 delete(models.User).where(models.User.id.in_(user_rowids)).returning(models.User.id)
             )

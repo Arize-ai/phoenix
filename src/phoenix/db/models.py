@@ -43,6 +43,7 @@ from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     WriteOnlyMapped,
+    column_property,
     mapped_column,
     relationship,
 )
@@ -187,6 +188,7 @@ ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
     "agent.assistant.trace_recording",
     "agent.assistant.enabled",
+    "access_control.enabled",
 ]
 
 
@@ -692,10 +694,21 @@ class ProjectTraceRetentionPolicy(HasId):
     )
 
 
+# The access "kind" of a project — server-set at creation, immutable, and
+# security-load-bearing: it dispatches per-kind access policy (TELEMETRY is the
+# admin-only telemetry world; EXPERIMENT/EVALUATOR are plumbing whose access
+# derives from the parent dataset; PLAYGROUND is per-user scratch). Replaces the
+# fragile name-pattern + exclude_* heuristics.
+ProjectKind: TypeAlias = Literal["TELEMETRY", "PLAYGROUND", "EXPERIMENT", "EVALUATOR"]
+
+
 class Project(HasId):
     __tablename__ = "projects"
     name: Mapped[str]
     description: Mapped[Optional[str]]
+    kind: Mapped[ProjectKind] = mapped_column(
+        String, nullable=False, server_default="TELEMETRY", index=True
+    )
     gradient_start_color: Mapped[str] = mapped_column(
         String,
         server_default=text("'#5bdbff'"),
@@ -734,7 +747,7 @@ class Project(HasId):
 
 class ProjectSession(HasId):
     __tablename__ = "project_sessions"
-    session_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    session_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
@@ -746,7 +759,12 @@ class ProjectSession(HasId):
         back_populates="project_session",
         uselist=True,
     )
+    # session_id is unique *within* a project, not globally: two projects may each
+    # have a session named "default". Resolving by session_id alone (the prior
+    # global-unique constraint) linked a second project's traces to the first
+    # project's session and extended its time window — a cross-project write.
     __table_args__ = (
+        UniqueConstraint("project_id", "session_id"),
         Index(
             "ix_project_sessions_project_id_start_time",
             "project_id",
@@ -1550,7 +1568,12 @@ class Experiment(HasId):
         default=False,
         server_default=sa.false(),
     )
-    project_name: Mapped[Optional[str]] = mapped_column(index=True)
+    project_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    project_name: Mapped[Optional[str]] = column_property(
+        select(Project.name).where(Project.id == project_id).scalar_subquery(),
+    )
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -2009,7 +2032,231 @@ class ExperimentJobLog(ExperimentLog):
 class UserRole(HasId):
     __tablename__ = "user_roles"
     name: Mapped[UserRoleName] = mapped_column(unique=True, index=True)
+    # Built-in roles (SYSTEM/ADMIN/MEMBER/VIEWER) are seeded and immutable: their
+    # name and permission bundle may not be edited or deleted. Custom roles, when
+    # they ship, carry is_built_in=False and are freely editable.
+    is_built_in: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=expression.true(),
+    )
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
+    permissions: Mapped[list["RolePermission"]] = relationship(
+        "RolePermission",
+        back_populates="role",
+        cascade="all, delete-orphan",
+    )
+
+
+class RolePermission(HasId):
+    """A single permission granted to a role. A role's authority is the set of
+    its RolePermission rows — the persisted form of the built-in bundles defined
+    in phoenix.server.access, resolved per request from the database."""
+
+    __tablename__ = "role_permissions"
+    user_role_id: Mapped[int] = mapped_column(
+        ForeignKey("user_roles.id", ondelete="CASCADE"),
+        index=True,
+    )
+    permission: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped["UserRole"] = relationship("UserRole", back_populates="permissions")
+    __table_args__ = (UniqueConstraint("user_role_id", "permission"),)
+
+
+class UserGroup(HasId):
+    """An external identity group (e.g. an OAuth2/IdP or LDAP group) that access
+    can be granted to directly. Namespaced by provider so the same group name from
+    two providers stays distinct. Materialized at login from IdP claims; before
+    this, groups were parsed to derive a role and then discarded."""
+
+    __tablename__ = "user_groups"
+    provider: Mapped[str] = mapped_column(String, nullable=False)
+    group_key: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    memberships: Mapped[list["UserGroupMembership"]] = relationship(
+        "UserGroupMembership",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+    __table_args__ = (UniqueConstraint("provider", "group_key"),)
+
+
+class UserGroupMembership(Base):
+    """A user's membership in a group. Reconciled at each login from the IdP's
+    current group claims — memberships for that provider not present at login are
+    removed, so offboarding from a group takes effect on the user's next login.
+
+    The natural key (user_group_id, user_id) is the primary key — a membership is the
+    pair, with no attributes of its own, so a surrogate id would only add a second
+    index. user_group_id is the PK's leftmost column, so it needs no separate index;
+    user_id does (it is not a prefix of the PK, yet drives the per-user lookups and the
+    cascade on user delete)."""
+
+    __tablename__ = "user_group_memberships"
+    user_group_id: Mapped[int] = mapped_column(
+        ForeignKey("user_groups.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    group: Mapped["UserGroup"] = relationship("UserGroup", back_populates="memberships")
+
+
+class PermissionSet(HasId):
+    """A named bundle of object-level permissions — what a subject may do on a
+    granted resource (view / edit / manage-access). Built-in presets (Resource
+    Viewer/Editor/Manager) are immutable; custom permission sets are editable rows.
+    Referenced by acls.role_id. Lives in its own table (not user_roles) so custom
+    roles can have free-form names without touching the auth-central roles enum."""
+
+    __tablename__ = "permission_sets"
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    is_built_in: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=expression.true(),
+    )
+    permissions: Mapped[list["PermissionSetItem"]] = relationship(
+        "PermissionSetItem",
+        back_populates="role",
+        cascade="all, delete-orphan",
+    )
+
+
+class PermissionSetItem(HasId):
+    """A single object-level permission held by an permission set."""
+
+    __tablename__ = "permission_set_items"
+    permission_set_id: Mapped[int] = mapped_column(
+        ForeignKey("permission_sets.id", ondelete="CASCADE"),
+        index=True,
+    )
+    permission: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped["PermissionSet"] = relationship("PermissionSet", back_populates="permissions")
+    __table_args__ = (
+        UniqueConstraint("permission_set_id", "permission"),
+        Index(
+            "ix_permission_set_items_permission_permission_set_id",
+            "permission",
+            "permission_set_id",
+        ),
+    )
+
+
+class AccessGrant(HasId):
+    """An access grant: "this subject may access these objects." The persisted
+    unit of per-resource access.
+
+    Allow-only — ``effect`` is always ``allow`` — but the column exists so a deny
+    variant can be added without a migration. Selector discipline: an object is
+    named by id (``selector_kind='ids'``, ``object_id`` set), as "all of a type"
+    (``selector_kind='all'``, ``object_id`` NULL), or by a curated attribute
+    (``selector_kind='tag'``, ``tag_key``/``tag_value`` set, ``object_id`` NULL) —
+    which reaches every object of its type carrying that exact ``key=value`` tag
+    (see :class:`ResourceTag`).
+
+    A generic ``(object_type, object_id)`` reference covers projects and the orphan
+    roots (datasets, prompts) alike, and an object_type of ``*`` means all types —
+    used by the seeded everyone-allow default, so that turning enforcement on hides
+    nothing until an object-specific grant is authored.
+
+    An object's identity is the *pair* ``(object_type, object_id)``; an id alone is
+    meaningless, because ids are per-table and collide across types (dataset 5 and
+    project 5 both exist). So a wildcard ``object_type='*'`` is only coherent with the
+    type-wide ``selector_kind='all'``: pairing ``*`` with an id-scoped selector would
+    alias every row that happens to share that id, in every table. The check constraint
+    forbids that combination at the storage layer, where hand-seeded or migrated rows —
+    which never pass through the grant mutation — are still caught.
+    """
+
+    __tablename__ = "acls"
+    subject_kind: Mapped[str] = mapped_column(String, nullable=False)
+    subject_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # The permission set conferred by this grant — what the subject may do on the
+    # object. NULL falls back to view-only (legacy grants, the everyone-allow
+    # default). ON DELETE SET NULL so removing a role degrades grants to view.
+    role_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("permission_sets.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    object_type: Mapped[str] = mapped_column(String, nullable=False)
+    object_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    selector_kind: Mapped[str] = mapped_column(String, nullable=False, server_default="ids")
+    # Attribute (tag) selector: set only when selector_kind='tag'. The grant reaches
+    # every object of its object_type currently carrying this exact key=value tag.
+    # Stored as strings and matched exactly — not a FK to a ResourceTag row — so a
+    # removed tag simply stops matching (inert, fail-closed) with no dangling grant.
+    tag_key: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    tag_value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    effect: Mapped[str] = mapped_column(String, nullable=False, server_default="allow")
+    __table_args__ = (
+        CheckConstraint(
+            "object_type != '*' OR selector_kind = 'all'",
+            name="wildcard_type_requires_all_selector",
+        ),
+        Index("ix_acls_object_type_object_id", "object_type", "object_id"),
+        Index("ix_acls_subject_kind_subject_id", "subject_kind", "subject_id"),
+        Index(
+            "ix_acls_subject_access_lookup",
+            "effect",
+            "subject_kind",
+            "subject_id",
+            "object_type",
+            "selector_kind",
+            "object_id",
+        ),
+        Index(
+            "ix_acls_object_access_lookup",
+            "effect",
+            "object_type",
+            "object_id",
+            "selector_kind",
+        ),
+    )
+
+
+class ResourceTag(HasId):
+    """A curated attribute on an access-controlled object — "this object carries
+    ``key=value``". The source of truth for attribute-based (tag) access grants: a
+    grant with ``selector_kind='tag'`` names a ``(key, value)`` pair and reaches
+    every object of its type that currently carries it (see :class:`AccessGrant`).
+
+    Server/admin-set, never client telemetry — applying a tag changes who can reach
+    the object, so it is a privileged action gated on ``OBJ_MANAGE_ACCESS`` like a
+    grant. Kept distinct from prompt version/commit labels: "which version" and "who
+    may see it" are different controls and namespaces.
+
+    The reference is polymorphic ``(object_type, object_id)`` like ``acls`` — one
+    table for every resource type, at the cost of no real FK to the target. So there
+    is no ``ON DELETE CASCADE`` to lean on: a deleted object's tags must be swept on
+    the delete path (a sibling to the grant sweep). ``key``/``value`` are stored as
+    strings and matched exactly; a tag grant carries the strings, not a FK to a row
+    here, so removing a tag just stops matching — no dangling grant to clean up.
+
+    UNIQUE ``(object_type, object_id, key)`` — one value per key per object. The
+    forward index answers "the tags of this object"; the reverse index answers
+    "the objects of this type with this key=value", which is how a tag grant expands
+    to ids."""
+
+    __tablename__ = "resource_tags"
+    object_type: Mapped[str] = mapped_column(String, nullable=False)
+    object_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    key: Mapped[str] = mapped_column(String, nullable=False)
+    value: Mapped[str] = mapped_column(String, nullable=False)
+    # Audit only — who applied the tag. ON DELETE SET NULL so deprovisioning the
+    # author leaves the tag (and the access it confers) intact.
+    created_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    __table_args__ = (
+        UniqueConstraint("object_type", "object_id", "key"),
+        Index("ix_resource_tags_object_type_object_id", "object_type", "object_id"),
+        Index("ix_resource_tags_object_type_key_value", "object_type", "key", "value"),
+    )
 
 
 class User(HasId):
@@ -2277,6 +2524,10 @@ class ApiKey(HasId):
     user: Mapped["User"] = relationship("User", back_populates="api_keys")
     name: Mapped[str]
     description: Mapped[Optional[str]]
+    # The key's attenuating scope, as data. NULL = full authority. The signed JWT
+    # claim remains the enforcement carrier; this column is the durable, listable
+    # source of truth for display.
+    scope: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     expires_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp, nullable=True, index=True)
     __table_args__ = (dict(sqlite_autoincrement=True),)

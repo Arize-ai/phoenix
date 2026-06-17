@@ -25,6 +25,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 from starlette.types import ASGIApp
 
+from phoenix.config import get_env_enable_auth, get_env_phoenix_secret
 from phoenix.db import models
 from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.engines import (
@@ -298,12 +299,17 @@ async def project(db: DbSessionFactory) -> None:
 async def app(
     db: DbSessionFactory,
 ) -> AsyncIterator[FastAPI]:
+    # Default off (PHOENIX_ENABLE_AUTH unset → False), so existing tests are unchanged;
+    # tests that need auth (e.g. access control) opt in via the env vars. The signing secret
+    # must be supplied for the auth middleware to be installed.
+    auth_enabled = get_env_enable_auth()
     async with contextlib.AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
         await stack.enter_async_context(patch_grpc_server())
         yield create_app(
             db=db,
-            authentication_enabled=False,
+            authentication_enabled=auth_enabled,
+            secret=get_env_phoenix_secret() if auth_enabled else None,
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
         )

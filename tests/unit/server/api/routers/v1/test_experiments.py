@@ -261,6 +261,67 @@ async def test_reading_experiments(
     assert all(experiment[key] == value for key, value in expected.items())
 
 
+async def test_delete_experiment_keeps_project_and_resets_its_kind(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    """Deleting an experiment but keeping its project (the default) leaves the project and
+    surfaces it as a normal TELEMETRY project — it is no longer an experiment's hidden store,
+    so it reappears in the (experiment-project-excluding) projects list."""
+    dataset_gid = GlobalID("Dataset", "0")
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = created["id"]
+    project_name = created["project_name"]
+    assert project_name
+    async with db() as session:
+        kind = await session.scalar(
+            select(models.Project.kind).where(models.Project.name == project_name)
+        )
+    assert kind == "EXPERIMENT"
+
+    resp = await httpx_client.delete(f"v1/experiments/{experiment_gid}")
+    assert resp.status_code in (200, 204), resp.text
+
+    async with db() as session:
+        kind = await session.scalar(
+            select(models.Project.kind).where(models.Project.name == project_name)
+        )
+    assert kind == "TELEMETRY"  # kept, and no longer hidden as an experiment project
+
+
+async def test_delete_experiment_with_delete_project_flag_removes_project(
+    httpx_client: httpx.AsyncClient,
+    simple_dataset: Any,
+    db: DbSessionFactory,
+) -> None:
+    dataset_gid = GlobalID("Dataset", "0")
+    created = (
+        await httpx_client.post(
+            f"v1/datasets/{dataset_gid}/experiments",
+            json={"version_id": None, "repetitions": 1},
+        )
+    ).json()["data"]
+    experiment_gid = created["id"]
+    project_name = created["project_name"]
+
+    resp = await httpx_client.delete(
+        f"v1/experiments/{experiment_gid}", params={"delete_project": "true"}
+    )
+    assert resp.status_code in (200, 204), resp.text
+
+    async with db() as session:
+        exists = await session.scalar(
+            select(models.Project.id).where(models.Project.name == project_name)
+        )
+    assert exists is None  # project deleted
+
+
 async def test_listing_experiments_on_empty_dataset(
     httpx_client: httpx.AsyncClient,
     dataset_with_experiments_without_runs: Any,

@@ -33,7 +33,7 @@ from phoenix.server.types import DbSessionFactory
 def _make_experiment(experiment_id: int = 1) -> models.Experiment:
     exp = MagicMock(spec=models.Experiment)
     exp.id = experiment_id
-    exp.project_name = "test-project"
+    exp.project_id = 1
     return exp
 
 

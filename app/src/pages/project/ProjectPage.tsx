@@ -8,7 +8,13 @@ import {
   useMemo,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useLocation, useNavigate, useParams } from "react-router";
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -16,6 +22,8 @@ import {
   useTimeRange,
 } from "@phoenix/components/datetime";
 import { TopNavActions } from "@phoenix/components/nav";
+import { useViewerCanManageAccessControl } from "@phoenix/contexts";
+import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
@@ -83,7 +91,14 @@ export function ProjectPage() {
   );
 }
 
-const TABS = ["spans", "traces", "sessions", "config", "metrics"] as const;
+const TABS = [
+  "spans",
+  "traces",
+  "sessions",
+  "config",
+  "metrics",
+  "access",
+] as const;
 
 /**
  * Type guard for the tab path in the URL
@@ -98,6 +113,7 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   sessions: 2,
   metrics: 3,
   config: 4,
+  access: 5,
 };
 
 const TAB_PATH_BY_INDEX = Object.fromEntries(
@@ -136,6 +152,9 @@ function ProjectPageContentBody({
   }, [timeRange]);
   const navigate = useNavigate();
   const { rootPath, tab } = useProjectRootPath();
+  const canManageAccessControl = useViewerCanManageAccessControl();
+  const { accessControlEnabled } = useFunctionality();
+  const canShowAccessControl = accessControlEnabled && canManageAccessControl;
   const data = useLazyLoadQuery<ProjectPageQueryType>(
     graphql`
       query ProjectPageQuery($id: ID!, $timeRange: TimeRange!) {
@@ -220,6 +239,10 @@ function ProjectPageContentBody({
     [location.hash, location.search, navigate, rootPath]
   );
 
+  if (tab === "access" && !canShowAccessControl) {
+    return <Navigate to={`${rootPath}/spans`} replace />;
+  }
+
   return (
     <main css={mainCSS}>
       <TopNavActions order={1}>
@@ -247,6 +270,7 @@ function ProjectPageContentBody({
             <Tab id="sessions">Sessions</Tab>
             <Tab id="metrics">Metrics</Tab>
             <Tab id="config">Config</Tab>
+            {canShowAccessControl && <Tab id="access">Access</Tab>}
           </TabList>
           <LazyTabPanel padded={false} id="spans">
             <Outlet />
@@ -261,6 +285,9 @@ function ProjectPageContentBody({
             <Outlet />
           </LazyTabPanel>
           <LazyTabPanel padded={false} id="config">
+            <Outlet />
+          </LazyTabPanel>
+          <LazyTabPanel padded={false} id="access">
             <Outlet />
           </LazyTabPanel>
         </Tabs>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c70464ee56bf821921d873b5ad33c38e>>
+ * @generated SignedSource<<ad93d5a2418393d62500ff924e8745db>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,11 +9,13 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type ProjectAccessPosture = "ADMINS_ONLY" | "ALL_USERS" | "SHARED";
 import { FragmentRefs } from "relay-runtime";
 export type ProjectsPageProjectsFragment$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
+        readonly accessPosture: ProjectAccessPosture;
         readonly endTime: string | null;
         readonly gradientEndColor: string;
         readonly gradientStartColor: string;
@@ -137,6 +139,13 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "accessPosture",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "gradientStartColor",
                   "storageKey": null
                 },
@@ -226,6 +235,6 @@ return {
 };
 })();
 
-(node as any).hash = "d4c6c361639eeba67a41568089bf699a";
+(node as any).hash = "a0babffd230994bfcd23bf00859b3883";
 
 export default node;

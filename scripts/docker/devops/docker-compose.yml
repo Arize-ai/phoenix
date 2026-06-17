@@ -51,6 +51,7 @@ services:
       - PHOENIX_SQL_DATABASE_URL=postgresql://postgres:postgres@db:5433/postgres
       - PHOENIX_ENABLE_PROMETHEUS=true
       - PHOENIX_LOG_LEVEL=DEBUG
+      - PHOENIX_MASK_INTERNAL_SERVER_ERRORS=false
       - PHOENIX_HOST_ROOT_PATH=/phoenix
       - PHOENIX_ROOT_URL=http://localhost:18273/phoenix
       - PYTHONDONTWRITEBYTECODE=1
@@ -61,6 +62,7 @@ services:
       - PHOENIX_SECRET=phoenix-secret-abc-123-for-development-only-not-secure
       - PHOENIX_ADMIN_SECRET=phoenix-admin-secret-abc-123-for-development-only-not-secure
       - PHOENIX_ADMINS=TestUser=testuser@arize.com
+      - PHOENIX_ACCESS_CONTROL_ENABLED=true
       - PHOENIX_OAUTH2_DEV_CLIENT_ID=phoenix-oidc-client-id
       - PHOENIX_OAUTH2_DEV_CLIENT_SECRET=phoenix-oidc-client-secret-abc-123
       - PHOENIX_OAUTH2_DEV_OIDC_CONFIG_URL=http://localhost:18273/oidc/.well-known/openid-configuration
@@ -131,7 +133,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     expose:
       - "9000"
     volumes:

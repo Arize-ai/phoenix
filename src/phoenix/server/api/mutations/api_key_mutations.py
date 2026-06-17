@@ -13,6 +13,7 @@ from phoenix.server.api.auth import IsAdmin, IsLocked, IsNotReadOnly, IsNotViewe
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.queries import Query
+from phoenix.server.api.types.ApiKeyScope import ApiKeyScope
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SystemApiKey import SystemApiKey
 from phoenix.server.api.types.UserApiKey import UserApiKey
@@ -32,6 +33,7 @@ class CreateApiKeyInput:
     name: str
     description: Optional[str] = UNSET
     expires_at: Optional[datetime] = UNSET
+    scope: Optional[ApiKeyScope] = UNSET
 
 
 @strawberry.type
@@ -46,6 +48,19 @@ class CreateUserApiKeyInput:
     name: str
     description: Optional[str] = UNSET
     expires_at: Optional[datetime] = UNSET
+    scope: Optional[ApiKeyScope] = UNSET
+
+
+def _scoped_description(description: Optional[str], scope: Optional[ApiKeyScope]) -> Optional[str]:
+    """
+    Echo the scope into the key's description at mint time so it is visible
+    in key listings. The scope itself lives in the signed token; the
+    description copy is display-only and never consulted for authorization.
+    """
+    if not scope:
+        return description
+    marker = f"[scope:{scope.value}]"
+    return f"{marker} {description}" if description else marker
 
 
 @strawberry.input
@@ -79,6 +94,7 @@ class ApiKeyMutationMixin:
             if system_user is None:
                 raise ValueError("System user not found")
         issued_at = datetime.now(timezone.utc)
+        description = _scoped_description(input.description or None, input.scope or None)
         claims = ApiKeyClaims(
             subject=UserId(system_user.id),
             issued_at=issued_at,
@@ -86,7 +102,8 @@ class ApiKeyMutationMixin:
             attributes=ApiKeyAttributes(
                 user_role=user_role,
                 name=input.name,
-                description=input.description,
+                description=description,
+                scope=input.scope.value if input.scope else None,
             ),
         )
         token, token_id = await token_store.create_api_key(claims)
@@ -115,6 +132,7 @@ class ApiKeyMutationMixin:
             user_role = "VIEWER"
         else:
             user_role = "MEMBER"
+        description = _scoped_description(input.description or None, input.scope or None)
         claims = ApiKeyClaims(
             subject=user.identity,
             issued_at=issued_at,
@@ -122,7 +140,8 @@ class ApiKeyMutationMixin:
             attributes=ApiKeyAttributes(
                 user_role=user_role,
                 name=input.name,
-                description=input.description,
+                description=description,
+                scope=input.scope.value if input.scope else None,
             ),
         )
         token, token_id = await token_store.create_api_key(claims)

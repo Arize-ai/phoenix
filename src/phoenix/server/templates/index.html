@@ -134,6 +134,7 @@
               basename: "{{basename}}",
               platformVersion: "{{platform_version}}",
               authenticationEnabled: Boolean("{{authentication_enabled}}" == "True"),
+              accessControlEnabled: Boolean("{{access_control_enabled}}" == "True"),
               oAuth2Idps: {{ oauth2_idps | tojson }},
               basicAuthDisabled: Boolean("{{basic_auth_disabled}}" == "True"),
               ldapEnabled: Boolean("{{ldap_enabled}}" == "True"),

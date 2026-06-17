@@ -354,6 +354,14 @@ ENV_PHOENIX_DISABLE_BASIC_AUTH = "PHOENIX_DISABLE_BASIC_AUTH"
 Forbid login via password and disable the creation of local users, which log in via passwords.
 This can be helpful in setups where authentication is handled entirely through OAUTH2.
 """
+ENV_PHOENIX_ACCESS_CONTROL_ENABLED = "PHOENIX_ACCESS_CONTROL_ENABLED"
+"""
+Enforce per-resource access grants. Off by default: every authenticated user
+sees every resource, exactly as before. Turning it on flips the default to
+deny — only resources reachable through an authored grant (or the seeded
+everyone-allow default) are visible. Schema and grant authoring exist
+regardless; this flag only gates enforcement.
+"""
 ENV_PHOENIX_ALLOWED_PROVIDERS = "PHOENIX_ALLOWED_PROVIDERS"
 """
 Comma-separated list of provider names to show in the UI.
@@ -1160,6 +1168,15 @@ def get_env_enable_auth() -> bool:
     Gets the value of the PHOENIX_ENABLE_AUTH environment variable.
     """
     return _bool_val(ENV_PHOENIX_ENABLE_AUTH, False)
+
+
+def get_env_access_control_enabled() -> bool:
+    """
+    Gets the value of the PHOENIX_ACCESS_CONTROL_ENABLED environment variable.
+    When false (the default), per-resource access control is not enforced and
+    every authenticated user can see every resource.
+    """
+    return _bool_val(ENV_PHOENIX_ACCESS_CONTROL_ENABLED, False)
 
 
 def get_env_disable_basic_auth() -> bool:

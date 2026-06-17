@@ -468,13 +468,18 @@ async def dataset_with_experiments_without_runs(
     empty_dataset: Any,
 ) -> None:
     async with db() as session:
+        project_default = models.Project(name="default", kind="EXPERIMENT")
+        project_random = models.Project(name="random", kind="EXPERIMENT")
+        session.add_all([project_default, project_random])
+        await session.flush()
+
         experiment_0 = models.Experiment(
             id=0,
             dataset_id=1,
             dataset_version_id=1,
             name="test",
             repetitions=1,
-            project_name="default",
+            project_id=project_default.id,
             metadata_={"info": "a test experiment"},
         )
         session.add(experiment_0)
@@ -486,7 +491,7 @@ async def dataset_with_experiments_without_runs(
             dataset_version_id=2,
             name="second test",
             repetitions=1,
-            project_name="random",
+            project_id=project_random.id,
             metadata_={"info": "a second test experiment"},
         )
         session.add(experiment_1)
