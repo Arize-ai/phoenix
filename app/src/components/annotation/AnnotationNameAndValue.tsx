@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { Fragment } from "react";
 import type { CSSProperties } from "react";
 
 import { Flex, Text } from "@phoenix/components";
@@ -23,48 +24,69 @@ const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   }
 `;
 
-/**
- * Derives the displayable score and label text for an annotation. Returns
- * `null` for a part that isn't present so callers can decide how to combine or
- * render them.
- */
-const getAnnotationValueParts = (annotation: Annotation) => ({
-  scoreText:
-    typeof annotation.score === "number" ? formatFloat(annotation.score) : null,
-  labelText: annotation.label || null,
-});
+const valuePartsCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+`;
 
-const getAnnotationDisplayValue = ({
-  annotation,
-  displayPreference,
-}: {
-  annotation: Annotation;
-  displayPreference: AnnotationDisplayPreference;
-}) => {
+// A thin separator between value pieces (e.g. a label and its score). Tinted
+// with the current text color so it inherits the optimization-direction color.
+const valueDividerCSS = css`
+  width: 1px;
+  height: 0.7em;
+  background-color: currentColor;
+  opacity: 0.2;
+`;
+
+/**
+ * A single renderable piece of an annotation value. Scores render in a
+ * monospace font; labels render in the default font.
+ */
+type AnnotationValuePart = {
+  text: string;
+  fontFamily: "mono" | "default";
+};
+
+/**
+ * Resolves an annotation into the ordered value pieces to render for the given
+ * display preference. Returns an empty array when nothing should be shown (the
+ * "none" preference) and a single "n/a" piece when a value is expected but
+ * absent. The component renders every preference through these parts, so a
+ * score always shows in mono and a label in the default font.
+ */
+const getAnnotationValueParts = (
+  annotation: Annotation,
+  displayPreference: AnnotationDisplayPreference
+): AnnotationValuePart[] => {
+  const scorePart: AnnotationValuePart | null =
+    typeof annotation.score === "number"
+      ? { text: formatFloat(annotation.score), fontFamily: "mono" }
+      : null;
+  const labelPart: AnnotationValuePart | null = annotation.label
+    ? { text: annotation.label, fontFamily: "default" }
+    : null;
+
+  const withFallback = (
+    parts: (AnnotationValuePart | null)[]
+  ): AnnotationValuePart[] => {
+    const present = parts.filter((part): part is AnnotationValuePart => {
+      return part != null;
+    });
+    return present.length > 0
+      ? present
+      : [{ text: "n/a", fontFamily: "default" }];
+  };
+
   switch (displayPreference) {
-    case "label":
-      return (
-        annotation.label ||
-        (typeof annotation.score == "number" &&
-          formatFloat(annotation.score)) ||
-        "n/a"
-      );
-    case "score":
-      return (
-        (typeof annotation.score == "number" &&
-          formatFloat(annotation.score)) ||
-        annotation.label ||
-        "n/a"
-      );
-    case "score-and-label": {
-      // When both a label and a score are present, the combined value is
-      // rendered as distinct pieces by the component. This branch only handles
-      // the case where a single value is available.
-      const { scoreText, labelText } = getAnnotationValueParts(annotation);
-      return scoreText || labelText || "n/a";
-    }
     case "none":
-      return "";
+      return [];
+    case "label":
+      return withFallback([labelPart ?? scorePart]);
+    case "score":
+      return withFallback([scorePart ?? labelPart]);
+    case "score-and-label":
+      return withFallback([labelPart, scorePart]);
     default:
       assertUnreachable(displayPreference);
   }
@@ -96,18 +118,7 @@ export function AnnotationNameAndValue({
   positiveOptimization,
   showColorSwatch = true,
 }: AnnotationNameAndValueProps) {
-  const labelValue = getAnnotationDisplayValue({
-    annotation,
-    displayPreference,
-  });
-  const { scoreText, labelText } = getAnnotationValueParts(annotation);
-  // When both a label and a score are shown, render them as distinct pieces:
-  // the label in the default font and the score in mono, separated by clear
-  // spacing — instead of wrapping the score in parentheses.
-  const showsLabelAndScore =
-    displayPreference === "score-and-label" &&
-    scoreText != null &&
-    labelText != null;
+  const valueParts = getAnnotationValueParts(annotation, displayPreference);
 
   return (
     <Flex
@@ -126,7 +137,7 @@ export function AnnotationNameAndValue({
           {annotation.name}
         </Text>
       </div>
-      {labelValue && (
+      {valueParts.length > 0 && (
         <div
           css={css(
             textCSS(maxWidth),
@@ -135,37 +146,21 @@ export function AnnotationNameAndValue({
             `
           )}
         >
-          <AnnotationScoreText
-            positiveOptimization={positiveOptimization}
-            fontFamily={showsLabelAndScore ? "default" : "mono"}
-          >
-            {showsLabelAndScore ? (
-              <span
-                css={css`
-                  display: inline-flex;
-                  align-items: center;
-                  gap: var(--global-dimension-size-100);
-                `}
-              >
-                <Text color="inherit" size={size}>
-                  {labelText}
-                </Text>
-                <span
-                  aria-hidden
-                  css={css`
-                    width: 1px;
-                    height: 0.7em;
-                    background-color: currentColor;
-                    opacity: 0.2;
-                  `}
-                />
-                <Text fontFamily="mono" color="inherit" size={size}>
-                  {scoreText}
-                </Text>
-              </span>
-            ) : (
-              labelValue
-            )}
+          <AnnotationScoreText positiveOptimization={positiveOptimization}>
+            <span css={valuePartsCSS}>
+              {valueParts.map((part, index) => (
+                <Fragment key={index}>
+                  {index > 0 && <span aria-hidden css={valueDividerCSS} />}
+                  <Text
+                    fontFamily={part.fontFamily}
+                    color="inherit"
+                    size={size}
+                  >
+                    {part.text}
+                  </Text>
+                </Fragment>
+              ))}
+            </span>
           </AnnotationScoreText>
         </div>
       )}
