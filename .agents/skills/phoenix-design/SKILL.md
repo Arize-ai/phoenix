@@ -26,3 +26,4 @@ Read the relevant file(s) based on the task:
 | `rules/tokens.md` | Creating or consuming CSS design tokens |
 | `rules/icons.md` | Picking an icon for a noun (project, trace, span, file, etc.) |
 | `rules/counters.md` | Displaying counts in tabs, headings, or filter buttons |
+| `rules/empty-states.md` | Choosing or adding an `EmptyStateGraphic` variant (the per-region/topic empty-state graphics) |

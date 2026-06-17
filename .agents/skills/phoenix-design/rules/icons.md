@@ -21,6 +21,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Undo / rewind | `Icons.RotateCcwOutline` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `HistoryOutline` (clock = history/session list). |
 | Resume / play | `Icons.PlayOutline` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircleOutline` (used for video attachments). |
 | Pause | `Icons.PauseOutline` | Pause an in-progress activity (e.g. pause live streaming). |
+| Event (span event) | `Icons.FlagTriangleRightOutline` | A span event / marker on a timeline. The flag reads as a point-in-time marker. |
 
 ## When you need an icon
 
