@@ -18,6 +18,7 @@ import {
   Tooltip,
   TooltipTrigger,
   TriggerWrap,
+  View,
 } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { ErrorBoundary } from "@phoenix/components/exception";
@@ -321,10 +322,12 @@ export function CustomProvidersCard({
     <ErrorBoundary>
       <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
         {isEmpty ? (
-          <EmptyState
-            graphic={<EmptyStateGraphic variant="genericAdd" />}
-            description="No custom AI providers configured yet."
-          />
+          <View padding="size-300">
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              description="No custom AI providers configured yet."
+            />
+          </View>
         ) : (
           <table css={tableCSS}>
             <thead>
