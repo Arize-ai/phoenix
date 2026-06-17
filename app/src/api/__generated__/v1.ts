@@ -395,6 +395,32 @@ export interface paths {
         patch: operations["updateExperiment"];
         trace?: never;
     };
+    "/v1/experiments/{experiment_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get per-annotation score summary for an experiment, optionally vs. a baseline
+         * @description Return per-annotation score summaries for an experiment. Each row carries the repetition-aware `mean_score` and the number of examples `n` that contributed a numeric score.
+         *
+         *     When a baseline is supplied, each row also carries `baseline_mean_score`, `diff`, and pairwise `num_improved`/`num_regressed`/`num_equal` counts comparing this experiment to the baseline on dataset examples that have a numeric score on both sides. Scores default to higher-is-better (`maximize`); pass `minimize_scores` to flip specific annotations to lower-is-better. Each row's `optimization_direction` echoes the effective direction so consumers need not re-derive it.
+         *
+         *     Baseline resolution: supply `baseline_experiment_id` to compare against a specific experiment (it must pin the same `dataset_version_id`, otherwise the request is refused with 409), or supply `ancestor_commits` — an ordered, closest-first list of commit SHAs — to let the server pick the most recent prior experiment on the same dataset version whose `repo_info.commit` appears in the list. The server performs no git work and never selects the target experiment itself; when no candidate matches, the response is 200 with a null `baseline_experiment_id` and null baseline fields.
+         *
+         *     The `repo_info` convention: test runners record git provenance under the reserved `repo_info` key of an experiment's `metadata`, shaped as `{commit, branch, dirty, author_name, author_email, commit_message, commit_time, remote_url, tag?}`. This key is reserved for runner-collected git metadata: a runner overwrites any user-supplied `repo_info` and reports a warning on conflict. Only `repo_info.commit` is read here, for baseline resolution.
+         */
+        get: operations["getExperimentSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/experiments/{experiment_id}/incomplete-runs": {
         parameters: {
             query?: never;
@@ -2419,6 +2445,55 @@ export interface components {
              */
             missing_run_count: number;
         };
+        /** ExperimentAnnotationSummary */
+        ExperimentAnnotationSummary: {
+            /**
+             * Annotation Name
+             * @description The name of the annotation
+             */
+            annotation_name: string;
+            /**
+             * Mean Score
+             * @description Mean score for the annotation across dataset examples. For each example the scores from its repetitions are averaged first, then those per-example means are averaged. Null when no example has a numeric score.
+             */
+            mean_score: number | null;
+            /**
+             * N
+             * @description Number of dataset examples contributing a numeric score after per-example aggregation across repetitions.
+             */
+            n: number;
+            /**
+             * Optimization Direction
+             * @description The effective optimization direction used for this annotation: `maximize` (higher is better, the default) unless overridden via `minimize_scores`.
+             * @enum {string}
+             */
+            optimization_direction: "maximize" | "minimize";
+            /**
+             * Baseline Mean Score
+             * @description Mean score for the same annotation in the resolved baseline experiment, computed the same way as `mean_score`. Null when there is no baseline or the baseline has no numeric score for this annotation.
+             */
+            baseline_mean_score: number | null;
+            /**
+             * Diff
+             * @description `mean_score` minus `baseline_mean_score`. Null when either side is null. The sign is not direction-adjusted; use `optimization_direction` to interpret it.
+             */
+            diff: number | null;
+            /**
+             * Num Improved
+             * @description Number of dataset examples where this experiment's per-example score is better than the baseline's, per `optimization_direction`. Only examples with a numeric score on both sides are counted. Null when there is no baseline.
+             */
+            num_improved: number | null;
+            /**
+             * Num Regressed
+             * @description Number of dataset examples where this experiment's per-example score is worse than the baseline's. Only examples with a numeric score on both sides are counted. Null when there is no baseline.
+             */
+            num_regressed: number | null;
+            /**
+             * Num Equal
+             * @description Number of dataset examples where this experiment's per-example score equals the baseline's. Only examples with a numeric score on both sides are counted; missing scores are excluded rather than counted as equal. Null when there is no baseline.
+             */
+            num_equal: number | null;
+        };
         /** ExperimentEvaluationResult */
         ExperimentEvaluationResult: {
             /**
@@ -2486,6 +2561,34 @@ export interface components {
              * @description The ID of the experiment
              */
             experiment_id: string;
+        };
+        /** ExperimentSummary */
+        ExperimentSummary: {
+            /**
+             * Experiment Id
+             * @description The ID of the experiment being summarized
+             */
+            experiment_id: string;
+            /**
+             * Dataset Version Id
+             * @description The ID of the dataset version pinned by the experiment
+             */
+            dataset_version_id: string;
+            /**
+             * Baseline Experiment Id
+             * @description The ID of the resolved baseline experiment, or null when no baseline was requested or no comparable baseline could be resolved.
+             */
+            baseline_experiment_id: string | null;
+            /**
+             * Baseline Dataset Version Id
+             * @description The dataset version ID of the resolved baseline experiment, or null when there is no baseline.
+             */
+            baseline_dataset_version_id: string | null;
+            /**
+             * Annotation Summaries
+             * @description Per-annotation score summaries, sorted by annotation name
+             */
+            annotation_summaries: components["schemas"]["ExperimentAnnotationSummary"][];
         };
         /**
          * FileUIPart
@@ -2570,6 +2673,10 @@ export interface components {
         /** GetExperimentResponseBody */
         GetExperimentResponseBody: {
             data: components["schemas"]["Experiment"];
+        };
+        /** GetExperimentSummaryResponseBody */
+        GetExperimentSummaryResponseBody: {
+            data: components["schemas"]["ExperimentSummary"];
         };
         /** GetIncompleteEvaluationsResponseBody */
         GetIncompleteEvaluationsResponseBody: {
@@ -6750,6 +6857,71 @@ export interface operations {
                 };
             };
             /** @description Invalid experiment ID or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getExperimentSummary: {
+        parameters: {
+            query?: {
+                /** @description ID of the experiment to compare against. Must pin the same dataset version as the target experiment, otherwise the request is refused with 409. Takes precedence over `ancestor_commits`. */
+                baseline_experiment_id?: string | null;
+                /** @description Ordered list of candidate commit SHAs, closest-first, used to resolve a baseline experiment on the same dataset version. Each value must be non-empty. The earliest-listed commit with a matching experiment wins; the list is capped at 100 entries. Ignored when `baseline_experiment_id` is supplied. */
+                ancestor_commits?: string[] | null;
+                /** @description Annotation names whose scores are lower-is-better. Names not listed default to higher-is-better (`maximize`). Each value must be non-empty. */
+                minimize_scores?: string[] | null;
+            };
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-annotation score summary retrieved successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetExperimentSummaryResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment or baseline experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Baseline experiment pins a different dataset version */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or query parameters */
             422: {
                 headers: {
                     [name: string]: unknown;

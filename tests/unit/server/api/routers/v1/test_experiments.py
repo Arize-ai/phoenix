@@ -15,6 +15,7 @@ from phoenix.db import models
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.types import DbSessionFactory
 from tests.unit._helpers import verify_experiment_examples_junction_table
+from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.server.api.conftest import ExperimentsWithIncompleteRuns
 
 
@@ -1835,3 +1836,260 @@ class TestPatchExperiment:
             json={"name": "x"},
         )
         assert response.status_code == 404
+
+
+async def _seed_experiment_with_scores(
+    session: Any,
+    *,
+    experiment_id: int,
+    dataset_id: int,
+    dataset_version_id: int,
+    example_ids: list[int],
+    scores_by_example: dict[int, float],
+    annotation_name: str,
+    metadata: Optional[dict[str, Any]] = None,
+) -> None:
+    """Insert one experiment with a single CODE annotation score per listed example.
+
+    Examples present in ``example_ids`` but absent from ``scores_by_example`` get a run with
+    no annotation, so they contribute no numeric score (used to exercise missing-score paths).
+    """
+    now = datetime.now(timezone.utc)
+    session.add(
+        models.Experiment(
+            id=experiment_id,
+            dataset_id=dataset_id,
+            dataset_version_id=dataset_version_id,
+            name=f"experiment-{experiment_id}",
+            description=None,
+            repetitions=1,
+            metadata_=metadata or {},
+        )
+    )
+    await session.flush()
+    for example_id in example_ids:
+        run = models.ExperimentRun(
+            experiment_id=experiment_id,
+            dataset_example_id=example_id,
+            repetition_number=1,
+            output={"task_output": "out"},
+            start_time=now,
+            end_time=now,
+        )
+        session.add(run)
+        await session.flush()
+        if example_id in scores_by_example:
+            session.add(
+                models.ExperimentRunAnnotation(
+                    experiment_run_id=run.id,
+                    name=annotation_name,
+                    annotator_kind="CODE",
+                    label=None,
+                    score=scores_by_example[example_id],
+                    error=None,
+                    metadata_={},
+                    start_time=now,
+                    end_time=now,
+                )
+            )
+    await session.flush()
+
+
+@pytest.fixture
+async def summary_dataset(db: DbSessionFactory) -> dict[str, Any]:
+    """A dataset (two examples on v1, one example on v2) plus three experiments.
+
+    - experiment 100: target on v1, scores {ex0: 0.8, ex1: 0.6}, repo_info.commit "c2"
+    - experiment 101: baseline on v1, scores {ex0: 0.4, ex1: 0.6}, repo_info.commit "c1"
+    - experiment 102: on v2 (different fixture version), scores {ex2: 0.9}, repo_info.commit "c1"
+    """
+    annotation_name = "correctness"
+    async with db() as session:
+        dataset = models.Dataset(id=50, name="summary dataset", metadata_={})
+        session.add(dataset)
+        await session.flush()
+
+        version_1 = models.DatasetVersion(id=50, dataset_id=50, metadata_={})
+        version_2 = models.DatasetVersion(id=51, dataset_id=50, metadata_={})
+        session.add_all([version_1, version_2])
+        await session.flush()
+
+        example_0 = models.DatasetExample(id=50, dataset_id=50)
+        example_1 = models.DatasetExample(id=51, dataset_id=50)
+        example_2 = models.DatasetExample(id=52, dataset_id=50)
+        session.add_all([example_0, example_1, example_2])
+        await session.flush()
+
+        for revision_id, example_id, version_id in (
+            (50, 50, 50),
+            (51, 51, 50),
+            (52, 52, 51),
+        ):
+            session.add(
+                models.DatasetExampleRevision(
+                    id=revision_id,
+                    dataset_example_id=example_id,
+                    dataset_version_id=version_id,
+                    input={"in": "x"},
+                    output={"out": "y"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                )
+            )
+        await session.flush()
+
+        await _seed_experiment_with_scores(
+            session,
+            experiment_id=100,
+            dataset_id=50,
+            dataset_version_id=50,
+            example_ids=[50, 51],
+            scores_by_example={50: 0.8, 51: 0.6},
+            annotation_name=annotation_name,
+            metadata={"repo_info": {"commit": "c2"}},
+        )
+        await _seed_experiment_with_scores(
+            session,
+            experiment_id=101,
+            dataset_id=50,
+            dataset_version_id=50,
+            example_ids=[50, 51],
+            scores_by_example={50: 0.4, 51: 0.6},
+            annotation_name=annotation_name,
+            metadata={"repo_info": {"commit": "c1"}},
+        )
+        await _seed_experiment_with_scores(
+            session,
+            experiment_id=102,
+            dataset_id=50,
+            dataset_version_id=51,
+            example_ids=[52],
+            scores_by_example={52: 0.9},
+            annotation_name=annotation_name,
+            metadata={"repo_info": {"commit": "c1"}},
+        )
+    return {
+        "annotation_name": annotation_name,
+        "target_gid": str(GlobalID("Experiment", "100")),
+        "baseline_gid": str(GlobalID("Experiment", "101")),
+        "other_version_gid": str(GlobalID("Experiment", "102")),
+        "dataset_version_v1_gid": str(GlobalID("DatasetVersion", "50")),
+    }
+
+
+async def test_experiment_summary_without_baseline_matches_graphql(
+    httpx_client: httpx.AsyncClient,
+    gql_client: AsyncGraphQLClient,
+    summary_dataset: dict[str, Any],
+) -> None:
+    target_gid = summary_dataset["target_gid"]
+    annotation_name = summary_dataset["annotation_name"]
+
+    response = await httpx_client.get(f"v1/experiments/{target_gid}/summary")
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["experiment_id"] == target_gid
+    assert body["dataset_version_id"] == summary_dataset["dataset_version_v1_gid"]
+    assert body["baseline_experiment_id"] is None
+    assert body["baseline_dataset_version_id"] is None
+    assert len(body["annotation_summaries"]) == 1
+    summary = body["annotation_summaries"][0]
+    assert summary["annotation_name"] == annotation_name
+    assert summary["n"] == 2
+    assert summary["mean_score"] == pytest.approx(0.7)  # (0.8 + 0.6) / 2
+    assert summary["optimization_direction"] == "maximize"
+    # No baseline -> baseline/diff/count fields are null
+    assert summary["baseline_mean_score"] is None
+    assert summary["diff"] is None
+    assert summary["num_improved"] is None
+    assert summary["num_regressed"] is None
+    assert summary["num_equal"] is None
+
+    # The REST mean must equal the GraphQL annotationSummaries mean for the same experiment.
+    gql_response = await gql_client.execute(
+        query="""
+          query ($experimentId: ID!) {
+            experiment: node(id: $experimentId) {
+              ... on Experiment {
+                annotationSummaries {
+                  annotationName
+                  meanScore
+                }
+              }
+            }
+          }
+        """,
+        variables={"experimentId": target_gid},
+    )
+    assert not gql_response.errors
+    assert gql_response.data is not None
+    gql_summaries = gql_response.data["experiment"]["annotationSummaries"]
+    gql_mean = next(s["meanScore"] for s in gql_summaries if s["annotationName"] == annotation_name)
+    assert summary["mean_score"] == pytest.approx(gql_mean)
+
+
+async def test_experiment_summary_with_baseline(
+    httpx_client: httpx.AsyncClient,
+    summary_dataset: dict[str, Any],
+) -> None:
+    target_gid = summary_dataset["target_gid"]
+    baseline_gid = summary_dataset["baseline_gid"]
+
+    response = await httpx_client.get(
+        f"v1/experiments/{target_gid}/summary",
+        params={"baseline_experiment_id": baseline_gid},
+    )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["baseline_experiment_id"] == baseline_gid
+    assert body["baseline_dataset_version_id"] == summary_dataset["dataset_version_v1_gid"]
+    summary = body["annotation_summaries"][0]
+    assert summary["mean_score"] == pytest.approx(0.7)  # (0.8 + 0.6) / 2
+    assert summary["baseline_mean_score"] == pytest.approx(0.5)  # (0.4 + 0.6) / 2
+    assert summary["diff"] == pytest.approx(0.2)
+    # Higher-is-better default: ex0 target 0.8 > baseline 0.4 (improved); ex1 0.6 == 0.6 (equal).
+    assert summary["num_improved"] == 1
+    assert summary["num_regressed"] == 0
+    assert summary["num_equal"] == 1
+
+
+async def test_experiment_summary_resolves_baseline_via_ancestor_commits(
+    httpx_client: httpx.AsyncClient,
+    summary_dataset: dict[str, Any],
+) -> None:
+    target_gid = summary_dataset["target_gid"]
+
+    # "c1" matches the baseline experiment (101); the target's own commit "c2" is listed
+    # first but must never resolve to the target itself.
+    response = await httpx_client.get(
+        f"v1/experiments/{target_gid}/summary",
+        params=[("ancestor_commits", "c2"), ("ancestor_commits", "c1")],
+    )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["baseline_experiment_id"] == summary_dataset["baseline_gid"]
+    assert body["annotation_summaries"][0]["num_improved"] == 1
+
+    # A commit with no matching same-version experiment -> 200 with null baseline.
+    response = await httpx_client.get(
+        f"v1/experiments/{target_gid}/summary",
+        params=[("ancestor_commits", "does-not-exist")],
+    )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["baseline_experiment_id"] is None
+    assert body["annotation_summaries"][0]["diff"] is None
+
+
+async def test_experiment_summary_refuses_cross_version_baseline_with_409(
+    httpx_client: httpx.AsyncClient,
+    summary_dataset: dict[str, Any],
+) -> None:
+    target_gid = summary_dataset["target_gid"]
+    other_version_gid = summary_dataset["other_version_gid"]
+
+    response = await httpx_client.get(
+        f"v1/experiments/{target_gid}/summary",
+        params={"baseline_experiment_id": other_version_gid},
+    )
+    assert response.status_code == 409
