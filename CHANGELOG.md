@@ -1,5 +1,12 @@
 # Changelog
 
+## [17.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.0...arize-phoenix-v17.8.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* resolve route path through FastAPI 0.137 _IncludedRouter in prometheus middleware ([#13822](https://github.com/Arize-ai/phoenix/issues/13822)) ([97d5faa](https://github.com/Arize-ai/phoenix/commit/97d5faaef0792ffb570af418815018258b929367))
+
 ## [17.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.7.0...arize-phoenix-v17.8.0) (2026-06-17)
 
 
