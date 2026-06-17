@@ -6,7 +6,7 @@ from threading import Thread
 from typing import Optional, Sequence
 
 import psutil
-from fastapi.routing import _IncludedRouter
+from fastapi.routing import APIRoute, Mount, _IncludedRouter
 from prometheus_client import (
     Counter,
     Gauge,
@@ -156,9 +156,8 @@ def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[s
             if sub_path is not None:
                 return _join_paths(prefix, sub_path)
             continue
-        path: Optional[str] = getattr(route, "path", None)
-        if path is not None:
-            return path
+        if isinstance(route, (APIRoute, Mount)):
+            return route.path
     return None
 
 
