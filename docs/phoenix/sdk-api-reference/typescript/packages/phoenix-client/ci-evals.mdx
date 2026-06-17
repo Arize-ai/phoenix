@@ -9,7 +9,7 @@ into local development and CI. Each `describe()`
 block becomes a Phoenix dataset and a new experiment; each `test()`
 becomes a dataset example plus a recorded experiment run; the assertion
 outcome is captured as a `pass` boolean annotation. Anything you log via
-`recordOutput()` / `logAnnotation()` / `traceEvaluator()` lands on the run.
+`recordOutput()` / `logAnnotation()` / `evaluate()` lands on the run.
 Suite-level `acceptanceCriteria` can fail CI on aggregate annotation metrics,
 for example when average quality drops below `0.8`.
 
@@ -20,9 +20,9 @@ each test's task span.
 ## Install
 
 ```bash
-npm install -D @arizeai/phoenix-client vitest dotenv
+npm install -D @arizeai/phoenix-client @arizeai/phoenix-evals vitest dotenv
 # or, for jest:
-npm install -D @arizeai/phoenix-client jest dotenv
+npm install -D @arizeai/phoenix-client @arizeai/phoenix-evals jest dotenv
 ```
 
 ## Minimal Example
@@ -63,7 +63,7 @@ that shipped with your project.
 
 | Import | Purpose |
 |--------|---------|
-| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `recordOutput`, `logAnnotation`, `traceEvaluator`) |
+| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `recordOutput`, `logAnnotation`, `evaluate`) |
 | `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter that prints a Phoenix-flavored summary at the end of the run |
 | `@arizeai/phoenix-client/jest` | Same API surface, wired to Jest globals |
 | `@arizeai/phoenix-client/jest/reporter` | Jest reporter |
@@ -101,6 +101,9 @@ standard Phoenix env vars.
 | `PHOENIX_TEST_TRACKING=false` | Disable sync to Phoenix for the current run |
 | `PHOENIX_TEST_DRY_RUN=true` | Alias of `PHOENIX_TEST_TRACKING=false` |
 | `PHOENIX_TEST_REPETITIONS` | Default number of times to run each test |
+| `PHOENIX_TEST_REPORTER=verbose` | Show every test row plus per-test `output:` detail (default is the compact view) |
+| `PHOENIX_TEST_REPORTER_MAX_ROWS` | Max test rows shown per suite in compact mode (default `10`; failures are never hidden) |
+| `PHOENIX_TEST_COLOR` | Force ANSI color on/off (otherwise auto: on for a TTY, off in CI / `NO_COLOR`) |
 
 `describe()` also accepts `repetitions` and `dryRun` on its config object,
 plus `acceptanceCriteria` for aggregate score thresholds. `test()` accepts
@@ -129,6 +132,24 @@ reporter still prints a local summary.
   as an ordinary local test, with no dataset example and nothing uploaded,
   even when the rest of the suite syncs.
 
+## Reporter Output
+
+The Vitest and Jest reporters print a Phoenix-flavored summary at the end of a
+run. By default the output is **compact** and scales to large suites:
+
+- A **scoreboard** across all suites — passed count, the gated metric average,
+  the acceptance verdict, and the experiment link, one row per suite.
+- A per-suite **results table** showing only failures and evaluator *misses*
+  (a run whose annotation score falls below its acceptance bar), with an
+  `AGGREGATE` row over the whole suite. Passing rows are hidden behind a
+  `… N passing rows hidden` footer — their full detail (input, output,
+  annotations) is always written to the JSON artifacts (see
+  `PHOENIX_TEST_REPORT_DIR`).
+
+Set `PHOENIX_TEST_REPORTER=verbose` to expand every test row and restore the
+per-test `output:` detail block. `PHOENIX_TEST_REPORTER_MAX_ROWS` caps the rows
+shown per suite in compact mode (failures are never hidden).
+
 ## Acceptance Criteria
 
 Use acceptance criteria for graded metrics where some misses are acceptable
@@ -154,7 +175,7 @@ block with observed values and sample counts.
 - [CI Eval Tests: Vitest](./ci-evals-vitest) — config, reporter, and the full `describe` /
   `test` / `test.each` API as it surfaces in Vitest
 - [CI Eval Tests: Jest](./ci-evals-jest) — the same API surface in a Jest project
-- [CI Eval Test Annotations](./ci-evals-annotations) — `logAnnotation`, `traceEvaluator`, and
+- [CI Eval Test Annotations](./ci-evals-annotations) — `logAnnotation`, `evaluate`, and
   the `Annotation` shape
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
