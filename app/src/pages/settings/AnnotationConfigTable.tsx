@@ -26,9 +26,10 @@ import {
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
 import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/AnnotationConfigSelectionToolbar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
@@ -296,7 +297,12 @@ export const AnnotationConfigTable = ({
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty message="No Annotation Configs" />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="config" />}
+              description="No annotation configs"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => (

@@ -20,6 +20,7 @@ import { useNavigate, useParams } from "react-router";
 import { CopyToClipboardButton, Truncate } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import {
   CellWithControlsWrap,
   CompactJSONCell,
@@ -30,7 +31,7 @@ import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { useDatasetContext } from "@phoenix/contexts/DatasetContext";
 import type { ExamplesCache } from "@phoenix/pages/examples/ExamplesFilterContext";
 import { useExamplesFilterContext } from "@phoenix/pages/examples/ExamplesFilterContext";
@@ -435,7 +436,12 @@ export function ExamplesTable({
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="genericAdd" />}
+              description="No examples found"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => {

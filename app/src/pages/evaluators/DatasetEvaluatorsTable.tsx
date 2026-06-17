@@ -25,6 +25,7 @@ import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
 import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
@@ -105,7 +106,7 @@ const evaluatorColumnCSS = css`
   flex: 1;
 `;
 
-const EmptyState = ({
+const DatasetEvaluatorsEmpty = ({
   builtInEvaluators,
   onSelectLLMEvaluatorTemplate,
   onSelectCodeEvaluator,
@@ -151,9 +152,10 @@ const EmptyState = ({
         maxWidth="700px"
         margin="var(--global-dimension-size-300) auto"
       >
-        <Text size="S" fontStyle="italic" color="text-500">
-          No evaluators added to this dataset
-        </Text>
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="evaluator" />}
+          description="No evaluators added to this dataset"
+        />
         <Flex direction="row" gap="size-125">
           {/* LLM Evaluator Templates */}
           <div css={evaluatorColumnCSS}>
@@ -630,7 +632,7 @@ export const DatasetEvaluatorsTable = ({
           ))}
         </thead>
         {isEmpty ? (
-          <EmptyState
+          <DatasetEvaluatorsEmpty
             builtInEvaluators={builtInEvaluators}
             onSelectLLMEvaluatorTemplate={onSelectLLMEvaluatorTemplate}
             onSelectCodeEvaluator={onSelectCodeEvaluator}

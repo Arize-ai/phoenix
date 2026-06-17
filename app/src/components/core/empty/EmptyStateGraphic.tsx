@@ -78,6 +78,7 @@ const EMPTY_STATE_GRAPHICS = {
   attribute: { size: "small", icon: <Icon svg={<Icons.InfoOutline />} /> },
   config: { size: "small", icon: <Icon svg={<Icons.SettingsOutline />} /> },
   credential: { size: "small", icon: <Icon svg={<Icons.KeyOutline />} /> },
+  version: { size: "small", icon: <Icon svg={<Icons.GitBranchOutline />} /> },
   tag: tagSpec,
   label: tagSpec,
   split: tagSpec,

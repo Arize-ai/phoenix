@@ -15,8 +15,9 @@ import {
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import { TableEmpty } from "@phoenix/components/table";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 
@@ -210,7 +211,12 @@ export function SecretsTable({
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty message="No Secrets" />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="credential" />}
+              description="No secrets"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => (

@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import { Fragment } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -18,9 +19,15 @@ export type EmptyStateCardItem = LinkCardProps;
  * A single item in an action strip. Convention: use `link` for external
  * destinations (rendered as an `ExternalLink`) and `button` for in-product
  * behaviors — navigation, opening a dialog, etc. (rendered as a `Button`).
+ *
+ * `node` is the escape hatch for a self-contained interactive control the
+ * `link`/`button` kinds can't express — e.g. a button that opens a popover menu
+ * (`RunDatasetExperimentButton`). It renders verbatim in the strip row; size it
+ * to `S` so it sits flush with the other items.
  */
 export type EmptyStateActionItem =
   | { kind: "link"; label: string; href: string }
+  | { kind: "node"; node: ReactNode }
   | ({ kind: "button" } & Omit<ButtonProps, "size">);
 
 export type EmptyStateAction =
@@ -87,6 +94,9 @@ function ActionArea({ action }: { action: EmptyStateAction }) {
                 {item.label}
               </ExternalLinkButton>
             );
+          }
+          if (item.kind === "node") {
+            return <Fragment key={i}>{item.node}</Fragment>;
           }
           const { kind: _kind, ...btnProps } = item;
           return <Button key={i} size="S" {...btnProps} />;
