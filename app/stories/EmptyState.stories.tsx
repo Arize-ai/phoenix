@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { Icon, Icons } from "@phoenix/components";
 import { ExternalLink } from "@phoenix/components/core/ExternalLink";
-import { EmptyState } from "@phoenix/components/empty-state";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 
 const meta: Meta<typeof EmptyState> = {
   title: "Core/Feedback/EmptyState",
@@ -15,35 +15,6 @@ const meta: Meta<typeof EmptyState> = {
 
 export default meta;
 type Story = StoryObj<typeof EmptyState>;
-
-// ---------------------------------------------------------------------------
-// Placeholder graphic used across stories
-// ---------------------------------------------------------------------------
-const PlaceholderGraphic = () => (
-  <svg
-    width="120"
-    height="120"
-    viewBox="0 0 120 120"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <rect
-      width="120"
-      height="120"
-      rx="12"
-      fill="var(--global-color-gray-100)"
-    />
-    <rect
-      x="24"
-      y="24"
-      width="72"
-      height="72"
-      rx="8"
-      fill="var(--global-color-gray-200)"
-    />
-    <circle cx="60" cy="60" r="20" fill="var(--global-color-gray-400)" />
-  </svg>
-);
 
 // ---------------------------------------------------------------------------
 // 1. Non-actionable
@@ -65,7 +36,7 @@ export const TitleAndDescription: Story = {
 
 export const GraphicTitleAndDescription: Story = {
   args: {
-    graphic: <PlaceholderGraphic />,
+    graphic: <EmptyStateGraphic variant="trace" />,
     title: "No traces yet",
     description:
       "Instrument your application with Phoenix tracing to see spans and traces appear here.",
@@ -98,28 +69,33 @@ export const TitleDescriptionAndLink: Story = {
     description: "Upload a dataset to start running evaluations.",
     action: {
       type: "link",
-      label: "View documentation",
+      label: "Documentation",
       href: "https://docs.arize.com/phoenix",
     },
   },
 };
 
+// Two-button pattern from the real product empty states (e.g.
+// src/pages/prompts/PromptsEmpty.tsx): a secondary Documentation link with the
+// primary "Create X" call-to-action second.
 export const TitleDescriptionAndButtons: Story = {
   name: "Title + description + buttons",
   args: {
-    title: "No evaluators found",
+    title: "No evaluators yet",
     description:
       "Create your first evaluator to start scoring AI outputs automatically.",
     action: {
       type: "buttons",
       buttons: [
         {
-          variant: "primary",
-          children: "Create evaluator",
+          children: "Documentation",
+          leadingVisual: <Icon svg={<Icons.BookOutline />} />,
           onPress: () => {},
         },
         {
-          children: "View datasets",
+          variant: "primary",
+          children: "Create Evaluator",
+          leadingVisual: <Icon svg={<Icons.PlusOutline />} />,
           onPress: () => {},
         },
       ],
@@ -130,7 +106,7 @@ export const TitleDescriptionAndButtons: Story = {
 export const GraphicTitleDescriptionAndButtons: Story = {
   name: "Graphic + title + description + buttons",
   args: {
-    graphic: <PlaceholderGraphic />,
+    graphic: <EmptyStateGraphic variant="experiment" />,
     title: "No experiments yet",
     description:
       "Run your first experiment to compare how different prompt variations affect your model's output.",
@@ -139,7 +115,7 @@ export const GraphicTitleDescriptionAndButtons: Story = {
       buttons: [
         {
           variant: "primary",
-          children: "New experiment",
+          children: "Create Experiment",
           onPress: () => {},
         },
       ],
@@ -165,7 +141,7 @@ export const ButtonsWithDescriptionLink: Story = {
       buttons: [
         {
           variant: "primary",
-          children: "Create prompt",
+          children: "Create Prompt",
           onPress: () => {},
         },
       ],
@@ -215,7 +191,7 @@ export const TwoCardsTwoColumns: Story = {
 export const GraphicTwoCardsOneColumn: Story = {
   name: "Graphic + two cards — 1 column (vertical layout)",
   args: {
-    graphic: <PlaceholderGraphic />,
+    graphic: <EmptyStateGraphic variant="evaluator" />,
     title: "Get started with evaluators",
     description: "Choose the evaluator type that fits your use case.",
     action: { type: "cards", items: twoCards, columns: 1 },
@@ -225,7 +201,7 @@ export const GraphicTwoCardsOneColumn: Story = {
 export const GraphicTwoCardsTwoColumns: Story = {
   name: "Graphic + two cards — 2 columns (vertical layout)",
   args: {
-    graphic: <PlaceholderGraphic />,
+    graphic: <EmptyStateGraphic variant="evaluator" />,
     title: "Get started with evaluators",
     description: "Choose the evaluator type that fits your use case.",
     action: { type: "cards", items: twoCards, columns: 2 },
@@ -299,10 +275,24 @@ export const SixCardsTwoColumns: Story = {
 export const GraphicSixCardsTwoColumns: Story = {
   name: "Graphic + six cards — 2 columns (auto horizontal layout)",
   args: {
-    graphic: <PlaceholderGraphic />,
+    graphic: <EmptyStateGraphic variant="evaluator" />,
     title: "Automate evaluation of your AI outputs",
     description:
       "Choose from LLM evaluator templates or built-in code evaluators to score experiment runs.",
     action: { type: "cards", items: sixCards, columns: 2 },
+  },
+};
+
+// Same six-card case, but forcing the graphic above the content instead of
+// letting "auto" switch to the side-by-side (horizontal) layout.
+export const GraphicSixCardsTwoColumnsVertical: Story = {
+  name: "Graphic + six cards — 2 columns (vertical layout)",
+  args: {
+    graphic: <EmptyStateGraphic variant="evaluator" />,
+    title: "Automate evaluation of your AI outputs",
+    description:
+      "Choose from LLM evaluator templates or built-in code evaluators to score experiment runs.",
+    action: { type: "cards", items: sixCards, columns: 2 },
+    orientation: "vertical",
   },
 };
