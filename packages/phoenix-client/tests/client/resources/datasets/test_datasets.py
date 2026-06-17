@@ -625,3 +625,52 @@ class TestUpdateActionFallback:
                 action="append",
             )
         assert mock_client.post.call_count == 1
+
+
+class TestGeneratorInputs:
+    """Generator inputs must not have their first item silently dropped."""
+
+    def _make_datasets(self, post_response: httpx.Response) -> Datasets:
+        mock_client = Mock(spec=httpx.Client)
+        mock_client.post = Mock(return_value=post_response)
+        datasets = Datasets.__new__(Datasets)
+        datasets._client = mock_client  # pyright: ignore[reportPrivateUsage]
+        return datasets
+
+    def test_create_dataset_generator_inputs_all_uploaded(self) -> None:
+        """First example must not be dropped when inputs is a generator."""
+        upload_response = _make_response(
+            200, json_body={"data": {"dataset_id": "ds-1", "version_id": "v-1"}}
+        )
+        datasets = self._make_datasets(upload_response)
+
+        raw = [{"q": "a"}, {"q": "b"}, {"q": "c"}]
+        inputs_gen = (x for x in raw)
+
+        with patch.object(datasets, "get_dataset", return_value=Mock(spec=Dataset)):
+            datasets.create_dataset(name="test", inputs=inputs_gen)
+
+        sent = datasets._client.post.call_args.kwargs["json"]  # pyright: ignore[reportPrivateUsage]
+        assert sent["inputs"] == raw
+
+    def test_add_examples_generator_inputs_all_uploaded(self) -> None:
+        """First example must not be dropped in add_examples_to_dataset either."""
+        upload_response = _make_response(
+            200, json_body={"data": {"dataset_id": "ds-1", "version_id": "v-1"}}
+        )
+        datasets = self._make_datasets(upload_response)
+
+        raw = [{"q": "x"}, {"q": "y"}]
+        inputs_gen = (x for x in raw)
+
+        get_response = _make_response(
+            200,
+            json_body={"data": {"id": "ds-1", "name": "test", "example_count": 0}},
+        )
+        datasets._client.get = Mock(return_value=get_response)  # pyright: ignore[reportPrivateUsage]
+
+        with patch.object(datasets, "get_dataset", return_value=Mock(spec=Dataset)):
+            datasets.add_examples_to_dataset(dataset="test", inputs=inputs_gen)
+
+        sent = datasets._client.post.call_args.kwargs["json"]  # pyright: ignore[reportPrivateUsage]
+        assert sent["inputs"] == raw

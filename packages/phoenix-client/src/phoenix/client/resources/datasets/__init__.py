@@ -867,9 +867,15 @@ class Datasets:
                 stacklevel=2,
             )
 
+        # Materialize iterables before `any()` to avoid consuming the first item
+        # of a generator during the has_json detection check.
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1025,9 +1031,15 @@ class Datasets:
         # At this point resolved_name is guaranteed to be not None
         assert resolved_name is not None
 
+        # Materialize iterables before `any()` to avoid consuming the first item
+        # of a generator during the has_json detection check.
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1758,9 +1770,15 @@ class AsyncDatasets:
                 stacklevel=2,
             )
 
+        # Materialize iterables before `any()` to avoid consuming the first item
+        # of a generator during the has_json detection check.
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
@@ -1911,9 +1929,15 @@ class AsyncDatasets:
         # At this point resolved_name is guaranteed to be not None
         assert resolved_name is not None
 
+        # Materialize iterables before `any()` to avoid consuming the first item
+        # of a generator during the has_json detection check.
+        inputs = list(inputs)
+        outputs = list(outputs)
+        metadata = list(metadata)
+
         has_examples = examples is not None
         has_tabular = dataframe is not None or csv_file_path is not None
-        has_json = any(inputs) or any(outputs) or any(metadata)
+        has_json = bool(inputs) or bool(outputs) or bool(metadata)
 
         if sum([has_examples, has_tabular, has_json]) > 1:
             raise ValueError(
