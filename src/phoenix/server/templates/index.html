@@ -54,7 +54,41 @@
     <meta property="og:title" content="Arize Phoenix" />
     <meta property="og:description" content="AI Observability & Evaluation" />
     <meta property="og:image" content="https://raw.githubusercontent.com/Arize-ai/phoenix-assets/main/images/socal/social-preview-horizontal.jpg" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#0e0e0e" />
+    <script>
+      // Apply the page background and theme-color before the app's CSS loads so
+      // the first paint matches the user's saved theme (avoids a flash of the
+      // wrong color). This mirrors the theme resolution in
+      // app/src/contexts/ThemeContext.tsx and the gray-75 background tokens in
+      // app/src/GlobalStyles.tsx; keep the values below in sync with those.
+      (function () {
+        try {
+          var STORAGE_KEY = "arize-phoenix-theme";
+          var DEFAULT_THEME = "dark";
+          var BACKGROUND = { dark: "#0e0e0e", light: "#fdfdfd" };
+
+          var saved = localStorage.getItem(STORAGE_KEY);
+          var mode =
+            saved === "light" || saved === "dark" || saved === "system"
+              ? saved
+              : DEFAULT_THEME;
+          var theme =
+            mode === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : mode;
+
+          var color = BACKGROUND[theme];
+          document.documentElement.style.backgroundColor = color;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = color;
+        } catch (e) {
+          // localStorage/matchMedia can throw in sandboxed iframes or when
+          // site data is blocked; fall back to the static dark theme-color.
+        }
+      })();
+    </script>
     {% if allow_external_resources %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
