@@ -1,18 +1,30 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Button, Flex, Text } from "@phoenix/components/core";
+import {
+  Button,
+  ExternalLinkButton,
+  Flex,
+  Text,
+} from "@phoenix/components/core";
 import type { ButtonProps } from "@phoenix/components/core/button/types";
-import { ExternalLink } from "@phoenix/components/core/ExternalLink";
 
 import { LinkCard } from "./LinkCard";
 import type { LinkCardProps } from "./LinkCard";
 
 export type EmptyStateCardItem = LinkCardProps;
 
+/**
+ * A single item in an action strip. Convention: use `link` for external
+ * destinations (rendered as an `ExternalLink`) and `button` for in-product
+ * behaviors — navigation, opening a dialog, etc. (rendered as a `Button`).
+ */
+export type EmptyStateActionItem =
+  | { kind: "link"; label: string; href: string }
+  | ({ kind: "button" } & Omit<ButtonProps, "size">);
+
 export type EmptyStateAction =
-  | { type: "link"; label: string; href: string }
-  | { type: "buttons"; buttons: Omit<ButtonProps, "size">[] }
+  | { type: "strip"; items: EmptyStateActionItem[] }
   | { type: "cards"; items: EmptyStateCardItem[]; columns?: 1 | 2 };
 
 type EmptyStateBaseProps = {
@@ -57,16 +69,28 @@ const descriptionCSS = css`
 `;
 
 function ActionArea({ action }: { action: EmptyStateAction }) {
-  if (action.type === "link") {
-    return <ExternalLink href={action.href}>{action.label}</ExternalLink>;
-  }
-
-  if (action.type === "buttons") {
+  if (action.type === "strip") {
     return (
-      <Flex direction="row" gap="size-100" wrap>
-        {action.buttons.map((btnProps, i) => (
-          <Button key={i} size="S" {...btnProps} />
-        ))}
+      <Flex direction="row" gap="size-100" wrap alignItems="center">
+        {action.items.map((item, i) => {
+          if (item.kind === "link") {
+            // Rendered as a quiet (borderless, transparent) link-button so it
+            // sits in the strip with the same padding/height as real buttons
+            // instead of crowding them as a bare inline link would.
+            return (
+              <ExternalLinkButton
+                key={i}
+                href={item.href}
+                variant="quiet"
+                size="S"
+              >
+                {item.label}
+              </ExternalLinkButton>
+            );
+          }
+          const { kind: _kind, ...btnProps } = item;
+          return <Button key={i} size="S" {...btnProps} />;
+        })}
       </Flex>
     );
   }

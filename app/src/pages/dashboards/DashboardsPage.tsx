@@ -9,11 +9,12 @@ import {
 } from "react-router";
 import invariant from "tiny-invariant";
 
-import { Empty, Flex, Loading } from "@phoenix/components";
+import { Flex, Loading } from "@phoenix/components";
 import {
   ConnectedTimeRangeControls,
   ConnectedTimeRangeSelector,
 } from "@phoenix/components/datetime";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { ProjectMenu } from "@phoenix/components/project";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -108,7 +109,11 @@ export function DashboardsEmptyPage() {
   }
   return (
     <Flex height="100%" alignItems="center" justifyContent="center">
-      <Empty message="No project selected" />
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="project" />}
+        title="No project selected"
+        description="Select a project to view its dashboards."
+      />
     </Flex>
   );
 }

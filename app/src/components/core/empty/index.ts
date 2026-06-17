@@ -3,6 +3,7 @@ export { EmptyState } from "./EmptyState";
 export type {
   EmptyStateProps,
   EmptyStateAction,
+  EmptyStateActionItem,
   EmptyStateCardItem,
 } from "./EmptyState";
 export {

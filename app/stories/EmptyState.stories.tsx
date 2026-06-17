@@ -69,34 +69,31 @@ export const TitleDescriptionAndLink: Story = {
     title: "No datasets yet",
     description: "Upload a dataset to start running evaluations.",
     action: {
-      type: "link",
-      label: "Documentation",
-      href: "https://docs.arize.com/phoenix",
+      type: "strip",
+      items: [
+        { kind: "link", label: "Docs", href: "https://docs.arize.com/phoenix" },
+      ],
     },
   },
 };
 
-// Two-button pattern from the real product empty states (e.g.
-// src/pages/prompts/PromptsEmpty.tsx): a secondary Documentation link with the
-// primary "Create X" call-to-action second.
-export const TitleDescriptionAndButtons: Story = {
-  name: "Title + description + buttons",
+// Mixed strip — the common product pattern: a "Docs" link (external) sits beside
+// the primary "Create X" button (in-product). Convention: links for external
+// destinations, buttons for in-product behaviors; no leading icons on buttons.
+export const TitleDescriptionAndActions: Story = {
+  name: "Title + description + actions (link + button)",
   args: {
     title: "No evaluators yet",
     description:
       "Create your first evaluator to start scoring AI outputs automatically.",
     action: {
-      type: "buttons",
-      buttons: [
+      type: "strip",
+      items: [
+        { kind: "link", label: "Docs", href: "https://docs.arize.com/phoenix" },
         {
-          children: "Documentation",
-          leadingVisual: <Icon svg={<Icons.BookOutline />} />,
-          onPress: () => {},
-        },
-        {
+          kind: "button",
           variant: "primary",
           children: "Create Evaluator",
-          leadingVisual: <Icon svg={<Icons.PlusOutline />} />,
           onPress: () => {},
         },
       ],
@@ -104,17 +101,18 @@ export const TitleDescriptionAndButtons: Story = {
   },
 };
 
-export const GraphicTitleDescriptionAndButtons: Story = {
-  name: "Graphic + title + description + buttons",
+export const GraphicTitleDescriptionAndButton: Story = {
+  name: "Graphic + title + description + button",
   args: {
     graphic: <EmptyStateGraphic variant="experiment" />,
     title: "No experiments yet",
     description:
       "Run your first experiment to compare how different prompt variations affect your model's output.",
     action: {
-      type: "buttons",
-      buttons: [
+      type: "strip",
+      items: [
         {
+          kind: "button",
           variant: "primary",
           children: "Create Experiment",
           onPress: () => {},
@@ -124,8 +122,8 @@ export const GraphicTitleDescriptionAndButtons: Story = {
   },
 };
 
-export const ButtonsWithDescriptionLink: Story = {
-  name: "Buttons with docs link in description",
+export const ButtonWithDescriptionLink: Story = {
+  name: "Button with docs link in description",
   args: {
     title: "No prompts yet",
     description: (
@@ -138,9 +136,10 @@ export const ButtonsWithDescriptionLink: Story = {
       </>
     ),
     action: {
-      type: "buttons",
-      buttons: [
+      type: "strip",
+      items: [
         {
+          kind: "button",
           variant: "primary",
           children: "Create Prompt",
           onPress: () => {},

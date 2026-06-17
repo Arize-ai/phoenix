@@ -68,6 +68,7 @@ const EMPTY_STATE_GRAPHICS = {
     icon: <Icon svg={<Icons.ExperimentOutline />} />,
   },
   prompt: { size: "large", icon: <Icon svg={<Icons.TemplateOutline />} /> },
+  project: { size: "large", icon: <Icon svg={<Icons.FolderOutline />} /> },
   annotation: { size: "small", icon: <Icon svg={<Icons.ThumbsUpOutline />} /> },
   // The flag glyph is the intended icon for events (added to Icons.tsx).
   event: {
