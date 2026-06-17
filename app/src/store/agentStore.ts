@@ -463,6 +463,50 @@ export interface AgentState extends AgentProps {
   ) => void;
 }
 
+function normalizeAgentCapabilities({
+  capabilities,
+  defaultCapabilities = createDefaultAgentCapabilities(),
+}: {
+  capabilities: unknown;
+  defaultCapabilities?: AgentCapabilities;
+}): AgentCapabilities {
+  if (!capabilities || typeof capabilities !== "object") {
+    return { ...defaultCapabilities };
+  }
+  const persistedCapabilities = capabilities as Partial<
+    Record<AgentCapabilityKey, unknown>
+  >;
+  return Object.fromEntries(
+    (Object.keys(defaultCapabilities) as AgentCapabilityKey[]).map((key) => {
+      const persistedValue = persistedCapabilities[key];
+      return [
+        key,
+        typeof persistedValue === "boolean"
+          ? persistedValue
+          : defaultCapabilities[key],
+      ];
+    })
+  ) as AgentCapabilities;
+}
+
+function mergeAgentPersistedState(
+  persistedState: unknown,
+  currentState: AgentState
+): AgentState {
+  if (!persistedState || typeof persistedState !== "object") {
+    return currentState;
+  }
+  const persisted = persistedState as Partial<AgentState>;
+  return {
+    ...currentState,
+    ...persisted,
+    capabilities: normalizeAgentCapabilities({
+      capabilities: persisted.capabilities,
+      defaultCapabilities: currentState.capabilities,
+    }),
+  };
+}
+
 /**
  * Handler for a server-advertised, client-executed agent tool. Receives the
  * raw `input` object the model produced (handlers are responsible for
@@ -1353,6 +1397,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         permissions: state.permissions,
         capabilities: state.capabilities,
       }),
+      merge: mergeAgentPersistedState,
     })
   );
 };
