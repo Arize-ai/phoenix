@@ -59,12 +59,18 @@ importers:
       '@types/node':
         specifier: ^25.9.3
         version: 25.9.3
-      tsx:
-        specifier: ^4.22.4
-        version: 4.22.4
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.6.1
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(msw@2.14.6(@types/node@25.9.3)(typescript@6.0.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(tsx@4.22.4)(yaml@2.9.0))
 
   examples/apps/cli-agent-starter-kit:
     dependencies:
@@ -397,6 +403,9 @@ importers:
       '@arizeai/phoenix-client':
         specifier: workspace:*
         version: link:../../../packages/phoenix-client
+      '@arizeai/phoenix-evals':
+        specifier: workspace:*
+        version: link:../../../packages/phoenix-evals
       openai:
         specifier: ^6.9.1
         version: 6.42.0(ws@8.21.0)(zod@4.4.3)

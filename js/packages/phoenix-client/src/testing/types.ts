@@ -1,4 +1,15 @@
 import type { PhoenixClient } from "../index";
+import type { AnnotatorKind } from "../types/annotations";
+import type {
+  EvaluatorParams,
+  EvaluationResult as ExperimentEvaluationResult,
+} from "../types/experiments";
+
+/**
+ * Phoenix annotator kind, re-exported from the shared client types so the
+ * testing module and the rest of the client agree on a single definition.
+ */
+export type { AnnotatorKind };
 
 /** A JSON-serializable map. */
 export type KVMap = Record<string, unknown>;
@@ -13,10 +24,7 @@ export type KVMap = Record<string, unknown>;
  * becomes the example's `output` and is exposed to evaluators as
  * `expected` on `EvaluatorParams`.
  */
-export interface PhoenixTestParams<
-  I extends KVMap = KVMap,
-  E extends KVMap = KVMap,
-> {
+export interface TestParams<I extends KVMap = KVMap, E extends KVMap = KVMap> {
   /** Optional stable example id; used to upsert dataset examples between runs. */
   id?: string;
   /** Input for the example. Required. */
@@ -25,8 +33,13 @@ export interface PhoenixTestParams<
   expected?: E;
   /** Additional metadata stored on the dataset example and run. */
   metadata?: KVMap;
+  /**
+   * Split assignment(s) for the dataset example, used to slice the dataset and
+   * experiment in the Phoenix UI (e.g. `["factual_accuracy", "correct"]`).
+   */
+  splits?: string[];
   /** Per-test config (tags + metadata recorded on the run). */
-  config?: PhoenixTestConfig;
+  config?: TestConfig;
   /**
    * Number of times to run this test case. Each repetition becomes a
    * separate experiment run against the same dataset example (carrying a
@@ -43,7 +56,7 @@ export interface PhoenixTestParams<
 }
 
 /** Per-test runtime configuration. */
-export interface PhoenixTestConfig {
+export interface TestConfig {
   /** Tags recorded on the experiment run for filtering in the Phoenix UI. */
   tags?: string[];
   /** Extra metadata recorded on the experiment run. */
@@ -81,7 +94,7 @@ export interface AcceptanceResult extends AcceptanceCriterion {
 }
 
 /** Suite-level configuration accepted by `describe()`. */
-export interface PhoenixSuiteConfig {
+export interface SuiteConfig {
   /** Override the dataset / experiment name used for the suite. */
   datasetName?: string;
   /** Description for the dataset and experiment. */
@@ -92,7 +105,7 @@ export interface PhoenixSuiteConfig {
   client?: PhoenixClient;
   /**
    * Number of times to run each test case in this suite. Individual tests
-   * may override this via `PhoenixTestParams.repetitions`. Defaults to the
+   * may override this via `TestParams.repetitions`. Defaults to the
    * `PHOENIX_TEST_REPETITIONS` env var, then `1`.
    */
   repetitions?: number;
@@ -112,12 +125,9 @@ export interface PhoenixSuiteConfig {
 
 /**
  * Arguments passed to a `test()` body. These are read straight from the
- * test's {@link PhoenixTestParams} — the runner does not transform them.
+ * test's {@link TestParams} — the runner does not transform them.
  */
-export interface PhoenixTestArgs<
-  I extends KVMap = KVMap,
-  E extends KVMap = KVMap,
-> {
+export interface TestArgs<I extends KVMap = KVMap, E extends KVMap = KVMap> {
   /** The example input under test. */
   input: I;
   /** The reference (expected) output, when one was supplied. */
@@ -126,25 +136,28 @@ export interface PhoenixTestArgs<
   metadata?: KVMap;
 }
 
-/** Phoenix annotator kind, mirrors the server enum. */
-export type AnnotatorKind = "LLM" | "CODE" | "HUMAN";
-
 /**
- * One annotation recorded against a run. Mirrors Phoenix's
- * `ExperimentEvaluationResult` plus the `name` and `annotatorKind` carried
- * on the evaluation body.
+ * Object form of an evaluator result. Reuses the shared experiment
+ * {@link ExperimentEvaluationResult} shape (label / explanation / metadata)
+ * but widens `score` to also accept booleans, which the testing API stores as
+ * `1` / `0`.
  */
-export interface Annotation {
-  /** Phoenix evaluation name. Required, and unique per run (last write wins). */
-  name: string;
+export interface EvaluationResultObject extends Omit<
+  ExperimentEvaluationResult,
+  "score"
+> {
   /** Numeric or boolean score; booleans are stored as `1` / `0`. */
   score?: number | boolean | null;
-  /** Categorical label for the result (e.g. `"correct"`). */
-  label?: string | null;
-  /** Free-form explanation, shown alongside the score in the Phoenix UI. */
-  explanation?: string | null;
-  /** Arbitrary metadata stored with the evaluation. */
-  metadata?: KVMap;
+}
+
+/**
+ * One annotation recorded against a run. Extends the evaluator
+ * {@link EvaluationResultObject} with the `name` and `annotatorKind` carried
+ * on the evaluation body, plus an optional originating trace id.
+ */
+export interface Annotation extends EvaluationResultObject {
+  /** Phoenix evaluation name. Required, and unique per run (last write wins). */
+  name: string;
   /** Who or what produced the annotation. Defaults to `"CODE"`. */
   annotatorKind?: AnnotatorKind;
   /** Trace id for this evaluation, when the annotation was produced by a traced evaluator. */
@@ -154,22 +167,54 @@ export interface Annotation {
 /** Result returned by `traceEvaluator` for any evaluator-shaped value. */
 export type EvaluatorResult = Annotation | (KVMap & { name: string });
 
+/** Result shape produced by evaluator objects used in eval tests. */
+export type EvaluationResult =
+  | number
+  | boolean
+  | string
+  | null
+  | EvaluationResultObject;
+
+/**
+ * Parameters passed to an evaluator when it runs inside a test. A relaxation of
+ * the shared {@link EvaluatorParams}: `input` is always present, while `output`
+ * (an evaluator may run before `recordOutput()`) and the remaining fields are
+ * optional. Deriving from `EvaluatorParams` keeps this aligned with the
+ * experiment evaluator contract as that shape evolves.
+ */
+export type EvaluationParams = Partial<EvaluatorParams> & {
+  /** The example input under test. */
+  input: KVMap;
+};
+
+/** Structural evaluator interface accepted by `evaluate()`. */
+export interface Evaluator<
+  Params extends KVMap = EvaluationParams & KVMap,
+  Result = EvaluationResult,
+> {
+  /** Annotation/evaluation name. */
+  name: string;
+  /** Who or what produced the result. Defaults to `"CODE"`. */
+  kind?: AnnotatorKind;
+  /** Compute the evaluation result. */
+  evaluate: (params: Params) => Result | Promise<Result>;
+}
+
 /** Test handler signature. */
-export type PhoenixTestFn<I extends KVMap = KVMap, E extends KVMap = KVMap> = (
-  args: PhoenixTestArgs<I, E>
+export type TestFn<I extends KVMap = KVMap, E extends KVMap = KVMap> = (
+  args: TestArgs<I, E>
 ) => unknown | Promise<unknown>;
 
 /** Each-row shape accepted by `test.each(table)(name, fn)`. */
-export type PhoenixTestEachRow<
-  I extends KVMap = KVMap,
-  E extends KVMap = KVMap,
-> = {
+export type TestEachRow<I extends KVMap = KVMap, E extends KVMap = KVMap> = {
   id?: string;
   input: I;
   expected?: E;
   metadata?: KVMap;
-  /** Per-row repetition count; see `PhoenixTestParams.repetitions`. */
+  /** Per-row split assignment(s); see `TestParams.splits`. */
+  splits?: string[];
+  /** Per-row repetition count; see `TestParams.repetitions`. */
   repetitions?: number;
-  /** Per-row dry-run flag; see `PhoenixTestParams.dryRun`. */
+  /** Per-row dry-run flag; see `TestParams.dryRun`. */
   dryRun?: boolean;
 } & Record<string, unknown>;

@@ -59,29 +59,37 @@ px.describe("demo", () => {
 });
 ```
 
-## `traceEvaluator(fn, options?)`
+## `evaluate(evaluator, params?)`
 
-Traces an evaluator function so its execution shows up as a separate
-OpenInference `EVALUATOR` span in Phoenix. If the return value is
-`{ name, score, ... }`-shaped it is automatically recorded as an
-annotation on the current run; otherwise it's just traced.
+Runs an evaluator object and records its result as an annotation on the
+current run. An evaluator is any object with a `name` and an `evaluate`
+function, including evaluators created with
+`@arizeai/phoenix-evals.createEvaluator()` and
+`@arizeai/phoenix-client/experiments.asExperimentEvaluator()`.
+The evaluator call is traced as an OpenInference `EVALUATOR` span, and the
+annotation is linked back to that evaluator trace.
+
+If `params` is omitted, Phoenix supplies the current test's `input`,
+recorded `output`, `expected`, `metadata`, and task `traceId`. If `params`
+is supplied, it is merged on top of those defaults.
 
 ```ts
 import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
 
-const correctness = px.traceEvaluator(
+const correctness = createEvaluator(
   async ({ output, expected }: {
     output: { sql: string };
     expected: { sql: string };
   }) => {
     const grade = await llmAsJudge(output.sql, expected.sql);
     return {
-      name: "correctness",
       score: grade.score,
       label: grade.passed ? "correct" : "incorrect",
       explanation: grade.rationale,
     };
   },
+  { name: "correctness", kind: "LLM" },
 );
 
 px.describe("generate sql", () => {
@@ -94,8 +102,7 @@ px.describe("generate sql", () => {
     async ({ input, expected }) => {
       const sql = await myApp(input.userQuery);
       px.recordOutput({ sql });
-      // Records a `correctness` annotation as a side effect:
-      await correctness({
+      await px.evaluate(correctness, {
         output: { sql },
         expected: expected ?? { sql: "" },
       });
@@ -104,42 +111,57 @@ px.describe("generate sql", () => {
 });
 ```
 
-The annotation `name` defaults to the traced function's name (or
-`"evaluator"` if the function is anonymous). Override it explicitly
-when you trace the same callable several ways:
-
-```ts
-const harshJudge = px.traceEvaluator(judge, { name: "correctness-strict" });
-const lenientJudge = px.traceEvaluator(judge, { name: "correctness-lenient" });
-```
+The annotation name comes from `evaluator.name`. The evaluator result can be
+a number, boolean, string label, `null`, or an object with `score`, `label`,
+`explanation`, and `metadata`.
 
 ## Using `@arizeai/phoenix-evals`
 
-`traceEvaluator()` accepts any function whose return value is
-annotation-shaped, so the built-in classifiers from
-`@arizeai/phoenix-evals` can be wired in directly:
+`createEvaluator()` gives you a reusable evaluator object. `px.evaluate()`
+runs that evaluator in the test context, traces the call, and records its
+result on the experiment run. If the evaluator itself uses OpenInference
+telemetry, those implementation spans appear under the evaluator trace:
 
 ```ts
 import * as px from "@arizeai/phoenix-client/vitest";
-import { createClassifier } from "@arizeai/phoenix-evals";
+import { createEvaluator } from "@arizeai/phoenix-evals";
 
-const isHallucination = createClassifier({
-  /* ... */
-});
+async function judgeHallucination(answer: string) {
+  return llmAsJudge({ answer });
+}
 
-const hallucination = px.traceEvaluator(
+const hallucination = createEvaluator(
   async ({ output }: { output: { answer: string } }) => {
-    const result = await isHallucination({ answer: output.answer });
+    const result = await judgeHallucination(output.answer);
     return {
-      name: "hallucination",
       score: result.score,
       label: result.label,
       explanation: result.explanation,
-      annotatorKind: "LLM",
     };
   },
+  { name: "hallucination", kind: "LLM" },
 );
 ```
+
+If you prefer to hand-write a plain evaluator, use the same shape:
+
+```ts
+const exactMatch = {
+  name: "exact_match",
+  kind: "CODE" as const,
+  evaluate: ({ output, expected }: {
+    output: { sql: string };
+    expected: { sql: string };
+  }) => ({
+    score: output.sql === expected.sql,
+  }),
+};
+```
+
+Use `createEvaluator()` or OpenInference decorators from
+`@arizeai/phoenix-otel` when the evaluator implementation should emit child
+spans of its own. The older `traceEvaluator(fn)` helper remains available for
+raw function wrapping, but evaluator objects are the preferred interface.
 
 ## Built-In `pass` Annotation
 

@@ -205,6 +205,9 @@ function createTestResultSummary(result: TestResult): TestResult {
     repetitionNumber: result.repetitionNumber,
     repetitions: result.repetitions,
     dryRun: result.dryRun,
+    traceId: result.traceId,
+    runId: result.runId,
+    exampleId: result.exampleId,
   };
 }
 

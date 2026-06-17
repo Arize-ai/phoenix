@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["**/*.eval.?(c|m)[jt]s"],
-    reporters: ["@arizeai/phoenix-client/vitest/reporter"],
+    reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
     setupFiles: ["dotenv/config"],
     testTimeout: 30000,
   },

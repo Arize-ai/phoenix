@@ -35,7 +35,10 @@ px.describe(
       async ({ input, expected }) => {
         const { sql } = generateSql(input.userQuery);
         px.recordOutput({ sql });
-        await sqlExactMatch({ output: sql, expected: expected?.sql ?? "" });
+        await px.evaluate(sqlExactMatch, {
+          output: sql,
+          expected: expected?.sql ?? "",
+        });
         expect(sql).toEqual(expected?.sql);
       }
     );
@@ -53,7 +56,10 @@ px.describe(
         const { sql } = generateSql(input.userQuery);
         px.recordOutput({ sql });
         // This one is a known partial: graded, not asserted for exactness.
-        await sqlSimilarity({ output: sql, expected: expected?.sql ?? "" });
+        await px.evaluate(sqlSimilarity, {
+          output: sql,
+          expected: expected?.sql ?? "",
+        });
         expect(sql).toContain("FROM customers");
       }
     );

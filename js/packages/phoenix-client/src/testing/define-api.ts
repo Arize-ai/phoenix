@@ -1,10 +1,10 @@
 import { declareDescribe, declareTest, type RunnerHooks } from "./runner";
 import type {
   KVMap,
-  PhoenixSuiteConfig,
-  PhoenixTestEachRow,
-  PhoenixTestFn,
-  PhoenixTestParams,
+  SuiteConfig,
+  TestEachRow,
+  TestFn,
+  TestParams,
 } from "./types";
 
 /**
@@ -16,7 +16,7 @@ import type {
  * That difference is captured by `getHooks`, which is invoked once per
  * declaration so adapters are free to resolve hooks lazily.
  */
-export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
+export function createTestApi(getHooks: () => RunnerHooks) {
   /**
    * Declare a Phoenix test suite. The suite name doubles as the dataset and
    * experiment name on the Phoenix server.
@@ -32,18 +32,14 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
    * }, { metadata: { model: "gpt-4o-mini" } });
    * ```
    */
-  function describe(
-    name: string,
-    fn: () => void,
-    config?: PhoenixSuiteConfig
-  ): void {
+  function describe(name: string, fn: () => void, config?: SuiteConfig): void {
     declareDescribe(getHooks(), name, fn, config ?? {});
   }
   /** Run only this suite (matches the runner's `describe.only`). */
   describe.only = (
     name: string,
     fn: () => void,
-    config?: PhoenixSuiteConfig
+    config?: SuiteConfig
   ): void => {
     declareDescribe(getHooks(), name, fn, config ?? {}, "only");
   };
@@ -51,7 +47,7 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
   describe.skip = (
     name: string,
     fn: () => void,
-    config?: PhoenixSuiteConfig
+    config?: SuiteConfig
   ): void => {
     declareDescribe(getHooks(), name, fn, config ?? {}, "skip");
   };
@@ -62,8 +58,8 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
    */
   function test<I extends KVMap = KVMap, E extends KVMap = KVMap>(
     name: string,
-    params: PhoenixTestParams<I, E>,
-    fn: PhoenixTestFn<I, E>,
+    params: TestParams<I, E>,
+    fn: TestFn<I, E>,
     timeout?: number
   ): void {
     declareTest(getHooks(), name, params, fn, "default", timeout);
@@ -71,8 +67,8 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
   /** Run only this test case (matches the runner's `test.only`). */
   test.only = <I extends KVMap = KVMap, E extends KVMap = KVMap>(
     name: string,
-    params: PhoenixTestParams<I, E>,
-    fn: PhoenixTestFn<I, E>,
+    params: TestParams<I, E>,
+    fn: TestFn<I, E>,
     timeout?: number
   ): void => {
     declareTest(getHooks(), name, params, fn, "only", timeout);
@@ -80,8 +76,8 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
   /** Skip this test case (matches the runner's `test.skip`). */
   test.skip = <I extends KVMap = KVMap, E extends KVMap = KVMap>(
     name: string,
-    params: PhoenixTestParams<I, E>,
-    fn: PhoenixTestFn<I, E>,
+    params: TestParams<I, E>,
+    fn: TestFn<I, E>,
     timeout?: number
   ): void => {
     declareTest(getHooks(), name, params, fn, "skip", timeout);
@@ -91,18 +87,27 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
    * accepts a name template and the test body.
    */
   test.each = <I extends KVMap, E extends KVMap>(
-    table: PhoenixTestEachRow<I, E>[]
-  ): ((name: string, fn: PhoenixTestFn<I, E>, timeout?: number) => void) => {
+    table: TestEachRow<I, E>[]
+  ): ((
+    name: string | ((row: TestEachRow<I, E>, index: number) => string),
+    fn: TestFn<I, E>,
+    timeout?: number
+  ) => void) => {
     return (name, fn, timeout) => {
       table.forEach((row, i) => {
+        const testName =
+          typeof name === "function"
+            ? name(row, i)
+            : interpolateName(name, row, i);
         declareTest(
           getHooks(),
-          interpolateName(name, row, i),
+          testName,
           {
             id: row.id,
             input: row.input,
             expected: row.expected,
             metadata: row.metadata,
+            splits: row.splits,
             repetitions: row.repetitions,
             dryRun: row.dryRun,
           },
@@ -127,7 +132,7 @@ export function createPhoenixTestApi(getHooks: () => RunnerHooks) {
  */
 function interpolateName(
   name: string,
-  row: PhoenixTestEachRow,
+  row: TestEachRow,
   index: number
 ): string {
   if (!name.includes("%")) {

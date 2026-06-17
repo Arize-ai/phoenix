@@ -3,12 +3,13 @@
  *
  * `PHOENIX_TEST_TRACKING=false` is set globally so no network calls are made
  * to a Phoenix server. We assert that the public API records the run's
- * output, annotations, and `traceEvaluator` results into the suite registry.
+ * output, annotations, and evaluator results into the suite registry.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { getAllSuites } from "../../src/testing/runner";
 import {
+  evaluate,
   logAnnotation,
   recordOutput,
   traceEvaluator,
@@ -17,10 +18,23 @@ import {
 } from "../../src/vitest";
 
 const originalTracking = process.env.PHOENIX_TEST_TRACKING;
+
+// Capture console.warn so we can assert on the "evaluate before recordOutput"
+// warning emitted from a wrapped test body during the run phase.
+/* eslint-disable no-console */
+const warnings: string[] = [];
+const originalWarn = console.warn;
+console.warn = (...args: unknown[]) => {
+  warnings.push(args.map(String).join(" "));
+};
+/* eslint-enable no-console */
+
 beforeAll(() => {
   process.env.PHOENIX_TEST_TRACKING = "false";
 });
 afterAll(() => {
+  // eslint-disable-next-line no-console
+  console.warn = originalWarn;
   if (originalTracking === undefined) {
     delete process.env.PHOENIX_TEST_TRACKING;
   } else {
@@ -39,6 +53,18 @@ pxDescribe("phoenix client test selftest", () => {
       const greeting = `hello ${input.name}`;
       recordOutput({ greeting });
       logAnnotation({ name: "manual", score: 0.42 });
+      await evaluate({
+        name: "object_eval",
+        kind: "CODE",
+        evaluate: ({ output }: { output?: unknown }) => ({
+          score:
+            typeof output === "object" &&
+            output !== null &&
+            "greeting" in output
+              ? 1
+              : 0,
+        }),
+      });
       const evalFn = traceEvaluator(
         async ({ output, expected }: { output: string; expected: string }) => {
           return { name: "exact_match", score: output === expected };
@@ -103,6 +129,40 @@ pxDescribe(
   }
 );
 
+const eachRows = [
+  { input: { q: "a" }, expected: { label: "x" }, splits: ["group-1"] },
+  { input: { q: "b" }, expected: { label: "y" }, splits: ["group-2"] },
+];
+pxDescribe("phoenix client test each", () => {
+  pxTest.each(eachRows)(
+    (row, i) => `case ${i}: ${row.input.q}`,
+    async () => {}
+  );
+});
+
+pxDescribe("phoenix client test missing output", () => {
+  pxTest(
+    "evaluate without recordOutput warns once",
+    { input: { n: 1 } },
+    async () => {
+      // No recordOutput() — the evaluator receives output=undefined.
+      await evaluate({
+        name: "needs_output",
+        evaluate: ({ output }: { output?: unknown }) => ({
+          score: output ? 1 : 0,
+        }),
+      });
+      // A second evaluate in the same suite must not warn again.
+      await evaluate({
+        name: "needs_output_again",
+        evaluate: ({ output }: { output?: unknown }) => ({
+          score: output ? 1 : 0,
+        }),
+      });
+    }
+  );
+});
+
 describe("runner registry", () => {
   it("records suite results after the inner describe completes", async () => {
     // The test above runs in the same file, so by the time this assertion
@@ -122,7 +182,18 @@ describe("runner registry", () => {
     expect(captured!.status).toBe("passed");
     expect(captured!.output).toEqual({ greeting: "hello selftest" });
     const annotationNames = captured!.annotations.map((a) => a.name).sort();
-    expect(annotationNames).toEqual(["exact_match", "manual", "pass"]);
+    expect(annotationNames).toEqual([
+      "exact_match",
+      "manual",
+      "object_eval",
+      "pass",
+    ]);
+    expect(captured!.annotations).toContainEqual(
+      expect.objectContaining({
+        name: "object_eval",
+        score: 1,
+      })
+    );
   });
 
   it("expands repetitions per-test and from suite config", async () => {
@@ -157,6 +228,31 @@ describe("runner registry", () => {
     const local = suite!.results.find((r) => r.testName === "local-only case");
     expect(local?.dryRun).toBe(true);
     expect(local?.status).toBe("passed");
+  });
+
+  it("test.each accepts a name function and forwards splits", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const suite = getAllSuites().find(
+      (s) => s.name === "phoenix client test each"
+    );
+    expect(suite).toBeDefined();
+    expect([...suite!.registeredExamples.keys()]).toEqual([
+      "case 0: a",
+      "case 1: b",
+    ]);
+    const splits = [...suite!.registeredExamples.values()].map(
+      (e) => e.params.splits
+    );
+    expect(splits).toEqual([["group-1"], ["group-2"]]);
+  });
+
+  it("warns once per suite when evaluate runs before recordOutput", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const outputWarnings = warnings.filter(
+      (w) => w.includes("ran before") && w.includes("recordOutput()")
+    );
+    expect(outputWarnings).toHaveLength(1);
+    expect(outputWarnings[0]).toContain("needs_output");
   });
 
   it("records passing acceptance results after a suite completes", async () => {

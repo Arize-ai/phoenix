@@ -1,11 +1,25 @@
+/**
+ * Benchmark: the built-in `createDocumentRelevanceEvaluator`.
+ *
+ * Each example carries a pre-labeled question/document pair with a known
+ * ground-truth relevance (`relevant: boolean`). We run the document relevance
+ * evaluator on each pair and check whether its predicted label
+ * (`relevant` / `unrelated`) matches the known ground truth. The `accuracy`
+ * annotation is the benchmark score; the suite-level `acceptanceCriteria` fails
+ * CI if mean accuracy drops too far.
+ *
+ * Requires OPENAI_API_KEY (the evaluator makes a live LLM call); the suite is
+ * skipped without it.
+ *
+ *   export OPENAI_API_KEY=sk-...
+ *   pnpm eval evals/document_relevance.eval.ts            # local, no Phoenix sync
+ *   pnpm eval:phoenix evals/document_relevance.eval.ts    # sync to Phoenix
+ */
 import { openai } from "@ai-sdk/openai";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
+
+import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
 
 const relevanceEvaluator = createDocumentRelevanceEvaluator({
   model: openai("gpt-4o-mini"),
@@ -195,60 +209,50 @@ const examples = [
   },
 ];
 
-type TaskOutput = {
-  label: "relevant" | "unrelated";
-  score: number;
-  explanation: string;
-};
+// Each example yields one benchmark case: the question/document pair is fed to
+// the relevance evaluator and its predicted label is checked against the
+// known-correct label derived from the example's `relevant` boolean.
+const cases = examples.map((example) => ({
+  input: example.input,
+  documentText: example.documentText,
+  expectedLabel: (example.relevant ? "relevant" : "unrelated") as
+    | "relevant"
+    | "unrelated",
+}));
 
-const correctEvaluator = asExperimentEvaluator({
-  name: "correctness",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const expected = args.expected as TaskOutput;
-    const label = output.label === expected.label ? "correct" : "incorrect";
-    const score = output.label === expected.label ? 1 : 0;
-    return {
-      label: label,
-      score: score,
-      explanation: `The evaluator labeled the answer as ${label}. Expected: ${expected?.label}`,
-      metadata: {},
-    };
+const suite = benchmarkSuite(px.describe);
+
+suite(
+  "document-relevance-evaluator-benchmark",
+  () => {
+    for (const testCase of cases) {
+      px.test(
+        `${testCase.expectedLabel} · ${testCase.input}`,
+        {
+          input: {
+            question: testCase.input,
+            documentText: testCase.documentText,
+          },
+          expected: { label: testCase.expectedLabel },
+          splits: [testCase.expectedLabel],
+        },
+        async ({ input }) => {
+          const prediction = await relevanceEvaluator.evaluate({
+            input: input.question,
+            documentText: input.documentText,
+          });
+          px.recordOutput(prediction);
+          await px.evaluate(labelAccuracy);
+        }
+      );
+    }
   },
-});
-
-async function main() {
-  const dataset = await createDataset({
-    name: "document-relevancy-eval" + Math.random(),
-    description: "Evaluate the relevancy of the model",
-    examples: examples.map((example) => ({
-      input: { question: example.input, documentText: example.documentText },
-      output: {
-        label: example.relevant ? "relevant" : "unrelated",
-      },
-      metadata: {},
-    })),
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const evalResult = await relevanceEvaluator.evaluate({
-      input: example.input.question as string,
-      documentText: example.input.documentText as string,
-    });
-
-    return {
-      ...evalResult,
-    };
-  };
-  runExperiment({
-    experimentName: "document-relevancy-eval",
-    experimentDescription: "Evaluate the relevancy of the model",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [correctEvaluator],
-  });
-}
-
-main();
+  {
+    description:
+      "Whether the built-in document relevance evaluator's predicted label matches the known ground-truth relevance across a flat set of question/document pairs.",
+    metadata: { evaluator: "document_relevance", model: "gpt-4o-mini" },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.8 },
+    ],
+  }
+);

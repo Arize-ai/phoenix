@@ -4,7 +4,14 @@ import {
   runEvaluatorWithTracing,
 } from "./phoenix-test-tracking";
 import { currentRun, type SuiteState } from "./state";
-import type { Annotation, KVMap } from "./types";
+import type {
+  Annotation,
+  EvaluationParams,
+  EvaluationResult,
+  EvaluationResultObject,
+  Evaluator,
+  KVMap,
+} from "./types";
 
 /**
  * Record the actual output produced by the test for the current run.
@@ -50,6 +57,58 @@ export function logAnnotation(annotation: Annotation): void {
 }
 
 /**
+ * Run an evaluator object against the current test run and record the result.
+ *
+ * The evaluator may come from `@arizeai/phoenix-evals.createEvaluator`,
+ * `asExperimentEvaluator`, or any plain object with `{ name, evaluate }`.
+ * When `params` is omitted, the current test's `input`, recorded `output`,
+ * `expected`, `metadata`, and task `traceId` are supplied.
+ */
+export async function evaluate<
+  Params extends KVMap = EvaluationParams & KVMap,
+  Result = EvaluationResult,
+>(
+  evaluator: Evaluator<Params, Result>,
+  params?: Partial<Params> & KVMap
+): Promise<Result> {
+  const run = currentRun();
+  if (!run) {
+    return await evaluator.evaluate((params ?? {}) as Params);
+  }
+
+  if (!run.outputSet && !(params && "output" in params)) {
+    warnEvaluateBeforeOutput(run.suite, evaluator.name, run.testName);
+  }
+
+  const evaluatorParams = {
+    input: run.params.input,
+    // `run.output` is only ever set together with `outputSet`, so it is already
+    // `undefined` until a value is recorded.
+    output: run.output,
+    expected: run.params.expected,
+    metadata: run.params.metadata,
+    traceId: run.traceId ?? null,
+    ...(params ?? {}),
+  } as unknown as Params;
+
+  const { result, traceId } = await runEvaluatorWithTracing(
+    run.suite,
+    evaluator.name,
+    evaluatorParams,
+    (paramsToEvaluate) => evaluator.evaluate(paramsToEvaluate)
+  );
+  logAnnotation(
+    toAnnotation({
+      name: evaluator.name,
+      kind: evaluator.kind,
+      result,
+      traceId,
+    })
+  );
+  return result;
+}
+
+/**
  * Trace an evaluator function so its execution shows up as a separate
  * `EVALUATOR` span in Phoenix and any `{ name, score }`-shaped return
  * value is automatically captured as an annotation on the current run.
@@ -80,6 +139,74 @@ export function traceEvaluator<P extends KVMap, R>(
     }
     return result;
   };
+}
+
+/**
+ * Warn (at most once per suite) when an evaluator runs before any output was
+ * recorded and none was passed explicitly. Such an evaluator receives
+ * `output: undefined`, which silently scores against nothing — almost always a
+ * forgotten `recordOutput()`. Harmless for evaluators that only read `input`.
+ */
+const warnedOutputSuites = new WeakSet<SuiteState>();
+function warnEvaluateBeforeOutput(
+  suite: SuiteState,
+  evaluatorName: string,
+  testName: string
+): void {
+  if (warnedOutputSuites.has(suite)) return;
+  warnedOutputSuites.add(suite);
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[@arizeai/phoenix-client] evaluate("${evaluatorName}") ran before ` +
+      `recordOutput() on test "${testName}", so the evaluator received ` +
+      `output=undefined. Call recordOutput(...) first, or pass { output } ` +
+      `explicitly. (Ignore if this evaluator only needs input.)`
+  );
+}
+
+/**
+ * Normalize an evaluator's return value into an {@link Annotation}. The value
+ * is already typed as an {@link EvaluationResult}, so we only dispatch on its
+ * runtime shape: a string becomes a `label`, a number/boolean/null becomes a
+ * `score`, and an object contributes its `score`/`label`/`explanation`/
+ * `metadata` directly.
+ */
+function toAnnotation({
+  name,
+  kind,
+  result,
+  traceId,
+}: {
+  name: string;
+  kind?: Annotation["annotatorKind"];
+  result: unknown;
+  traceId?: string | null;
+}): Annotation {
+  const annotatorKind = kind ?? "CODE";
+  if (typeof result === "string") {
+    return { name, label: result, annotatorKind, traceId };
+  }
+  if (
+    typeof result === "number" ||
+    typeof result === "boolean" ||
+    result === null
+  ) {
+    return { name, score: result, annotatorKind, traceId };
+  }
+  if (typeof result === "object" && !Array.isArray(result)) {
+    const { score, label, explanation, metadata } =
+      result as EvaluationResultObject;
+    return {
+      name,
+      score,
+      label,
+      explanation,
+      metadata,
+      annotatorKind,
+      traceId,
+    };
+  }
+  return { name, annotatorKind, traceId };
 }
 
 function isAnnotationShaped(value: unknown): value is Annotation {

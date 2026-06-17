@@ -29,10 +29,13 @@ import {
 async function score(userQuery: string, referenceSql: string): Promise<void> {
   const { sql } = generateSql(userQuery);
   px.recordOutput({ sql });
-  await sqlExactMatch({ output: sql, expected: referenceSql });
-  await sqlSimilarity({ output: sql, expected: referenceSql });
-  await isValidSql({ output: sql });
-  await targetsExpectedTable({ output: sql, expected: referenceSql });
+  await px.evaluate(sqlExactMatch, { output: sql, expected: referenceSql });
+  await px.evaluate(sqlSimilarity, { output: sql, expected: referenceSql });
+  await px.evaluate(isValidSql, { output: sql });
+  await px.evaluate(targetsExpectedTable, {
+    output: sql,
+    expected: referenceSql,
+  });
   // Guardrail: always valid SQL for these on-topic cases.
   expect(sql).toMatch(/^SELECT/i);
 }

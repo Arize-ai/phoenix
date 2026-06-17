@@ -20,13 +20,7 @@ import {
   type SuiteState,
   type TestResult,
 } from "./state";
-import type {
-  KVMap,
-  PhoenixSuiteConfig,
-  PhoenixTestArgs,
-  PhoenixTestFn,
-  PhoenixTestParams,
-} from "./types";
+import type { KVMap, SuiteConfig, TestArgs, TestFn, TestParams } from "./types";
 
 /**
  * The minimum slice of a test runner (vitest or jest) the runner needs in
@@ -66,7 +60,7 @@ export function declareDescribe(
   hooks: RunnerHooks,
   name: string,
   fn: () => void,
-  config: PhoenixSuiteConfig = {},
+  config: SuiteConfig = {},
   variant: TestVariant = "default"
 ): void {
   const describeFn =
@@ -128,8 +122,8 @@ export function declareDescribe(
 export function declareTest<I extends KVMap, E extends KVMap>(
   hooks: RunnerHooks,
   name: string,
-  params: PhoenixTestParams<I, E>,
-  fn: PhoenixTestFn<I, E>,
+  params: TestParams<I, E>,
+  fn: TestFn<I, E>,
   variant: TestVariant = "default",
   timeout?: number
 ): void {
@@ -152,7 +146,7 @@ export function declareTest<I extends KVMap, E extends KVMap>(
   if (!isDryRun) {
     suite.registeredExamples.set(uniqueName, {
       testName: uniqueName,
-      params: params as PhoenixTestParams,
+      params: params as TestParams,
     });
   }
 
@@ -183,8 +177,8 @@ export function declareTest<I extends KVMap, E extends KVMap>(
           repetitionNumber: rep,
           repetitions,
           dryRun: isDryRun,
-          params: params as PhoenixTestParams,
-          fn: fn as PhoenixTestFn,
+          params: params as TestParams,
+          fn: fn as TestFn,
         });
       },
       timeout
@@ -200,8 +194,8 @@ async function executeRun(opts: {
   repetitionNumber: number;
   repetitions: number;
   dryRun: boolean;
-  params: PhoenixTestParams;
-  fn: PhoenixTestFn;
+  params: TestParams;
+  fn: TestFn;
 }): Promise<void> {
   const { suite, runnerName, logicalName, repetitionNumber, repetitions } =
     opts;
@@ -227,7 +221,7 @@ async function executeRun(opts: {
       suite,
       runnerName,
       async () => {
-        const args: PhoenixTestArgs = {
+        const args: TestArgs = {
           input: opts.params.input,
           expected: opts.params.expected,
           metadata: opts.params.metadata,
@@ -281,6 +275,9 @@ async function executeRun(opts: {
     repetitionNumber: repetitions > 1 ? repetitionNumber : undefined,
     repetitions: repetitions > 1 ? repetitions : undefined,
     dryRun: opts.dryRun || undefined,
+    traceId: run.traceId,
+    runId: run.runId,
+    exampleId: suite.exampleIdsByTest.get(logicalName)?.exampleId,
   };
   suite.results.push(result);
 

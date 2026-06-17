@@ -28,7 +28,10 @@ tsx run_experiment.ts
 should be run with Vitest:
 
 ```sh
-pnpm exec vitest run --config phoenix.vitest.config.ts sql.eval.ts
+cd js/packages/phoenix-client
+OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
+  --config examples/phoenix.vitest.config.ts examples/sql.eval.ts
 ```
 
-Make sure you are in the `examples` directory when running the command, or provide the correct relative path to the example file.
+Run from the package root so `pnpm exec` can resolve the workspace package and
+dependencies.

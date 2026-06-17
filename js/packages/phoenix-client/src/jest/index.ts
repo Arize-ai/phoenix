@@ -1,4 +1,4 @@
-import { createPhoenixTestApi } from "../testing/define-api";
+import { createTestApi } from "../testing/define-api";
 import type { RunnerHooks } from "../testing/runner";
 
 export type {
@@ -7,17 +7,21 @@ export type {
   AcceptanceResult,
   Annotation,
   AnnotatorKind,
+  EvaluationParams,
+  EvaluationResult,
+  Evaluator,
   EvaluatorResult,
   KVMap,
-  PhoenixSuiteConfig,
-  PhoenixTestArgs,
-  PhoenixTestConfig,
-  PhoenixTestEachRow,
-  PhoenixTestFn,
-  PhoenixTestParams,
+  SuiteConfig,
+  TestArgs,
+  TestConfig,
+  TestEachRow,
+  TestFn,
+  TestParams,
 } from "../testing/types";
 
 export {
+  evaluate,
   logAnnotation,
   recordOutput,
   traceEvaluator,
@@ -108,4 +112,4 @@ function getHooks(): RunnerHooks {
   return cachedHooks;
 }
 
-export const { describe, test, it } = createPhoenixTestApi(getHooks);
+export const { describe, test, it } = createTestApi(getHooks);

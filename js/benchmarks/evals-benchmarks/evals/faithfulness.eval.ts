@@ -1,11 +1,33 @@
+/**
+ * Benchmark: the built-in `createFaithfulnessEvaluator`.
+ *
+ * Each base example carries a question, a block of grounding `knowledge`
+ * (context), and two candidate answers: one that is faithful to the context
+ * (`right_answer`) and one that is not (`unfaithful_answer`). We run the
+ * faithfulness evaluator on both and check whether its predicted label
+ * (`faithful` / `unfaithful`) matches the known ground truth. The `accuracy`
+ * annotation is the benchmark score; the suite-level `acceptanceCriteria` fails
+ * CI if mean accuracy drops too far.
+ *
+ * The original raw-experiment version (`src/faithfulness_benchmark.ts`) picked
+ * the faithful-vs-unfaithful answer at random per run (`Math.random()`), which
+ * is non-deterministic. Here that random pick is replaced with a deterministic
+ * 2-variant split: every example yields one faithful case and one unfaithful
+ * case, so the benchmark is reproducible.
+ *
+ * Requires OPENAI_API_KEY (the evaluator makes a live LLM call); the suite is
+ * skipped without it.
+ *
+ *   export OPENAI_API_KEY=sk-...
+ *   pnpm eval evals/faithfulness.eval.ts            # local, no Phoenix sync
+ *   pnpm eval:phoenix evals/faithfulness.eval.ts    # sync to Phoenix
+ */
 import { openai } from "@ai-sdk/openai";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+
+import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
+
 const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: openai("gpt-4o-mini"),
 });
@@ -78,71 +100,63 @@ const examples = [
   },
 ];
 
-type TaskOutput = {
-  expected_label: "unfaithful" | "faithful";
-  label: "unfaithful" | "faithful";
-  score: number;
-  explanation: string;
-};
-
-const correctEvaluator = asExperimentEvaluator({
-  name: "correctness",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === "unfaithful" ? "unfaithful" : "faithful";
-    return {
-      label: label,
-      score: score,
-      explanation: `The evaluator labeled the answer as ${label}. Expected: ${(output as unknown as { expected_label: string }).expected_label}`,
-      metadata: {},
-    };
+// Each base example yields two benchmark cases: one feeding the evaluator the
+// faithful answer (expected label "faithful"), one the unfaithful answer
+// (expected label "unfaithful"). This is a deterministic 50/50 split that
+// replaces the original random faithful/unfaithful pick.
+const cases = examples.flatMap((example) => [
+  {
+    question: example.question,
+    knowledge: example.knowledge,
+    answer: example.right_answer,
+    expectedLabel: "faithful" as const,
+    variant: "faithful" as const,
   },
-});
+  {
+    question: example.question,
+    knowledge: example.knowledge,
+    answer: example.unfaithful_answer,
+    expectedLabel: "unfaithful" as const,
+    variant: "unfaithful" as const,
+  },
+]);
 
-async function main() {
-  const dataset = await createDataset({
-    name: "faithfulness-eval" + Math.random(),
-    description: "Evaluate the faithfulness of the model",
-    examples: examples.map((example) => ({
-      input: { question: example.question, context: example.knowledge },
-      output: {
-        answer: example.right_answer,
-        unfaithful_answer: example.unfaithful_answer,
-      },
-      metadata: {
-        knowledge: example.knowledge,
-      },
-    })),
-  });
+const suite = benchmarkSuite(px.describe);
 
-  const task: ExperimentTask = async (example) => {
-    const useUnfaithful = Math.random() < 0.2;
-    const answer = useUnfaithful
-      ? example.output?.unfaithful_answer
-      : example.output?.answer;
-
-    const evalResult = await faithfulnessEvaluator.evaluate({
-      input: example.input.question as string,
-      context: example.input.context as string,
-      output: answer as string,
-    });
-
-    return {
-      expected_label: useUnfaithful ? "unfaithful" : "faithful",
-      ...evalResult,
-    };
-  };
-  runExperiment({
-    experimentName: "faithfulness-eval",
-    experimentDescription: "Evaluate the faithfulness of the model",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [correctEvaluator],
-  });
-}
-
-main();
+suite(
+  "faithfulness-evaluator-benchmark",
+  () => {
+    for (const testCase of cases) {
+      px.test(
+        `${testCase.variant} · ${testCase.question}`,
+        {
+          input: {
+            question: testCase.question,
+            context: testCase.knowledge,
+            answer: testCase.answer,
+          },
+          expected: { label: testCase.expectedLabel },
+          metadata: { variant: testCase.variant },
+          splits: [testCase.variant],
+        },
+        async ({ input }) => {
+          const prediction = await faithfulnessEvaluator.evaluate({
+            input: input.question,
+            context: input.context,
+            output: input.answer,
+          });
+          px.recordOutput(prediction);
+          await px.evaluate(labelAccuracy);
+        }
+      );
+    }
+  },
+  {
+    description:
+      "Faithfulness evaluator accuracy against pre-labeled HotpotQA-style examples with a deterministic faithful/unfaithful split (replacing the original random pick).",
+    metadata: { evaluator: "faithfulness", model: "gpt-4o-mini" },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.8 },
+    ],
+  }
+);

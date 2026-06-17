@@ -9,6 +9,7 @@ import {
   register,
   SemanticConventions,
   SpanStatusCode,
+  suppressTracing,
   trace,
   type Tracer,
 } from "@arizeai/phoenix-otel";
@@ -42,7 +43,7 @@ function isFalsyFlag(value: string | undefined): boolean {
  *
  * Tracking is enabled by default. It can be disabled globally by setting
  * `PHOENIX_TEST_TRACKING=false` (or `PHOENIX_TEST_DRY_RUN=true`), or per
- * suite via `PhoenixSuiteConfig.dryRun`.
+ * suite via `SuiteConfig.dryRun`.
  */
 export function isTrackingEnabled(suite?: SuiteState): {
   enabled: boolean;
@@ -212,6 +213,7 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
       input: registered.params.input,
       output: registered.params.expected ?? {},
       metadata: registered.params.metadata ?? {},
+      splits: registered.params.splits,
     })
   );
 
@@ -568,13 +570,17 @@ export async function runEvaluatorWithTracing<P extends KVMap, R>(
   params: P,
   fn: (params: P) => R | Promise<R>
 ): Promise<{ result: R; traceId: string | null }> {
-  const tracer: Tracer = currentRun()?.dryRun
+  const isDryRun = currentRun()?.dryRun ?? false;
+  const tracer: Tracer = isDryRun
     ? getNoOpTracer()
     : (suite.evaluatorTracer ?? suite.tracer ?? getNoOpTracer());
   const parentlessContext = trace.deleteSpan(context.active());
-  return context.with(parentlessContext, () =>
+  const evaluatorContext = isDryRun
+    ? suppressTracing(parentlessContext)
+    : parentlessContext;
+  return context.with(evaluatorContext, () =>
     tracer.startActiveSpan(`Evaluation: ${name}`, async (span) => {
-      const traceId = span.spanContext().traceId;
+      const traceId = isDryRun ? null : span.spanContext().traceId;
       try {
         const result = await fn(params);
         span.setAttributes({

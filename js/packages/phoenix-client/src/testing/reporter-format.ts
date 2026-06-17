@@ -85,10 +85,12 @@ export function resolveRenderOptions(
 
   const color = resolveColor(env, stream);
 
+  // When piped (no TTY width) assume a roomy-but-safe 100 columns so the
+  // overview table doesn't over-truncate suite names in CI logs.
   const columns =
     typeof stream.columns === "number" && stream.columns > 0
       ? stream.columns
-      : 80;
+      : 100;
   const maxWidth = Math.min(columns, 120);
 
   return { verbose, color, maxRows, maxWidth };
@@ -163,7 +165,7 @@ function padCell(s: string, width: number): string {
 interface TableSpec {
   /** Per-column max width caps; columns without a cap auto-size. */
   caps?: number[];
-  /** A summary row rendered below a rule line (e.g. an AGGREGATE row). */
+  /** A summary row rendered as the final line (e.g. an AGGREGATE row). */
   footer?: string[];
 }
 
@@ -197,19 +199,21 @@ function renderTable(
     widths[0]!--;
   }
 
+  const lastCol = colCount - 1;
   const formatRow = (cells: string[]) =>
     cells
-      .map((cell, i) =>
-        padCell(truncateMiddle(cell ?? "", widths[i]!), widths[i]!)
-      )
-      .join(gutter);
-  const rule = widths.map((w) => "-".repeat(w)).join(gutter);
+      .map((cell, i) => {
+        const text = truncateMiddle(cell ?? "", widths[i]!);
+        // The last column is never padded — trailing spaces are wasted tokens.
+        return i === lastCol ? text : padCell(text, widths[i]!);
+      })
+      .join(gutter)
+      // Drop the dangling gutter when the final cell is empty (e.g. a clean
+      // suite's blank Result column).
+      .trimEnd();
 
-  const out = [formatRow(headers), rule, ...rows.map(formatRow)];
-  if (spec.footer) {
-    if (rows.length > 0) out.push(rule);
-    out.push(formatRow(spec.footer));
-  }
+  const out = [formatRow(headers), ...rows.map(formatRow)];
+  if (spec.footer) out.push(formatRow(spec.footer));
   return out;
 }
 
@@ -340,53 +344,6 @@ function isMiss(result: TestResult, bars: Map<string, number>): boolean {
   return false;
 }
 
-interface VisibleRows {
-  rows: TestResult[];
-  hiddenPassing: number;
-  hiddenMisses: number;
-}
-
-/**
- * Choose which test rows to show in compact mode: every failure (never hidden),
- * then evaluator misses (worst score first) up to the remaining row budget.
- * Clean passing rows are always hidden — their detail lives in the JSON
- * artifact. In verbose mode every row is returned.
- */
-function selectVisibleRows(suite: SuiteSummary, o: RenderOptions): VisibleRows {
-  if (o.verbose) {
-    return { rows: [...suite.results], hiddenPassing: 0, hiddenMisses: 0 };
-  }
-  const bars = buildAcceptanceBars(suite);
-  const primary = selectAnnotationColumns(suite)[0];
-  const score = (r: TestResult): number => {
-    if (!primary) return Number.POSITIVE_INFINITY;
-    const ann = r.annotations.find((a) => a.name === primary);
-    return typeof ann?.score === "number"
-      ? ann.score
-      : ann?.score === false
-        ? 0
-        : ann?.score === true
-          ? 1
-          : Number.POSITIVE_INFINITY;
-  };
-
-  const failures = suite.results.filter((r) => r.status === "failed");
-  const misses = suite.results
-    .filter((r) => r.status === "passed" && isMiss(r, bars))
-    .sort((a, b) => score(a) - score(b));
-  const passers = suite.results.filter(
-    (r) => r.status === "passed" && !isMiss(r, bars)
-  );
-
-  const budget = Math.max(o.maxRows - failures.length, 0);
-  const shownMisses = misses.slice(0, budget);
-  return {
-    rows: [...failures, ...shownMisses],
-    hiddenPassing: passers.length,
-    hiddenMisses: misses.length - shownMisses.length,
-  };
-}
-
 /**
  * Annotation columns for a suite's table: the acceptance-gated metrics first
  * (the ones a user cares about), else the union of annotation names by
@@ -402,71 +359,122 @@ function selectAnnotationColumns(suite: SuiteSummary): string[] {
   return [...new Set(ordered)].slice(0, MAX_COLUMNS);
 }
 
-// ---------------------------------------------------------------------------
-// Per-test cell rendering
-// ---------------------------------------------------------------------------
-
-/** A single annotation's score rendered for a table cell. */
-function annotationCell(result: TestResult, name: string): string {
-  const ann = result.annotations.find((a) => a.name === name);
-  if (!ann) return "—";
-  return formatScore(ann);
-}
-
 /** The aggregate cell for an annotation column. */
 function aggregateCell(stats: AnnotationStat[], name: string): string {
   const stat = stats.find((s) => s.name === name);
   if (!stat) return "—";
   return stat.kind === "number"
-    ? `avg ${stat.avg!.toFixed(3)}`
+    ? `avg ${stat.avg!.toFixed(2)}`
     : `${stat.trueCount}/${stat.count}`;
-}
-
-/** Compact status word for a row, colored when enabled. */
-function rowStatus(
-  result: TestResult,
-  bars: Map<string, number>,
-  o: RenderOptions
-): string {
-  if (result.status === "failed") return colorize("FAIL", "red", o);
-  if (result.status === "skipped") return colorize("SKIP", "dim", o);
-  if (isMiss(result, bars)) return colorize("MISS", "yellow", o);
-  return colorize("PASS", "green", o);
 }
 
 // ---------------------------------------------------------------------------
 // Suite rendering
 // ---------------------------------------------------------------------------
 
+type SuiteStatus = "pass" | "miss" | "fail";
+
+/** A suite's headline numbers, computed once and shared by every renderer. */
+interface SuiteVitals {
+  total: number;
+  passed: number;
+  failed: number;
+  missCount: number;
+  status: SuiteStatus;
+  meanLatencyMs: number;
+  /** Failing tests first, then below-bar misses, each worst-score first. */
+  problems: TestResult[];
+  acceptanceFailed: boolean;
+}
+
+function computeSuiteVitals(suite: SuiteSummary): SuiteVitals {
+  const bars = buildAcceptanceBars(suite);
+  const total = suite.results.length;
+  const passed = suite.results.filter((r) => r.status === "passed").length;
+  const failed = suite.results.filter((r) => r.status === "failed").length;
+  const misses = suite.results
+    .filter((r) => r.status === "passed" && isMiss(r, bars))
+    .sort((a, b) => worstScore(a) - worstScore(b));
+  const acceptanceFailed = (suite.acceptanceResults ?? []).some(
+    (r) => !r.passed
+  );
+  const status: SuiteStatus =
+    failed > 0 || acceptanceFailed
+      ? "fail"
+      : misses.length > 0
+        ? "miss"
+        : "pass";
+  const meanLatencyMs =
+    total > 0 ? suite.results.reduce((a, r) => a + r.durationMs, 0) / total : 0;
+  return {
+    total,
+    passed,
+    failed,
+    missCount: misses.length,
+    status,
+    meanLatencyMs,
+    problems: [
+      ...suite.results.filter((r) => r.status === "failed"),
+      ...misses,
+    ],
+    acceptanceFailed,
+  };
+}
+
+/** The worst (lowest) evaluator score on a row, for ordering most-broken first. */
+function worstScore(result: TestResult): number {
+  let worst = Number.POSITIVE_INFINITY;
+  for (const ann of result.annotations) {
+    if (ann.name === "pass") continue;
+    worst = Math.min(worst, annotationScoreValue(ann));
+  }
+  return worst;
+}
+
+/** ANSI color matching a status (green pass / yellow miss / red fail). */
+function statusColor(status: SuiteStatus): AnsiColor {
+  return status === "fail" ? "red" : status === "miss" ? "yellow" : "green";
+}
+
+/** `2/2 passed · 1 failed · 3 misses`, dropping any zero clause. */
+function countsLabel(v: SuiteVitals): string {
+  const parts = [`${v.passed}/${v.total} passed`];
+  if (v.failed > 0) parts.push(`${v.failed} failed`);
+  if (v.missCount > 0)
+    parts.push(`${v.missCount} miss${v.missCount === 1 ? "" : "es"}`);
+  return parts.join(" · ");
+}
+
+/** Setup / upload problems worth surfacing regardless of test status. */
+function warningLines(suite: SuiteSummary, o: RenderOptions): string[] {
+  const out: string[] = [];
+  if (suite.setupError?.message) {
+    out.push(
+      `  ${colorize("setup error:", "red", o)} ${suite.setupError.message}`
+    );
+  }
+  const n = suite.uploadFailureCount ?? 0;
+  if (n > 0) {
+    out.push(
+      `  ${colorize("warning:", "yellow", o)} ${n} upload${n === 1 ? "" : "s"} failed (auth or network?)`
+    );
+  }
+  return out;
+}
+
 /**
- * Render a single suite's results as a human-readable block. Compact by default
- * (an aligned table of failures + evaluator misses, with passing rows hidden);
- * pass a verbose {@link RenderOptions} to restore the full per-test dump.
+ * Render a single suite. A clean suite collapses to one line; a suite with
+ * failures or misses expands into a per-row diagnosis (scores, rationale,
+ * output, and the Phoenix ids needed to pull the trace). Pass a verbose
+ * {@link RenderOptions} to restore the full per-test dump.
  */
 export function formatSuiteSummary(
   suite: SuiteSummary,
   o: RenderOptions = resolveRenderOptions()
 ): string {
-  return o.verbose ? formatVerboseSuite(suite) : formatCompactSuite(suite, o);
-}
-
-function suiteHeaderLines(suite: SuiteSummary, o: RenderOptions): string[] {
-  const lines: string[] = [
-    "",
-    colorize(`Phoenix Eval Suite: ${suite.name}`, "bold", o),
-  ];
-  if (suite.trackingDisabled) {
-    const reason = suite.setupError?.message ?? suite.trackingDisabledReason;
-    lines.push(
-      reason ? `  (tracking disabled — ${reason})` : `  (tracking disabled)`
-    );
-  }
-  if (suite.uploadFailureCount && suite.uploadFailureCount > 0) {
-    lines.push(
-      `  warning: ${suite.uploadFailureCount} upload${suite.uploadFailureCount === 1 ? "" : "s"} to Phoenix failed (auth or network?)`
-    );
-  }
-  return lines;
+  return o.verbose
+    ? formatVerboseSuite(suite)
+    : formatSuiteDetail(suite, computeSuiteVitals(suite), o);
 }
 
 /** Verbatim acceptance-criteria block (kept stable for downstream parsers). */
@@ -483,79 +491,115 @@ function linkLines(suite: SuiteSummary): string[] {
   return suite.links.map((link) => `  ${link.label}: ${link.url}`);
 }
 
-function formatCompactSuite(suite: SuiteSummary, o: RenderOptions): string {
-  const lines = suiteHeaderLines(suite, o);
+/** Dim one-line roll-up of every metric average plus mean latency. */
+function vitalsInline(
+  suite: SuiteSummary,
+  v: SuiteVitals,
+  o: RenderOptions
+): string {
+  const parts = computeAnnotationStats(suite.results).map((s) =>
+    s.kind === "number"
+      ? `${s.name} ${s.avg!.toFixed(2)}`
+      : `${s.name} ${s.trueCount}/${s.count}`
+  );
+  parts.push(`avg ${formatDuration(v.meanLatencyMs)}`);
+  return colorize(parts.join("   "), "dim", o);
+}
 
-  const total = suite.results.length;
-  const passed = suite.results.filter((r) => r.status === "passed").length;
-  const failed = suite.results.filter((r) => r.status === "failed").length;
-  const bars = buildAcceptanceBars(suite);
-  const missCount = suite.results.filter(
-    (r) => r.status === "passed" && isMiss(r, bars)
-  ).length;
-  const parts = [`${passed}/${total} passed`];
-  if (failed > 0) parts.push(`${failed} failed`);
-  if (missCount > 0)
-    parts.push(`${missCount} miss${missCount === 1 ? "" : "es"}`);
-  lines.push(`  (${parts.join(", ")})`);
+function formatSuiteDetail(
+  suite: SuiteSummary,
+  v: SuiteVitals,
+  o: RenderOptions
+): string {
+  const title = `${colorize(suite.name, statusColor(v.status), o)}  ${colorize(
+    countsLabel(v),
+    "dim",
+    o
+  )}`;
+  const warnings = warningLines(suite, o);
 
-  const stats = computeAnnotationStats(suite.results);
-  const columns = selectAnnotationColumns(suite);
-  const { rows, hiddenPassing, hiddenMisses } = selectVisibleRows(suite, o);
+  // Clean suite with nothing to warn about: one line is the whole story.
+  if (v.status === "pass" && warnings.length === 0) {
+    return `${title}   ${vitalsInline(suite, v, o)}`;
+  }
 
-  const headers = ["Test", "Status", ...columns, "Latency"];
-  const caps = [48, 6, ...columns.map(() => 14), 9];
-  const dataRows = rows.map((r) => [
-    r.testName + (r.dryRun ? " (dry run)" : ""),
-    rowStatus(r, bars, o),
-    ...columns.map((c) => annotationCell(r, c)),
-    formatDuration(r.durationMs),
-  ]);
-  const meanLatency =
-    total > 0 ? suite.results.reduce((a, r) => a + r.durationMs, 0) / total : 0;
-  const aggregate = [
-    `AGGREGATE (${total})`,
-    `${passed}/${total}`,
-    ...columns.map((c) => aggregateCell(stats, c)),
-    `avg ${formatDuration(meanLatency)}`,
-  ];
-
-  lines.push("");
-  lines.push(...renderTable(headers, dataRows, o, { caps, footer: aggregate }));
-
-  if (hiddenPassing > 0 || hiddenMisses > 0) {
-    const noun = hiddenMisses > 0 ? "rows" : "passing rows";
-    const hidden = hiddenPassing + hiddenMisses;
+  const lines = [title, `  ${vitalsInline(suite, v, o)}`, ...warnings];
+  // Never hide a hard failure; cap the number of below-bar misses shown.
+  const failures = v.problems.filter((r) => r.status === "failed");
+  const misses = v.problems.filter((r) => r.status !== "failed");
+  const shownMisses = misses.slice(0, Math.max(o.maxRows - failures.length, 0));
+  for (const r of [...failures, ...shownMisses]) {
+    lines.push(...problemEntry(r, o));
+  }
+  const hidden = misses.length - shownMisses.length;
+  if (hidden > 0) {
     lines.push(
-      colorize(
-        `  … ${hidden} ${noun} hidden (PHOENIX_TEST_REPORTER=verbose to show all)`,
-        "dim",
-        o
-      )
+      colorize(`  … ${hidden} more miss${hidden === 1 ? "" : "es"}`, "dim", o)
+    );
+  }
+  for (const a of suite.acceptanceResults ?? []) {
+    if (!a.passed) {
+      lines.push(
+        `  ${colorize("✗ acceptance", "red", o)} ${formatAcceptanceResult(
+          a
+        ).replace(/^FAIL /, "")}`
+      );
+    }
+  }
+  for (const link of suite.links) {
+    lines.push(`  ${link.label}: ${link.url}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * One failing / missing row: a weighted title with its scores, then the dim
+ * detail an agent needs to fix it — rationale, model output, and trace ids.
+ */
+function problemEntry(result: TestResult, o: RenderOptions): string[] {
+  const mark = colorize("✗", result.status === "failed" ? "red" : "yellow", o);
+  const name = truncateEnd(humanizeLabel(result.testName), 72);
+  const dry = result.dryRun ? colorize(" (dry run)", "dim", o) : "";
+  const lines = [`  ${mark} ${colorize(name, "bold", o)}${dry}`];
+  const indent = "      ";
+
+  const err = compactError(result.error);
+  if (err) lines.push(`${indent}${colorize(err, "red", o)}`);
+
+  // The sub-perfect evaluators that dragged the row down, worst score first —
+  // a clean `1.0` metric isn't what broke it, so it stays out of the way.
+  const rationales = [...result.annotations]
+    .filter((a) => a.name !== "pass" && annotationScoreValue(a) < 1)
+    .sort((a, b) => annotationScoreValue(a) - annotationScoreValue(b))
+    .slice(0, 3);
+  for (const ann of rationales) {
+    const reason = ann.explanation ?? ann.label;
+    const tail = reason
+      ? ` ${colorize("·", "dim", o)} ${truncateSummary(reason, 160)}`
+      : "";
+    lines.push(
+      `${indent}${colorize(ann.name, "dim", o)} ${formatScore(ann)}${tail}`
     );
   }
 
-  // Metrics that didn't fit as table columns still get an aggregate line.
-  const overflow = stats.filter((s) => !columns.includes(s.name));
-  for (const stat of overflow) {
-    lines.push(`    ${stat.name}: ${formatStat(stat)}`);
+  const output = summarizeValue(result.output, 160);
+  if (output !== null) {
+    lines.push(`${indent}${colorize("output", "dim", o)} ${output}`);
   }
 
-  lines.push(...acceptanceLines(suite));
-  lines.push(...linkLines(suite));
-  return lines.join("\n");
+  const ids = formatResultIds(result);
+  if (ids) lines.push(`${indent}${colorize(ids, "dim", o)}`);
+
+  return lines;
 }
 
 /** The legacy verbose view: every test as a delimited block including output. */
 function formatVerboseSuite(suite: SuiteSummary): string {
   const lines: string[] = [];
   lines.push("");
-  lines.push(`Phoenix Eval Suite: ${suite.name}`);
+  lines.push(suite.name);
   if (suite.trackingDisabled) {
-    const reason = suite.setupError?.message ?? suite.trackingDisabledReason;
-    lines.push(
-      reason ? `  (tracking disabled — ${reason})` : `  (tracking disabled)`
-    );
+    lines.push(`  (tracking disabled — ${friendlyTrackingReason(suite)})`);
   }
   const total = suite.results.length;
   const passed = suite.results.filter((r) => r.status === "passed").length;
@@ -565,7 +609,7 @@ function formatVerboseSuite(suite: SuiteSummary): string {
   );
   if (suite.uploadFailureCount && suite.uploadFailureCount > 0) {
     lines.push(
-      `  warning: ${suite.uploadFailureCount} upload${suite.uploadFailureCount === 1 ? "" : "s"} to Phoenix failed (auth or network?)`
+      `  warning: ${suite.uploadFailureCount} upload${suite.uploadFailureCount === 1 ? "" : "s"} failed (auth or network?)`
     );
   }
 
@@ -587,13 +631,22 @@ function formatVerboseSuite(suite: SuiteSummary): string {
     const annotationSuffix = annotations ? `  →  ${annotations}` : "";
     lines.push("");
     lines.push(
-      `    [${status}] ${result.testName} (${formatDuration(result.durationMs)})${tag}${annotationSuffix}`
+      `    [${status}] ${humanizeLabel(result.testName)} (${formatDuration(result.durationMs)})${tag}${annotationSuffix}`
     );
     if (result.error) {
       lines.push(`      error: ${result.error}`);
     }
     if (result.output !== undefined) {
       lines.push(`      output: ${stringifyForLog(result.output)}`);
+    }
+    for (const ann of result.annotations) {
+      if (ann.name !== "pass" && ann.explanation) {
+        lines.push(`      why (${ann.name}): ${ann.explanation}`);
+      }
+    }
+    const ids = formatResultIds(result);
+    if (ids) {
+      lines.push(`      ids: ${ids}`);
     }
   }
 
@@ -602,14 +655,36 @@ function formatVerboseSuite(suite: SuiteSummary): string {
 }
 
 // ---------------------------------------------------------------------------
-// Cross-suite scoreboard
+// Cross-suite overview
 // ---------------------------------------------------------------------------
 
+/** Friendly, env-var-free reason a suite ran locally. */
+function friendlyTrackingReason(suite: SuiteSummary): string {
+  return suite.setupError?.message ?? "local only";
+}
+
+/** A single tracking note when every suite ran locally for the same reason. */
+function sharedTrackingNote(
+  suites: readonly SuiteSummary[]
+): string | undefined {
+  return suites.length > 0 &&
+    suites.every((s) => s.trackingDisabled && !s.setupError)
+    ? "tracking disabled (local only)"
+    : undefined;
+}
+
+/** The primary metric stat for a suite's overview row, or `null`. */
+function primaryStat(suite: SuiteSummary): AnnotationStat | null {
+  const stats = computeAnnotationStats(suite.results);
+  const primary = selectAnnotationColumns(suite)[0];
+  return stats.find((s) => s.name === primary) ?? null;
+}
+
 /**
- * Render the cross-suite scoreboard: one row per suite with pass count, primary
- * metric average, acceptance verdict, and experiment link, plus a one-line
- * totals summary. For a single suite the table is omitted (the per-suite block
- * already covers it) and only the summary line is returned.
+ * Render the run header (totals + tracking note) and, for multi-suite runs, an
+ * aligned overview table: one row per suite with its pass count, primary metric,
+ * acceptance verdict, mean latency, and a miss/fail note. This is the index;
+ * only suites with problems are expanded into a detail block below it.
  */
 export function formatScoreboard(
   suites: readonly SuiteSummary[],
@@ -617,82 +692,137 @@ export function formatScoreboard(
 ): string {
   if (suites.length === 0) return "";
 
-  const totals = suites.reduce(
-    (acc, s) => {
-      acc.passed += s.results.filter((r) => r.status === "passed").length;
-      acc.total += s.results.length;
-      if ((s.acceptanceResults ?? []).some((r) => !r.passed)) acc.failures++;
-      return acc;
-    },
-    { passed: 0, total: 0, failures: 0 }
+  const vitals = suites.map(computeSuiteVitals);
+  const passed = vitals.reduce((a, v) => a + v.passed, 0);
+  const total = vitals.reduce((a, v) => a + v.total, 0);
+  const failedTests = vitals.reduce((a, v) => a + v.failed, 0);
+  const misses = vitals.reduce((a, v) => a + v.missCount, 0);
+  const acceptFails = vitals.filter((v) => v.acceptanceFailed).length;
+  const uploadFails = suites.reduce(
+    (a, s) => a + (s.uploadFailureCount ?? 0),
+    0
   );
-  const summary = [
+
+  // Totals are test/row-level so the clauses stay in one unit; the per-suite
+  // breakdown lives in the table below.
+  const header = [
+    "Eval Results",
     `${suites.length} suite${suites.length === 1 ? "" : "s"}`,
-    `${totals.passed}/${totals.total} passed`,
-    `${totals.failures} acceptance failure${totals.failures === 1 ? "" : "s"}`,
-  ].join(" · ");
+    `${passed}/${total} passed`,
+  ];
+  if (failedTests > 0) header.push(`${failedTests} failed`);
+  if (misses > 0) header.push(`${misses} miss${misses === 1 ? "" : "es"}`);
+  if (acceptFails > 0) {
+    header.push(
+      `${acceptFails} acceptance failure${acceptFails === 1 ? "" : "s"}`
+    );
+  }
+  if (uploadFails > 0) header.push(`${uploadFails} uploads failed`);
+  const note = sharedTrackingNote(suites);
+  if (note) header.push(note);
+  const headerLine = colorize(header.join(" · "), "bold", o);
 
-  if (suites.length === 1) return summary;
+  // A single suite's own detail block is the overview; just print the header.
+  if (suites.length === 1) return headerLine;
 
-  // Use a shared metric-name header when every suite gates on the same metric.
+  // Columns appear only when at least one suite has something to put in them.
+  const anyScore = suites.some((s) => primaryStat(s) !== null);
+  const anyAccept = suites.some((s) => (s.acceptanceResults ?? []).length > 0);
+  const anyLink = suites.some((s) => s.links.length > 0);
   const primaries = suites.map((s) => selectAnnotationColumns(s)[0]);
   const shared =
     primaries.every((p) => p && p === primaries[0]) && primaries[0]
       ? primaries[0]
       : undefined;
 
-  const headers = ["Suite", "Passed", shared ?? "Score", "Accept", "Link"];
-  const caps = [32, 9, 16, 7, 30];
-  const rows = suites.map((suite) => {
-    const passed = suite.results.filter((r) => r.status === "passed").length;
+  const headers = ["Suite", "Tests"];
+  const caps = [34, 7];
+  if (anyScore) {
+    headers.push(shared ?? "Score");
+    caps.push(22);
+  }
+  if (anyAccept) {
+    headers.push("Accept");
+    caps.push(7);
+  }
+  headers.push("Latency", "Result");
+  caps.push(8, 12);
+  if (anyLink) {
+    headers.push("Link");
+    caps.push(48);
+  }
+
+  const rows = suites.map((suite, i) => {
+    const v = vitals[i]!;
     const stats = computeAnnotationStats(suite.results);
-    const primary = selectAnnotationColumns(suite)[0];
-    const stat = stats.find((s) => s.name === primary);
-    const scoreCell = !stat
-      ? "—"
-      : shared
-        ? aggregateCell(stats, stat.name)
-        : `${stat.name} ${aggregateCell(stats, stat.name).replace(/^avg /, "")}`;
-    return [
-      suite.name,
-      `${passed}/${suite.results.length}`,
-      scoreCell,
-      acceptCell(suite, o),
-      suite.links[0]?.url ?? "—",
-    ];
+    const stat = primaryStat(suite);
+    const row = [suite.name, `${v.passed}/${v.total}`];
+    if (anyScore) {
+      row.push(
+        !stat
+          ? "—"
+          : shared
+            ? aggregateCell(stats, stat.name)
+            : `${stat.name} ${aggregateCell(stats, stat.name).replace(/^avg /, "")}`
+      );
+    }
+    if (anyAccept) {
+      row.push(
+        (suite.acceptanceResults ?? []).length === 0
+          ? "—"
+          : v.acceptanceFailed
+            ? colorize("FAIL", "red", o)
+            : colorize("PASS", "green", o)
+      );
+    }
+    row.push(formatDuration(v.meanLatencyMs), resultNote(v, o));
+    if (anyLink) row.push(suite.links[0]?.url ?? "—");
+    return row;
   });
 
-  return [
-    "",
-    colorize("Phoenix Eval Scoreboard", "bold", o),
-    "",
-    ...renderTable(headers, rows, o, { caps }),
-    "",
-    summary,
-  ].join("\n");
+  return [headerLine, "", ...renderTable(headers, rows, o, { caps })].join(
+    "\n"
+  );
 }
 
-function acceptCell(suite: SuiteSummary, o: RenderOptions): string {
-  const results = suite.acceptanceResults ?? [];
-  if (results.length === 0) return "—";
-  return results.some((r) => !r.passed)
-    ? colorize("FAIL", "red", o)
-    : colorize("PASS", "green", o);
+/** The overview "Result" cell: what went wrong, colored, or blank when clean. */
+function resultNote(v: SuiteVitals, o: RenderOptions): string {
+  if (v.failed > 0) return colorize(`${v.failed} failed`, "red", o);
+  if (v.acceptanceFailed) return colorize("accept ✗", "red", o);
+  if (v.missCount > 0) {
+    return colorize(
+      `${v.missCount} miss${v.missCount === 1 ? "" : "es"}`,
+      "yellow",
+      o
+    );
+  }
+  return "";
 }
 
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
-/** Print the scoreboard followed by each suite's block to stdout. */
+/**
+ * Print the run summary: the overview header (and, for multi-suite runs, the
+ * index table), then an expanded detail block for every suite that failed or
+ * had misses. Clean suites are fully described by their overview row. A
+ * single-suite run always prints its block; verbose prints every block.
+ */
 export function printSuiteSummaries(suites: readonly SuiteSummary[]): void {
   const o = resolveRenderOptions();
-  const scoreboard = formatScoreboard(suites, o);
+  const overview = formatScoreboard(suites, o);
   // eslint-disable-next-line no-console
-  if (scoreboard) console.log(scoreboard);
-  for (const suite of suites) {
+  if (overview) console.log(overview);
+
+  const expand = o.verbose
+    ? suites
+    : suites.length === 1
+      ? suites
+      : suites.filter((s) => computeSuiteVitals(s).status !== "pass");
+  for (const suite of expand) {
     // eslint-disable-next-line no-console
-    console.log(formatSuiteSummary(suite, o));
+    console.log(`\n${formatSuiteSummary(suite, o)}`);
   }
 }
 
@@ -732,4 +862,191 @@ function stringifyForLog(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Per-failure detail helpers
+//
+// A problem row's block answers the two questions an agent needs to fix it:
+// *why* (the judge's rationale and the model output) and *where* (the Phoenix
+// trace / run / example ids it can pull for the full picture).
+// ---------------------------------------------------------------------------
+
+/** A run's numeric score for sorting (booleans as 1/0, missing as +∞). */
+function annotationScoreValue(ann: Annotation): number {
+  if (typeof ann.score === "number") return ann.score;
+  if (typeof ann.score === "boolean") return ann.score ? 1 : 0;
+  return Number.POSITIVE_INFINITY;
+}
+
+/** First non-empty line of a multi-line error, truncated for one-line display. */
+function compactError(error: string | undefined): string | null {
+  if (!error) return null;
+  const firstLine = error
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+  return firstLine ? truncateSummary(firstLine, 160) : null;
+}
+
+/** Phoenix ids for a run as a single `trace=… run=… example=…` string. */
+function formatResultIds(result: TestResult): string | null {
+  const parts: string[] = [];
+  if (result.traceId) parts.push(`trace=${result.traceId}`);
+  if (result.runId) parts.push(`run=${result.runId}`);
+  if (result.exampleId) parts.push(`example=${result.exampleId}`);
+  return parts.length > 0 ? parts.join("  ") : null;
+}
+
+// ---------------------------------------------------------------------------
+// Label humanization
+// ---------------------------------------------------------------------------
+
+/**
+ * Turn a machine test name into a readable title. A `test.each` row is named by
+ * stringifying its input (`{"userQuery":"Show active users"}`); we surface the
+ * value of a single-field object directly (`Show active users`) and fold a
+ * multi-field object to `key=value` pairs. Non-JSON names pass through.
+ */
+function humanizeLabel(name: string): string {
+  const trimmed = name.trim();
+  if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return name;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return name;
+  }
+  if (Array.isArray(parsed)) return summarizeValue(parsed) ?? name;
+  if (!parsed || typeof parsed !== "object") return name;
+  const entries = Object.entries(parsed as Record<string, unknown>).filter(
+    ([, v]) => v != null && v !== ""
+  );
+  if (entries.length === 0) return name;
+  if (entries.length === 1 && typeof entries[0]![1] === "string") {
+    return entries[0]![1] as string;
+  }
+  return entries
+    .map(([k, v]) => `${k}=${summaryPrimitive(v) ?? ""}`)
+    .join("  ");
+}
+
+/** Truncate keeping the head (most identifying for a title), trailing ellipsis. */
+function truncateEnd(s: string, max: number): string {
+  return s.length <= max ? s : `${s.slice(0, max - 1)}…`;
+}
+
+// ---------------------------------------------------------------------------
+// Token-efficient value summarization (adapted from the vitest-evals reporter)
+//
+// Replaces a blind JSON truncation with a key-preferring summary: the salient
+// keys of an eval output (`score`, `output`, `error`, …) come first, primitives
+// are rendered compactly, and JSON-encoded strings are parsed so the same
+// summary applies. The result is far denser and more legible per token.
+// ---------------------------------------------------------------------------
+
+/** Keys surfaced first when summarizing a record, in priority order. */
+const PREFERRED_SUMMARY_KEYS = [
+  "score",
+  "label",
+  "pass",
+  "passed",
+  "output",
+  "result",
+  "answer",
+  "response",
+  "reason",
+  "rationale",
+  "explanation",
+  "error",
+  "message",
+  "name",
+  "id",
+  "status",
+];
+
+function truncateSummary(value: string, maxLength = 96): string {
+  return value.length <= maxLength
+    ? value
+    : `${value.slice(0, maxLength - 1)}…`;
+}
+
+/** Render a single value as a short token: scalars inline, containers as counts. */
+function summaryPrimitive(value: unknown): string | null {
+  if (value === undefined) return null;
+  if (value === null) return "null";
+  if (typeof value === "string") {
+    const truncated = truncateSummary(value, 48);
+    // Bare-word strings stay unquoted; anything with spaces/punctuation is
+    // quoted so the key=value pairs remain unambiguous.
+    return /^[\w.:/@-]+$/.test(truncated)
+      ? truncated
+      : JSON.stringify(truncated);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) return `array(${value.length})`;
+  if (typeof value === "object") {
+    return `object(${Object.keys(value as Record<string, unknown>).length})`;
+  }
+  return String(value);
+}
+
+function summarizeRecord(
+  record: Record<string, unknown>,
+  maxLength: number
+): string | null {
+  const keys = Object.keys(record);
+  if (keys.length === 0) return "object(0)";
+  const ordered = [
+    ...PREFERRED_SUMMARY_KEYS.filter((key) => keys.includes(key)),
+    ...keys.filter((key) => !PREFERRED_SUMMARY_KEYS.includes(key)),
+  ].slice(0, 4);
+  const parts = ordered
+    .map((key) => {
+      const formatted = summaryPrimitive(record[key]);
+      return formatted === null ? null : `${key}=${formatted}`;
+    })
+    .filter((part): part is string => part !== null);
+  if (parts.length === 0) return null;
+  const suffix = keys.length > ordered.length ? " …" : "";
+  return truncateSummary(`${parts.join(" ")}${suffix}`, maxLength);
+}
+
+/**
+ * Summarize an arbitrary value to a compact, single-line string, or `null` when
+ * there's nothing to show (`undefined`). JSON-encoded strings are parsed first
+ * so the key-preferring record summary still applies.
+ */
+function summarizeValue(value: unknown, maxLength = 96): string | null {
+  if (value === undefined) return null;
+  if (value === null) return "null";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        return summarizeValue(JSON.parse(trimmed), maxLength);
+      } catch {
+        // Not valid JSON — fall through to plain-string handling.
+      }
+    }
+    return truncateSummary(value, maxLength);
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "array(0)";
+    const first = summaryPrimitive(value[0]);
+    const suffix = value.length > 1 ? " …" : "";
+    return truncateSummary(
+      `array(${value.length}) ${first ?? ""}${suffix}`.trim(),
+      maxLength
+    );
+  }
+  if (typeof value === "object") {
+    return summarizeRecord(value as Record<string, unknown>, maxLength);
+  }
+  return truncateSummary(String(value), maxLength);
 }

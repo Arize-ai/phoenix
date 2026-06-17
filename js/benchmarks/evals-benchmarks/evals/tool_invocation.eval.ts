@@ -1,13 +1,26 @@
+/**
+ * Benchmark: the built-in `createToolInvocationEvaluator`.
+ *
+ * Each example carries a tool invocation that is either correct or exhibits a
+ * specific failure mode (hallucinated fields, missing required fields, malformed
+ * JSON, incorrect argument values, unsafe PII content, etc.). We run the tool
+ * invocation evaluator on each and check whether its predicted label
+ * (`correct` / `incorrect`) matches the known ground truth. The `accuracy`
+ * annotation is the benchmark score; the suite-level `acceptanceCriteria` fails
+ * CI if mean accuracy drops too far.
+ *
+ * Requires OPENAI_API_KEY (the evaluator makes a live LLM call); the suite is
+ * skipped without it.
+ *
+ *   export OPENAI_API_KEY=sk-...
+ *   pnpm eval evals/tool_invocation.eval.ts            # local, no Phoenix sync
+ *   pnpm eval:phoenix evals/tool_invocation.eval.ts    # sync to Phoenix
+ */
 import { openai } from "@ai-sdk/openai";
-/* eslint-disable no-console */
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  getExperiment,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
+
+import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
 
 const toolInvocationEvaluator = createToolInvocationEvaluator({
   model: openai("gpt-4o-mini"),
@@ -496,273 +509,58 @@ User: Book the flight - I'm coming from Chicago.`,
   ],
 };
 
-// Flatten examples with category information
-const examples = Object.entries(examplesByCategory).flatMap(
+// Flatten the per-category examples into a single list of benchmark cases,
+// carrying every field the test body needs plus the originating category.
+const cases = Object.entries(examplesByCategory).flatMap(
   ([category, categoryExamples]) =>
-    categoryExamples.map((example) => ({
-      ...example,
+    categoryExamples.map((example, index) => ({
+      input: example.input,
+      availableTools: example.available_tools,
+      toolSelection: example.tool_selection,
+      expectedLabel: example.expected_label,
+      failureMode: example.failure_mode,
+      formatType: example.format_type,
       category,
+      index,
     }))
 );
 
-// Create dataset entries
-const datasetExamples = examples.map((example, index) => ({
-  input: {
-    input: example.input,
-    availableTools: example.available_tools,
-    toolSelection: example.tool_selection,
-  },
-  output: {
-    expected_label: example.expected_label,
-  },
-  metadata: {
-    category: example.category,
-    failure_mode: example.failure_mode,
-    format_type: example.format_type,
-    example_index: index,
-  },
-  splits: [example.category, example.expected_label],
-}));
+const suite = benchmarkSuite(px.describe);
 
-type TaskOutput = {
-  expected_label: "correct" | "incorrect";
-  label: "correct" | "incorrect";
-  score: number;
-  explanation: string;
-  category: string;
-  failure_mode: string | null;
-  format_type: string;
-};
-
-const accuracyEvaluator = asExperimentEvaluator({
-  name: "accuracy",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput | null;
-
-    // Handle null output (task errors)
-    if (!output) {
-      return {
-        label: "error",
-        score: 0,
-        explanation: "Task failed to produce output",
-        metadata: {},
-      };
+suite(
+  "tool-invocation-evaluator-benchmark",
+  () => {
+    for (const testCase of cases) {
+      px.test(
+        `${testCase.category} · ${testCase.input}`,
+        {
+          input: {
+            input: testCase.input,
+            availableTools: testCase.availableTools,
+            toolSelection: testCase.toolSelection,
+          },
+          expected: { label: testCase.expectedLabel },
+          metadata: { category: testCase.category },
+          splits: [testCase.category],
+        },
+        async ({ input }) => {
+          const prediction = await toolInvocationEvaluator.evaluate({
+            input: input.input,
+            availableTools: input.availableTools,
+            toolSelection: input.toolSelection,
+          });
+          px.recordOutput(prediction);
+          await px.evaluate(labelAccuracy);
+        }
+      );
     }
-
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === output.label ? "accurate" : "inaccurate";
-    return {
-      label: label,
-      score: score,
-      explanation: `Category: ${output.category}, Format: ${output.format_type}. The evaluator labeled the invocation as "${output.label}". Expected: "${output.expected_label}"${output.failure_mode ? `. Failure mode: ${output.failure_mode}` : ""}`,
-      metadata: {
-        category: output.category,
-        failure_mode: output.failure_mode,
-        format_type: output.format_type,
-      },
-    };
   },
-});
-
-async function main() {
-  console.log("\n" + "=".repeat(60));
-  console.log("TOOL INVOCATION BENCHMARK CONFIGURATION");
-  console.log("=".repeat(60));
-  console.log(`Categories: ${Object.keys(examplesByCategory).length}`);
-  console.log(`Total examples: ${examples.length}`);
-
-  // Count by expected label
-  const correctCount = examples.filter(
-    (e) => e.expected_label === "correct"
-  ).length;
-  const incorrectCount = examples.filter(
-    (e) => e.expected_label === "incorrect"
-  ).length;
-  console.log(
-    `Expected correct: ${correctCount}, Expected incorrect: ${incorrectCount}`
-  );
-
-  // Count by format type
-  const formatCounts: Record<string, number> = {};
-  examples.forEach((e) => {
-    formatCounts[e.format_type] = (formatCounts[e.format_type] || 0) + 1;
-  });
-  console.log("Format types:", formatCounts);
-  console.log("=".repeat(60) + "\n");
-
-  const dataset = await createDataset({
-    name: "tool-invocation-benchmark-" + Date.now(),
+  {
     description:
-      "Benchmark testing tool invocation correctness across categories: hallucinated fields, missing required fields, malformed JSON, incorrect argument values, unsafe content (PII), correct single/multi-tool invocations, multi-turn context, and different tool schema formats",
-    examples: datasetExamples,
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const expectedLabel = example.output?.expected_label as
-      | "correct"
-      | "incorrect";
-
-    const evalResult = await toolInvocationEvaluator.evaluate({
-      input: example.input.input as string,
-      availableTools: example.input.availableTools as string,
-      toolSelection: example.input.toolSelection as string,
-    });
-
-    return {
-      expected_label: expectedLabel,
-      category: example.metadata?.category as string,
-      failure_mode: example.metadata?.failure_mode as string | null,
-      format_type: example.metadata?.format_type as string,
-      ...evalResult,
-    };
-  };
-
-  const experiment = await runExperiment({
-    experimentName: "tool-invocation-benchmark",
-    experimentDescription:
-      "Testing the tool invocation evaluator across various failure modes and input formats",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [accuracyEvaluator],
-  });
-
-  // Fetch full experiment details including runs
-  const experimentResult = await getExperiment({
-    experimentId: experiment.id,
-  });
-
-  // Print experiment summary
-  console.log("\n" + "=".repeat(80));
-  console.log("EXPERIMENT RESULTS SUMMARY");
-  console.log("=".repeat(80));
-  console.log(`Experiment ID: ${experimentResult.id}`);
-  console.log(`Dataset ID: ${experimentResult.datasetId}`);
-  console.log(`Total Examples: ${experimentResult.exampleCount}`);
-  console.log(`Successful Runs: ${experimentResult.successfulRunCount}`);
-  console.log(`Failed Runs: ${experimentResult.failedRunCount}`);
-  console.log(`Missing Runs: ${experimentResult.missingRunCount}`);
-
-  // Analyze runs by category and build confusion matrix
-  const runsByCategory: Record<
-    string,
-    { correct: number; incorrect: number; errors: number }
-  > = {};
-
-  // Confusion matrix counters
-  let truePositives = 0; // Predicted correct, Actually correct
-  let trueNegatives = 0; // Predicted incorrect, Actually incorrect
-  let falsePositives = 0; // Predicted correct, Actually incorrect
-  let falseNegatives = 0; // Predicted incorrect, Actually correct
-
-  for (const run of Object.values(experimentResult.runs)) {
-    const output = run.output as TaskOutput | null;
-    const category = output?.category || "unknown";
-
-    if (!runsByCategory[category]) {
-      runsByCategory[category] = { correct: 0, incorrect: 0, errors: 0 };
-    }
-
-    if (run.error) {
-      runsByCategory[category].errors++;
-    } else if (output?.expected_label === output?.label) {
-      runsByCategory[category].correct++;
-      // Update confusion matrix for correct predictions
-      if (output?.label === "correct") {
-        truePositives++;
-      } else {
-        trueNegatives++;
-      }
-    } else {
-      runsByCategory[category].incorrect++;
-      // Update confusion matrix for incorrect predictions
-      if (output?.label === "correct") {
-        falsePositives++;
-      } else {
-        falseNegatives++;
-      }
-    }
+      "Tool invocation correctness across categories: hallucinated fields, missing required fields, malformed JSON, incorrect argument values, unsafe content (PII), correct single/multi-tool invocations, multi-turn context, and different tool schema formats.",
+    metadata: { evaluator: "tool_invocation", model: "gpt-4o-mini" },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.8 },
+    ],
   }
-
-  console.log("\n" + "-".repeat(80));
-  console.log("ACCURACY BY CATEGORY");
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"Category".padEnd(30)} | ${"Accuracy".padEnd(15)} | Details`
-  );
-  console.log("-".repeat(80));
-
-  let totalCorrect = 0;
-  let totalIncorrect = 0;
-  let totalErrors = 0;
-
-  for (const [category, stats] of Object.entries(runsByCategory).sort()) {
-    const total = stats.correct + stats.incorrect + stats.errors;
-    const accuracy =
-      total > 0 ? ((stats.correct / total) * 100).toFixed(0) : "N/A";
-
-    console.log(
-      `  ${category.padEnd(30)} | ${`${accuracy}%`.padEnd(15)} | ${stats.correct}/${total} correct${stats.errors > 0 ? `, ${stats.errors} errors` : ""}`
-    );
-
-    totalCorrect += stats.correct;
-    totalIncorrect += stats.incorrect;
-    totalErrors += stats.errors;
-  }
-
-  const overallTotal = totalCorrect + totalIncorrect + totalErrors;
-  const overallAccuracy =
-    overallTotal > 0 ? ((totalCorrect / overallTotal) * 100).toFixed(1) : "N/A";
-
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"OVERALL".padEnd(30)} | ${`${overallAccuracy}%`.padEnd(15)} | ${totalCorrect}/${overallTotal} correct${totalErrors > 0 ? `, ${totalErrors} errors` : ""}`
-  );
-  console.log("=".repeat(80));
-
-  // Print confusion matrix
-  console.log("\n" + "=".repeat(80));
-  console.log("CONFUSION MATRIX");
-  console.log("=".repeat(80));
-  console.log(
-    `                          │ Predicted: Correct │ Predicted: Incorrect │`
-  );
-  console.log("-".repeat(80));
-  console.log(
-    `  Actual: Correct         │ ${String(truePositives).padStart(18)} │ ${String(falseNegatives).padStart(20)} │`
-  );
-  console.log(
-    `  Actual: Incorrect       │ ${String(falsePositives).padStart(18)} │ ${String(trueNegatives).padStart(20)} │`
-  );
-  console.log("=".repeat(80));
-
-  // Calculate metrics
-  const precision =
-    truePositives + falsePositives > 0
-      ? ((truePositives / (truePositives + falsePositives)) * 100).toFixed(1)
-      : "N/A";
-  const recall =
-    truePositives + falseNegatives > 0
-      ? ((truePositives / (truePositives + falseNegatives)) * 100).toFixed(1)
-      : "N/A";
-  const f1Score =
-    precision !== "N/A" && recall !== "N/A"
-      ? parseFloat(precision) + parseFloat(recall) > 0
-        ? (
-            (2 * (parseFloat(precision) * parseFloat(recall))) /
-            (parseFloat(precision) + parseFloat(recall))
-          ).toFixed(1)
-        : "0.0"
-      : "N/A";
-
-  console.log(`\nMetrics:`);
-  console.log(`  Precision (PPV): ${precision}%`);
-  console.log(`  Recall (TPR):    ${recall}%`);
-  console.log(`  F1 Score:        ${f1Score}%`);
-  console.log(`\nTotal Errors: ${totalErrors}`);
-  console.log("=".repeat(80) + "\n");
-}
-
-main();
+);

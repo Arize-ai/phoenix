@@ -14,6 +14,7 @@
   "dependencies": {
     "@arizeai/openinference-instrumentation-openai": "^4.0.0",
     "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
     "openai": "^6.9.1"
   },
   "devDependencies": {

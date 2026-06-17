@@ -2,8 +2,8 @@
  * 02 — Annotations (evaluators + manual scores).
  *
  * Two ways to attach scores to a run:
- *   - `px.traceEvaluator(fn)` — runs `fn` as a traced EVALUATOR span and, when
- *     it returns `{ name, score }`, files the annotation automatically.
+ *   - `px.evaluate(evaluator)` — runs an evaluator object and records its
+ *     result as an annotation.
  *   - `px.logAnnotation({ ... })` — record a score you computed inline.
  *
  * This case is one the app gets *partly* wrong: "show active users" returns the
@@ -41,15 +41,18 @@ px.describe("text-to-sql: annotations", () => {
       const reference = expected?.sql ?? "";
       // Each evaluator lands as its own annotation on the run. Together they
       // tell the story: right table, valid SQL, but not an exact match.
-      await sqlExactMatch({ output: sql, expected: reference });
-      await sqlSimilarity({ output: sql, expected: reference });
-      await isValidSql({ output: sql });
-      await targetsExpectedTable({ output: sql, expected: reference });
+      await px.evaluate(sqlExactMatch, { output: sql, expected: reference });
+      await px.evaluate(sqlSimilarity, { output: sql, expected: reference });
+      await px.evaluate(isValidSql, { output: sql });
+      await px.evaluate(targetsExpectedTable, {
+        output: sql,
+        expected: reference,
+      });
 
       // A manual, inline annotation. `annotatorKind` defaults to "CODE".
       px.logAnnotation({
         name: "on_topic",
-        score: isOnTopic(input.userQuery),
+        score: isOnTopic(input.userQuery) ? 1 : 0,
         annotatorKind: "CODE",
         explanation: "Whether the query maps to a known table.",
       });

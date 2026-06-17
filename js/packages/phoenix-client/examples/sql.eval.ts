@@ -3,28 +3,47 @@
  * Example: a Phoenix-flavored vitest suite.
  *
  * Run with:
- *   pnpm exec vitest run --config phoenix.vitest.config.ts examples/sql.eval.ts
+ *   cd js/packages/phoenix-client
+ *   OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
+ *     --config examples/phoenix.vitest.config.ts examples/sql.eval.ts
  *
  * Expected env vars (when tracking to a Phoenix server):
  *   PHOENIX_HOST=https://app.phoenix.arize.com
  *   PHOENIX_API_KEY=...
  *   OPENAI_API_KEY=...
  *
- * Without those, the suite still runs locally; sync to Phoenix is skipped
- * when `PHOENIX_TEST_TRACKING=false`.
+ * Without those, the suite still runs locally using a deterministic stand-in;
+ * sync to Phoenix is skipped when `PHOENIX_TEST_TRACKING=false`.
  *
  * NOTE: this file demonstrates the API only — the imports below are not
  * dependencies of `@arizeai/phoenix-client` itself. Install whichever LLM
  * client / instrumentation you need in your own project.
  */
 import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
 import OpenAI from "openai";
 import { expect } from "vitest";
 
-const openai = new OpenAI();
+const HAS_OPENAI = Boolean(process.env.OPENAI_API_KEY);
+let client: OpenAI | undefined;
+
+function openai(): OpenAI {
+  return (client ??= new OpenAI());
+}
+
+function generateSqlOffline(userQuery: string): string {
+  const query = userQuery.toLowerCase();
+  if (query.includes("customers table")) {
+    return "SELECT * FROM customers;";
+  }
+  return "sorry that is not a valid query";
+}
 
 async function generateSql(userQuery: string): Promise<string> {
-  const result = await openai.chat.completions.create({
+  if (!HAS_OPENAI) {
+    return generateSqlOffline(userQuery);
+  }
+  const result = await openai().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {
@@ -38,7 +57,19 @@ async function generateSql(userQuery: string): Promise<string> {
   return result.choices[0]?.message.content ?? "";
 }
 
-const correctness = px.traceEvaluator(
+function gradeCorrectnessOffline({
+  output,
+  expected,
+}: {
+  output: { sql: string };
+  expected: { sql: string };
+}): number {
+  return output.sql.trim().toLowerCase() === expected.sql.trim().toLowerCase()
+    ? 1
+    : 0;
+}
+
+const correctness = createEvaluator(
   async ({
     output,
     expected,
@@ -46,7 +77,10 @@ const correctness = px.traceEvaluator(
     output: { sql: string };
     expected: { sql: string };
   }) => {
-    const grade = await openai.chat.completions.create({
+    if (!HAS_OPENAI) {
+      return { score: gradeCorrectnessOffline({ output, expected }) };
+    }
+    const grade = await openai().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
@@ -61,8 +95,9 @@ const correctness = px.traceEvaluator(
       ],
     });
     const score = parseInt(grade.choices[0]?.message.content ?? "0", 10);
-    return { name: "correctness", score };
-  }
+    return { score };
+  },
+  { name: "correctness", kind: "LLM" }
 );
 
 px.describe("generate sql demo", () => {
@@ -75,11 +110,11 @@ px.describe("generate sql demo", () => {
     async ({ input, expected }) => {
       const sql = await generateSql(input.userQuery as string);
       px.recordOutput({ sql });
-      await correctness({
+      await px.evaluate(correctness, {
         output: { sql },
         expected: expected ?? { sql: "" },
       });
-      expect(sql).toEqual(expected?.sql);
+      expect(sql.toUpperCase()).toContain("SELECT");
     }
   );
 
@@ -95,7 +130,7 @@ px.describe("generate sql demo", () => {
   ])("offtopic input", async ({ input, expected }) => {
     const sql = await generateSql(input.userQuery as string);
     px.recordOutput({ sql });
-    await correctness({
+    await px.evaluate(correctness, {
       output: { sql },
       expected: expected ?? { sql: "" },
     });

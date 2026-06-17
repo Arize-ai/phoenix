@@ -10,8 +10,8 @@ import type {
   AcceptanceResult,
   Annotation,
   KVMap,
-  PhoenixSuiteConfig,
-  PhoenixTestParams,
+  SuiteConfig,
+  TestParams,
 } from "./types";
 
 /**
@@ -21,7 +21,7 @@ import type {
 export interface SuiteState {
   /** The user-facing suite (and dataset/experiment) name. */
   name: string;
-  config: PhoenixSuiteConfig;
+  config: SuiteConfig;
   /**
    * Map of test name → registered example metadata. Filled as tests are
    * declared inside the describe callback. Keys are test names.
@@ -73,7 +73,7 @@ export interface SuiteState {
 /** Per-test registration captured when `test()` is declared. */
 export interface RegisteredExample {
   testName: string;
-  params: PhoenixTestParams;
+  params: TestParams;
 }
 
 /** Run-time state attached via AsyncLocalStorage to each running test. */
@@ -87,7 +87,7 @@ export interface RunState {
   repetitionNumber: number;
   /** When true, this run is local-only: no dataset example, no upload. */
   dryRun: boolean;
-  params: PhoenixTestParams;
+  params: TestParams;
   output?: unknown;
   outputSet: boolean;
   annotations: Annotation[];
@@ -117,10 +117,20 @@ export interface TestResult {
   repetitions?: number;
   /** True when this test ran local-only (not uploaded to Phoenix). */
   dryRun?: boolean;
+  /**
+   * OpenInference trace id for the task span, when the run was traced. Surfaced
+   * in the reporter's failure detail so an agent can pull the exact trace from
+   * Phoenix (e.g. `px`/GraphQL) to see what the task actually did.
+   */
+  traceId?: string;
+  /** Phoenix experiment run id, when the run was uploaded. */
+  runId?: string;
+  /** Phoenix dataset example id this run was scored against, when synced. */
+  exampleId?: string;
 }
 
 /**
- * AsyncLocalStorage that lets `recordOutput` / `logAnnotation` / `traceEvaluator`
+ * AsyncLocalStorage that lets `recordOutput` / `logAnnotation` / `evaluate`
  * reach the running test's state without threading it through arguments.
  */
 export const runStorage = new AsyncLocalStorage<RunState>();

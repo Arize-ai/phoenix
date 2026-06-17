@@ -15,6 +15,7 @@
  */
 import { OpenAIInstrumentation } from "@arizeai/openinference-instrumentation-openai";
 import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
 import OpenAI from "openai";
 import { expect } from "vitest";
 
@@ -63,9 +64,9 @@ suite(
       return result.choices[0]?.message.content?.trim() ?? "";
     }
 
-    // An LLM-as-a-judge. Same `traceEvaluator` shape as the offline evaluators —
+    // An LLM-as-a-judge. Same evaluator-object shape as the offline evaluators;
     // it just awaits a model call. Traced as its own EVALUATOR span.
-    const correctness = px.traceEvaluator(
+    const correctness = createEvaluator(
       async ({ output, expected }: { output: string; expected: string }) => {
         const grade = await openai().chat.completions.create({
           model: "gpt-4o-mini",
@@ -83,9 +84,9 @@ suite(
           ],
         });
         const score = grade.choices[0]?.message.content?.includes("1") ? 1 : 0;
-        return { name: "correctness", score, annotatorKind: "LLM" as const };
+        return { score };
       },
-      { name: "correctness" }
+      { name: "correctness", kind: "LLM" }
     );
 
     px.test(
@@ -97,7 +98,10 @@ suite(
       async ({ input, expected }) => {
         const sql = await generateSql(input.userQuery);
         px.recordOutput({ sql });
-        await correctness({ output: sql, expected: expected?.sql ?? "" });
+        await px.evaluate(correctness, {
+          output: sql,
+          expected: expected?.sql ?? "",
+        });
         expect(sql.toUpperCase()).toContain("SELECT");
       }
     );

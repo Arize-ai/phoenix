@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  evaluate,
   logAnnotation,
   recordOutput,
   traceEvaluator,
@@ -23,5 +24,17 @@ describe("helpers outside a test context", () => {
     const wrapped = traceEvaluator(async ({ x }: { x: number }) => x + 1);
     const result = await wrapped({ x: 41 });
     expect(result).toBe(42);
+  });
+
+  it("evaluate runs the evaluator plainly outside a test context", async () => {
+    const result = await evaluate(
+      {
+        name: "outside",
+        evaluate: ({ x }: { x: number }) => ({ score: x + 1 }),
+      },
+      { x: 41 }
+    );
+
+    expect(result).toEqual({ score: 42 });
   });
 });

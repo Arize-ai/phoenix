@@ -1,3 +1,4 @@
+import { createEvaluator } from "@arizeai/phoenix-evals";
 import {
   attachGlobalTracerProvider,
   register,
@@ -10,7 +11,11 @@ import {
 } from "@arizeai/phoenix-otel";
 import { describe, expect, it } from "vitest";
 
-import { recordOutput, traceEvaluator } from "../../src/testing/helpers";
+import {
+  evaluate,
+  recordOutput,
+  traceEvaluator,
+} from "../../src/testing/helpers";
 import {
   runTaskWithTracing,
   teardownSuite,
@@ -113,6 +118,106 @@ describe("Phoenix test tracing", () => {
           name: "quality",
           score: true,
           traceId: evaluatorSpan.spanContext().traceId,
+        }),
+      ]);
+    } finally {
+      await teardownSuite(harness.suite);
+    }
+  });
+
+  it("links evaluate annotations to the evaluator trace", async () => {
+    const harness = createTracingHarness();
+    const run = createRunState(harness.suite);
+
+    try {
+      await runStorage.run(run, async () => {
+        const outcome = await runTaskWithTracing(
+          harness.suite,
+          "answers question",
+          async () => {
+            recordOutput({ answer: "hello" });
+
+            const evaluator = createEvaluator(
+              async ({ output }: { output: string }) => {
+                return { score: output === "hello" ? 1 : 0 };
+              },
+              { name: "quality" }
+            );
+
+            await evaluate(evaluator, { output: "hello" });
+          }
+        );
+
+        expect("error" in outcome).toBe(false);
+      });
+
+      const taskSpan = findEndedSpan(
+        harness.endedSpans,
+        "Test: answers question"
+      );
+      const evaluatorSpan = findEndedSpan(
+        harness.endedSpans,
+        "Evaluation: quality"
+      );
+      const evaluatorImplementationSpan = findEndedSpan(
+        harness.endedSpans,
+        "quality"
+      );
+
+      expect(evaluatorSpan.parentSpanContext).toBeUndefined();
+      expect(evaluatorSpan.spanContext().traceId).not.toBe(
+        taskSpan.spanContext().traceId
+      );
+      expect(evaluatorImplementationSpan.spanContext().traceId).toBe(
+        evaluatorSpan.spanContext().traceId
+      );
+      expect(evaluatorImplementationSpan.parentSpanContext?.spanId).toBe(
+        evaluatorSpan.spanContext().spanId
+      );
+      expect(run.annotations).toEqual([
+        expect.objectContaining({
+          name: "quality",
+          score: 1,
+          traceId: evaluatorSpan.spanContext().traceId,
+        }),
+      ]);
+    } finally {
+      await teardownSuite(harness.suite);
+    }
+  });
+
+  it("suppresses telemetry-enabled evaluator spans for dry-run tests", async () => {
+    const harness = createTracingHarness();
+    const run = createRunState(harness.suite);
+    run.dryRun = true;
+
+    try {
+      await runStorage.run(run, async () => {
+        const outcome = await runTaskWithTracing(
+          harness.suite,
+          "dry run",
+          async () => {
+            recordOutput({ answer: "hello" });
+
+            const evaluator = createEvaluator(
+              async ({ output }: { output: string }) => {
+                return { score: output === "hello" ? 1 : 0 };
+              },
+              { name: "quality" }
+            );
+
+            await evaluate(evaluator, { output: "hello" });
+          }
+        );
+
+        expect("error" in outcome).toBe(false);
+      });
+
+      expect(harness.events).toEqual([]);
+      expect(run.annotations).toEqual([
+        expect.objectContaining({
+          name: "quality",
+          score: 1,
         }),
       ]);
     } finally {

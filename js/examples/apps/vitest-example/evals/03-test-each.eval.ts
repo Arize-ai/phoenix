@@ -29,8 +29,8 @@ px.describe("text-to-sql: full eval set", () => {
     px.recordOutput({ sql });
 
     const reference = expected?.sql ?? "";
-    await sqlExactMatch({ output: sql, expected: reference });
-    await sqlSimilarity({ output: sql, expected: reference });
+    await px.evaluate(sqlExactMatch, { output: sql, expected: reference });
+    await px.evaluate(sqlSimilarity, { output: sql, expected: reference });
 
     // Adaptive guardrail: off-topic asks must be refused; data questions must
     // produce valid SQL against the table the reference uses.

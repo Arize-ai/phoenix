@@ -17,7 +17,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     include: ["**/*.eval.?(c|m)[jt]s"],
-    reporters: ["@arizeai/phoenix-client/vitest/reporter"],
+    reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
     setupFiles: ["dotenv/config"],
     testTimeout: 30000,
   },
@@ -26,7 +26,8 @@ export default defineConfig({
 
 - `include` keeps eval suites separate from unit tests by matching the
   `*.eval.ts` convention.
-- `reporters` enables the Phoenix summary block.
+- `reporters` keeps Vitest's default diagnostics and enables the Phoenix
+  summary block.
 - `setupFiles: ["dotenv/config"]` loads `PHOENIX_HOST`, `PHOENIX_API_KEY`,
   and any other env vars from `.env`.
 - `testTimeout` is bumped because LLM calls can be slow.
@@ -143,9 +144,10 @@ The name template supports `%i`, `%s`, and `%j` for parity with Vitest's
 
 - `px.recordOutput(value)` records the actual `output` for the run.
 - `px.logAnnotation({ name, score, ... })` records an annotation.
-- `px.traceEvaluator(fn)` traces the evaluator call as an OpenInference
-  `EVALUATOR` span and auto-files `{ name, score }`-shaped return
-  values as annotations.
+- `px.evaluate(evaluator, params?)` runs an evaluator object and records its
+  result as an annotation linked to the evaluator trace. Evaluators can come
+  from `@arizeai/phoenix-evals.createEvaluator()`, `asExperimentEvaluator()`,
+  or any plain `{ name, evaluate }` object.
 
 See [CI Eval Test Annotations](./ci-evals-annotations) for the full annotation shape.
 
