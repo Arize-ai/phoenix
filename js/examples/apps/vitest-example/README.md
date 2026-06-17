@@ -13,15 +13,15 @@ real Phoenix instance when you're ready.
 
 ## How it maps to Phoenix
 
-| In your test                             | In Phoenix                                    |
-| ---------------------------------------- | --------------------------------------------- |
-| `px.describe(...)`                       | a **dataset** + a new **experiment**          |
-| `px.test(name, params)`                  | a dataset **example** + an experiment **run** |
-| `params.input`                           | `Example.input`                               |
-| `params.expected`                        | `Example.output` (reference)                  |
-| each `expect(...)`                       | a `pass` annotation on the run                |
-| `px.recordOutput(...)`                   | the run's actual output                       |
-| `px.evaluate(...)` / `px.logAnnotation`  | annotations on the run                        |
+| In your test                            | In Phoenix                                    |
+| --------------------------------------- | --------------------------------------------- |
+| `px.describe(...)`                      | a **dataset** + a new **experiment**          |
+| `px.test(name, params)`                 | a dataset **example** + an experiment **run** |
+| `params.input`                          | `Example.input`                               |
+| `params.expected`                       | `Example.output` (reference)                  |
+| each `expect(...)`                      | a `pass` annotation on the run                |
+| `px.recordOutput(...)`                  | the run's actual output                       |
+| `px.evaluate(...)` / `px.logAnnotation` | annotations on the run                        |
 
 ## Run it
 
@@ -62,9 +62,9 @@ understanding the split:
 - **Guardrails** are hard invariants asserted with `expect(...)`. A failed
   assertion fails the test (and CI) and flips the run's `pass` annotation to 0.
   Here the guardrail is "valid SQL for a data question, a refusal for anything
-  off-topic" — something the app must *never* get wrong.
+  off-topic" — something the app must _never_ get wrong.
 - **Graded scores** are annotations from `px.evaluate` (`exact_match`,
-  `token_f1`, `valid_sql`, `correct_table`). They measure *quality* and don't
+  `token_f1`, `valid_sql`, `correct_table`). They measure _quality_ and don't
   fail individual tests, so the Phoenix experiment captures the real spread.
   Add `acceptanceCriteria` on `px.describe` when a metric should fail CI only
   after it misses an aggregate bar, such as average `token_f1 < 0.8`.
@@ -76,16 +76,16 @@ usually means your eval set is too easy — not that your app is flawless.
 
 ## What each example shows
 
-| File                                   | Demonstrates                                                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `evals/01-basics.eval.ts`              | `describe` / `test`, `input` / `expected`, `recordOutput`, assertions                              |
-| `evals/02-annotations.eval.ts`         | evaluator annotations via `px.evaluate` + `logAnnotation` on a case the app partly misses          |
-| `evals/03-test-each.eval.ts`           | running the full curated dataset with `test.each` and graded metrics                               |
-| `evals/04-repetitions.eval.ts`         | per-test and suite-level `repetitions`                                                             |
-| `evals/05-suite-config.eval.ts`        | `datasetName` / `description` / `metadata`, per-test tags                                          |
-| `evals/06-skip-focus-dryrun.eval.ts`   | `.skip`, `.only`, and per-test `dryRun`                                                            |
-| `evals/07-llm-openai.eval.ts`          | the production shape: a live OpenAI call + LLM-as-a-judge (skipped unless `OPENAI_API_KEY` is set) |
-| `evals/08-quality-scorecard.eval.ts`   | the full evaluator panel across cases of mixed difficulty, with suite-level acceptance criteria    |
+| File                                 | Demonstrates                                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `evals/01-basics.eval.ts`            | `describe` / `test`, `input` / `expected`, `recordOutput`, assertions                              |
+| `evals/02-annotations.eval.ts`       | evaluator annotations via `px.evaluate` + `logAnnotation` on a case the app partly misses          |
+| `evals/03-test-each.eval.ts`         | running the full curated dataset with `test.each` and graded metrics                               |
+| `evals/04-repetitions.eval.ts`       | per-test and suite-level `repetitions`                                                             |
+| `evals/05-suite-config.eval.ts`      | `datasetName` / `description` / `metadata`, per-test tags                                          |
+| `evals/06-skip-focus-dryrun.eval.ts` | `.skip`, `.only`, and per-test `dryRun`                                                            |
+| `evals/07-llm-openai.eval.ts`        | the production shape: a live OpenAI call + LLM-as-a-judge (skipped unless `OPENAI_API_KEY` is set) |
+| `evals/08-quality-scorecard.eval.ts` | the full evaluator panel across cases of mixed difficulty, with suite-level acceptance criteria    |
 
 Supporting modules:
 
