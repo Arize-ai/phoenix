@@ -62,26 +62,31 @@
       // app/src/contexts/ThemeContext.tsx and the gray-75 background tokens in
       // app/src/GlobalStyles.tsx; keep the values below in sync with those.
       (function () {
-        var STORAGE_KEY = "arize-phoenix-theme";
-        var DEFAULT_THEME = "dark";
-        var BACKGROUND = { dark: "#0e0e0e", light: "#fdfdfd" };
+        try {
+          var STORAGE_KEY = "arize-phoenix-theme";
+          var DEFAULT_THEME = "dark";
+          var BACKGROUND = { dark: "#0e0e0e", light: "#fdfdfd" };
 
-        var saved = localStorage.getItem(STORAGE_KEY);
-        var mode =
-          saved === "light" || saved === "dark" || saved === "system"
-            ? saved
-            : DEFAULT_THEME;
-        var theme =
-          mode === "system"
-            ? window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light"
-            : mode;
+          var saved = localStorage.getItem(STORAGE_KEY);
+          var mode =
+            saved === "light" || saved === "dark" || saved === "system"
+              ? saved
+              : DEFAULT_THEME;
+          var theme =
+            mode === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : mode;
 
-        var color = BACKGROUND[theme];
-        document.documentElement.style.backgroundColor = color;
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.content = color;
+          var color = BACKGROUND[theme];
+          document.documentElement.style.backgroundColor = color;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.content = color;
+        } catch (e) {
+          // localStorage/matchMedia can throw in sandboxed iframes or when
+          // site data is blocked; fall back to the static dark theme-color.
+        }
       })();
     </script>
     {% if allow_external_resources %}
