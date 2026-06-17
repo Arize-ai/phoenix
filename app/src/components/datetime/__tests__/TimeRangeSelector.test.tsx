@@ -117,7 +117,7 @@ describe("TimeRangeSelector", () => {
     expect(getOptionLabels()).toEqual(["Last 25 minutes"]);
 
     // Move virtual focus onto the (only) option, then commit it
-    for (const key of ["CaretDownFilled", "Enter"]) {
+    for (const key of ["ArrowDown", "Enter"]) {
       await act(async () => {
         searchInput.dispatchEvent(
           new KeyboardEvent("keydown", {

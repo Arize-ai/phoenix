@@ -399,11 +399,11 @@ function getKeyboardResizeDelta({
       return canResizeWidth(edge)
         ? { height: 0, width: -horizontalStep }
         : null;
-    case "CaretRightFilled":
+    case "ArrowRight":
       return canResizeWidth(edge) ? { height: 0, width: horizontalStep } : null;
-    case "CaretDownFilled":
+    case "ArrowDown":
       return canResizeHeight(edge) ? { height: verticalStep, width: 0 } : null;
-    case "CaretUpFilled":
+    case "ArrowUp":
       return canResizeHeight(edge) ? { height: -verticalStep, width: 0 } : null;
     default:
       return null;

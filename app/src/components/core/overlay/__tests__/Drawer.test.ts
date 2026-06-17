@@ -87,7 +87,7 @@ describe("Drawer", () => {
       handle?.dispatchEvent(
         new KeyboardEvent("keydown", {
           bubbles: true,
-          key: "CaretRightFilled",
+          key: "ArrowRight",
         })
       );
     });
