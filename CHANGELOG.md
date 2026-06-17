@@ -1,5 +1,24 @@
 # Changelog
 
+## [17.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.7.0...arize-phoenix-v17.8.0) (2026-06-17)
+
+
+### Features
+
+* **agents:** Agent GraphQL skill ([#13732](https://github.com/Arize-ai/phoenix/issues/13732)) ([17c9e41](https://github.com/Arize-ai/phoenix/commit/17c9e41a181645dd7100900c23c892204408d4f6))
+* pre-load background color respects saved theme and os prefs ([#13815](https://github.com/Arize-ai/phoenix/issues/13815)) ([5b77485](https://github.com/Arize-ai/phoenix/commit/5b77485ba808de797e3851af7bb2ae8cc5268e4d))
+
+
+### Bug Fixes
+
+* consolidate and standardize icons ([#13805](https://github.com/Arize-ai/phoenix/issues/13805)) ([cc0c964](https://github.com/Arize-ai/phoenix/commit/cc0c96497772bd6a14ffd044411a7f25cd37ff22))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-06-17 ([#13806](https://github.com/Arize-ai/phoenix/issues/13806)) ([1622f32](https://github.com/Arize-ai/phoenix/commit/1622f3248a1cdc04885974ff781b777f465c0477))
+* reframe README PXI entry as Phoenix Intelligence agent ([#13803](https://github.com/Arize-ai/phoenix/issues/13803)) ([7b1d1b9](https://github.com/Arize-ai/phoenix/commit/7b1d1b943735c0e16b2b833da2b3281f907716b9))
+
 ## [17.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.6.0...arize-phoenix-v17.7.0) (2026-06-16)
 
 
