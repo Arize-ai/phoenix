@@ -302,6 +302,7 @@ addopts = [
   "--new-first",
   "--showlocals",
 ]
+doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 testpaths = [
   "tests",
 ]

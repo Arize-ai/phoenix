@@ -152,7 +152,7 @@ def get_timestamp_range(
         >>> from datetime import datetime, timezone
         >>> start = datetime(2024, 1, 1, 12, 30, 45, tzinfo=timezone.utc)
         >>> end = datetime(2024, 1, 1, 12, 33, 0, tzinfo=timezone.utc)
-        >>> list(get_timestamp_range(start, end, "minute"))  # doctest: +NORMALIZE_WHITESPACE
+        >>> list(get_timestamp_range(start, end, "minute"))
         [datetime.datetime(2024, 1, 1, 12, 30, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 1, 12, 31, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 1, 12, 32, tzinfo=datetime.timezone.utc)]
@@ -160,7 +160,7 @@ def get_timestamp_range(
         >>> # Week stride rounds down to Monday (2024-01-08), then the next Monday
         >>> start = datetime(2024, 1, 10, 12, 0, tzinfo=timezone.utc)  # Wednesday
         >>> end = datetime(2024, 1, 22, 0, 0, tzinfo=timezone.utc)
-        >>> list(get_timestamp_range(start, end, "week"))  # doctest: +NORMALIZE_WHITESPACE
+        >>> list(get_timestamp_range(start, end, "week"))
         [datetime.datetime(2024, 1, 8, 0, 0, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 15, 0, 0, tzinfo=datetime.timezone.utc)]
 
