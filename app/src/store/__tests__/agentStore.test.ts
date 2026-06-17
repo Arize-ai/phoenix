@@ -543,4 +543,53 @@ describe("agentStore", () => {
       }
     });
   });
+
+  describe("capability hydration", () => {
+    it("backfills capability keys missing from stale persisted state", () => {
+      // Simulate a browser whose persisted assistant state predates a newer
+      // capability key. The stale blob omits "subagents.enabled" entirely.
+      const staleCapabilities = Object.fromEntries(
+        Object.entries(createDefaultAgentCapabilities()).filter(
+          ([key]) => key !== "subagents.enabled"
+        )
+      );
+      localStorage.setItem(
+        "arize-phoenix-assistant",
+        JSON.stringify({
+          state: { capabilities: staleCapabilities },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      // The missing key must hydrate to its default boolean rather than
+      // `undefined` (which `toBe(false)` would reject via Object.is). Otherwise
+      // request-context serialization drops the field and the backend rejects
+      // the chat request with a 422.
+      expect(store.getState().capabilities["subagents.enabled"]).toBe(false);
+    });
+
+    it("preserves explicitly persisted capability values", () => {
+      localStorage.setItem(
+        "arize-phoenix-assistant",
+        JSON.stringify({
+          state: {
+            capabilities: {
+              ...createDefaultAgentCapabilities(),
+              "web.access": true,
+            },
+          },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      // User-toggled values survive the backfill; only absent keys fall back to
+      // their defaults.
+      expect(store.getState().capabilities["web.access"]).toBe(true);
+      expect(store.getState().capabilities["subagents.enabled"]).toBe(false);
+    });
+  });
 });

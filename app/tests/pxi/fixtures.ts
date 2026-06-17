@@ -1,14 +1,24 @@
 import { expect, test as base } from "@playwright/test";
-import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
+import type {
+  APIRequestContext,
+  Page,
+  Request,
+  TestInfo,
+} from "@playwright/test";
 
 import { DOCS_TOOL_NAMES } from "../../src/agent/tools/docs";
 import {
   DEFAULT_ASSISTANT_MODEL,
   DEFAULT_ASSISTANT_PROJECT_NAME,
   DEFAULT_ASSISTANT_PROVIDER,
+  DEFAULT_FIXTURE_CAPABILITIES,
   DEFAULT_JUDGE_MODEL,
 } from "./constants";
-import type { PxiTurn } from "./types";
+import type {
+  PxiCapturedChatRequest,
+  PxiChatRequestBody,
+  PxiTurn,
+} from "./types";
 import { expectOK, getSpanToolName, getUiMessageToolNames } from "./utils";
 
 export type { PxiTurn } from "./types";
@@ -41,11 +51,23 @@ function getAssistantProjectName() {
   );
 }
 
-async function installAgentDefaults({ page }: { page: Page }) {
+async function installAgentDefaults({
+  page,
+  capabilities = DEFAULT_FIXTURE_CAPABILITIES,
+}: {
+  page: Page;
+  /**
+   * Persisted `capabilities` blob to seed. Defaults to the current capability
+   * catalog; pass a stale snapshot (e.g.
+   * {@link STALE_CAPABILITIES_MISSING_SUBAGENTS}) to reproduce localStorage
+   * written by an older Phoenix build that predates a newer capability key.
+   */
+  capabilities?: Record<string, boolean>;
+}) {
   const assistantProvider = getAssistantProvider();
   const assistantModel = getAssistantModel();
   await page.addInitScript(
-    ({ provider, modelName }) => {
+    ({ provider, modelName, capabilities: seededCapabilities }) => {
       localStorage.clear();
       localStorage.setItem(
         "arize-phoenix-feature-flags",
@@ -78,12 +100,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
               exportRemoteTraces: false,
               hasAcknowledgedConsent: false,
             },
-            capabilities: {
-              "bash.retainInactiveSessions": false,
-              "graphql.mutations": false,
-              "session.storeSessions": false,
-              "web.access": false,
-            },
+            capabilities: seededCapabilities,
           },
           version: 0,
         })
@@ -92,6 +109,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
     {
       provider: assistantProvider,
       modelName: assistantModel,
+      capabilities,
     }
   );
 }
@@ -112,8 +130,19 @@ export class PxiDriver {
     this.request = request;
   }
 
-  async open() {
-    await installAgentDefaults({ page: this.page });
+  async open(options?: {
+    /**
+     * Persisted `capabilities` blob to seed before the app boots. Defaults to
+     * the current capability catalog. Pass a stale snapshot to exercise the
+     * older-localStorage compatibility path (see
+     * {@link STALE_CAPABILITIES_MISSING_SUBAGENTS}).
+     */
+    capabilities?: Record<string, boolean>;
+  }) {
+    await installAgentDefaults({
+      page: this.page,
+      capabilities: options?.capabilities,
+    });
     await this.page.goto("/projects");
     await this.page.getByRole("button", { name: "Open assistant" }).click();
     await expect(
@@ -121,6 +150,42 @@ export class PxiDriver {
         name: "Meet PXI, your Phoenix assistant",
       })
     ).toBeVisible();
+  }
+
+  /**
+   * Fills the PXI prompt input, submits it, and captures the outgoing `/chat`
+   * request together with the backend's HTTP response status.
+   *
+   * Protocol-level regression specs use this to assert on the serialized
+   * request body (e.g. that capability contexts carry explicit booleans) and on
+   * whether the backend accepted the request, without waiting for or depending
+   * on a real assistant answer.
+   */
+  async submitMessageAndCaptureChatRequest(
+    message: string
+  ): Promise<PxiCapturedChatRequest> {
+    const isChatRequest = (request: Request) => {
+      if (request.method() !== "POST") {
+        return false;
+      }
+      let pathname: string;
+      try {
+        pathname = new URL(request.url()).pathname;
+      } catch {
+        return false;
+      }
+      // Chat requests are session-scoped: /agents/{id}/sessions/{id}/chat.
+      return /\/sessions\/[^/]+\/chat$/.test(pathname);
+    };
+    const chatRequestPromise = this.page.waitForRequest(isChatRequest);
+    await this.page.getByLabel("Message input").fill(message);
+    await this.page.getByRole("button", { name: "Send message" }).click();
+    const request = await chatRequestPromise;
+    const requestBody = JSON.parse(
+      request.postData() ?? "{}"
+    ) as PxiChatRequestBody;
+    const response = await request.response();
+    return { requestBody, responseStatus: response?.status() ?? null };
   }
 
   async acknowledgeConsent() {

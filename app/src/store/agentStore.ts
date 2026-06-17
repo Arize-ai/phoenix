@@ -1353,6 +1353,27 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         permissions: state.permissions,
         capabilities: state.capabilities,
       }),
+      // Custom merge that backfills capability keys added after a given browser
+      // last persisted its state. Zustand's default merge is a shallow spread,
+      // so a persisted `capabilities` blob written before a new key existed
+      // (e.g. "subagents.enabled") would replace the defaults wholesale and
+      // leave that key `undefined`. Request-context builders then serialize a
+      // context whose required boolean field is dropped by JSON, which the
+      // backend rejects with a 422. Layering the persisted snapshot over a fresh
+      // default capability set guarantees every known key resolves to a real
+      // boolean while still honoring values the user explicitly toggled. See
+      // issue #13789 and the related fix in #13788.
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<AgentProps>;
+        return {
+          ...currentState,
+          ...persisted,
+          capabilities: {
+            ...createDefaultAgentCapabilities(),
+            ...persisted.capabilities,
+          },
+        };
+      },
     })
   );
 };
