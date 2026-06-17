@@ -14,7 +14,11 @@ import { AnnotationTooltip } from "@phoenix/components/annotation/AnnotationTool
 import type { Annotation } from "@phoenix/components/annotation/types";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -116,31 +120,12 @@ function PendingBatchSpanAnnotateDetails({
           : `Proposed span annotations (${count})`}
       </ToolPartLabel>
       <SpanAnnotationList annotations={pendingAnnotation.annotations} />
-      <div css={spanAnnotationControlsCSS}>
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pendingAnnotation.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pendingAnnotation.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-      </div>
-      {!canRespond ? (
-        <ToolPartCodeBlock>
-          This annotation was proposed in an earlier session and can&apos;t be
-          applied here. Re-run your request to have PXI propose it again.
-        </ToolPartCodeBlock>
-      ) : null}
+      <ToolPartApprovalActions
+        onAccept={() => void pendingAnnotation.accept?.()}
+        onReject={() => void pendingAnnotation.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage="This annotation was proposed in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
+      />
     </Flex>
   );
 }

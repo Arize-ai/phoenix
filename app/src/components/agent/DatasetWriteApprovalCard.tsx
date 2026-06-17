@@ -1,7 +1,11 @@
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
-import { Button, Flex, View } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import { stringifyToolValue } from "./toolPartTypes";
 
 type PreviewDescriptor = {
@@ -161,32 +165,12 @@ export function DatasetWriteApprovalCard({
       </ToolPartLabel>
       <ToolPartCodeBlock>{stringifyToolValue(payload)}</ToolPartCodeBlock>
       {note ? <ToolPartLabel variant="danger">{note}</ToolPartLabel> : null}
-      <View paddingX="size-200" paddingBottom="size-125">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pending.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pending.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>
-            This proposal was made in an earlier session and can&apos;t be
-            applied here. Re-run your request to have the assistant propose it
-            again.
-          </ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pending.accept?.()}
+        onReject={() => void pending.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage="This proposal was made in an earlier session and can't be applied here. Re-run your request to have the assistant propose it again."
+      />
     </Flex>
   );
 }

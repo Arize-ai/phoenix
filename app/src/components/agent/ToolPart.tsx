@@ -41,6 +41,10 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
+  parseSetSpansFilterInput,
+  SET_SPANS_FILTER_TOOL_NAME,
+} from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
@@ -558,7 +562,7 @@ function ToolInvocationPartDetails({
     variant,
     quietLabel,
   } = getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
+  const shouldAutoOpen = shouldAutoOpenToolPart(part);
   const {
     ref: detailsRef,
     isOpen: isRenderedOpen,
@@ -645,18 +649,19 @@ function ToolInvocationPartDetails({
   );
 }
 
-function shouldAutoOpenToolPart(
-  part: ToolInvocationPart,
-  preview: string
-): boolean {
+function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   if (uiBehavior?.autoOpen !== true) {
     return false;
   }
-  // Avoid opening an empty shell while tool arguments are still absent. Once the
-  // preview can be derived from arguments, the expanded details have context.
-  return preview !== "" || part.state !== "input-streaming";
+  // Stay collapsed while arguments are still streaming in. Auto-open tools
+  // build their expanded body from a pending client-action that only exists
+  // once the input is complete (`input-available`), so opening mid-stream
+  // shows an empty shell even though the collapsed preview is already
+  // derivable. The collapsed row still surfaces the preview and a running
+  // spinner until the input finishes, then auto-opens with real content.
+  return part.state !== "input-streaming";
 }
 
 export function getToolPartPreview(part: ToolInvocationPart): string {
@@ -861,6 +866,23 @@ function getCallSubagentName(part: ToolInvocationPart): string {
   return "";
 }
 
+/**
+ * Builds the collapsed-row preview for `set_spans_filter`. Shows the span
+ * filter DSL condition, annotated with the root/all-spans scope. When the
+ * condition is empty the call only resets scope, so we surface that instead.
+ */
+function getSetSpansFilterToolPreview(part: ToolInvocationPart): string {
+  const parsed = parseSetSpansFilterInput(part.input);
+  if (!parsed) {
+    return "";
+  }
+  const condition = parsed.condition.trim();
+  if (!condition) {
+    return parsed.rootSpansOnly ? "Root spans only" : "All spans";
+  }
+  return parsed.rootSpansOnly ? `${condition} · root spans` : condition;
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -1008,6 +1030,7 @@ function getToolPresentation(
         preview: getBatchSpanAnnotateToolPreview(part),
         stateLabel: formatBatchSpanAnnotateState(part),
         statusVariant,
+        icon: <Icons.Edit2Outline />,
         details: <BatchSpanAnnotateToolDetails part={part} />,
       };
     case PATCH_EXPERIMENT_TOOL_NAME:
@@ -1063,6 +1086,14 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         icon: <Icons.SplitOutline />,
+        details: <GenericToolDetails part={part} />,
+      };
+    case SET_SPANS_FILTER_TOOL_NAME:
+      return {
+        preview: getSetSpansFilterToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.FunnelOutline />,
         details: <GenericToolDetails part={part} />,
       };
     default: {

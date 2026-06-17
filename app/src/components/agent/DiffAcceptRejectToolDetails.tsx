@@ -3,10 +3,14 @@ import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import { type ReactNode, useMemo } from "react";
 
-import { Button, Flex, View } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
@@ -161,28 +165,12 @@ function PendingDiff<T, P extends PendingDiffEdit<T>>({
           }}
         />
       </div>
-      <View paddingX="size-200">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pending.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pending.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>{staleSessionMessage}</ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pending.accept?.()}
+        onReject={() => void pending.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage={staleSessionMessage}
+      />
     </Flex>
   );
 }

@@ -181,4 +181,22 @@ describe("tool disclosure controls", () => {
       container.querySelector("details.tool-part")?.hasAttribute("open")
     ).toBe(false);
   });
+
+  it("stays collapsed while an auto-open tool's input is still streaming", () => {
+    // The expanded body is built from a pending client-action that only exists
+    // once the input is complete, so opening mid-stream would show an empty
+    // shell. Auto-open should wait for the input to finish streaming.
+    renderToolPart(createAutoOpenToolPart({ state: "input-streaming" }));
+
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(false);
+
+    // Once the input completes, the part auto-opens with real content.
+    renderToolPart(createAutoOpenToolPart({ state: "input-available" }));
+
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(true);
+  });
 });

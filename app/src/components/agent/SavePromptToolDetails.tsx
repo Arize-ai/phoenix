@@ -10,11 +10,15 @@ import {
   type SavePromptMode,
   type SavePromptPreview,
 } from "@phoenix/agent/tools/playgroundSavePrompt";
-import { Button, Flex, Link, Token, View } from "@phoenix/components";
+import { Flex, Link, Token } from "@phoenix/components";
 import { getPromptVersionTagColor } from "@phoenix/constants/promptConstants";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -194,31 +198,12 @@ function PendingSavePromptDetails({
         {proposedModeLabel(pendingSave.preview.mode)}
       </ToolPartLabel>
       <SavePromptPreviewBlock preview={pendingSave.preview} />
-      <View paddingX="size-200" paddingBottom="size-125">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pendingSave.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pendingSave.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>
-            This prompt save was proposed in an earlier session and can&apos;t
-            be applied here. Re-run your request to have PXI propose it again.
-          </ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pendingSave.accept?.()}
+        onReject={() => void pendingSave.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage="This prompt save was proposed in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
+      />
     </Flex>
   );
 }
