@@ -287,6 +287,10 @@ class ServerAgentPrompts:
     base: Template = _BASE_SUBAGENT_INSTRUCTIONS
     run_graphql_query_tool: Template = _RUN_GRAPHQL_QUERY_TOOL_INSTRUCTIONS
     docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    skills: Template = _SKILLS_TEMPLATE
+    load_skill: Template = _LOAD_SKILL_TEMPLATE
+    load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
+    read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
 
 
 __all__ = [
