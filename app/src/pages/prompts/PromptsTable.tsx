@@ -32,6 +32,7 @@ import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { useInterval } from "@phoenix/hooks/useInterval";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
+import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 
 import type { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import type { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
@@ -47,8 +48,16 @@ type PromptsTableProps = {
 
 export function PromptsTable(props: PromptsTableProps) {
   "use no memo";
-  const { filter, selectedPromptLabelIds } = usePromptsFilterContext();
+  const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
+    usePromptsFilterContext();
   const navigate = useNavigate();
+
+  const toggleLabelFilter = useCallback(
+    (labelId: string) => {
+      setSelectedPromptLabelIds((prev) => toggleArrayItem(prev, labelId));
+    },
+    [setSelectedPromptLabelIds]
+  );
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -186,9 +195,15 @@ export function PromptsTable(props: PromptsTableProps) {
               `}
             >
               {row.original.labels.map((label) => (
-                <Token key={label.id} color={label.color ?? undefined}>
-                  {label.name}
-                </Token>
+                <StopPropagation key={label.id}>
+                  <Token
+                    color={label.color ?? undefined}
+                    onPress={() => toggleLabelFilter(label.id)}
+                    aria-label={`Filter prompts by label ${label.name}`}
+                  >
+                    {label.name}
+                  </Token>
+                </StopPropagation>
               ))}
             </ul>
           );
@@ -242,7 +257,7 @@ export function PromptsTable(props: PromptsTableProps) {
       });
     }
     return cols;
-  }, [refetch, queryArgs, canModify]);
+  }, [refetch, queryArgs, canModify, toggleLabelFilter]);
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
