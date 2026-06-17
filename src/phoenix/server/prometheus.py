@@ -3,7 +3,7 @@ import sys
 import time
 from functools import lru_cache
 from threading import Thread
-from typing import Optional
+from typing import Optional, Sequence
 
 import psutil
 from prometheus_client import (
@@ -16,7 +16,8 @@ from prometheus_client import (
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import Match
+from starlette.routing import BaseRoute, Match
+from starlette.types import Scope
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -133,14 +134,38 @@ RETENTION_POLICY_EXECUTIONS = Counter(
 )
 
 
+def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[str]:
+    """Resolve the templated path of the route matching ``scope``.
+
+    Starting with FastAPI 0.137, ``app.include_router`` keeps included routers as
+    lazy ``_IncludedRouter`` wrappers in ``app.routes``. These wrappers match a
+    request but expose no ``path`` attribute, so the matching route's path must be
+    resolved by descending into the wrapped router and re-matching against the
+    prefix-stripped scope.
+    """
+    for route in routes:
+        match, _ = route.matches(scope)
+        if match is not Match.FULL:
+            continue
+        path: Optional[str] = getattr(route, "path", None)
+        if path is not None:
+            return path
+        original_router = getattr(route, "original_router", None)
+        if original_router is None:
+            continue
+        include_context = getattr(route, "include_context", None)
+        prefix = getattr(include_context, "prefix", "") or ""
+        sub_scope = {**scope, "path": scope["path"][len(prefix) :]} if prefix else scope
+        sub_path = _resolve_route_path(original_router.routes, sub_scope)
+        if sub_path is not None:
+            return prefix + sub_path
+    return None
+
+
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        for route in request.app.routes:
-            match, _ = route.matches(request.scope)
-            if match is Match.FULL:
-                path = route.path
-                break
-        else:
+        path = _resolve_route_path(request.app.routes, request.scope)
+        if path is None:
             return await call_next(request)
         method = request.method
         start_time = time.perf_counter()
