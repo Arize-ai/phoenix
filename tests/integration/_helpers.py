@@ -2278,18 +2278,37 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
     """
     import re
 
-    from fastapi.routing import APIRoute
+    from fastapi.routing import APIRoute, APIRouter
 
     from phoenix.server.api.routers.v1 import create_v1_router
 
+    def _collect_api_routes(router: APIRouter) -> set[tuple[str, str]]:
+        """Recursively collect (method, full_path) pairs from a router.
+
+        FastAPI <0.137 flattens included routers into top-level ``APIRoute``
+        objects whose ``path`` already carries every prefix. FastAPI >=0.137
+        keeps included routers as lazy wrapper objects (exposing
+        ``original_router``) and resolves prefixes only when handling a request,
+        so we reapply each including router's prefix as we recurse. Handling both
+        shapes keeps this check correct regardless of the installed FastAPI.
+        """
+        collected: set[tuple[str, str]] = set()
+        for route in getattr(router, "routes", []):
+            if isinstance(route, APIRoute):
+                for method in route.methods:
+                    collected.add((method, route.path))
+                continue
+            sub = getattr(route, "original_router", None)
+            if sub is None and isinstance(route, APIRouter):
+                sub = route
+            if sub is not None:
+                for method, path in _collect_api_routes(sub):
+                    collected.add((method, router.prefix + path))
+        return collected
+
     # Get all actual routes from the v1 router
     router = create_v1_router(authentication_enabled=False)
-    actual_routes = {
-        (method, route.path)
-        for route in router.routes
-        if isinstance(route, APIRoute)
-        for method in route.methods
-    }
+    actual_routes = _collect_api_routes(router)
 
     # Get all routes from test constants
     test_routes = {
