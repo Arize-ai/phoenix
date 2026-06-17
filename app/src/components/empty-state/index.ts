@@ -7,8 +7,10 @@ export type {
 export {
   EmptyStateGraphic,
   EMPTY_STATE_GRAPHIC_VARIANTS,
+  EMPTY_STATE_GRAPHIC_SIZES,
 } from "./EmptyStateGraphic";
 export type {
   EmptyStateGraphicProps,
   EmptyStateGraphicVariant,
+  EmptyStateGraphicSize,
 } from "./EmptyStateGraphic";

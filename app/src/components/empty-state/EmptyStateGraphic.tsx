@@ -19,7 +19,7 @@ import { Icon, Icons } from "@phoenix/components/core/icon";
  */
 
 /** The two encoded compositions and the size each renders at. */
-type EmptyStateGraphicSize = "large" | "small";
+export type EmptyStateGraphicSize = "large" | "small";
 
 interface EmptyStateGraphicSpec {
   /** Which encoded composition (and thus icon size) to render. */
@@ -89,6 +89,17 @@ export type EmptyStateGraphicVariant = keyof typeof EMPTY_STATE_GRAPHICS;
 export const EMPTY_STATE_GRAPHIC_VARIANTS = Object.keys(
   EMPTY_STATE_GRAPHICS
 ) as EmptyStateGraphicVariant[];
+
+/**
+ * The render size each variant maps to, derived from the canonical table.
+ * Exposed for iteration (e.g. grouping variants by size in stories/docs).
+ */
+export const EMPTY_STATE_GRAPHIC_SIZES = Object.fromEntries(
+  Object.entries(EMPTY_STATE_GRAPHICS).map(([variant, spec]) => [
+    variant,
+    spec.size,
+  ])
+) as Record<EmptyStateGraphicVariant, EmptyStateGraphicSize>;
 
 export interface EmptyStateGraphicProps {
   /**

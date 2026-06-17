@@ -1,10 +1,11 @@
+import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
+import { Header, ListBoxSection } from "react-aria-components";
 import { useArgs } from "storybook/preview-api";
 
 import {
   Button,
   Flex,
-  Label,
   ListBox,
   Popover,
   Select,
@@ -15,9 +16,36 @@ import {
 import {
   EmptyState,
   EmptyStateGraphic,
+  EMPTY_STATE_GRAPHIC_SIZES,
   EMPTY_STATE_GRAPHIC_VARIANTS,
 } from "@phoenix/components/empty-state";
 import type { EmptyStateGraphicVariant } from "@phoenix/components/empty-state";
+
+/** Variants grouped by render size, each group sorted alphabetically. */
+const SIZE_SECTIONS = (
+  [
+    { size: "small", label: "Small" },
+    { size: "large", label: "Large" },
+  ] as const
+).map(({ size, label }) => ({
+  size,
+  label,
+  variants: EMPTY_STATE_GRAPHIC_VARIANTS.filter(
+    (variant) => EMPTY_STATE_GRAPHIC_SIZES[variant] === size
+  ).sort(),
+}));
+
+const sectionedListBoxCSS = css`
+  .react-aria-Header {
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150)
+      var(--global-dimension-size-50);
+    color: var(--global-text-color-700);
+    font-size: var(--global-font-size-xs);
+    font-weight: var(--global-font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+`;
 
 const meta: Meta<typeof EmptyStateGraphic> = {
   title: "Core/Feedback/EmptyStateGraphic",
@@ -68,17 +96,21 @@ export const AllVariants: Story = {
             key && updateArgs({ variant: key as EmptyStateGraphicVariant })
           }
         >
-          <Label>Variant</Label>
           <Button>
             <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>
           <Popover>
-            <ListBox>
-              {EMPTY_STATE_GRAPHIC_VARIANTS.map((variant) => (
-                <SelectItem key={variant} id={variant}>
-                  {variant}
-                </SelectItem>
+            <ListBox css={sectionedListBoxCSS}>
+              {SIZE_SECTIONS.map(({ size, label, variants }) => (
+                <ListBoxSection key={size} id={size}>
+                  <Header>{label}</Header>
+                  {variants.map((variant) => (
+                    <SelectItem key={variant} id={variant}>
+                      {variant}
+                    </SelectItem>
+                  ))}
+                </ListBoxSection>
               ))}
             </ListBox>
           </Popover>
