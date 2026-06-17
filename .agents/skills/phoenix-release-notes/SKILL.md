@@ -117,7 +117,34 @@ Multiple commits often implement a single feature across server + client + UI. A
 commit, a Python client wrapper, and a TypeScript client wrapper should become one release note
 entry that mentions all relevant package versions — not three separate entries.
 
-## Step 3: Draft Individual MDX Files
+## Step 3: Draft MDX Files
+
+### Default to a single consolidated file
+
+**Prefer one release note over many.** Phoenix ships frequently, and a separate page per day
+produces a noisy, hard-to-scan release feed. Before creating files, look at the whole batch of
+undocumented releases together and ask: can these become **one** multi-topic file (Format B)?
+
+Consolidate into a single file when the batch:
+
+- Spans a short window (roughly a week or a handful of consecutive patch/minor versions), **or**
+- Shares a theme (e.g. several time range, metrics, or PXI improvements), **or**
+- Individually would produce thin pages (one or two features each).
+
+Each feature inside the consolidated file keeps its own `# Heading`, date line, and
+`**Available in arize-phoenix X.Y.Z+**` version line, so per-feature version provenance is
+preserved even though they share one page. The frontmatter `title` and file are dated by the
+**latest** release in the bundle, and the file `description` summarizes the whole bundle.
+
+Only split into multiple files when a feature is genuinely large enough to deserve a standalone
+page (a major launch, a breaking change, or a feature with substantial code examples and its own
+media). When in doubt, consolidate — it is easier to read one well-organized page than five thin
+ones.
+
+If you are **revising** an existing batch that was already split into several thin files,
+consolidate them: create one combined file dated by the latest release, delete the superseded
+files (`git rm`), and collapse their entries down to a single `<ReleaseUpdate>` block and a single
+year-overview `<Card>` and a single `docs.json` page path.
 
 ### File location
 
@@ -228,12 +255,12 @@ Match the version line to which packages are involved:
 
 | Situation | Format |
 |-----------|--------|
-| Single major feature on a date | Format A |
-| Multiple features on a date range | Format B |
+| Multiple features across a short window or shared theme | **Format B — one consolidated file (default)** |
+| A single, genuinely major feature or breaking change worth its own page | Format A |
 | Feature spans server + client | One entry, mention all package versions |
 | Breaking change | Prefix title with "Breaking Change:" |
 | TS-only or Python-only feature | Show only the relevant language |
-| Video/screenshot available | Use `<video>` or `<Frame>` in the individual file |
+| Video/screenshot available | Use `<video>` or `<Frame>` in the relevant section of the file |
 
 ## Step 4: Update the Aggregate File
 
@@ -265,7 +292,10 @@ Rules:
 - `href` is the link to the individual MDX file
 - Link path has no `.mdx` extension
 - Keep each block to 5-10 lines
-- If one MDX file covers multiple features, create separate `<ReleaseUpdate>` blocks per feature date
+- For a consolidated multi-topic file, prefer a **single** `<ReleaseUpdate>` block labeled with the
+  latest date, whose bullets summarize the bundled features — one block per file, not one per
+  feature. Only split into multiple blocks when the bundled features fall on clearly distinct dates
+  that each merit their own line in the feed.
 
 ### Reverse-chronological insertion (do not skip this)
 
