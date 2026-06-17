@@ -2417,6 +2417,14 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            source?: components["schemas"]["DatasetExampleSource"] | null;
+        };
+        /** DatasetExampleSource */
+        DatasetExampleSource: {
+            /** Span Id */
+            span_id: string;
+            /** Span Node Id */
+            span_node_id: string;
         };
         /** DatasetLabel */
         DatasetLabel: {
