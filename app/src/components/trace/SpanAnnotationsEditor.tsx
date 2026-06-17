@@ -38,7 +38,7 @@ import type {
   AnnotationConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { Empty } from "@phoenix/components/core/Empty";
+import { Empty } from "@phoenix/components/core/empty";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import type { SpanAnnotationsEditorAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorAddAnnotationConfigToProjectMutation.graphql";
 import type { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";

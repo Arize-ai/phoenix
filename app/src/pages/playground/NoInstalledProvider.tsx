@@ -1,6 +1,6 @@
 import { Flex, Text, View } from "@phoenix/components";
 import { BashBlock } from "@phoenix/components/code";
-import { Empty } from "@phoenix/components/core/Empty";
+import { Empty } from "@phoenix/components/core/empty";
 
 // The playground is disabled if no LLM provider client is installed on the server.
 // This message is displayed until the user installs a provider for the server to use, and then restarts the server.

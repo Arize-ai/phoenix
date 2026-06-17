@@ -5,8 +5,8 @@ import {
   EmptyStateGraphic,
   EMPTY_STATE_GRAPHIC_SIZES,
   EMPTY_STATE_GRAPHIC_VARIANTS,
-} from "@phoenix/components/empty-state";
-import type { EmptyStateGraphicVariant } from "@phoenix/components/empty-state";
+} from "@phoenix/components/core/empty";
+import type { EmptyStateGraphicVariant } from "@phoenix/components/core/empty";
 
 const meta: Meta<typeof EmptyStateGraphic> = {
   title: "Core/Feedback/EmptyStateGraphic",

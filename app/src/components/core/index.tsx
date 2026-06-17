@@ -4,7 +4,7 @@ export * from "./LoadingMask";
 export * from "./ViewSummaryAside";
 export * from "./copy";
 export * from "./SectionHeading";
-export * from "./Empty";
+export * from "./empty";
 export * from "./KeyboardToken";
 export * from "./PageHeader";
 export * from "./LoadMoreButton";

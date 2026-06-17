@@ -1,3 +1,4 @@
+export { Empty } from "./Empty";
 export { EmptyState } from "./EmptyState";
 export type {
   EmptyStateProps,
