@@ -17,6 +17,7 @@ from phoenix.otel.otel import (
     OTLPTransportProtocol,
     SimpleSpanProcessor,
     TracerProvider,
+    _construct_http_endpoint,
     _construct_phoenix_cloud_endpoint,
     register,
 )
@@ -527,6 +528,13 @@ class TestEndpointNormalization:
                 parsed, endpoint = _normalized_endpoint(None, use_http=False)
                 assert parsed.scheme == "http"
                 assert parsed.netloc == "localhost:4317"
+
+    def test_construct_http_endpoint_preserves_path_prefix(self) -> None:
+        parsed = urlparse("http://example.com/phoenix")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
 
 
 class TestPhoenixCloudEndpoint:
