@@ -309,7 +309,7 @@ def launch_app(
     Examples
     --------
     >>> import phoenix as px
-    >>> session = px.launch_app()
+    >>> session = px.launch_app()  # doctest: +SKIP
     """
     global _session
 

@@ -34,7 +34,7 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
-	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
@@ -75,6 +75,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
 	@echo -e "  test-helm              - Run Helm chart tests"
+	@echo -e "  doctest                - Run doctests on specific modules (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
@@ -239,6 +240,22 @@ test-python: ## Run Python tests (unit + integration)
 	@$(TOX) run -q -e unit_tests -- -n auto
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(TOX) run -q -e integration_tests
+
+# Modules whose doctests are executable and enforced; override on the command line,
+# e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
+DOCTEST_MODULES ?= \
+	src/phoenix/datetime_utils.py \
+	src/phoenix/db/helpers.py \
+	src/phoenix/server/cost_tracking/cost_model_lookup.py \
+	src/phoenix/server/cost_tracking/regex_specificity.py \
+	src/phoenix/server/ldap.py \
+	src/phoenix/utilities/env_vars.py \
+	src/phoenix/utilities/template_formatters.py
+
+doctest: ## Run doctests on specific modules (override with MODULES=...)
+	@echo -e "$(CYAN)Running doctests on $(or $(MODULES),$(DOCTEST_MODULES))...$(NC)"
+	@$(UV) run pytest --doctest-modules $(or $(MODULES),$(DOCTEST_MODULES))
+	@echo -e "$(GREEN)✓ Doctests passed$(NC)"
 
 test-frontend: ## Run frontend tests (app/)
 	@echo -e "$(CYAN)Running frontend tests...$(NC)"

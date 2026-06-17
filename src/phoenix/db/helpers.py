@@ -452,10 +452,10 @@ def date_trunc(
 
     Examples:
         >>> # Truncate to hour with no offset
-        >>> date_trunc(SupportedSQLDialect.POSTGRESQL, "hour", Span.start_time)
+        >>> date_trunc(SupportedSQLDialect.POSTGRESQL, "hour", Span.start_time)  # doctest: +SKIP
 
         >>> # Truncate to day with UTC-5 offset (Eastern Time)
-        >>> date_trunc(SupportedSQLDialect.SQLITE, "day", Span.start_time, -300)
+        >>> date_trunc(SupportedSQLDialect.SQLITE, "day", Span.start_time, -300)  # doctest: +SKIP
     """
     if dialect is SupportedSQLDialect.POSTGRESQL:
         # Note: the usage of the timezone parameter in the form of e.g. "+05:00"
@@ -949,9 +949,9 @@ def get_experiment_run_annotations_query(
         >>> run_ids = [1, 2, 3]
         >>> eval_names = ["relevance", "coherence"]
         >>> query = get_experiment_run_annotations_query(run_ids, eval_names)
-        >>> results = await session.execute(query)
-        >>> for run_id, name, error in results:
-        ...     # Process annotations...
+        >>> results = await session.execute(query)  # doctest: +SKIP
+        >>> for run_id, name, error in results:  # doctest: +SKIP
+        ...     ...  # Process annotations...
     """
     return (
         select(
@@ -1135,14 +1135,14 @@ def get_experiment_incomplete_runs_query(
         [1..repetitions] list when successful_count=0.
 
     Example:
-        >>> experiment = session.get(models.Experiment, experiment_id)
-        >>> dialect = SupportedSQLDialect(session.bind.dialect.name)
-        >>> query = get_experiment_incomplete_runs_query(
+        >>> experiment = session.get(models.Experiment, experiment_id)  # doctest: +SKIP
+        >>> dialect = SupportedSQLDialect(session.bind.dialect.name)  # doctest: +SKIP
+        >>> query = get_experiment_incomplete_runs_query(  # doctest: +SKIP
         ...     experiment, dialect, cursor_example_rowid=100, limit=50
         ... )
-        >>> results = await session.execute(query)
-        >>> for revision, success_count, incomplete_reps in results:
-        ...     # Process incomplete runs...
+        >>> results = await session.execute(query)  # doctest: +SKIP
+        >>> for revision, success_count, incomplete_reps in results:  # doctest: +SKIP
+        ...     ...  # Process incomplete runs...
     """
     # Step 1: Get successful run counts for incomplete examples
     run_counts_subquery = get_successful_run_counts_subquery(experiment.id, experiment.repetitions)
