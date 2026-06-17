@@ -6,6 +6,7 @@ from threading import Thread
 from typing import Optional, Sequence
 
 import psutil
+from fastapi.routing import _IncludedRouter
 from prometheus_client import (
     Counter,
     Gauge,
@@ -13,6 +14,7 @@ from prometheus_client import (
     Summary,
     start_http_server,
 )
+from starlette.applications import Starlette
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
@@ -134,36 +136,35 @@ RETENTION_POLICY_EXECUTIONS = Counter(
 )
 
 
-def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[str]:
-    """Resolve the templated path of the route matching ``scope``.
+def _join_paths(prefix: str, path: str) -> str:
+    if not prefix:
+        return path
+    return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
 
-    Starting with FastAPI 0.137, ``app.include_router`` keeps included routers as
-    lazy ``_IncludedRouter`` wrappers in ``app.routes``. These wrappers match a
-    request but expose no ``path`` attribute, so the matching route's path must be
-    resolved by descending into the wrapped router and re-matching against the
-    prefix-stripped scope.
-    """
+
+def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[str]:
+    """Resolve the templated path of the route matching ``scope``."""
     for route in routes:
         match, _ = route.matches(scope)
         if match is not Match.FULL:
             continue
+        if isinstance(route, _IncludedRouter):
+            prefix = route.include_context.prefix or ""
+            stripped_path = scope["path"][len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path} if prefix else scope
+            sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
+            if sub_path is not None:
+                return _join_paths(prefix, sub_path)
+            continue
         path: Optional[str] = getattr(route, "path", None)
         if path is not None:
             return path
-        original_router = getattr(route, "original_router", None)
-        if original_router is None:
-            continue
-        include_context = getattr(route, "include_context", None)
-        prefix = getattr(include_context, "prefix", "") or ""
-        sub_scope = {**scope, "path": scope["path"][len(prefix) :]} if prefix else scope
-        sub_path = _resolve_route_path(original_router.routes, sub_scope)
-        if sub_path is not None:
-            return prefix + sub_path
     return None
 
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        assert isinstance(request.app, Starlette)
         path = _resolve_route_path(request.app.routes, request.scope)
         if path is None:
             return await call_next(request)
