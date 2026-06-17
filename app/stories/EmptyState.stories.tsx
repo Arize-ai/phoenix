@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { Icon, Icons } from "@phoenix/components";
-import { ExternalLink } from "@phoenix/components/core/ExternalLink";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { ExternalLink } from "@phoenix/components/core/ExternalLink";
 
 const meta: Meta<typeof EmptyState> = {
   title: "Core/Feedback/EmptyState",

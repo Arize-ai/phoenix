@@ -1,4 +1,4 @@
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 
 export function DatasetsEmpty() {
   return (

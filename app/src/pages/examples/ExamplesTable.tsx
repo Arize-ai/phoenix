@@ -18,9 +18,9 @@ import { graphql, usePaginationFragment } from "react-relay";
 import { useNavigate, useParams } from "react-router";
 
 import { CopyToClipboardButton, Truncate } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Link } from "@phoenix/components/core/Link";
 import { DatasetSplits } from "@phoenix/components/datasetSplit/DatasetSplits";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import {
   CellWithControlsWrap,
   CompactJSONCell,

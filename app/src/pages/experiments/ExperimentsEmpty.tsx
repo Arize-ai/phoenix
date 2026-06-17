@@ -2,7 +2,7 @@ import {
   EmptyState,
   EmptyStateArea,
   EmptyStateGraphic,
-} from "@phoenix/components/empty-state";
+} from "@phoenix/components/core/empty";
 
 import { RunDatasetExperimentButton } from "../dataset/RunDatasetExperimentButton";
 

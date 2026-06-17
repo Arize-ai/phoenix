@@ -9,7 +9,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
 
 import { Icon, Icons } from "@phoenix/components";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";

@@ -8,7 +8,7 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, Token } from "@phoenix/components";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 

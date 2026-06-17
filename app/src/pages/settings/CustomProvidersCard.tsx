@@ -20,7 +20,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { ErrorBoundary } from "@phoenix/components/exception";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { tableCSS } from "@phoenix/components/table/styles";

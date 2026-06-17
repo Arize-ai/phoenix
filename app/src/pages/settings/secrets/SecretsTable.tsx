@@ -10,12 +10,12 @@ import { useMemo, useState } from "react";
 import { Focusable } from "react-aria";
 
 import { Card, Flex, Icon, Icons, Text } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";

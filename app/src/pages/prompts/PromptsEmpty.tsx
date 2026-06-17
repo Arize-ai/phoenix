@@ -4,7 +4,7 @@ import {
   EmptyState,
   EmptyStateArea,
   EmptyStateGraphic,
-} from "@phoenix/components/empty-state";
+} from "@phoenix/components/core/empty";
 
 export function PromptsEmpty() {
   const navigate = useNavigate();

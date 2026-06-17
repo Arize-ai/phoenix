@@ -25,8 +25,8 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";

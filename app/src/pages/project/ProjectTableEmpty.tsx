@@ -12,7 +12,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";

@@ -11,14 +11,14 @@ import invariant from "tiny-invariant";
 
 import { Flex, Loading } from "@phoenix/components";
 import {
-  ConnectedTimeRangeControls,
-  ConnectedTimeRangeSelector,
-} from "@phoenix/components/datetime";
-import {
   EmptyState,
   EmptyStateArea,
   EmptyStateGraphic,
-} from "@phoenix/components/empty-state";
+} from "@phoenix/components/core/empty";
+import {
+  ConnectedTimeRangeControls,
+  ConnectedTimeRangeSelector,
+} from "@phoenix/components/datetime";
 import { ProjectMenu } from "@phoenix/components/project";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";

@@ -2,13 +2,10 @@ import { css } from "@emotion/react";
 import { Fragment } from "react";
 import type { ReactNode } from "react";
 
-import {
-  Button,
-  ExternalLinkButton,
-  Flex,
-  Text,
-} from "@phoenix/components/core";
+import { Button, ExternalLinkButton } from "@phoenix/components/core/button";
 import type { ButtonProps } from "@phoenix/components/core/button/types";
+import { Text } from "@phoenix/components/core/content";
+import { Flex } from "@phoenix/components/core/layout";
 
 import { LinkCard } from "./LinkCard";
 import type { LinkCardProps } from "./LinkCard";

@@ -1,7 +1,8 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Flex, Text } from "@phoenix/components/core";
+import { Text } from "@phoenix/components/core/content";
+import { Flex } from "@phoenix/components/core/layout";
 
 const linkCardCSS = css`
   display: flex;
