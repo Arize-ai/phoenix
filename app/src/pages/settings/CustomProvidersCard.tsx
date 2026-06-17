@@ -322,7 +322,7 @@ export function CustomProvidersCard({
     <ErrorBoundary>
       <Card title="Custom AI Providers" extra={<NewCustomProviderButton />}>
         {isEmpty ? (
-          <View padding="size-300">
+          <View padding="size-500">
             <EmptyState
               graphic={<EmptyStateGraphic variant="genericAdd" />}
               description="No custom AI providers configured yet."
