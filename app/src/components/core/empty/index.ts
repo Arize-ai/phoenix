@@ -1,5 +1,6 @@
 export { Empty } from "./Empty";
 export { EmptyState } from "./EmptyState";
+export { EmptyStateArea } from "./EmptyStateArea";
 export type {
   EmptyStateProps,
   EmptyStateAction,

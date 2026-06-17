@@ -14,7 +14,11 @@ import {
   ConnectedTimeRangeControls,
   ConnectedTimeRangeSelector,
 } from "@phoenix/components/datetime";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/empty-state";
+import {
+  EmptyState,
+  EmptyStateArea,
+  EmptyStateGraphic,
+} from "@phoenix/components/empty-state";
 import { ProjectMenu } from "@phoenix/components/project";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -108,12 +112,12 @@ export function DashboardsEmptyPage() {
     );
   }
   return (
-    <Flex height="100%" alignItems="center" justifyContent="center">
+    <EmptyStateArea>
       <EmptyState
         graphic={<EmptyStateGraphic variant="project" />}
         title="No project selected"
         description="Select a project to view its dashboards."
       />
-    </Flex>
+    </EmptyStateArea>
   );
 }
