@@ -120,7 +120,8 @@ import {
   getSavePromptToolPreview,
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
-import { getScrollableParent, useScrollAnchor } from "./scrollAnchor";
+import { getScrollableParent } from "./scrollAnchor";
+import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
@@ -131,6 +132,7 @@ import {
 } from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, isToolUIPart } from "./toolPartTypes";
+import { useToolDisclosure } from "./useToolDisclosure";
 import {
   formatWritePromptToolsState,
   getWritePromptToolsToolPreview,
@@ -495,6 +497,47 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   scrollParent.scrollBy({ top: delta, behavior: "smooth" });
 }
 
+/**
+ * Renders the right-hand status for a single tool call. Completed / failed /
+ * running map to the compact {@link ToolExecutionSummary} (icon only — a single
+ * call has no meaningful count). `approval-requested` ("Awaiting approval") and
+ * `output-denied` ("Denied") have no clean icon in that system, so they keep
+ * their text label.
+ */
+function renderToolPartStatus(
+  state: ToolInvocationPart["state"],
+  stateLabel: string,
+  statusVariant: StatusVariant | undefined
+) {
+  switch (state) {
+    case "output-available":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary completed />
+        </span>
+      );
+    case "output-error":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary failed />
+        </span>
+      );
+    case "input-streaming":
+    case "input-available":
+    case "approval-responded":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary running />
+        </span>
+      );
+    case "approval-requested":
+    case "output-denied":
+      return (
+        <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
+      );
+  }
+}
+
 function ToolInvocationPartDetails({
   part,
   defaultOpen,
@@ -504,11 +547,8 @@ function ToolInvocationPartDetails({
 }) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
-  const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
-  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
-  const scrollAnchor = useScrollAnchor();
   const {
     preview,
     stateLabel,
@@ -519,7 +559,13 @@ function ToolInvocationPartDetails({
     quietLabel,
   } = getToolPresentation(toolName, part);
   const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
-  const isRenderedOpen = manualOpen ?? defaultOpen ?? shouldAutoOpen;
+  const {
+    ref: detailsRef,
+    isOpen: isRenderedOpen,
+    toggle,
+  } = useToolDisclosure<HTMLDetailsElement>({
+    defaultOpen: defaultOpen ?? shouldAutoOpen,
+  });
 
   useEffect(() => {
     if (!shouldAutoOpen || hasAutoOpenedRef.current) {
@@ -534,7 +580,7 @@ function ToolInvocationPartDetails({
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
+  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount, detailsRef]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
@@ -558,13 +604,7 @@ function ToolInvocationPartDetails({
           // natively can race the auto-open/manual override state during tool
           // streaming updates and make the disclosure feel stuck.
           event.preventDefault();
-
-          // Record the tool's position before it grows/shrinks, flip the open
-          // state, then restore the header to the same spot once the DOM has
-          // updated so opening a tool doesn't jump the transcript.
-          scrollAnchor.capture(detailsRef.current);
-          setManualOpen(!isRenderedOpen);
-          requestAnimationFrame(() => scrollAnchor.restore(detailsRef.current));
+          toggle();
         }}
       >
         <div className="tool-part__summary">
@@ -595,11 +635,9 @@ function ToolInvocationPartDetails({
           {showQuietSummary ? null : preview ? (
             <span className="tool-part__preview">{preview}</span>
           ) : null}
-          {showQuietSummary ? null : (
-            <ToolPartStatus variant={statusVariant}>
-              {stateLabel}
-            </ToolPartStatus>
-          )}
+          {showQuietSummary
+            ? null
+            : renderToolPartStatus(part.state, stateLabel, statusVariant)}
         </div>
       </summary>
       <div>{details}</div>
@@ -607,7 +645,7 @@ function ToolInvocationPartDetails({
   );
 }
 
-export function shouldAutoOpenToolPart(
+function shouldAutoOpenToolPart(
   part: ToolInvocationPart,
   preview: string
 ): boolean {
@@ -843,6 +881,7 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <BashToolDetails part={part} />,
+        icon: <Icons.Console />,
       };
     case "ask_user": {
       const stateLabel = formatAskUserState(part.state, part);
@@ -1005,43 +1044,19 @@ function getToolPresentation(
       };
     }
     case NATIVE_WEB_SEARCH_TOOL_NAME:
-    case NATIVE_WEB_FETCH_TOOL_NAME: {
-      const inputStr = JSON.stringify(part.input, null, 2);
-      const outputStr =
-        part.state === "output-available"
-          ? JSON.stringify(part.output, null, 2)
-          : "";
-      const errorStr = part.errorText ?? "";
+    case NATIVE_WEB_FETCH_TOOL_NAME:
       return {
         preview: getNativeWebToolPreview(toolName, part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: (
-          <div className="tool-part__body">
-            <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartExpandableSection>
-              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
-            </ToolPartExpandableSection>
-            {part.state === "output-available" ? (
-              <>
-                <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-            {part.state === "output-error" ? (
-              <>
-                <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-          </div>
-        ),
+        icon:
+          toolName === NATIVE_WEB_SEARCH_TOOL_NAME ? (
+            <Icons.GlobeOutline />
+          ) : undefined,
+        // Native web tools have no bespoke renderer — fall back to the generic
+        // input/output/error JSON view.
+        details: <GenericToolDetails part={part} />,
       };
-    }
     case CALL_SUBAGENT_TOOL_NAME:
       return {
         preview: getCallSubagentName(part),
