@@ -428,7 +428,7 @@ function CollapseToggleButton({
       })}
       css={collapseButtonCSS}
     >
-      <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+      <Icon svg={<Icons.ChevronDown />} />
     </button>
   );
 }

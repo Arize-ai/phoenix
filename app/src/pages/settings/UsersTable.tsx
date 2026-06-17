@@ -285,9 +285,9 @@ export function UsersTable({ query }: { query: UsersTable_users$key }) {
                             className="sort-icon"
                             svg={
                               header.column.getIsSorted() === "asc" ? (
-                                <Icons.ArrowUpFilled />
+                                <Icons.CaretUpFilled />
                               ) : (
-                                <Icons.ArrowDownFilled />
+                                <Icons.CaretDownFilled />
                               )
                             }
                           />

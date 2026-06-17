@@ -298,7 +298,7 @@ export const FilterMenu = () => {
               <MenuHeaderTitle
                 leadingContent={
                   <IconButton size="S">
-                    <Icon svg={<Icons.ChevronLeft />} />
+                    <Icon svg={<Icons.ChevronLeftSmall />} />
                   </IconButton>
                 }
                 trailingContent={

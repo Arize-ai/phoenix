@@ -199,7 +199,7 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
-                leadingVisual={<Icon svg={<Icons.ChevronLeft />} />}
+                leadingVisual={<Icon svg={<Icons.ChevronLeftSmall />} />}
                 onPress={() => setMode("apply")}
               />
             ) : undefined

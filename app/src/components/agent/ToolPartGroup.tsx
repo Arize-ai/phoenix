@@ -312,7 +312,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
         <div className="tool-pool__title-row">
           <span className="tool-pool__title">
             <Icon
-              svg={<Icons.ChevronDown />}
+              svg={<Icons.ChevronDownSmall />}
               className="tool-pool__chevron"
               data-expanded={isRenderedExpanded}
             />

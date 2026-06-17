@@ -101,7 +101,7 @@ export const CustomIcon: Story = {
   args: {
     variant: "info",
     children: "This is an alert with a custom icon",
-    icon: <Icon svg={<Icons.ArrowBack />} />,
+    icon: <Icon svg={<Icons.ArrowLeft />} />,
   },
 };
 

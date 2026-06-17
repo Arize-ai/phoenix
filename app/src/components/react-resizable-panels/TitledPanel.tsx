@@ -158,7 +158,7 @@ export const PanelTitle = ({
       {collapsed !== undefined && (
         <Icon
           data-collapsed={collapsed}
-          svg={<Icons.ArrowIosDownwardOutline />}
+          svg={<Icons.ChevronDown />}
           css={css`
             transition: transform 0.2s ease-in-out;
             &[data-collapsed="true"] {

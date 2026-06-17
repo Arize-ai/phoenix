@@ -14,7 +14,7 @@ export function SpanStatusCodeIcon<TCode extends SpanStatusCodeType>({
   const color = useSpanStatusCodeColor(statusCode);
   switch (statusCode) {
     case "OK":
-      iconSVG = <Icons.CheckmarkOutline />;
+      iconSVG = <Icons.Checkmark />;
       break;
     case "ERROR":
       iconSVG = <Icons.AlertCircleOutline />;

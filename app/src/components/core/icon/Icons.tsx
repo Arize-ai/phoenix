@@ -20,7 +20,7 @@ export const ArchiveOutline = () => (
   </svg>
 );
 
-export const ArrowBack = () => (
+export const ArrowLeft = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-back">
@@ -44,7 +44,7 @@ export const ArrowCompareOutline = () => (
   </svg>
 );
 
-export const ArrowIosBackOutline = () => (
+export const ChevronLeft = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-ios-back">
@@ -55,7 +55,7 @@ export const ArrowIosBackOutline = () => (
   </svg>
 );
 
-export const ArrowDown = () => (
+export const CaretDownFilled = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-downward">
@@ -71,40 +71,7 @@ export const ArrowDown = () => (
   </svg>
 );
 
-export const ArrowDownFill = () => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M12 17C11.494 17 11.01 16.767 10.674 16.358L6.46103 11.26C5.95703 10.649 5.85603 9.782 6.20203 9.049C6.50703 8.402 7.11403 8 7.78703 8H16.213C16.886 8 17.493 8.402 17.798 9.049C18.144 9.782 18.043 10.649 17.54 11.259L13.326 16.358C12.99 16.767 12.506 17 12 17" />
-    <mask
-      id="mask0_0_2149"
-      maskUnits="userSpaceOnUse"
-      x="5"
-      y="8"
-      width="14"
-      height="9"
-    >
-      <path d="M12 17C11.494 17 11.01 16.767 10.674 16.358L6.46103 11.26C5.95703 10.649 5.85603 9.782 6.20203 9.049C6.50703 8.402 7.11403 8 7.78703 8H16.213C16.886 8 17.493 8.402 17.798 9.049C18.144 9.782 18.043 10.649 17.54 11.259L13.326 16.358C12.99 16.767 12.506 17 12 17Z" />
-    </mask>
-    <g mask="url(#mask0_0_2149)"></g>
-  </svg>
-);
-
-export const ArrowDownFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-downward">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(-90 12 12)"
-          opacity="0"
-        />
-        <path d="M12 17a1.72 1.72 0 0 1-1.33-.64l-4.21-5.1a2.1 2.1 0 0 1-.26-2.21A1.76 1.76 0 0 1 7.79 8h8.42a1.76 1.76 0 0 1 1.59 1.05 2.1 2.1 0 0 1-.26 2.21l-4.21 5.1A1.72 1.72 0 0 1 12 17z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowIosDownwardOutline = () => (
+export const ChevronDown = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-ios-downward">
@@ -115,34 +82,7 @@ export const ArrowIosDownwardOutline = () => (
   </svg>
 );
 
-export const ArrowUpwardOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-upward">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(180 12 12)"
-          opacity="0"
-        />
-        <path d="M5.23 10.64a1 1 0 0 0 1.41.13L11 7.14V19a1 1 0 0 0 2 0V7.14l4.36 3.63a1 1 0 1 0 1.28-1.54l-6-5-.15-.09-.13-.07a1 1 0 0 0-.72 0l-.13.07-.15.09-6 5a1 1 0 0 0-.13 1.41z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowDownwardOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-downward">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M18.77 13.36a1 1 0 0 0-1.41-.13L13 16.86V5a1 1 0 0 0-2 0v11.86l-4.36-3.63a1 1 0 1 0-1.28 1.54l6 5 .15.09.13.07a1 1 0 0 0 .72 0l.13-.07.15-.09 6-5a1 1 0 0 0 .13-1.41z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowDownWithStem = () => (
+export const ArrowDown = () => (
   <svg
     width="20"
     height="20"
@@ -157,7 +97,7 @@ export const ArrowDownWithStem = () => (
   </svg>
 );
 
-export const ArrowRight = () => (
+export const CaretRightFilled = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-right">
@@ -173,7 +113,7 @@ export const ArrowRight = () => (
   </svg>
 );
 
-export const ArrowHeadRight = () => (
+export const ChevronRightDouble = () => (
   <svg
     width="24"
     height="24"
@@ -206,7 +146,7 @@ export const ArrowHeadRight = () => (
   </svg>
 );
 
-export const ArrowRightWithStem = () => (
+export const ArrowRight = () => (
   <svg
     width="18"
     height="18"
@@ -221,29 +161,18 @@ export const ArrowRightWithStem = () => (
   </svg>
 );
 
+export const CaretUpFilled = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <g data-name="Layer 2">
+      <g data-name="arrow-up">
+        <rect width="24" height="24" transform="rotate(90 12 12)" opacity="0" />
+        <path d="M16.21 16H7.79a1.76 1.76 0 0 1-1.59-1 2.1 2.1 0 0 1 .26-2.21l4.21-5.1a1.76 1.76 0 0 1 2.66 0l4.21 5.1A2.1 2.1 0 0 1 17.8 15a1.76 1.76 0 0 1-1.59 1z" />
+      </g>
+    </g>
+  </svg>
+);
+
 export const ArrowUp = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-up">
-        <rect width="24" height="24" transform="rotate(90 12 12)" opacity="0" />
-        <path d="M16.21 16H7.79a1.76 1.76 0 0 1-1.59-1 2.1 2.1 0 0 1 .26-2.21l4.21-5.1a1.76 1.76 0 0 1 2.66 0l4.21 5.1A2.1 2.1 0 0 1 17.8 15a1.76 1.76 0 0 1-1.59 1z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowUpFilled = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrow-up">
-        <rect width="24" height="24" transform="rotate(90 12 12)" opacity="0" />
-        <path d="M16.21 16H7.79a1.76 1.76 0 0 1-1.59-1 2.1 2.1 0 0 1 .26-2.21l4.21-5.1a1.76 1.76 0 0 1 2.66 0l4.21 5.1A2.1 2.1 0 0 1 17.8 15a1.76 1.76 0 0 1-1.59 1z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowUpWithStem = () => (
   <svg
     width="20"
     height="20"
@@ -257,7 +186,7 @@ export const ArrowUpWithStem = () => (
   </svg>
 );
 
-export const ArrowIosUpwardOutline = () => (
+export const ChevronUp = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-ios-upward">
@@ -273,7 +202,7 @@ export const ArrowIosUpwardOutline = () => (
   </svg>
 );
 
-export const ArrowIosForwardOutline = () => (
+export const ChevronRight = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="arrow-ios-forward">
@@ -289,24 +218,7 @@ export const ArrowIosForwardOutline = () => (
   </svg>
 );
 
-export const ArrowheadRightOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="arrowhead-right">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(-90 12 12)"
-          opacity="0"
-        />
-        <path d="M18.78 11.37l-4.78-6a1 1 0 0 0-1.41-.15 1 1 0 0 0-.15 1.41L16.71 12l-4.48 5.37a1 1 0 0 0 .13 1.41A1 1 0 0 0 13 19a1 1 0 0 0 .77-.36l5-6a1 1 0 0 0 .01-1.27z" />
-        <path d="M7 5.37a1 1 0 0 0-1.61 1.26L9.71 12l-4.48 5.36a1 1 0 0 0 .13 1.41A1 1 0 0 0 6 19a1 1 0 0 0 .77-.36l5-6a1 1 0 0 0 0-1.27z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ArrowMix = () => (
+export const CaretUpDown = () => (
   <svg
     width="24"
     height="24"
@@ -556,7 +468,7 @@ export const CalendarOutline = () => (
   </svg>
 );
 
-export const ChevronUpDown = () => (
+export const ChevronUpDownSmall = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     height="24"
@@ -586,7 +498,7 @@ export const Column = () => (
   </svg>
 );
 
-export const CornerUpRightOutline = () => (
+export const ArrowUpRightCorner = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="corner-up-right">
@@ -669,7 +581,7 @@ export const CodeDownload = () => {
   );
 };
 
-export const ChevronLeft = () => (
+export const ChevronLeftSmall = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="chevron-left">
@@ -680,7 +592,7 @@ export const ChevronLeft = () => (
   </svg>
 );
 
-export const ChevronRight = () => (
+export const ChevronRightSmall = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="chevron-right">
@@ -696,23 +608,7 @@ export const ChevronRight = () => (
   </svg>
 );
 
-export const ChevronRightOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="chevron-right">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(-90 12 12)"
-          opacity="0"
-        />
-        <path d="M10.5 17a1 1 0 0 1-.71-.29 1 1 0 0 1 0-1.42L13.1 12 9.92 8.69a1 1 0 0 1 0-1.41 1 1 0 0 1 1.42 0l3.86 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-.7.32z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ChevronUp = () => (
+export const ChevronUpSmall = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="chevron-up">
@@ -728,18 +624,7 @@ export const ChevronUp = () => (
   </svg>
 );
 
-export const ChevronDown = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="chevron-down">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M12 15.5a1 1 0 0 1-.71-.29l-4-4a1 1 0 1 1 1.42-1.42L12 13.1l3.3-3.18a1 1 0 1 1 1.38 1.44l-4 3.86a1 1 0 0 1-.68.28z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const ChevronDownOutline = () => (
+export const ChevronDownSmall = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="chevron-down">
@@ -839,50 +724,6 @@ export const Checkmark = () => (
 );
 
 export const CheckmarkCircle = () => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <g>
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M20.997 10.9741H21C21.551 10.9741 21.999 11.4201 22 11.9711C22.008 14.6421 20.975 17.1571 19.091 19.0511C17.208 20.9451 14.7 21.9921 12.029 22.0001H12C9.339 22.0001 6.836 20.9681 4.949 19.0911C3.055 17.2081 2.008 14.7001 2 12.0291C1.992 9.3571 3.025 6.8431 4.909 4.9491C6.792 3.0551 9.3 2.0081 11.971 2.0001C12.766 2.0121 13.576 2.0921 14.352 2.2781C14.888 2.4081 15.219 2.9481 15.089 3.4851C14.96 4.0211 14.417 4.3511 13.883 4.2231C13.262 4.0731 12.603 4.0101 11.977 4.0001C9.84 4.0061 7.833 4.8441 6.327 6.3591C4.82 7.8741 3.994 9.8861 4 12.0231C4.006 14.1601 4.844 16.1661 6.359 17.6731C7.869 19.1741 9.871 20.0001 12 20.0001H12.023C14.16 19.9941 16.167 19.1561 17.673 17.6411C19.18 16.1251 20.006 14.1141 20 11.9771C19.999 11.4251 20.445 10.9751 20.997 10.9741ZM8.293 11.293C8.684 10.902 9.316 10.902 9.707 11.293L11.951 13.537L18.248 6.341C18.612 5.928 19.243 5.884 19.659 6.248C20.074 6.611 20.116 7.243 19.752 7.659L12.752 15.659C12.57 15.867 12.31 15.99 12.033 16H12C11.735 16 11.481 15.895 11.293 15.707L8.293 12.707C7.902 12.316 7.902 11.684 8.293 11.293Z"
-      />
-      <mask
-        mask="alpha"
-        maskUnits="userSpaceOnUse"
-        x="2"
-        y="2"
-        width="20"
-        height="20"
-      >
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M20.997 10.9741H21C21.551 10.9741 21.999 11.4201 22 11.9711C22.008 14.6421 20.975 17.1571 19.091 19.0511C17.208 20.9451 14.7 21.9921 12.029 22.0001H12C9.339 22.0001 6.836 20.9681 4.949 19.0911C3.055 17.2081 2.008 14.7001 2 12.0291C1.992 9.3571 3.025 6.8431 4.909 4.9491C6.792 3.0551 9.3 2.0081 11.971 2.0001C12.766 2.0121 13.576 2.0921 14.352 2.2781C14.888 2.4081 15.219 2.9481 15.089 3.4851C14.96 4.0211 14.417 4.3511 13.883 4.2231C13.262 4.0731 12.603 4.0101 11.977 4.0001C9.84 4.0061 7.833 4.8441 6.327 6.3591C4.82 7.8741 3.994 9.8861 4 12.0231C4.006 14.1601 4.844 16.1661 6.359 17.6731C7.869 19.1741 9.871 20.0001 12 20.0001H12.023C14.16 19.9941 16.167 19.1561 17.673 17.6411C19.18 16.1251 20.006 14.1141 20 11.9771C19.999 11.4251 20.445 10.9751 20.997 10.9741ZM8.293 11.293C8.684 10.902 9.316 10.902 9.707 11.293L11.951 13.537L18.248 6.341C18.612 5.928 19.243 5.884 19.659 6.248C20.074 6.611 20.116 7.243 19.752 7.659L12.752 15.659C12.57 15.867 12.31 15.99 12.033 16H12C11.735 16 11.481 15.895 11.293 15.707L8.293 12.707C7.902 12.316 7.902 11.684 8.293 11.293Z"
-        />
-      </mask>
-      <g mask="url(#mask0)"></g>
-    </g>
-  </svg>
-);
-
-export const CheckmarkOutline = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="checkmark">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M9.86 18a1 1 0 0 1-.73-.32l-4.86-5.17a1 1 0 1 1 1.46-1.37l4.12 4.39 8.41-9.2a1 1 0 1 1 1.48 1.34l-9.14 10a1 1 0 0 1-.73.33z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const CheckmarkCircleOutline = () => (
   <svg
     width="24"
     height="24"
@@ -1190,43 +1031,19 @@ export const ExpandOutline = () => (
   </svg>
 );
 
-export const ExperimentOutline = () => (
+export const Experiment = () => (
   <svg
-    width="20"
-    height="20"
-    viewBox="0 0 20 20"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
-      d="M11.7325 8.3969L12.9778 9.61741L5.58892 16.9977C4.90368 17.6822 3.79253 17.6823 3.10751 16.9981C2.42238 16.3137 2.42238 15.2042 3.10751 14.5198L10.4967 7.13917L11.7245 8.38888L11.7244 8.38895L11.7325 8.3969Z"
-      stroke="currentColor"
-      strokeWidth="1.2"
-      fill="none"
-    />
-    <circle
-      cx="12"
-      cy="5"
-      r="0.75"
-      stroke="currentColor"
-      strokeWidth="0.5"
-      fill="none"
-    />
-    <circle
-      cx="15"
-      cy="4"
-      r="0.75"
-      stroke="currentColor"
-      strokeWidth="0.5"
-      fill="none"
-    />
-    <circle
-      cx="14.5"
-      cy="7.5"
-      r="1.2"
-      stroke="currentColor"
-      strokeWidth="0.6"
-      fill="none"
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M15.5 0.999939C16.0522 0.999939 16.5 1.44765 16.5 1.99994C16.5 2.55222 16.0522 2.99994 15.5 2.99994H15V7.99994C14.9999 8.16768 15.0426 8.33321 15.123 8.48041L20.6318 18.5595C20.8818 19.0164 21.0089 19.531 21 20.0517C20.991 20.5724 20.8466 21.0822 20.581 21.5302C20.3154 21.978 19.9377 22.3487 19.4853 22.6064C19.0894 22.8319 18.6482 22.9647 18.1953 22.9941L18 22.9999H5.99996C5.47939 22.9999 4.96795 22.864 4.51558 22.6064C4.06314 22.3487 3.68549 21.978 3.41988 21.5302C3.15425 21.0822 3.00895 20.5725 2.99996 20.0517C2.99097 19.531 3.11813 19.0164 3.36812 18.5595L5.56734 14.537C5.57282 14.5266 5.57811 14.516 5.58394 14.5058L8.87789 8.48041C8.95832 8.33322 9.00003 8.16767 8.99996 7.99994V2.99994H8.49996C7.94788 2.9997 7.49996 2.55208 7.49996 1.99994C7.49996 1.4478 7.94788 1.00018 8.49996 0.999939H15.5ZM5.123 19.5195C5.03967 19.6718 4.99696 19.8439 4.99996 20.0175C5.003 20.1909 5.05121 20.3605 5.13961 20.5097C5.22813 20.659 5.35404 20.7832 5.50484 20.8691C5.65562 20.9549 5.82645 20.9999 5.99996 20.9999H18.0009C18.1744 20.9999 18.3453 20.9549 18.4961 20.8691C18.6468 20.7832 18.7728 20.659 18.8613 20.5097C18.9497 20.3605 18.9979 20.1909 19.0009 20.0175C19.0039 19.8439 18.9612 19.6718 18.8779 19.5195L16.9541 15.9999H7.04683L5.123 19.5195ZM11 2.99994V7.99994L10.9951 8.18744C10.9678 8.62548 10.844 9.05292 10.6328 9.43939L8.13961 13.9999H15.8613L13.3681 9.43939C13.1569 9.05291 13.0331 8.6255 13.0058 8.18744L13 7.99994V2.99994H11Z"
+      fill="currentColor"
     />
   </svg>
 );
@@ -1583,22 +1400,6 @@ export const ImageOutline = () => (
         <rect width="24" height="24" opacity="0" />
         <path d="M18 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3zM6 5h12a1 1 0 0 1 1 1v8.36l-3.2-2.73a2.77 2.77 0 0 0-3.52 0L5 17.7V6a1 1 0 0 1 1-1zm12 14H6.56l7-5.84a.78.78 0 0 1 .93 0L19 17v1a1 1 0 0 1-1 1z" />
         <circle cx="8" cy="8.5" r="1.5" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const Info = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="info">
-        <rect
-          width="24"
-          height="24"
-          transform="rotate(180 12 12)"
-          opacity="0"
-        ></rect>
-        <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14a1 1 0 0 1-2 0v-5a1 1 0 0 1 2 0zm-1-7a1 1 0 1 1 1-1 1 1 0 0 1-1 1z"></path>
       </g>
     </g>
   </svg>
@@ -2298,17 +2099,6 @@ export const Scale = () => (
 );
 
 export const Search = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <g data-name="Layer 2">
-      <g data-name="search">
-        <rect width="24" height="24" opacity="0" />
-        <path d="M20.71 19.29l-3.4-3.39A7.92 7.92 0 0 0 19 11a8 8 0 1 0-8 8 7.92 7.92 0 0 0 4.9-1.69l3.39 3.4a1 1 0 0 0 1.42 0 1 1 0 0 0 0-1.42zM5 11a6 6 0 1 1 6 6 6 6 0 0 1-6-6z" />
-      </g>
-    </g>
-  </svg>
-);
-
-export const SearchOutline = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
       <g data-name="search">
