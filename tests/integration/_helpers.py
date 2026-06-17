@@ -50,6 +50,7 @@ import jwt
 import pytest
 import smtpdfix
 from fastapi import FastAPI
+from fastapi.routing import APIRoute, _IncludedRouter
 from httpx import Headers, HTTPStatusError
 from jwt import DecodeError
 from openinference.semconv.resource import ResourceAttributes
@@ -68,6 +69,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.routing import BaseRoute
 from strawberry.relay import GlobalID
 from typing_extensions import Self, TypeAlias, assert_never, override
 
@@ -89,6 +91,7 @@ from phoenix.db.engines import get_async_db_url
 from phoenix.server.api.auth import IsAdmin
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.api.input_types.UserRoleInput import UserRoleInput
+from phoenix.server.api.routers.v1 import create_v1_router
 from phoenix.server.thread_server import ThreadServer
 
 _DB_BACKEND: TypeAlias = Literal["sqlite", "postgresql"]
@@ -101,6 +104,8 @@ _ProjectName: TypeAlias = str
 _SpanName: TypeAlias = str
 _Headers: TypeAlias = dict[str, Any]
 _Name: TypeAlias = str
+_HttpMethod: TypeAlias = str
+_RoutePath: TypeAlias = str
 
 _Secret: TypeAlias = str
 _Email: TypeAlias = str
@@ -2270,42 +2275,35 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
 )
 
 
+def _join_paths(prefix: _RoutePath, path: _RoutePath) -> _RoutePath:
+    if not prefix:
+        return path
+    return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _get_api_route_methods_and_paths(
+    routes: Iterable[BaseRoute], prefix: _RoutePath = ""
+) -> Iterator[tuple[_HttpMethod, _RoutePath]]:
+    for route in routes:
+        if isinstance(route, APIRoute):
+            for method in route.methods or ():
+                yield method, _join_paths(prefix, route.path)
+        elif isinstance(route, _IncludedRouter):
+            include_prefix = route.include_context.prefix
+            yield from _get_api_route_methods_and_paths(
+                route.original_router.routes, _join_paths(prefix, include_prefix)
+            )
+
+
 def _ensure_endpoint_coverage_is_exhaustive() -> None:
     """Verify that test constants cover all actual v1 API routes.
 
     This runs at module import time as a prerequisite check. If endpoint
     coverage is incomplete, all tests that import this module will fail fast.
     """
-    import re
-
-    from fastapi.routing import APIRoute
-
-    from phoenix.server.api.routers.v1 import create_v1_router
-
-    def join_paths(prefix: str, path: str) -> str:
-        if not prefix:
-            return path
-        return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
-
-    def iter_api_routes(routes: Iterable[Any], prefix: str = "") -> Iterator[tuple[str, str]]:
-        for route in routes:
-            if isinstance(route, APIRoute):
-                for method in route.methods:
-                    yield method, join_paths(prefix, route.path)
-                continue
-
-            # FastAPI 0.137+ keeps included routers lazy as private _IncludedRouter
-            # entries instead of flattening them into APIRoute entries immediately.
-            included_router = getattr(route, "original_router", None)
-            if included_router is None:
-                continue
-            include_context = getattr(route, "include_context", None)
-            include_prefix = getattr(include_context, "prefix", "")
-            yield from iter_api_routes(included_router.routes, join_paths(prefix, include_prefix))
-
     # Get all actual routes from the v1 router
     router = create_v1_router(authentication_enabled=False)
-    actual_routes = set(iter_api_routes(router.routes))
+    actual_routes = set(_get_api_route_methods_and_paths(router.routes))
 
     # Get all routes from test constants
     test_routes = {
