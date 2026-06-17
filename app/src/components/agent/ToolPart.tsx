@@ -575,7 +575,7 @@ function ToolInvocationPartDetails({
                 className="tool-part__chevron"
               />
               <Icon
-                svg={icon ?? <Icons.WrenchOutline />}
+                svg={icon ?? <Icons.Wrench />}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -999,7 +999,7 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <LoadSkillToolDetails part={part} />,
-        icon: <Icons.GraduationCapOutline />,
+        icon: <Icons.GraduationCap />,
         variant: part.state === "output-available" ? "quiet" : "default",
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
@@ -1047,7 +1047,7 @@ function getToolPresentation(
         preview: getCallSubagentName(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.SplitOutline />,
+        icon: <Icons.Split />,
         details: <GenericToolDetails part={part} />,
       };
     default: {

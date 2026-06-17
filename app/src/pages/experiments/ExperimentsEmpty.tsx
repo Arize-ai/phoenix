@@ -34,14 +34,14 @@ export function ExperimentsEmpty() {
               <ExternalLinkButton
                 href="https://docs.arize.com/phoenix/datasets-and-experiments/how-to-experiments/run-experiments"
                 target="_blank"
-                leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Book />} />}
               >
                 Documentation
               </ExternalLinkButton>
               <ExternalLinkButton
                 href="https://docs.arize.com/phoenix/cookbook/datasets-and-experiments/summarization"
                 target="_blank"
-                leadingVisual={<Icon svg={<Icons.BulbOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Bulb />} />}
               >
                 Example
               </ExternalLinkButton>

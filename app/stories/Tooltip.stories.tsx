@@ -158,7 +158,7 @@ export const WithIconButton: Story = {
   render: (args: TooltipProps) => (
     <TooltipTrigger>
       <Button variant="quiet" size="S">
-        <Icon svg={<Icons.InfoOutline />} />
+        <Icon svg={<Icons.Info />} />
       </Button>
       <Tooltip {...args}>
         <TooltipArrow />

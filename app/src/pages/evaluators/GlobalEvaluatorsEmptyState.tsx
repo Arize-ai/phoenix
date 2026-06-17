@@ -474,7 +474,7 @@ export const GlobalEvaluatorsEmptyState = ({
           <ExternalLinkButton
             href="https://arize.com/docs/phoenix/evaluation/server-evals/overview"
             target="_blank"
-            leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Book />} />}
           >
             Documentation
           </ExternalLinkButton>

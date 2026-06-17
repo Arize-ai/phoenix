@@ -109,7 +109,7 @@ export const AddEvaluatorMenu = ({
         <Button
           variant="primary"
           size={size}
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
         >
           Add evaluator
         </Button>
@@ -200,7 +200,7 @@ export const AddEvaluatorMenuContents = ({
       <MenuSection>
         <MenuSectionTitle title="New LLM evaluator" />
         <MenuItem
-          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          leadingContent={<Icon svg={<Icons.Plus />} />}
           id="createEvaluator"
         >
           Create new LLM evaluator
@@ -209,7 +209,7 @@ export const AddEvaluatorMenuContents = ({
           query={query}
           onAction={onSelectBuiltInLLMEvaluator}
         >
-          <MenuItem leadingContent={<Icon svg={<Icons.TemplateOutline />} />}>
+          <MenuItem leadingContent={<Icon svg={<Icons.Template />} />}>
             Use LLM evaluator template
           </MenuItem>
         </LLMEvaluatorTemplateSubmenu>
@@ -217,7 +217,7 @@ export const AddEvaluatorMenuContents = ({
       <MenuSection>
         <MenuSectionTitle title="New code evaluator" />
         <MenuItem
-          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          leadingContent={<Icon svg={<Icons.Plus />} />}
           id="createCodeEvaluator"
         >
           Create new code evaluator

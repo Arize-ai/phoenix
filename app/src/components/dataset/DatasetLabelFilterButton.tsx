@@ -38,7 +38,7 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
       <Button
         variant="default"
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         trailingVisual={
           selectedLabelIds.length > 0 ? (
             <Counter>{selectedLabelIds.length}</Counter>

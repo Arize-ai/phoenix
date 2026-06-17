@@ -104,30 +104,30 @@ const IconOnlyTemplate: StoryFn<ToolbarStoryArgs> = (args) => {
       <Group aria-label="Select">
         <Button
           aria-label="Grid"
-          leadingVisual={<Icon svg={<Icons.ArchiveOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Archive />} />}
         />
         <Button
           aria-label="Lasso"
-          leadingVisual={<Icon svg={<Icons.AlertTriangleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.AlertTriangle />} />}
         />
         <Button
           aria-label="Edit"
-          leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Edit />} />}
         />
         <Button
           aria-label="Delete"
-          leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Trash />} />}
         />
       </Group>
       <Separator orientation={separatorOrientation} />
       <Group aria-label="Draw">
         <Button
           aria-label="Settings"
-          leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Settings />} />}
         />
         <Button
           aria-label="Info"
-          leadingVisual={<Icon svg={<Icons.InfoOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Info />} />}
         />
       </Group>
     </Toolbar>

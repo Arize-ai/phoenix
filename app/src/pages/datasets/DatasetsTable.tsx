@@ -296,7 +296,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 <LinkButton
                   size="S"
                   to={`/playground?datasetId=${row.original.id}`}
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   aria-label="Open dataset in Playground"
                 >
                   Playground

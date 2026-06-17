@@ -465,7 +465,7 @@ function SortableMessageItem({
             />
             <Button
               aria-label="Delete message"
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Trash />} />}
               size="S"
               onPress={() => {
                 deleteMessage({

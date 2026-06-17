@@ -687,7 +687,7 @@ export function TracesTable(props: TracesTableProps) {
                   padding-left: ${props.row.depth * 2}rem;
                 `}
               >
-                <Icon svg={<Icons.MoreHorizontalOutline />} />
+                <Icon svg={<Icons.MoreHorizontal />} />
               </div>
             );
           }

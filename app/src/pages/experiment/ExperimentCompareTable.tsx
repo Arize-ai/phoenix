@@ -882,7 +882,7 @@ function ExperimentRunOutput(
 function RunError({ error }: { error: string }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
-      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Icon svg={<Icons.AlertCircle />} color="danger" />
       <Text color="danger">{error}</Text>
     </Flex>
   );
@@ -952,7 +952,7 @@ function ExperimentRunOutputCell({
             setSelectedExampleIndex(rowIndex);
           }}
         >
-          <Icon svg={<Icons.ExpandOutline />} />
+          <Icon svg={<Icons.Expand />} />
         </IconButton>
         <Tooltip>
           <TooltipArrow />

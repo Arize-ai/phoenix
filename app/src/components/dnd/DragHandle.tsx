@@ -39,7 +39,7 @@ function DragHandle({
         overflow: hidden;
       `}
     >
-      <Icon svg={<Icons.DragHandleOutline />} />
+      <Icon svg={<Icons.DragHandle />} />
     </button>
   );
 }

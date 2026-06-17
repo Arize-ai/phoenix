@@ -37,7 +37,7 @@ export function AttachmentRemove({
       }}
       {...restProps}
     >
-      {children ?? <Icon svg={<Icons.CloseOutline />} />}
+      {children ?? <Icon svg={<Icons.Close />} />}
     </Button>
   );
 }

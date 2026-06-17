@@ -61,13 +61,7 @@ export function TraceTreeToolbar() {
               }}
             >
               <Icon
-                svg={
-                  isCollapsed ? (
-                    <Icons.RowCollapseOutline />
-                  ) : (
-                    <Icons.RowExpandOutline />
-                  )
-                }
+                svg={isCollapsed ? <Icons.RowCollapse /> : <Icons.RowExpand />}
               />
             </IconButton>
             <Tooltip offset={-5}>
@@ -90,11 +84,7 @@ export function TraceTreeToolbar() {
             >
               <Icon
                 svg={
-                  showMetricsInTraceTree ? (
-                    <Icons.TimerOutline />
-                  ) : (
-                    <Icons.TimerOffOutline />
-                  )
+                  showMetricsInTraceTree ? <Icons.Timer /> : <Icons.TimerOff />
                 }
               />
             </IconButton>

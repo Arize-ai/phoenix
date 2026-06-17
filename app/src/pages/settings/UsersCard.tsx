@@ -78,7 +78,7 @@ export function UsersCard() {
             );
           }}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
           isDisabled={isDisabled}
         >
           Add User

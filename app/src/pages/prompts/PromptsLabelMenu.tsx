@@ -37,7 +37,7 @@ export const PromptsLabelMenu = ({
 }: PromptsLabelMenuProps) => {
   return (
     <MenuTrigger>
-      <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+      <Button leadingVisual={<Icon svg={<Icons.PriceTags />} />}>
         Labels
         {selectedLabelIds.length > 0 ? ` (${selectedLabelIds.length})` : ""}
       </Button>
