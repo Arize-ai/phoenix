@@ -110,6 +110,14 @@ export function EmptyState({
 }: EmptyStateProps) {
   const horizontal = isHorizontal(orientation, action, graphic);
 
+  // Cards are a heavier block than a button/link row, so set them further apart
+  // from the text/graphic above than a simple action would be. In the
+  // horizontal layout the graphic sits beside the text, making that block
+  // heavier still, so the cards want a bit more room than in the vertical case.
+  const actionGap = action?.type === "cards" ? "size-300" : "size-200";
+  const horizontalActionGap =
+    action?.type === "cards" ? "size-500" : "size-200";
+
   const textBlock =
     title != null || description != null ? (
       <Flex direction="column" gap="size-25" alignItems="center">
@@ -128,7 +136,7 @@ export function EmptyState({
 
   if (horizontal) {
     return (
-      <Flex direction="column" gap="size-200" alignItems="center">
+      <Flex direction="column" gap={horizontalActionGap} alignItems="center">
         <Flex
           direction="row"
           gap="size-400"
@@ -153,8 +161,9 @@ export function EmptyState({
       justifyContent="center"
     >
       {graphic != null && graphic}
-      {/* Keep the action tighter to the text than the graphic is to the text. */}
-      <Flex direction="column" gap="size-200" alignItems="center">
+      {/* Keep the action close to the text (closer than the graphic sits),
+          but give the heavier cards block a bit more room — see actionGap. */}
+      <Flex direction="column" gap={actionGap} alignItems="center">
         {textBlock}
         {action != null && <ActionArea action={action} />}
       </Flex>
