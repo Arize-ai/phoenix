@@ -70,9 +70,9 @@ const getAnnotationValueParts = (
   const withFallback = (
     parts: (AnnotationValuePart | null)[]
   ): AnnotationValuePart[] => {
-    const present = parts.filter((part): part is AnnotationValuePart => {
-      return part != null;
-    });
+    const present = parts.filter(
+      (part): part is AnnotationValuePart => part != null
+    );
     return present.length > 0
       ? present
       : [{ text: "n/a", fontFamily: "default" }];
