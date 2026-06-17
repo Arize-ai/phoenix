@@ -132,6 +132,13 @@ def parse_env_headers(s: str) -> Dict[str, str]:
         match = _HEADER_PATTERN.fullmatch(header.strip())
         if not match:
             parts = header.split("=", 1)
+            if len(parts) != 2:
+                logger.warning(
+                    "Header format invalid! Header values in environment variables must be "
+                    "URL encoded and in the form name=value: %s",
+                    "****",
+                )
+                continue
             name, value = parts
             encoded_header = f"{urllib.parse.quote(name)}={urllib.parse.quote(value)}"
             match = _HEADER_PATTERN.fullmatch(encoded_header.strip())
