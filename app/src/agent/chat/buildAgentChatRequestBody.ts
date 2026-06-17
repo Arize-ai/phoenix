@@ -69,7 +69,7 @@ function buildCurrentAppContext(): AgentContext {
 function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "graphql",
-    mutationsEnabled: capabilities["graphql.mutations"],
+    mutationsEnabled: capabilities["graphql.mutations"] ?? false,
   };
 }
 
@@ -81,7 +81,7 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
 function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "web_access",
-    enabled: capabilities["web.access"],
+    enabled: capabilities["web.access"] ?? false,
   };
 }
 
@@ -91,7 +91,7 @@ function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
 function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "subagents",
-    enabled: capabilities["subagents.enabled"],
+    enabled: capabilities["subagents.enabled"] ?? false,
   };
 }
 

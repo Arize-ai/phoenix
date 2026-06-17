@@ -1,5 +1,8 @@
 import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
-import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
+import {
+  createDefaultAgentCapabilities,
+  type AgentCapabilities,
+} from "@phoenix/agent/extensions/capabilities";
 
 import {
   createAgentStore,
@@ -514,6 +517,30 @@ describe("agentStore", () => {
           observability: store.getState().observability,
         })
       ).toBe(false);
+    });
+  });
+
+  describe("persisted capabilities", () => {
+    it("backfills missing capability keys when rehydrating persisted state", () => {
+      const persistedCapabilities: Partial<AgentCapabilities> = {
+        "graphql.mutations": true,
+        "web.access": true,
+      };
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { capabilities: persistedCapabilities },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().capabilities).toEqual({
+        ...createDefaultAgentCapabilities(),
+        "graphql.mutations": true,
+        "web.access": true,
+      });
     });
   });
 
