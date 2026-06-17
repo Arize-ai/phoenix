@@ -9,7 +9,6 @@ import {
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
 import { getToolPartPreview, ToolPart } from "../ToolPart";
-import { ToolPartGroup } from "../ToolPartGroup";
 import type { ToolInvocationPart } from "../toolPartTypes";
 
 let container: HTMLDivElement;
@@ -70,16 +69,6 @@ function renderToolPart(part: ToolInvocationPart) {
     root.render(
       <AgentProvider>
         <ToolPart part={part} />
-      </AgentProvider>
-    );
-  });
-}
-
-function renderToolPartGroup(parts: ToolInvocationPart[]) {
-  act(() => {
-    root.render(
-      <AgentProvider>
-        <ToolPartGroup parts={parts} />
       </AgentProvider>
     );
   });
@@ -193,46 +182,21 @@ describe("tool disclosure controls", () => {
     ).toBe(false);
   });
 
-  it("allows manually collapsing and expanding an auto-open tool group", () => {
-    renderToolPartGroup([
-      createToolPart({ toolCallId: "tool-call-1" }),
-      createToolPart({ toolCallId: "tool-call-2" }),
-      createAutoOpenToolPart({ toolCallId: "tool-call-3" }),
-    ]);
-    const header = container.querySelector(".tool-pool__header");
+  it("stays collapsed while an auto-open tool's input is still streaming", () => {
+    // The expanded body is built from a pending client-action that only exists
+    // once the input is complete, so opening mid-stream would show an empty
+    // shell. Auto-open should wait for the input to finish streaming.
+    renderToolPart(createAutoOpenToolPart({ state: "input-streaming" }));
 
-    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(false);
 
-    click(header);
-    expect(container.querySelector(".tool-pool__body")).toBeNull();
+    // Once the input completes, the part auto-opens with real content.
+    renderToolPart(createAutoOpenToolPart({ state: "input-available" }));
 
-    click(header);
-    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
-  });
-
-  it("keeps an auto-open tool group collapsed after streaming updates", () => {
-    const initialParts = [
-      createToolPart({ toolCallId: "tool-call-1" }),
-      createToolPart({ toolCallId: "tool-call-2" }),
-      createAutoOpenToolPart({ toolCallId: "tool-call-3" }),
-    ];
-    renderToolPartGroup(initialParts);
-    const header = container.querySelector(".tool-pool__header");
-
-    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
-
-    click(header);
-    expect(container.querySelector(".tool-pool__body")).toBeNull();
-
-    renderToolPartGroup([
-      ...initialParts.slice(0, 2),
-      createAutoOpenToolPart({
-        toolCallId: "tool-call-3",
-        state: "output-available",
-        output: { ok: true },
-      }),
-    ]);
-
-    expect(container.querySelector(".tool-pool__body")).toBeNull();
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(true);
   });
 });

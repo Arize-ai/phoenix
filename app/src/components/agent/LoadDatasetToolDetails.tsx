@@ -7,10 +7,14 @@ import {
   type DatasetSelectionSnapshot,
   type PendingLoadDataset,
 } from "@phoenix/agent/tools/playgroundLoadDataset";
-import { Button, Flex, View } from "@phoenix/components";
+import { Flex } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -168,31 +172,12 @@ function PendingLoadDatasetDetails({
     <Flex direction="column" gap="size-100" minHeight="0">
       <ToolPartLabel>Load dataset</ToolPartLabel>
       <LoadDatasetPreviewBlock snapshot={pendingLoad.snapshot} />
-      <View paddingX="size-200" paddingBottom="size-125">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pendingLoad.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pendingLoad.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>
-            This dataset load was proposed in an earlier session and can&apos;t
-            be applied here. Re-run your request to have PXI propose it again.
-          </ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pendingLoad.accept?.()}
+        onReject={() => void pendingLoad.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage="This dataset load was proposed in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
+      />
     </Flex>
   );
 }
