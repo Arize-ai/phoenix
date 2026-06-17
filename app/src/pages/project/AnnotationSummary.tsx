@@ -384,12 +384,7 @@ export function SummaryValuePreview({
   const chartDimensions = SizesMap[size].chart;
   const pieDimensions = SizesMap[size].pie;
   return (
-    <Flex
-      direction="row"
-      alignItems="center"
-      justifyContent="space-between"
-      gap="size-100"
-    >
+    <Flex direction="row" alignItems="center" gap="size-100">
       {hasLabelFractions ? (
         <PieChart {...chartDimensions}>
           <Pie
