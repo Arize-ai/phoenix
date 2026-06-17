@@ -46,14 +46,14 @@ const getAnnotationDisplayValue = ({
         "n/a"
       );
     case "score-and-label": {
+      // When both a label and a score are present, the combined value is
+      // rendered as distinct pieces by the component. This branch only handles
+      // the case where a single value is available.
       const scoreText =
         typeof annotation.score === "number"
           ? formatFloat(annotation.score)
           : null;
       const labelText = annotation.label || null;
-      if (scoreText && labelText) {
-        return `${labelText} (${scoreText})`;
-      }
       return scoreText || labelText || "n/a";
     }
     case "none":
@@ -93,6 +93,16 @@ export function AnnotationNameAndValue({
     annotation,
     displayPreference,
   });
+  const scoreText =
+    typeof annotation.score === "number" ? formatFloat(annotation.score) : null;
+  const labelText = annotation.label || null;
+  // When both a label and a score are shown, render them as distinct pieces:
+  // the label in the default font and the score in mono, separated by clear
+  // spacing — instead of wrapping the score in parentheses.
+  const showsLabelAndScore =
+    displayPreference === "score-and-label" &&
+    scoreText != null &&
+    labelText != null;
 
   return (
     <Flex
@@ -122,9 +132,35 @@ export function AnnotationNameAndValue({
         >
           <AnnotationScoreText
             positiveOptimization={positiveOptimization}
-            fontFamily="mono"
+            fontFamily={showsLabelAndScore ? "default" : "mono"}
           >
-            {labelValue}
+            {showsLabelAndScore ? (
+              <span
+                css={css`
+                  display: inline-flex;
+                  align-items: center;
+                  gap: var(--global-dimension-size-100);
+                `}
+              >
+                <Text color="inherit" size={size}>
+                  {labelText}
+                </Text>
+                <span
+                  aria-hidden
+                  css={css`
+                    width: 1px;
+                    height: 0.7em;
+                    background-color: currentColor;
+                    opacity: 0.2;
+                  `}
+                />
+                <Text fontFamily="mono" color="inherit" size={size}>
+                  {scoreText}
+                </Text>
+              </span>
+            ) : (
+              labelValue
+            )}
           </AnnotationScoreText>
         </div>
       )}
