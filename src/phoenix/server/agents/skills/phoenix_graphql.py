@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 from phoenix.server.agents.capabilities.skills import (
     ContentSkillResource,
@@ -52,8 +52,8 @@ _RESOURCE_SPECS: tuple[ResourceSpec, ...] = (
 )
 
 
-def _load_resources() -> list[SkillResource]:
-    resources: list[SkillResource] = []
+def _load_resources() -> list[SkillResource[Any]]:
+    resources: list[SkillResource[Any]] = []
     for name, description, filename in _RESOURCE_SPECS:
         content = (_RESOURCES_DIR / filename).read_text(encoding="utf-8").strip()
         resources.append(ContentSkillResource(name=name, description=description, content=content))

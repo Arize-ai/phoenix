@@ -86,7 +86,7 @@ class SkillsToolset(FunctionToolset[AgentDepsT]):
         return list(self._skills.values())
 
 
-def _find_skill_resource(skill: Skill, resource_name: str) -> SkillResource | None:
+def _find_skill_resource(skill: Skill, resource_name: str) -> SkillResource[Any] | None:
     if not skill.resources:
         return None
     for resource in skill.resources:
