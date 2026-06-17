@@ -84,8 +84,6 @@ Example catalog (illustrative, not final):
 | `project:delete` | Delete projects |
 | `prompt:update` | Create and edit prompts |
 | `dataset:update` | Create and edit datasets |
-| `retention:decrease` | Shorten trace-retention windows |
-| `retention:increase` | Lengthen trace-retention windows |
 | `user:invite` | Invite and deactivate users |
 | `role:update` | Create, edit, and delete custom roles |
 | `api-key:create` | Create and rotate API keys |
@@ -107,8 +105,7 @@ Built-in roles remain: System (internal, never assignable), Admin, Member, and
 Viewer, each keeping today's behavior. Their permission sets are **fixed code
 constants**, not editable grant rows — they exist as rows for assignment, but
 behavior preservation is diffable in code rather than seeded into a migration
-that could drift. A custom role has a slug, a display name, a description, and a
-set of grant rows.
+that could drift. Custom roles, by contrast, store their grants as data.
 
 Both built-in and custom roles resolve through one path: "does the effective
 permission set contain `X`?" There is no separate name-based fast path to
@@ -131,8 +128,6 @@ alongside the built-in roles and are assignable like them.
   and the API contract; the display name and description are freely editable. The
   slug never changes and is portable across deployments — unlike the display name
   or the DB id.
-- Users can be assigned a custom role in place of a built-in one. One user still
-  has one role.
 
 Built-in roles are not editable. To customize, **clone** a built-in into a new
 custom role and edit the clone; the built-ins stay as the behavior-preservation
