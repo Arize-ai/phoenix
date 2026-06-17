@@ -1,17 +1,32 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { useArgs } from "storybook/preview-api";
 
+import {
+  Button,
+  Flex,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  SelectChevronUpDownIcon,
+  SelectItem,
+  SelectValue,
+} from "@phoenix/components";
 import {
   EmptyState,
   EmptyStateGraphic,
   EMPTY_STATE_GRAPHIC_VARIANTS,
 } from "@phoenix/components/empty-state";
+import type { EmptyStateGraphicVariant } from "@phoenix/components/empty-state";
 
 const meta: Meta<typeof EmptyStateGraphic> = {
   title: "Core/Feedback/EmptyStateGraphic",
   component: EmptyStateGraphic,
   parameters: {
     layout: "padded",
-    themeLayout: "column",
+    // Lay the light/dark panes out side by side in "Both" mode — the graphic is
+    // small, so horizontal makes the two themes easy to compare at a glance.
+    themeLayout: "row",
   },
   argTypes: {
     variant: {
@@ -35,10 +50,52 @@ type Story = StoryObj<typeof EmptyStateGraphic>;
 export const Default: Story = {};
 
 /**
- * Every named variant. Each region/topic in the app maps to exactly one of
- * these, so the same empty state always looks identical wherever it appears.
+ * Step through every variant from a single dropdown. The selection is backed by
+ * the `variant` arg, so in "Both" theme mode it stays in sync across the light
+ * and dark panes — change it on either side and both update together (Storybook
+ * args live above both theme panes; component-local state would not sync).
  */
 export const AllVariants: Story = {
+  render: function VariantPicker(args) {
+    const [, updateArgs] = useArgs();
+    return (
+      <Flex direction="column" gap="size-200" alignItems="center">
+        <Select
+          size="M"
+          aria-label="Empty state graphic variant"
+          value={args.variant}
+          onChange={(key) =>
+            key && updateArgs({ variant: key as EmptyStateGraphicVariant })
+          }
+        >
+          <Label>Variant</Label>
+          <Button>
+            <SelectValue />
+            <SelectChevronUpDownIcon />
+          </Button>
+          <Popover>
+            <ListBox>
+              {EMPTY_STATE_GRAPHIC_VARIANTS.map((variant) => (
+                <SelectItem key={variant} id={variant}>
+                  {variant}
+                </SelectItem>
+              ))}
+            </ListBox>
+          </Popover>
+        </Select>
+        <EmptyStateGraphic variant={args.variant} />
+      </Flex>
+    );
+  },
+};
+
+/**
+ * Every named variant at once. Each region/topic in the app maps to exactly one
+ * of these, so the same empty state always looks identical wherever it appears.
+ * Stacked vertically in "Both" mode since the grid itself is already wide.
+ */
+export const Gallery: Story = {
+  parameters: { themeLayout: "column" },
   render: () => (
     <div
       style={{
