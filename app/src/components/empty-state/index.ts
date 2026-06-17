@@ -4,3 +4,11 @@ export type {
   EmptyStateAction,
   EmptyStateCardItem,
 } from "./EmptyState";
+export {
+  EmptyStateGraphic,
+  EMPTY_STATE_GRAPHIC_VARIANTS,
+} from "./EmptyStateGraphic";
+export type {
+  EmptyStateGraphicProps,
+  EmptyStateGraphicVariant,
+} from "./EmptyStateGraphic";

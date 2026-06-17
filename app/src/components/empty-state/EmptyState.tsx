@@ -112,7 +112,7 @@ export function EmptyState({
 
   const textBlock =
     title != null || description != null ? (
-      <Flex direction="column" gap="size-100" alignItems="center">
+      <Flex direction="column" gap="size-25" alignItems="center">
         {title != null && (
           <Text size="L" weight="heavy">
             {title}
@@ -128,7 +128,7 @@ export function EmptyState({
 
   if (horizontal) {
     return (
-      <Flex direction="column" gap="size-400" alignItems="center">
+      <Flex direction="column" gap="size-200" alignItems="center">
         <Flex
           direction="row"
           gap="size-400"
@@ -153,8 +153,11 @@ export function EmptyState({
       justifyContent="center"
     >
       {graphic != null && graphic}
-      {textBlock}
-      {action != null && <ActionArea action={action} />}
+      {/* Keep the action tighter to the text than the graphic is to the text. */}
+      <Flex direction="column" gap="size-200" alignItems="center">
+        {textBlock}
+        {action != null && <ActionArea action={action} />}
+      </Flex>
     </Flex>
   );
 }
