@@ -23,6 +23,17 @@ const textCSS = (maxWidth: CSSProperties["maxWidth"]) => css`
   }
 `;
 
+/**
+ * Derives the displayable score and label text for an annotation. Returns
+ * `null` for a part that isn't present so callers can decide how to combine or
+ * render them.
+ */
+const getAnnotationValueParts = (annotation: Annotation) => ({
+  scoreText:
+    typeof annotation.score === "number" ? formatFloat(annotation.score) : null,
+  labelText: annotation.label || null,
+});
+
 const getAnnotationDisplayValue = ({
   annotation,
   displayPreference,
@@ -49,11 +60,7 @@ const getAnnotationDisplayValue = ({
       // When both a label and a score are present, the combined value is
       // rendered as distinct pieces by the component. This branch only handles
       // the case where a single value is available.
-      const scoreText =
-        typeof annotation.score === "number"
-          ? formatFloat(annotation.score)
-          : null;
-      const labelText = annotation.label || null;
+      const { scoreText, labelText } = getAnnotationValueParts(annotation);
       return scoreText || labelText || "n/a";
     }
     case "none":
@@ -93,9 +100,7 @@ export function AnnotationNameAndValue({
     annotation,
     displayPreference,
   });
-  const scoreText =
-    typeof annotation.score === "number" ? formatFloat(annotation.score) : null;
-  const labelText = annotation.label || null;
+  const { scoreText, labelText } = getAnnotationValueParts(annotation);
   // When both a label and a score are shown, render them as distinct pieces:
   // the label in the default font and the score in mono, separated by clear
   // spacing — instead of wrapping the score in parentheses.
