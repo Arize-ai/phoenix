@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TypeAlias
 
 from phoenix.server.agents.capabilities.skills import (
     ContentSkillResource,
     Skill,
     SkillResource,
 )
+
+ResourceSpec: TypeAlias = tuple[str, str, str]
 
 _SKILL_DIR = Path(__file__).resolve().parent.parent / "prompts" / "skills" / "phoenix-graphql"
 _SKILL_PATH = _SKILL_DIR / "SKILL.md"
@@ -15,7 +18,7 @@ _RESOURCES_DIR = _SKILL_DIR / "resources"
 # Per-domain schema references, surfaced as on-demand skill resources so the
 # top-level skill body stays small. Each entry is (resource name, short
 # description shown in the load_skill manifest, resource markdown filename).
-_RESOURCE_SPECS: tuple[tuple[str, str, str], ...] = (
+_RESOURCE_SPECS: tuple[ResourceSpec, ...] = (
     (
         "project-spans-traces",
         "Project aggregates and spans; Span and Trace fields. Start here for trace analysis.",

@@ -12,11 +12,7 @@ from phoenix.server.agents.capabilities.skills.toolset import SkillsToolset
 
 @dataclass
 class SkillsCapability(AbstractStaticCapability[AgentDepsT]):
-    """Capability that wraps a skills toolset with a static instructions template.
-
-    Generic over the agent's dependency type so the same capability serves both
-    the main assistant agent and sub-agents with different (or no) deps.
-    """
+    """Capability that wraps a skills toolset with a static instructions template."""
 
     toolset: SkillsToolset[AgentDepsT]
     instructions: Template

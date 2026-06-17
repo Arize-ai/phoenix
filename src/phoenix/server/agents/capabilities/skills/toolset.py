@@ -13,11 +13,7 @@ from phoenix.server.agents.capabilities.skills.skill_resource import SkillResour
 
 
 class SkillsToolset(FunctionToolset[AgentDepsT]):
-    """Pydantic AI toolset for automatic skill discovery and integration.
-
-    Generic over the agent's dependency type so the same toolset serves both
-    the main assistant agent and sub-agents with different (or no) deps.
-    """
+    """Pydantic AI toolset for automatic skill discovery and integration."""
 
     def __init__(
         self,

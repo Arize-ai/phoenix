@@ -31,15 +31,6 @@ def build_skills(
     return skills
 
 
-def get_server_agent_skills() -> list[Skill]:
-    """Return the skills available to the server sub-agent.
-
-    The sub-agent answers data questions exclusively through GraphQL, so it
-    receives the GraphQL skill regardless of UI context.
-    """
-    return [PHOENIX_GRAPHQL_SKILL]
-
-
 def get_skills_for_contexts(contexts: ResolvedContexts) -> list[Skill]:
     """Return the skills the assistant agent would have given a resolved context set.
 
@@ -96,7 +87,6 @@ def get_skills(
 
 __all__ = [
     "build_skills",
-    "get_server_agent_skills",
     "get_skills",
     "get_skills_for_contexts",
 ]
