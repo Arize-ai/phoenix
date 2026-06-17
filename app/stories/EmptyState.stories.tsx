@@ -9,7 +9,8 @@ const meta: Meta<typeof EmptyState> = {
   component: EmptyState,
   parameters: {
     layout: "padded",
-    themeLayout: "column",
+    // Light/dark panes sit side by side (row) in "Both" mode. The wide
+    // two-column card stories override this to stacked (column) below.
   },
 };
 
@@ -181,6 +182,7 @@ export const TwoCardsOneColumn: Story = {
 
 export const TwoCardsTwoColumns: Story = {
   name: "Two cards — 2 columns (vertical layout)",
+  parameters: { themeLayout: "column" },
   args: {
     title: "Get started with evaluators",
     description: "Choose the evaluator type that fits your use case.",
@@ -200,6 +202,7 @@ export const GraphicTwoCardsOneColumn: Story = {
 
 export const GraphicTwoCardsTwoColumns: Story = {
   name: "Graphic + two cards — 2 columns (vertical layout)",
+  parameters: { themeLayout: "column" },
   args: {
     graphic: <EmptyStateGraphic variant="evaluator" />,
     title: "Get started with evaluators",
@@ -264,6 +267,7 @@ const sixCards = [
 
 export const SixCardsTwoColumns: Story = {
   name: "Six cards — 2 columns, title + desc (auto horizontal layout)",
+  parameters: { themeLayout: "column" },
   args: {
     title: "Automate evaluation of your AI outputs",
     description:
@@ -274,6 +278,7 @@ export const SixCardsTwoColumns: Story = {
 
 export const GraphicSixCardsTwoColumns: Story = {
   name: "Graphic + six cards — 2 columns (auto horizontal layout)",
+  parameters: { themeLayout: "column" },
   args: {
     graphic: <EmptyStateGraphic variant="evaluator" />,
     title: "Automate evaluation of your AI outputs",
@@ -287,6 +292,7 @@ export const GraphicSixCardsTwoColumns: Story = {
 // letting "auto" switch to the side-by-side (horizontal) layout.
 export const GraphicSixCardsTwoColumnsVertical: Story = {
   name: "Graphic + six cards — 2 columns (vertical layout)",
+  parameters: { themeLayout: "column" },
   args: {
     graphic: <EmptyStateGraphic variant="evaluator" />,
     title: "Automate evaluation of your AI outputs",
