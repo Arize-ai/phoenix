@@ -1,0 +1,282 @@
+---
+title: "Eval CI with pytest"
+description: "Run LLM evals as pytest tests, record them as Phoenix experiments, and gate CI on regressions"
+---
+
+The Phoenix pytest plugin lets you write LLM evaluations as ordinary pytest
+tests. Each marked test is recorded as a run in a Phoenix experiment, and pytest's
+exit code becomes your CI gate. A test suite maps to a dataset, each test case maps
+to a dataset example, and the assertion outcome is recorded as a reserved `pass`
+annotation.
+
+## Installation
+
+The plugin ships with `arize-phoenix-client` and is activated by the `pytest` extra.
+Once installed, it registers itself through pytest's plugin entry point — no
+configuration is required.
+
+```bash
+pip install "arize-phoenix-client[pytest]" pytest
+```
+
+If your tests use `phoenix.evals` evaluators (via `@pytest.mark.phoenix(evaluators=...)`
+or `px.evaluate(...)`), also install the `evals` extra:
+
+```bash
+pip install "arize-phoenix-client[pytest,evals]" pytest
+```
+
+## Marking tests
+
+Mark any test with `@pytest.mark.phoenix` to record it. Combine it with
+`pytest.parametrize` to turn each parameter set into a dataset example, and use
+the module-level `px.*` helpers to record output and scores.
+
+```python
+import pytest
+
+import phoenix.client.pytest_plugin as px
+
+
+@pytest.mark.phoenix(dataset="qa-suite")
+@pytest.mark.parametrize(
+    "question,expected",
+    [("What is 2+2?", "4"), ("Capital of France?", "Paris")],
+    ids=["arithmetic", "geography"],
+)
+def test_answers(question, expected):
+    result = my_app(question)
+    px.log_output(result)
+    px.log_evaluation(name="exact_match", score=1.0 if result == expected else 0.0)
+    assert result == expected
+```
+
+### The marker
+
+`@pytest.mark.phoenix(dataset=None, evaluators=None)` accepts:
+
+- `dataset` — the dataset (and experiment) name. Defaults to the test module's
+  name when omitted. A `phoenix_dataset` value in `pytest.ini` overrides every
+  marker in the session and collapses the whole run into one experiment.
+- `evaluators` — one or more `phoenix.evals` evaluators to run against the test,
+  in addition to the assertion-derived `pass` annotation.
+- `repetitions` — run the test multiple times (see [Repetitions](#repetitions)).
+
+Stable identity comes from the `parametrize` ids: re-running the same suite maps
+each case to the same dataset example, so runs accumulate as experiments over the
+same fixtures rather than creating duplicates.
+
+### Recording helpers
+
+Import the plugin module as `px` and call its helpers from inside a marked test:
+
+- `px.log_output(output)` — record the system's output for the run. Capture is
+  explicit because pytest warns on non-`None` test returns.
+- `px.log_evaluation(name=..., score=..., label=..., explanation=...)` — attach an
+  extra annotation to the run, keyed by `name`. These annotations gate only in
+  aggregate; calling this does not by itself fail the test.
+- `px.evaluate(evaluator, **inputs)` — run a `phoenix.evals` evaluator inline,
+  record its score(s) on the run, and return the raw result so you can assert on
+  it. An assertion on the result feeds the `pass` annotation, so an inline
+  evaluation can gate the individual test.
+
+The helpers read a per-test context set by the plugin, so they take no fixture
+parameter and also work in `unittest.TestCase` methods (which receive no fixtures).
+Calling a helper outside a marked test raises an error.
+
+### Repetitions
+
+Because LLM outputs vary between runs, you can repeat each test to reduce noise.
+Per-test `repetitions=` on the marker takes precedence over the session-wide
+`PHOENIX_TEST_REPETITIONS` env var, which takes precedence over the default of `1`.
+
+```python
+@pytest.mark.phoenix(dataset="qa-suite", repetitions=3)
+def test_flaky_answer():
+    ...
+```
+
+Repetitions are expanded into real pytest items, so they are visible to `-k`,
+`pytest-xdist`, and your IDE. All repetitions of one case share the same dataset
+example and are recorded as distinct runs.
+
+## Offline mode
+
+Iterate locally without sending anything to Phoenix by setting either env var.
+In offline mode the suite runs normally and prints how many tests ran without
+recording.
+
+```bash
+PHOENIX_TEST_DRY_RUN=1 pytest    # collect + run, skip all network calls
+PHOENIX_TEST_TRACKING=0 pytest   # disable recording entirely
+```
+
+## The `PHOENIX_TEST_*` env contract
+
+The plugin is configured entirely through environment variables, so the same test
+suite behaves differently in local development and CI without code changes.
+Booleans accept `1/true/yes/on` (truthy) and `0/false/no/off`/empty (falsy).
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When false, the suite runs offline. |
+| `PHOENIX_TEST_DRY_RUN` | `false` | Run and collect, but make no network calls (also offline). |
+| `PHOENIX_TEST_REPETITIONS` | `1` | Default repetition count for marked tests; must be an integer `>= 1`. |
+| `PHOENIX_TEST_REPO_INFO` | `true` | Collect git provenance into the experiment's `repo_info` metadata. |
+| `PHOENIX_TEST_FAIL_ON_REGRESSION` | `false` | Fail the run when a tracked score regresses against the baseline. |
+| `PHOENIX_TEST_MIN_SCORE` | unset | Comma-separated `name:float` floors, e.g. `correctness:0.8,relevance:0.7`. Fail when an annotation's mean falls below its floor. |
+
+<Note>
+These names and their truthiness semantics are a cross-ecosystem contract shared
+verbatim with the TypeScript test runner. A malformed value (for example a
+non-integer `PHOENIX_TEST_REPETITIONS`) is a hard error so CI never silently runs
+ungated.
+</Note>
+
+Connection to your Phoenix deployment uses the standard client variables —
+`PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`.
+
+## Gating
+
+There are two independent gates:
+
+- **Per-case** — a failing assertion records `pass=False` for that run and fails
+  the pytest item, exactly like a normal test. This is on by default with no
+  configuration.
+- **Aggregate** — set `PHOENIX_TEST_FAIL_ON_REGRESSION` and/or `PHOENIX_TEST_MIN_SCORE`
+  to fail the whole run when scores move the wrong way relative to a baseline,
+  even if every individual test passed.
+
+When an aggregate gate is configured, the run also fails if recording could not be
+initialized or a summary could not be fetched, so a broken pipeline never reports
+a passing gate. The result is rendered into the pytest terminal summary at the end
+of the run.
+
+The contract a CI consumer depends on is small and stable: **pytest's exit code
+and the printed terminal summary**. Everything else (experiment IDs, summary
+endpoint payloads) is an implementation detail you may consume but should not
+treat as frozen.
+
+## The `repo_info` convention
+
+When `PHOENIX_TEST_REPO_INFO` is enabled (the default), the plugin records git
+provenance under the reserved `repo_info` key of the experiment's `metadata`:
+
+```json
+{
+  "commit": "…",
+  "branch": "…",
+  "dirty": false,
+  "author_name": "…",
+  "author_email": "…",
+  "commit_message": "…",
+  "commit_time": "…",
+  "remote_url": "…",
+  "tag": "…"
+}
+```
+
+Collection degrades gracefully: outside a git repository the block is simply
+absent. Credentials in `remote_url` are stripped. `repo_info` is reserved for
+runner-collected metadata — a runner overwrites any user-supplied `repo_info`.
+Only `repo_info.commit` is read server-side, to resolve baselines for diffing.
+
+## The summary endpoint for CI consumers
+
+The plugin reads baseline diffs from `GET /v1/experiments/{experiment_id}/summary`.
+You can call the same endpoint directly to build your own CI integrations. It
+returns per-annotation rows, each with a repetition-aware `mean_score` and the
+number of examples `n` that contributed a numeric score:
+
+```json
+{
+  "data": {
+    "experiment_id": "…",
+    "dataset_version_id": "…",
+    "baseline_experiment_id": "…",
+    "baseline_dataset_version_id": "…",
+    "annotation_summaries": [
+      {
+        "annotation_name": "exact_match",
+        "mean_score": 0.92,
+        "n": 50,
+        "optimization_direction": "maximize",
+        "baseline_mean_score": 0.88,
+        "diff": 0.04,
+        "num_improved": 6,
+        "num_regressed": 2,
+        "num_equal": 42
+      }
+    ]
+  }
+}
+```
+
+Query parameters:
+
+- `baseline_experiment_id` — compare against a specific experiment. It must pin
+  the same dataset version, otherwise the request is refused with HTTP 409.
+- `ancestor_commits` — an ordered, closest-first list of commit SHAs. The server
+  picks the most recent prior experiment on the same dataset version whose
+  `repo_info.commit` appears in the list. The plugin supplies this from the
+  parent commit chain so it can diff against the last run on a prior commit.
+- `minimize_scores` — annotation names that are lower-is-better; everything else
+  defaults to `maximize`.
+
+The `diff` sign is not direction-adjusted; use each row's `optimization_direction`
+to interpret it. When no comparable baseline is found, the response is `200` with a
+null `baseline_experiment_id` and null baseline fields.
+
+## GitHub Actions recipe
+
+The following workflow installs the plugin, runs your eval suite, and gates the job
+on the pytest exit code. Copy it to `.github/workflows/eval-ci.yml`. A runnable copy
+plus an example test suite lives in the
+[client examples directory](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client/examples/pytest_plugin).
+
+```yaml
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      # ancestor_commits baseline resolution reads the parent commit chain,
+      # so the suite needs git history rather than a shallow checkout.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The pytest extra activates the plugin entry point.
+      - name: Install dependencies
+        run: pip install "arize-phoenix-client[pytest]" pytest
+
+      - name: Run eval suite
+        env:
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          PHOENIX_TEST_FAIL_ON_REGRESSION: "1"
+          # PHOENIX_TEST_MIN_SCORE: "correctness:0.8,relevance:0.7"
+        run: pytest tests/evals
+```
+
+### Optional: post the summary as a PR comment
+
+The example workflow includes a commented-out step that captures the terminal
+summary and upserts it as a single PR comment, using a hidden marker to update its
+own previous comment instead of adding a duplicate on every run. It is an example
+consumer of the printed summary — adapt it to your needs rather than treating it
+as a maintained Phoenix artifact.
+
+<Tip>
+The terminal summary and pytest exit code are the only stable contracts. Build
+custom CI integrations against those (and the summary endpoint), not against
+internal plugin behavior.
+</Tip>
