@@ -120,6 +120,20 @@ class TestAnnotationDataFrameValidation:
         with pytest.raises(ValueError, match="DataFrame must have ALL required ID columns"):
             _validate_document_annotations_dataframe(dataframe=df_missing_doc)
 
+        df_invalid_doc_position = pd.DataFrame(
+            {
+                "name": ["relevance"],
+                "annotator_kind": ["HUMAN"],
+                "span_id": ["span1"],
+                "document_position": ["not-an-int"],
+                "label": ["relevant"],
+            }
+        )
+        with pytest.raises(
+            ValueError, match="document_position values must be of type int"
+        ):
+            _validate_document_annotations_dataframe(dataframe=df_invalid_doc_position)
+
     def test_global_parameter_validation(self) -> None:
         """Test validation when fields are required vs optional in DataFrame."""
         df_with_fields = pd.DataFrame(

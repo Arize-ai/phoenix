@@ -414,9 +414,17 @@ def _validate_annotations_dataframe(
                 )
 
     if available_id_columns:
-        actual_id_column = available_id_columns[0]
-        expected_type = id_config.columns.get(actual_id_column, str)
-        _validate_column_values(dataframe, actual_id_column, expected_type, actual_id_column)
+        for actual_id_column in available_id_columns:
+            id_column = next(
+                (
+                    primary
+                    for primary, fallback in id_config.fallbacks.items()
+                    if fallback == actual_id_column
+                ),
+                actual_id_column,
+            )
+            expected_type = id_config.columns.get(id_column, str)
+            _validate_column_values(dataframe, actual_id_column, expected_type, actual_id_column)
 
     elif available_id_index_names:
         for index_name in available_id_index_names:
