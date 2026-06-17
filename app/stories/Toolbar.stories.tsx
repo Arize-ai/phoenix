@@ -83,7 +83,7 @@ const Template: StoryFn<ToolbarStoryArgs> = (args) => {
 
       {/* Example icon button */}
       <IconButton aria-label="Info">
-        <Icon svg={<Icons.Info />} />
+        <Icon svg={<Icons.InfoFilled />} />
       </IconButton>
     </Toolbar>
   );
