@@ -2282,14 +2282,30 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
 
     from phoenix.server.api.routers.v1 import create_v1_router
 
+    def join_paths(prefix: str, path: str) -> str:
+        if not prefix:
+            return path
+        return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+
+    def iter_api_routes(routes: Iterable[Any], prefix: str = "") -> Iterator[tuple[str, str]]:
+        for route in routes:
+            if isinstance(route, APIRoute):
+                for method in route.methods:
+                    yield method, join_paths(prefix, route.path)
+                continue
+
+            # FastAPI 0.137+ keeps included routers lazy as private _IncludedRouter
+            # entries instead of flattening them into APIRoute entries immediately.
+            included_router = getattr(route, "original_router", None)
+            if included_router is None:
+                continue
+            include_context = getattr(route, "include_context", None)
+            include_prefix = getattr(include_context, "prefix", "")
+            yield from iter_api_routes(included_router.routes, join_paths(prefix, include_prefix))
+
     # Get all actual routes from the v1 router
     router = create_v1_router(authentication_enabled=False)
-    actual_routes = {
-        (method, route.path)
-        for route in router.routes
-        if isinstance(route, APIRoute)
-        for method in route.methods
-    }
+    actual_routes = set(iter_api_routes(router.routes))
 
     # Get all routes from test constants
     test_routes = {
