@@ -313,3 +313,80 @@ def test_repetitions_expand_to_distinct_runs(
     assert rep["n_examples"] == 1
     # experiment.repetitions reflects the resolved N.
     assert rep["experiment_repetitions"] == 3
+
+
+def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester) -> None:
+    """@pytest.mark.phoenix(evaluators=[...]) runs each evaluator over the case automatically and
+    records its score as an annotation — no inline px.evaluate needed (D12 declarative form)."""
+    pytester.makeconftest(
+        """
+        import json, os
+        import phoenix.client.pytest_plugin.plugin as plugin
+
+        class _FakeDataset:
+            id = "Dataset:1"; version_id = "Version:1"
+            def __init__(self, ex): self._ex = ex
+            @property
+            def examples(self): return self._ex
+
+        class _FakeDatasets:
+            def __init__(self): self._ex = []
+            def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                                     example_ids, action, **kw):
+                self._ex = [{"id": example_ids[0], "node_id": "DatasetExampleGID:0",
+                             "input": inputs[0], "output": {}, "metadata": metadata[0]}]
+                return _FakeDataset(self._ex)
+            def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+        class _FakeExperiments:
+            def __init__(self): self.evals = []
+            def create(self, **kw): return {"id": "Experiment:1"}
+            def log_run(self, **kw): return {"id": "ExperimentRun:0"}
+            def log_evaluation(self, *, name, score=None, **kw):
+                self.evals.append({"name": name, "score": score}); return {"id": "A:1"}
+            def get_experiment_summary(self, *, experiment_id, **kw):
+                return {"experiment_id": experiment_id, "dataset_version_id": "Version:1",
+                        "baseline_experiment_id": None, "baseline_dataset_version_id": None,
+                        "annotation_summaries": []}
+
+        class _FakeClient:
+            def __init__(self):
+                self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+        _CLIENT = _FakeClient()
+        def pytest_configure(config):
+            plugin._make_client = lambda: _CLIENT
+            config._c = _CLIENT
+        def pytest_unconfigure(config):
+            c = config._c
+            with open(os.path.join(str(config.rootdir), "ev.json"), "w") as f:
+                json.dump({"evals": c.experiments.evals}, f)
+        """
+    )
+    pytester.makepyfile(
+        test_hoist="""
+        import pytest
+        import phoenix.client.pytest_plugin as px
+
+        def correctness(output, expected, **_):
+            # A plain callable evaluator (no phoenix.evals dependency needed for the test).
+            return {"name": "correctness", "score": 1.0 if output == expected else 0.0}
+
+        @pytest.mark.phoenix(dataset="hoist-suite", evaluators=[correctness])
+        @pytest.mark.parametrize("expected", ["ok"], ids=["case1"])
+        def test_thing(expected):
+            px.log_output("ok")
+            assert True   # no inline px.evaluate — the marker evaluator runs automatically
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    result.assert_outcomes(passed=1)
+
+    import json
+
+    ev = json.loads((pytester.path / "ev.json").read_text())
+    by_name = {e["name"]: e["score"] for e in ev["evals"]}
+    # The hoisted evaluator recorded its score WITHOUT any inline px.evaluate call,
+    assert by_name.get("correctness") == 1.0
+    # alongside the assertion-derived `pass` annotation.
+    assert by_name.get("pass") == 1.0

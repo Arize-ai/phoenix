@@ -15,8 +15,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 from .config import PhoenixTestConfig
-from .context import _RunRecord
-from .marker import resolve_evaluators
+from .context import _invoke_evaluator, _iter_scores, _RunRecord
+from .marker import REPETITION_PARAM, resolve_evaluators
 from .repo_info import REPO_INFO_METADATA_KEY
 
 if TYPE_CHECKING:
@@ -286,6 +286,53 @@ class SuiteState:
                 annotator_kind=kwargs.get("annotator_kind", "CODE"),
                 metadata=kwargs.get("metadata"),
             )
+        # Hoisted marker evaluators: @pytest.mark.phoenix(evaluators=[...]) runs each evaluator
+        # over the case automatically (D12 declarative form) — the "one task over a dataset with a
+        # uniform evaluator set" shape, with no inline px.evaluate required.
+        self._run_marker_evaluators(binding, run_id=run["id"], output=record.output)
+
+    def _run_marker_evaluators(self, binding: ItemBinding, *, run_id: str, output: Any) -> None:
+        """Run hoisted ``@pytest.mark.phoenix(evaluators=[...])`` evaluators over the case and
+        record each score as an annotation.
+
+        Each evaluator receives the case's parametrized fields plus the recorded ``output`` (the
+        same invocation path as ``px.evaluate``). Results gate only in aggregate — they never fail
+        the individual pytest item (D12). A failing evaluator degrades to a warning, like inline
+        evals, so one broken evaluator never sinks the run's other annotations.
+        """
+        item = self._items_by_nodeid.get(binding.nodeid)
+        if item is None:
+            return
+        evaluators = resolve_evaluators(item)
+        if not evaluators:
+            return
+        eval_input = _eval_input_for(item, output)
+        for evaluator in evaluators:
+            default_name = (
+                getattr(evaluator, "name", None)
+                or getattr(evaluator, "__name__", None)
+                or "evaluation"
+            )
+            try:
+                result = _invoke_evaluator(evaluator, eval_input)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "Phoenix plugin: hoisted evaluator %s failed for %s: %s",
+                    default_name,
+                    binding.nodeid,
+                    e,
+                )
+                continue
+            for score in _iter_scores(result, default_name=default_name):
+                self._safe_log_eval(
+                    experiment_run_id=run_id,
+                    name=score["name"],
+                    score=score.get("score"),
+                    label=score.get("label"),
+                    explanation=score.get("explanation"),
+                    annotator_kind=score.get("annotator_kind", "LLM"),
+                    metadata=score.get("metadata"),
+                )
 
     def _safe_log_eval(self, **kwargs: Any) -> None:
         try:
@@ -335,7 +382,9 @@ def _example_fields(
     if item is not None:
         callspec = getattr(item, "callspec", None)
         if callspec is not None and getattr(callspec, "params", None):
-            input_payload = {k: _jsonable(v) for k, v in callspec.params.items()}
+            input_payload = {
+                k: _jsonable(v) for k, v in callspec.params.items() if k != REPETITION_PARAM
+            }
         marker = item.get_closest_marker("phoenix")
         if marker is not None:
             evaluators = resolve_evaluators(item)
@@ -350,3 +399,14 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return repr(value)
+
+
+def _eval_input_for(item: "Item", output: Any) -> dict[str, Any]:
+    """Build the default input a hoisted marker evaluator receives: the case's parametrized
+    fields (minus the injected repetition param) plus the recorded ``output``."""
+    eval_input: dict[str, Any] = {}
+    callspec = getattr(item, "callspec", None)
+    if callspec is not None and getattr(callspec, "params", None):
+        eval_input = {k: v for k, v in callspec.params.items() if k != REPETITION_PARAM}
+    eval_input["output"] = output
+    return eval_input
