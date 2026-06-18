@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bad3979f639994874b99bea8748bdea8>>
+ * @generated SignedSource<<1d9c1c9999de8153d647b57de4eab2b4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,11 +14,11 @@ export type CreatePromptLabelInput = {
   description?: string | null;
   name: string;
 };
-export type NewPromptLabelDialogMutation$variables = {
+export type usePromptLabelMutationsCreateLabelMutation$variables = {
   connections: ReadonlyArray<string>;
   label: CreatePromptLabelInput;
 };
-export type NewPromptLabelDialogMutation$data = {
+export type usePromptLabelMutationsCreateLabelMutation$data = {
   readonly createPromptLabel: {
     readonly promptLabels: ReadonlyArray<{
       readonly color: string | null;
@@ -27,9 +27,9 @@ export type NewPromptLabelDialogMutation$data = {
     }>;
   };
 };
-export type NewPromptLabelDialogMutation = {
-  response: NewPromptLabelDialogMutation$data;
-  variables: NewPromptLabelDialogMutation$variables;
+export type usePromptLabelMutationsCreateLabelMutation = {
+  response: usePromptLabelMutationsCreateLabelMutation$data;
+  variables: usePromptLabelMutationsCreateLabelMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -90,7 +90,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "NewPromptLabelDialogMutation",
+    "name": "usePromptLabelMutationsCreateLabelMutation",
     "selections": [
       {
         "alias": null,
@@ -115,7 +115,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "NewPromptLabelDialogMutation",
+    "name": "usePromptLabelMutationsCreateLabelMutation",
     "selections": [
       {
         "alias": null,
@@ -153,16 +153,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c61bebc2bf20d8cf12760e79bfd8205b",
+    "cacheID": "8600130cb9db02bec9b9002a6338b796",
     "id": null,
     "metadata": {},
-    "name": "NewPromptLabelDialogMutation",
+    "name": "usePromptLabelMutationsCreateLabelMutation",
     "operationKind": "mutation",
-    "text": "mutation NewPromptLabelDialogMutation(\n  $label: CreatePromptLabelInput!\n) {\n  createPromptLabel(input: $label) {\n    promptLabels {\n      id\n      name\n      color\n    }\n  }\n}\n"
+    "text": "mutation usePromptLabelMutationsCreateLabelMutation(\n  $label: CreatePromptLabelInput!\n) {\n  createPromptLabel(input: $label) {\n    promptLabels {\n      id\n      name\n      color\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ddbd14ff91d53dfbceede5ee349cb9ab";
+(node as any).hash = "4a8dfd9b431701c95705b5098fdb8be2";
 
 export default node;

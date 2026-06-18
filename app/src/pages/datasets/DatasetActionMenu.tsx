@@ -52,6 +52,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
       <MenuTrigger>
         <Button
           size="S"
+          aria-label="Dataset actions"
           leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
         />
         <Popover>

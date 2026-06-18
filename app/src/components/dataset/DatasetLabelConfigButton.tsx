@@ -199,6 +199,7 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
+                aria-label="Back to labels"
                 leadingVisual={<Icon svg={<Icons.ChevronLeftSmall />} />}
                 onPress={() => setMode("apply")}
               />
@@ -209,6 +210,7 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
+                aria-label="Create new label"
                 leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
                 onPress={() => setMode("create")}
               />
