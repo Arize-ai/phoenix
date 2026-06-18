@@ -4,10 +4,14 @@ import type {
   PatchExperimentFieldDiff,
   PendingPatchExperiment,
 } from "@phoenix/agent/tools/patchExperiment";
-import { Button, Flex, Text, View } from "@phoenix/components";
+import { Flex, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -96,31 +100,12 @@ function PendingPatchExperimentDetails({
         Proposed edit to &ldquo;{pendingPatch.experimentName}&rdquo;
       </ToolPartLabel>
       <FieldDiffList diff={pendingPatch.diff} />
-      <View paddingX="size-200">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pendingPatch.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pendingPatch.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>
-            This edit was proposed in an earlier session and can&apos;t be
-            applied here. Re-run your request to have PXI propose it again.
-          </ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pendingPatch.accept?.()}
+        onReject={() => void pendingPatch.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage="This edit was proposed in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
+      />
     </Flex>
   );
 }

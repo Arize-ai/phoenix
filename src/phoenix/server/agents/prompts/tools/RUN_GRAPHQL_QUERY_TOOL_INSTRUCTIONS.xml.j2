@@ -2,12 +2,12 @@
   <description>Execute a read-only GraphQL query against the Phoenix server and return its result, for example fetching project data, retrieving traces, or inspecting the schema via introspection.</description>
   <guidelines>
     - This tool is read-only: only `query` operations are permitted. Mutations and subscriptions are rejected, so do not attempt to write, delete, or otherwise modify data with it.
-    - Do not guess field, type, or argument names. When you are not certain the schema matches what you intend to query, run an introspection query first (e.g. `{ __type(name: "Project") { fields { name args { name } type { name kind } } } }`) and write your query against what it returns.
-    - Write a single GraphQL query that retrieves exactly what is needed and pass query variables via `variable_values` rather than string interpolation.
+    - Before composing a non-trivial query, load the `phoenix-graphql` skill — it documents the schema entrypoints, pagination, ID semantics, filter syntax, and ready-to-use query patterns, so you rarely need introspection.
+    - Do not run full schema introspection. If the skill does not cover a field you need, introspect a single type (e.g. `{ __type(name: "Project") { fields { name args { name } type { name kind } } } }`) and write your query against what it returns.
+    - Write a single GraphQL query that retrieves exactly what is needed — batch independent lookups with aliases — and pass query variables via `variable_values` rather than string interpolation.
     - If a query selects the same field more than once with different arguments, every repeated selection must use a unique alias. This is especially important for introspection: bad: `{ __type(name: "Trace") { fields { name } } __type(name: "Span") { fields { name } } }`; good: `{ traceType: __type(name: "Trace") { fields { name } } spanType: __type(name: "Span") { fields { name } } }`.
-    - Prefer small introspection queries over broad schema-discovery queries. If you need multiple types, either query them one at a time or use aliases for each `__type` selection.
     - For fields returning object lists, introspect the returned object type before selecting child fields. Do not assume common names like `name`; some Phoenix aggregate types use fields such as `exceptionType` or `spanKind` instead.
-    - On success the tool returns a dict with the query `data`. If the query has errors the tool raises and you receive the error messages back — read them, introspect the schema if a field or argument may be wrong, correct the query, and retry.
+    - On success the tool returns a dict with the query `data`. If the query has errors the tool raises and you receive the error messages back — read them, correct the query (introspect the exact parent type and field names if needed), and retry.
     - Treat generic GraphQL errors such as `an unexpected error occurred` as possible validation errors. Do not keep retrying the same query. First simplify the query or introspect the exact parent type and field names, then retry with a corrected query.
     - Return a concise, factual answer grounded in the data you retrieved.
   </guidelines>

@@ -39,7 +39,9 @@ Use this file for initial orientation.
 Helpful files:
 - ${PHOENIX_ROOT}/page-context.json
 - ${PHOENIX_ROOT}/graphql/current-page.md
-- ${PHOENIX_ROOT}/graphql/README.md
+- ${PHOENIX_ROOT}/graphql/schema.json (full introspection — prefer the phoenix-graphql skill over reading this)
+
+For GraphQL guidance (schema entrypoints, pagination, filters, query patterns), load the \`phoenix-graphql\` skill instead of exploring the schema.
 
 Relevant recipe files:
 ${recipePaths.length > 0 ? recipePaths.map((path) => `- ${path}`).join("\n") : "- (none)"}

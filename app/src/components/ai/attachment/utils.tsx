@@ -68,6 +68,8 @@ function getContextCategoryIcon(category: string | undefined): ReactNode {
       return <Icon svg={<Icons.PlayCircle />} />;
     case "code_evaluator":
       return <Icon svg={<Icons.Edit />} />;
+    case "llm_evaluator":
+      return <Icon svg={<Icons.Scale />} />;
     default:
       return <Icon svg={<Icons.Info />} />;
   }

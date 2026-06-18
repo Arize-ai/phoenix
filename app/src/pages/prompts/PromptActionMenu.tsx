@@ -1,4 +1,6 @@
-import { useCallback, useState } from "react";
+import { css } from "@emotion/react";
+import { Suspense, useCallback, useState } from "react";
+import { SubmenuTrigger } from "react-aria-components";
 
 import {
   Button,
@@ -6,18 +8,23 @@ import {
   Flex,
   Icon,
   Icons,
+  Loading,
   Menu,
   MenuItem,
   MenuTrigger,
   Modal,
   Popover,
+  PopoverArrow,
+  Text,
 } from "@phoenix/components";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
+import { PromptLabelSelectionContent } from "@phoenix/pages/prompt/PromptLabelConfigButton";
 
 import { DeletePromptDialog } from "./DeletePromptDialog";
 
 enum PromptAction {
   DELETE = "DELETE",
+  LABELS = "LABELS",
 }
 
 export function PromptActionMenu({
@@ -38,6 +45,7 @@ export function PromptActionMenu({
       <MenuTrigger>
         <Button
           size="S"
+          aria-label="Prompt actions"
           leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover>
@@ -51,6 +59,40 @@ export function PromptActionMenu({
               }
             }}
           >
+            <SubmenuTrigger>
+              <MenuItem id={PromptAction.LABELS}>
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.PriceTags />} />
+                  <Text>Label</Text>
+                </Flex>
+              </MenuItem>
+              <Popover
+                placement="start top"
+                css={css`
+                  min-width: 300px;
+                  width: 300px;
+                `}
+              >
+                <PopoverArrow />
+                <Suspense
+                  fallback={
+                    <Loading
+                      css={css`
+                        min-width: 300px;
+                        min-height: 100px;
+                      `}
+                    />
+                  }
+                >
+                  <PromptLabelSelectionContent promptId={promptId} />
+                </Suspense>
+              </Popover>
+            </SubmenuTrigger>
             <MenuItem id={PromptAction.DELETE}>
               <Flex
                 direction={"row"}
@@ -59,7 +101,7 @@ export function PromptActionMenu({
                 alignItems={"center"}
               >
                 <Icon svg={<Icons.Trash />} />
-                <>Delete</>
+                <Text>Delete</Text>
               </Flex>
             </MenuItem>
           </Menu>
