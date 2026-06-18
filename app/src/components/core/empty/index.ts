@@ -1,4 +1,5 @@
 export { Empty } from "./Empty";
+export { CompactEmptyState } from "./CompactEmptyState";
 export { EmptyState } from "./EmptyState";
 export { EmptyStateArea } from "./EmptyStateArea";
 export type {

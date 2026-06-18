@@ -17,7 +17,6 @@ import {
   LinkButton,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuItem,
@@ -27,6 +26,7 @@ import {
   Text,
   Token,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
@@ -231,7 +231,12 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             selectionMode="single"
             selectedKeys={selectedDatasetKeys}
             items={datasetItems}
-            renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.DatabaseOutline />} />}
+                description="No datasets found"
+              />
+            )}
           >
             {({
               id,

@@ -23,13 +23,15 @@ import {
   Alert,
   Card,
   ContentSkeleton,
-  Empty,
   Flex,
+  Icon,
+  Icons,
   Link,
   Text,
   View,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { useNotifySuccess } from "@phoenix/contexts";
@@ -346,7 +348,10 @@ const ProjectAnnotationConfigCardContent = (
   if (allAnnotationConfigs.edges.length === 0) {
     return (
       <View paddingY="size-400">
-        <Empty message="No annotation configurations available." />
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.SettingsOutline />} />}
+          description="No annotation configurations available."
+        />
       </View>
     );
   }
