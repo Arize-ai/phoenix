@@ -75,6 +75,21 @@ class SessionContext(_ChatContextBase):
     session_node_id: str = Field(alias="sessionNodeId")
 
 
+class PromptContext(_ChatContextBase):
+    """Prompt the user is currently viewing."""
+
+    type: Literal["prompt"]
+    prompt_node_id: str = Field(alias="promptNodeId")
+
+
+class PromptVersionContext(_ChatContextBase):
+    """Prompt version the user is currently viewing."""
+
+    type: Literal["prompt_version"]
+    prompt_node_id: str = Field(alias="promptNodeId")
+    prompt_version_node_id: str = Field(alias="promptVersionNodeId")
+
+
 class AgentSpanContext(_ChatContextBase):
     """Span the user has selected.
 
@@ -248,6 +263,8 @@ class ChatContext(
             | ProjectContext
             | TraceContext
             | SessionContext
+            | PromptContext
+            | PromptVersionContext
             | AgentSpanContext
             | PlaygroundContext
             | CodeEvaluatorContext
@@ -269,6 +286,8 @@ class ResolvedContexts:
     project: ProjectContext | None = None
     trace: TraceContext | None = None
     session: SessionContext | None = None
+    prompt: PromptContext | None = None
+    prompt_version: PromptVersionContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
@@ -299,6 +318,10 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.trace = context_value
         elif isinstance(context_value, SessionContext):
             resolved.session = context_value
+        elif isinstance(context_value, PromptContext):
+            resolved.prompt = context_value
+        elif isinstance(context_value, PromptVersionContext):
+            resolved.prompt_version = context_value
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
