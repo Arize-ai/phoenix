@@ -116,11 +116,13 @@ class CostModelLookup:
               for user-defined models, uses positive ID (higher IDs win)
 
         Examples:
-            >>> lookup = CostModelLookup([model1, model2, model3])  # doctest: +SKIP
-            >>> model = lookup.find_model(  # doctest: +SKIP
-            ...     start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            ...     attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}}
-            ... )
+            .. code-block:: python
+
+                lookup = CostModelLookup([model1, model2, model3])
+                model = lookup.find_model(
+                    start_time=datetime(2024, 1, 1, tzinfo=timezone.utc),
+                    attributes={"llm": {"model_name": "gpt-3.5-turbo", "provider": "openai"}},
+                )
         """  # noqa: E501
         # 1. extract and validate inputs
         if not is_timezone_aware(start_time):

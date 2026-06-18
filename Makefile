@@ -75,7 +75,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
 	@echo -e "  test-helm              - Run Helm chart tests"
-	@echo -e "  doctest                - Run doctests on specific modules (override with MODULES=...)"
+	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
@@ -241,18 +241,11 @@ test-python: ## Run Python tests (unit + integration)
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(TOX) run -q -e integration_tests
 
-# Modules whose doctests are executable and enforced; override on the command line,
-# e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
-DOCTEST_MODULES ?= \
-	src/phoenix/datetime_utils.py \
-	src/phoenix/db/helpers.py \
-	src/phoenix/server/cost_tracking/cost_model_lookup.py \
-	src/phoenix/server/cost_tracking/regex_specificity.py \
-	src/phoenix/server/ldap.py \
-	src/phoenix/utilities/env_vars.py \
-	src/phoenix/utilities/template_formatters.py
+# Run doctests across all modules under src/ by default; override on the command
+# line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
+DOCTEST_MODULES ?= src/phoenix
 
-doctest: ## Run doctests on specific modules (override with MODULES=...)
+doctest: ## Run doctests across all modules in src/ (override with MODULES=...)
 	@echo -e "$(CYAN)Running doctests on $(or $(MODULES),$(DOCTEST_MODULES))...$(NC)"
 	@$(UV) run pytest --doctest-modules $(or $(MODULES),$(DOCTEST_MODULES))
 	@echo -e "$(GREEN)✓ Doctests passed$(NC)"

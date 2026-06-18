@@ -299,6 +299,9 @@ addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  # Alembic's env.py runs migration context at import time and isn't importable
+  # standalone, which breaks --doctest-modules collection.
+  "--ignore=src/phoenix/db/migrations/env.py",
   "--new-first",
   "--showlocals",
 ]
