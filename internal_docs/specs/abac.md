@@ -29,7 +29,10 @@ permission applies to.
 ## Non-Goals
 
 - Replacing roles or the global grants from RBAC.
-- A general policy language (boolean logic, deny rules, precedence).
+- A general policy language — boolean logic, deny rules, allow/deny precedence.
+  Tag-based ABAC systems commonly offer allow/deny policies where deny always
+  wins; Phoenix deliberately starts with additive, conditioned grants and no deny,
+  the same additive model RBAC uses.
 - Attribute sources beyond what RBAC and external auth already provide.
 
 ## Prerequisites
@@ -44,11 +47,11 @@ inherit from. Before ABAC is buildable:
    captured at creation, from which attributes can be inherited, plus a generic
    attribute/tag store.
 2. **A migration story for the existing corpus.** Every existing resource is
-   untagged. A conditional grant `user.team == resource.team` denies any resource
-   missing `team` (null matches nothing), so turning on a condition would make the
-   entire un-tagged corpus invisible — a cliff. The chosen missing-attribute
-   semantics (deny vs. fall-back-to-global) and a backfill plan must be settled as
-   part of this foundation, not assumed here.
+   untagged. A strict condition `user.team == resource.team` denies any resource
+   missing `team` (null matches nothing), so turning it on would make the entire
+   un-tagged corpus invisible — a cliff. The match-if-absent condition behavior
+   (see Evaluation) is the escape hatch, but a concrete backfill plan still belongs
+   to this foundation, not assumed here.
 
 Until these exist, this spec is a design reference, not an implementation plan.
 
@@ -66,6 +69,13 @@ Example keys:
 - `team` — `ml-platform`, `growth`
 - `department` — `engineering`, `research`
 
+On resources these attributes take the form of **tags** — user-assigned key/value
+labels carried by the resource (a tag store is the most plausible concrete
+foundation; see Prerequisites). Resources that carry no tags of their own inherit
+from a parent: a trace's attributes are its project's tags, so `trace:read` is
+evaluated against the parent project rather than requiring every trace to be
+tagged.
+
 A condition such as `trace:read` *when* `user.environment == resource.environment`
 lets one role give each user access only to their own environment's data.
 
@@ -81,6 +91,11 @@ everywhere it is used.
 - `project:update` *when* `user.team == resource.team`
 - `dataset:read` *when* `user.department == resource.department`
 
+Equality is the common case, but a condition is not limited to it: comparisons may
+be case-insensitive, and a value may match a glob pattern (`environment` matches
+`prod-*`) so one condition covers a family of related tag values without a grant
+per value.
+
 A grant with no condition stays global, exactly as in RBAC. Built-in roles have
 no editable grant rows, so they are always global — only custom roles carry
 conditions.
@@ -89,12 +104,25 @@ conditions.
 
 Authorization first resolves the RBAC grant (does the role hold the permission?),
 then evaluates any condition against the target resource. Both must pass. No
-condition means the global grant stands. Missing-attribute semantics are settled
-with the resource-attribution foundation (see Prerequisites), since they decide
-how the existing un-tagged corpus behaves.
+condition means the global grant stands.
+
+When the resource is missing the attribute a condition names, the condition
+carries its own behavior — set per condition, not globally:
+
+- **strict** — a missing attribute fails the condition, so the resource is denied.
+  This is the default and gives hard isolation: `user.team == resource.team` hides
+  every untagged resource.
+- **match-if-absent** — a missing attribute passes the condition, falling back to
+  the global grant. This keeps the existing un-tagged corpus visible while it is
+  being backfilled, instead of a cliff where turning on one condition hides
+  everything (see Prerequisites).
+
+The per-condition choice is the lever for migration: ship conditions as
+match-if-absent, backfill tags, then tighten the ones that need hard isolation to
+strict.
 
 ## Open Questions
 
 - Which attribute keys ship first, and where do their values come from?
-- What are the missing-attribute semantics — deny, or fall back to the global
-  grant — and how is the existing corpus backfilled?
+- Which conditions default to strict vs. match-if-absent at launch, and how is the
+  existing corpus backfilled with tags?
