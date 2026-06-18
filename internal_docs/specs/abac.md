@@ -30,9 +30,8 @@ permission applies to.
 
 - Replacing roles or the global grants from RBAC.
 - A general policy language — boolean logic, deny rules, allow/deny precedence.
-  Tag-based ABAC systems commonly offer allow/deny policies where deny always
-  wins; Phoenix deliberately starts with additive, conditioned grants and no deny,
-  the same additive model RBAC uses.
+  Phoenix keeps RBAC's additive grant model: conditions narrow access, they never
+  deny it.
 - Attribute sources beyond what RBAC and external auth already provide.
 
 ## Prerequisites
