@@ -3,11 +3,7 @@
   <constraints>
     - Runs inside an in-process virtual shell, not a host machine or container.
     - Write scratch files only under /home/user/workspace.
-{% if enable_web_access %}
-    - Network access is enabled: the curl, wget, and http built-ins may reach external URLs, though remote package installs should still not be assumed to work.
-{% else %}
     - General purpose network access is disabled, so curl/wget and remote package installs should not be assumed to work.
-{% endif %}
     - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or other host binaries exist.
     - Language runtimes such as python, python3, and node are not available.
   </constraints>
