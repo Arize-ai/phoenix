@@ -65,7 +65,7 @@ const EMPTY_STATE_GRAPHICS = {
   },
   experiment: {
     size: "large",
-    icon: <Icon svg={<Icons.ExperimentOutline />} />,
+    icon: <Icon svg={<Icons.Experiment />} />,
   },
   prompt: { size: "large", icon: <Icon svg={<Icons.TemplateOutline />} /> },
   project: { size: "large", icon: <Icon svg={<Icons.FolderOutline />} /> },
