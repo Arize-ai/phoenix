@@ -88,8 +88,7 @@ resources are otherwise allowed.
 ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
 """
 Disables the server-side bash tool by preventing subagents from being attached to
-the assistant. Does not affect the browser (frontend) bash tool. When true, the
-option to enable subagents is also hidden from the UI settings.
+the assistant. When true, the option to enable subagents is also hidden from the UI settings.
 """
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """

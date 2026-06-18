@@ -429,12 +429,7 @@ def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
 
 
 def _subagents_enabled(contexts: ResolvedContexts) -> bool:
-    """Whether the server-side subagent (and its bash tool) should be attached.
-
-    Honors the per-turn UI request together with the deployment-level
-    ``PHOENIX_AGENTS_DISABLE_BASH`` kill switch. The server-side bash tool is only
-    reachable through subagents, so that flag disables it by preventing subagents
-    from being attached. This does not affect the browser (frontend) bash tool."""
+    """Whether the server-side subagent (and its bash tool) should be attached."""
     if get_env_phoenix_agents_disable_bash():
         return False
     return contexts.subagents is not None and contexts.subagents.enabled
