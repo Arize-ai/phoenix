@@ -53,6 +53,7 @@ class ExperimentConfig:
     fail_on_regression: bool
     splits: tuple[str, ...]
     evaluator_override: tuple[str, ...] | None
+    include_subagent: bool
 
 
 def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
@@ -421,7 +422,10 @@ async def _run_async(config: ExperimentConfig) -> int:
             # run unmatchable and silently produces zero evaluations.
             experiment = await client.experiments.run_experiment(
                 dataset=experiment_dataset,
-                task=make_task(docs_mcp_server=docs_mcp_server),
+                task=make_task(
+                    docs_mcp_server=docs_mcp_server,
+                    include_subagent=config.include_subagent,
+                ),
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
@@ -519,6 +523,15 @@ def build_parser() -> argparse.ArgumentParser:
             f"for permanent changes. Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
         ),
     )
+    parser.add_argument(
+        "--include-subagent",
+        action="store_true",
+        help=(
+            "Mount the call_subagent tool (backed by the GraphQL server "
+            "subagent with bash + phoenix-gql) on the main agent for every "
+            "example. Off by default."
+        ),
+    )
     return parser
 
 
@@ -535,6 +548,7 @@ def main(argv: list[str] | None = None) -> int:
         fail_on_regression=args.fail_on_regression,
         splits=tuple(args.splits),
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
+        include_subagent=args.include_subagent,
     )
     try:
         return run(config)
