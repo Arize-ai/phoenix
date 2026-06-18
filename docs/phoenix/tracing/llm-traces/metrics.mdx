@@ -9,15 +9,15 @@ description: Each project comes with a pre-defined metrics dashboard
 
 Traces that are sent to a project are automatically indexed for metrics. This lets you quickly identify areas of poor performance. The project metrics dashboard includes:
 
-- Trace latency and errors
-- Latency Quantiles
-- Annotation Scores Timeseries
-- Cost over Time by token type
-- Top Models by Cost
-- Token Usage by token type
-- Top Models by Tokens
-- LLM Invocation and Errors
-- Tool calls and Errors
+- Traces over time — overall trace volume
+- Trace latency percentiles
+- Cost over time, plus top models by cost
+- Token usage by prompt and completion, plus top models by tokens
+- Prompt token details — input, cache read/write, reasoning, and audio token types
+- Completion token details — output, reasoning, and audio token types
+- LLM spans and LLM spans with errors
+- Tool spans and tool spans with errors
+- Annotation score time series at the span, trace, and session level
 
 <Info>
   For custom alerting and dashboards on top of your trace data, including metrics tailored for non-developer stakeholders, see [Arize AX's Dashboard features](https://arize.com/docs/ax/observe/dashboards).

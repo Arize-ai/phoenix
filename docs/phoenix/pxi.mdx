@@ -22,7 +22,7 @@ controllable**: see [You stay in control](#you-stay-in-control).
 engineering agent built into Phoenix. Instead of manually digging through traces,
 prompts, evaluations, and experiments, you hand the investigation to an agent that
 already understands the context you are looking at — the trace you opened, the
-prompt you are editing, the filters you applied.
+session you are reviewing, the prompt you are editing, the filters you applied.
 
 Think of it as a coding agent, but pointed at your observability data instead of a
 codebase. It inspects traces, investigates failures, iterates on prompts, runs
@@ -99,7 +99,7 @@ the [Phoenix roadmap milestone](https://github.com/Arize-ai/phoenix/milestone/13
   </Card>
   <Card title="Dataset curation" icon="layer-group">
     Turn the failures you find into curated datasets for experiments and evals.
-    *Under development.*
+    *Available today.*
   </Card>
 </CardGroup>
 
@@ -128,6 +128,11 @@ explicit permission model, and only reaches the internet when you let it.
   grounding. The toggle is per session and only appears when an administrator
   allows it; leave it off to keep the session entirely inside your Phoenix
   instance.
+- **Opt into subagents.** The **Subagents** switch
+  (**Settings → Assistant → Personal settings**) lets PXI delegate work to
+  parallel subagents that run their own tool-using turns. It is **off by
+  default** and experimental — turning it on can consume large numbers of
+  tokens, so enable it only when you want token-heavy parallel retrieval.
 
 | Edit-approval mode | Behavior |
 | --- | --- |

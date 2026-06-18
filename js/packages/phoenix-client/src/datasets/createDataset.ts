@@ -43,6 +43,9 @@ export type CreateDatasetResponse = {
  *   - `metadata`: Optional metadata for the example
  *   - `splits`: Optional split assignment (string, array of strings, or null)
  *   - `spanId`: Optional OpenTelemetry span ID to link the example back to its source span
+ *   - `id`: Optional stable custom identifier for the example (e.g. a database key or
+ *     content hash). When provided, experiments and evaluations run against the dataset
+ *     resolve their examples by this ID.
  *
  * @returns A promise that resolves to the created dataset ID
  *

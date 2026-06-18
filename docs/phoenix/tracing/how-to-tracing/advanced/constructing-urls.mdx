@@ -51,6 +51,33 @@ https://my-phoenix.example.com/redirects/sessions/user-session-42
 
 Redirects to the session detail view within its parent project.
 
+## Time Range Query Parameters
+
+Project, trace, and session pages encode the active time range in the URL, so you can copy a link that lands a teammate on the same window — handy for runbooks, dashboards, and bug reports. The time range is expressed with one of two mutually exclusive forms:
+
+| Query param | Meaning |
+| --- | --- |
+| `timeRangeKey` | A live preset window (e.g. `last24Hours`). The window is always relative to "now", so the link stays live and has no fixed bounds. |
+| `timeRangeStart` + `timeRangeEnd` | An exact, pinned window. Both are ISO 8601 datetimes and together fix the start and end of the range. |
+
+Use `timeRangeKey` **or** the `timeRangeStart`/`timeRangeEnd` pair — never both. Whether a shared link is "live" is therefore a property of the URL shape: a `timeRangeKey` link tails recent data, while explicit bounds always resolve to the same fixed window.
+
+### Share a live preset window
+
+```
+https://my-phoenix.example.com/projects/UHJvamVjdDox?timeRangeKey=last24Hours
+```
+
+Opens the project to the last 24 hours, recomputed from the current time whenever the link is opened.
+
+### Share an exact window
+
+```
+https://my-phoenix.example.com/projects/UHJvamVjdDox?timeRangeStart=2026-06-01T00:00:00Z&timeRangeEnd=2026-06-02T00:00:00Z
+```
+
+Pins the view to a fixed range. Remember to URL-encode the ISO datetimes when constructing links programmatically.
+
 ## Error Handling
 
 If the identifier doesn't match any existing resource, Phoenix displays an error page. This can happen if the resource was deleted or the identifier is misspelled.
