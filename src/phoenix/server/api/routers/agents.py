@@ -429,7 +429,7 @@ def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
 
 
 def _subagents_enabled(contexts: ResolvedContexts) -> bool:
-    """Whether the server-side subagent (and its bash tool) should be attached."""
+    """Whether the server-side subagent should be attached."""
     if get_env_phoenix_agents_disable_bash():
         return False
     return contexts.subagents is not None and contexts.subagents.enabled
