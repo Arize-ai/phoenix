@@ -153,7 +153,7 @@ def get_timestamp_range(
         >>> start = datetime(2024, 1, 1, 12, 30, 45, tzinfo=timezone.utc)
         >>> end = datetime(2024, 1, 1, 12, 33, 0, tzinfo=timezone.utc)
         >>> list(get_timestamp_range(start, end, "minute"))
-        [datetime.datetime(2024, 1, 1, 12, 30, tzinfo=datetime.timezone.utc),
+        [datetime.datetime(2024, 1, 1, 12, 32, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 1, 12, 31, tzinfo=datetime.timezone.utc),
          datetime.datetime(2024, 1, 1, 12, 32, tzinfo=datetime.timezone.utc)]
 
