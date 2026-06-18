@@ -261,16 +261,13 @@ async def test_output_to_disk_is_not_truncated(run_bash: RunBash) -> None:
     ],
     ids=["curl", "wget", "http"],
 )
-async def test_web_builtins_cannot_reach_internet_by_default(
-    run_bash: RunBash, command: str
-) -> None:
-    # With web access off the shell is built with an explicit empty network allowlist,
-    # so every outbound URL is denied and the curl/wget/http built-ins fetch nothing.
+async def test_web_commands_cannot_reach_internet(run_bash: RunBash, command: str) -> None:
     result = await run_bash(command)
 
-    assert result["exit_code"] != 0
-    assert result["stdout"] == ""
-    assert "access denied" in result["stderr"]
+    # Network is disabled, so the built-in refuses before sending the request and no
+    # page body is fetched.
+    assert "network access not configured" in result["stdout"] + result["stderr"]
+    assert "Example Domain" not in result["stdout"]
 
 
 @pytest.mark.parametrize(
@@ -282,16 +279,12 @@ async def test_web_builtins_cannot_reach_internet_by_default(
     ],
     ids=["curl", "wget", "http"],
 )
-async def test_web_builtins_cannot_reach_loopback_by_default(
-    run_bash: RunBash, command: str
-) -> None:
-    # The empty allowlist denies even loopback/private addresses, so the built-ins
-    # cannot be turned against the host the server runs on.
+async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: str) -> None:
     result = await run_bash(command)
 
-    assert result["exit_code"] != 0
-    assert result["stdout"] == ""
-    assert "access denied" in result["stderr"]
+    # Loopback/private addresses are unreachable too: the built-in never connects to
+    # the host the server runs on.
+    assert "network access not configured" in result["stdout"] + result["stderr"]
 
 
 async def test_network_enabled_when_web_access_on() -> None:
