@@ -42,12 +42,11 @@ class RunBash(Protocol):
     def __call__(self, command: str) -> Awaitable[dict[str, Any]]: ...
 
 
-def _build_run_bash(*, allow_mutations: bool, enable_web_access: bool = False) -> RunBash:
+def _build_run_bash(*, allow_mutations: bool) -> RunBash:
     toolset = BashToolset(
         schema=strawberry.Schema(query=Query, mutation=Mutation),
         build_graphql_context=lambda: Mock(spec=Context),
         allow_mutations=allow_mutations,
-        enable_web_access=enable_web_access,
     )
     ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
 
@@ -285,31 +284,3 @@ async def test_web_commands_cannot_reach_loopback(run_bash: RunBash, command: st
     # Loopback/private addresses are unreachable too: the built-in never connects to
     # the host the server runs on.
     assert "network access not configured" in result["stdout"] + result["stderr"]
-
-
-async def test_network_enabled_when_web_access_on() -> None:
-    run_bash = _build_run_bash(allow_mutations=False, enable_web_access=True)
-
-    result = await run_bash("curl -s --max-time 1 http://127.0.0.1:1/")
-
-    assert result["stdout"] == ""
-    assert "network access not configured" not in result["stderr"]
-
-
-def _bash_description(*, enable_web_access: bool) -> str:
-    toolset = BashToolset(
-        schema=strawberry.Schema(query=Query, mutation=Mutation),
-        build_graphql_context=lambda: Mock(spec=Context),
-        allow_mutations=False,
-        enable_web_access=enable_web_access,
-    )
-    return toolset.tools["bash"].description or ""
-
-
-def test_tool_description_reflects_network_access() -> None:
-    disabled = _bash_description(enable_web_access=False)
-    enabled = _bash_description(enable_web_access=True)
-
-    assert "network access is disabled" in disabled
-    assert "Network access is enabled" in enabled
-    assert "curl, wget, and http" in enabled

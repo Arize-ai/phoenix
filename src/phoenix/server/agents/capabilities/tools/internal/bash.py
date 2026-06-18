@@ -30,13 +30,8 @@ operate on a scratch filesystem.
 
 - Runs inside an in-process virtual shell, not a host machine or container.
 - Write scratch files only under /home/user/workspace.
-{% if enable_web_access -%}
-- Network access is enabled: the curl, wget, and http built-ins may reach external \
-URLs, though remote package installs should still not be assumed to work.
-{% else -%}
 - General-purpose network access is disabled, so curl/wget and remote package installs \
 should not be assumed to work.
-{% endif -%}
 - Built-in shell commands are available; do not assume apt, brew, pnpm, uv, git, or \
 other host binaries exist.
 - Language runtimes such as python, python3, and node are not available.
@@ -337,7 +332,6 @@ class BashToolset(FunctionToolset[None]):
         schema: strawberry.Schema,
         build_graphql_context: Callable[[], Context],
         allow_mutations: bool,
-        enable_web_access: bool = False,
     ) -> None:
         shell = Bash(
             python=False,
@@ -368,9 +362,7 @@ class BashToolset(FunctionToolset[None]):
                 Tool(
                     bash,
                     takes_ctx=False,
-                    description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(
-                        enable_web_access=enable_web_access
-                    ),
+                    description=_BASH_TOOL_DESCRIPTION_TEMPLATE.render(),
                 )
             ]
         )
@@ -384,14 +376,12 @@ class BashCapability(AbstractStaticCapability[None]):
     build_graphql_context: Callable[[], Context]
     instructions: str
     allow_mutations: bool = False
-    enable_web_access: bool = False
 
     def get_toolset(self) -> AgentToolset[None] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,
             allow_mutations=self.allow_mutations,
-            enable_web_access=self.enable_web_access,
         )
 
     def get_static_instructions(self) -> str:
