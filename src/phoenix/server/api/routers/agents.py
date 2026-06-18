@@ -38,6 +38,7 @@ from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
@@ -427,6 +428,18 @@ def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
     return contexts.dataset is not None or contexts.code_evaluator is not None
 
 
+def _subagents_enabled(contexts: ResolvedContexts) -> bool:
+    """Whether the server-side subagent (and its bash tool) should be attached.
+
+    Honors the per-turn UI request together with the deployment-level
+    ``PHOENIX_AGENTS_DISABLE_BASH`` kill switch. The server-side bash tool is only
+    reachable through subagents, so that flag disables it by preventing subagents
+    from being attached. This does not affect the browser (frontend) bash tool."""
+    if get_env_phoenix_agents_disable_bash():
+        return False
+    return contexts.subagents is not None and contexts.subagents.enabled
+
+
 def _load_model_provider_availability() -> ModelProviderAvailability:
     """Compute the pre-turn ``has_usable`` gate for model-provider-backed capabilities.
 
@@ -611,9 +624,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
-        subagents_enabled = (
-            resolved_contexts.subagents is not None and resolved_contexts.subagents.enabled
-        )
+        subagents_enabled = _subagents_enabled(resolved_contexts)
         graphql_mutations_enabled = (
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )

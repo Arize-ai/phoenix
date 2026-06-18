@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import pytest
 from jinja2 import Template
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.agents.context import ResolvedContexts
+from phoenix.server.agents.context import ResolvedContexts, SubagentsContext
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
     _load_sandbox_availability,
+    _subagents_enabled,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -164,3 +166,32 @@ class TestEditCodeEvaluatorDraftToolRendering:
         # The projection requests env-var names only; the prompt explicitly
         # forbids requesting the secret-bearing field.
         assert "never `secretKey`" in rendered
+
+
+class TestSubagentsEnabled:
+    """``_subagents_enabled`` decides whether the server-side subagent (and its
+    bash tool) is attached to the assistant. It honors the per-turn UI request
+    together with the ``PHOENIX_AGENTS_DISABLE_BASH`` deployment kill switch.
+    The server-side bash tool is only reachable through subagents, so the flag
+    disables it by preventing subagents from being attached. The frontend bash
+    tool is independent and unaffected."""
+
+    @staticmethod
+    def _contexts(*, enabled: bool) -> ResolvedContexts:
+        return ResolvedContexts(subagents=SubagentsContext(type="subagents", enabled=enabled))
+
+    def test_enabled_when_requested_and_flag_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_AGENTS_DISABLE_BASH", raising=False)
+        assert _subagents_enabled(self._contexts(enabled=True)) is True
+
+    def test_disabled_when_user_did_not_request(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_AGENTS_DISABLE_BASH", raising=False)
+        assert _subagents_enabled(self._contexts(enabled=False)) is False
+        # No subagents context at all is also a no-op.
+        assert _subagents_enabled(ResolvedContexts()) is False
+
+    def test_flag_overrides_user_request(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Even when the UI requests subagents, the kill switch prevents them from
+        # being attached, which is how the server-side bash tool is disabled.
+        monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", "True")
+        assert _subagents_enabled(self._contexts(enabled=True)) is False

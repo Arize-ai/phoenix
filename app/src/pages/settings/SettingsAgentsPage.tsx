@@ -23,6 +23,7 @@ import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
 
+import { shouldShowSubagentsSetting } from "./agentSettingsUtils";
 import { SettingsAgentsAdminSettingsSection } from "./SettingsAgentsWorkspaceCard";
 
 const ADMIN_SECTION_ID = "admin-settings";
@@ -134,7 +135,9 @@ function PersonalSettingsSection() {
       <AssistantAgentEnabledSetting />
       <AgentSettingsForm>
         <AgentWebAccessSettings />
-        <AgentSubagentsSettings />
+        {shouldShowSubagentsSetting(window.Config.agentsBashDisabled) ? (
+          <AgentSubagentsSettings />
+        ) : null}
         <AgentObservabilitySettings />
       </AgentSettingsForm>
     </Flex>

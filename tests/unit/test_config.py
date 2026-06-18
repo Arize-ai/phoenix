@@ -869,6 +869,30 @@ def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -
     assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() != "true"
 
 
+class TestAgentsDisableBash:
+    """Tests for the PHOENIX_AGENTS_DISABLE_BASH kill switch."""
+
+    def test_defaults_to_false_when_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from phoenix.config import get_env_phoenix_agents_disable_bash
+
+        monkeypatch.delenv("PHOENIX_AGENTS_DISABLE_BASH", raising=False)
+        assert get_env_phoenix_agents_disable_bash() is False
+
+    @pytest.mark.parametrize("value", ["True", "true", "TRUE"])
+    def test_truthy_values_enable_flag(self, value: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        from phoenix.config import get_env_phoenix_agents_disable_bash
+
+        monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", value)
+        assert get_env_phoenix_agents_disable_bash() is True
+
+    @pytest.mark.parametrize("value", ["False", "false", "FALSE"])
+    def test_falsy_values_disable_flag(self, value: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        from phoenix.config import get_env_phoenix_agents_disable_bash
+
+        monkeypatch.setenv("PHOENIX_AGENTS_DISABLE_BASH", value)
+        assert get_env_phoenix_agents_disable_bash() is False
+
+
 class TestOAuth2ClientConfigFromEnv:
     """Tests for OAuth2ClientConfig.from_env edge cases and validation."""
 

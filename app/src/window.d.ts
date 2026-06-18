@@ -26,6 +26,13 @@ declare global {
       hasDbThreshold: boolean;
       agentAssistantDisabled: boolean;
       /**
+       * Whether the server-side bash tool (exposed via subagents) is disabled
+       * at the deployment level. When true, the subagents setting is hidden.
+       * Sourced from PHOENIX_AGENTS_DISABLE_BASH. Does not affect the frontend
+       * bash tool.
+       */
+      agentsBashDisabled: boolean;
+      /**
        * Mapping of auth error codes to user-friendly messages.
        * Passed from the backend to ensure single source of truth.
        */
