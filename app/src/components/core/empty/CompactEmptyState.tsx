@@ -32,7 +32,7 @@ const compactEmptyStateCSS = css`
   .theme--dark & {
     background: radial-gradient(
       circle 80px at center,
-      rgba(255, 255, 255, 0.05),
+      rgba(255, 255, 255, 0.03),
       transparent
     );
   }
@@ -41,12 +41,18 @@ const compactEmptyStateCSS = css`
     height: 24px;
     font-size: 24px;
   }
+  // Keep the caption narrow and balance it across lines so a wrap reads as two
+  // even lines rather than a long line plus an orphan.
+  .text {
+    max-width: 180px;
+    text-wrap: balance;
+  }
 `;
 
 interface CompactEmptyStateProps {
   /** A Phoenix `<Icon>` rendered at 24px, centered above the description. */
   icon: ReactNode;
-  /** Subtle one-line description shown beneath the icon. */
+  /** Subtle short description shown beneath the icon; wraps to ~180px wide. */
   description: ReactNode;
 }
 
