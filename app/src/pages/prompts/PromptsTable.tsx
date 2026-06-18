@@ -23,11 +23,17 @@ import {
   Icons,
   Link,
   LinkButton,
+  Text,
   Token,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { useInterval } from "@phoenix/hooks/useInterval";
@@ -94,6 +100,8 @@ export function PromptsTable(props: PromptsTableProps) {
                 description
                 version {
                   createdAt
+                  modelName
+                  modelProvider
                 }
                 labels {
                   id
@@ -142,6 +150,8 @@ export function PromptsTable(props: PromptsTableProps) {
       data.prompts.edges.map((edge) => {
         return {
           lastUpdatedAt: edge.prompt.version.createdAt,
+          modelName: edge.prompt.version.modelName,
+          modelProvider: edge.prompt.version.modelProvider,
           ...edge.prompt,
         };
       }),
@@ -185,6 +195,7 @@ export function PromptsTable(props: PromptsTableProps) {
       {
         header: "labels",
         accessorKey: "labels",
+        enableSorting: false,
         cell: ({ row }) => {
           return (
             <ul
@@ -192,18 +203,24 @@ export function PromptsTable(props: PromptsTableProps) {
                 display: flex;
                 flex-direction: row;
                 gap: var(--global-dimension-size-100);
+                min-width: 0;
+                flex-wrap: wrap;
               `}
             >
               {row.original.labels.map((label) => (
-                <StopPropagation key={label.id}>
-                  <Token
-                    color={label.color ?? undefined}
-                    onPress={() => toggleLabelFilter(label.id)}
-                    aria-label={`Filter prompts by label ${label.name}`}
-                  >
-                    {label.name}
-                  </Token>
-                </StopPropagation>
+                <li key={label.id}>
+                  <StopPropagation>
+                    <Token
+                      color={label.color ?? undefined}
+                      onPress={() => toggleLabelFilter(label.id)}
+                      aria-label={`Filter prompts by label ${label.name}`}
+                    >
+                      <Truncate maxWidth={200} title={label.name}>
+                        {label.name}
+                      </Truncate>
+                    </Token>
+                  </StopPropagation>
+                </li>
               ))}
             </ul>
           );
@@ -214,7 +231,24 @@ export function PromptsTable(props: PromptsTableProps) {
         accessorKey: "description",
         cell: TextCell,
       },
-
+      {
+        header: "model",
+        accessorKey: "modelName",
+        cell: ({ row }) => {
+          const { modelName, modelProvider } = row.original;
+          if (!modelName) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <GenerativeProviderIcon provider={modelProvider} height={16} />
+              <Text minWidth={0}>
+                <Truncate>{modelName}</Truncate>
+              </Text>
+            </Flex>
+          );
+        },
+      },
       {
         header: "last updated",
         accessorKey: "lastUpdatedAt",
@@ -225,7 +259,8 @@ export function PromptsTable(props: PromptsTableProps) {
       cols.push({
         id: "actions",
         header: "",
-        size: 5,
+        size: 150,
+        enableSorting: false,
         accessorKey: "id",
         cell: ({ row }) => {
           return (
@@ -263,6 +298,11 @@ export function PromptsTable(props: PromptsTableProps) {
   const table = useReactTable({
     columns,
     data: tableData,
+    state: {
+      columnPinning: {
+        right: ["actions"],
+      },
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -283,12 +323,20 @@ export function PromptsTable(props: PromptsTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table css={selectableTableCSS} data-testid="prompts-table">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={
+                    header.column.getIsPinned()
+                      ? getCommonPinningStyles(header.column)
+                      : undefined
+                  }
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
@@ -338,6 +386,11 @@ export function PromptsTable(props: PromptsTableProps) {
                   <td
                     key={cell.id}
                     align={cell.column.columnDef.meta?.textAlign}
+                    style={
+                      cell.column.getIsPinned()
+                        ? getCommonPinningStyles(cell.column)
+                        : undefined
+                    }
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
