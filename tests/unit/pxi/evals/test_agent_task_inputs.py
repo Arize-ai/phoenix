@@ -139,20 +139,26 @@ class TestBuildRunInputs:
 
 class TestMaterializeMessages:
     def test_builds_primed_bash_tool_call_and_return(self) -> None:
+        command = (
+            "phoenix-gql '{ projects(first: 1) { edges { node { spans(first: 1, "
+            "sort: {col: startTime, dir: desc}) { edges { node { startTime } } } } } } }' "
+            "--data-only"
+        )
         history = _materialize_messages(
             [
                 {"role": "user", "content": "When were the latest traces?"},
                 {
                     "role": "assistant",
-                    "tool_calls": [
-                        {"id": "t1", "name": "bash", "args": {"command": "ls /phoenix"}}
-                    ],
+                    "tool_calls": [{"id": "t1", "name": "bash", "args": {"command": command}}],
                 },
                 {
                     "role": "tool",
                     "tool_call_id": "t1",
                     "name": "bash",
-                    "content": "agent-start.md\npage-context.json\n",
+                    "content": (
+                        '{"projects": {"edges": [{"node": {"spans": {"edges": '
+                        '[{"node": {"startTime": "2026-06-18T17:42:10+00:00"}}]}}}]}}\n'
+                    ),
                 },
             ]
         )
@@ -165,7 +171,7 @@ class TestMaterializeMessages:
         assert isinstance(call_part, ToolCallPart)
         assert call_part.tool_name == "bash"
         assert call_part.tool_call_id == "t1"
-        assert call_part.args == {"command": "ls /phoenix"}
+        assert call_part.args == {"command": command}
         assert isinstance(tool_turn, ModelRequest)
         return_part = tool_turn.parts[0]
         assert isinstance(return_part, ToolReturnPart)
