@@ -3,9 +3,20 @@ from __future__ import annotations
 import json
 import os
 import sys
+import threading
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
+from urllib.parse import urljoin
 
+from openinference.instrumentation import OITracer, TraceConfig
+from openinference.semconv.resource import ResourceAttributes
+from opentelemetry import trace as otel_trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.trace import TracerProvider as AbstractTracerProvider
+from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.messages import (
@@ -37,6 +48,7 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
@@ -46,6 +58,75 @@ ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
+
+# One real OTel TracerProvider per Phoenix project, reused across every task in
+# a run. The provider exports the agent's OpenInference spans (LLM calls, tool
+# calls, skill loads) to Phoenix so each experiment run links to a full agent
+# trace -- without this, ``build_agent`` falls back to a NoOp provider and the
+# task span has no children. Keyed by project name because the experiment's
+# project is only known at task time (read off the active task span).
+_TRACER_PROVIDERS: dict[str, TracerProvider] = {}
+_TRACER_PROVIDERS_LOCK = threading.Lock()
+
+
+def _active_span_project_name() -> str | None:
+    """Return the project name on the currently-active span's resource, if any.
+
+    The experiment runner starts each task inside a span whose resource carries
+    ``openinference.project.name`` set to the experiment's project. Reading it
+    back here lets the agent's spans export to the *same* project so they nest
+    under the task span in one trace, instead of fragmenting into a separate
+    project.
+    """
+    span = otel_trace.get_current_span()
+    resource = getattr(span, "resource", None)
+    if resource is None:
+        return None
+    name = resource.attributes.get(ResourceAttributes.PROJECT_NAME)
+    return str(name) if name else None
+
+
+def _experiment_tracer_provider() -> AbstractTracerProvider | None:
+    """Build (or reuse) a Phoenix-exporting TracerProvider for the active task.
+
+    Returns ``None`` when there is no active experiment task span (e.g. a direct
+    ``run_pxi_example`` call), so the agent stays on its NoOp default and no
+    spans are emitted -- preserving the previous behavior outside experiments.
+    """
+    project_name = _active_span_project_name()
+    if not project_name:
+        return None
+    with _TRACER_PROVIDERS_LOCK:
+        provider = _TRACER_PROVIDERS.get(project_name)
+        if provider is None:
+            resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
+            provider = TracerProvider(resource=resource)
+            api_key = get_env_phoenix_api_key()
+            headers = {"authorization": f"Bearer {api_key}"} if api_key else {}
+            endpoint = urljoin(str(get_base_url()), "v1/traces")
+            # SimpleSpanProcessor exports synchronously on span end, so spans are
+            # flushed by the time ``agent.run`` returns -- no batching to lose.
+            provider.add_span_processor(
+                SimpleSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
+            )
+            _TRACER_PROVIDERS[project_name] = provider
+        return provider
+
+
+def shutdown_experiment_tracer_providers() -> None:
+    """Flush and shut down every per-project provider built during the run.
+
+    Call once after the experiment completes. Best-effort: a provider that fails
+    to shut down does not abort the others.
+    """
+    with _TRACER_PROVIDERS_LOCK:
+        providers = list(_TRACER_PROVIDERS.values())
+        _TRACER_PROVIDERS.clear()
+    for provider in providers:
+        try:
+            provider.shutdown()
+        except Exception as exc:  # pragma: no cover - best-effort cleanup
+            print(f"warning: tracer provider shutdown failed: {exc}", file=sys.stderr)
 
 
 def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
@@ -499,7 +580,24 @@ async def run_pxi_example(
     try:
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
-        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        # Mirror production: ``build_model`` returns an OpenInference-wrapped
+        # model so LLM calls are traced. The harness builds a raw model, so wrap
+        # it here with the same tracer when an experiment provider is active --
+        # otherwise the trace would show tool spans but no LLM spans.
+        tracer_provider = _experiment_tracer_provider()
+        if tracer_provider is not None:
+            model = OpenInferenceModelWrapper(
+                model,
+                tracer=OITracer(
+                    tracer_provider.get_tracer("phoenix.server.agents"),
+                    config=TraceConfig(),
+                ),
+            )
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=docs_mcp_server,
+            tracer_provider=tracer_provider,
+        )
         result = await agent.run(
             user_prompt,
             deps=_build_dependencies(input),
