@@ -20,6 +20,7 @@ if __package__ in {None, ""}:
 from urllib.parse import urljoin
 
 from phoenix.client import AsyncClient
+from phoenix.client.resources.datasets import Dataset as PhoenixDataset
 from phoenix.client.resources.experiments.types import RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
@@ -35,6 +36,12 @@ from evals.pxi.harness.agent_task import (
 from evals.pxi.harness.datasets import (
     EvalDataset,
     load_dataset,
+)
+from evals.pxi.harness.gating import (
+    RETRY_FAILED_CAP,
+    attempt_outcomes,
+    decide_gate,
+    task_run_error,
 )
 from evals.pxi.harness.reporting import (
     _print_score_summary,
@@ -60,6 +67,8 @@ class ExperimentConfig:
     evaluator_override: tuple[str, ...] | None
     report_dir: Path | None = None
     print_report: bool = False
+    retry_failed: bool = False
+    retry_failed_cap: int = RETRY_FAILED_CAP
 
 
 def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
@@ -190,10 +199,15 @@ def _check_evaluations_ran(experiment: RanExperiment) -> None:
     example would count as vacuously passed -- a false green this guard turns
     into an infrastructure error instead.
     """
-    if experiment.get("task_runs") and not experiment.get("evaluation_runs"):
+    task_runs = list(experiment.get("task_runs") or [])
+    if (
+        task_runs
+        and not experiment.get("evaluation_runs")
+        and any(task_run_error(task_run) is None for task_run in task_runs)
+    ):
         raise RuntimeError(
             "experiment ran "
-            f"{len(experiment['task_runs'])} task(s) but zero evaluations executed; "
+            f"{len(task_runs)} task(s) but zero evaluations executed; "
             "evaluator/example pairing is broken (refusing to report a vacuous pass)"
         )
 
@@ -231,13 +245,8 @@ async def _run_async(config: ExperimentConfig) -> int:
         f"Evaluators: {', '.join(name for name in (config.evaluator_override or dataset.evaluators))}"
     )
     client = AsyncClient(base_url=config.base_url, api_key=config.bearer_token)
-    # Build the docs MCP toolset once and enter its async context manager for
-    # the duration of the run, mirroring the production server's FastAPI
-    # lifespan wiring.
-    docs_mcp_server = build_shared_docs_mcp_server()
     async with AsyncExitStack() as stack:
-        if docs_mcp_server is not None:
-            await stack.enter_async_context(docs_mcp_server)
+        docs_mcp_server = await _enter_docs_mcp_server_with_retry(stack)
         try:
             phoenix_dataset = await client.datasets.create_dataset(
                 name=dataset.dataset_name,
@@ -290,34 +299,48 @@ async def _run_async(config: ExperimentConfig) -> int:
                 "assistant_model": os.getenv(ENV_ASSISTANT_MODEL, DEFAULT_ASSISTANT_MODEL),
                 "started_at": datetime.now(timezone.utc).isoformat(),
             }
-            print(f"Running experiment: {name}")
-            experiment = await client.experiments.run_experiment(
-                dataset=experiment_dataset,
-                task=make_task(docs_mcp_server=docs_mcp_server),
-                experiment_name=name,
-                experiment_description=dataset.description,
-                experiment_metadata=metadata,
-                print_summary=True,
-                concurrency=3,
-                timeout=180,
-                retries=0,
+            description = dataset.description or ""
+            experiment = await _run_and_evaluate_experiment(
+                client,
+                experiment_dataset=experiment_dataset,
+                docs_mcp_server=docs_mcp_server,
+                evaluators=evaluators,
+                name=name,
+                description=description,
+                metadata=metadata,
             )
-            experiment = await client.experiments.evaluate_experiment(
-                experiment=experiment,
-                evaluators=cast(Any, evaluators),
-                print_summary=True,
-                concurrency=3,
-                timeout=180,
-                retries=0,
+            first_attempts = attempt_outcomes(dataset, experiment, attempt=1)
+            gate_decision = decide_gate(
+                first_attempts,
+                retry_enabled=config.retry_failed,
+                retry_cap=config.retry_failed_cap,
             )
-            _check_evaluations_ran(experiment)
-            # Replace Phoenix's relay dataset example ID with the stable YAML
-            # example ID for summary/report rendering. This MUST happen after
-            # ``evaluate_experiment``: the client pairs evaluators with
-            # examples via the example node GlobalID, so rewriting first makes
-            # every lookup miss and silently skips all evaluations (the
-            # false-green failure mode this ordering previously caused).
-            _rewrite_stable_example_ids(experiment, experiment_dataset)
+            retry_experiment: RanExperiment | None = None
+            if gate_decision.retry_ids:
+                retry_name = f"{name}-retry"
+                retry_dataset = _filter_dataset_examples(
+                    experiment_dataset,
+                    gate_decision.retry_ids,
+                )
+                print(
+                    f"Retrying failed PXI eval examples once: {', '.join(gate_decision.retry_ids)}"
+                )
+                retry_experiment = await _run_and_evaluate_experiment(
+                    client,
+                    experiment_dataset=retry_dataset,
+                    docs_mcp_server=docs_mcp_server,
+                    evaluators=evaluators,
+                    name=retry_name,
+                    description=f"{description}\n\nRetry of failed examples from {name}".strip(),
+                    metadata={**metadata, "retry_of_experiment": name},
+                )
+                retry_attempts = attempt_outcomes(dataset, retry_experiment, attempt=2)
+                gate_decision = decide_gate(
+                    first_attempts,
+                    retry_attempts=retry_attempts,
+                    retry_enabled=config.retry_failed,
+                    retry_cap=config.retry_failed_cap,
+                )
         finally:
             # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
             # the underlying httpx client and tolerate it disappearing in a
@@ -333,6 +356,12 @@ async def _run_async(config: ExperimentConfig) -> int:
                         file=sys.stderr,
                     )
     has_regressions = _print_score_summary(dataset, experiment, base_url=config.base_url)
+    if gate_decision.flaky_ids:
+        print(f"::notice::PXI eval flaky-passed examples: {', '.join(gate_decision.flaky_ids)}")
+    if gate_decision.retry_skipped_reason:
+        print(f"warning: {gate_decision.retry_skipped_reason}", file=sys.stderr)
+    if gate_decision.infra_ids:
+        print(f"PXI eval infra examples: {', '.join(gate_decision.infra_ids)}", file=sys.stderr)
     if config.report_dir is not None or config.print_report:
         report = build_report(
             dataset,
@@ -341,6 +370,8 @@ async def _run_async(config: ExperimentConfig) -> int:
             splits=requested,
             experiment_name=name,
             dataset_arg=config.dataset,
+            retry_experiment=retry_experiment,
+            gate_decision=gate_decision,
         )
         md_path = None
         if config.report_dir is not None:
@@ -351,7 +382,86 @@ async def _run_async(config: ExperimentConfig) -> int:
         if config.print_report and report.failures:
             # Reuse the already-rendered file instead of rendering twice.
             print(md_path.read_text() if md_path is not None else report_to_markdown(report))
-    return 1 if has_regressions and config.fail_on_regression else 0
+    if gate_decision.status == "infra":
+        return 2
+    if config.fail_on_regression and gate_decision.has_confirmed_regressions:
+        return 1
+    if config.fail_on_regression and not config.retry_failed and has_regressions:
+        return 1
+    return 0
+
+
+async def _enter_docs_mcp_server_with_retry(stack: AsyncExitStack) -> Any:
+    for attempt in range(1, 3):
+        docs_mcp_server = build_shared_docs_mcp_server()
+        if docs_mcp_server is None:
+            return None
+        try:
+            return await stack.enter_async_context(docs_mcp_server)
+        except Exception as exc:
+            if attempt == 2:
+                raise RuntimeError("docs MCP server failed to start after 2 attempts") from exc
+            print(
+                f"Docs MCP server failed to start (attempt {attempt}/2), retrying in 3s: {exc}",
+                file=sys.stderr,
+            )
+            await asyncio.sleep(3)
+    return None
+
+
+async def _run_and_evaluate_experiment(
+    client: AsyncClient,
+    *,
+    experiment_dataset: Any,
+    docs_mcp_server: Any,
+    evaluators: list[Any],
+    name: str,
+    description: str,
+    metadata: dict[str, Any],
+) -> RanExperiment:
+    print(f"Running experiment: {name}")
+    experiment = await client.experiments.run_experiment(
+        dataset=experiment_dataset,
+        task=make_task(docs_mcp_server=docs_mcp_server),
+        experiment_name=name,
+        experiment_description=description,
+        experiment_metadata=metadata,
+        print_summary=True,
+        concurrency=3,
+        timeout=180,
+        retries=0,
+    )
+    experiment = await client.experiments.evaluate_experiment(
+        experiment=experiment,
+        evaluators=cast(Any, evaluators),
+        print_summary=True,
+        concurrency=3,
+        timeout=180,
+        retries=0,
+    )
+    _check_evaluations_ran(experiment)
+    # Replace Phoenix's relay dataset example ID with the stable YAML
+    # example ID for summary/report rendering. This MUST happen after
+    # ``evaluate_experiment``: the client pairs evaluators with examples via
+    # the example node GlobalID, so rewriting first makes every lookup miss.
+    _rewrite_stable_example_ids(experiment, experiment_dataset)
+    return experiment
+
+
+def _filter_dataset_examples(experiment_dataset: Any, example_ids: Sequence[str]) -> Any:
+    selected_ids = {str(example_id) for example_id in example_ids}
+    if not selected_ids:
+        raise ValueError("cannot retry an empty example set")
+    if not hasattr(experiment_dataset, "to_dict"):
+        raise TypeError("experiment dataset does not support to_dict()")
+    data = experiment_dataset.to_dict()
+    examples = [
+        example for example in data.get("examples", []) if str(example.get("id")) in selected_ids
+    ]
+    if not examples:
+        raise ValueError(f"retry examples not found in dataset: {', '.join(sorted(selected_ids))}")
+    data["examples"] = examples
+    return PhoenixDataset.from_dict(data)
 
 
 def run(config: ExperimentConfig) -> int:
@@ -406,6 +516,17 @@ def build_parser() -> argparse.ArgumentParser:
             "CI embeds the written report file instead."
         ),
     )
+    retry_group = parser.add_mutually_exclusive_group()
+    retry_group.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Retry failed regression examples once before deciding the gate.",
+    )
+    retry_group.add_argument(
+        "--no-retry-failed",
+        action="store_true",
+        help="Disable failed-example retry for fast local iteration.",
+    )
     # The dataset YAML's ``evaluators:`` field is the source of truth for
     # what gets scored in normal use. This flag is a transient per-run
     # override -- useful for iterating on a single evaluator (halves eval
@@ -442,6 +563,7 @@ def main(argv: list[str] | None = None) -> int:
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
         report_dir=args.report_dir,
         print_report=args.print_report,
+        retry_failed=args.retry_failed and not args.no_retry_failed,
     )
     try:
         return run(config)

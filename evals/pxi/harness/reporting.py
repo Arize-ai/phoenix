@@ -13,12 +13,21 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Sequence
 from urllib.parse import urljoin
 
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
 from evals.pxi.harness.datasets import DATASETS_DIR, EvalDataset
+from evals.pxi.harness.gating import (
+    GateDecision,
+    attempt_outcomes,
+    example_splits_by_id,
+    is_failed_evaluation,
+    score,
+    stable_example_id,
+    task_run_error,
+)
 
 PASSING_SCORE = 1.0
 MAX_TABLE_CELL_WIDTH = 80
@@ -71,10 +80,10 @@ def _result_field(evaluation_run: ExperimentEvaluationRun, key: str) -> str:
 def _task_error_rows(experiment: RanExperiment) -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
     for task_run in experiment.get("task_runs", []):
-        error = _task_run_error(task_run)
+        error = task_run_error(task_run)
         if not error:
             continue
-        rows.append((_truncate_cell(_stable_example_id(task_run)), _truncate_cell(error)))
+        rows.append((_truncate_cell(stable_example_id(task_run)), _truncate_cell(error)))
     return rows
 
 
@@ -98,17 +107,17 @@ def _failed_evaluation_rows(
     }
     rows: list[tuple[str, str, str, str, str]] = []
     for evaluation_run in evaluation_runs:
-        if not _is_failed_evaluation(evaluation_run):
+        if not is_failed_evaluation(evaluation_run):
             continue
         task_run = task_runs_by_id.get(str(evaluation_run.experiment_run_id))
         example_id = (
-            _stable_example_id(task_run) if task_run else str(evaluation_run.experiment_run_id)
+            stable_example_id(task_run) if task_run else str(evaluation_run.experiment_run_id)
         )
         rows.append(
             (
                 _truncate_cell(example_id),
                 _truncate_cell(evaluation_run.name or "unknown"),
-                _score_display(evaluation_run.error, _score(evaluation_run)),
+                _score_display(evaluation_run.error, score(evaluation_run)),
                 _result_field(evaluation_run, "label"),
                 _truncate_cell(
                     evaluation_run.error or _result_field(evaluation_run, "explanation")
@@ -116,26 +125,6 @@ def _failed_evaluation_rows(
             )
         )
     return rows
-
-
-def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
-    result = evaluation_run.result
-    if not isinstance(result, dict):
-        return None
-    value = result.get("score")
-    return float(value) if isinstance(value, (int, float)) else None
-
-
-def _example_splits_by_id(dataset: EvalDataset) -> dict[str, set[str]]:
-    return {
-        str(example["id"]): {str(split) for split in example["splits"]}
-        for example in dataset.examples
-    }
-
-
-def _is_failed_evaluation(evaluation_run: ExperimentEvaluationRun) -> bool:
-    score = _score(evaluation_run)
-    return evaluation_run.error is not None or score is None or score < PASSING_SCORE
 
 
 def _evaluator_summary_rows(
@@ -149,14 +138,14 @@ def _evaluator_summary_rows(
             {"total": 0, "passing": 0, "failing": 0, "missing_score": 0, "errors": 0},
         )
         summary["total"] += 1
-        score = _score(evaluation_run)
+        run_score = score(evaluation_run)
         if evaluation_run.error is not None:
             summary["errors"] += 1
             summary["failing"] += 1
-        elif score is None:
+        elif run_score is None:
             summary["missing_score"] += 1
             summary["failing"] += 1
-        elif score >= PASSING_SCORE:
+        elif run_score >= PASSING_SCORE:
             summary["passing"] += 1
         else:
             summary["failing"] += 1
@@ -168,19 +157,21 @@ def _has_regression_evaluator_failure(
     experiment: RanExperiment,
     evaluation_runs: Sequence[ExperimentEvaluationRun],
 ) -> bool:
-    splits_by_id = _example_splits_by_id(dataset)
+    splits_by_id = example_splits_by_id(dataset)
     task_runs_by_id = {
         str(task_run["id"]): task_run
         for task_run in experiment.get("task_runs", [])
         if "id" in task_run
     }
     for evaluation_run in evaluation_runs:
-        if not _is_failed_evaluation(evaluation_run):
+        if not is_failed_evaluation(evaluation_run):
             continue
         task_run = task_runs_by_id.get(str(evaluation_run.experiment_run_id))
         if task_run is None:
             continue
-        example_id = _stable_example_id(task_run)
+        if task_run_error(task_run) is not None:
+            continue
+        example_id = stable_example_id(task_run)
         if "regression" in splits_by_id.get(example_id, set()):
             return True
     return False
@@ -264,6 +255,8 @@ class ExampleFailure:
     actual_output: Any
     task_error: str | None
     evaluations: list[EvaluationRecord]
+    attempts: list[dict[str, Any]] = field(default_factory=list)
+    flaky: bool = False
 
 
 @dataclass(frozen=True)
@@ -285,8 +278,12 @@ class Report:
     generated_at: str
     examples_run: int
     examples_passed: int
+    confirmed_regression_count: int
+    infra_failure_count: int
+    flaky_count: int
     evaluator_summary: list[dict[str, Any]]
     failures: list[ExampleFailure]
+    attempts: list[dict[str, Any]]
     repro_command: str
     schema_version: int = REPORT_SCHEMA_VERSION
     notes: list[str] = field(default_factory=list)
@@ -310,20 +307,6 @@ def _trace_url(trace_id: str | None, base_url: str) -> str | None:
     if not trace_id:
         return None
     return urljoin(base_url.rstrip("/") + "/", f"redirects/traces/{trace_id}")
-
-
-def _task_run_error(task_run: Mapping[str, Any]) -> str | None:
-    output = task_run.get("output")
-    output_error = output.get("error") if isinstance(output, dict) else None
-    error = task_run.get("error") or output_error
-    return str(error) if error else None
-
-
-def _stable_example_id(task_run: Mapping[str, Any]) -> str:
-    output = task_run.get("output")
-    if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
-        return str(output["stable_example_id"])
-    return str(task_run.get("dataset_example_id", ""))
 
 
 # The serialized pydantic_ai messages repeat the full static system prompt
@@ -365,12 +348,37 @@ def _evaluation_record(evaluation_run: ExperimentEvaluationRun) -> EvaluationRec
     explanation = result.get("explanation")
     return EvaluationRecord(
         name=str(evaluation_run.name or "unknown"),
-        score=_score(evaluation_run),
+        score=score(evaluation_run),
         label=str(label) if label is not None else None,
         explanation=str(explanation) if explanation is not None else None,
         error=evaluation_run.error,
-        passed=not _is_failed_evaluation(evaluation_run),
+        passed=not is_failed_evaluation(evaluation_run),
     )
+
+
+def _attempt_dicts(
+    dataset: EvalDataset,
+    experiment: RanExperiment,
+    *,
+    attempt: int,
+    base_url: str,
+    include_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    outcomes = attempt_outcomes(dataset, experiment, attempt=attempt)
+    experiment_url = _experiment_url(experiment, base_url)
+    return [
+        {
+            "example_id": outcome.example_id,
+            "attempt": outcome.attempt,
+            "experiment_id": outcome.experiment_id,
+            "experiment_url": experiment_url,
+            "task_error": outcome.task_error,
+            "failed_evaluators": list(outcome.failed_evaluators),
+            "failed": outcome.failed,
+        }
+        for outcome in outcomes.values()
+        if outcome.failed or (include_ids is not None and outcome.example_id in include_ids)
+    ]
 
 
 def build_report(
@@ -382,6 +390,8 @@ def build_report(
     experiment_name: str | None = None,
     generated_at: str | None = None,
     dataset_arg: str | None = None,
+    retry_experiment: RanExperiment | None = None,
+    gate_decision: GateDecision | None = None,
 ) -> Report:
     """Build a failure report from a completed experiment.
 
@@ -397,18 +407,54 @@ def build_report(
             evaluation_run
         )
 
+    attempt_records: list[dict[str, Any]] = []
+    if gate_decision is not None or retry_experiment is not None:
+        include_ids = set(gate_decision.failed_once_ids) if gate_decision is not None else None
+        attempt_records.extend(
+            _attempt_dicts(
+                dataset,
+                experiment,
+                attempt=1,
+                base_url=base_url,
+                include_ids=include_ids,
+            )
+        )
+    if retry_experiment is not None:
+        include_ids = set(gate_decision.retry_ids) if gate_decision is not None else None
+        attempt_records.extend(
+            _attempt_dicts(
+                dataset,
+                retry_experiment,
+                attempt=2,
+                base_url=base_url,
+                include_ids=include_ids,
+            )
+        )
+    attempts_by_example: dict[str, list[dict[str, Any]]] = {}
+    for attempt in attempt_records:
+        attempts_by_example.setdefault(str(attempt["example_id"]), []).append(attempt)
+    report_example_ids = set(attempts_by_example)
+    if gate_decision is not None:
+        report_example_ids.update(gate_decision.confirmed_regression_ids)
+        report_example_ids.update(gate_decision.infra_ids)
+        report_example_ids.update(gate_decision.flaky_ids)
+
     failures: list[ExampleFailure] = []
     instructions_stripped = False
     task_runs = list(experiment.get("task_runs") or [])
     for task_run in task_runs:
-        task_error = _task_run_error(task_run)
+        task_error = task_run_error(task_run)
         evaluations = [
             _evaluation_record(run)
             for run in evaluations_by_run_id.get(str(task_run.get("id", "")), [])
         ]
-        if task_error is None and all(record.passed for record in evaluations):
+        example_id = stable_example_id(task_run)
+        if (
+            task_error is None
+            and all(record.passed for record in evaluations)
+            and example_id not in report_example_ids
+        ):
             continue
-        example_id = _stable_example_id(task_run)
         example = examples_by_id.get(example_id, {})
         trace_id = task_run.get("trace_id")
         actual_output, stripped = _strip_static_instructions(task_run.get("output"))
@@ -424,6 +470,8 @@ def build_report(
                 actual_output=actual_output,
                 task_error=task_error,
                 evaluations=evaluations,
+                attempts=attempts_by_example.get(example_id, []),
+                flaky=(gate_decision is not None and example_id in gate_decision.flaky_ids),
             )
         )
 
@@ -451,8 +499,14 @@ def build_report(
         generated_at=generated_at or datetime.now(timezone.utc).isoformat(),
         examples_run=len(task_runs),
         examples_passed=len(task_runs) - len(failures),
+        confirmed_regression_count=(
+            len(gate_decision.confirmed_regression_ids) if gate_decision is not None else 0
+        ),
+        infra_failure_count=len(gate_decision.infra_ids) if gate_decision is not None else 0,
+        flaky_count=len(gate_decision.flaky_ids) if gate_decision is not None else 0,
         evaluator_summary=evaluator_summary,
         failures=failures,
+        attempts=attempt_records,
         repro_command=(
             "uv run python -m evals.pxi.harness.run_experiment "
             f"--dataset {dataset_stem} --splits {' '.join(str(s) for s in splits)}"
@@ -584,6 +638,8 @@ def _md_header(report: Report) -> list[str]:
         f"- **Generated**: {report.generated_at}",
         f"- **Examples**: {report.examples_run} run, "
         f"{report.examples_passed} passed, {failed} failed",
+        f"- **Gate**: {report.confirmed_regression_count} confirmed regression, "
+        f"{report.infra_failure_count} infra, {report.flaky_count} flaky-passed",
         "",
     ]
     digest = _digest_rows(report)
@@ -610,11 +666,35 @@ def _md_escape_cell(text: str) -> str:
 
 def _md_failure_section(failure: ExampleFailure) -> list[str]:
     lines = [f"### Example: `{failure.example_id}`", ""]
+    if failure.flaky:
+        lines.append("- **Flaky**: failed first attempt, passed retry")
     if failure.splits:
         lines.append(f"- **Splits**: {', '.join(failure.splits)}")
     if failure.trace_url:
         lines.append(f"- **Trace**: {failure.trace_url}")
     lines.append("")
+    if failure.attempts:
+        lines.extend(["**Attempts:**", ""])
+        lines.extend(
+            [
+                "| Attempt | Result | Experiment | Details |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for attempt in sorted(failure.attempts, key=lambda item: int(item["attempt"])):
+            details: list[str] = []
+            if attempt.get("task_error"):
+                details.append(_first_line(str(attempt["task_error"])))
+            failed_evaluators = attempt.get("failed_evaluators") or []
+            if failed_evaluators:
+                details.append("failed evaluators: " + ", ".join(map(str, failed_evaluators)))
+            result = "failed" if attempt.get("failed") else "passed"
+            experiment = attempt.get("experiment_url") or attempt.get("experiment_id") or ""
+            lines.append(
+                f"| {attempt['attempt']} | {result} | {_md_escape_cell(str(experiment))} "
+                f"| {_md_escape_cell('; '.join(details))} |"
+            )
+        lines.append("")
     if failure.task_error is not None:
         lines.extend(["**Task error:**", "", _fenced_block(failure.task_error, "text"), ""])
     failed_evaluations = [record for record in failure.evaluations if not record.passed]

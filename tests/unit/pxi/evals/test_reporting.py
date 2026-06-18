@@ -22,6 +22,7 @@ from phoenix.client.resources.experiments.types import (
 )
 
 from evals.pxi.harness.datasets import EvalDataset
+from evals.pxi.harness.gating import GateDecision
 from evals.pxi.harness.reporting import (
     build_report,
     report_to_json,
@@ -318,6 +319,10 @@ def test_json_round_trips_with_schema_fields() -> None:
     payload = json.loads(report_to_json(_report()))
 
     assert payload["schema_version"] == 1
+    assert payload["confirmed_regression_count"] == 0
+    assert payload["infra_failure_count"] == 0
+    assert payload["flaky_count"] == 0
+    assert payload["attempts"] == []
     assert payload["dataset_name"] == "example_suite"
     assert payload["examples_run"] == 4
     assert payload["examples_passed"] == 1
@@ -331,6 +336,40 @@ def test_json_round_trips_with_schema_fields() -> None:
         "expected set_spans_filter, agent called set_time_range"
     )
     assert payload["evaluator_summary"][0]["name"] == "correct_tools_called"
+
+
+def test_report_includes_retry_attempts_and_flaky_examples() -> None:
+    dataset = _dataset()
+    experiment = _experiment()
+    retry_experiment = _experiment()
+    retry_experiment["experiment_id"] = "RXhwZXJpbWVudDoy"
+    retry_experiment["task_runs"] = [_task_run("retry-run-fail", "failing-example")]
+    retry_experiment["evaluation_runs"] = [_evaluation("retry-run-fail", score=1.0)]
+    report = build_report(
+        dataset,
+        experiment,
+        retry_experiment=retry_experiment,
+        gate_decision=GateDecision(
+            status="passed",
+            failed_once_ids=("failing-example",),
+            retry_ids=("failing-example",),
+            confirmed_regression_ids=(),
+            infra_ids=(),
+            flaky_ids=("failing-example",),
+        ),
+        base_url=BASE_URL,
+        splits=["regression"],
+    )
+
+    assert report.flaky_count == 1
+    failure = next(
+        failure for failure in report.failures if failure.example_id == "failing-example"
+    )
+    assert failure.flaky is True
+    assert [attempt["attempt"] for attempt in failure.attempts] == [1, 2]
+    markdown = report_to_markdown(report)
+    assert "**Gate**: 0 confirmed regression, 0 infra, 1 flaky-passed" in markdown
+    assert "- **Flaky**: failed first attempt, passed retry" in markdown
 
 
 def test_markdown_has_sentinels_digest_payloads_and_repro_footer() -> None:

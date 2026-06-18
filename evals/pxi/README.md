@@ -36,8 +36,11 @@ uv run python -m evals.pxi.harness.run_experiment --dataset set_spans_filter --s
 ```
 
 `--fail-on-regression` exits nonzero only when an evaluator fails on a
-`regression` example. The runner prints a stdout summary and the Phoenix
-experiment URL.
+`regression` example. Add `--retry-failed` to retry only failed regression
+examples once before deciding the gate; with retry enabled, red means a
+regression example failed twice in a row. Task/runtime errors exit with code
+2 as infrastructure, not regression evidence. The runner prints a stdout
+summary and the Phoenix experiment URL.
 
 ## Failure Reports
 
@@ -342,11 +345,14 @@ the Actions tab.
 
 The workflow invokes the runner for every YAML file in
 `evals/pxi/datasets/*.yaml` with `--splits regression`,
-`--fail-on-regression`, and `--report-dir`. The runner skips datasets when
-the requested split has no regression examples. Each dataset run is printed
-as its own log group with the dataset file and CI experiment name. The
-workflow keeps going after individual dataset failures, and the final status
-is red if any dataset fails.
+`--fail-on-regression`, `--retry-failed`, and `--report-dir`. The runner skips
+datasets when the requested split has no regression examples. Each dataset
+run is printed as its own log group with the dataset file and CI experiment
+name. The workflow keeps going after individual dataset failures. The final
+status is red only when a regression example fails on both the first attempt
+and its targeted retry. Infrastructure issues, including Phoenix
+unavailability and task/runtime errors that prevent assessment, are surfaced
+as warning rows and do not fail the PR gate.
 
 ### Reading a CI failure
 

@@ -23,6 +23,7 @@ from evals.pxi.harness.reporting import (
 from evals.pxi.harness.run_experiment import (
     ExperimentConfig,
     _check_evaluations_ran,
+    _filter_dataset_examples,
     _get_split_filtered_dataset,
     _phoenix_examples,
     _rewrite_stable_example_ids,
@@ -224,6 +225,20 @@ def test_main_defaults_report_flags_off(monkeypatch: pytest.MonkeyPatch) -> None
     assert main(["--dataset", "set_spans_filter"]) == 0
     assert captured[0].report_dir is None
     assert captured[0].print_report is False
+    assert captured[0].retry_failed is False
+
+
+def test_main_forwards_retry_failed_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: list[ExperimentConfig] = []
+
+    def fake_run(config: ExperimentConfig) -> int:
+        captured.append(config)
+        return 0
+
+    monkeypatch.setattr("evals.pxi.harness.run_experiment.run", fake_run)
+
+    assert main(["--dataset", "set_spans_filter", "--retry-failed"]) == 0
+    assert captured[0].retry_failed is True
 
 
 def test_main_forwards_explicit_splits(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -338,9 +353,41 @@ def test_check_evaluations_ran_accepts_empty_experiment_and_real_evaluations() -
     _check_evaluations_ran(evaluated)
 
 
+def test_check_evaluations_ran_accepts_task_error_only_experiment() -> None:
+    now = datetime.now(timezone.utc)
+    experiment = _ran_experiment()
+    experiment["task_runs"] = [
+        {
+            "id": "run-1",
+            "dataset_example_id": "regression-example",
+            "output": {},
+            "repetition_number": 1,
+            "start_time": now.isoformat(),
+            "end_time": now.isoformat(),
+            "experiment_id": "experiment-1",
+            "error": "TimeoutError: task timed out",
+        }
+    ]
+
+    _check_evaluations_ran(experiment)
+
+
 class _FakeDatasetWithExamples:
     def __init__(self, examples: list[dict[str, object]]) -> None:
         self.examples = examples
+
+
+class _FakePhoenixDataset:
+    def __init__(self, examples: list[dict[str, object]]) -> None:
+        self._examples = examples
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": "dataset-1",
+            "name": "Example Dataset",
+            "version_id": "dataset-version-1",
+            "examples": self._examples,
+        }
 
 
 def test_rewrite_stable_example_ids_maps_global_ids_even_without_output() -> None:
@@ -391,6 +438,21 @@ def test_rewrite_stable_example_ids_maps_global_ids_even_without_output() -> Non
     assert experiment["task_runs"][1]["dataset_example_id"] == "dev-example"
     # Unmapped ids without output fall through unchanged rather than crashing.
     assert experiment["task_runs"][2]["dataset_example_id"] == "unmapped-global-id"
+
+
+def test_filter_dataset_examples_preserves_dataset_version_and_selects_ids() -> None:
+    dataset = _FakePhoenixDataset(
+        [
+            {"id": "regression-example", "input": {}, "output": {}, "metadata": {}},
+            {"id": "dev-example", "input": {}, "output": {}, "metadata": {}},
+        ]
+    )
+
+    filtered = _filter_dataset_examples(dataset, ("regression-example",))
+
+    assert filtered.id == "dataset-1"
+    assert filtered.version_id == "dataset-version-1"
+    assert [example["id"] for example in filtered.examples] == ["regression-example"]
 
 
 def test_fail_on_regression_detects_only_regression_failures() -> None:
