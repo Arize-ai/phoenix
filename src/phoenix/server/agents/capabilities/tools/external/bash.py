@@ -16,7 +16,6 @@ NAME = "bash"
 DESCRIPTION = """\
 Run a shell command in the browser virtual filesystem.
 Runs inside a browser-only just-bash virtual shell, not a host machine or container.
-Read Phoenix context from /phoenix; writes there are blocked.
 Write scratch files only under /home/user/workspace or /tmp; mutations elsewhere are \
 blocked.
 Redirect unwanted output to /dev/null (e.g. `cmd >/dev/null 2>&1`); it is a \
