@@ -430,6 +430,11 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PromptContext(TypedDict):
+    type: Literal["prompt"]
+    promptNodeId: str
+
+
 class PromptDeepSeekInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
@@ -579,6 +584,12 @@ class PromptToolFunctionDefinition(TypedDict):
 class PromptToolRaw(TypedDict):
     type: Literal["raw"]
     raw: Mapping[str, Any]
+
+
+class PromptVersionContext(TypedDict):
+    type: Literal["prompt_version"]
+    promptNodeId: str
+    promptVersionNodeId: str
 
 
 class PromptVersionTag(TypedDict):
@@ -1553,6 +1564,8 @@ class ChatRegenerateMessage(TypedDict):
                 ProjectContext,
                 TraceContext,
                 SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
@@ -1582,6 +1595,8 @@ class ChatSubmitMessage(TypedDict):
                 ProjectContext,
                 TraceContext,
                 SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,

@@ -7373,6 +7373,12 @@
             "$ref": "#/components/schemas/SessionContext"
           },
           {
+            "$ref": "#/components/schemas/PromptContext"
+          },
+          {
+            "$ref": "#/components/schemas/PromptVersionContext"
+          },
+          {
             "$ref": "#/components/schemas/AgentSpanContext"
           },
           {
@@ -7409,6 +7415,8 @@
             "llm_evaluator": "#/components/schemas/LlmEvaluatorContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
+            "prompt": "#/components/schemas/PromptContext",
+            "prompt_version": "#/components/schemas/PromptVersionContext",
             "session": "#/components/schemas/SessionContext",
             "span": "#/components/schemas/AgentSpanContext",
             "subagents": "#/components/schemas/SubagentsContext",
@@ -11959,6 +11967,26 @@
         ],
         "title": "PromptChatTemplate"
       },
+      "PromptContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId"
+        ],
+        "title": "PromptContext",
+        "description": "Prompt the user is currently viewing."
+      },
       "PromptData": {
         "properties": {
           "name": {
@@ -13211,6 +13239,31 @@
           "id"
         ],
         "title": "PromptVersion"
+      },
+      "PromptVersionContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "prompt_version",
+            "title": "Type"
+          },
+          "promptNodeId": {
+            "type": "string",
+            "title": "Promptnodeid"
+          },
+          "promptVersionNodeId": {
+            "type": "string",
+            "title": "Promptversionnodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "promptNodeId",
+          "promptVersionNodeId"
+        ],
+        "title": "PromptVersionContext",
+        "description": "Prompt version the user is currently viewing."
       },
       "PromptVersionData": {
         "properties": {

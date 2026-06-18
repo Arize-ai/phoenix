@@ -43,6 +43,10 @@ function contextLabel(context: AgentContext): string {
       return "Trace";
     case "session":
       return "Session";
+    case "prompt":
+      return "Prompt";
+    case "prompt_version":
+      return "Prompt Version";
     case "span":
       return "Span";
     case "code_evaluator":
@@ -61,6 +65,10 @@ function contextDetail(context: AgentContext): string | undefined {
       return truncateId(context.otelTraceId);
     case "session":
       return truncateId(context.sessionNodeId);
+    case "prompt":
+      return truncateId(context.promptNodeId);
+    case "prompt_version":
+      return truncateId(context.promptVersionNodeId);
     case "span": {
       const spanId = context.spanNodeId ?? context.otelSpanId;
       if (spanId == null) {

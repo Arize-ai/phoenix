@@ -56,6 +56,11 @@ export function buildParamsFromContexts(
       }
     } else if (context.type === "dataset") {
       params.datasetId = context.datasetNodeId;
+    } else if (context.type === "prompt") {
+      params.promptId = context.promptNodeId;
+    } else if (context.type === "prompt_version") {
+      params.promptId = context.promptNodeId;
+      params.versionId = context.promptVersionNodeId;
     }
   }
   return params;

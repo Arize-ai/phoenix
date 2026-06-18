@@ -1614,7 +1614,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -3506,6 +3506,19 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
         };
+        /**
+         * PromptContext
+         * @description Prompt the user is currently viewing.
+         */
+        PromptContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt";
+            /** Promptnodeid */
+            promptNodeId: string;
+        };
         /** PromptData */
         PromptData: {
             name: components["schemas"]["Identifier"];
@@ -4005,6 +4018,21 @@ export interface components {
             response_format?: components["schemas"]["PromptResponseFormatJSONSchema"] | null;
             /** Id */
             id: string;
+        };
+        /**
+         * PromptVersionContext
+         * @description Prompt version the user is currently viewing.
+         */
+        PromptVersionContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt_version";
+            /** Promptnodeid */
+            promptNodeId: string;
+            /** Promptversionnodeid */
+            promptVersionNodeId: string;
         };
         /** PromptVersionData */
         PromptVersionData: {
