@@ -44,6 +44,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { LoadMoreButton } from "@phoenix/components/core/LoadMoreButton";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
@@ -53,7 +54,7 @@ import {
 import { TopNavActions } from "@phoenix/components/nav";
 import { GradientCircle } from "@phoenix/components/project/GradientCircle";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import {
@@ -921,7 +922,12 @@ function ProjectsTable({
             ))}
           </thead>
           {isEmpty ? (
-            <TableEmpty />
+            <TableEmptyWrap>
+              <EmptyState
+                graphic={<EmptyStateGraphic variant="project" />}
+                description="No projects found"
+              />
+            </TableEmptyWrap>
           ) : (
             <tbody>
               {table.getRowModel().rows.map((row) => (

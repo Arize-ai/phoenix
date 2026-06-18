@@ -391,7 +391,7 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <View overflow="auto">
+              <View height="100%" overflow="auto">
                 <Suspense fallback={<Loading />}>
                   <SpanEventsList spanId={span.id} />
                 </Suspense>

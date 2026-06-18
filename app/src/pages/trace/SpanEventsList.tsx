@@ -12,6 +12,11 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import {
+  EmptyState,
+  EmptyStateArea,
+  EmptyStateGraphic,
+} from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
 
@@ -62,9 +67,12 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
 
   if (events.length === 0) {
     return (
-      <View padding="size-200">
-        <Text color="text-700">No events</Text>
-      </View>
+      <EmptyStateArea>
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="event" />}
+          description="No events for this span"
+        />
+      </EmptyStateArea>
     );
   }
 

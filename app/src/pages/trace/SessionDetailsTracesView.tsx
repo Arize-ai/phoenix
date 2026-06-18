@@ -33,6 +33,11 @@ import {
   Truncate,
   View,
 } from "@phoenix/components";
+import {
+  EmptyState,
+  EmptyStateArea,
+  EmptyStateGraphic,
+} from "@phoenix/components/core/empty";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -336,7 +341,12 @@ function TraceRowList({
       onScroll={onScroll}
     >
       {traces.length === 0 ? (
-        <Empty message="No traces in this session" />
+        <EmptyStateArea>
+          <EmptyState
+            graphic={<EmptyStateGraphic variant="trace" />}
+            description="No traces in this session"
+          />
+        </EmptyStateArea>
       ) : (
         <>
           {traces.map((trace, index) => (
