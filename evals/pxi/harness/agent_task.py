@@ -3,23 +3,9 @@ from __future__ import annotations
 import json
 import os
 import sys
-import threading
 from datetime import datetime, timezone
-from types import SimpleNamespace
 from typing import Any, Literal, cast
-from unittest.mock import Mock
-from urllib.parse import urljoin
 
-from openinference.instrumentation import OITracer, TraceConfig
-from openinference.semconv.resource import ResourceAttributes
-from opentelemetry import trace as otel_trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.trace import TracerProvider as AbstractTracerProvider
-from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
-from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.messages import (
@@ -51,10 +37,7 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
-from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
-from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
-from phoenix.server.api.context import Context
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -63,182 +46,6 @@ ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
 _MAX_ERROR_MESSAGE_LEN = 200
-
-# One real OTel TracerProvider per Phoenix project, reused across every task in
-# a run. The provider exports the agent's OpenInference spans (LLM calls, tool
-# calls, skill loads) to Phoenix so each experiment run links to a full agent
-# trace -- without this, ``build_agent`` falls back to a NoOp provider and the
-# task span has no children. Keyed by project name because the experiment's
-# project is only known at task time (read off the active task span).
-_TRACER_PROVIDERS: dict[str, TracerProvider] = {}
-_TRACER_PROVIDERS_LOCK = threading.Lock()
-
-
-def _active_span_project_name() -> str | None:
-    """Return the project name on the currently-active span's resource, if any.
-
-    The experiment runner starts each task inside a span whose resource carries
-    ``openinference.project.name`` set to the experiment's project. Reading it
-    back here lets the agent's spans export to the *same* project so they nest
-    under the task span in one trace, instead of fragmenting into a separate
-    project.
-    """
-    span = otel_trace.get_current_span()
-    resource = getattr(span, "resource", None)
-    if resource is None:
-        return None
-    name = resource.attributes.get(ResourceAttributes.PROJECT_NAME)
-    return str(name) if name else None
-
-
-def _experiment_tracer_provider() -> AbstractTracerProvider | None:
-    """Build (or reuse) a Phoenix-exporting TracerProvider for the active task.
-
-    Returns ``None`` when there is no active experiment task span (e.g. a direct
-    ``run_pxi_example`` call), so the agent stays on its NoOp default and no
-    spans are emitted -- preserving the previous behavior outside experiments.
-    """
-    project_name = _active_span_project_name()
-    if not project_name:
-        return None
-    with _TRACER_PROVIDERS_LOCK:
-        provider = _TRACER_PROVIDERS.get(project_name)
-        if provider is None:
-            resource = Resource({ResourceAttributes.PROJECT_NAME: project_name})
-            provider = TracerProvider(resource=resource)
-            api_key = get_env_phoenix_api_key()
-            headers = {"authorization": f"Bearer {api_key}"} if api_key else {}
-            endpoint = urljoin(str(get_base_url()), "v1/traces")
-            # SimpleSpanProcessor exports synchronously on span end, so spans are
-            # flushed by the time ``agent.run`` returns -- no batching to lose.
-            provider.add_span_processor(
-                SimpleSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
-            )
-            _TRACER_PROVIDERS[project_name] = provider
-        return provider
-
-
-def shutdown_experiment_tracer_providers() -> None:
-    """Flush and shut down every per-project provider built during the run.
-
-    Call once after the experiment completes. Best-effort: a provider that fails
-    to shut down does not abort the others.
-    """
-    with _TRACER_PROVIDERS_LOCK:
-        providers = list(_TRACER_PROVIDERS.values())
-        _TRACER_PROVIDERS.clear()
-    for provider in providers:
-        try:
-            provider.shutdown()
-        except Exception as exc:  # pragma: no cover - best-effort cleanup
-            print(f"warning: tracer provider shutdown failed: {exc}", file=sys.stderr)
-
-
-# --- Subagent wiring (call_subagent tool) --------------------------------
-
-# Cap on the subagent's model requests per delegated task. The harness mocks the
-# GraphQL context, so data queries return errors and an uncapped subagent keeps
-# probing (introspection, guessing node IDs) instead of stopping once it has
-# emitted the target query. A legitimate path -- load_skill, read_skill_resource,
-# phoenix-gql --help, the real query, answer -- is ~5 requests; this leaves room
-# for a couple of retries before we cut it off.
-_SUBAGENT_MAX_MODEL_REQUESTS = 8
-
-_GRAPHQL_SCHEMA: Any = None
-
-
-def _eval_graphql_schema() -> Any:
-    """Build and cache the real Phoenix GraphQL schema for subagent runs.
-
-    The subagent's ``phoenix-gql`` validates and introspects against this schema
-    so it sees Phoenix's real fields and arguments. Execution uses a mock GraphQL
-    context (the harness has no DB), so data resolvers error -- harmless here
-    because the eval scores the *emitted* query shape, not the returned rows.
-    Introspection (``__type``/``__schema``) and validation are schema-level and
-    work regardless of the context.
-    """
-    global _GRAPHQL_SCHEMA
-    if _GRAPHQL_SCHEMA is None:
-        from phoenix.server.api.schema import build_graphql_schema
-
-        _GRAPHQL_SCHEMA = build_graphql_schema()
-    return _GRAPHQL_SCHEMA
-
-
-class _RecordingServerAgent:
-    """Wrap the subagent so each delegated run's messages are captured.
-
-    ``call_subagent`` returns only the subagent's final text, so the subagent's
-    tool calls (``load_skill``, ``bash``/``phoenix-gql``) never reach the main
-    agent's message history that the evaluators read. This wrapper appends every
-    subagent run's serialized new messages to ``sink`` so the harness can merge
-    them into the task output, making the subagent's queries visible to the tool
-    and bash-command evaluators. Only ``run`` is exercised by
-    ``CallSubAgentToolset``; every other attribute delegates to the wrapped agent.
-    """
-
-    def __init__(self, inner: Any, sink: list[dict[str, Any]]) -> None:
-        self._inner = inner
-        self._sink = sink
-
-    async def run(self, *args: Any, **kwargs: Any) -> Any:
-        """Drive the subagent via ``iter`` so we can cap model requests.
-
-        ``call_subagent`` only reads ``.output`` off the return value, so we
-        return a lightweight shim. We use ``iter`` (instrumented by the agent
-        wrapper, so spans are preserved) and break after
-        ``_SUBAGENT_MAX_MODEL_REQUESTS`` model-request nodes to stop runaway
-        probing. New messages are captured whether or not the run finished, so
-        the evaluators still see every query the subagent emitted before the cap.
-        """
-        output: Any = None
-        model_requests = 0
-        async with self._inner.iter(*args, **kwargs) as run:
-            async for node in run:
-                if Agent.is_model_request_node(node):
-                    model_requests += 1
-                    if model_requests > _SUBAGENT_MAX_MODEL_REQUESTS:
-                        break
-            if run.result is not None:
-                output = run.result.output
-            try:
-                self._sink.extend(json.loads(run.new_messages_json()))
-            except Exception:  # pragma: no cover - capture must never break the run
-                pass
-        if output is None:
-            output = (
-                "Subagent stopped after reaching the step limit of "
-                f"{_SUBAGENT_MAX_MODEL_REQUESTS} model requests without a final answer. "
-                "Summarize from the data already gathered."
-            )
-        return SimpleNamespace(output=output)
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._inner, name)
-
-
-def _build_eval_subagent(
-    *,
-    model: PydanticAIModel,
-    docs_mcp_server: MCPServerStreamableHTTP | None,
-    tracer_provider: AbstractTracerProvider | None,
-    sink: list[dict[str, Any]],
-) -> _RecordingServerAgent:
-    """Build the GraphQL server subagent for an eval run, recording its messages.
-
-    Mirrors the production wiring in the agents router: the real GraphQL schema,
-    the same (already OpenInference-wrapped) model, the shared docs toolset, and
-    the experiment tracer provider so the subagent's spans nest in the same
-    trace. The GraphQL context is mocked because the harness has no DB.
-    """
-    server_agent = build_server_agent(
-        model=model,
-        schema=_eval_graphql_schema(),
-        build_graphql_context=lambda: Mock(spec=Context),
-        docs_mcp_server=docs_mcp_server,
-        tracer_provider=tracer_provider,
-    )
-    return _RecordingServerAgent(server_agent, sink)
 
 
 def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
@@ -365,6 +172,11 @@ def _build_contexts(input: dict[str, Any]) -> ResolvedContexts:
     if not isinstance(raw_contexts, list):
         raise ValueError("PXI eval input.contexts must be a list when provided")
     return resolve_contexts([ChatContext.model_validate(context) for context in raw_contexts])
+
+
+def _build_dependencies(input: dict[str, Any]) -> AgentDependencies:
+    contexts = _build_contexts(input)
+    return AgentDependencies(contexts=contexts)
 
 
 def _build_run_inputs(
@@ -624,7 +436,6 @@ def _example_input(example: dict[str, Any]) -> dict[str, Any]:
 
 def make_task(
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
-    include_subagent: bool = False,
 ) -> Any:
     """Build a Phoenix experiment task callable bound to a shared toolset.
 
@@ -634,9 +445,6 @@ def make_task(
     to YAML example IDs. The single shared ``docs_mcp_server`` is reused
     across every concurrent task to satisfy anyio's single-owner cancel
     scope rule.
-
-    ``include_subagent`` mounts the ``call_subagent`` tool (backed by the
-    GraphQL server subagent) on the main agent for every example.
     """
 
     async def task(example: dict[str, Any]) -> dict[str, Any]:
@@ -645,7 +453,6 @@ def make_task(
             input_value,
             stable_example_id=example.get("id"),
             docs_mcp_server=docs_mcp_server,
-            include_subagent=include_subagent,
         )
 
     return task
@@ -667,7 +474,6 @@ async def run_pxi_example(
     *,
     stable_example_id: str | None = None,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
-    include_subagent: bool = False,
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 
@@ -693,49 +499,13 @@ async def run_pxi_example(
     try:
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
-        # Mirror production: ``build_model`` returns an OpenInference-wrapped
-        # model so LLM calls are traced. The harness builds a raw model, so wrap
-        # it here with the same tracer when an experiment provider is active --
-        # otherwise the trace would show tool spans but no LLM spans.
-        tracer_provider = _experiment_tracer_provider()
-        if tracer_provider is not None:
-            model = OpenInferenceModelWrapper(
-                model,
-                tracer=OITracer(
-                    tracer_provider.get_tracer("phoenix.server.agents"),
-                    config=TraceConfig(),
-                ),
-            )
-        contexts = _build_contexts(input)
-        # With ``include_subagent`` (the ``--include-subagent`` flag), give the
-        # main agent the ``call_subagent`` tool backed by the GraphQL server
-        # subagent (bash + phoenix-gql). Its messages are captured into
-        # ``subagent_messages`` and merged into the task output below, so
-        # evaluators that read tool/bash calls see the queries the subagent
-        # actually emitted.
-        subagent_messages: list[dict[str, Any]] = []
-        server_agent = None
-        if include_subagent:
-            server_agent = _build_eval_subagent(
-                model=model,
-                docs_mcp_server=docs_mcp_server,
-                tracer_provider=tracer_provider,
-                sink=subagent_messages,
-            )
-        agent = build_agent(
-            model=model,
-            docs_mcp_server=docs_mcp_server,
-            tracer_provider=tracer_provider,
-            server_agent=server_agent,
-        )
+        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
         result = await agent.run(
             user_prompt,
-            deps=AgentDependencies(contexts=contexts),
+            deps=_build_dependencies(input),
             message_history=message_history,
         )
         output = agent_task_output(result)
-        if subagent_messages:
-            output.setdefault("messages", []).extend(subagent_messages)
     except Exception as exc:
         message = str(exc)
         if len(message) > _MAX_ERROR_MESSAGE_LEN:

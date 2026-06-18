@@ -29,7 +29,6 @@ from evals.pxi.harness.agent_task import (
     ENV_ASSISTANT_PROVIDER,
     build_shared_docs_mcp_server,
     make_task,
-    shutdown_experiment_tracer_providers,
 )
 from evals.pxi.harness.datasets import (
     EvalDataset,
@@ -53,7 +52,6 @@ class ExperimentConfig:
     fail_on_regression: bool
     splits: tuple[str, ...]
     evaluator_override: tuple[str, ...] | None
-    include_subagent: bool
 
 
 def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
@@ -415,17 +413,12 @@ async def _run_async(config: ExperimentConfig) -> int:
                 "started_at": datetime.now(timezone.utc).isoformat(),
             }
             print(f"Running experiment: {name}")
-            # Run the task, then evaluate. The evaluation step MUST run before
-            # the stable-id remap below: ``evaluate_experiment`` binds each run
-            # to its example via the relay dataset-example GlobalID
-            # (``dataset_example_id``), so overwriting that id first makes every
-            # run unmatchable and silently produces zero evaluations.
+            # Run task first, then evaluate explicitly after replacing Phoenix's
+            # relay dataset example ID with the stable YAML example ID expected
+            # by the client-side evaluator lookup.
             experiment = await client.experiments.run_experiment(
                 dataset=experiment_dataset,
-                task=make_task(
-                    docs_mcp_server=docs_mcp_server,
-                    include_subagent=config.include_subagent,
-                ),
+                task=make_task(docs_mcp_server=docs_mcp_server),
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
@@ -434,6 +427,10 @@ async def _run_async(config: ExperimentConfig) -> int:
                 timeout=180,
                 retries=0,
             )
+            for task_run in experiment["task_runs"]:
+                output = task_run.get("output")
+                if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
+                    task_run["dataset_example_id"] = output["stable_example_id"]
             experiment = await client.experiments.evaluate_experiment(
                 experiment=experiment,
                 evaluators=cast(Any, evaluators),
@@ -442,18 +439,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 timeout=180,
                 retries=0,
             )
-            # Now that evaluation has bound runs to examples by GlobalID, replace
-            # the relay id with the stable YAML example id so the runner's own
-            # reporting (failure table, regression gate keyed on YAML splits) can
-            # map rows back to dataset examples.
-            for task_run in experiment["task_runs"]:
-                output = task_run.get("output")
-                if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
-                    task_run["dataset_example_id"] = output["stable_example_id"]
         finally:
-            # Flush and close the per-project agent tracer providers so the
-            # task spans are fully exported before the process exits.
-            shutdown_experiment_tracer_providers()
             # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
             # the underlying httpx client and tolerate it disappearing in a
             # future refactor so cleanup never shadows a real failure.
@@ -523,15 +509,6 @@ def build_parser() -> argparse.ArgumentParser:
             f"for permanent changes. Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
         ),
     )
-    parser.add_argument(
-        "--include-subagent",
-        action="store_true",
-        help=(
-            "Mount the call_subagent tool (backed by the GraphQL server "
-            "subagent with bash + phoenix-gql) on the main agent for every "
-            "example. Off by default."
-        ),
-    )
     return parser
 
 
@@ -548,7 +525,6 @@ def main(argv: list[str] | None = None) -> int:
         fail_on_regression=args.fail_on_regression,
         splits=tuple(args.splits),
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
-        include_subagent=args.include_subagent,
     )
     try:
         return run(config)
