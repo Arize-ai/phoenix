@@ -11,7 +11,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from strawberry import ID, UNSET, lazy
-from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
+from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -33,6 +33,7 @@ from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -392,11 +393,14 @@ class Project(Node):
 
     @strawberry.field
     async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
-        stmt = (
-            select(models.Trace)
-            .where(models.Trace.trace_id == str(trace_id))
-            .where(models.Trace.project_rowid == self.id)
-        )
+        stmt = select(models.Trace).where(models.Trace.project_rowid == self.id)
+        try:
+            trace_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(str(trace_id)), Trace.__name__
+            )
+            stmt = stmt.where(models.Trace.id == trace_rowid)
+        except ValueError:
+            stmt = stmt.where(models.Trace.trace_id == str(trace_id))
         async with info.context.db.read() as session:
             if (trace := await session.scalar(stmt)) is None:
                 return None
