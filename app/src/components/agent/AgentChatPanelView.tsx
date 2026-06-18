@@ -58,7 +58,9 @@ const panelHeaderCSS = css`
   column-gap: var(--global-dimension-size-100);
   min-height: var(--global-dimension-size-600);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  background: var(--global-background-color-default);
+  /* Inherit the panel surface so the header blends with whichever frame hosts
+     it: the darker docked panel or the lighter floating panel. */
+  background: transparent;
 `;
 
 const panelHeaderActionsCSS = css`
@@ -75,6 +77,9 @@ const sessionHeadingCSS = css`
 `;
 
 const panelContentCSS = css`
+  --agent-chat-panel-background-color: var(--global-background-color-default);
+  --prompt-input-background-color: var(--agent-chat-panel-background-color);
+
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -82,6 +87,11 @@ const panelContentCSS = css`
   min-width: 420px;
   overflow: hidden;
   border-top: 1px solid var(--global-border-color-default);
+  /* The docked panel is a sibling of the content frame, not a child, so it
+     would otherwise inherit the lighter body background. Pin it to the same
+     surface token the content frame uses so the chat panel reads as one
+     continuous surface with the main content area. */
+  background: var(--agent-chat-panel-background-color);
 `;
 
 /**
