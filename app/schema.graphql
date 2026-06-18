@@ -1132,6 +1132,9 @@ type DatasetLabel implements Node {
   name: String!
   description: String
   color: String!
+
+  """The number of datasets that this label is applied to."""
+  usageCount: Int!
 }
 
 """A connection to a list of items."""
@@ -3115,6 +3118,9 @@ type PromptLabel implements Node {
   name: String!
   description: String
   color: String
+
+  """The number of prompts that this label is applied to."""
+  usageCount: Int!
 }
 
 type PromptLabelAssociationMutationPayload {
