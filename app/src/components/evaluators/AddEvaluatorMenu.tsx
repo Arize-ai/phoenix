@@ -209,7 +209,7 @@ export const AddEvaluatorMenuContents = ({
           query={query}
           onAction={onSelectBuiltInLLMEvaluator}
         >
-          <MenuItem leadingContent={<Icon svg={<Icons.Template />} />}>
+          <MenuItem leadingContent={<Icon svg={<Icons.LLMOutput />} />}>
             Use LLM evaluator template
           </MenuItem>
         </LLMEvaluatorTemplateSubmenu>
