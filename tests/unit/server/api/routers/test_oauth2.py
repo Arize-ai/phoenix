@@ -13,9 +13,12 @@ from phoenix.server.api.routers.oauth2 import (
     MissingEmailScope,
     SignInNotAllowed,
     UserInfo,
+    _create_or_update_user,
     _parse_user_info,
+    _process_oauth2_user,
     _sign_in_existing_oauth2_user,
 )
+from phoenix.server.oauth2 import OAuth2Client
 from phoenix.server.types import DbSessionFactory
 
 
@@ -149,6 +152,178 @@ class TestSignInExistingOAuth2User:
         await create_user(e4, "uid7", "MEMBER", cid=client_id, pic="old.jpg")
         u = await sign_in(e4, "uid7", "ADMIN", "new.jpg")
         assert u.role.name == "ADMIN"
+
+
+class TestRoleResync:
+    """role_resync=False preserves a manually-set role on re-login while mapping stays active."""
+
+    @pytest.fixture(autouse=True)
+    async def _setup_role_ids(self, asgi_app: ASGIApp, db: DbSessionFactory) -> None:
+        async with db() as session:
+            result = await session.execute(select(models.UserRole.name, models.UserRole.id))
+            self.role_ids = {name: id_ for name, id_ in result.all()}
+
+    async def _create_oauth2_user(
+        self, db: DbSessionFactory, email: str, uid: str, role: str, client_id: str
+    ) -> None:
+        async with db() as session:
+            await session.execute(
+                insert(models.User).values(
+                    email=email,
+                    user_role_id=self.role_ids[role],
+                    username=token_hex(8),
+                    reset_password=False,
+                    auth_method="OAUTH2",
+                    oauth2_client_id=client_id,
+                    oauth2_user_id=uid,
+                )
+            )
+
+    async def test_role_resync_disabled_preserves_existing_role(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """With role_resync=False, an admin-promoted role survives an IDP login mapping to VIEWER."""
+        client_id = "client-skip"
+        email = f"{token_hex(8)}@example.com"
+        # Admin manually promoted this user to MEMBER in the UI.
+        await self._create_oauth2_user(db, email, "uid-skip", "MEMBER", client_id)
+
+        async with db() as session:
+            user = await _sign_in_existing_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-skip", email=email, username=None, profile_picture_url=None
+                ),
+                role_name="VIEWER",  # IDP would downgrade to VIEWER
+                role_resync=False,
+            )
+        assert user.role.name == "MEMBER"  # manual promotion preserved
+
+    async def test_role_resync_enabled_overwrites(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """Default behavior (role_resync=True) still re-syncs the role from the IDP."""
+        client_id = "client-noskip"
+        email = f"{token_hex(8)}@example.com"
+        await self._create_oauth2_user(db, email, "uid-noskip", "MEMBER", client_id)
+
+        async with db() as session:
+            user = await _sign_in_existing_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-noskip", email=email, username=None, profile_picture_url=None
+                ),
+                role_name="VIEWER",
+                role_resync=True,
+            )
+        assert user.role.name == "VIEWER"  # re-synced from IDP
+
+    async def test_create_or_update_role_resync_disabled_preserves_existing(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """role_resync=False also preserves roles in the sign-up-enabled path for existing users."""
+        client_id = "client-skip-cou"
+        email = f"{token_hex(8)}@example.com"
+        await self._create_oauth2_user(db, email, "uid-cou", "ADMIN", client_id)
+
+        async with db() as session:
+            user = await _create_or_update_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-cou", email=email, username=None, profile_picture_url=None
+                ),
+                role_name="VIEWER",
+                role_resync=False,
+            )
+        assert user.role.name == "ADMIN"
+
+    async def test_new_user_role_resync_disabled_still_uses_mapped_role(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """role_resync=False does not affect new users: they are provisioned with their mapped role."""
+        client_id = "client-newuser-skip"
+        email = f"{token_hex(8)}@example.com"
+
+        async with db() as session:
+            user = await _create_or_update_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-newskip",
+                    email=email,
+                    username=token_hex(8),
+                    profile_picture_url=None,
+                ),
+                role_name="ADMIN",  # mapped role from IDP
+                role_resync=False,
+            )
+        assert user.role.name == "ADMIN"  # mapping still active for provisioning
+
+    async def test_process_oauth2_user_forwards_role_resync(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """_process_oauth2_user forwards role_resync down to the existing-user update path."""
+        client_id = "client-process-forward"
+        email = f"{token_hex(8)}@example.com"
+        # Admin manually promoted this user to MEMBER in the UI.
+        await self._create_oauth2_user(db, email, "uid-forward", "MEMBER", client_id)
+
+        async with db() as session:
+            user = await _process_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-forward", email=email, username=None, profile_picture_url=None
+                ),
+                allow_sign_up=True,  # routes through _create_or_update_user
+                role_name="VIEWER",  # IDP would downgrade to VIEWER
+                role_resync=False,
+            )
+        assert user.role.name == "MEMBER"  # forwarded role_resync preserved the promotion
+
+    async def test_role_resync_disabled_preserves_role_against_fallback_viewer(
+        self, asgi_app: ASGIApp, db: DbSessionFactory
+    ) -> None:
+        """Security caveat: with role_resync=False, the non-strict VIEWER fallback for a
+        missing/unmapped IDP claim does NOT downgrade an existing user.
+
+        This chains the two stages the behavior actually spans: extract_and_map_role turns a
+        missing role claim into the fail-safe VIEWER, and the existing-user update path must then
+        preserve the higher role rather than apply that VIEWER.
+        """
+        client_id = "client-fallback-viewer"
+        email = f"{token_hex(8)}@example.com"
+        # Admin assigned manually in the Phoenix UI.
+        await self._create_oauth2_user(db, email, "uid-fallback", "ADMIN", client_id)
+
+        # Non-strict role mapping: a claim with no role resolves to the VIEWER fail-safe.
+        client = OAuth2Client(
+            name="test",
+            client_id="test_id",
+            client_secret="test_secret",
+            server_metadata_url="https://test.example.com/.well-known/openid-configuration",
+            display_name="Test IDP",
+            allow_sign_up=False,
+            auto_login=False,
+            role_attribute_path="role",
+        )
+        role_name = client.extract_and_map_role({"email": email})  # no "role" claim
+        assert role_name == "VIEWER"  # non-strict fail-safe
+
+        async with db() as session:
+            user = await _sign_in_existing_oauth2_user(
+                session,
+                oauth2_client_id=client_id,
+                user_info=UserInfo(
+                    idp_user_id="uid-fallback", email=email, username=None, profile_picture_url=None
+                ),
+                role_name=role_name,
+                role_resync=False,
+            )
+        assert user.role.name == "ADMIN"  # fail-safe VIEWER did not demote the existing admin
 
 
 class TestParseUserInfo:

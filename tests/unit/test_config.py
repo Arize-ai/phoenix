@@ -1302,6 +1302,47 @@ class TestOAuth2ClientConfigFromEnv:
         assert config.role_mapping == {"Owner": "ADMIN"}
         assert config.role_attribute_strict is False
 
+    def test_role_resync_defaults_true(self, monkeypatch: MonkeyPatch) -> None:
+        """role_resync defaults to True."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_resync is True
+
+    def test_role_resync_disabled(self, monkeypatch: MonkeyPatch) -> None:
+        """ROLE_RESYNC is parsed as a boolean."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_ATTRIBUTE_PATH", "role")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_RESYNC", "false")
+
+        config = OAuth2ClientConfig.from_env("test")
+        assert config.role_resync is False
+
+    def test_role_resync_disabled_without_role_attribute_path_raises(
+        self, monkeypatch: MonkeyPatch
+    ) -> None:
+        """ROLE_RESYNC=false without ROLE_ATTRIBUTE_PATH is a no-op and is rejected at startup."""
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_SECRET", "secret")
+        monkeypatch.setenv(
+            "PHOENIX_OAUTH2_TEST_OIDC_CONFIG_URL",
+            "https://example.com/.well-known/openid-configuration",
+        )
+        monkeypatch.setenv("PHOENIX_OAUTH2_TEST_ROLE_RESYNC", "false")
+
+        with pytest.raises(ValueError, match="ROLE_RESYNC is set to"):
+            OAuth2ClientConfig.from_env("test")
+
     def test_role_mapping_multiple(self, monkeypatch: MonkeyPatch) -> None:
         """Test multiple role mappings configuration."""
         monkeypatch.setenv("PHOENIX_OAUTH2_TEST_CLIENT_ID", "client_id")

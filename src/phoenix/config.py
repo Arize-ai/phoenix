@@ -1571,6 +1571,13 @@ class OAuth2ClientConfig:
     role_attribute_path: Optional[str]
     role_mapping: dict[str, AssignableUserRoleName]
     role_attribute_strict: bool
+    role_resync: bool = True
+    """When False, an existing user's role is never overwritten from IDP claims on login.
+
+    New users are still created with their IDP-mapped role, so role mapping stays active for
+    provisioning while existing users keep their current Phoenix role. Defaults to True
+    (the IDP re-syncs roles on every login).
+    """
 
     # Email extraction
     email_attribute_path: Optional[str] = None
@@ -1741,6 +1748,10 @@ class OAuth2ClientConfig:
         # Get role_attribute_strict setting (defaults to False)
         role_attribute_strict = _bool_val(f"{idp_prefix}_ROLE_ATTRIBUTE_STRICT", False)
 
+        # When False, preserve existing users' roles on login instead of re-syncing from the IDP.
+        # New users are still provisioned with their mapped role; only overwrites are suppressed.
+        role_resync = _bool_val(f"{idp_prefix}_ROLE_RESYNC", True)
+
         # Validate role configuration consistency
         if not role_attribute_path:
             # If ROLE_ATTRIBUTE_PATH is not configured, other role settings should not be set
@@ -1755,6 +1766,13 @@ class OAuth2ClientConfig:
                     f"Invalid configuration for {idp_name}: ROLE_ATTRIBUTE_STRICT is set to "
                     f"true but ROLE_ATTRIBUTE_PATH is not configured. ROLE_ATTRIBUTE_STRICT "
                     f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH."
+                )
+            if not role_resync:
+                raise ValueError(
+                    f"Invalid configuration for {idp_name}: ROLE_RESYNC is set to "
+                    f"false but ROLE_ATTRIBUTE_PATH is not configured. ROLE_RESYNC "
+                    f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH "
+                    f"(without it there is no role sync to disable)."
                 )
 
         # Email extraction configuration
@@ -1777,6 +1795,7 @@ class OAuth2ClientConfig:
             role_attribute_path=role_attribute_path,
             role_mapping=role_mapping,
             role_attribute_strict=role_attribute_strict,
+            role_resync=role_resync,
             email_attribute_path=email_attribute_path,
         )
 
@@ -2402,6 +2421,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "ROLE_ATTRIBUTE_PATH",  # JMESPath expression to extract role from ID token
     "ROLE_MAPPING",  # Comma-separated list of IDP role to Phoenix role mappings
     "ROLE_ATTRIBUTE_STRICT",  # Whether to deny access if role cannot be extracted/mapped
+    "ROLE_RESYNC",  # Whether to re-sync existing users' roles from the IDP on every login
 )
 
 
@@ -2561,7 +2581,9 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           ⚠️ Role Update Behavior:
             • When ROLE_ATTRIBUTE_PATH IS configured: User roles are synchronized from the IDP on EVERY login.
-              This ensures Phoenix roles stay in sync with your IDP's role assignments.
+              This ensures Phoenix roles stay in sync with your IDP's role assignments. This re-sync of
+              existing users can be turned off with ROLE_RESYNC=false (new users are still provisioned
+              from the IDP); see ROLE_RESYNC below.
             • When ROLE_ATTRIBUTE_PATH is NOT configured: User roles are preserved as-is (backward compatibility).
               New users get VIEWER role (least privilege), existing users keep their current roles.
 
@@ -2611,6 +2633,23 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           Example:
             PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ROLE_RESYNC: Controls whether existing users' roles are re-synchronized
+          from the IDP on every login. Defaults to true. Only applies when ROLE_ATTRIBUTE_PATH is
+          configured; setting it to false without ROLE_ATTRIBUTE_PATH is rejected at startup.
+
+          When true (default):
+            • An existing user's role is overwritten from IDP claims on every login (IDP is source of truth).
+
+          When false:
+            • An existing user's role is never overwritten from IDP claims; the user keeps their
+              current Phoenix role on re-login. New users are still provisioned with their IDP-mapped role.
+            • ⚠️ Security: with re-sync off, Phoenix owns existing users' roles. Revoking a role at the IDP
+              (including the non-strict VIEWER fail-safe for a missing/unmapped claim) will NOT auto-demote
+              an existing user — deprovision or downgrade them manually in the Phoenix UI.
+
+          Example:
+            PHOENIX_OAUTH2_OKTA_ROLE_RESYNC=false
 
     Multiple Identity Providers:
         You can configure multiple IDPs simultaneously. Users will see all configured providers
