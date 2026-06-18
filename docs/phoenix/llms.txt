@@ -179,7 +179,7 @@
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
-- [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run evals as pytest tests, record experiments, and gate CI on regressions with arize-phoenix-client[pytest]
+- [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run evals as pytest tests, record experiments, and gate CI on the pytest exit code with arize-phoenix-client[pytest]
 
 
 - [How to: Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets): Datasets are critical assets for building robust prompts, evals, fine-tuning,

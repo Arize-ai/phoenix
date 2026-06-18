@@ -1828,31 +1828,18 @@ def _comparison_count_expression(
     """
     Given a base and compare column, returns an expression counting the number of
     improvements, regressions, or equalities given the optimization direction.
-
-    The condition is evaluated from the perspective of ``base_column``: an improvement
-    means ``base_column`` is better than ``compare_column``. For ``minimize`` metrics
-    (e.g. latency) lower is better, so a smaller base value is an improvement; for
-    ``maximize`` metrics (e.g. accuracy scores) higher is better, so a larger base
-    value is an improvement.
     """
-    if comparison_type == "equality":
+    if optimization_direction == "maximize":
+        raise NotImplementedError
+
+    if comparison_type == "improvement":
+        condition = compare_column > base_column
+    elif comparison_type == "regression":
+        condition = compare_column < base_column
+    elif comparison_type == "equality":
         condition = compare_column == base_column
-    elif optimization_direction == "minimize":
-        # Lower is better: base improves when it is below compare.
-        condition = (
-            compare_column > base_column
-            if comparison_type == "improvement"
-            else (compare_column < base_column)
-        )
-    elif optimization_direction == "maximize":
-        # Higher is better: base improves when it is above compare.
-        condition = (
-            compare_column < base_column
-            if comparison_type == "improvement"
-            else (compare_column > base_column)
-        )
     else:
-        assert_never(optimization_direction)
+        assert_never(comparison_type)
 
     return func.coalesce(
         func.sum(

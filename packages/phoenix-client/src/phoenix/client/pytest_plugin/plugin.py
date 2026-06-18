@@ -26,7 +26,6 @@ import pytest
 
 from .config import PhoenixTestConfig, PhoenixTestConfigError
 from .context import _RunRecord, reset_current_run, set_current_run
-from .gating import GateResult, evaluate_gate, render_summary
 from .marker import (
     MARKER_NAME,
     REPETITION_PARAM,
@@ -259,25 +258,6 @@ def pytest_runtest_call(item: "Item") -> Any:
     return outcome
 
 
-def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
-    """Evaluate the aggregate gate and force a nonzero exit when it fails (D9).
-
-    Runs on the controller only. The gate result is cached on the state for the terminal
-    summary to render. Setting ``session.exitstatus`` here is the supported way to make the
-    process exit nonzero even when every individual test passed.
-    """
-    config = session.config
-    state = _get_state(config)
-    if state is None or _is_xdist_worker(config):
-        return
-    if state.config.offline:
-        return
-    gate: GateResult = state.run_gate(_PASS_ANNOTATION)
-    state.cache_gate(gate)
-    if gate.should_fail and session.exitstatus == pytest.ExitCode.OK:
-        session.exitstatus = pytest.ExitCode.TESTS_FAILED
-
-
 def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: "Config") -> None:
     state = _get_state(config)
     if state is None or _is_xdist_worker(config):
@@ -286,19 +266,11 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: "Con
     write = terminalreporter.write_line
     if state.config.offline:
         write(state.offline_summary_line())
-        return
-
-    gate = state.cached_gate()
-    if gate is None:
-        gate = state.run_gate(_PASS_ANNOTATION)
-    for line in render_summary(state, gate):
-        write(line)
+    else:
+        write(state.summary_line())
 
 
 def _make_client() -> Any:
     from phoenix.client import Client
 
     return Client()
-
-
-__all__ = ["evaluate_gate"]

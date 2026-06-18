@@ -2242,51 +2242,6 @@ class Experiments:
         resp.raise_for_status()
         return {**payload, "id": resp.json()["data"]["id"]}
 
-    def get_experiment_summary(
-        self,
-        *,
-        experiment_id: str,
-        baseline_experiment_id: Optional[str] = None,
-        ancestor_commits: Optional[Sequence[str]] = None,
-        minimize_scores: Optional[Sequence[str]] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> v1.ExperimentSummary:
-        """Fetch the per-annotation score summary for an experiment, optionally vs. a baseline.
-
-        Args:
-            experiment_id (str): The experiment to summarize.
-            baseline_experiment_id (Optional[str]): An explicit baseline experiment to diff
-                against. Takes precedence over ``ancestor_commits``. Must pin the same dataset
-                version (else the server returns 409).
-            ancestor_commits (Optional[Sequence[str]]): Ordered, closest-first commit SHAs;
-                the server resolves the most recent prior experiment on the same dataset version
-                whose ``repo_info.commit`` matches. Capped at 100 by the server.
-            minimize_scores (Optional[Sequence[str]]): Annotation names that are lower-is-better;
-                others default to higher-is-better.
-            timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
-
-        Returns:
-            ExperimentSummary: Per-annotation rows with mean scores and (when a baseline
-                resolves) baseline diffs.
-
-        Raises:
-            httpx.HTTPStatusError: On API errors (including 409 on dataset-version mismatch).
-        """
-        params: dict[str, Any] = {}
-        if baseline_experiment_id:
-            params["baseline_experiment_id"] = baseline_experiment_id
-        if ancestor_commits:
-            params["ancestor_commits"] = list(ancestor_commits)
-        if minimize_scores:
-            params["minimize_scores"] = list(minimize_scores)
-        resp = self._client.get(
-            f"v1/experiments/{encode_path_param(experiment_id)}/summary",
-            params=params,
-            timeout=timeout,
-        )
-        resp.raise_for_status()
-        return cast(v1.ExperimentSummary, resp.json()["data"])
-
     def _paginate(
         self,
         *,
@@ -4134,35 +4089,6 @@ class AsyncExperiments:
         resp = await self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
         resp.raise_for_status()
         return {**payload, "id": resp.json()["data"]["id"]}
-
-    async def get_experiment_summary(
-        self,
-        *,
-        experiment_id: str,
-        baseline_experiment_id: Optional[str] = None,
-        ancestor_commits: Optional[Sequence[str]] = None,
-        minimize_scores: Optional[Sequence[str]] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> v1.ExperimentSummary:
-        """Fetch the per-annotation score summary for an experiment, optionally vs. a baseline.
-
-        Async counterpart to :meth:`Experiments.get_experiment_summary`; see that method for
-        full semantics.
-        """
-        params: dict[str, Any] = {}
-        if baseline_experiment_id:
-            params["baseline_experiment_id"] = baseline_experiment_id
-        if ancestor_commits:
-            params["ancestor_commits"] = list(ancestor_commits)
-        if minimize_scores:
-            params["minimize_scores"] = list(minimize_scores)
-        resp = await self._client.get(
-            f"v1/experiments/{encode_path_param(experiment_id)}/summary",
-            params=params,
-            timeout=timeout,
-        )
-        resp.raise_for_status()
-        return cast(v1.ExperimentSummary, resp.json()["data"])
 
     async def _paginate(
         self,

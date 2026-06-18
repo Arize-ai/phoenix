@@ -1,5 +1,4 @@
-"""Happy-path + contract tests for the public log_run / log_evaluation / get_experiment_summary
-client methods (D8/D9)."""
+"""Happy-path + contract tests for the public log_run / log_evaluation client methods (D8)."""
 
 from __future__ import annotations
 
@@ -105,35 +104,6 @@ def test_log_evaluation_posts_result() -> None:
     assert evaluation["id"] == "Annotation:1"
     assert captured["body"]["name"] == "pass"
     assert captured["body"]["result"] == {"score": 1.0, "label": "pass"}
-
-
-def test_get_experiment_summary_passes_query_params() -> None:
-    captured: dict[str, Any] = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured["url"] = str(request.url)
-        return httpx.Response(
-            200,
-            json={
-                "data": {
-                    "experiment_id": "Experiment:1",
-                    "dataset_version_id": "v1",
-                    "baseline_experiment_id": None,
-                    "baseline_dataset_version_id": None,
-                    "annotation_summaries": [],
-                }
-            },
-        )
-
-    exp = Experiments(client=_client(handler))
-    summary = exp.get_experiment_summary(
-        experiment_id="Experiment:1",
-        ancestor_commits=["abc", "def"],
-        minimize_scores=["latency"],
-    )
-    assert summary["experiment_id"] == "Experiment:1"
-    assert "ancestor_commits=abc" in captured["url"]
-    assert "minimize_scores=latency" in captured["url"]
 
 
 async def test_async_log_run_matches_sync_contract() -> None:

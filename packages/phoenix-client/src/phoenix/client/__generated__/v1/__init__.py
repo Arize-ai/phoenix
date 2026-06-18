@@ -165,18 +165,6 @@ class Experiment(TypedDict):
     missing_run_count: int
 
 
-class ExperimentAnnotationSummary(TypedDict):
-    annotation_name: str
-    mean_score: Optional[float]
-    n: int
-    optimization_direction: Literal["maximize", "minimize"]
-    baseline_mean_score: Optional[float]
-    diff: Optional[float]
-    num_improved: Optional[int]
-    num_regressed: Optional[int]
-    num_equal: Optional[int]
-
-
 class ExperimentEvaluationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -195,14 +183,6 @@ class ExperimentRun(TypedDict):
     error: NotRequired[str]
 
 
-class ExperimentSummary(TypedDict):
-    experiment_id: str
-    dataset_version_id: str
-    baseline_experiment_id: Optional[str]
-    baseline_dataset_version_id: Optional[str]
-    annotation_summaries: Sequence[ExperimentAnnotationSummary]
-
-
 class FileUIPart(TypedDict):
     type: Literal["file"]
     mediaType: str
@@ -217,10 +197,6 @@ class GetDatasetResponseBody(TypedDict):
 
 class GetExperimentResponseBody(TypedDict):
     data: Experiment
-
-
-class GetExperimentSummaryResponseBody(TypedDict):
-    data: ExperimentSummary
 
 
 class GraphQLContext(TypedDict):

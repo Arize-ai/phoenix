@@ -7,7 +7,7 @@ TypeScript test runner. Keep names and truthiness semantics in sync with that ru
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Mapping, Optional
 
 
@@ -31,32 +31,6 @@ def _env_bool(value: Optional[str], *, default: bool) -> bool:
     return True
 
 
-def _parse_min_score(raw: str) -> dict[str, float]:
-    """Parse ``name:float[,name:float...]`` into a mapping. Malformed input is a config error."""
-    thresholds: dict[str, float] = {}
-    for chunk in raw.split(","):
-        chunk = chunk.strip()
-        if not chunk:
-            continue
-        if ":" not in chunk:
-            raise PhoenixTestConfigError(
-                f"PHOENIX_TEST_MIN_SCORE entry {chunk!r} must be of the form name:float"
-            )
-        name, _, value = chunk.partition(":")
-        name = name.strip()
-        if not name:
-            raise PhoenixTestConfigError(
-                f"PHOENIX_TEST_MIN_SCORE entry {chunk!r} has an empty annotation name"
-            )
-        try:
-            thresholds[name] = float(value.strip())
-        except ValueError as e:
-            raise PhoenixTestConfigError(
-                f"PHOENIX_TEST_MIN_SCORE entry {chunk!r} has a non-numeric threshold"
-            ) from e
-    return thresholds
-
-
 @dataclass(frozen=True)
 class PhoenixTestConfig:
     """Resolved plugin configuration for one pytest session."""
@@ -65,19 +39,12 @@ class PhoenixTestConfig:
     dry_run: bool = False
     repetitions: int = 1
     collect_repo_info: bool = True
-    fail_on_regression: bool = False
-    min_score: Mapping[str, float] = field(default_factory=dict)
     dataset_override: Optional[str] = None
 
     @property
     def offline(self) -> bool:
         """True when no network calls should be made (tracking off or dry-run on)."""
         return not self.tracking or self.dry_run
-
-    @property
-    def gate_configured(self) -> bool:
-        """True when an aggregate gate (regression or min-score) is configured."""
-        return self.fail_on_regression or bool(self.min_score)
 
     @classmethod
     def from_env(
@@ -103,15 +70,10 @@ class PhoenixTestConfig:
         else:
             repetitions = 1
 
-        min_score_raw = env.get("PHOENIX_TEST_MIN_SCORE")
-        min_score = _parse_min_score(min_score_raw) if min_score_raw else {}
-
         return cls(
             tracking=_env_bool(env.get("PHOENIX_TEST_TRACKING"), default=True),
             dry_run=_env_bool(env.get("PHOENIX_TEST_DRY_RUN"), default=False),
             repetitions=repetitions,
             collect_repo_info=_env_bool(env.get("PHOENIX_TEST_REPO_INFO"), default=True),
-            fail_on_regression=_env_bool(env.get("PHOENIX_TEST_FAIL_ON_REGRESSION"), default=False),
-            min_score=min_score,
             dataset_override=dataset_override,
         )

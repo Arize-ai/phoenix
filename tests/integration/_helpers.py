@@ -2187,7 +2187,6 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
     # Experiments
     (422, "GET", "v1/experiments/fake-id-{}"),
-    (422, "GET", "v1/experiments/fake-id-{}/summary"),
     (422, "GET", "v1/datasets/fake-id-{}/experiments"),
     (422, "GET", "v1/experiments/fake-id-{}/runs"),
     (422, "GET", "v1/experiments/fake-id-{}/incomplete-runs"),

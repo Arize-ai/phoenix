@@ -74,7 +74,6 @@ class SuiteState:
         self._client: Any = None
         self._bootstrap_error: Optional[Exception] = None
         self._repo_info_conflict = False
-        self._cached_gate: Optional["GateResult"] = None
         self._bootstrapped = False
 
     # --- collection -----------------------------------------------------------------
@@ -294,7 +293,7 @@ class SuiteState:
         except Exception as e:  # noqa: BLE001
             logger.warning("Phoenix plugin: failed to log evaluation %s: %s", kwargs.get("name"), e)
 
-    # --- summary / gating -----------------------------------------------------------
+    # --- summary --------------------------------------------------------------------
 
     @property
     def recorded_runs(self) -> list[RecordedRun]:
@@ -317,16 +316,9 @@ class SuiteState:
         n = len(self._recorded)
         return f"Phoenix: offline mode ({reason}); {n} test(s) ran without recording."
 
-    def run_gate(self, pass_annotation: str) -> "GateResult":
-        from .gating import evaluate_gate
-
-        return evaluate_gate(self, pass_annotation=pass_annotation)
-
-    def cache_gate(self, gate: "GateResult") -> None:
-        self._cached_gate = gate
-
-    def cached_gate(self) -> "Optional[GateResult]":
-        return self._cached_gate
+    def summary_line(self) -> str:
+        n = len(self._recorded)
+        return f"Phoenix: recorded {n} run(s) across {len(self._groups)} experiment(s)."
 
 
 def _example_fields(
@@ -358,7 +350,3 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool)) or value is None:
         return value
     return repr(value)
-
-
-if TYPE_CHECKING:
-    from .gating import GateResult

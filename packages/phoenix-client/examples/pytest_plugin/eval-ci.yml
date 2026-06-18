@@ -3,8 +3,8 @@
 # Copy this file to .github/workflows/eval-ci.yml in your repository.
 # It installs the Phoenix pytest plugin, runs your marked eval suite, and gates
 # the job on pytest's exit code. The plugin records each marked test as a run in
-# a Phoenix experiment and prints a per-annotation summary (with baseline diffs)
-# to the terminal at the end of the run.
+# a Phoenix experiment and prints a per-experiment summary to the terminal at the
+# end of the run.
 #
 # The only contracts this recipe relies on are pytest's exit code and the
 # terminal summary it prints. Both are stable across plugin versions.
@@ -18,11 +18,7 @@ jobs:
   evals:
     runs-on: ubuntu-latest
     steps:
-      # ancestor_commits-based baseline resolution reads the parent commit chain,
-      # so the eval suite needs git history rather than a shallow checkout.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -39,12 +35,7 @@ jobs:
           # Where the plugin sends experiment runs.
           PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
-          # Fail the job when a tracked score regresses against the baseline.
-          PHOENIX_TEST_FAIL_ON_REGRESSION: "1"
-          # Optionally also fail when an annotation's mean drops below a floor:
-          # PHOENIX_TEST_MIN_SCORE: "correctness:0.8,relevance:0.7"
-        # The job passes only when every marked test passes AND no configured
-        # gate (regression / min-score) trips. pytest's nonzero exit fails the step.
+        # The job fails when any marked test fails (pytest's nonzero exit).
         run: pytest tests/evals
 
   # OPTIONAL example: post the printed summary back to the PR as a single,
@@ -60,8 +51,6 @@ jobs:
   #     pull-requests: write
   #   steps:
   #     - uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
   #     - uses: actions/setup-python@v5
   #       with:
   #         python-version: "3.12"
