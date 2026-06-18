@@ -63,9 +63,6 @@ export function DatasetLabelsTable({
       {
         header: "usage count",
         accessorKey: "usageCount",
-        meta: {
-          textAlign: "right",
-        },
         cell: IntCell,
       },
       {
