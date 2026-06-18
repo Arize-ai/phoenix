@@ -175,11 +175,13 @@ export function useAgentChat({
   const {
     messages,
     sendMessage,
+    regenerate,
     status,
     error,
     addToolOutput,
     stop,
     setMessages,
+    clearError,
   } = chat;
 
   // Anthropic doesn't accept unresolved tool calls, so we resolve them by
@@ -303,7 +305,7 @@ export function useAgentChat({
   };
 
   // Releases approval/elicitation state owned by tool calls dropped by a rewind
-  // or fork, so stale Accept/Reject affordances don't dangle against tool calls
+  // or branch, so stale Accept/Reject affordances don't dangle against tool calls
   // the transcript no longer contains.
   const clearDroppedToolState = useCallback(
     ({
@@ -365,13 +367,21 @@ export function useAgentChat({
         next: result.messages,
       });
       setMessages(result.messages);
+      clearError();
       store.getState().setSessionMessages(sessionId, result.messages);
       return result.restoredInput;
     },
-    [chatInstance, clearDroppedToolState, sessionId, setMessages, store]
+    [
+      chatInstance,
+      clearDroppedToolState,
+      clearError,
+      sessionId,
+      setMessages,
+      store,
+    ]
   );
 
-  // Forks the active session into a new session truncated to the chosen
+  // Branches the active session into a new session truncated to the chosen
   // message, leaving the current session untouched. Returns the new session id.
   const forkFromMessage = useCallback(
     (messageId: string): string | null => {
@@ -385,13 +395,24 @@ export function useAgentChat({
       if (!result) {
         return null;
       }
+      clearError();
       return store.getState().forkSession({
         sourceSessionId: sessionId,
         messages: result.messages,
         restoredInput: result.restoredInput,
       });
     },
-    [chatInstance, sessionId, store]
+    [chatInstance, clearError, sessionId, store]
+  );
+
+  const retryMessage = useCallback(
+    (messageId?: string) => {
+      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
+        return;
+      }
+      void regenerate(messageId ? { messageId } : undefined);
+    },
+    [chatInstance, regenerate, sessionId]
   );
 
   return {
@@ -403,6 +424,7 @@ export function useAgentChat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    retryMessage,
     rewindToMessage,
     forkFromMessage,
   } as {
@@ -417,6 +439,7 @@ export function useAgentChat({
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
+    retryMessage: (messageId?: string) => void;
     rewindToMessage: (messageId: string) => string | null;
     forkFromMessage: (messageId: string) => string | null;
   };
