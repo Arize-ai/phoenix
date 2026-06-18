@@ -53,6 +53,7 @@ from phoenix.client.resources.experiments.types import (
     RateLimitErrors,
     TestCase,
 )
+from phoenix.client.utils.encode_path_param import encode_path_param
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
@@ -2103,6 +2104,189 @@ class Experiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
+    def log_run(
+        self,
+        *,
+        experiment_id: str,
+        dataset_example_id: str,
+        output: Any,
+        start_time: datetime,
+        end_time: datetime,
+        repetition_number: int = 1,
+        trace_id: Optional[str] = None,
+        error: Optional[str] = None,
+        tolerate_existing: bool = False,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> ExperimentRun:
+        """Post a single experiment run and return the server record.
+
+        This is the public, single-run counterpart to ``run_experiment``'s batch loop. It
+        is the primitive the pytest plugin and any incremental-posting consumer build on.
+
+        Args:
+            experiment_id (str): The ID of the experiment the run belongs to.
+            dataset_example_id (str): The node ID (GlobalID) of the dataset example the run
+                executed on.
+            output: The JSON-serializable task output. Ignored by the server when ``error``
+                is set, but still recorded.
+            start_time (datetime): When the run started.
+            end_time (datetime): When the run finished.
+            repetition_number (int): 1-based repetition index for this example. Defaults to 1.
+            trace_id (Optional[str]): Trace ID correlating the run to its spans. Defaults to None.
+            error (Optional[str]): Error repr if the run failed. A run stored with an error is
+                re-runnable; a successful run is not. Defaults to None.
+            tolerate_existing (bool): When False (default), a 409 (a successful run already
+                exists for this ``(experiment, example, repetition)``) is raised. When True, the
+                409 is swallowed and the locally-built run is returned with its temp id.
+            timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
+
+        Returns:
+            ExperimentRun: The run record, with ``id`` set to the server-assigned ID on success.
+
+        Raises:
+            httpx.HTTPStatusError: On API errors, including a 409 when ``tolerate_existing`` is
+                False and a successful run already exists.
+        """
+        exp_run: ExperimentRun = {
+            "dataset_example_id": dataset_example_id,
+            "output": jsonify(output),
+            "repetition_number": repetition_number,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "id": f"temp-{random.randint(1000, 9999)}",
+            "experiment_id": experiment_id,
+        }
+        if trace_id:
+            exp_run["trace_id"] = trace_id
+        if error:
+            exp_run["error"] = error
+        try:
+            resp = self._client.post(
+                f"v1/experiments/{encode_path_param(experiment_id)}/runs",
+                json=exp_run,
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            return {**exp_run, "id": resp.json()["data"]["id"]}
+        except HTTPStatusError as e:
+            if e.response.status_code == 409 and tolerate_existing:
+                return exp_run
+            raise
+
+    def log_evaluation(
+        self,
+        *,
+        experiment_run_id: str,
+        name: str,
+        annotator_kind: str = "CODE",
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        score: Optional[float] = None,
+        label: Optional[str] = None,
+        explanation: Optional[str] = None,
+        error: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> dict[str, Any]:
+        """Post (upsert) a single evaluation for an experiment run.
+
+        The server upserts on ``(experiment_run_id, name)``, so re-posting the same name
+        replaces the prior annotation. At least one of ``score``/``label``/``explanation``
+        (i.e. a result) or ``error`` must be provided.
+
+        Args:
+            experiment_run_id (str): The ID of the run being evaluated.
+            name (str): The annotation name. One run carries many annotations keyed by name.
+            annotator_kind (str): One of "CODE", "LLM", "HUMAN". Defaults to "CODE".
+            start_time (Optional[datetime]): Evaluation start. Defaults to now.
+            end_time (Optional[datetime]): Evaluation end. Defaults to ``start_time``.
+            score (Optional[float]): Numeric score.
+            label (Optional[str]): Categorical label.
+            explanation (Optional[str]): Free-text explanation.
+            error (Optional[str]): Error repr if the evaluation failed.
+            metadata (Optional[Mapping[str, Any]]): Extra metadata for the annotation.
+            trace_id (Optional[str]): Trace ID correlating the evaluation to its spans.
+            timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
+
+        Returns:
+            dict[str, Any]: The posted evaluation payload with its server-assigned ``id``.
+
+        Raises:
+            ValueError: If neither a result (score/label/explanation) nor an error is provided.
+            httpx.HTTPStatusError: On API errors.
+        """
+        result: dict[str, Any] = {}
+        if score is not None:
+            result["score"] = score
+        if label is not None:
+            result["label"] = label
+        if explanation is not None:
+            result["explanation"] = explanation
+        if not result and error is None:
+            raise ValueError("Must provide a result (score/label/explanation) or an error")
+        start = start_time or datetime.now(timezone.utc)
+        end = end_time or start
+        payload: dict[str, Any] = {
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+            "result": result or None,
+            "error": error,
+            "metadata": dict(metadata) if metadata else {},
+            "trace_id": trace_id,
+        }
+        resp = self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
+        resp.raise_for_status()
+        return {**payload, "id": resp.json()["data"]["id"]}
+
+    def get_experiment_summary(
+        self,
+        *,
+        experiment_id: str,
+        baseline_experiment_id: Optional[str] = None,
+        ancestor_commits: Optional[Sequence[str]] = None,
+        minimize_scores: Optional[Sequence[str]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.ExperimentSummary:
+        """Fetch the per-annotation score summary for an experiment, optionally vs. a baseline.
+
+        Args:
+            experiment_id (str): The experiment to summarize.
+            baseline_experiment_id (Optional[str]): An explicit baseline experiment to diff
+                against. Takes precedence over ``ancestor_commits``. Must pin the same dataset
+                version (else the server returns 409).
+            ancestor_commits (Optional[Sequence[str]]): Ordered, closest-first commit SHAs;
+                the server resolves the most recent prior experiment on the same dataset version
+                whose ``repo_info.commit`` matches. Capped at 100 by the server.
+            minimize_scores (Optional[Sequence[str]]): Annotation names that are lower-is-better;
+                others default to higher-is-better.
+            timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
+
+        Returns:
+            ExperimentSummary: Per-annotation rows with mean scores and (when a baseline
+                resolves) baseline diffs.
+
+        Raises:
+            httpx.HTTPStatusError: On API errors (including 409 on dataset-version mismatch).
+        """
+        params: dict[str, Any] = {}
+        if baseline_experiment_id:
+            params["baseline_experiment_id"] = baseline_experiment_id
+        if ancestor_commits:
+            params["ancestor_commits"] = list(ancestor_commits)
+        if minimize_scores:
+            params["minimize_scores"] = list(minimize_scores)
+        resp = self._client.get(
+            f"v1/experiments/{encode_path_param(experiment_id)}/summary",
+            params=params,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return cast(v1.ExperimentSummary, resp.json()["data"])
+
     def _paginate(
         self,
         *,
@@ -3859,6 +4043,126 @@ class AsyncExperiments:
             if e.response.status_code == 404:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
+
+    async def log_run(
+        self,
+        *,
+        experiment_id: str,
+        dataset_example_id: str,
+        output: Any,
+        start_time: datetime,
+        end_time: datetime,
+        repetition_number: int = 1,
+        trace_id: Optional[str] = None,
+        error: Optional[str] = None,
+        tolerate_existing: bool = False,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> ExperimentRun:
+        """Post a single experiment run and return the server record.
+
+        Async counterpart to :meth:`Experiments.log_run`; see that method for full semantics.
+        """
+        exp_run: ExperimentRun = {
+            "dataset_example_id": dataset_example_id,
+            "output": jsonify(output),
+            "repetition_number": repetition_number,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "id": f"temp-{random.randint(1000, 9999)}",
+            "experiment_id": experiment_id,
+        }
+        if trace_id:
+            exp_run["trace_id"] = trace_id
+        if error:
+            exp_run["error"] = error
+        try:
+            resp = await self._client.post(
+                f"v1/experiments/{encode_path_param(experiment_id)}/runs",
+                json=exp_run,
+                timeout=timeout,
+            )
+            resp.raise_for_status()
+            return {**exp_run, "id": resp.json()["data"]["id"]}
+        except HTTPStatusError as e:
+            if e.response.status_code == 409 and tolerate_existing:
+                return exp_run
+            raise
+
+    async def log_evaluation(
+        self,
+        *,
+        experiment_run_id: str,
+        name: str,
+        annotator_kind: str = "CODE",
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        score: Optional[float] = None,
+        label: Optional[str] = None,
+        explanation: Optional[str] = None,
+        error: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> dict[str, Any]:
+        """Post (upsert) a single evaluation for an experiment run.
+
+        Async counterpart to :meth:`Experiments.log_evaluation`; see that method for full
+        semantics.
+        """
+        result: dict[str, Any] = {}
+        if score is not None:
+            result["score"] = score
+        if label is not None:
+            result["label"] = label
+        if explanation is not None:
+            result["explanation"] = explanation
+        if not result and error is None:
+            raise ValueError("Must provide a result (score/label/explanation) or an error")
+        start = start_time or datetime.now(timezone.utc)
+        end = end_time or start
+        payload: dict[str, Any] = {
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+            "result": result or None,
+            "error": error,
+            "metadata": dict(metadata) if metadata else {},
+            "trace_id": trace_id,
+        }
+        resp = await self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
+        resp.raise_for_status()
+        return {**payload, "id": resp.json()["data"]["id"]}
+
+    async def get_experiment_summary(
+        self,
+        *,
+        experiment_id: str,
+        baseline_experiment_id: Optional[str] = None,
+        ancestor_commits: Optional[Sequence[str]] = None,
+        minimize_scores: Optional[Sequence[str]] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.ExperimentSummary:
+        """Fetch the per-annotation score summary for an experiment, optionally vs. a baseline.
+
+        Async counterpart to :meth:`Experiments.get_experiment_summary`; see that method for
+        full semantics.
+        """
+        params: dict[str, Any] = {}
+        if baseline_experiment_id:
+            params["baseline_experiment_id"] = baseline_experiment_id
+        if ancestor_commits:
+            params["ancestor_commits"] = list(ancestor_commits)
+        if minimize_scores:
+            params["minimize_scores"] = list(minimize_scores)
+        resp = await self._client.get(
+            f"v1/experiments/{encode_path_param(experiment_id)}/summary",
+            params=params,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return cast(v1.ExperimentSummary, resp.json()["data"])
 
     async def _paginate(
         self,

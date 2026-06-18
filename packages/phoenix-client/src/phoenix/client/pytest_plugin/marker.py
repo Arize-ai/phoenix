@@ -1,0 +1,113 @@
+"""Helpers for reading the ``@pytest.mark.phoenix`` marker and deriving stable identifiers."""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional
+
+if TYPE_CHECKING:
+    from _pytest.nodes import Item
+
+MARKER_NAME = "phoenix"
+
+
+def get_marker(item: "Item") -> Optional[Any]:
+    return item.get_closest_marker(MARKER_NAME)
+
+
+def iter_phoenix_items(items: "Iterable[Item]") -> "Iterator[Item]":
+    for item in items:
+        if get_marker(item) is not None:
+            yield item
+
+
+def resolve_dataset_name(item: "Item", *, override: Optional[str] = None) -> str:
+    """Resolve the dataset (= suite) name for an item.
+
+    Precedence: ``pytest.ini`` ``phoenix_dataset`` override > marker ``dataset=`` kwarg >
+    module name (the zero-ceremony default).
+    """
+    if override:
+        return override
+    marker = get_marker(item)
+    if marker is not None:
+        dataset = marker.kwargs.get("dataset")
+        if dataset:
+            return str(dataset)
+    module = getattr(item, "module", None)
+    if module is not None and getattr(module, "__name__", None):
+        # Use the file stem rather than the dotted import path for a friendlier dataset name.
+        return str(module.__name__).rsplit(".", 1)[-1]
+    # Fallback: derive from the nodeid path.
+    path = item.nodeid.split("::", 1)[0]
+    return re.sub(r"\.py$", "", path).rsplit("/", 1)[-1]
+
+
+REPETITION_PARAM = "__phoenix_repetition__"
+
+
+def resolve_repetitions(marker: Optional[Any], *, env_default: int) -> int:
+    """Resolve the repetition count for a marked test.
+
+    Precedence (mirrors the TS runner's ``resolveRepetitions``): per-test marker
+    ``repetitions=`` > suite/session ``PHOENIX_TEST_REPETITIONS`` (the ``env_default``) > 1.
+    Must be >= 1.
+    """
+    if marker is not None:
+        reps = marker.kwargs.get("repetitions")
+        if reps is not None:
+            n = int(reps)
+            if n < 1:
+                raise ValueError(f"@pytest.mark.phoenix(repetitions={reps!r}) must be >= 1")
+            return n
+    return max(1, env_default)
+
+
+def resolve_evaluators(item: "Item") -> list[Any]:
+    """Return the hoisted ``evaluators=[...]`` declared on the marker, if any."""
+    marker = get_marker(item)
+    if marker is None:
+        return []
+    evaluators = marker.kwargs.get("evaluators")
+    if evaluators is None:
+        return []
+    if isinstance(evaluators, (list, tuple)):
+        return list(evaluators)
+    return [evaluators]
+
+
+# Param id pytest assigns to the injected repetition value, e.g. "phxrep0".
+_REP_ID_RE = re.compile(r"phxrep\d+")
+# Matches the trailing "[...]" parametrize id group on a nodeid.
+_PARAM_GROUP_RE = re.compile(r"\[(?P<pid>.*)\]$")
+
+
+def stable_external_id(item: "Item") -> str:
+    """Derive a stable per-example ``external_id`` (D2).
+
+    For parametrized items the ``pytest.param`` id is folded into the test's fully-qualified
+    name, so re-running the same suite maps each example to the same dataset example (a PATCH,
+    not a delete+recreate). The injected repetition token (``phxrepN``) is stripped so all N
+    repetitions of the same case share ONE external_id (same example, different
+    ``repetition_number``) — matching the server's ``(experiment, example, repetition)`` run
+    identity. Non-parametrized items use the bare nodeid.
+    """
+    nodeid = str(item.nodeid)
+    match = _PARAM_GROUP_RE.search(nodeid)
+    if match is None:
+        return nodeid
+    tokens = [t for t in match.group("pid").split("-") if not _REP_ID_RE.fullmatch(t)]
+    base = nodeid[: match.start()]
+    if not tokens:
+        # The only param was the repetition injection; drop the now-empty group entirely.
+        return base
+    return f"{base}[{'-'.join(tokens)}]"
+
+
+def repetition_index(item: "Item") -> int:
+    """Return the 0-based repetition index for an expanded item (0 when not expanded)."""
+    callspec = getattr(item, "callspec", None)
+    if callspec is None:
+        return 0
+    value = callspec.params.get(REPETITION_PARAM)
+    return int(value) if value is not None else 0

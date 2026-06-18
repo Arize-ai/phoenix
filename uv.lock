@@ -878,16 +878,27 @@ dependencies = [
     { name = "typing-extensions" },
 ]
 
+[package.optional-dependencies]
+evals = [
+    { name = "arize-phoenix-evals" },
+]
+pytest = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
+    { name = "arize-phoenix-evals", marker = "extra == 'evals'", editable = "packages/phoenix-evals" },
     { name = "httpx" },
     { name = "openinference-instrumentation", specifier = ">=0.1.20" },
     { name = "openinference-semantic-conventions" },
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-sdk" },
+    { name = "pytest", marker = "extra == 'pytest'", specifier = ">=7" },
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
+provides-extras = ["pytest", "evals"]
 
 [[package]]
 name = "arize-phoenix-evals"
