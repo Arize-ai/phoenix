@@ -1,5 +1,50 @@
 # Changelog
 
+## [17.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.0...arize-phoenix-v17.8.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* resolve route path through FastAPI 0.137 _IncludedRouter in prometheus middleware ([#13822](https://github.com/Arize-ai/phoenix/issues/13822)) ([97d5faa](https://github.com/Arize-ai/phoenix/commit/97d5faaef0792ffb570af418815018258b929367))
+
+## [17.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.7.0...arize-phoenix-v17.8.0) (2026-06-17)
+
+
+### Features
+
+* **agents:** Agent GraphQL skill ([#13732](https://github.com/Arize-ai/phoenix/issues/13732)) ([17c9e41](https://github.com/Arize-ai/phoenix/commit/17c9e41a181645dd7100900c23c892204408d4f6))
+* pre-load background color respects saved theme and os prefs ([#13815](https://github.com/Arize-ai/phoenix/issues/13815)) ([5b77485](https://github.com/Arize-ai/phoenix/commit/5b77485ba808de797e3851af7bb2ae8cc5268e4d))
+
+
+### Bug Fixes
+
+* consolidate and standardize icons ([#13805](https://github.com/Arize-ai/phoenix/issues/13805)) ([cc0c964](https://github.com/Arize-ai/phoenix/commit/cc0c96497772bd6a14ffd044411a7f25cd37ff22))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-06-17 ([#13806](https://github.com/Arize-ai/phoenix/issues/13806)) ([1622f32](https://github.com/Arize-ai/phoenix/commit/1622f3248a1cdc04885974ff781b777f465c0477))
+* reframe README PXI entry as Phoenix Intelligence agent ([#13803](https://github.com/Arize-ai/phoenix/issues/13803)) ([7b1d1b9](https://github.com/Arize-ai/phoenix/commit/7b1d1b943735c0e16b2b833da2b3281f907716b9))
+
+## [17.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.6.0...arize-phoenix-v17.7.0) (2026-06-16)
+
+
+### Features
+
+* Add token detail metrics charts ([#13764](https://github.com/Arize-ai/phoenix/issues/13764)) ([91b5f2d](https://github.com/Arize-ai/phoenix/commit/91b5f2db3588291a01092fa902275431ddceea6b))
+* **agents:** Add session context ([#13727](https://github.com/Arize-ai/phoenix/issues/13727)) ([031975c](https://github.com/Arize-ai/phoenix/commit/031975ccbe60e50967d8f192b6dfe6ca6de1daa7))
+* Make trace time range URLs shareable ([#13761](https://github.com/Arize-ai/phoenix/issues/13761)) ([4e1d228](https://github.com/Arize-ai/phoenix/commit/4e1d2280cac1cc70924ecdc6e53df2f74c0324d5))
+
+
+### Bug Fixes
+
+* **ui:** encode trace IDs when building trace/span routes ([#13785](https://github.com/Arize-ai/phoenix/issues/13785)) ([c5d39ab](https://github.com/Arize-ai/phoenix/commit/c5d39ab268d78771c982b52345dead4c724bad19))
+
+
+### Documentation
+
+* **cookbook:** Jailbreak and prompt injection defense cookbook ([#13729](https://github.com/Arize-ai/phoenix/issues/13729)) ([5a5e832](https://github.com/Arize-ai/phoenix/commit/5a5e8326e3175137afc98ec1ab9b3ee841ef28ad))
+
 ## [17.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.5.0...arize-phoenix-v17.6.0) (2026-06-15)
 
 

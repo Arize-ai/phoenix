@@ -44,7 +44,7 @@ def get_skills_capability_function(
 ) -> CapabilityFunc[AgentDependencies]:
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
         return SkillsCapability(
-            toolset=SkillsToolset(
+            toolset=SkillsToolset[AgentDependencies](
                 skills=get_skills_for_contexts(ctx.deps.contexts),
                 load_skill_template=prompts.load_skill,
                 load_skill_tool_template=prompts.load_skill_tool,

@@ -4,7 +4,7 @@ import {
   AlertTriangleFilled,
   AlertTriangleOutline,
   CheckmarkCircleFilled,
-  CheckmarkCircleOutline,
+  CheckmarkCircle,
   Icon,
   InfoFilled,
   InfoOutline,
@@ -34,7 +34,7 @@ export function getSeverityIcon(
       svg = filled ? <AlertCircleFilled /> : <AlertCircleOutline />;
       break;
     case "success":
-      svg = filled ? <CheckmarkCircleFilled /> : <CheckmarkCircleOutline />;
+      svg = filled ? <CheckmarkCircleFilled /> : <CheckmarkCircle />;
       break;
   }
   return <Icon svg={svg} />;

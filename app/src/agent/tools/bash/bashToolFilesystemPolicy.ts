@@ -43,6 +43,11 @@ export const BASH_TOOL_READONLY_ROOT = "/phoenix";
 export const BASH_TOOL_WORKSPACE_ROOT = "/home/user/workspace";
 
 /**
+ * Virtual temp directory for familiar shell scratch-file workflows.
+ */
+export const BASH_TOOL_TMP_ROOT = "/tmp";
+
+/**
  * Null-sink device paths. just-bash has no real device files, so a redirect
  * like `cmd >/dev/null 2>&1` resolves to an ordinary `writeFile("/dev/null")`.
  * That idiom is ubiquitous in model-authored commands, so rather than block it
@@ -87,7 +92,10 @@ function isDiscardDevicePath(fs: IFileSystem, path: string) {
 function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
   const normalizedPath = normalizeVirtualPath(fs, path);
 
-  if (isWithinRoot(normalizedPath, BASH_TOOL_WORKSPACE_ROOT)) {
+  if (
+    isWithinRoot(normalizedPath, BASH_TOOL_WORKSPACE_ROOT) ||
+    isWithinRoot(normalizedPath, BASH_TOOL_TMP_ROOT)
+  ) {
     return normalizedPath;
   }
 
@@ -99,8 +107,8 @@ function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
   }
 
   throw new Error(
-    `${operation} is only allowed in ${BASH_TOOL_WORKSPACE_ROOT}. ` +
-      `Writes outside the workspace are blocked.`
+    `${operation} is only allowed in ${BASH_TOOL_WORKSPACE_ROOT} or ${BASH_TOOL_TMP_ROOT}. ` +
+      `Writes outside scratch directories are blocked.`
   );
 }
 
@@ -110,8 +118,8 @@ function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
 export function applyBashToolFilesystemPolicy(fs: IFileSystem) {
   /**
    * Wrap filesystem mutation methods with a Phoenix-specific path policy.
-   * Writes are allowed under `/home/user/workspace`, denied under `/phoenix`,
-   * and rejected everywhere else with a clear error.
+   * Writes are allowed under `/home/user/workspace` and `/tmp`, denied under
+   * `/phoenix`, and rejected everywhere else with a clear error.
    */
   const originalWriteFile = fs.writeFile.bind(fs);
   const originalAppendFile = fs.appendFile.bind(fs);

@@ -214,7 +214,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
     >
       <ControlButton
         label="Pan back in time"
-        icon={<Icons.ChevronLeft />}
+        icon={<Icons.ChevronLeftSmall />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
         onPress={() => applyChange(panTimeRangeLeft({ value }))}
@@ -254,7 +254,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
       />
       <ControlButton
         label="Pan forward in time"
-        icon={<Icons.ChevronRight />}
+        icon={<Icons.ChevronRightSmall />}
         size={size}
         isDisabled={isDisabled || !hasWindow || isAtLiveEdge}
         onPress={() => applyChange(panTimeRangeRight({ value }))}

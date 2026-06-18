@@ -2799,7 +2799,7 @@ async def test_available_agent_skills_base_catalog(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # No context mounted: only the always-on skills, in catalog order, no gated ones.
-    assert names == ["debug-trace", "annotate-spans"]
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql"]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
@@ -2816,7 +2816,7 @@ async def test_available_agent_skills_playground_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # Playground context adds the playground skill on top of the always-on base.
-    assert names == ["debug-trace", "annotate-spans", "playground"]
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "playground"]
 
 
 async def test_available_agent_skills_dataset_context(
@@ -2830,7 +2830,14 @@ async def test_available_agent_skills_dataset_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # Dataset context unlocks the dataset-backed trio: datasets, experiments, evaluators.
-    assert names == ["debug-trace", "annotate-spans", "datasets", "experiments", "evaluators"]
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "phoenix-graphql",
+        "datasets",
+        "experiments",
+        "evaluators",
+    ]
 
 
 async def test_available_agent_skills_llm_evaluator_context(
@@ -2844,7 +2851,7 @@ async def test_available_agent_skills_llm_evaluator_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == ["debug-trace", "annotate-spans", "evaluators"]
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
 
 
 async def test_available_agent_skills_code_evaluator_context(
@@ -2858,4 +2865,4 @@ async def test_available_agent_skills_code_evaluator_context(
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
-    assert names == ["debug-trace", "annotate-spans", "evaluators"]
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]

@@ -251,10 +251,7 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
                       <Text color="success" size="S">
                         Configured
                       </Text>
-                      <Icon
-                        color="success"
-                        svg={<Icons.CheckmarkCircleOutline />}
-                      />
+                      <Icon color="success" svg={<Icons.CheckmarkCircle />} />
                     </Flex>
                   ) : (
                     <Flex direction="row" gap="size-50" alignItems="center">

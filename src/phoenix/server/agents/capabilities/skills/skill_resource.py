@@ -3,18 +3,18 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import Any, Generic, TypeAlias, TypeVar
 
 from pydantic_ai import RunContext, _function_schema
 
-from phoenix.server.agents.types import AgentDependencies
+ResourceDepsT = TypeVar("ResourceDepsT")
 
 ResourceFunction: TypeAlias = Callable[..., Any | Awaitable[Any]]
 """A resource function: any callable, sync or async, returning anything."""
 
 
 @dataclass(kw_only=True)
-class SkillResource(ABC):
+class SkillResource(ABC, Generic[ResourceDepsT]):
     """Abstract base for skill resources."""
 
     name: str
@@ -23,7 +23,7 @@ class SkillResource(ABC):
     @abstractmethod
     async def load(
         self,
-        ctx: RunContext[AgentDependencies],
+        ctx: RunContext[ResourceDepsT],
         args: dict[str, Any] | None = None,
     ) -> Any:
         """Load and return the resource's value.
@@ -38,21 +38,21 @@ class SkillResource(ABC):
 
 
 @dataclass(kw_only=True)
-class ContentSkillResource(SkillResource):
+class ContentSkillResource(SkillResource[ResourceDepsT]):
     """A skill resource that returns static content."""
 
     content: str
 
     async def load(
         self,
-        ctx: RunContext[AgentDependencies],
+        ctx: RunContext[ResourceDepsT],
         args: dict[str, Any] | None = None,
     ) -> Any:
         return self.content
 
 
 @dataclass(kw_only=True)
-class FunctionSkillResource(SkillResource):
+class FunctionSkillResource(SkillResource[ResourceDepsT]):
     """A skill resource backed by a callable.
 
     Attributes:
@@ -65,7 +65,7 @@ class FunctionSkillResource(SkillResource):
 
     async def load(
         self,
-        ctx: RunContext[AgentDependencies],
+        ctx: RunContext[ResourceDepsT],
         args: dict[str, Any] | None = None,
     ) -> Any:
         return await self.function_schema.call(args or {}, ctx)

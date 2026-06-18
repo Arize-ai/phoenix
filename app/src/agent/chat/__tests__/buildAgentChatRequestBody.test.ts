@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
+import {
+  createDefaultAgentCapabilities,
+  type AgentCapabilities,
+} from "@phoenix/agent/extensions/capabilities";
 
 import { buildAgentChatRequestBody } from "../buildAgentChatRequestBody";
 import type { AgentUIMessage } from "../types";
@@ -86,6 +89,43 @@ describe("buildAgentChatRequestBody", () => {
     expect(body.contexts).toContainEqual({
       type: "web_access",
       enabled: true,
+    });
+  });
+
+  it("defaults missing capability flags before serializing contexts", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [] as AgentUIMessage[],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities: {} as AgentCapabilities,
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "bypass" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.contexts).toContainEqual({
+      type: "graphql",
+      mutationsEnabled: false,
+    });
+    expect(body.contexts).toContainEqual({
+      type: "web_access",
+      enabled: false,
+    });
+    expect(body.contexts).toContainEqual({
+      type: "subagents",
+      enabled: false,
     });
   });
 

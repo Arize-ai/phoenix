@@ -31,7 +31,12 @@ export async function traceRedirectLoader({ params }: LoaderFunctionArgs) {
 
   if (response?.trace) {
     const { project } = response.trace;
-    return redirect(`/projects/${project.id}/traces/${trace_otel_id}`);
+    // encode the trace ID because the ingested value is not guaranteed to be
+    // path-safe; a path- or protocol-relative value would otherwise escape the
+    // intended route
+    return redirect(
+      `/projects/${project.id}/traces/${encodeURIComponent(trace_otel_id)}`
+    );
   } else {
     throw new Error(`Trace with id "${trace_otel_id}" not found`);
   }

@@ -338,7 +338,7 @@ const SplitCreateMenu = ({
         <MenuHeaderTitle
           leadingContent={
             <IconButton onPress={() => setMode("apply")} size="S">
-              <Icon svg={<Icons.ChevronLeft />} />
+              <Icon svg={<Icons.ChevronLeftSmall />} />
             </IconButton>
           }
         >

@@ -154,7 +154,9 @@ export function AssistantMessageActions({
       return;
     }
     window.open(
-      prependBasename(`/redirects/traces/${metadata.trace.traceId}`),
+      prependBasename(
+        `/redirects/traces/${encodeURIComponent(metadata.trace.traceId)}`
+      ),
       "_blank",
       "noopener,noreferrer"
     );

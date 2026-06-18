@@ -1881,6 +1881,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense</loc>
+    <lastmod>2026-06-12T16:31:09+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1907,6 +1911,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing</loc>
+    <lastmod>2026-06-17T18:42:14+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands</loc>

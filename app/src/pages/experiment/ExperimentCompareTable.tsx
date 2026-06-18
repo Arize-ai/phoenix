@@ -630,9 +630,9 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                                 className="sort-icon"
                                 svg={
                                   header.column.getIsSorted() === "asc" ? (
-                                    <Icons.ArrowUpFilled />
+                                    <Icons.CaretUpFilled />
                                   ) : (
-                                    <Icons.ArrowDownFilled />
+                                    <Icons.CaretDownFilled />
                                   )
                                 }
                               />

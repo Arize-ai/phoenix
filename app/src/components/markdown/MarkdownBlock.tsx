@@ -26,7 +26,7 @@ const plugins: PluginConfig = {
 
 const streamdownIcons: Partial<IconMap> = {
   CopyIcon: () => <Icons.DuplicateOutline />,
-  CheckIcon: () => <Icons.CheckmarkOutline />,
+  CheckIcon: () => <Icons.Checkmark />,
   DownloadIcon: () => <Icons.DownloadOutline />,
 };
 

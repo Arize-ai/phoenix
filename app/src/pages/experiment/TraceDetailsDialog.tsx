@@ -31,7 +31,7 @@ export function TraceDetailsDialog({
           <DialogTitleExtra>
             <LinkButton
               size="S"
-              to={`/projects/${projectId}/traces/${traceId}`}
+              to={`/projects/${projectId}/traces/${encodeURIComponent(traceId)}`}
             >
               View Trace in Project
             </LinkButton>

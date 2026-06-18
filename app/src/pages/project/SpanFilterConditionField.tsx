@@ -77,7 +77,6 @@ const fieldCSS = css`
   box-sizing: border-box;
   .search-icon {
     margin-left: var(--global-dimension-static-size-100);
-    margin-top: var(--global-dimension-static-size-100);
   }
 `;
 
@@ -324,7 +323,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       css={fieldCSS}
       ref={filterConditionFieldRef}
     >
-      <Flex direction="row">
+      <Flex direction="row" alignItems="center">
         <Icon svg={<Icons.Search />} className="search-icon" />
         <CodeMirror
           css={codeMirrorCSS}

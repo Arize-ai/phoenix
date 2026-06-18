@@ -76,8 +76,10 @@ export const makeTraceUrls = (
     .split("/")
     .filter((part) => part !== "");
   const makeUrl = (traceId: string, currentSpanId?: string) => {
-    // we always navigate directly to a traceId
-    const path = `/${projects}/${projectId}/${resource}/${traceId}`;
+    // we always navigate directly to a traceId; encode it because the ingested
+    // ID is not guaranteed to be path-safe and a path- or protocol-relative
+    // value would otherwise escape the intended route
+    const path = `/${projects}/${projectId}/${resource}/${encodeURIComponent(traceId)}`;
     const search = withSearchParams(location.search, (params) => {
       if (currentSpanId) {
         params.set(SELECTED_SPAN_NODE_ID_PARAM, currentSpanId);
