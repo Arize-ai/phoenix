@@ -341,7 +341,14 @@ class BashToolset(FunctionToolset[None]):
     ) -> None:
         shell = Bash(
             python=False,
-            network=({"allow_all": True, "block_private_ips": True} if enable_web_access else None),
+            # Web access off: an explicit empty allowlist denies every outbound URL, so the
+            # curl/wget/http built-ins cannot reach the internet. Web access on: allow any
+            # URL. Either way the SSRF guard against private/internal addresses stays on.
+            network=(
+                {"allow_all": True, "block_private_ips": True}
+                if enable_web_access
+                else {"allow": [], "block_private_ips": True}
+            ),
             custom_builtins={
                 "phoenix-gql": create_phoenix_gql_builtin(
                     schema=schema,

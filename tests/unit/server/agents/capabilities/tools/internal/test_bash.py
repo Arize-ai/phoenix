@@ -252,12 +252,46 @@ async def test_output_to_disk_is_not_truncated(run_bash: RunBash) -> None:
     assert int(size["stdout"]) >= oversized_payload_chars
 
 
-async def test_network_disabled_by_default(run_bash: RunBash) -> None:
-    result = await run_bash("curl -s http://example.com/")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "curl -s --max-time 1 http://example.com/",
+        "wget -q -O- --timeout=1 http://example.com/",
+        "http GET http://example.com/",
+    ],
+    ids=["curl", "wget", "http"],
+)
+async def test_web_builtins_cannot_reach_internet_by_default(
+    run_bash: RunBash, command: str
+) -> None:
+    # With web access off the shell is built with an explicit empty network allowlist,
+    # so every outbound URL is denied and the curl/wget/http built-ins fetch nothing.
+    result = await run_bash(command)
 
     assert result["exit_code"] != 0
     assert result["stdout"] == ""
-    assert "network access not configured" in result["stderr"]
+    assert "access denied" in result["stderr"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "curl -s --max-time 1 http://127.0.0.1:1/",
+        "wget -q -O- --timeout=1 http://127.0.0.1:1/",
+        "http GET http://127.0.0.1:1/",
+    ],
+    ids=["curl", "wget", "http"],
+)
+async def test_web_builtins_cannot_reach_loopback_by_default(
+    run_bash: RunBash, command: str
+) -> None:
+    # The empty allowlist denies even loopback/private addresses, so the built-ins
+    # cannot be turned against the host the server runs on.
+    result = await run_bash(command)
+
+    assert result["exit_code"] != 0
+    assert result["stdout"] == ""
+    assert "access denied" in result["stderr"]
 
 
 async def test_network_enabled_when_web_access_on() -> None:
