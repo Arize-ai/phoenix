@@ -21,6 +21,7 @@ from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
+TMP_ROOT = "/tmp"
 
 _BASH_TOOL_DESCRIPTION_TEMPLATE = Template(
     """\
@@ -349,6 +350,7 @@ class BashToolset(FunctionToolset[None]):
                 ),
             },
         )
+        shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
 
         async def bash(command: str) -> BashToolResult:
             result = await shell.execute(command)

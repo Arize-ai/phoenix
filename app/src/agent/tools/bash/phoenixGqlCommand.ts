@@ -21,9 +21,8 @@ ${permissionsLine}
 
 Recommended flow:
   1. load the phoenix-graphql skill (load_skill) for schema entrypoints and query patterns
-  2. cat /phoenix/agent-start.md to orient to the current page
-  3. start with a tiny query or a file from /phoenix/graphql/recipes/ or /phoenix/graphql/examples/
-  4. add filters, sorting, and deeper fields only after the base query works
+  2. start with a tiny query or an introspection query to confirm the schema
+  3. add filters, sorting, and deeper fields only after the base query works
 
 Options:
   --vars <json>         JSON object of GraphQL variables
