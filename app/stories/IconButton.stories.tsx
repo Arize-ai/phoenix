@@ -5,14 +5,14 @@ import { Button } from "../src/components/core/button/Button";
 import { IconButton } from "../src/components/core/button/IconButton";
 import { Icon } from "../src/components/core/icon/Icon";
 import {
-  AlertTriangleOutline,
-  CaretRightFilled,
-  CloseOutline,
-  EditOutline,
-  PlusOutline,
+  AlertTriangle,
+  ChevronRight,
+  Close,
+  Edit,
+  Plus,
   Search,
-  SettingsOutline,
-  TrashOutline,
+  Settings,
+  Trash,
 } from "../src/components/core/icon/Icons";
 
 const meta: Meta = {
@@ -89,29 +89,29 @@ export const DifferentIcons = () => (
       <Icon svg={<Search />} />
     </IconButton>
     <IconButton aria-label="Settings">
-      <Icon svg={<SettingsOutline />} />
+      <Icon svg={<Settings />} />
     </IconButton>
     <IconButton aria-label="Delete">
-      <Icon svg={<TrashOutline />} />
+      <Icon svg={<Trash />} />
     </IconButton>
     <IconButton aria-label="Edit">
-      <Icon svg={<EditOutline />} />
+      <Icon svg={<Edit />} />
     </IconButton>
     <IconButton aria-label="Add">
-      <Icon svg={<PlusOutline />} />
+      <Icon svg={<Plus />} />
     </IconButton>
     <IconButton aria-label="Close">
-      <Icon svg={<CloseOutline />} />
+      <Icon svg={<Close />} />
     </IconButton>
     <IconButton aria-label="Next">
-      <Icon svg={<CaretRightFilled />} />
+      <Icon svg={<ChevronRight />} />
     </IconButton>
   </div>
 );
 
 export const Disabled = {
   args: {
-    children: <Icon svg={<SettingsOutline />} />,
+    children: <Icon svg={<Settings />} />,
     isDisabled: true,
     "aria-label": "Settings (disabled)",
   },
@@ -148,7 +148,7 @@ export const SizeVariations = () => (
       `}
     >
       <IconButton size="S" aria-label="Small add">
-        <Icon svg={<PlusOutline />} />
+        <Icon svg={<Plus />} />
       </IconButton>
       <span
         css={css`
@@ -168,7 +168,7 @@ export const SizeVariations = () => (
       `}
     >
       <IconButton size="M" aria-label="Medium edit">
-        <Icon svg={<EditOutline />} />
+        <Icon svg={<Edit />} />
       </IconButton>
       <span
         css={css`
@@ -209,13 +209,13 @@ export const ButtonColors = () => (
       <Icon svg={<Search />} />
     </IconButton>
     <IconButton color="red-600" aria-label="Red delete">
-      <Icon svg={<TrashOutline />} />
+      <Icon svg={<Trash />} />
     </IconButton>
     <IconButton color="green-600" aria-label="Green success">
-      <Icon svg={<PlusOutline />} />
+      <Icon svg={<Plus />} />
     </IconButton>
     <IconButton color="orange-600" aria-label="Orange warning">
-      <Icon svg={<AlertTriangleOutline />} />
+      <Icon svg={<AlertTriangle />} />
     </IconButton>
   </div>
 );
@@ -271,9 +271,9 @@ export const SizeComparison = () => (
         Medium:
       </span>
       <IconButton size="M" aria-label="Medium icon button">
-        <Icon svg={<EditOutline />} />
+        <Icon svg={<Edit />} />
       </IconButton>
-      <Button size="M" leadingVisual={<Icon svg={<EditOutline />} />}>
+      <Button size="M" leadingVisual={<Icon svg={<Edit />} />}>
         Button
       </Button>
     </div>

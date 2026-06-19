@@ -173,7 +173,7 @@ export function ExampleExperimentRunsTable({
                     annotation.trace && (
                       <View paddingTop="size-100">
                         <div css={annotationTooltipExtraCSS}>
-                          <Icon svg={<Icons.InfoOutline />} />
+                          <Icon svg={<Icons.Info />} />
                           <span>Click to view evaluator trace</span>
                         </div>
                       </View>

@@ -234,7 +234,7 @@ const ProjectConfigCard = ({
         <Button
           variant="default"
           size="S"
-          leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Edit />} />}
           onPress={() => setIsEditing(true)}
         >
           Edit

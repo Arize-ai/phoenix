@@ -1,5 +1,6 @@
 import { IconButton } from "@phoenix/components/core/button";
-import { Icon, FileOutline, CloseOutline } from "@phoenix/components/core/icon";
+import { Icon } from "@phoenix/components/core/icon";
+import { Close, File } from "@phoenix/components/core/icon/Icons";
 import { ProgressBar } from "@phoenix/components/core/progress";
 import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
@@ -40,7 +41,7 @@ export function FileListItem({
   return (
     <li className="file-list__item" data-status={status}>
       <div className="file-list__icon">
-        <Icon svg={<FileOutline />} />
+        <Icon svg={<File />} />
       </div>
 
       <div className="file-list__details">
@@ -74,7 +75,7 @@ export function FileListItem({
               isDisabled || status === "uploading" || status === "parsing"
             }
           >
-            <Icon svg={<CloseOutline />} />
+            <Icon svg={<Close />} />
           </IconButton>
         </div>
       )}

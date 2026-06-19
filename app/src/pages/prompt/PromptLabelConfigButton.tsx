@@ -52,7 +52,7 @@ export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
       <Button
         variant="quiet"
         size="S"
-        leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Settings />} />}
         aria-label="Edit prompt labels"
       />
       <Popover
@@ -242,7 +242,7 @@ function PromptLabelList({
                 variant="quiet"
                 size="S"
                 aria-label="Create new label"
-                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Plus />} />}
                 onPress={() => setMode("create")}
               />
             ) : undefined

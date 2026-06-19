@@ -164,11 +164,7 @@ export const DialogCloseButton = ({
   ...props
 }: DialogCloseButtonProps) => {
   const isDrawer = useContext(DrawerContext);
-  const defaultIcon = isDrawer ? (
-    <Icons.ChevronRightDouble />
-  ) : (
-    <Icons.CloseOutline />
-  );
+  const defaultIcon = isDrawer ? <Icons.ChevronRightDouble /> : <Icons.Close />;
   return (
     <Button
       size="S"

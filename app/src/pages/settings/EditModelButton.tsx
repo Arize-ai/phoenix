@@ -184,7 +184,7 @@ export function EditModelButton({
     >
       <Button
         variant="default"
-        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Edit />} />}
         aria-label="Edit model"
         onPress={handleOpen}
         size="S"

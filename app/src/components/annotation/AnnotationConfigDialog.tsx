@@ -404,7 +404,7 @@ export const AnnotationConfigDialog = ({
                         />
                         <Button
                           type="button"
-                          leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                          leadingVisual={<Icon svg={<Icons.Trash />} />}
                           aria-label="Remove category"
                           onPress={() => remove(index)}
                         />
@@ -418,7 +418,7 @@ export const AnnotationConfigDialog = ({
                           const newIndex = fields.length;
                           setAutoFocusedCategoryIndex(newIndex);
                         }}
-                        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                        leadingVisual={<Icon svg={<Icons.Plus />} />}
                       >
                         Add category
                       </Button>

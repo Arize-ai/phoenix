@@ -71,9 +71,7 @@ export function SessionsTableEmpty() {
           <Flex direction="column" gap="size-200" alignItems="center">
             No sessions found for this project
             <DialogTrigger>
-              <Button
-                leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
-              >
+              <Button leadingVisual={<Icon svg={<Icons.PlayCircle />} />}>
                 Setup Sessions
               </Button>
               <ModalOverlay>

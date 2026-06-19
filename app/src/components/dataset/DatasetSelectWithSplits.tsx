@@ -178,7 +178,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         `}
         data-testid="dataset-picker"
         className="dataset-picker-button"
-        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Database />} />}
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
         isDisabled={props.isDisabled}
@@ -479,7 +479,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               to={`/datasets/${selectedDataset.id}`}
               size="S"
               variant="quiet"
-              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Database />} />}
             >
               View <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
             </LinkButton>

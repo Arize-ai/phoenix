@@ -71,7 +71,7 @@ export function EvaluatorSelectMenuItem({
       }
       trailingContent={
         <IconButton size="S" aria-label="Edit evaluator" onPress={onEdit}>
-          <Icon svg={<Icons.EditOutline />} />
+          <Icon svg={<Icons.Edit />} />
         </IconButton>
       }
     >

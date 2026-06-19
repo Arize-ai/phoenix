@@ -91,7 +91,7 @@ export const WithSubtitleAndTrailingContent: StoryObj<
             }
             trailingContent={
               <IconButton size="S" aria-label="More options">
-                <Icon svg={<Icons.MoreHorizontalOutline />} />
+                <Icon svg={<Icons.MoreHorizontal />} />
               </IconButton>
             }
           >

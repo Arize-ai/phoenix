@@ -44,7 +44,7 @@ function TokenCount({
       {...otherProps}
     >
       <Icon
-        svg={<Icons.TokensOutline />}
+        svg={<Icons.Tokens />}
         css={css`
           color: ${appliedColor};
         `}

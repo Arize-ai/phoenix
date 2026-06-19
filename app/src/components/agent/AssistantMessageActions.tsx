@@ -224,7 +224,7 @@ export function AssistantMessageActions({
             }}
           >
             <Icon
-              svg={<Icons.ThumbsUpOutline />}
+              svg={<Icons.ThumbsUp />}
               color={selectedFeedback === "positive" ? "blue-700" : "inherit"}
             />
           </MessageAction>
@@ -239,7 +239,7 @@ export function AssistantMessageActions({
             }}
           >
             <Icon
-              svg={<Icons.ThumbsDownOutline />}
+              svg={<Icons.ThumbsDown />}
               color={selectedFeedback === "negative" ? "red-700" : "inherit"}
             />
           </MessageAction>

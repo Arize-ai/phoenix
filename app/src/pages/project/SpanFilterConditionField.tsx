@@ -348,7 +348,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
           onClick={() => setFilterCondition("")}
           className="button--reset"
         >
-          <Icon svg={<Icons.CloseCircleOutline />} />
+          <Icon svg={<Icons.CloseCircle />} />
         </button>
         <DialogTrigger>
           <IconButton
@@ -364,7 +364,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             `}
             className="button--reset"
           >
-            <Icon svg={<Icons.PlusOutline />} />
+            <Icon svg={<Icons.Plus />} />
           </IconButton>
           <Popover placement="bottom right">
             <FilterConditionBuilder
@@ -494,7 +494,7 @@ function FilterConditionSnippet(props: {
           aria-label="Add to filter condition"
           variant="default"
           onPress={() => onAddFilterConditionSnippet(snippet)}
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
         />
       </Flex>
     </div>

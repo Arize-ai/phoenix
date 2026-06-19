@@ -128,7 +128,7 @@ export function GenerativeProvidersCard({
                 <Button
                   size="S"
                   aria-label={`Edit ${row.original.name} credentials`}
-                  leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit />} />}
                   isDisabled={row.original.credentialRequirements.length === 0}
                 />
                 <ModalOverlay>

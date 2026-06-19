@@ -334,7 +334,7 @@ export const CodeEvaluatorTestSection = ({
                       size="S"
                       onPress={() => setPreviewResults([])}
                     >
-                      <Icon svg={<Icons.CloseOutline />} />
+                      <Icon svg={<Icons.Close />} />
                     </IconButton>
                   }
                 >
@@ -398,15 +398,7 @@ export const CodeEvaluatorTestSection = ({
           isPending={isLoading}
           variant="primary"
           leadingVisual={
-            <Icon
-              svg={
-                isLoading ? (
-                  <Icons.LoadingOutline />
-                ) : (
-                  <Icons.PlayCircleOutline />
-                )
-              }
-            />
+            <Icon svg={isLoading ? <Icons.Loading /> : <Icons.PlayCircle />} />
           }
         >
           {isLoading ? "Testing..." : "Test"}

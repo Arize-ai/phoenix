@@ -25,7 +25,7 @@ export function TextErrorBoundaryFallback({
         cursor: ${error ? "help" : "default"};
       `}
     >
-      <Icon svg={<Icons.AlertCircleOutline />} />
+      <Icon svg={<Icons.AlertCircle />} />
       <Text color="text-300">error</Text>
     </div>
   );

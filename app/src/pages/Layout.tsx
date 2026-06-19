@@ -186,7 +186,7 @@ function SideNav() {
             <NavLink
               to="/dashboards"
               text="Dashboards"
-              leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Grid />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -194,7 +194,7 @@ function SideNav() {
             <NavLink
               to="/datasets"
               text="Datasets & Experiments"
-              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Database />} />}
               trailingVisual={
                 loaderData?.datasetCount != null ? (
                   <Counter variant="quiet">{loaderData.datasetCount}</Counter>
@@ -207,7 +207,7 @@ function SideNav() {
             <NavLink
               to="/playground"
               text="Playground"
-              leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -228,7 +228,7 @@ function SideNav() {
             <NavLink
               to="/prompts"
               text="Prompts"
-              leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
               trailingVisual={
                 loaderData?.promptCount != null ? (
                   <Counter variant="quiet">{loaderData.promptCount}</Counter>
@@ -262,7 +262,7 @@ function SideNav() {
             <NavLink
               to="/settings/general"
               text="Settings"
-              leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Settings />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>
@@ -284,7 +284,7 @@ function SideNav() {
             <NavLink
               to="/profile"
               text="Profile"
-              leadingVisual={<Icon svg={<Icons.PersonOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Person />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>

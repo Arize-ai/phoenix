@@ -50,7 +50,7 @@ export function DeletePromptVersionTagButton({
       <Button
         aria-label="Delete tag"
         size="S"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
       />
       <ModalOverlay>
         <Modal size="S">

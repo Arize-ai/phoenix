@@ -84,7 +84,7 @@ export function SessionListMenu({
         variant="quiet"
         size="S"
         aria-label="Sessions"
-        leadingVisual={<Icon svg={<Icons.HistoryOutline />} />}
+        leadingVisual={<Icon svg={<Icons.History />} />}
       />
       <MenuContainer placement="bottom end" minHeight="auto" maxHeight={400}>
         <Menu
@@ -145,7 +145,7 @@ function SessionMenuItem({
               size="S"
               aria-label={`Delete session: ${displayName}`}
               onPress={() => onRequestDelete(session.id)}
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Trash />} />}
             />
             <Tooltip>
               Delete <Keyboard>⌫</Keyboard>

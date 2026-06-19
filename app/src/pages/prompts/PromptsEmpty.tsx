@@ -37,13 +37,13 @@ export function PromptsEmpty() {
               <ExternalLinkButton
                 href="https://arize.com/docs/phoenix/get-started/get-started-prompt-playground"
                 target="_blank"
-                leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Book />} />}
               >
                 Documentation
               </ExternalLinkButton>
               <Button
                 variant="primary"
-                leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                 onPress={() => navigate("/playground")}
               >
                 Playground

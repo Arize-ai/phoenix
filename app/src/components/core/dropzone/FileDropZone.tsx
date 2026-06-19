@@ -2,7 +2,8 @@ import { type ChangeEvent, useCallback, useEffect, useRef } from "react";
 import { DropZone as ReactAriaDropZone, Text } from "react-aria-components";
 import type { DropItem, FileDropItem } from "react-aria-components";
 
-import { Icon, CloudUpload } from "@phoenix/components/core/icon";
+import { Icon } from "@phoenix/components/core/icon";
+import { CloudUpload } from "@phoenix/components/core/icon/Icons";
 import { storageSizeFormatter } from "@phoenix/utils/storageSizeFormatUtils";
 
 import { fileDropZoneCSS } from "./styles";

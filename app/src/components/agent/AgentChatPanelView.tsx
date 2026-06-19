@@ -186,14 +186,14 @@ export function AgentChatHeader({
           size="S"
           aria-label="New chat"
           onPress={onCreateSession}
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
         />
         <LinkButton
           variant="quiet"
           size="S"
           to="/settings/agents"
           aria-label="Assistant settings"
-          leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Options />} />}
         />
         {position != null && onPositionChange != null ? (
           <Button
@@ -211,7 +211,7 @@ export function AgentChatHeader({
               <Icon
                 svg={
                   position === "pinned" ? (
-                    <Icons.CollapseOutline />
+                    <Icons.Collapse />
                   ) : (
                     <Icons.SidebarAttachRight />
                   )
@@ -225,7 +225,7 @@ export function AgentChatHeader({
           size="S"
           aria-label="Close assistant"
           onPress={onClose}
-          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Close />} />}
         />
       </Flex>
     </div>

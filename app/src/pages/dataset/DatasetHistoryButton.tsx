@@ -20,7 +20,7 @@ export function DatasetHistoryButton(props: { datasetId: string }) {
       <TooltipTrigger delay={100}>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.ClockOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Clock />} />}
           aria-label="Version History"
           onPress={() => setIsOpen(true)}
         />

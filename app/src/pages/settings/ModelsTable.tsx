@@ -273,7 +273,7 @@ export function ModelsTable({
               <span>{inputCost}</span>
               <TooltipTrigger delay={0}>
                 <IconButton size="S" aria-label="Input cost details">
-                  <Icon svg={<Icons.MoreHorizontalOutline />} />
+                  <Icon svg={<Icons.MoreHorizontal />} />
                 </IconButton>
                 <RichTooltip>
                   <TooltipArrow />
@@ -320,7 +320,7 @@ export function ModelsTable({
               <span>{outputCost}</span>
               <TooltipTrigger delay={0}>
                 <IconButton size="S" aria-label="Output cost details">
-                  <Icon svg={<Icons.MoreHorizontalOutline />} />
+                  <Icon svg={<Icons.MoreHorizontal />} />
                 </IconButton>
                 <RichTooltip>
                   <TooltipArrow />

@@ -113,7 +113,7 @@ export function DocumentAnnotationActionMenu({
         <Button
           size="S"
           variant="default"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
           aria-label={`Actions for annotation ${annotationName}`}
         />
         <Popover placement="bottom end">
@@ -134,7 +134,7 @@ export function DocumentAnnotationActionMenu({
                       justifyContent="start"
                       alignItems="center"
                     >
-                      <Icon svg={<Icons.EditOutline />} />
+                      <Icon svg={<Icons.Edit />} />
                       <Text>Edit</Text>
                     </Flex>
                   </ListBoxItem>
@@ -152,7 +152,7 @@ export function DocumentAnnotationActionMenu({
                     justifyContent="start"
                     alignItems="center"
                   >
-                    <Icon svg={<Icons.TrashOutline />} />
+                    <Icon svg={<Icons.Trash />} />
                     <Text>Delete</Text>
                   </Flex>
                 </ListBoxItem>
