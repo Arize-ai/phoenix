@@ -73,6 +73,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         role_attribute_path: Optional[str] = None,
         role_mapping: Optional[Mapping[str, AssignableUserRoleName]] = None,
         role_attribute_strict: bool = False,
+        role_resync: bool = True,
         email_attribute_path: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
@@ -117,6 +118,7 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
         )
         self._role_mapping = role_mapping
         self._role_attribute_strict = role_attribute_strict
+        self._role_resync = role_resync
         self._compiled_role_path = self._compile_jmespath_expression(
             self._role_attribute_path, "ROLE_ATTRIBUTE_PATH"
         )
@@ -168,6 +170,11 @@ class OAuth2Client(AsyncOAuth2Mixin, AsyncOpenIDMixin, BaseApp):  # type:ignore[
     @cached_property
     def use_pkce(self) -> bool:
         return self._use_pkce
+
+    @cached_property
+    def role_resync(self) -> bool:
+        """When False, existing users' roles are preserved on login instead of re-synced."""
+        return self._role_resync
 
     @cached_property
     def email_path(self) -> jmespath.parser.ParsedResult:
@@ -452,6 +459,7 @@ class OAuth2Clients:
             role_attribute_path=config.role_attribute_path,
             role_mapping=config.role_mapping,
             role_attribute_strict=config.role_attribute_strict,
+            role_resync=config.role_resync,
             email_attribute_path=config.email_attribute_path,
         )
 

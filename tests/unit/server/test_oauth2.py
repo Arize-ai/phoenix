@@ -1063,6 +1063,15 @@ class TestOAuth2ClientRoleMapping:
             client_strict.extract_and_map_role(claims_thin)
 
 
+class TestOAuth2ClientRoleResync:
+    """Test the role_resync property on OAuth2Client."""
+
+    def test_role_resync_property(self) -> None:
+        """role_resync defaults to True and reflects the configured value."""
+        assert OAuth2Client(**_OAUTH2_CLIENT_DEFAULTS).role_resync is True
+        assert OAuth2Client(**_OAUTH2_CLIENT_DEFAULTS, role_resync=False).role_resync is False
+
+
 class TestHasSufficientClaimsWithRoles:
     """Test has_sufficient_claims method with role mapping."""
 
