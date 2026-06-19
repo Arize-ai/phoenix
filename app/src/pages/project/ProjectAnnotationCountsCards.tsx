@@ -1,21 +1,25 @@
 import { css } from "@emotion/react";
 import { getLocalTimeZone } from "@internationalized/date";
 import { Suspense, useState } from "react";
-import type { DateValue } from "react-aria-components";
-import { DateInput, DateSegment, Label } from "react-aria-components";
+import { Form } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
+import type { DateValue } from "@phoenix/components";
 import {
   Button,
   Card,
   ContentSkeleton,
   DateField,
+  DateInput,
+  DateSegment,
   Dialog,
   DialogTrigger,
   Empty,
+  FieldError,
   Flex,
   Icon,
   Icons,
+  Label,
   Modal,
   ModalOverlay,
   Radio,
@@ -26,9 +30,11 @@ import {
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import {
+  DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { useNotifyError, useNotifySuccess, useViewer } from "@phoenix/contexts";
@@ -423,7 +429,7 @@ const DeleteAnnotationsButton = (props: DeleteAnnotationsButtonProps) => {
         leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
       />
       <ModalOverlay>
-        <Modal size="M">
+        <Modal size="S">
           <Dialog>
             {({ close }) => (
               <DeleteAnnotationsDialog
@@ -441,18 +447,9 @@ const DeleteAnnotationsButton = (props: DeleteAnnotationsButtonProps) => {
   );
 };
 
-const dialogBodyCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-200);
-`;
-
-const dateFieldsCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--ac-global-dimension-size-100);
+const dateFieldCSS = css`
   .react-aria-DateInput {
-    min-width: 220px;
+    width: 100%;
   }
 `;
 
@@ -474,17 +471,17 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
   const [endDate, setEndDate] = useState<DateValue | null>(null);
   const [timeRangeField, setTimeRangeField] =
     useState<AnnotationTimeRangeField>("ANNOTATION_CREATED_AT");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [endError, setEndError] = useState<string | null>(null);
 
   const handleDelete = () => {
-    setErrorMessage(null);
+    setEndError(null);
     const timeZone = getLocalTimeZone();
     let timeRange: { start: string | null; end: string | null } | null = null;
     if (limitToTimeRange && (startDate || endDate)) {
       const start = startDate ? startDate.toDate(timeZone) : null;
       const end = endDate ? endDate.toDate(timeZone) : null;
-      if (start && end && start >= end) {
-        setErrorMessage("The end of the time range must be after the start.");
+      if (start && end && end <= start) {
+        setEndError("End must be after the start.");
         return;
       }
       timeRange = {
@@ -495,7 +492,9 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
     onDelete({
       annotationName,
       timeRange,
-      timeRangeField,
+      timeRangeField: limitToTimeRange
+        ? timeRangeField
+        : "ANNOTATION_CREATED_AT",
       onCompleted: (deletedCount) => {
         notifySuccess({
           title: "Annotations deleted",
@@ -517,91 +516,113 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>
-          Delete &ldquo;{annotationName}&rdquo; annotations
-        </DialogTitle>
+        <DialogTitle>Delete {annotationName} annotations</DialogTitle>
+        <DialogTitleExtra>
+          <DialogCloseButton slot="close" />
+        </DialogTitleExtra>
       </DialogHeader>
-      <View padding="size-200">
-        <div css={dialogBodyCSS}>
-          <Text color="danger">
-            {limitToTimeRange
-              ? `This will permanently delete the "${annotationName}" annotations within the selected time range. This cannot be undone.`
-              : `This will permanently delete all "${annotationName}" annotations in this project. This cannot be undone.`}
-          </Text>
-          <Switch
-            isSelected={limitToTimeRange}
-            onChange={setLimitToTimeRange}
-            labelPlacement="end"
-          >
-            Only delete annotations within a time range
-          </Switch>
-          {limitToTimeRange ? (
-            <div css={dateFieldsCSS}>
-              <DateField
-                value={startDate}
-                onChange={setStartDate}
-                granularity="second"
-                hideTimeZone
-              >
-                <Label>Start (inclusive)</Label>
-                <DateInput>
-                  {(segment) => <DateSegment segment={segment} />}
-                </DateInput>
-              </DateField>
-              <DateField
-                value={endDate}
-                onChange={setEndDate}
-                granularity="second"
-                hideTimeZone
-              >
-                <Label>End (exclusive)</Label>
-                <DateInput>
-                  {(segment) => <DateSegment segment={segment} />}
-                </DateInput>
-              </DateField>
-              <RadioGroup
-                direction="column"
-                value={timeRangeField}
-                onChange={(value) =>
-                  setTimeRangeField(value as AnnotationTimeRangeField)
-                }
-                aria-label="Filter the time range by"
-              >
-                <Radio value="ANNOTATION_CREATED_AT">
-                  When the annotation was created
-                </Radio>
-                <Radio value="SOURCE_START_TIME">
-                  When the {sourceNoun} started
-                </Radio>
-              </RadioGroup>
-              <Text size="XS" color="text-700">
-                Leave either field empty for an open-ended range.
-              </Text>
-            </div>
-          ) : null}
-          {errorMessage ? <Text color="danger">{errorMessage}</Text> : null}
-        </div>
-      </View>
-      <View
-        paddingEnd="size-200"
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        borderTopColor="default"
-        borderTopWidth="thin"
+      <Form
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleDelete();
+        }}
       >
-        <Flex direction="row" justifyContent="end" gap="size-200">
-          <Button onPress={close} isDisabled={isDeleting}>
-            Cancel
-          </Button>
-          <Button
-            variant="danger"
-            isDisabled={isDeleting}
-            onPress={handleDelete}
-          >
-            {isDeleting ? "Deleting…" : "Delete annotations"}
-          </Button>
-        </Flex>
-      </View>
+        <View padding="size-200">
+          <Flex direction="column" gap="size-200">
+            <Text>
+              {limitToTimeRange
+                ? `This permanently deletes the "${annotationName}" annotations in the selected time range. This cannot be undone.`
+                : `This permanently deletes all "${annotationName}" annotations in this project. This cannot be undone.`}
+            </Text>
+            <Switch
+              isSelected={limitToTimeRange}
+              onChange={setLimitToTimeRange}
+              labelPlacement="end"
+            >
+              Only delete within a time range
+            </Switch>
+            {limitToTimeRange ? (
+              <Flex direction="column" gap="size-200">
+                <DateField
+                  value={startDate}
+                  onChange={setStartDate}
+                  granularity="minute"
+                  hideTimeZone
+                  css={dateFieldCSS}
+                >
+                  <Label>Start</Label>
+                  <DateInput>
+                    {(segment) => <DateSegment segment={segment} />}
+                  </DateInput>
+                  <Text slot="description">
+                    Inclusive. Leave empty for no lower bound.
+                  </Text>
+                </DateField>
+                <DateField
+                  value={endDate}
+                  onChange={(value) => {
+                    setEndDate(value);
+                    setEndError(null);
+                  }}
+                  isInvalid={endError != null}
+                  granularity="minute"
+                  hideTimeZone
+                  css={dateFieldCSS}
+                >
+                  <Label>End</Label>
+                  <DateInput>
+                    {(segment) => <DateSegment segment={segment} />}
+                  </DateInput>
+                  {endError ? (
+                    <FieldError>{endError}</FieldError>
+                  ) : (
+                    <Text slot="description">
+                      Exclusive. Leave empty for no upper bound.
+                    </Text>
+                  )}
+                </DateField>
+                <RadioGroup
+                  value={timeRangeField}
+                  onChange={(value) =>
+                    setTimeRangeField(value as AnnotationTimeRangeField)
+                  }
+                  direction="column"
+                >
+                  <Label>Filter on</Label>
+                  <Radio value="ANNOTATION_CREATED_AT">
+                    When the annotation was created
+                  </Radio>
+                  <Radio value="SOURCE_START_TIME">
+                    When the {sourceNoun} started
+                  </Radio>
+                </RadioGroup>
+              </Flex>
+            ) : null}
+          </Flex>
+        </View>
+        <View
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          borderColor="default"
+          borderTopWidth="thin"
+        >
+          <Flex direction="row" gap="size-100" justifyContent="end">
+            <Button size="S" onPress={close} isDisabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              size="S"
+              variant="danger"
+              type="submit"
+              isDisabled={isDeleting}
+            >
+              {isDeleting ? "Deleting…" : "Delete annotations"}
+            </Button>
+          </Flex>
+        </View>
+      </Form>
     </DialogContent>
   );
 };
