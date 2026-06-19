@@ -248,6 +248,11 @@ type AnnotationSummary {
   labelCount: Int!
 }
 
+enum AnnotationTimeRangeField {
+  ANNOTATION_CREATED_AT
+  SOURCE_START_TIME
+}
+
 enum AnnotationType {
   CATEGORICAL
   CONTINUOUS
@@ -1361,6 +1366,26 @@ type DeleteModelMutationPayload {
   query: Query!
 }
 
+type DeleteProjectAnnotationsByNamePayload {
+  deletedAnnotationCount: Int!
+  query: Query!
+}
+
+input DeleteProjectAnnotationsInput {
+  projectId: ID!
+  annotationName: String!
+
+  """
+  If provided, only annotations whose timestamp falls within this range are deleted. The end of the range is right-exclusive.
+  """
+  timeRange: TimeRange
+
+  """
+  Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
+  """
+  timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
+}
+
 input DeleteProjectTraceRetentionPolicyInput {
   id: ID!
 }
@@ -2407,6 +2432,21 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+
+  """
+  Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSpanAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every trace annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectTraceAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
