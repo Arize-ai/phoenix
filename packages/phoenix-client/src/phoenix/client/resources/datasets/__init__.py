@@ -867,8 +867,6 @@ class Datasets:
                 stacklevel=2,
             )
 
-        # Materialize iterables before `any()` to avoid consuming the first item
-        # of a generator during the has_json detection check.
         inputs = list(inputs)
         outputs = list(outputs)
         metadata = list(metadata)
@@ -1031,8 +1029,6 @@ class Datasets:
         # At this point resolved_name is guaranteed to be not None
         assert resolved_name is not None
 
-        # Materialize iterables before `any()` to avoid consuming the first item
-        # of a generator during the has_json detection check.
         inputs = list(inputs)
         outputs = list(outputs)
         metadata = list(metadata)
@@ -1770,8 +1766,6 @@ class AsyncDatasets:
                 stacklevel=2,
             )
 
-        # Materialize iterables before `any()` to avoid consuming the first item
-        # of a generator during the has_json detection check.
         inputs = list(inputs)
         outputs = list(outputs)
         metadata = list(metadata)
@@ -1929,8 +1923,6 @@ class AsyncDatasets:
         # At this point resolved_name is guaranteed to be not None
         assert resolved_name is not None
 
-        # Materialize iterables before `any()` to avoid consuming the first item
-        # of a generator during the has_json detection check.
         inputs = list(inputs)
         outputs = list(outputs)
         metadata = list(metadata)
