@@ -6,21 +6,21 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 
 | Noun | Icon | Notes |
 |------|------|-------|
-| Project | `Icons.GridOutline` | Phoenix projects (the namespace concept). |
+| Project | `Icons.Grid` | Phoenix projects (the namespace concept). |
 | Trace | `Icons.Trace` | A single trace. |
-| Span | `Icons.WorkflowOutline` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
-| Span filter | `Icons.FunnelOutline` | A validated span filter expression. |
-| Source / citation | `Icons.BookOutline` | Source documents surfaced from RAG / search. |
-| Document (generic) | `Icons.FileTextOutline` | Text-bearing documents (PDF, txt, md). |
-| File (generic / unknown) | `Icons.FileOutline` | Default file fallback when the media type is not specifically handled. |
-| Image | `Icons.ImageOutline` | Image-typed file attachments. |
-| Video | `Icons.PlayCircleOutline` | Video-typed file attachments (no dedicated `Video*` icon). |
-| Code-evaluator form | `Icons.EditOutline` | Task-role context pill for the code-evaluator create/edit form the user is working in. The edit glyph reads as an action, distinct from entity icons used by surface pills. |
-| Context (generic) | `Icons.InfoOutline` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
-| Bypass / unguarded approvals | `Icons.ShieldOutline` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
-| Undo / rewind | `Icons.RotateCcwOutline` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `HistoryOutline` (clock = history/session list). |
-| Resume / play | `Icons.PlayOutline` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircleOutline` (used for video attachments). |
-| Pause | `Icons.PauseOutline` | Pause an in-progress activity (e.g. pause live streaming). |
+| Span | `Icons.Workflow` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
+| Span filter | `Icons.Funnel` | A validated span filter expression. |
+| Source / citation | `Icons.Book` | Source documents surfaced from RAG / search. |
+| Document (generic) | `Icons.FileText` | Text-bearing documents (PDF, txt, md). |
+| File (generic / unknown) | `Icons.File` | Default file fallback when the media type is not specifically handled. |
+| Image | `Icons.Image` | Image-typed file attachments. |
+| Video | `Icons.PlayCircle` | Video-typed file attachments (no dedicated `Video*` icon). |
+| Code-evaluator form | `Icons.Edit` | Task-role context pill for the code-evaluator create/edit form the user is working in. The edit glyph reads as an action, distinct from entity icons used by surface pills. |
+| Context (generic) | `Icons.Info` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
+| Bypass / unguarded approvals | `Icons.Shield` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
+| Undo / rewind | `Icons.RotateCcw` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `History` (clock = history/session list). |
+| Resume / play | `Icons.Play` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircle` (used for video attachments). |
+| Pause | `Icons.Pause` | Pause an in-progress activity (e.g. pause live streaming). |
 
 ## When you need an icon
 
@@ -36,6 +36,6 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 - **Lucide style** — `fill="none"`, `stroke="currentColor"`, explicit `width="20" height="20"`. When porting a Lucide SVG:
   - Convert kebab-case attributes to camelCase (`stroke-width` → `strokeWidth`, etc.).
   - Set `fill="none"` on the root **and** on each child shape — JSX/React rendering does not always honor inheritance the same way as raw SVG.
-  - Match the `GitBranchOutline` / `WorkflowOutline` shape exactly so future Lucide additions stay consistent.
+  - Match the `GitBranch` / `Workflow` shape exactly so future Lucide additions stay consistent.
 
-Export as `<Name>Outline` (or `<Name>Filled`) to match the existing naming convention. After adding, update the table in this file in the same change.
+Export the icon under its bare noun (e.g. `Grid`, `Workflow`). Add a `<Name>Filled` variant only when a filled counterpart coexists with the default glyph (e.g. `Info` / `InfoFilled`). After adding, update the table in this file in the same change.

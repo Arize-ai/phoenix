@@ -6,7 +6,7 @@ import { IconButton } from "../src/components/core/button/IconButton";
 import { Icon } from "../src/components/core/icon/Icon";
 import {
   AlertTriangle,
-  CaretRightFilled,
+  ChevronRight,
   Close,
   Edit,
   Plus,
@@ -104,7 +104,7 @@ export const DifferentIcons = () => (
       <Icon svg={<Close />} />
     </IconButton>
     <IconButton aria-label="Next">
-      <Icon svg={<CaretRightFilled />} />
+      <Icon svg={<ChevronRight />} />
     </IconButton>
   </div>
 );

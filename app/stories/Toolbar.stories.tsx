@@ -104,7 +104,7 @@ const IconOnlyTemplate: StoryFn<ToolbarStoryArgs> = (args) => {
       <Group aria-label="Select">
         <Button
           aria-label="Grid"
-          leadingVisual={<Icon svg={<Icons.Archive />} />}
+          leadingVisual={<Icon svg={<Icons.Grid />} />}
         />
         <Button
           aria-label="Lasso"
