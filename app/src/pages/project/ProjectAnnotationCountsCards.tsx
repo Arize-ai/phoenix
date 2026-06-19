@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { getLocalTimeZone } from "@internationalized/date";
+import { getLocalTimeZone, now } from "@internationalized/date";
 import { Suspense, useState } from "react";
 import { Form } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
@@ -467,8 +467,14 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
   const notifyError = useNotifyError();
 
   const [limitToTimeRange, setLimitToTimeRange] = useState(false);
-  const [startDate, setStartDate] = useState<DateValue | null>(null);
-  const [endDate, setEndDate] = useState<DateValue | null>(null);
+  // Pre-fill a concrete, valid range (the last 7 days) so the date segments are
+  // easy to adjust rather than starting from empty placeholders.
+  const [startDate, setStartDate] = useState<DateValue | null>(() =>
+    now(getLocalTimeZone()).subtract({ days: 7 })
+  );
+  const [endDate, setEndDate] = useState<DateValue | null>(() =>
+    now(getLocalTimeZone())
+  );
   const [timeRangeField, setTimeRangeField] =
     useState<AnnotationTimeRangeField>("ANNOTATION_CREATED_AT");
   const [endError, setEndError] = useState<string | null>(null);
