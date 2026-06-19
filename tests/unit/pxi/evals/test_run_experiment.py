@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
 from evals.pxi.harness.datasets import EvalDataset
 from evals.pxi.harness.reporting import (
@@ -28,7 +29,6 @@ from evals.pxi.harness.run_experiment import (
     _rewrite_stable_example_ids,
     main,
 )
-from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
 
 def _dataset() -> EvalDataset:

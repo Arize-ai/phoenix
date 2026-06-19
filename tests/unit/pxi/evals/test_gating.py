@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
@@ -75,7 +75,7 @@ def _evaluation(run_id: str, *, score: float | None = 1.0) -> ExperimentEvaluati
         end_time=NOW,
         name="correct_tools_called",
         annotator_kind="CODE",
-        result=result,
+        result=cast(Any, result),
     )
 
 
@@ -85,15 +85,18 @@ def _experiment(
     *,
     experiment_id: str = "experiment-1",
 ) -> RanExperiment:
-    return {
-        "experiment_id": experiment_id,
-        "dataset_id": "dataset-1",
-        "dataset_version_id": "dataset-version-1",
-        "task_runs": task_runs,
-        "evaluation_runs": evaluation_runs,
-        "experiment_metadata": {},
-        "project_name": None,
-    }
+    return cast(
+        RanExperiment,
+        {
+            "experiment_id": experiment_id,
+            "dataset_id": "dataset-1",
+            "dataset_version_id": "dataset-version-1",
+            "task_runs": task_runs,
+            "evaluation_runs": evaluation_runs,
+            "experiment_metadata": {},
+            "project_name": None,
+        },
+    )
 
 
 def test_classify_task_error_treats_unknown_errors_as_infra() -> None:

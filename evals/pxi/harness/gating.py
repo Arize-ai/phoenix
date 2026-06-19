@@ -11,8 +11,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal, Mapping, Sequence
 
-from evals.pxi.harness.datasets import EvalDataset
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
+
+from evals.pxi.harness.datasets import EvalDataset
 
 PASSING_SCORE = 1.0
 RETRY_FAILED_CAP = 15
@@ -188,6 +189,10 @@ def decide_gate(
             retry_skipped_reason=f"retry skipped because {len(failed_once_ids)} failures exceed cap {retry_cap}",
         )
 
+    assert retry_attempts is not None, (
+        "retry_attempts must be provided when retry_enabled=True and failures are under cap; "
+        "use retry_ids_for() to get the IDs to retry, then call decide_gate() once with results"
+    )
     confirmed_regression_ids: set[str] = set()
     infra_ids: set[str] = set()
     flaky_ids: set[str] = set()
