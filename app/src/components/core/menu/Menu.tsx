@@ -175,7 +175,7 @@ export const MenuItem = <T extends object>({
             {isSelected && <Icon svg={<Icons.Checkmark />} />}
             {selectionMode !== "none" && !isSelected && (
               <Icon
-                svg={<Icons.CheckmarkOutline />}
+                svg={<Icons.Checkmark />}
                 css={css`
                   visibility: hidden;
                 `}
@@ -191,7 +191,7 @@ export const MenuItem = <T extends object>({
             </MenuItemContent>
             {/* TODO: this doesn't have a good way to reserve space for the chevron
             in menus where only some items are nestable */}
-            {hasSubmenu && <Icon svg={<Icons.ChevronRight />} />}
+            {hasSubmenu && <Icon svg={<Icons.ChevronRightSmall />} />}
           </>
         );
       }}

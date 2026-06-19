@@ -24,7 +24,7 @@ export function MessageBranchPrevious({
       onPress={() => setActiveBranch(activeBranch - 1)}
       {...restProps}
     >
-      <Icon svg={<Icons.ArrowIosBackOutline />} />
+      <Icon svg={<Icons.ChevronLeft />} />
     </Button>
   );
 }

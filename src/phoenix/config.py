@@ -85,6 +85,11 @@ ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
 Disables PXI native web search and web fetch capabilities even when external
 resources are otherwise allowed.
 """
+ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
+"""
+Disables the server-side bash tool by preventing subagents from being attached to
+the assistant. When true, the option to enable subagents is also hidden from the UI settings.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -1355,6 +1360,10 @@ def get_env_phoenix_agents_disable_web_access() -> bool:
 
 def get_env_phoenix_agents_web_access_enabled() -> bool:
     return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_web_access()
+
+
+def get_env_phoenix_agents_disable_bash() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
 
 
 class AuthSettings(NamedTuple):

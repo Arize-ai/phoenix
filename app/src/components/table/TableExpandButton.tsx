@@ -32,9 +32,9 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       <Icon
         svg={
           props.isExpanded ? (
-            <Icons.ChevronDownOutline />
+            <Icons.ChevronDownSmall />
           ) : (
-            <Icons.ChevronRightOutline />
+            <Icons.ChevronRightSmall />
           )
         }
       />

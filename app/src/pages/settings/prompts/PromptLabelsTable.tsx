@@ -9,6 +9,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex, Token } from "@phoenix/components";
 import { TableEmpty } from "@phoenix/components/table";
+import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { DeletePromptLabelButton } from "@phoenix/pages/settings/prompts/DeletePromptLabelButton";
 
@@ -32,6 +33,7 @@ export function PromptLabelsTable({
               name
               description
               color
+              usageCount
             }
           }
         }
@@ -41,7 +43,7 @@ export function PromptLabelsTable({
   );
   const tableData = useMemo(
     () => data.promptLabels.edges.map((edge) => edge.node),
-    [data]
+    [data.promptLabels.edges]
   );
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
@@ -61,6 +63,11 @@ export function PromptLabelsTable({
       {
         header: "description",
         accessorKey: "description",
+      },
+      {
+        header: "usage count",
+        accessorKey: "usageCount",
+        cell: IntCell,
       },
       {
         header: "",

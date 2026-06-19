@@ -1278,7 +1278,7 @@ const appGlobalStylesCSS = css`
     font-size: var(--global-font-size-s);
   }
   body {
-    background-color: var(--global-color-gray-75);
+    background-color: var(--global-color-gray-100);
 
     margin: 0;
     overflow: hidden;

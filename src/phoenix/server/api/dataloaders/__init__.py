@@ -27,6 +27,7 @@ from .dataset_example_splits import DatasetExampleSplitsDataLoader
 from .dataset_examples_and_versions_by_experiment_run import (
     DatasetExamplesAndVersionsByExperimentRunDataLoader,
 )
+from .dataset_label_usage_counts import DatasetLabelUsageCountsDataLoader
 from .dataset_labels import DatasetLabelsDataLoader
 from .datasets_by_evaluator import DatasetsByEvaluatorDataLoader
 from .document_evaluation_summaries import (
@@ -62,6 +63,7 @@ from .num_spans_per_trace import NumSpansPerTraceDataLoader
 from .project_by_name import ProjectByNameDataLoader
 from .project_has_traces import ProjectHasTracesDataLoader
 from .project_ids_by_trace_retention_policy_id import ProjectIdsByTraceRetentionPolicyIdDataLoader
+from .prompt_label_usage_counts import PromptLabelUsageCountsDataLoader
 from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoader
 from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
@@ -162,6 +164,7 @@ class DataLoaders:
     dataset_example_spans: DatasetExampleSpansDataLoader
     dataset_labels: DatasetLabelsDataLoader
     dataset_label_fields: TableFieldsDataLoader
+    dataset_label_usage_counts: DatasetLabelUsageCountsDataLoader
     dataset_dataset_splits: DatasetDatasetSplitsDataLoader
     dataset_examples_and_versions_by_experiment_run: (
         DatasetExamplesAndVersionsByExperimentRunDataLoader
@@ -208,6 +211,7 @@ class DataLoaders:
     projects_by_trace_retention_policy_id: ProjectIdsByTraceRetentionPolicyIdDataLoader
     prompt_fields: TableFieldsDataLoader
     prompt_label_fields: TableFieldsDataLoader
+    prompt_label_usage_counts: PromptLabelUsageCountsDataLoader
     prompt_versions: PromptVersionDataLoader
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
@@ -304,6 +308,7 @@ def build_data_loaders(
         dataset_version_fields=TableFieldsDataLoader(db, models.DatasetVersion),
         dataset_labels=DatasetLabelsDataLoader(db),
         dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
+        dataset_label_usage_counts=DatasetLabelUsageCountsDataLoader(db),
         document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
             db,
             cache_map=(
@@ -362,6 +367,7 @@ def build_data_loaders(
         projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(db),
         prompt_fields=TableFieldsDataLoader(db, models.Prompt),
         prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
+        prompt_label_usage_counts=PromptLabelUsageCountsDataLoader(db),
         prompt_versions=PromptVersionDataLoader(db),
         prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
         prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),

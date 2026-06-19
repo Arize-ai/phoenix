@@ -256,7 +256,7 @@ export type PromptInputButtonTooltip =
  * </PromptInputButton>
  *
  * <PromptInputButton tooltip={{ content: "Search", shortcut: "⌘K" }}>
- *   <Icon svg={<Icons.SearchOutline />} />
+ *   <Icon svg={<Icons.Search />} />
  * </PromptInputButton>
  * ```
  */

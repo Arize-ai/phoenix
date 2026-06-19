@@ -12,15 +12,14 @@ import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
 import { GenerativeUI } from "./generativeUI";
-import { groupMessageParts } from "./groupMessageParts";
 import { MessageCopyAction } from "./MessageCopyAction";
 import { MessageRewindActions } from "./MessageRewindActions";
 import type {
   MessageRewindMode,
   MessageRewindRole,
 } from "./MessageRewindDialog";
+import { partitionMessageParts } from "./partitionMessageParts";
 import { ToolPart } from "./ToolPart";
-import { ToolPartGroup } from "./ToolPartGroup";
 
 /**
  * Reports a rewind/fork request from a message's controls up to the chat view,
@@ -84,9 +83,8 @@ export function UserMessage({
 
 /**
  * Renders an assistant message consisting of interleaved text and tool-call
- * parts. Consecutive runs of 3+ tool calls are collapsed into a
- * {@link ToolPartGroup} pool; shorter runs render individually as
- * {@link ToolPart} details.
+ * parts. Every tool call renders individually as a collapsible {@link ToolPart}
+ * so no call is hidden behind a collapsed summary.
  *
  * `showActions` gates the feedback/copy/trace toolbar — callers should set
  * it to `false` while this particular message is still streaming so users
@@ -113,41 +111,34 @@ export function AssistantMessage({
   onRewindRequest?: MessageRewindRequest;
   allowRewind?: boolean;
 }) {
-  const grouped = groupMessageParts(message.parts);
+  const segments = partitionMessageParts(message.parts);
 
   return (
     <Message from="assistant" data-pin-toolbar={pinToolbar || undefined}>
       <MessageContent>
         <div css={assistantMessageCSS}>
-          {grouped.map((group) => {
-            switch (group.kind) {
+          {segments.map((segment) => {
+            switch (segment.kind) {
               case "text":
                 return (
                   <MarkdownBlock
-                    key={`text-${group.index}`}
+                    key={`text-${segment.index}`}
                     mode="markdown"
                     renderMode="streaming"
                     margin="none"
                   >
-                    {group.part.type === "text" ? group.part.text : ""}
+                    {segment.part.type === "text" ? segment.part.text : ""}
                   </MarkdownBlock>
                 );
               case "tool-solo":
                 return (
-                  <ToolPart key={`tool-${group.index}`} part={group.part} />
-                );
-              case "tool-group":
-                return (
-                  <ToolPartGroup
-                    key={`pool-${group.startIndex}`}
-                    parts={group.parts}
-                  />
+                  <ToolPart key={`tool-${segment.index}`} part={segment.part} />
                 );
               case "generative-ui":
                 return (
                   <GenerativeUI
-                    key={`generative-ui-${group.index}`}
-                    parts={[group.part]}
+                    key={`generative-ui-${segment.index}`}
+                    parts={[segment.part]}
                   />
                 );
               default:

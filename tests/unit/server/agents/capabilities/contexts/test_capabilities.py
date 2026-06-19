@@ -15,6 +15,10 @@ from phoenix.server.agents.capabilities.contexts.llm_evaluator import (
 )
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
+from phoenix.server.agents.capabilities.contexts.prompt import (
+    PromptContextCapability,
+    PromptVersionContextCapability,
+)
 from phoenix.server.agents.capabilities.contexts.session import SessionContextCapability
 from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
     PatchExperimentCapability,
@@ -30,6 +34,8 @@ from phoenix.server.agents.context import (
     PlaygroundExperimentScaffoldContext,
     PlaygroundInstanceContext,
     ProjectContext,
+    PromptContext,
+    PromptVersionContext,
     ResolvedContexts,
     SessionContext,
 )
@@ -174,6 +180,48 @@ class TestSessionContextCapabilityRender:
         assert '<project_node_id format="phoenix_node_id">UHJvamVjdDox</project_node_id>' in content
         assert (
             '<session_node_id format="phoenix_node_id">UHJvamVjdFNlc3Npb246MQ==</session_node_id>'
+        ) in content
+
+
+class TestPromptContextCapabilityRender:
+    def test_renders_prompt_context(self) -> None:
+        capability = PromptContextCapability(instructions=_DEFAULT_PROMPTS.prompt_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                prompt=PromptContext(
+                    type="prompt",
+                    prompt_node_id="UHJvbXB0OjE=",
+                ),
+            )
+        )
+
+        content = _render(capability, ctx)
+
+        assert content.startswith("<phoenix_prompt_context>")
+        assert '<prompt_node_id format="phoenix_node_id">UHJvbXB0OjE=</prompt_node_id>' in content
+
+
+class TestPromptVersionContextCapabilityRender:
+    def test_renders_prompt_version_context(self) -> None:
+        capability = PromptVersionContextCapability(
+            instructions=_DEFAULT_PROMPTS.prompt_version_context
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                prompt_version=PromptVersionContext(
+                    type="prompt_version",
+                    prompt_node_id="UHJvbXB0OjE=",
+                    prompt_version_node_id="UHJvbXB0VmVyc2lvbjox",
+                ),
+            )
+        )
+
+        content = _render(capability, ctx)
+
+        assert content.startswith("<phoenix_prompt_version_context>")
+        assert '<prompt_node_id format="phoenix_node_id">UHJvbXB0OjE=</prompt_node_id>' in content
+        assert (
+            '<prompt_version_node_id format="phoenix_node_id">UHJvbXB0VmVyc2lvbjox</prompt_version_node_id>'
         ) in content
 
 

@@ -37,6 +37,7 @@ export const useDatasetLabelMutations = ({
             id
             name
             color
+            usageCount
           }
           datasets {
             id

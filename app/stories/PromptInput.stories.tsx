@@ -90,7 +90,7 @@ export const WithToolbar: Story = {
                 <Icon svg={<Icons.PlusOutline />} />
               </PromptInputButton>
               <PromptInputButton aria-label="Search the web">
-                <Icon svg={<Icons.SearchOutline />} />
+                <Icon svg={<Icons.Search />} />
               </PromptInputButton>
               <PromptInputButton aria-label="Take screenshot">
                 <Icon svg={<Icons.ImageOutline />} />
@@ -135,7 +135,7 @@ export const WithTooltips: Story = {
                 tooltip={{ content: "Search the web", shortcut: "\u2318K" }}
                 aria-label="Search the web"
               >
-                <Icon svg={<Icons.SearchOutline />} />
+                <Icon svg={<Icons.Search />} />
               </PromptInputButton>
               <PromptInputButton
                 tooltip={{
@@ -223,7 +223,7 @@ export const WithModelSelector: Story = {
                           />
                           <Text flex="1 1 auto">{model.name}</Text>
                           {model.name === selectedModel.name && (
-                            <Icon svg={<Icons.CheckmarkOutline />} />
+                            <Icon svg={<Icons.Checkmark />} />
                           )}
                         </Flex>
                       </MenuItem>
@@ -363,7 +363,7 @@ export const Gallery: Story = {
                   <Icon svg={<Icons.PlusOutline />} />
                 </PromptInputButton>
                 <PromptInputButton aria-label="Search">
-                  <Icon svg={<Icons.SearchOutline />} />
+                  <Icon svg={<Icons.Search />} />
                 </PromptInputButton>
               </PromptInputTools>
               <PromptInputActions>

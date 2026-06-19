@@ -78,7 +78,7 @@ export function TransferTracesButton({
   return (
     <DialogTrigger>
       <Button
-        leadingVisual={<Icon svg={<Icons.CornerUpRightOutline />} />}
+        leadingVisual={<Icon svg={<Icons.ArrowUpRightCorner />} />}
         isDisabled={isTransferring}
       >
         {isTransferring ? "Transferring" : "Transfer"}

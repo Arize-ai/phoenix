@@ -122,7 +122,7 @@ export const DisclosureTrigger = ({
           {children}
         </Flex>
         {arrowPosition !== "none" ? (
-          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+          <Icon svg={<Icons.ChevronRight />} />
         ) : null}
       </Button>
     </Heading>

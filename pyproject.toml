@@ -59,9 +59,10 @@ dependencies = [
   "python-multipart",  # see https://www.starlette.io/#dependencies
   "arize-phoenix-evals>=3.1.0",
   "arize-phoenix-otel>=0.16.1",
-  "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
+  "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
   "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=1.95.0",
+  "bashkit>=0.10.0",
   "authlib>=1.7.0",
   "joserfc",
   "arize-phoenix-client>=2.8.0",
@@ -299,9 +300,13 @@ addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  # Alembic's env.py runs migration context at import time and isn't importable
+  # standalone, which breaks --doctest-modules collection.
+  "--ignore=src/phoenix/db/migrations/env.py",
   "--new-first",
   "--showlocals",
 ]
+doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 testpaths = [
   "tests",
 ]

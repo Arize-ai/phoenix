@@ -43,6 +43,14 @@ export const TIME_RANGE_START_PARAM = "timeRangeStart";
  */
 export const TIME_RANGE_END_PARAM = "timeRangeEnd";
 
+/**
+ * The search param that holds the label ids used to filter a list of resources
+ * (e.g. prompts or datasets). Stored as a repeated param so multiple labels can
+ * be selected, e.g. `?labelId=a&labelId=b`. Persisting to the URL makes the
+ * label filter shareable and lets it survive reloads.
+ */
+export const LABEL_ID_PARAM = "labelId";
+
 export const CREATE_CODE_EVALUATOR_PARAM = "createCodeEvaluator";
 
 export const CREATE_LLM_EVALUATOR_PARAM = "createLlmEvaluator";
