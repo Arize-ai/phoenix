@@ -135,8 +135,7 @@ def parse_env_headers(s: str) -> Dict[str, str]:
             if len(parts) != 2:
                 logger.warning(
                     "Header format invalid! Header values in environment variables must be "
-                    "URL encoded and in the form name=value: %s",
-                    "****",
+                    "URL encoded and in the form name=value."
                 )
                 continue
             name, value = parts
