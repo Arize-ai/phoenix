@@ -3,7 +3,7 @@ import warnings
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import Mock, mock_open, patch
 
 import httpx
@@ -650,7 +650,7 @@ class TestGeneratorInputs:
         with patch.object(datasets, "get_dataset", return_value=Mock(spec=Dataset)):
             datasets.create_dataset(name="test", inputs=inputs_gen)
 
-        sent = datasets._client.post.call_args.kwargs["json"]  # pyright: ignore[reportPrivateUsage]
+        sent = cast(Mock, datasets._client.post).call_args.kwargs["json"]  # pyright: ignore[reportPrivateUsage]
         assert sent["inputs"] == raw
 
     def test_add_examples_generator_inputs_all_uploaded(self) -> None:
@@ -672,5 +672,5 @@ class TestGeneratorInputs:
         with patch.object(datasets, "get_dataset", return_value=Mock(spec=Dataset)):
             datasets.add_examples_to_dataset(dataset="test", inputs=inputs_gen)
 
-        sent = datasets._client.post.call_args.kwargs["json"]  # pyright: ignore[reportPrivateUsage]
+        sent = cast(Mock, datasets._client.post).call_args.kwargs["json"]  # pyright: ignore[reportPrivateUsage]
         assert sent["inputs"] == raw
