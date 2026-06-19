@@ -35,6 +35,8 @@ import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
 import type { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
 import type { ProjectConfigPagePatchProjectMutation } from "./__generated__/ProjectConfigPagePatchProjectMutation.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
+import type { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
+import type { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
 import { isProjectTab } from "./constants";
 import { ProjectAnnotationConfigCard } from "./ProjectAnnotationConfigCard";
 import { ProjectAnnotationCountsCards } from "./ProjectAnnotationCountsCards";
@@ -42,7 +44,7 @@ import {
   ProjectPageQueriesProjectConfigQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import { ProjectRetentionPolicyCard } from "./ProjectRetentionPolicyCard";
+import { ProjectRetentionPolicySection } from "./ProjectRetentionPolicyCard";
 
 const projectConfigPageCSS = css`
   overflow-y: auto;
@@ -90,10 +92,13 @@ const ProjectConfigContent = ({
   const data = usePreloadedQuery(ProjectPageQueriesProjectConfigQuery, project);
   return (
     <Flex direction="column" gap="size-200">
-      <ProjectConfigCard project={data.project} />
+      <ProjectConfigCard
+        project={data.project}
+        retentionPolicy={data.project}
+        query={data}
+      />
       <ProjectAnnotationConfigCard projectId={data.project.id} />
       <ProjectAnnotationCountsCards projectId={data.project.id} />
-      <ProjectRetentionPolicyCard project={data.project} query={data} />
     </Flex>
   );
 };
@@ -126,8 +131,12 @@ const ReadOnlyNameField = ({ name }: { name: string }) => (
 
 const ProjectConfigCard = ({
   project,
+  retentionPolicy,
+  query,
 }: {
   project: ProjectConfigPage_projectConfigCard$key;
+  retentionPolicy: ProjectRetentionPolicyCard_policy$key;
+  query: ProjectRetentionPolicyCard_query$key;
 }) => {
   const [data] = useRefetchableFragment(
     graphql`
@@ -225,6 +234,10 @@ const ProjectConfigCard = ({
             ),
           }}
         />
+        <ProjectRetentionPolicySection
+          project={retentionPolicy}
+          query={query}
+        />
       </Card>
     );
   }
@@ -305,6 +318,7 @@ const ProjectConfigCard = ({
           </div>
         </Flex>
       </View>
+      <ProjectRetentionPolicySection project={retentionPolicy} query={query} />
     </Card>
   );
 };
