@@ -213,6 +213,11 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationNameCount {
+  name: String!
+  count: Int!
+}
+
 type AnnotationScoreTimeSeries {
   data: [AnnotationScoreTimeSeriesDataPoint!]!
   names: [String!]!
@@ -2703,6 +2708,21 @@ type Project implements Node {
   Names of all available annotations for sessions. (The list contains no duplicates.)
   """
   sessionAnnotationNames: [String!]!
+
+  """
+  Span annotation names along with the number of span annotations that have been added for each name in this project.
+  """
+  spanAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Trace annotation names along with the number of trace annotations that have been added for each name in this project.
+  """
+  traceAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Session annotation names along with the number of session annotations that have been added for each name in this project.
+  """
+  sessionAnnotationNameCounts: [AnnotationNameCount!]!
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!

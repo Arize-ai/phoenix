@@ -37,6 +37,7 @@ import type { ProjectConfigPagePatchProjectMutation } from "./__generated__/Proj
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import { isProjectTab } from "./constants";
 import { ProjectAnnotationConfigCard } from "./ProjectAnnotationConfigCard";
+import { ProjectAnnotationCountsCards } from "./ProjectAnnotationCountsCards";
 import {
   ProjectPageQueriesProjectConfigQuery,
   useProjectPageQueryReferenceContext,
@@ -91,6 +92,7 @@ const ProjectConfigContent = ({
     <Flex direction="column" gap="size-200">
       <ProjectConfigCard project={data.project} />
       <ProjectAnnotationConfigCard projectId={data.project.id} />
+      <ProjectAnnotationCountsCards projectId={data.project.id} />
       <ProjectRetentionPolicyCard project={data.project} query={data} />
     </Flex>
   );
