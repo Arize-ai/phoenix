@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
 from evals.pxi.harness.datasets import EvalDataset
 from evals.pxi.harness.reporting import (
@@ -29,6 +28,7 @@ from evals.pxi.harness.run_experiment import (
     _rewrite_stable_example_ids,
     main,
 )
+from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
 
 def _dataset() -> EvalDataset:
@@ -225,10 +225,10 @@ def test_main_defaults_report_flags_off(monkeypatch: pytest.MonkeyPatch) -> None
     assert main(["--dataset", "set_spans_filter"]) == 0
     assert captured[0].report_dir is None
     assert captured[0].print_report is False
-    assert captured[0].retry_failed is False
+    assert captured[0].retry_failed is True
 
 
-def test_main_forwards_retry_failed_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_no_retry_failed_flag_disables_retry(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: list[ExperimentConfig] = []
 
     def fake_run(config: ExperimentConfig) -> int:
@@ -237,8 +237,8 @@ def test_main_forwards_retry_failed_flag(monkeypatch: pytest.MonkeyPatch) -> Non
 
     monkeypatch.setattr("evals.pxi.harness.run_experiment.run", fake_run)
 
-    assert main(["--dataset", "set_spans_filter", "--retry-failed"]) == 0
-    assert captured[0].retry_failed is True
+    assert main(["--dataset", "set_spans_filter", "--no-retry-failed"]) == 0
+    assert captured[0].retry_failed is False
 
 
 def test_main_forwards_explicit_splits(monkeypatch: pytest.MonkeyPatch) -> None:

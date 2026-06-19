@@ -19,11 +19,6 @@ if __package__ in {None, ""}:
 
 from urllib.parse import urljoin
 
-from phoenix.client import AsyncClient
-from phoenix.client.resources.datasets import Dataset as PhoenixDataset
-from phoenix.client.resources.experiments.types import RanExperiment
-from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
-
 from evals.pxi.evaluators import EVALUATORS_BY_NAME
 from evals.pxi.harness.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
@@ -39,8 +34,10 @@ from evals.pxi.harness.datasets import (
 )
 from evals.pxi.harness.gating import (
     RETRY_FAILED_CAP,
+    AttemptOutcome,
     attempt_outcomes,
     decide_gate,
+    retry_ids_for,
     task_run_error,
 )
 from evals.pxi.harness.reporting import (
@@ -49,6 +46,10 @@ from evals.pxi.harness.reporting import (
     report_to_markdown,
     write_reports,
 )
+from phoenix.client import AsyncClient
+from phoenix.client.resources.datasets import Dataset as PhoenixDataset
+from phoenix.client.resources.experiments.types import RanExperiment
+from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 
@@ -67,7 +68,7 @@ class ExperimentConfig:
     evaluator_override: tuple[str, ...] | None
     report_dir: Path | None = None
     print_report: bool = False
-    retry_failed: bool = False
+    retry_failed: bool = True
     retry_failed_cap: int = RETRY_FAILED_CAP
 
 
@@ -310,21 +311,17 @@ async def _run_async(config: ExperimentConfig) -> int:
                 metadata=metadata,
             )
             first_attempts = attempt_outcomes(dataset, experiment, attempt=1)
-            gate_decision = decide_gate(
-                first_attempts,
-                retry_enabled=config.retry_failed,
-                retry_cap=config.retry_failed_cap,
+            ids_to_retry = (
+                retry_ids_for(first_attempts, retry_cap=config.retry_failed_cap)
+                if config.retry_failed
+                else ()
             )
             retry_experiment: RanExperiment | None = None
-            if gate_decision.retry_ids:
+            retry_attempts: dict[str, AttemptOutcome] = {}
+            if ids_to_retry:
                 retry_name = f"{name}-retry"
-                retry_dataset = _filter_dataset_examples(
-                    experiment_dataset,
-                    gate_decision.retry_ids,
-                )
-                print(
-                    f"Retrying failed PXI eval examples once: {', '.join(gate_decision.retry_ids)}"
-                )
+                retry_dataset = _filter_dataset_examples(experiment_dataset, ids_to_retry)
+                print(f"Retrying failed PXI eval examples once: {', '.join(ids_to_retry)}")
                 retry_experiment = await _run_and_evaluate_experiment(
                     client,
                     experiment_dataset=retry_dataset,
@@ -335,12 +332,12 @@ async def _run_async(config: ExperimentConfig) -> int:
                     metadata={**metadata, "retry_of_experiment": name},
                 )
                 retry_attempts = attempt_outcomes(dataset, retry_experiment, attempt=2)
-                gate_decision = decide_gate(
-                    first_attempts,
-                    retry_attempts=retry_attempts,
-                    retry_enabled=config.retry_failed,
-                    retry_cap=config.retry_failed_cap,
-                )
+            gate_decision = decide_gate(
+                first_attempts,
+                retry_attempts=retry_attempts,
+                retry_enabled=config.retry_failed,
+                retry_cap=config.retry_failed_cap,
+            )
         finally:
             # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
             # the underlying httpx client and tolerate it disappearing in a
@@ -406,7 +403,6 @@ async def _enter_docs_mcp_server_with_retry(stack: AsyncExitStack) -> Any:
                 file=sys.stderr,
             )
             await asyncio.sleep(3)
-    return None
 
 
 async def _run_and_evaluate_experiment(
@@ -516,16 +512,10 @@ def build_parser() -> argparse.ArgumentParser:
             "CI embeds the written report file instead."
         ),
     )
-    retry_group = parser.add_mutually_exclusive_group()
-    retry_group.add_argument(
-        "--retry-failed",
-        action="store_true",
-        help="Retry failed regression examples once before deciding the gate.",
-    )
-    retry_group.add_argument(
+    parser.add_argument(
         "--no-retry-failed",
         action="store_true",
-        help="Disable failed-example retry for fast local iteration.",
+        help="Disable failed-example retry (default: retry is on). Useful for fast local iteration.",
     )
     # The dataset YAML's ``evaluators:`` field is the source of truth for
     # what gets scored in normal use. This flag is a transient per-run
@@ -563,7 +553,7 @@ def main(argv: list[str] | None = None) -> int:
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
         report_dir=args.report_dir,
         print_report=args.print_report,
-        retry_failed=args.retry_failed and not args.no_retry_failed,
+        retry_failed=not args.no_retry_failed,
     )
     try:
         return run(config)

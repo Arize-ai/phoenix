@@ -170,7 +170,6 @@ jobs:
               --dataset "${dataset}" \
               --splits regression \
               --fail-on-regression \
-              --retry-failed \
               --report-dir "${report_dir}" \
               --experiment-name "${experiment_name}"
             dataset_result=$?

@@ -20,6 +20,7 @@ from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, 
 
 from evals.pxi.harness.datasets import DATASETS_DIR, EvalDataset
 from evals.pxi.harness.gating import (
+    PASSING_SCORE,
     GateDecision,
     attempt_outcomes,
     example_splits_by_id,
@@ -29,7 +30,6 @@ from evals.pxi.harness.gating import (
     task_run_error,
 )
 
-PASSING_SCORE = 1.0
 MAX_TABLE_CELL_WIDTH = 80
 
 # Repo-relative datasets dir for report links and repro commands, derived

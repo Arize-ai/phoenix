@@ -11,9 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal, Mapping, Sequence
 
-from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
-
 from evals.pxi.harness.datasets import EvalDataset
+from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
 PASSING_SCORE = 1.0
 RETRY_FAILED_CAP = 15
@@ -189,16 +188,6 @@ def decide_gate(
             retry_skipped_reason=f"retry skipped because {len(failed_once_ids)} failures exceed cap {retry_cap}",
         )
 
-    if retry_attempts is None:
-        return GateDecision(
-            status="failed",
-            failed_once_ids=failed_once_ids,
-            retry_ids=failed_once_ids,
-            confirmed_regression_ids=(),
-            infra_ids=(),
-            flaky_ids=(),
-        )
-
     confirmed_regression_ids: set[str] = set()
     infra_ids: set[str] = set()
     flaky_ids: set[str] = set()
@@ -225,3 +214,19 @@ def decide_gate(
         infra_ids=tuple(sorted(infra_ids)),
         flaky_ids=tuple(sorted(flaky_ids)),
     )
+
+
+def retry_ids_for(
+    first_attempts: Mapping[str, AttemptOutcome],
+    *,
+    retry_cap: int = RETRY_FAILED_CAP,
+) -> tuple[str, ...]:
+    """Return the IDs of failed first-attempt examples to retry.
+
+    Returns an empty tuple when no examples failed or when the failure count
+    exceeds *retry_cap* (too many to be a useful confirmation pass — the caller
+    should still invoke :func:`decide_gate` so the cap-exceeded reason is
+    captured in the :class:`GateDecision`).
+    """
+    failed = tuple(sorted(id_ for id_, o in first_attempts.items() if o.failed))
+    return () if not failed or len(failed) > retry_cap else failed
