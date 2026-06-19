@@ -5216,3 +5216,70 @@ class TestAnnotationScoreTimeSeries:
                 "satisfaction": pytest.approx(0.9),
             },
         }
+
+
+async def test_trace_resolves_by_otel_id_and_global_node_id(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    # The trace resolver accepts either an OpenTelemetry trace id (a hex string)
+    # or a Relay global node id, decoding the latter when possible and otherwise
+    # falling back to an OpenTelemetry trace id lookup
+    # (see https://github.com/Arize-ai/phoenix/issues/13513).
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    trace_gid = str(GlobalID("Trace", str(trace.id)))
+    query = """
+    query ($pid: ID!, $tid: ID!) {
+      node(id: $pid) {
+        ... on Project {
+          trace(traceId: $tid) { id }
+        }
+      }
+    }
+    """
+
+    # Resolve by OpenTelemetry trace id.
+    response = await gql_client.execute(
+        query=query,
+        variables={"pid": project_gid, "tid": trace.trace_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"]["id"] == trace_gid
+
+    # Resolve by Relay global node id.
+    response = await gql_client.execute(
+        query=query,
+        variables={"pid": project_gid, "tid": trace_gid},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"]["id"] == trace_gid
+
+
+async def test_trace_with_unmatched_global_node_id_returns_null(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    node_id_as_trace_id = str(GlobalID("Trace", "2003"))
+    response = await gql_client.execute(
+        query="""
+        query ($pid: ID!, $tid: ID!) {
+          node(id: $pid) {
+            ... on Project {
+              trace(traceId: $tid) { id }
+            }
+          }
+        }
+        """,
+        variables={"pid": project_gid, "tid": node_id_as_trace_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"] is None
