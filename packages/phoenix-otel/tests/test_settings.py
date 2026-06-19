@@ -53,7 +53,5 @@ def test_construct_http_endpoint(endpoint: str, expected: str) -> None:
         ("x=a,bad", {"x": "a"}),
     ],
 )
-def test_parse_env_headers_skips_malformed_segments(
-    headers: str, expected: dict[str, str]
-) -> None:
+def test_parse_env_headers_skips_malformed_segments(headers: str, expected: dict[str, str]) -> None:
     assert parse_env_headers(headers) == expected
