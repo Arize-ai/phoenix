@@ -105,8 +105,8 @@ export OTEL_BSP_MAX_EXPORT_BATCH_SIZE=512     # Send 512 spans/batch
 
 **Missing attributes:**
 
-- Check span kind (see rules/ directory)
-- Verify attribute names (see rules/ directory)
+- Check span kind (see references/ directory)
+- Verify attribute names (see references/ directory)
 
 ## Example
 
