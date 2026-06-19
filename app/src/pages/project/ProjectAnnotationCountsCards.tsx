@@ -37,9 +37,16 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { useNotifyError, useNotifySuccess, useViewer } from "@phoenix/contexts";
+import {
+  useNotifyError,
+  useNotifySuccess,
+  useViewerCanDeleteProjectAnnotations,
+} from "@phoenix/contexts";
 
-import type { ProjectAnnotationCountsCardsDeleteSessionAnnotationsMutation } from "./__generated__/ProjectAnnotationCountsCardsDeleteSessionAnnotationsMutation.graphql";
+import type {
+  AnnotationTimeRangeField,
+  ProjectAnnotationCountsCardsDeleteSessionAnnotationsMutation,
+} from "./__generated__/ProjectAnnotationCountsCardsDeleteSessionAnnotationsMutation.graphql";
 import type { ProjectAnnotationCountsCardsDeleteSpanAnnotationsMutation } from "./__generated__/ProjectAnnotationCountsCardsDeleteSpanAnnotationsMutation.graphql";
 import type { ProjectAnnotationCountsCardsDeleteTraceAnnotationsMutation } from "./__generated__/ProjectAnnotationCountsCardsDeleteTraceAnnotationsMutation.graphql";
 import type { ProjectAnnotationCountsCardsQuery } from "./__generated__/ProjectAnnotationCountsCardsQuery.graphql";
@@ -52,8 +59,6 @@ interface AnnotationNameCount {
   readonly name: string;
   readonly count: number;
 }
-
-type AnnotationTimeRangeField = "ANNOTATION_CREATED_AT" | "SOURCE_START_TIME";
 
 /**
  * Performs the bulk delete for a single annotation level (span, trace, or
@@ -118,10 +123,9 @@ const ProjectAnnotationCountsCardsContent = (
   props: ProjectAnnotationCountsCardsProps
 ) => {
   const { projectId } = props;
-  const { viewer } = useViewer();
-  // Mirror the backend's IsAdminIfAuthEnabled gate: when auth is disabled (no
-  // viewer) anyone can delete; otherwise only admins can.
-  const canDelete = !viewer || viewer.role.name === "ADMIN";
+  // Mirrors the backend's IsAdminIfAuthEnabled gate: admins, or anyone when auth
+  // is disabled.
+  const canDelete = useViewerCanDeleteProjectAnnotations();
 
   const data = useLazyLoadQuery<ProjectAnnotationCountsCardsQuery>(
     graphql`
@@ -213,17 +217,21 @@ const ProjectAnnotationCountsCardsContent = (
       }
     `);
 
+  // The level-specific mutations share an identical variables shape; only the
+  // bound commit fn and the response field they read the count from differ.
+  const toVariables = (args: Parameters<DeleteAnnotationsFn>[0]) => ({
+    projectId,
+    input: {
+      projectId,
+      annotationName: args.annotationName,
+      timeRange: args.timeRange ?? undefined,
+      timeRangeField: args.timeRangeField,
+    },
+  });
+
   const deleteSpan: DeleteAnnotationsFn = (args) =>
     commitDeleteSpan({
-      variables: {
-        projectId,
-        input: {
-          projectId,
-          annotationName: args.annotationName,
-          timeRange: args.timeRange ?? undefined,
-          timeRangeField: args.timeRangeField,
-        },
-      },
+      variables: toVariables(args),
       onCompleted: (response) =>
         args.onCompleted(
           response.deleteProjectSpanAnnotations.deletedAnnotationCount
@@ -233,15 +241,7 @@ const ProjectAnnotationCountsCardsContent = (
 
   const deleteTrace: DeleteAnnotationsFn = (args) =>
     commitDeleteTrace({
-      variables: {
-        projectId,
-        input: {
-          projectId,
-          annotationName: args.annotationName,
-          timeRange: args.timeRange ?? undefined,
-          timeRangeField: args.timeRangeField,
-        },
-      },
+      variables: toVariables(args),
       onCompleted: (response) =>
         args.onCompleted(
           response.deleteProjectTraceAnnotations.deletedAnnotationCount
@@ -251,15 +251,7 @@ const ProjectAnnotationCountsCardsContent = (
 
   const deleteSession: DeleteAnnotationsFn = (args) =>
     commitDeleteSession({
-      variables: {
-        projectId,
-        input: {
-          projectId,
-          annotationName: args.annotationName,
-          timeRange: args.timeRange ?? undefined,
-          timeRangeField: args.timeRangeField,
-        },
-      },
+      variables: toVariables(args),
       onCompleted: (response) =>
         args.onCompleted(
           response.deleteProjectSessionAnnotations.deletedAnnotationCount

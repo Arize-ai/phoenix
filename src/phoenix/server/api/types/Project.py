@@ -132,6 +132,15 @@ def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEnt
     )
 
 
+async def _annotation_name_counts(
+    info: Info[Context, None], stmt: Select[Any]
+) -> list[AnnotationNameCount]:
+    """Run a ``(name, count)`` aggregation query and map it to ``AnnotationNameCount``."""
+    async with info.context.db.read() as session:
+        result = (await session.execute(stmt)).all()
+    return [AnnotationNameCount(name=name, count=count) for name, count in result]
+
+
 @strawberry.type
 class Project(Node):
     id: NodeID[int]
@@ -681,9 +690,7 @@ class Project(Node):
             .group_by(models.SpanAnnotation.name)
             .order_by(models.SpanAnnotation.name)
         )
-        async with info.context.db.read() as session:
-            result = (await session.execute(stmt)).all()
-        return [AnnotationNameCount(name=name, count=count) for name, count in result]
+        return await _annotation_name_counts(info, stmt)
 
     @strawberry.field(
         description="Trace annotation names along with the number of trace annotations "
@@ -700,9 +707,7 @@ class Project(Node):
             .group_by(models.TraceAnnotation.name)
             .order_by(models.TraceAnnotation.name)
         )
-        async with info.context.db.read() as session:
-            result = (await session.execute(stmt)).all()
-        return [AnnotationNameCount(name=name, count=count) for name, count in result]
+        return await _annotation_name_counts(info, stmt)
 
     @strawberry.field(
         description="Session annotation names along with the number of session annotations "
@@ -725,9 +730,7 @@ class Project(Node):
             .group_by(models.ProjectSessionAnnotation.name)
             .order_by(models.ProjectSessionAnnotation.name)
         )
-        async with info.context.db.read() as session:
-            result = (await session.execute(stmt)).all()
-        return [AnnotationNameCount(name=name, count=count) for name, count in result]
+        return await _annotation_name_counts(info, stmt)
 
     @strawberry.field(
         description="Names of available document evaluations.",

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Callable
 
 import strawberry
 from sqlalchemy import Select, delete, select
@@ -17,6 +17,7 @@ from phoenix.server.api.input_types.DeleteProjectAnnotationsInput import (
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.dml_event import (
+    DmlEvent,
     ProjectSessionAnnotationDeleteEvent,
     SpanAnnotationDeleteEvent,
     TraceAnnotationDeleteEvent,
@@ -61,6 +62,47 @@ def _apply_time_range(
     return stmt
 
 
+async def _delete_project_annotations_by_name(
+    info: Info[Context, None],
+    input: DeleteProjectAnnotationsInput,
+    *,
+    model: Any,
+    build_id_select: Callable[[int], Select[Any]],
+    source_start_time_column: InstrumentedAttribute[datetime],
+    event_cls: Callable[[tuple[int, ...]], DmlEvent],
+) -> DeleteProjectAnnotationsByNamePayload:
+    """Bulk-delete every annotation matching ``input`` for a single level.
+
+    ``model`` is the annotation ORM class and ``build_id_select`` returns its
+    level-specific ``select`` of annotation ids scoped to the given project. The
+    shared logic validates the input, applies the optional time range, deletes the
+    matching rows in a single round trip, and emits the level-specific DML event
+    for the deleted ids.
+    """
+    if not input.annotation_name:
+        raise BadRequest("An annotation name is required.")
+    try:
+        project_rowid = from_global_id_with_expected_type(input.project_id, "Project")
+    except ValueError:
+        raise BadRequest(f"Invalid project ID: {input.project_id}")
+
+    id_select = _apply_time_range(
+        build_id_select(project_rowid),
+        input,
+        created_at_column=model.created_at,
+        source_start_time_column=source_start_time_column,
+    )
+    stmt = delete(model).where(model.id.in_(id_select)).returning(model.id)
+    async with info.context.db() as session:
+        deleted_ids = tuple(await session.scalars(stmt))
+
+    if deleted_ids:
+        info.context.event_queue.put(event_cls(deleted_ids))
+    return DeleteProjectAnnotationsByNamePayload(
+        deleted_annotation_count=len(deleted_ids), query=Query()
+    )
+
+
 @strawberry.type
 class ProjectAnnotationMutationMixin:
     @strawberry.mutation(  # type: ignore
@@ -73,40 +115,19 @@ class ProjectAnnotationMutationMixin:
     async def delete_project_span_annotations(
         self, info: Info[Context, None], input: DeleteProjectAnnotationsInput
     ) -> DeleteProjectAnnotationsByNamePayload:
-        if not input.annotation_name:
-            raise BadRequest("An annotation name is required.")
-        try:
-            project_rowid = from_global_id_with_expected_type(input.project_id, "Project")
-        except ValueError:
-            raise BadRequest(f"Invalid project ID: {input.project_id}")
-
-        stmt = (
-            select(models.SpanAnnotation.id)
-            .join(models.Span, models.SpanAnnotation.span_rowid == models.Span.id)
-            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == project_rowid)
-            .where(models.SpanAnnotation.name == input.annotation_name)
-        )
-        stmt = _apply_time_range(
-            stmt,
+        return await _delete_project_annotations_by_name(
+            info,
             input,
-            created_at_column=models.SpanAnnotation.created_at,
+            model=models.SpanAnnotation,
+            build_id_select=lambda project_rowid: (
+                select(models.SpanAnnotation.id)
+                .join(models.Span, models.SpanAnnotation.span_rowid == models.Span.id)
+                .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+                .where(models.Trace.project_rowid == project_rowid)
+                .where(models.SpanAnnotation.name == input.annotation_name)
+            ),
             source_start_time_column=models.Span.start_time,
-        )
-
-        async with info.context.db() as session:
-            annotation_ids = list(await session.scalars(stmt))
-            if annotation_ids:
-                await session.execute(
-                    delete(models.SpanAnnotation).where(
-                        models.SpanAnnotation.id.in_(annotation_ids)
-                    )
-                )
-
-        if annotation_ids:
-            info.context.event_queue.put(SpanAnnotationDeleteEvent(tuple(annotation_ids)))
-        return DeleteProjectAnnotationsByNamePayload(
-            deleted_annotation_count=len(annotation_ids), query=Query()
+            event_cls=SpanAnnotationDeleteEvent,
         )
 
     @strawberry.mutation(  # type: ignore
@@ -119,39 +140,18 @@ class ProjectAnnotationMutationMixin:
     async def delete_project_trace_annotations(
         self, info: Info[Context, None], input: DeleteProjectAnnotationsInput
     ) -> DeleteProjectAnnotationsByNamePayload:
-        if not input.annotation_name:
-            raise BadRequest("An annotation name is required.")
-        try:
-            project_rowid = from_global_id_with_expected_type(input.project_id, "Project")
-        except ValueError:
-            raise BadRequest(f"Invalid project ID: {input.project_id}")
-
-        stmt = (
-            select(models.TraceAnnotation.id)
-            .join(models.Trace, models.TraceAnnotation.trace_rowid == models.Trace.id)
-            .where(models.Trace.project_rowid == project_rowid)
-            .where(models.TraceAnnotation.name == input.annotation_name)
-        )
-        stmt = _apply_time_range(
-            stmt,
+        return await _delete_project_annotations_by_name(
+            info,
             input,
-            created_at_column=models.TraceAnnotation.created_at,
+            model=models.TraceAnnotation,
+            build_id_select=lambda project_rowid: (
+                select(models.TraceAnnotation.id)
+                .join(models.Trace, models.TraceAnnotation.trace_rowid == models.Trace.id)
+                .where(models.Trace.project_rowid == project_rowid)
+                .where(models.TraceAnnotation.name == input.annotation_name)
+            ),
             source_start_time_column=models.Trace.start_time,
-        )
-
-        async with info.context.db() as session:
-            annotation_ids = list(await session.scalars(stmt))
-            if annotation_ids:
-                await session.execute(
-                    delete(models.TraceAnnotation).where(
-                        models.TraceAnnotation.id.in_(annotation_ids)
-                    )
-                )
-
-        if annotation_ids:
-            info.context.event_queue.put(TraceAnnotationDeleteEvent(tuple(annotation_ids)))
-        return DeleteProjectAnnotationsByNamePayload(
-            deleted_annotation_count=len(annotation_ids), query=Query()
+            event_cls=TraceAnnotationDeleteEvent,
         )
 
     @strawberry.mutation(  # type: ignore
@@ -164,40 +164,19 @@ class ProjectAnnotationMutationMixin:
     async def delete_project_session_annotations(
         self, info: Info[Context, None], input: DeleteProjectAnnotationsInput
     ) -> DeleteProjectAnnotationsByNamePayload:
-        if not input.annotation_name:
-            raise BadRequest("An annotation name is required.")
-        try:
-            project_rowid = from_global_id_with_expected_type(input.project_id, "Project")
-        except ValueError:
-            raise BadRequest(f"Invalid project ID: {input.project_id}")
-
-        stmt = (
-            select(models.ProjectSessionAnnotation.id)
-            .join(
-                models.ProjectSession,
-                models.ProjectSessionAnnotation.project_session_id == models.ProjectSession.id,
-            )
-            .where(models.ProjectSession.project_id == project_rowid)
-            .where(models.ProjectSessionAnnotation.name == input.annotation_name)
-        )
-        stmt = _apply_time_range(
-            stmt,
+        return await _delete_project_annotations_by_name(
+            info,
             input,
-            created_at_column=models.ProjectSessionAnnotation.created_at,
-            source_start_time_column=models.ProjectSession.start_time,
-        )
-
-        async with info.context.db() as session:
-            annotation_ids = list(await session.scalars(stmt))
-            if annotation_ids:
-                await session.execute(
-                    delete(models.ProjectSessionAnnotation).where(
-                        models.ProjectSessionAnnotation.id.in_(annotation_ids)
-                    )
+            model=models.ProjectSessionAnnotation,
+            build_id_select=lambda project_rowid: (
+                select(models.ProjectSessionAnnotation.id)
+                .join(
+                    models.ProjectSession,
+                    models.ProjectSessionAnnotation.project_session_id == models.ProjectSession.id,
                 )
-
-        if annotation_ids:
-            info.context.event_queue.put(ProjectSessionAnnotationDeleteEvent(tuple(annotation_ids)))
-        return DeleteProjectAnnotationsByNamePayload(
-            deleted_annotation_count=len(annotation_ids), query=Query()
+                .where(models.ProjectSession.project_id == project_rowid)
+                .where(models.ProjectSessionAnnotation.name == input.annotation_name)
+            ),
+            source_start_time_column=models.ProjectSession.start_time,
+            event_cls=ProjectSessionAnnotationDeleteEvent,
         )
