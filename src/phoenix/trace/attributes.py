@@ -202,7 +202,7 @@ def load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[s
             except Exception:
                 yield key, value
             else:
-                if dict_value:
+                if dict_value is not None:
                     yield key, dict_value
         else:
             yield key, value
