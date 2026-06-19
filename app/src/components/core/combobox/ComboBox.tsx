@@ -23,16 +23,16 @@ import { Icon, Icons, SelectChevronUpDownIcon } from "../icon";
 import type { SizingProps } from "../types";
 import { comboBoxCSS, comboBoxItemCSS, comboBoxPopoverCSS } from "./styles";
 
-export interface ComboBoxProps<T extends object>
+export interface ComboBoxProps<Item extends object>
   extends
-    Omit<AriaComboBoxProps<T>, "children">,
+    Omit<AriaComboBoxProps<Item>, "children">,
     SizingProps,
-    Pick<ListBoxProps<T>, "renderEmptyState"> {
+    Pick<ListBoxProps<Item>, "renderEmptyState"> {
   label?: string;
   placeholder?: string;
   description?: string | null;
   errorMessage?: string | ((validation: ValidationResult) => string);
-  children: React.ReactNode | ((item: T) => React.ReactNode);
+  children: React.ReactNode | ((item: Item) => React.ReactNode);
   /**
    * The width of the combobox. If not provided, the combobox will be sized to fit its contents. with a minimum width of 200px.
    * @default "100%"
@@ -55,7 +55,7 @@ const stopPropagationHandler = (e: React.MouseEvent | React.KeyboardEvent) => {
   e.stopPropagation();
 };
 
-export function ComboBox<T extends object>({
+export function ComboBox<Item extends object>({
   label,
   placeholder,
   description,
@@ -68,7 +68,7 @@ export function ComboBox<T extends object>({
   isInvalid,
   menuTrigger = "focus",
   ...props
-}: ComboBoxProps<T>) {
+}: ComboBoxProps<Item>) {
   return (
     <AriaComboBox
       {...props}
@@ -106,8 +106,8 @@ export function ComboBox<T extends object>({
   );
 }
 
-export interface ListBoxItemProps<T = object> extends Omit<
-  AriaListBoxItemProps<T>,
+export interface ListBoxItemProps<Item = object> extends Omit<
+  AriaListBoxItemProps<Item>,
   "textValue"
 > {
   /**

@@ -148,11 +148,11 @@ function stringifyQueryFilters(filters: ItemFilters): string {
   return query ? `?${query}` : "";
 }
 
-function parseOneOf<T extends string>(
+function parseOneOf<OptionValue extends string>(
   value: string | null,
-  values: readonly T[],
-  fallback: T
-): T {
+  values: readonly OptionValue[],
+  fallback: OptionValue
+): OptionValue {
   return values.find((candidate) => candidate === value) ?? fallback;
 }
 
@@ -508,14 +508,14 @@ function TabButton({
   );
 }
 
-function Segmented<T extends string>({
+function Segmented<OptionValue extends string>({
   options,
   value,
   onChange,
 }: {
-  options: Array<{ v: T; label: string }>;
-  value: T;
-  onChange: (v: T) => void;
+  options: Array<{ v: OptionValue; label: string }>;
+  value: OptionValue;
+  onChange: (v: OptionValue) => void;
 }) {
   return (
     <div className="flex rounded-lg bg-slate-800 p-1 ring-1 ring-white/10">

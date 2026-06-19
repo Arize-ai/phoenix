@@ -556,12 +556,12 @@ export interface BoxAlignmentStyleProps {
   rowGap?: Responsive<DimensionValue>;
 }
 
-export type ResponsiveProp<T> = {
-  base?: T;
-  S?: T;
-  M?: T;
-  L?: T;
-  [custom: string]: T | undefined;
+export type ResponsiveProp<Value> = {
+  base?: Value;
+  S?: Value;
+  M?: Value;
+  L?: Value;
+  [custom: string]: Value | undefined;
 };
 
 export interface FlexStyleProps extends BoxAlignmentStyleProps, StyleProps {
@@ -577,7 +577,7 @@ export interface FlexStyleProps extends BoxAlignmentStyleProps, StyleProps {
   wrap?: Responsive<boolean | "wrap" | "nowrap" | "wrap-reverse">;
 }
 
-export type Responsive<T> = T | ResponsiveProp<T>;
+export type Responsive<Value> = Value | ResponsiveProp<Value>;
 
 export type TextColorValue =
   | "text-900"

@@ -43,26 +43,32 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 `;
 
-type PendingDiffEdit<T> = {
-  before: T;
-  after: T;
+type PendingDiffEdit<EditValue> = {
+  before: EditValue;
+  after: EditValue;
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
 };
 
-type DiffAcceptRejectToolDetailsProps<T, P extends PendingDiffEdit<T>> = {
+type DiffAcceptRejectToolDetailsProps<
+  EditValue,
+  PendingEdit extends PendingDiffEdit<EditValue>,
+> = {
   part: ToolInvocationPart;
-  pending: P | null;
-  snapshotToText: (snapshot: T) => string;
+  pending: PendingEdit | null;
+  snapshotToText: (snapshot: EditValue) => string;
   fileName: string;
-  renderHeader: (pending: P) => ReactNode;
+  renderHeader: (pending: PendingEdit) => ReactNode;
   preparingLabel: string;
   preparingText: string;
   staleSessionMessage: string;
   showPreparing: boolean;
 };
 
-export function DiffAcceptRejectToolDetails<T, P extends PendingDiffEdit<T>>({
+export function DiffAcceptRejectToolDetails<
+  EditValue,
+  PendingEdit extends PendingDiffEdit<EditValue>,
+>({
   part,
   pending,
   snapshotToText,
@@ -72,7 +78,7 @@ export function DiffAcceptRejectToolDetails<T, P extends PendingDiffEdit<T>>({
   preparingText,
   staleSessionMessage,
   showPreparing,
-}: DiffAcceptRejectToolDetailsProps<T, P>) {
+}: DiffAcceptRejectToolDetailsProps<EditValue, PendingEdit>) {
   return (
     <div className="tool-part__body" css={diffAcceptRejectToolDetailsCSS}>
       {pending != null ? (
@@ -108,17 +114,20 @@ export function DiffAcceptRejectToolDetails<T, P extends PendingDiffEdit<T>>({
   );
 }
 
-function PendingDiff<T, P extends PendingDiffEdit<T>>({
+function PendingDiff<
+  EditValue,
+  PendingEdit extends PendingDiffEdit<EditValue>,
+>({
   pending,
   snapshotToText,
   fileName,
   renderHeader,
   staleSessionMessage,
 }: {
-  pending: P;
-  snapshotToText: (snapshot: T) => string;
+  pending: PendingEdit;
+  snapshotToText: (snapshot: EditValue) => string;
   fileName: string;
-  renderHeader: (pending: P) => ReactNode;
+  renderHeader: (pending: PendingEdit) => ReactNode;
   staleSessionMessage: string;
 }) {
   const { theme } = useTheme();

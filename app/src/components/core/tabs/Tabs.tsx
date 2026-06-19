@@ -80,12 +80,12 @@ const tabListCSS = css`
   }
 `;
 
-export function TabList<T extends object>({
+export function TabList<Item extends object>({
   children,
   css: _css,
   className,
   ...props
-}: AriaTabListProps<T> & StylableProps) {
+}: AriaTabListProps<Item> & StylableProps) {
   return (
     <AriaTabList
       css={css(tabListCSS, _css)}

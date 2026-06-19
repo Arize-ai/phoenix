@@ -3,7 +3,9 @@
  * @param value
  * @returns true if it is a Promise
  */
-export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
+export function isPromise<PromiseValue = unknown>(
+  value: unknown
+): value is Promise<PromiseValue> {
   return (
     !!value &&
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

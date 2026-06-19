@@ -26,10 +26,10 @@ export interface Email {
   headers?: Record<string, unknown>;
 }
 
-export type ApiResponse<T = unknown> =
+export type ApiResponse<Data = unknown> =
   | {
       success: true;
-      data: T;
+      data: Data;
     }
   | {
       success: false;

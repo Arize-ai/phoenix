@@ -3,13 +3,15 @@
  * This allows Mustache to access properties of objects (e.g., {{user.name}}) while
  * stringifying objects that are accessed as leaf values (e.g., {{user.profile}}).
  */
-export function createTemplateVariablesProxy<T>(obj: T): T {
+export function createTemplateVariablesProxy<VariablesObject>(
+  obj: VariablesObject
+): VariablesObject {
   if (obj === null || obj === undefined) {
     return obj;
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(createTemplateVariablesProxy) as T;
+    return obj.map(createTemplateVariablesProxy) as VariablesObject;
   }
 
   if (typeof obj === "object") {

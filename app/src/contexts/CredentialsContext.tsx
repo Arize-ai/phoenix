@@ -25,10 +25,10 @@ export function CredentialsProvider({
   );
 }
 
-export function useCredentialsContext<T>(
-  selector: (state: CredentialsState) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T {
+export function useCredentialsContext<SelectedValue>(
+  selector: (state: CredentialsState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
+): SelectedValue {
   const store = useContext(CredentialsContext);
   if (!store)
     throw new Error("Missing CredentialsContext.Provider in the tree");

@@ -23,10 +23,10 @@ export function PlaygroundProvider({
   );
 }
 
-export function usePlaygroundContext<T>(
-  selector: (state: PlaygroundState) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T {
+export function usePlaygroundContext<SelectedValue>(
+  selector: (state: PlaygroundState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
+): SelectedValue {
   const store = useContext(PlaygroundContext);
   if (!store) throw new Error("Missing PlaygroundContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);

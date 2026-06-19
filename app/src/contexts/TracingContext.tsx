@@ -22,10 +22,10 @@ export function TracingProvider({
   );
 }
 
-export function useTracingContext<T>(
-  selector: (state: TracingState) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T {
+export function useTracingContext<SelectedValue>(
+  selector: (state: TracingState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
+): SelectedValue {
   const store = useContext(TracingContext);
   if (!store) throw new Error("Missing TracingContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);

@@ -119,11 +119,11 @@ export function declareDescribe(
 }
 
 /** Drive a `test(name, params, fn)` invocation. */
-export function declareTest<I extends KVMap, E extends KVMap>(
+export function declareTest<Input extends KVMap, Expected extends KVMap>(
   hooks: RunnerHooks,
   name: string,
-  params: TestParams<I, E>,
-  fn: TestFn<I, E>,
+  params: TestParams<Input, Expected>,
+  fn: TestFn<Input, Expected>,
   variant: TestVariant = "default",
   timeout?: number
 ): void {

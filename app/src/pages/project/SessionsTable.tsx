@@ -74,10 +74,10 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
-const TableBody = <T extends { id: string }>({
+const TableBody = <Row extends { id: string }>({
   table,
 }: {
-  table: Table<T>;
+  table: Table<Row>;
 }) => {
   "use no memo";
   const navigate = useNavigate();

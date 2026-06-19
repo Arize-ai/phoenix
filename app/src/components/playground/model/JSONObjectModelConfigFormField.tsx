@@ -12,38 +12,38 @@ const fieldContainerCSS = css`
   }
 `;
 
-export type JSONObjectFieldParseResult<T> =
-  | { success: true; data: T | undefined }
+export type JSONObjectFieldParseResult<FieldValue> =
+  | { success: true; data: FieldValue | undefined }
   | { success: false; message: string };
 
-export type JSONObjectFieldCodec<T> = {
+export type JSONObjectFieldCodec<FieldValue> = {
   /**
    * Parses raw editor text into the canonical store value. Return `success:
    * false` with a user-facing message when the text isn't a valid value;
    * return `success: true` with `data: undefined` for the empty/cleared state.
    */
-  parse: (raw: string) => JSONObjectFieldParseResult<T>;
+  parse: (raw: string) => JSONObjectFieldParseResult<FieldValue>;
   /**
    * Renders the canonical store value as the editor's initial text. Used only
    * on mount; subsequent edits are driven by user input.
    */
-  format: (value: T | undefined) => string;
+  format: (value: FieldValue | undefined) => string;
 };
 
-type JSONObjectModelConfigFormFieldProps<T> = {
+type JSONObjectModelConfigFormFieldProps<FieldValue> = {
   label: string;
   description: string;
   placeholder: string;
   jsonSchema: JSONSchema7;
-  value: T | undefined;
-  codec: JSONObjectFieldCodec<T>;
+  value: FieldValue | undefined;
+  codec: JSONObjectFieldCodec<FieldValue>;
   /**
    * Called with the canonical value when the user types a valid payload.
    * Not called on invalid input — invalid input leaves the store untouched
    * and surfaces `onErrorChange(true)` instead, so the user sees what they
    * typed in the editor but the store keeps its last good value.
    */
-  onChange: (value: T | undefined) => void;
+  onChange: (value: FieldValue | undefined) => void;
   /**
    * Called when the parse-success boolean changes. Consumers should use this
    * to disable downstream save actions while invalid input is in the editor
@@ -59,7 +59,7 @@ type JSONObjectModelConfigFormFieldProps<T> = {
  * and error-message UI state; delegates the value codec to the caller via
  * `codec` and store wiring via `value` + `onChange`.
  */
-export function JSONObjectModelConfigFormField<T>({
+export function JSONObjectModelConfigFormField<FieldValue>({
   label,
   description,
   placeholder,
@@ -68,7 +68,7 @@ export function JSONObjectModelConfigFormField<T>({
   codec,
   onChange,
   onErrorChange,
-}: JSONObjectModelConfigFormFieldProps<T>) {
+}: JSONObjectModelConfigFormFieldProps<FieldValue>) {
   const [editorValue, setEditorValue] = useState(() => codec.format(value));
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const onErrorChangeRef = useRef(onErrorChange);

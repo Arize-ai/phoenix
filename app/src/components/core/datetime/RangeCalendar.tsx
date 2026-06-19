@@ -10,8 +10,8 @@ import type { StylableProps } from "../types";
 import { CalendarContent } from "./CalendarContent";
 import { calendarCSS, rangeCalendarCSS } from "./calendarStyles";
 
-export interface RangeCalendarProps<T extends DateValue>
-  extends AriaRangeCalendarProps<T>, StylableProps {
+export interface RangeCalendarProps<DateValueType extends DateValue>
+  extends AriaRangeCalendarProps<DateValueType>, StylableProps {
   /** An error message to display when the selection is invalid. */
   errorMessage?: string;
   ref?: Ref<HTMLDivElement>;
@@ -23,7 +23,9 @@ export interface RangeCalendarProps<T extends DateValue>
  * month with shared navigation. Pass children to fully customize the
  * composition.
  */
-function RangeCalendar<T extends DateValue>(props: RangeCalendarProps<T>) {
+function RangeCalendar<DateValueType extends DateValue>(
+  props: RangeCalendarProps<DateValueType>
+) {
   const { errorMessage, css: propsCSS, children, ref, ...restProps } = props;
   const months = props.visibleDuration?.months || 1;
   return (

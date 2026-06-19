@@ -22,10 +22,10 @@ export const useEvaluatorStoreInstance = () => {
  * @param equalityFn - function to compare the selected part of the store
  * @returns the selected part of the store
  */
-export const useEvaluatorStore = <T,>(
-  selector: (state: EvaluatorStore) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T => {
+export const useEvaluatorStore = <StoreValue,>(
+  selector: (state: EvaluatorStore) => StoreValue,
+  equalityFn?: (left: StoreValue, right: StoreValue) => boolean
+): StoreValue => {
   const store = useEvaluatorStoreInstance();
   return useZustand(store, selector, equalityFn);
 };

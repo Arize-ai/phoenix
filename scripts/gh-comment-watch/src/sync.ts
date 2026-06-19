@@ -113,10 +113,10 @@ async function triageIssue(
 }
 
 /** Run `worker` over `items` with a bounded number in flight. */
-async function pool<T>(
-  items: T[],
+async function pool<Result>(
+  items: Result[],
   limit: number,
-  worker: (item: T) => Promise<void>
+  worker: (item: Result) => Promise<void>
 ) {
   let i = 0;
   const runners = Array.from(

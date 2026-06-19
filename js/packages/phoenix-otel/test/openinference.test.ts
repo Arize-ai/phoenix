@@ -33,7 +33,10 @@ function createCountingSpanProcessor() {
   };
 }
 
-async function runInsideParentSpan<T>(name: string, fn: () => Promise<T>) {
+async function runInsideParentSpan<Result>(
+  name: string,
+  fn: () => Promise<Result>
+) {
   return trace.getTracer("test-parent").startActiveSpan(name, async (span) => {
     try {
       return {

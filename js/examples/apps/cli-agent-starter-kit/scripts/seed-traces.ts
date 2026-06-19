@@ -37,7 +37,7 @@ function parseArgs(): { datasetName: string | null; concurrency: number } {
   return { datasetName, concurrency };
 }
 
-function shuffle<T>(items: T[]): T[] {
+function shuffle<Item>(items: Item[]): Item[] {
   const result = [...items];
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));

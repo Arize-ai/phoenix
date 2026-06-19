@@ -109,12 +109,13 @@ type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
 };
 
 const TableBody = <
-  T extends TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
-    IAdditionalSpansRow,
+  TraceRow extends
+    TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
+      IAdditionalSpansRow,
 >({
   table,
 }: {
-  table: Table<T>;
+  table: Table<TraceRow>;
 }) => {
   "use no memo";
   const navigate = useNavigate();

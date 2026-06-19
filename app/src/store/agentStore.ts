@@ -525,13 +525,13 @@ export type AgentClientAction = (
 /**
  * Removes entries keyed by sessions that are no longer retained.
  */
-function pruneSessionScopedRecord<T>({
+function pruneSessionScopedRecord<Value>({
   record,
   retainedSessionIds,
 }: {
-  record: Record<string, T>;
+  record: Record<string, Value>;
   retainedSessionIds: Set<string>;
-}): Record<string, T> {
+}): Record<string, Value> {
   return Object.fromEntries(
     Object.entries(record).filter(([sessionId]) =>
       retainedSessionIds.has(sessionId)
@@ -539,13 +539,15 @@ function pruneSessionScopedRecord<T>({
   );
 }
 
-function pruneToolCallRecordBySession<T extends { sessionId: string }>({
+function pruneToolCallRecordBySession<
+  SessionRecord extends { sessionId: string },
+>({
   record,
   retainedSessionIds,
 }: {
-  record: Partial<Record<string, T>>;
+  record: Partial<Record<string, SessionRecord>>;
   retainedSessionIds: Set<string>;
-}): Partial<Record<string, T>> {
+}): Partial<Record<string, SessionRecord>> {
   return Object.fromEntries(
     Object.entries(record).filter(
       ([, value]) => value != null && retainedSessionIds.has(value.sessionId)
@@ -553,10 +555,12 @@ function pruneToolCallRecordBySession<T extends { sessionId: string }>({
   );
 }
 
-function removeToolCallRecordForSession<T extends { sessionId: string }>(
-  record: Partial<Record<string, T>>,
+function removeToolCallRecordForSession<
+  SessionRecord extends { sessionId: string },
+>(
+  record: Partial<Record<string, SessionRecord>>,
   sessionId: string
-): Partial<Record<string, T>> {
+): Partial<Record<string, SessionRecord>> {
   return Object.fromEntries(
     Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
   );

@@ -114,13 +114,13 @@ function isRootSpanFilterValue(val: unknown): val is RootSpanFilterValue {
   return val === "root" || val === "all";
 }
 
-const TableBody = <T extends { trace: { traceId: string }; id: string }>({
+const TableBody = <SpanRow extends { trace: { traceId: string }; id: string }>({
   table,
   hasNext,
   onLoadNext,
   isLoadingNext,
 }: {
-  table: Table<T>;
+  table: Table<SpanRow>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;

@@ -368,12 +368,12 @@ function taskTracer(suite: SuiteState): Tracer {
  * Wrap the user's test body in an OpenInference task span and return the
  * trace id so we can submit it with the experiment run.
  */
-export async function runTaskWithTracing<T>(
+export async function runTaskWithTracing<Result>(
   suite: SuiteState,
   testName: string,
-  fn: () => Promise<T>
+  fn: () => Promise<Result>
 ): Promise<
-  | { traceId: string; result: T }
+  | { traceId: string; result: Result }
   | { traceId: string; error: Error; isTaskError: boolean }
 > {
   const tracer: Tracer = taskTracer(suite);
@@ -564,12 +564,15 @@ export async function postAnnotation(
 }
 
 /** Run an evaluator in an OpenInference evaluator span. */
-export async function runEvaluatorWithTracing<P extends KVMap, R>(
+export async function runEvaluatorWithTracing<
+  EvaluatorParams extends KVMap,
+  EvaluatorResult,
+>(
   suite: SuiteState,
   name: string,
-  params: P,
-  fn: (params: P) => R | Promise<R>
-): Promise<{ result: R; traceId: string | null }> {
+  params: EvaluatorParams,
+  fn: (params: EvaluatorParams) => EvaluatorResult | Promise<EvaluatorResult>
+): Promise<{ result: EvaluatorResult; traceId: string | null }> {
   const isDryRun = currentRun()?.dryRun ?? false;
   const tracer: Tracer = isDryRun
     ? getNoOpTracer()

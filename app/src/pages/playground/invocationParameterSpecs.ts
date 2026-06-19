@@ -318,8 +318,10 @@ export const INVOCATION_PARAMETERS: Record<
   [InvocationFamily.AWS_BEDROCK]: AWS_INVOCATION_PARAMETERS,
 };
 
-export function getSpecsForFamily<F extends InvocationFamily>(
-  family: F
-): (typeof INVOCATION_PARAMETERS)[F] {
+export function getSpecsForFamily<
+  InvocationFamilyName extends InvocationFamily,
+>(
+  family: InvocationFamilyName
+): (typeof INVOCATION_PARAMETERS)[InvocationFamilyName] {
   return INVOCATION_PARAMETERS[family];
 }

@@ -16,6 +16,7 @@ Before writing new code, explore the directory you're working in to understand e
 Self-documenting names eliminate mental parsing for the next reader.
 
 - Variables must not use single letters — even loop counters benefit from `index`, `row`, `char`.
+- Generic type parameters must be human-readable. Single-letter generics like `T`, `P`, `R`, `K`, and `V` are an anti-pattern unless they come from an external API surface that cannot be changed. Use names that describe the value, such as `ResponseBody`, `EvaluatorParams`, `EvaluationResult`, `MapKey`, or `PromptVariables`.
 - Complex conditions should be extracted into named booleans so code reads as prose.
 - Booleans must use verb prefixes: `isAllowed`, `hasError`, `canSubmit` — not `allowed`, `error`.
 - Function names must start with an action verb that describes what the function does: `getUser`, `normalizeTimestamp`, `logEvent`, `parseResponse`, `buildQuery` — not `user()`, `timestamp()`, `event()`.
@@ -27,11 +28,17 @@ for (let i = 0; i < s.length; i++) {
   const r = fn(s[i].v);
 }
 
+type Evaluator<P, R> = (params: P) => R;
+
 // Good — self-documenting
 for (let index = 0; index < spans.length; index++) {
   const elapsed = spans[index].timestamp - spans[index - 1]?.timestamp;
   const result = normalizeValue(spans[index].value);
 }
+
+type Evaluator<EvaluatorParams, EvaluationResult> = (
+  params: EvaluatorParams
+) => EvaluationResult;
 
 // Bad — boolean without verb prefix, condition inline
 <Button isDisabled={!permission || submitting}>

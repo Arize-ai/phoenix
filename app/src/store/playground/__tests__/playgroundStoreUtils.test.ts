@@ -7,15 +7,15 @@ import { convertMessageToolCallsToProvider } from "../playgroundStoreUtils";
 import type { ChatMessage } from "../types";
 
 type TestName = string;
-type ToolCallConversionTestTuple<T extends ModelProvider> = [
+type ToolCallConversionTestTuple<Provider extends ModelProvider> = [
   TestName,
-  T,
+  Provider,
   ChatMessage["toolCalls"],
   ChatMessage["toolCalls"],
 ];
 
 type ToolCallConversionTestMap = {
-  [P in ModelProvider]: ToolCallConversionTestTuple<P>[];
+  [PropertyKey in ModelProvider]: ToolCallConversionTestTuple<PropertyKey>[];
 };
 
 describe("convertMessageToolCallsToProvider", () => {

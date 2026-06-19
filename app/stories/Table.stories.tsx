@@ -222,15 +222,15 @@ const mockProducts: Product[] = [
 ];
 
 // Base Table Component
-function BaseTable<T>({
+function BaseTable<Row>({
   columns,
   data,
   enableResizing = true,
   enableSorting = true,
   onSelectionChange,
 }: {
-  columns: ColumnDef<T>[];
-  data: T[];
+  columns: ColumnDef<Row>[];
+  data: Row[];
   enableResizing?: boolean;
   enableSorting?: boolean;
   onSelectionChange?: (selectedCount: number) => void;
@@ -239,7 +239,7 @@ function BaseTable<T>({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-  const table = useReactTable<T>({
+  const table = useReactTable<Row>({
     columns,
     data,
     state: {

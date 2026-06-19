@@ -40,11 +40,11 @@ const ERROR_BODY_SNIPPET_LENGTH = 1000;
  * @param hasErrors - A function that returns an error if the data has errors.
  * @returns An observable that emits the data or an error.
  */
-function fetchJsonObservable<T>(
+function fetchJsonObservable<ResponseBody>(
   input: RequestInfo | URL,
   init?: RequestInit,
   hasErrors?: (data: unknown) => Error | undefined
-): Observable<T> {
+): Observable<ResponseBody> {
   return Observable.create((sink) => {
     const controller = new AbortController();
 
@@ -97,7 +97,7 @@ function fetchJsonObservable<T>(
         if (error) {
           throw error;
         }
-        sink.next(data as T);
+        sink.next(data as ResponseBody);
         sink.complete();
       })
       .catch((error) => {

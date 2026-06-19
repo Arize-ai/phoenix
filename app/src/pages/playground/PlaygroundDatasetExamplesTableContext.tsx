@@ -397,9 +397,9 @@ export function PlaygroundDatasetExamplesTableProvider({
   );
 }
 
-export function usePlaygroundDatasetExamplesTableContext<T>(
-  selector: (state: PlaygroundDatasetExamplesTableState) => T,
-  equalityFn?: (left: T, right: T) => boolean
+export function usePlaygroundDatasetExamplesTableContext<SelectedValue>(
+  selector: (state: PlaygroundDatasetExamplesTableState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
 ) {
   const store = React.useContext(PlaygroundDatasetExamplesTableContext);
   if (!store)

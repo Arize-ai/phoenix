@@ -22,9 +22,11 @@ export interface Annotation {
   } | null;
 }
 
-export type AnnotationInputPropsBase<T extends AnnotationConfig> = {
+export type AnnotationInputPropsBase<
+  AnnotationConfigType extends AnnotationConfig,
+> = {
   annotation?: Annotation;
-  annotationConfig: T;
+  annotationConfig: AnnotationConfigType;
   onSubmitExplanation?: (explanation: string) => void;
 };
 

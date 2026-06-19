@@ -2,9 +2,9 @@
  * Deduplicates annotations by name by keeping the latest one
  */
 export const deduplicateAnnotationsByName = <
-  T extends { name: string; createdAt: string },
+  AnnotationRecord extends { name: string; createdAt: string },
 >(
-  annotations: T[]
+  annotations: AnnotationRecord[]
 ) => {
   return Object.values(
     annotations.reduce(
@@ -19,7 +19,7 @@ export const deduplicateAnnotationsByName = <
         }
         return acc;
       },
-      {} as Record<string, T>
+      {} as Record<string, AnnotationRecord>
     )
   );
 };

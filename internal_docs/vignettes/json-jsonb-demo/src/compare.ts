@@ -36,7 +36,7 @@ function generateRandomUppercaseString(length: number): string {
  * Fisher-Yates shuffle algorithm to randomize the order of keys
  * This helps demonstrate the key ordering behavior in JSON vs JSONB
  */
-function shuffle<T>(array: T[]): T[] {
+function shuffle<Item>(array: Item[]): Item[] {
   let currentIndex = array.length;
   let randomIndex;
 

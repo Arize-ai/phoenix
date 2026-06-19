@@ -8,8 +8,8 @@
  * @param currentSelection - The current selection state
  * @returns A new selection object with all items in the range selected
  */
-export function addRangeToSelection<T extends { id: string }>(
-  items: T[],
+export function addRangeToSelection<Row extends { id: string }>(
+  items: Row[],
   lastSelectedIndex: number,
   currentIndex: number,
   currentSelection: Record<string, boolean>

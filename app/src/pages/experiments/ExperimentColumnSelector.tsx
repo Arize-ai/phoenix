@@ -18,14 +18,14 @@ const UN_HIDABLE_COLUMN_IDS = ["select", "name", "actions"];
 
 const ANNOTATION_COLUMN_PREFIX = "annotation-";
 
-type ExperimentColumnSelectorProps<T extends object> = {
-  columns: Column<T>[];
+type ExperimentColumnSelectorProps<Row extends object> = {
+  columns: Column<Row>[];
   columnVisibility: Record<string, boolean>;
   onColumnVisibilityChange: (visibility: Record<string, boolean>) => void;
 };
 
-export function ExperimentColumnSelector<T extends object>(
-  props: ExperimentColumnSelectorProps<T>
+export function ExperimentColumnSelector<Row extends object>(
+  props: ExperimentColumnSelectorProps<Row>
 ) {
   return (
     <DialogTrigger>
@@ -52,7 +52,7 @@ const columnCheckboxItemCSS = css`
   }
 `;
 
-function getColumnDisplayName<T extends object>(column: Column<T>): string {
+function getColumnDisplayName<Row extends object>(column: Column<Row>): string {
   if (column.id.startsWith(ANNOTATION_COLUMN_PREFIX)) {
     return column.id.slice(ANNOTATION_COLUMN_PREFIX.length);
   }
@@ -63,8 +63,8 @@ function getColumnDisplayName<T extends object>(column: Column<T>): string {
   return column.id;
 }
 
-function ColumnSelectorMenu<T extends object>(
-  props: ExperimentColumnSelectorProps<T>
+function ColumnSelectorMenu<Row extends object>(
+  props: ExperimentColumnSelectorProps<Row>
 ) {
   const {
     columns: propsColumns,

@@ -24,13 +24,16 @@ export type KVMap = Record<string, unknown>;
  * becomes the example's `output` and is exposed to evaluators as
  * `expected` on `EvaluatorParams`.
  */
-export interface TestParams<I extends KVMap = KVMap, E extends KVMap = KVMap> {
+export interface TestParams<
+  Input extends KVMap = KVMap,
+  Expected extends KVMap = KVMap,
+> {
   /** Optional stable example id; used to upsert dataset examples between runs. */
   id?: string;
   /** Input for the example. Required. */
-  input: I;
+  input: Input;
   /** Reference (expected) output for the example. Optional. */
-  expected?: E;
+  expected?: Expected;
   /** Additional metadata stored on the dataset example and run. */
   metadata?: KVMap;
   /**
@@ -127,11 +130,14 @@ export interface SuiteConfig {
  * Arguments passed to a `test()` body. These are read straight from the
  * test's {@link TestParams} — the runner does not transform them.
  */
-export interface TestArgs<I extends KVMap = KVMap, E extends KVMap = KVMap> {
+export interface TestArgs<
+  Input extends KVMap = KVMap,
+  Expected extends KVMap = KVMap,
+> {
   /** The example input under test. */
-  input: I;
+  input: Input;
   /** The reference (expected) output, when one was supplied. */
-  expected?: E;
+  expected?: Expected;
   /** Any metadata attached to the example. */
   metadata?: KVMap;
 }
@@ -201,15 +207,19 @@ export interface Evaluator<
 }
 
 /** Test handler signature. */
-export type TestFn<I extends KVMap = KVMap, E extends KVMap = KVMap> = (
-  args: TestArgs<I, E>
-) => unknown | Promise<unknown>;
+export type TestFn<
+  Input extends KVMap = KVMap,
+  Expected extends KVMap = KVMap,
+> = (args: TestArgs<Input, Expected>) => unknown | Promise<unknown>;
 
 /** Each-row shape accepted by `test.each(table)(name, fn)`. */
-export type TestEachRow<I extends KVMap = KVMap, E extends KVMap = KVMap> = {
+export type TestEachRow<
+  Input extends KVMap = KVMap,
+  Expected extends KVMap = KVMap,
+> = {
   id?: string;
-  input: I;
-  expected?: E;
+  input: Input;
+  expected?: Expected;
   metadata?: KVMap;
   /** Per-row split assignment(s); see `TestParams.splits`. */
   splits?: string[];

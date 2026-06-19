@@ -11,13 +11,13 @@ import type { RateLimiter, RateLimitConfig } from "./rate-limiting/types.js";
  * Sanitize an object to prevent prototype pollution attacks.
  * Removes dangerous keys like __proto__, constructor, prototype.
  */
-function sanitizeObject<T extends object>(obj: T): T {
+function sanitizeObject<ObjectValue extends object>(obj: ObjectValue): ObjectValue {
   if (obj === null || typeof obj !== "object") {
     return obj;
   }
 
   const dangerous = ["__proto__", "constructor", "prototype"];
-  const sanitized = { ...obj } as T & Record<string, unknown>;
+  const sanitized = { ...obj } as ObjectValue & Record<string, unknown>;
 
   for (const key of dangerous) {
     if (key in sanitized) {
@@ -25,7 +25,7 @@ function sanitizeObject<T extends object>(obj: T): T {
     }
   }
 
-  return sanitized as T;
+  return sanitized as ObjectValue;
 }
 
 /**

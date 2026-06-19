@@ -21,10 +21,10 @@ export function DatasetProvider({
   );
 }
 
-export function useDatasetContext<T>(
-  selector: (state: DatasetStoreState) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T {
+export function useDatasetContext<SelectedValue>(
+  selector: (state: DatasetStoreState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
+): SelectedValue {
   const store = useContext(DatasetContext);
   if (!store) throw new Error("Missing DatasetContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);

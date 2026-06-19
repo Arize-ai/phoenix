@@ -44,10 +44,10 @@ const colorFromVariant = (
   }
 };
 
-export const Toast = <T extends QueuedToast<NotificationParams>>({
+export const Toast = <ToastPayload extends QueuedToast<NotificationParams>>({
   toast,
 }: {
-  toast: T;
+  toast: ToastPayload;
 }) => {
   const { theme } = useTheme();
   const state = useContext(ToastStateContext);

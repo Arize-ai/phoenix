@@ -15,10 +15,10 @@ function headers(): Record<string, string> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Run a GraphQL query (used for Discussions, which have no REST API). */
-export async function graphql<T>(
+export async function graphql<ResponseData>(
   query: string,
   variables: Record<string, unknown>
-): Promise<T> {
+): Promise<ResponseData> {
   const res = await fetch(`${API}/graphql`, {
     method: "POST",
     headers: { ...headers(), "Content-Type": "application/json" },
@@ -29,7 +29,7 @@ export async function graphql<T>(
     throw new Error(`GitHub GraphQL ${res.status}: ${text.slice(0, 200)}`);
   }
   const body = (await res.json()) as {
-    data?: T;
+    data?: ResponseData;
     errors?: { message: string }[];
   };
   if (body.errors?.length) {
@@ -38,7 +38,7 @@ export async function graphql<T>(
   if (!body.data) {
     throw new Error("GraphQL: response did not include data.");
   }
-  return body.data as T;
+  return body.data as ResponseData;
 }
 
 /** Fetch a single page, transparently waiting out primary rate limits. */
@@ -82,12 +82,12 @@ async function getPage(url: string): Promise<Response> {
 }
 
 /** Follow RFC 5988 Link headers until there are no more pages. */
-async function paginate<T>(path: string): Promise<T[]> {
+async function paginate<Item>(path: string): Promise<Item[]> {
   let url: string | null = `${API}${path}`;
-  const out: T[] = [];
+  const out: Item[] = [];
   while (url) {
     const res = await getPage(url);
-    out.push(...((await res.json()) as T[]));
+    out.push(...((await res.json()) as Item[]));
     const link = res.headers.get("link") ?? "";
     const next = link.match(/<([^>]+)>;\s*rel="next"/);
     url = next ? next[1] : null;

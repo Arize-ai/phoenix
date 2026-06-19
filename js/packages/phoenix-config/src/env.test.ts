@@ -20,8 +20,8 @@ import type { Headers } from "./types";
  * Type assertion helpers to ensure no `any` types leak through.
  * These will cause compile-time errors if types are incorrect.
  */
-type AssertEquals<T, Expected> = T extends Expected
-  ? Expected extends T
+type AssertEquals<Value, Expected> = Value extends Expected
+  ? Expected extends Value
     ? true
     : false
   : false;

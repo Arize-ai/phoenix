@@ -19,21 +19,21 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { SessionColumnSelector_annotations$key } from "./__generated__/SessionColumnSelector_annotations.graphql";
 const UN_HIDABLE_COLUMN_IDS = ["sessionId"];
 
-type SessionColumnSelectorProps<T extends object> = {
+type SessionColumnSelectorProps<Row extends object> = {
   /**
    * The columns that can be displayed in the session table
    * This could be made more generic to support other tables
    * but for now working on the session tables to figure out the right interface
    */
-  columns: Column<T>[];
+  columns: Column<Row>[];
   query: SessionColumnSelector_annotations$key;
 };
 
 /**
  * @todo Convert this to a multi-select with ListBox
  */
-export function SessionColumnSelector<T extends object>(
-  props: SessionColumnSelectorProps<T>
+export function SessionColumnSelector<Row extends object>(
+  props: SessionColumnSelectorProps<Row>
 ) {
   return (
     <DialogTrigger>
@@ -63,8 +63,8 @@ const columCheckboxItemCSS = css`
 /**
  * @todo Convert this to a multi-select with ListBox
  */
-function ColumnSelectorMenu<T extends object>(
-  props: SessionColumnSelectorProps<T>
+function ColumnSelectorMenu<Row extends object>(
+  props: SessionColumnSelectorProps<Row>
 ) {
   const { columns: propsColumns } = props;
 
@@ -162,9 +162,9 @@ function ColumnSelectorMenu<T extends object>(
 /**
  * @todo convert this to a multi-select with ListBox
  */
-function EvaluationColumnSelector<T extends object>({
+function EvaluationColumnSelector<Row extends object>({
   query,
-}: Pick<SessionColumnSelectorProps<T>, "query">) {
+}: Pick<SessionColumnSelectorProps<Row>, "query">) {
   const data = useFragment<SessionColumnSelector_annotations$key>(
     graphql`
       fragment SessionColumnSelector_annotations on Project {

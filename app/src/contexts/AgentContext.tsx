@@ -36,10 +36,10 @@ export function AgentProvider({
  * @param equalityFn - Optional custom equality check to avoid unnecessary re-renders.
  * @throws If called outside of an {@link AgentProvider}.
  */
-export function useAgentContext<T>(
-  selector: (state: AgentState) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T {
+export function useAgentContext<SelectedValue>(
+  selector: (state: AgentState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
+): SelectedValue {
   const store = useContext(AgentContext);
   if (!store) throw new Error("Missing AgentContext.Provider in the tree");
   return useZustand(store, selector, equalityFn);

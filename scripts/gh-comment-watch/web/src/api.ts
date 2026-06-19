@@ -66,9 +66,9 @@ export interface ItemFilters {
   excludeAssigned: boolean; // needs/all views only — hide issues/PRs with an assignee
 }
 
-async function json<T>(res: Response): Promise<T> {
+async function json<ResponseData>(res: Response): Promise<ResponseData> {
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-  return res.json() as Promise<T>;
+  return res.json() as Promise<ResponseData>;
 }
 
 export const api = {

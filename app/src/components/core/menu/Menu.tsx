@@ -80,11 +80,11 @@ type MenuKeyboardProps = {
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
 };
 
-export const Menu = <T extends object>({
+export const Menu = <Item extends object>({
   className,
   onKeyDown,
   ...props
-}: AriaMenuProps<T> & MenuKeyboardProps) => {
+}: AriaMenuProps<Item> & MenuKeyboardProps) => {
   return (
     <AriaMenu
       className={classNames("react-aria-Menu", className)}
@@ -149,12 +149,12 @@ const menuItemCss = css`
  *   </MenuContainer>
  * </Menu>
  */
-export const MenuItem = <T extends object>({
+export const MenuItem = <Item extends object>({
   className,
   trailingContent,
   leadingContent,
   ...props
-}: AriaMenuItemProps<T> & {
+}: AriaMenuItemProps<Item> & {
   trailingContent?: ReactNode;
   leadingContent?: ReactNode;
 }) => {

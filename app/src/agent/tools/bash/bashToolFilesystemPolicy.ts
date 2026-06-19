@@ -10,6 +10,35 @@ import type {
 type WriteFileOptions = Parameters<IFileSystem["writeFile"]>[2];
 
 /**
+ * The writable filesystem entrypoints that must be wrapped by the bash policy.
+ */
+export const BASH_TOOL_FILESYSTEM_MUTATION_METHOD_NAMES = [
+  "appendFile",
+  "chmod",
+  "cp",
+  "link",
+  "mkdir",
+  "mv",
+  "rm",
+  "symlink",
+  "utimes",
+  "writeFile",
+] as const;
+
+export type BashToolFilesystemMutationMethod =
+  (typeof BASH_TOOL_FILESYSTEM_MUTATION_METHOD_NAMES)[number];
+
+export type BashToolFilesystemMutationMethods = Pick<
+  IFileSystem,
+  BashToolFilesystemMutationMethod
+>;
+
+/**
+ * Virtual root containing generated Phoenix context files for the current page.
+ */
+export const BASH_TOOL_READONLY_ROOT = "/phoenix";
+
+/**
  * Virtual scratch space where the model is allowed to mutate files.
  */
 export const BASH_TOOL_WORKSPACE_ROOT = "/home/user/workspace";
@@ -29,6 +58,21 @@ export const BASH_TOOL_TMP_ROOT = "/tmp";
 export const BASH_TOOL_DISCARD_DEVICE_PATHS: ReadonlySet<string> = new Set([
   "/dev/null",
 ]);
+
+/**
+ * Captures the current writable filesystem methods so internal setup code can
+ * temporarily bypass policy wrappers and then restore them.
+ */
+export function captureBashToolFilesystemMutationMethods(
+  fs: BashToolFilesystemMutationMethods
+): BashToolFilesystemMutationMethods {
+  return Object.fromEntries(
+    BASH_TOOL_FILESYSTEM_MUTATION_METHOD_NAMES.map((methodName) => [
+      methodName,
+      fs[methodName].bind(fs),
+    ])
+  ) as BashToolFilesystemMutationMethods;
+}
 
 function normalizeVirtualPath(fs: IFileSystem, path: string) {
   return fs.resolvePath("/", path);
@@ -56,6 +100,13 @@ function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
     return normalizedPath;
   }
 
+  if (isWithinRoot(normalizedPath, BASH_TOOL_READONLY_ROOT)) {
+    throw new Error(
+      `${operation} is not allowed in ${BASH_TOOL_READONLY_ROOT}. ` +
+        `Phoenix context files are read-only; copy them into ${BASH_TOOL_WORKSPACE_ROOT} or ${BASH_TOOL_TMP_ROOT} first.`
+    );
+  }
+
   throw new Error(
     `${operation} is only allowed in ${BASH_TOOL_WORKSPACE_ROOT} or ${BASH_TOOL_TMP_ROOT}. ` +
       `Writes outside scratch directories are blocked.`
@@ -68,8 +119,8 @@ function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
 export function applyBashToolFilesystemPolicy(fs: IFileSystem) {
   /**
    * Wrap filesystem mutation methods with a Phoenix-specific path policy.
-   * Writes are allowed under `/home/user/workspace` and `/tmp`, and rejected
-   * everywhere else with a clear error.
+   * Writes are allowed under `/home/user/workspace` and `/tmp`, denied under
+   * `/phoenix`, and rejected everywhere else with a clear error.
    */
   const originalWriteFile = fs.writeFile.bind(fs);
   const originalAppendFile = fs.appendFile.bind(fs);

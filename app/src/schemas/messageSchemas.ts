@@ -399,13 +399,13 @@ export const detectMessageProvider = (
 /**
  * Convert from OpenAI message format to any other format
  */
-export const fromOpenAIMessage = <T extends ModelProvider>({
+export const fromOpenAIMessage = <Provider extends ModelProvider>({
   message,
   targetProvider,
 }: {
   message: OpenAIMessage;
-  targetProvider: T;
-}): ProviderToMessageMap[T] => {
+  targetProvider: Provider;
+}): ProviderToMessageMap[Provider] => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
@@ -418,14 +418,18 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "MOONSHOT":
     case "PERPLEXITY":
     case "TOGETHER":
-      return message as ProviderToMessageMap[T];
+      return message as ProviderToMessageMap[Provider];
     case "ANTHROPIC":
-      return openAIMessageToAnthropic.parse(message) as ProviderToMessageMap[T];
+      return openAIMessageToAnthropic.parse(
+        message
+      ) as ProviderToMessageMap[Provider];
     case "AWS":
-      return openAIMessageToAws.parse(message) as ProviderToMessageMap[T];
+      return openAIMessageToAws.parse(
+        message
+      ) as ProviderToMessageMap[Provider];
     case "GOOGLE":
       // TODO: Add Google message support
-      return message as ProviderToMessageMap[T];
+      return message as ProviderToMessageMap[Provider];
     default:
       return assertUnreachable(targetProvider);
   }

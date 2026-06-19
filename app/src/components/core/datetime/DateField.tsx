@@ -9,8 +9,8 @@ import { DateField as AriaDateField } from "react-aria-components";
 import { fieldBaseCSS } from "../field/styles";
 import type { StylableProps } from "../types";
 
-export interface DateFieldProps<T extends DateValue>
-  extends AriaDateFieldProps<T>, StylableProps {}
+export interface DateFieldProps<DateValueType extends DateValue>
+  extends AriaDateFieldProps<DateValueType>, StylableProps {}
 
 const dateFieldCSS = css`
   --date-field-vertical-padding: 6px;
@@ -79,10 +79,10 @@ const dateFieldCSS = css`
 /**
  * A date field, can be used to input just a date as well as a date and time.
  */
-function DateField<T extends DateValue>({
+function DateField<DateValueType extends DateValue>({
   ref,
   ...props
-}: DateFieldProps<T> & { ref?: Ref<HTMLDivElement> }) {
+}: DateFieldProps<DateValueType> & { ref?: Ref<HTMLDivElement> }) {
   const { css: propsCSS, ...restProps } = props;
   return (
     <AriaDateField

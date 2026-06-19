@@ -24,10 +24,10 @@ export function ProjectProvider({
   );
 }
 
-export function useProjectContext<T>(
-  selector: (state: ProjectState) => T,
-  equalityFn?: (left: T, right: T) => boolean
-): T {
+export function useProjectContext<SelectedValue>(
+  selector: (state: ProjectState) => SelectedValue,
+  equalityFn?: (left: SelectedValue, right: SelectedValue) => boolean
+): SelectedValue {
   const store = useContext(ProjectContext);
   if (!store) throw new Error("Missing ProjectContext.Provider in the tree");
   return useZustand(store.state, selector, equalityFn);

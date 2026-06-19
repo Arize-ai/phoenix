@@ -23,7 +23,8 @@ import { Flex } from "@phoenix/components/core/layout";
 
 import type { StylableProps } from "../types";
 
-export interface GridListProps<T> extends AriaGridListProps<T>, StylableProps {
+export interface GridListProps<Item>
+  extends AriaGridListProps<Item>, StylableProps {
   ref?: Ref<HTMLDivElement>;
 }
 
@@ -45,7 +46,7 @@ export interface GridListItemProps
  *   <GridListItem>Item 3</GridListItem>
  * </GridList>
  */
-export function GridList<T extends object>(props: GridListProps<T>) {
+export function GridList<Item extends object>(props: GridListProps<Item>) {
   const { ref, ...restProps } = props;
   return <AriaGridList css={gridListCss} ref={ref} {...restProps} />;
 }

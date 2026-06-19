@@ -56,28 +56,28 @@ export function createTestApi(getHooks: () => RunnerHooks) {
    * Declare a single Phoenix test case. The `params` argument carries the
    * `input` and `expected` output that become the dataset example.
    */
-  function test<I extends KVMap = KVMap, E extends KVMap = KVMap>(
+  function test<Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
     name: string,
-    params: TestParams<I, E>,
-    fn: TestFn<I, E>,
+    params: TestParams<Input, Expected>,
+    fn: TestFn<Input, Expected>,
     timeout?: number
   ): void {
     declareTest(getHooks(), name, params, fn, "default", timeout);
   }
   /** Run only this test case (matches the runner's `test.only`). */
-  test.only = <I extends KVMap = KVMap, E extends KVMap = KVMap>(
+  test.only = <Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
     name: string,
-    params: TestParams<I, E>,
-    fn: TestFn<I, E>,
+    params: TestParams<Input, Expected>,
+    fn: TestFn<Input, Expected>,
     timeout?: number
   ): void => {
     declareTest(getHooks(), name, params, fn, "only", timeout);
   };
   /** Skip this test case (matches the runner's `test.skip`). */
-  test.skip = <I extends KVMap = KVMap, E extends KVMap = KVMap>(
+  test.skip = <Input extends KVMap = KVMap, Expected extends KVMap = KVMap>(
     name: string,
-    params: TestParams<I, E>,
-    fn: TestFn<I, E>,
+    params: TestParams<Input, Expected>,
+    fn: TestFn<Input, Expected>,
     timeout?: number
   ): void => {
     declareTest(getHooks(), name, params, fn, "skip", timeout);
@@ -86,11 +86,13 @@ export function createTestApi(getHooks: () => RunnerHooks) {
    * Run the same test function across many examples. The returned function
    * accepts a name template and the test body.
    */
-  test.each = <I extends KVMap, E extends KVMap>(
-    table: TestEachRow<I, E>[]
+  test.each = <Input extends KVMap, Expected extends KVMap>(
+    table: TestEachRow<Input, Expected>[]
   ): ((
-    name: string | ((row: TestEachRow<I, E>, index: number) => string),
-    fn: TestFn<I, E>,
+    name:
+      | string
+      | ((row: TestEachRow<Input, Expected>, index: number) => string),
+    fn: TestFn<Input, Expected>,
     timeout?: number
   ) => void) => {
     return (name, fn, timeout) => {

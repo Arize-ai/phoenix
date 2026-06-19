@@ -12,17 +12,17 @@ import type { DatasetWriteApplyResult } from "./types";
  * response. Generic over the relay-generated mutation type, so variables and
  * response stay fully type-checked at the call site.
  */
-export function runDatasetMutation<T extends MutationParameters>({
+export function runDatasetMutation<MutationParams extends MutationParameters>({
   mutation,
   variables,
   onSuccess,
 }: {
   mutation: GraphQLTaggedNode;
-  variables: VariablesOf<T>;
-  onSuccess: (response: T["response"]) => string;
+  variables: VariablesOf<MutationParams>;
+  onSuccess: (response: MutationParams["response"]) => string;
 }): Promise<DatasetWriteApplyResult> {
   return new Promise((resolve) => {
-    commitMutation<T>(RelayEnvironment, {
+    commitMutation<MutationParams>(RelayEnvironment, {
       mutation,
       variables,
       onCompleted: (response, errors) => {

@@ -10,10 +10,10 @@ const tagListCSS = css`
   gap: var(--global-dimension-size-50);
   height: 28px;
 `;
-function TagList<T extends object>({
+function TagList<Item extends object>({
   ref,
   ...props
-}: TagListProps<T> & { ref?: Ref<HTMLDivElement> }) {
+}: TagListProps<Item> & { ref?: Ref<HTMLDivElement> }) {
   return <AriaTagList {...props} ref={ref} css={tagListCSS} />;
 }
 

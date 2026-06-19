@@ -5,7 +5,7 @@ import { Breadcrumbs as AriaBreadcrumbs } from "react-aria-components";
 
 import type { ComponentSize } from "@phoenix/components/core/types";
 
-export interface BreadcrumbProps<T> extends AriaBreadcrumbsProps<T> {
+export interface BreadcrumbProps<Item> extends AriaBreadcrumbsProps<Item> {
   size?: ComponentSize;
 }
 
@@ -40,13 +40,13 @@ const breadcrumbsCSS = css`
   }
 `;
 
-function Breadcrumbs<T extends object>({
+function Breadcrumbs<Item extends object>({
   ref,
   ...props
-}: BreadcrumbProps<T> & { ref?: Ref<HTMLOListElement> }) {
+}: BreadcrumbProps<Item> & { ref?: Ref<HTMLOListElement> }) {
   const { size = "M", ...rest } = props;
   return (
-    <AriaBreadcrumbs<T>
+    <AriaBreadcrumbs<Item>
       css={breadcrumbsCSS}
       {...rest}
       ref={ref}

@@ -18,7 +18,7 @@ import type {
 type Breakpoint = "base" | "S" | "M" | "L" | string;
 type StyleName = string | string[] | ((dir: Direction) => string);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StyleHandler<T = any> = (value: T) => string | undefined;
+type StyleHandler<Value = any> = (value: Value) => string | undefined;
 export interface StyleHandlers {
   [key: string]: [StyleName, StyleHandler];
 }
@@ -270,10 +270,10 @@ function flexValue(value: boolean | number | string) {
   return "" + value;
 }
 
-export function getResponsiveProp<T>(
-  prop: Responsive<T>,
+export function getResponsiveProp<Value>(
+  prop: Responsive<Value>,
   matchedBreakpoints: Breakpoint[]
-): T {
+): Value {
   if (prop && typeof prop === "object" && !Array.isArray(prop)) {
     for (let i = 0; i < matchedBreakpoints.length; i++) {
       const breakpoint = matchedBreakpoints[i];
@@ -283,28 +283,28 @@ export function getResponsiveProp<T>(
         return prop[breakpoint];
       }
     }
-    return (prop as ResponsiveProp<T>).base as T;
+    return (prop as ResponsiveProp<Value>).base as Value;
   }
-  return prop as T;
+  return prop as Value;
 }
 
 type StylePropsOptions = {
   matchedBreakpoints?: Breakpoint[];
 };
 
-export function filterStyleProps<T extends StyleProps>(
-  props: T,
+export function filterStyleProps<StylePropsType extends StyleProps>(
+  props: StylePropsType,
   handlers: StyleHandlers = baseStyleProps
 ) {
   const filtered = { ...props };
   for (const key in handlers) {
-    delete filtered[key as keyof T];
+    delete filtered[key as keyof StylePropsType];
   }
   return filtered;
 }
 
-export function useStyleProps<T extends StyleProps>(
-  props: T,
+export function useStyleProps<StylePropsType extends StyleProps>(
+  props: StylePropsType,
   handlers: StyleHandlers = baseStyleProps,
   options: StylePropsOptions = {}
 ) {

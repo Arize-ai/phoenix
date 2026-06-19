@@ -12,7 +12,7 @@ import { useUnnestedValue } from "./useUnnestedValue";
  * When `isExtracted` is true, `content` is guaranteed to be a string.
  * When `isExtracted` is false, `content` is the original value type.
  */
-export type ExtractedOutputContent<T> =
+export type ExtractedOutputContent<OutputValue> =
   | {
       /** Content was successfully extracted as a renderable string */
       isExtracted: true;
@@ -23,7 +23,7 @@ export type ExtractedOutputContent<T> =
       /** Content could not be extracted, returning original value */
       isExtracted: false;
       /** The original value, unchanged */
-      content: T;
+      content: OutputValue;
     };
 
 /**
@@ -45,9 +45,9 @@ export type ExtractedOutputContent<T> =
  * // TypeScript knows content is the original type here
  * return <DynamicContent value={result.content} />;
  */
-export function useExtractedOutputContent<T>(
-  value: T
-): ExtractedOutputContent<T> {
+export function useExtractedOutputContent<OutputValue>(
+  value: OutputValue
+): ExtractedOutputContent<OutputValue> {
   // Parse both formats upfront (hooks must be called unconditionally)
   const chatOutput = useMemo(() => parseChatMessageOutput(value), [value]);
   const { value: unnestedValue, wasUnnested } = useUnnestedValue(value);

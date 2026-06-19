@@ -1441,11 +1441,11 @@ function AnnotationValueItem({
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({
+function TableBody<Row>({
   table,
   virtualizer,
 }: {
-  table: Table<T>;
+  table: Table<Row>;
   virtualizer: ReturnType<typeof useVirtualizer<HTMLDivElement, Element>>;
 }) {
   "use no memo";

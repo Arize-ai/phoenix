@@ -899,14 +899,14 @@ describe("getModelProviderFromModelName", () => {
 });
 
 describe("processAttributeToolCalls", () => {
-  type ProviderToolCallTuple<T extends ModelProvider> = [
-    T,
+  type ProviderToolCallTuple<Provider extends ModelProvider> = [
+    Provider,
     SpanToolCall,
     LlmProviderToolCall,
   ];
 
   type ProviderToolCallTestMap = {
-    [P in ModelProvider]: ProviderToolCallTuple<P>;
+    [PropertyKey in ModelProvider]: ProviderToolCallTuple<PropertyKey>;
   };
 
   const ProviderToToolCallTestMap: ProviderToolCallTestMap = {
@@ -1497,14 +1497,14 @@ describe("getToolChoiceFromAttributes", () => {
   });
 });
 
-type ProviderToolTestTuple<T extends ModelProvider> = [
-  T,
+type ProviderToolTestTuple<Provider extends ModelProvider> = [
+  Provider,
   SpanTool,
   CanonicalToolDefinition,
 ];
 
 type ProviderToolTestMap = {
-  [P in ModelProvider]: ProviderToolTestTuple<P>;
+  [PropertyKey in ModelProvider]: ProviderToolTestTuple<PropertyKey>;
 };
 
 describe("getToolsFromAttributes", () => {

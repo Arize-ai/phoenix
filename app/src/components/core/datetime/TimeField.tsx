@@ -8,7 +8,8 @@ import { TimeField as AriaTimeField } from "react-aria-components";
 
 import { fieldBaseCSS } from "../field/styles";
 
-export type TimeFieldProps<T extends TimeValue> = AriaTimeFieldProps<T>;
+export type TimeFieldProps<TimeValueType extends TimeValue> =
+  AriaTimeFieldProps<TimeValueType>;
 
 const timeFieldCSS = css`
   --date-field-vertical-padding: 6px;
@@ -59,10 +60,10 @@ const timeFieldCSS = css`
   }
 `;
 
-function TimeField<T extends TimeValue>({
+function TimeField<TimeValueType extends TimeValue>({
   ref,
   ...props
-}: TimeFieldProps<T> & { ref?: Ref<HTMLDivElement> }) {
+}: TimeFieldProps<TimeValueType> & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaTimeField css={css(fieldBaseCSS, timeFieldCSS)} {...props} ref={ref} />
   );

@@ -13,15 +13,18 @@ import type {
 import { fieldBaseCSS } from "../field/styles";
 
 export interface SelectProps<
-  T extends object = object,
-  M extends "single" | "multiple" = "single",
+  Item extends object = object,
+  SelectionMode extends "single" | "multiple" = "single",
 >
-  extends AriaSelectProps<T, M>, SizingProps, StylableProps {}
+  extends AriaSelectProps<Item, SelectionMode>, SizingProps, StylableProps {}
 
-function Select<T extends object, M extends "single" | "multiple">({
+function Select<
+  Item extends object,
+  SelectionMode extends "single" | "multiple",
+>({
   ref,
   ...props
-}: SelectProps<T, M> & { ref?: Ref<HTMLDivElement> }) {
+}: SelectProps<Item, SelectionMode> & { ref?: Ref<HTMLDivElement> }) {
   const { size = "M", ...otherProps } = props;
   return (
     <SizeProvider size={size}>

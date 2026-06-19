@@ -116,13 +116,13 @@ export async function evaluate<
  * The annotation name defaults to the traced function's name, falling
  * back to `"evaluator"`.
  */
-export function traceEvaluator<P extends KVMap, R>(
-  fn: (params: P) => R | Promise<R>,
+export function traceEvaluator<EvaluatorParams extends KVMap, EvaluatorResult>(
+  fn: (params: EvaluatorParams) => EvaluatorResult | Promise<EvaluatorResult>,
   options?: { name?: string }
-): (params: P) => Promise<R> {
+): (params: EvaluatorParams) => Promise<EvaluatorResult> {
   const evaluatorName =
     options?.name ?? (fn.name && fn.name !== "" ? fn.name : "evaluator");
-  return async (params: P) => {
+  return async (params: EvaluatorParams) => {
     const run = currentRun();
     if (!run) {
       // outside a test context, just call the function plainly

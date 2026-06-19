@@ -61,11 +61,12 @@ const listBoxCSS = css`
   }
 `;
 
-export interface ListBoxProps<T> extends AriaListBoxProps<T>, StylableProps {
+export interface ListBoxProps<Item>
+  extends AriaListBoxProps<Item>, StylableProps {
   ref?: Ref<HTMLDivElement>;
 }
 
-export function ListBox<T extends object>(props: ListBoxProps<T>) {
+export function ListBox<Item extends object>(props: ListBoxProps<Item>) {
   const { css: propsCSS, ref, ...restProps } = props;
   const mergedCSS = css(listBoxCSS, propsCSS);
   return <AriaListBox css={mergedCSS} ref={ref} {...restProps} />;

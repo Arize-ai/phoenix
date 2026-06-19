@@ -97,14 +97,14 @@ const defaultColumnSettings = {
   minSize: 100,
 } satisfies Partial<ColumnDef<unknown>>;
 
-const TableBody = <T extends { id: string }>({
+const TableBody = <Row extends { id: string }>({
   table,
   hasNext,
   onLoadNext,
   isLoadingNext,
   dataset,
 }: {
-  table: Table<T>;
+  table: Table<Row>;
   hasNext: boolean;
   onLoadNext: () => void;
   isLoadingNext: boolean;

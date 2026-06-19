@@ -748,12 +748,12 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
 }
 
 //un-memoized normal table body component - see memoized version below
-function TableBody<T>({
+function TableBody<Row>({
   table,
   tableContainerRef,
   estimatedRowHeight,
 }: {
-  table: Table<T>;
+  table: Table<Row>;
   tableContainerRef: RefObject<HTMLDivElement | null>;
   estimatedRowHeight: number;
 }) {

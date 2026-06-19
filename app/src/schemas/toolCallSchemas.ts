@@ -275,13 +275,13 @@ export const toOpenAIToolCall = (
  * @param targetProvider the provider to convert the tool call to
  * @returns the tool call in the target provider format
  */
-export const fromOpenAIToolCall = <T extends ModelProvider>({
+export const fromOpenAIToolCall = <Provider extends ModelProvider>({
   toolCall,
   targetProvider,
 }: {
   toolCall: OpenAIToolCall;
-  targetProvider: T;
-}): ProviderToToolCallMap[T] => {
+  targetProvider: Provider;
+}): ProviderToToolCallMap[Provider] => {
   switch (targetProvider) {
     case "AZURE_OPENAI":
     case "OPENAI":
@@ -294,15 +294,17 @@ export const fromOpenAIToolCall = <T extends ModelProvider>({
     case "MOONSHOT":
     case "PERPLEXITY":
     case "TOGETHER":
-      return toolCall as ProviderToToolCallMap[T];
+      return toolCall as ProviderToToolCallMap[Provider];
     case "AWS":
-      return openAIToolCallToAws.parse(toolCall) as ProviderToToolCallMap[T];
+      return openAIToolCallToAws.parse(
+        toolCall
+      ) as ProviderToToolCallMap[Provider];
     case "ANTHROPIC":
       return openAIToolCallToAnthropic.parse(
         toolCall
-      ) as ProviderToToolCallMap[T];
+      ) as ProviderToToolCallMap[Provider];
     case "GOOGLE":
-      return toolCall as ProviderToToolCallMap[T];
+      return toolCall as ProviderToToolCallMap[Provider];
     default:
       assertUnreachable(targetProvider);
   }

@@ -21,8 +21,10 @@ import { flattenObject } from "@phoenix/utils/jsonUtils";
  * Escapes all keys in a mapping object for use with react-hook-form.
  * This prevents dots in keys from being interpreted as nested paths.
  */
-function escapeMapping<T>(mapping: Record<string, T>): Record<string, T> {
-  const result: Record<string, T> = {};
+function escapeMapping<MappingValue>(
+  mapping: Record<string, MappingValue>
+): Record<string, MappingValue> {
+  const result: Record<string, MappingValue> = {};
   for (const [key, value] of Object.entries(mapping)) {
     result[escapeFieldNameForReactHookForm(key)] = value;
   }
@@ -33,8 +35,10 @@ function escapeMapping<T>(mapping: Record<string, T>): Record<string, T> {
  * Unescapes all keys in a mapping object after reading from react-hook-form.
  * This converts the escaped keys back to their original form with dots.
  */
-function unescapeMapping<T>(mapping: Record<string, T>): Record<string, T> {
-  const result: Record<string, T> = {};
+function unescapeMapping<MappingValue>(
+  mapping: Record<string, MappingValue>
+): Record<string, MappingValue> {
+  const result: Record<string, MappingValue> = {};
   for (const [key, value] of Object.entries(mapping)) {
     result[unescapeFieldNameFromReactHookForm(key)] = value;
   }

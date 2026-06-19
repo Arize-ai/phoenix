@@ -142,21 +142,21 @@ const sliderCSS = css`
   }
 `;
 
-export type SliderProps<T> = AriaSliderProps<T> &
+export type SliderProps<SliderValue> = AriaSliderProps<SliderValue> &
   StylableProps &
   React.PropsWithChildren<{
     label?: string;
     thumbLabels?: string[];
   }>;
 
-export function Slider<T extends number | number[]>({
+export function Slider<SliderValue extends number | number[]>({
   ref,
   label,
   thumbLabels,
   children,
   css: _css,
   ...props
-}: SliderProps<T> & { ref?: React.Ref<HTMLDivElement> }) {
+}: SliderProps<SliderValue> & { ref?: React.Ref<HTMLDivElement> }) {
   return (
     <AriaSlider css={css(sliderCSS, _css)} {...props} ref={ref}>
       {label && <Label className="slider__label">{label}</Label>}

@@ -11,12 +11,12 @@ function truncateString(value: string): string {
 }
 
 /** Evaluator bodies bypass the server `| sanitize` filter, so the cap is applied client-side. */
-export function truncateStringLeaves<T>(value: T): T {
+export function truncateStringLeaves<Value>(value: Value): Value {
   if (typeof value === "string") {
-    return truncateString(value) as T;
+    return truncateString(value) as Value;
   }
   if (Array.isArray(value)) {
-    return value.map((item) => truncateStringLeaves(item)) as T;
+    return value.map((item) => truncateStringLeaves(item)) as Value;
   }
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
@@ -24,7 +24,7 @@ export function truncateStringLeaves<T>(value: T): T {
         key,
         truncateStringLeaves(item),
       ])
-    ) as T;
+    ) as Value;
   }
   return value;
 }

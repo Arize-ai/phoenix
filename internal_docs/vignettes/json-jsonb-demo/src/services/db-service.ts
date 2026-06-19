@@ -41,10 +41,10 @@ class DatabaseService {
     }
   }
 
-  async query<T extends QueryResultRow = any>(
+  async query<QueryRow extends QueryResultRow = any>(
     sql: string,
     params?: any[]
-  ): Promise<QueryResult<T>> {
+  ): Promise<QueryResult<QueryRow>> {
     try {
       if (this.isPGlite) {
         const result = (await (this.pool as PGlite).query(
@@ -52,14 +52,14 @@ class DatabaseService {
           params
         )) as PGliteResult;
         return {
-          rows: result.rows as T[],
+          rows: result.rows as QueryRow[],
           command: '',
           rowCount: result.rows.length,
           oid: 0,
           fields: []
         };
       } else {
-        return await (this.pool as Pool).query<T>(sql, params);
+        return await (this.pool as Pool).query<QueryRow>(sql, params);
       }
     } catch (error) {
       console.error('Error executing query:', error);

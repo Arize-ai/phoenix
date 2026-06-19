@@ -65,8 +65,8 @@ export function isStringKeyedObject(
 /**
  * Makes a type mutable
  */
-export type Mutable<T> = {
-  -readonly [P in keyof T]: T[P];
+export type Mutable<MutableValue> = {
+  -readonly [PropertyKey in keyof MutableValue]: MutableValue[PropertyKey];
 };
 
 /**
@@ -86,8 +86,8 @@ export type Mutable<T> = {
  * @see https://github.com/colinhacks/zod/issues/372#issuecomment-826380330
  */
 export const schemaForType =
-  <T>() =>
-  <S extends z.ZodType<T>>(arg: S) => {
+  <Value>() =>
+  <Schema extends z.ZodType<Value>>(arg: Schema) => {
     return arg;
   };
 
@@ -96,16 +96,18 @@ export const schemaForType =
  * @see https://www.totaltypescript.com/tips/use-deep-partials-to-help-with-mocking-an-entity
  */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-export type DeepPartial<T> = T extends Function
-  ? T
-  : T extends Array<infer InferredArrayMember>
+export type DeepPartial<PartialValue> = PartialValue extends Function
+  ? PartialValue
+  : PartialValue extends Array<infer InferredArrayMember>
     ? DeepPartialArray<InferredArrayMember>
-    : T extends object
-      ? DeepPartialObject<T>
-      : T | undefined;
+    : PartialValue extends object
+      ? DeepPartialObject<PartialValue>
+      : PartialValue | undefined;
 
-interface DeepPartialArray<T> extends Array<DeepPartial<T>> {}
+interface DeepPartialArray<PartialValue> extends Array<
+  DeepPartial<PartialValue>
+> {}
 
-type DeepPartialObject<T> = {
-  [Key in keyof T]?: DeepPartial<T[Key]>;
+type DeepPartialObject<PartialValue> = {
+  [Key in keyof PartialValue]?: DeepPartial<PartialValue[Key]>;
 };

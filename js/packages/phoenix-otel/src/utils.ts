@@ -10,8 +10,8 @@ import type { AttributeValue } from "@opentelemetry/api";
  * @param obj - The source object whose entries will be converted to attributes.
  * @returns A new record containing only the non-null entries from the input.
  */
-export function objectAsAttributes<T extends Record<string, unknown>>(
-  obj: T
+export function objectAsAttributes<ObjectValue extends Record<string, unknown>>(
+  obj: ObjectValue
 ): Record<string, AttributeValue> {
   return Object.fromEntries(
     Object.entries(obj).filter(([_, value]) => value !== null)

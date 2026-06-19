@@ -24,14 +24,14 @@ const DEFAULT_DEBOUNCE_DELAY = 500;
  * return <JSONEditor onChange={syncToStore} />;
  * ```
  */
-export function useDebouncedJSONSync<T>(
-  onSync: (value: T) => void,
+export function useDebouncedJSONSync<SyncedValue>(
+  onSync: (value: SyncedValue) => void,
   delay: number = DEFAULT_DEBOUNCE_DELAY
 ): (jsonString: string) => void {
   const debouncedSync = useMemo(() => {
     return debounce((jsonString: string) => {
       try {
-        const parsed = JSON.parse(jsonString) as T;
+        const parsed = JSON.parse(jsonString) as SyncedValue;
         onSync(parsed);
       } catch {
         // Invalid JSON is silently ignored - previous value is maintained

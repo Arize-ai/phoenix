@@ -15,9 +15,9 @@ import { isStringKeyedObject } from "@phoenix/typeUtils";
  * The GraphQL schema enforces required fields at the server layer, and
  * Zod validation ensures required fields are present before submission.
  */
-export function compressObject<T extends Record<string, unknown>>(
-  obj: T
-): Partial<T> | undefined {
+export function compressObject<ObjectValue extends Record<string, unknown>>(
+  obj: ObjectValue
+): Partial<ObjectValue> | undefined {
   const entries = Object.entries(obj).filter(([, value]) => {
     if (value === null || value === undefined) return false;
     if (value === "") return false;
@@ -30,7 +30,7 @@ export function compressObject<T extends Record<string, unknown>>(
 
   if (entries.length === 0) return undefined;
 
-  return Object.fromEntries(entries) as Partial<T>;
+  return Object.fromEntries(entries) as Partial<ObjectValue>;
 }
 
 /**
