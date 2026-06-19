@@ -71,3 +71,33 @@ Alert dialogs MUST NOT be nested. Only one SHOULD be displayed at any moment. If
 | Clear project | OK |
 | Remove data | No |
 | Cancel | Dismiss |
+
+## Button styling
+
+This applies to the action buttons in the footer of any dialog or modal (e.g. inside `DialogFooter`), both alert dialogs and form dialogs (create, edit, configure).
+
+- The primary action — the button that commits the dialog's purpose (Save, Create, Confirm, Submit) — MUST be visually distinguished from the other buttons so it reads as the primary action.
+- A non-destructive primary action MUST use `variant="primary"`.
+- A destructive primary action (delete, clear, remove data) MUST use `variant="danger"`.
+- Cancel, Back, Skip, and other non-committing actions MUST use `variant="default"` or `variant="quiet"`. They MUST NOT use `primary`, `danger`, or other level variants (`success`, `severe`).
+- A footer SHOULD distinguish only one action. Emphasize a second button only when the dialog genuinely offers more than one consequential outcome — e.g. a destructive alternative (`danger`) presented alongside the primary action (`primary`). In that case the safe/cancel option MUST remain unemphasized so the two consequential choices stand apart from it.
+- For a form's submit button, it is RECOMMENDED to gate the emphasis on dirty state — `variant={isDirty ? "primary" : "default"}` — so the primary action only stands out once there is something to commit.
+
+### Button styling examples
+
+```tsx
+// Non-destructive confirm
+<DialogFooter>
+  <Button variant="default" slot="close">Cancel</Button>
+  <Button variant="primary" type="submit">Create</Button>
+</DialogFooter>
+
+// Destructive confirm
+<DialogFooter>
+  <Button variant="default" slot="close">Cancel</Button>
+  <Button variant="danger" onPress={onDelete}>Delete project</Button>
+</DialogFooter>
+
+// Form submit gated on dirty state
+<Button variant={isDirty ? "primary" : "default"} type="submit">Save</Button>
+```
