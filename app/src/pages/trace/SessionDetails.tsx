@@ -23,6 +23,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
+import { EditSessionAnnotationsButton } from "@phoenix/pages/trace/EditSessionAnnotationsButton";
 
 import { costFormatter } from "../../utils/numberFormatUtils";
 import type {
@@ -47,12 +48,14 @@ function SessionDetailsHeader({
   tokenUsage,
   latencyP50,
   sessionId,
+  projectId,
 }: {
   session: NonNullable<SessionDetailsQuery$data["session"]>;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
   costSummary?: NonNullable<SessionDetailsQuery$data["session"]>["costSummary"];
   latencyP50?: number | null;
   sessionId: string;
+  projectId?: string;
 }) {
   return (
     <View
@@ -60,67 +63,85 @@ function SessionDetailsHeader({
       borderBottomWidth={"thin"}
       borderBottomColor="default"
     >
-      <Flex direction="row" gap="size-400" alignItems="center">
-        {tokenUsage != null ? (
-          <Flex direction={"column"}>
-            <Text elementType={"h3"} color={"text-700"}>
-              Total Tokens
-            </Text>
-            <SessionTokenCount
-              tokenCountTotal={tokenUsage.total}
-              nodeId={sessionId}
-              size="L"
+      <Flex
+        direction="row"
+        gap="size-400"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Flex direction="row" gap="size-400" alignItems="center">
+          {tokenUsage != null ? (
+            <Flex direction={"column"}>
+              <Text elementType={"h3"} color={"text-700"}>
+                Total Tokens
+              </Text>
+              <SessionTokenCount
+                tokenCountTotal={tokenUsage.total}
+                nodeId={sessionId}
+                size="L"
+              />
+            </Flex>
+          ) : null}
+          {costSummary != null ? (
+            <Flex direction="column" flex="none">
+              <Text elementType="h3" size="S" color="text-700">
+                Total Cost
+              </Text>
+              <TooltipTrigger delay={0}>
+                <TriggerWrap>
+                  <Text size="L">
+                    {costFormatter(costSummary.total?.cost ?? 0)}
+                  </Text>
+                </TriggerWrap>
+                <RichTooltip placement="bottom">
+                  <View width="size-2400">
+                    <Flex direction="column">
+                      <Flex justifyContent="space-between">
+                        <Text>Prompt Cost</Text>
+                        <Text>
+                          {costFormatter(costSummary.prompt?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Completion Cost</Text>
+                        <Text>
+                          {costFormatter(costSummary.completion?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Total Cost</Text>
+                        <Text>
+                          {costFormatter(costSummary.total?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </View>
+                </RichTooltip>
+              </TooltipTrigger>
+            </Flex>
+          ) : null}
+          {latencyP50 != null ? (
+            <Flex direction={"column"}>
+              <Text elementType={"h3"} color={"text-700"}>
+                Latency P50
+              </Text>
+              <LatencyText latencyMs={latencyP50} size="L" />
+            </Flex>
+          ) : null}
+        </Flex>
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <SessionAnnotationSummaryGroupStacks
+            session={session}
+            renderEmptyState={() => null}
+          />
+          {projectId != null ? (
+            <EditSessionAnnotationsButton
+              sessionNodeId={sessionId}
+              projectId={projectId}
+              size="S"
             />
-          </Flex>
-        ) : null}
-        {costSummary != null ? (
-          <Flex direction="column" flex="none">
-            <Text elementType="h3" size="S" color="text-700">
-              Total Cost
-            </Text>
-            <TooltipTrigger delay={0}>
-              <TriggerWrap>
-                <Text size="L">
-                  {costFormatter(costSummary.total?.cost ?? 0)}
-                </Text>
-              </TriggerWrap>
-              <RichTooltip placement="bottom">
-                <View width="size-2400">
-                  <Flex direction="column">
-                    <Flex justifyContent="space-between">
-                      <Text>Prompt Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.prompt?.cost ?? 0)}
-                      </Text>
-                    </Flex>
-                    <Flex justifyContent="space-between">
-                      <Text>Completion Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.completion?.cost ?? 0)}
-                      </Text>
-                    </Flex>
-                    <Flex justifyContent="space-between">
-                      <Text>Total Cost</Text>
-                      <Text>{costFormatter(costSummary.total?.cost ?? 0)}</Text>
-                    </Flex>
-                  </Flex>
-                </View>
-              </RichTooltip>
-            </TooltipTrigger>
-          </Flex>
-        ) : null}
-        {latencyP50 != null ? (
-          <Flex direction={"column"}>
-            <Text elementType={"h3"} color={"text-700"}>
-              Latency P50
-            </Text>
-            <LatencyText latencyMs={latencyP50} size="L" />
-          </Flex>
-        ) : null}
-        <SessionAnnotationSummaryGroupStacks
-          session={session}
-          renderEmptyState={() => null}
-        />
+          ) : null}
+        </Flex>
       </Flex>
     </View>
   );
@@ -158,6 +179,9 @@ export function SessionDetails(props: SessionDetailsProps) {
       query SessionDetailsQuery($id: ID!) {
         session: node(id: $id) {
           ... on ProjectSession {
+            project {
+              id
+            }
             numTraces
             tokenUsage {
               total
@@ -284,6 +308,7 @@ export function SessionDetails(props: SessionDetailsProps) {
         tokenUsage={data.session.tokenUsage}
         latencyP50={data.session.latencyP50}
         sessionId={sessionId}
+        projectId={data.session.project?.id}
       />
       <Suspense fallback={<Loading />}>
         {showTracesView
