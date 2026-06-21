@@ -7,6 +7,24 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ChatView } from "../Chat";
 
+const { scrollToBottomMock } = vi.hoisted(() => ({
+  scrollToBottomMock: vi.fn(),
+}));
+
+// Stub the stick-to-bottom controller so we can assert the chat re-anchors to
+// the bottom through it on mount (the lock that keeps reopened panels pinned).
+vi.mock("use-stick-to-bottom", () => {
+  const noopRef = Object.assign(() => undefined, { current: null });
+  return {
+    useStickToBottom: () => ({
+      contentRef: noopRef,
+      scrollRef: noopRef,
+      scrollToBottom: scrollToBottomMock,
+      stopScroll: () => undefined,
+    }),
+  };
+});
+
 vi.mock("@phoenix/agent/quickActions/quickActions", () => ({
   useAgentQuickActions: () => [],
 }));
@@ -99,6 +117,7 @@ describe("ChatView", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    scrollToBottomMock.mockClear();
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockImplementation((query: string) => ({
@@ -146,5 +165,14 @@ describe("ChatView", () => {
 
     expect(textarea).not.toBeNull();
     expect(document.activeElement).not.toBe(textarea);
+  });
+
+  it("re-anchors the transcript to the bottom on mount", () => {
+    // Reopening the panel remounts this view; it must engage the stick-to-bottom
+    // lock instantly so restored history that finishes measuring after mount
+    // stays pinned to the bottom instead of stranding partway down (#13527).
+    renderChatView(root);
+
+    expect(scrollToBottomMock).toHaveBeenCalledWith({ animation: "instant" });
   });
 });
