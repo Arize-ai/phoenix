@@ -19,7 +19,7 @@ def download_json_traces_fixture(
     Stores the traces fixture as list of jsons from the jsonl files in the phoenix bucket.
     """
 
-    with request.urlopen(url) as f:
+    with request.urlopen(url, timeout=60) as f:
         return cast(list[str], f.readlines())
 
 
