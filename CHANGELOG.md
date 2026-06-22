@@ -1,5 +1,17 @@
 # Changelog
 
+## [17.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.9.0...arize-phoenix-v17.10.0) (2026-06-20)
+
+
+### Features
+
+* **annotations:** show trace-level annotations in trace header ([#13853](https://github.com/Arize-ai/phoenix/issues/13853)) ([6420815](https://github.com/Arize-ai/phoenix/commit/6420815e8ac36d50b973ac4919d0efe6a75d4068))
+
+
+### Documentation
+
+* add Go OpenInference integrations to README ([13bc9e5](https://github.com/Arize-ai/phoenix/commit/13bc9e5e2a8f2905581a5094806ab7b641be91a5))
+
 ## [17.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.1...arize-phoenix-v17.9.0) (2026-06-19)
 
 
