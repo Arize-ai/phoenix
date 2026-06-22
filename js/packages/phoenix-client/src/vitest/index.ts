@@ -30,19 +30,19 @@ export type {
 export {
   evaluate,
   logAnnotation,
-  recordOutput,
+  logOutput,
   traceEvaluator,
 } from "../testing/helpers";
 
 const hooks: RunnerHooks = {
-  describe: (name, fn) => vitestDescribe(name, fn),
-  describeOnly: (name, fn) => vitestDescribe.only(name, fn),
-  describeSkip: (name, fn) => vitestDescribe.skip(name, fn),
-  test: (name, fn, timeout) => vitestTest(name, fn, timeout),
-  testOnly: (name, fn, timeout) => vitestTest.only(name, fn, timeout),
-  testSkip: (name, fn, timeout) => vitestTest.skip(name, fn, timeout),
-  beforeAll: (fn) => vitestBeforeAll(fn),
-  afterAll: (fn) => vitestAfterAll(fn),
+  describe: vitestDescribe,
+  describeOnly: vitestDescribe,
+  describeSkip: vitestDescribe.skip,
+  test: vitestTest,
+  testOnly: vitestTest.only,
+  testSkip: vitestTest.skip,
+  beforeAll: vitestBeforeAll,
+  afterAll: vitestAfterAll,
 };
 
 export const { describe, test, it } = createTestApi(() => hooks);

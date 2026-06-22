@@ -110,8 +110,6 @@ export function createTestApi(getHooks: () => RunnerHooks) {
             expected: row.expected,
             metadata: row.metadata,
             splits: row.splits,
-            repetitions: row.repetitions,
-            dryRun: row.dryRun,
           },
           fn,
           "default",

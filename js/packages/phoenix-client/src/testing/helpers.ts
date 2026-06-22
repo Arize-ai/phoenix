@@ -14,13 +14,13 @@ import type {
 } from "./types";
 
 /**
- * Record the actual output produced by the test for the current run.
+ * lot the output produced by the test for the current run.
  *
  * Calling this multiple times overwrites the previously recorded value.
  * The argument can be any JSON-serializable value — typically an object
  * matching the shape of the example's `expected` field.
  */
-export function recordOutput(output: unknown): void {
+export function logOutput(output: unknown): void {
   const run = currentRun();
   if (!run) {
     throw new Error(
