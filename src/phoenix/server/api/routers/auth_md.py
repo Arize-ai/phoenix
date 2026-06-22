@@ -87,7 +87,8 @@ def _build_auth_md(*, base_url: str, host: str, authentication_enabled: bool) ->
         `401 Unauthorized` with a `WWW-Authenticate` header:
 
         ```
-        WWW-Authenticate: Bearer realm="Arize Phoenix", resource_metadata="{base_url}/.well-known/oauth-protected-resource"
+        WWW-Authenticate: Bearer realm="Arize Phoenix",
+            resource_metadata="{base_url}/.well-known/oauth-protected-resource"
         ```
 
         Fetch the machine-readable metadata:
@@ -115,8 +116,8 @@ def _build_auth_md(*, base_url: str, host: str, authentication_enabled: bool) ->
 
         | Credential | Best for | Expiry |
         |------------|----------|--------|
-        | **API key** | Agents, automation, long-running scripts | Configurable (default: none) |
-        | **Access token** | Interactive sessions, short-lived tasks | Configured TTL (default: 1 hour) |
+        | **API key** | Agents, automation, long-running scripts | None (configurable) |
+        | **Access token** | Interactive sessions, short-lived tasks | Default: 1 hour |
 
         Use an **API key** for unattended agents. Use an **access token** when you have a
         user session and need a short-lived credential.
@@ -140,7 +141,10 @@ def _build_auth_md(*, base_url: str, host: str, authentication_enabled: bool) ->
         Authorization: Bearer <admin_token>
 
         {{
-          "query": "mutation CreateSystemApiKey($name: String!, $expiresAt: DateTime) {{ createSystemApiKey(input: {{name: $name, expiresAt: $expiresAt}}) {{ jwt apiKey {{ name createdAt expiresAt }} }} }}",
+          "query": "mutation CreateSystemApiKey($name: String!, $expiresAt: DateTime) {{
+            createSystemApiKey(input: {{name: $name, expiresAt: $expiresAt}}) {{
+              jwt apiKey {{ name createdAt expiresAt }}
+            }} }}",
           "variables": {{"name": "my-agent-key"}}
         }}
         ```
@@ -184,8 +188,8 @@ def _build_auth_md(*, base_url: str, host: str, authentication_enabled: bool) ->
 
         | Status | Detail | Meaning | Action |
         |--------|--------|---------|--------|
-        | `401` | `Invalid token` | Token not recognised or malformed | Verify token value; re-authenticate |
-        | `401` | `Expired token` | Access token has expired | Exchange refresh token or re-login |
+        | `401` | `Invalid token` | Token not recognised or malformed | Re-authenticate |
+        | `401` | `Expired token` | Access token has expired | Refresh or re-login |
         | `403` | — | Insufficient role | Use a token with admin privileges |
 
         ### Refresh an expired access token
