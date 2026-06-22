@@ -72,6 +72,7 @@ jobs:
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
         with:
           package_json_file: app/package.json
+      # zizmor: ignore[cache-poisoning] pnpm/action-setup configures pnpm store caching, mirroring typescript-packages-publish-experimental.yml
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 22
@@ -82,6 +83,7 @@ jobs:
         with:
           python-version: "3.10"
           version: "0.11.8"
+          enable-cache: false
       - name: Stamp dev version
         run: |
           python - <<'PY'
@@ -153,6 +155,7 @@ jobs:
         with:
           python-version: "3.10"
           version: "0.11.8"
+          enable-cache: false
       - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'
         env:
@@ -178,7 +181,6 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         with:
           repository-url: https://test.pypi.org/legacy/
-          packages-dir: ${{ matrix.path }}/dist/
 
   comment:
     name: Post TestPyPI install instructions
