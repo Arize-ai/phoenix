@@ -1,4 +1,5 @@
-name: Publish Python Packages (TestPyPI)
+name: Publish Any Pull Request
+# TODO: Restrict to PRs from arize team members only.
 
 # Publishes pre-release builds to TestPyPI on pull requests, analogous to
 # typescript-packages-publish-experimental.yml which uses pkg-pr-new for npm.
@@ -7,11 +8,9 @@ name: Publish Python Packages (TestPyPI)
 #   Configure a Trusted Publisher with:
 #     Owner:     arize-ai
 #     Repo:      phoenix
-#     Workflow:  python-packages-publish-testpypi.yml
+#     Workflow:  python-packages-publish-experimental.yml
 #     Environment: testpypi/<package-name>  (e.g. testpypi/arize-phoenix-client)
 #   And create matching GitHub environments in repo Settings → Environments.
-#
-# TODO: Restrict to PRs from arize team members only.
 
 on:
   pull_request:
@@ -52,7 +51,7 @@ jobs:
             phoenix-otel:
               - 'packages/phoenix-otel/**'
             workflow_file:
-              - '.github/workflows/python-packages-publish-testpypi.yml'
+              - '.github/workflows/python-packages-publish-experimental.yml'
 
   publish-main:
     name: Build and publish arize-phoenix (TestPyPI)
