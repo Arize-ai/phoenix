@@ -7,6 +7,7 @@ Serves:
 """
 
 from textwrap import dedent
+from typing import Any
 
 from fastapi import APIRouter
 from starlette.requests import Request
@@ -27,7 +28,7 @@ router = APIRouter(tags=["auth"])
 async def protected_resource_metadata(request: Request) -> JSONResponse:
     base_url = str(request.base_url).rstrip("/")
     authentication_required: bool = getattr(request.app.state, "authentication_enabled", False)
-    payload: dict = {
+    payload: dict[str, Any] = {
         "resource": base_url,
         "resource_name": "Arize Phoenix",
         "bearer_methods_supported": ["header"],
