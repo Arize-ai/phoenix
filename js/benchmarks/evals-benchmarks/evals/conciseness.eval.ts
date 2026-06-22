@@ -19,7 +19,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createConcisenessEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
+import { labelAccuracy } from "../src/evaluators";
 
 const concisenessEvaluator = createConcisenessEvaluator({
   model: openai("gpt-4o-mini"),
@@ -27,7 +27,6 @@ const concisenessEvaluator = createConcisenessEvaluator({
 
 // Examples designed to test the boundary conditions of the conciseness rubric
 const examplesByCategory = {
-  // === PERFECTLY CONCISE ===
   // Direct, minimal answers that contain only the requested information
   perfectly_concise: [
     {
@@ -63,7 +62,6 @@ const examplesByCategory = {
     },
   ],
 
-  // === PLEASANTRIES AND FILLER ===
   // Responses with unnecessary greetings, affirmations, or filler phrases
   pleasantries_and_filler: [
     {
@@ -98,7 +96,6 @@ const examplesByCategory = {
     },
   ],
 
-  // === HEDGING AND QUALIFIERS ===
   // Responses with excessive hedging language and unnecessary qualifiers
   hedging_and_qualifiers: [
     {
@@ -133,7 +130,6 @@ const examplesByCategory = {
     },
   ],
 
-  // === META-COMMENTARY ===
   // Responses that include self-referential commentary about the model or response
   meta_commentary: [
     {
@@ -162,7 +158,6 @@ const examplesByCategory = {
     },
   ],
 
-  // === REDUNDANT RESTATEMENTS ===
   // Responses that repeat or restate the same information
   redundant_restatements: [
     {
@@ -191,7 +186,6 @@ const examplesByCategory = {
     },
   ],
 
-  // === UNSOLICITED EXPLANATIONS ===
   // Responses that provide explanations or context beyond what was asked
   unsolicited_explanations: [
     {
@@ -226,7 +220,6 @@ const examplesByCategory = {
     },
   ],
 
-  // === EDGE CASES ===
   // Legitimately long answers to complex questions (should be concise),
   // and very short but still verbose answers
   edge_cases: [
@@ -278,9 +271,7 @@ const cases = Object.entries(examplesByCategory).flatMap(
     }))
 );
 
-const suite = benchmarkSuite(px.describe);
-
-suite(
+px.describe(
   "conciseness-evaluator-benchmark",
   () => {
     for (const testCase of cases) {
@@ -297,7 +288,7 @@ suite(
             input: input.question,
             output: input.answer,
           });
-          px.recordOutput(prediction);
+          px.logOutput(prediction);
           await px.evaluate(labelAccuracy);
         }
       );

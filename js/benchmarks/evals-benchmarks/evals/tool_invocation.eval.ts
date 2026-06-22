@@ -20,7 +20,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
+import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
 
 const toolInvocationEvaluator = createToolInvocationEvaluator({
   model: openai("gpt-4o-mini"),

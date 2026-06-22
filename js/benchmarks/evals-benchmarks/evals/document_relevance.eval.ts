@@ -19,7 +19,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
+import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
 
 const relevanceEvaluator = createDocumentRelevanceEvaluator({
   model: openai("gpt-4o-mini"),

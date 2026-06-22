@@ -7,7 +7,7 @@
  * evaluator under test is the "task"; the `labelAccuracy` evaluator below is the
  * annotation that actually scores the benchmark.
  */
-import type { Evaluator, SuiteConfig } from "@arizeai/phoenix-client/vitest";
+import type { Evaluator } from "@arizeai/phoenix-client/vitest";
 
 /**
  * Every benchmark calls a live LLM (via the evaluator under test), so the
@@ -49,14 +49,3 @@ export const labelAccuracy: Evaluator = {
     };
   },
 };
-
-/** A callable suite declaration (`describe` or `describe.skip`). */
-type SuiteFn = (name: string, fn: () => void, config?: SuiteConfig) => void;
-
-/** Gate a suite behind OPENAI_API_KEY: returns `describe` or `describe.skip`. */
-export function benchmarkSuite(describe: {
-  (name: string, fn: () => void, config?: SuiteConfig): void;
-  skip: SuiteFn;
-}): SuiteFn {
-  return HAS_OPENAI ? describe : describe.skip;
-}

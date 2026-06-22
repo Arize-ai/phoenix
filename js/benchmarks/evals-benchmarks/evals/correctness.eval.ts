@@ -18,7 +18,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/meta-evaluators";
+import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
 
 const correctnessEvaluator = createCorrectnessEvaluator({
   model: openai("gpt-4o-mini"),
