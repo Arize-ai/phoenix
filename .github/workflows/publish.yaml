@@ -3,7 +3,7 @@ on:
     inputs:
       feature_branch:
         description: >-
-          Publish a SHA-based alpha preview from this branch instead of running
+          Publish a SHA-based dev preview from this branch instead of running
           the release flow. Leave empty to run the normal production release.
         required: false
         type: string
@@ -14,9 +14,9 @@ name: Publish Python packages
 # This workflow has two modes, both dispatched manually:
 #   - Release (feature_branch empty): the production flow — build from
 #     release-please tags and publish final versions to PyPI.
-#   - Preview (feature_branch set): publish PEP 440 alpha pre-releases for the
-#     packages changed on that branch (relative to main). Alpha builds are
-#     stamped from the branch head commit SHA (<version>a<int(sha[:7], 16)>), so
+#   - Preview (feature_branch set): publish PEP 440 development (dev) pre-releases
+#     for the packages changed on that branch (relative to main). Dev builds are
+#     stamped from the branch head commit SHA (<version>.dev<int(sha[:7], 16)>), so
 #     each commit maps to one deterministic version and pip ignores them unless
 #     explicitly requested (--pre or an exact pinned version).
 #
@@ -365,10 +365,8 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Feature-branch preview flow — runs only when `feature_branch` is set. Builds
-  # alpha pre-releases for the packages changed on that branch (vs main), stamped
+  # dev pre-releases for the packages changed on that branch (vs main), stamped
   # from the branch head SHA, and publishes via the same Trusted Publishers.
-  # TODO: Restrict who can dispatch previews (e.g. require environment approval)
-  #       before relying on this for the production PyPI packages.
   # ---------------------------------------------------------------------------
 
   preview-changes:
@@ -413,7 +411,7 @@ jobs:
               - 'packages/phoenix-otel/**'
 
   preview-phoenix:
-    name: Preview publish arize-phoenix (PyPI alpha)
+    name: Preview publish arize-phoenix (PyPI dev)
     needs: preview-changes
     if: ${{ needs.preview-changes.outputs.main == 'true' }}
     runs-on: ubuntu-latest
@@ -442,7 +440,7 @@ jobs:
           python-version: "3.10"
           version: "0.11.8"
           enable-cache: false
-      - name: Stamp alpha version
+      - name: Stamp dev version
         env:
           HEAD_SHA: ${{ needs.preview-changes.outputs.sha }}
         run: |
@@ -453,7 +451,7 @@ jobs:
           content = open(path).read()
           new = re.sub(
               r'(__version__ = ")([^"]+)(")',
-              lambda m: f'{m.group(1)}{m.group(2)}a{suffix}{m.group(3)}',
+              lambda m: f'{m.group(1)}{m.group(2)}.dev{suffix}{m.group(3)}',
               content,
           )
           open(path, "w").write(new)
@@ -465,7 +463,7 @@ jobs:
           skip-existing: true
 
   preview-packages:
-    name: Preview publish ${{ matrix.package_name }} (PyPI alpha)
+    name: Preview publish ${{ matrix.package_name }} (PyPI dev)
     needs: preview-changes
     if: ${{ needs.preview-changes.outputs['phoenix-client'] == 'true' || needs.preview-changes.outputs['phoenix-evals'] == 'true' || needs.preview-changes.outputs['phoenix-otel'] == 'true' }}
     runs-on: ubuntu-latest
@@ -513,7 +511,7 @@ jobs:
           python-version: "3.10"
           version: "0.11.8"
           enable-cache: false
-      - name: Stamp alpha version
+      - name: Stamp dev version
         if: steps.check.outputs.needed == 'true'
         env:
           PYPROJECT_PATH: ${{ matrix.path }}/pyproject.toml
@@ -526,7 +524,7 @@ jobs:
           content = open(path).read()
           new = re.sub(
               r'(?m)^(version = ")([^"]+)(")',
-              lambda m: f'{m.group(1)}{m.group(2)}a{suffix}{m.group(3)}',
+              lambda m: f'{m.group(1)}{m.group(2)}.dev{suffix}{m.group(3)}',
               content,
           )
           open(path, "w").write(new)
@@ -541,7 +539,7 @@ jobs:
           skip-existing: true
 
   preview-summary:
-    name: Notify Slack with alpha install instructions
+    name: Notify Slack with dev install instructions
     needs: [preview-changes, preview-phoenix, preview-packages]
     if: |
       always() && (
@@ -593,24 +591,24 @@ jobs:
           # Slack mrkdwn: *bold* uses a single asterisk, code uses backticks.
           lines = [
               f"*PyPI preview packages* — `{branch}`",
-              "Install the alpha build with pip (pinning the exact version installs the pre-release):",
+              "Install the dev build with pip (pinning the exact version installs the pre-release):",
               "",
           ]
 
           if main_result == "success":
               v = read_version("src/phoenix/version.py", r'__version__ = "([^"]+)"')
-              lines += ["*arize-phoenix*", f"```pip install arize-phoenix=={v}a{suffix}```"]
+              lines += ["*arize-phoenix*", f"```pip install arize-phoenix=={v}.dev{suffix}```"]
 
           if packages_result == "success":
               if client_changed:
                   v = read_version("packages/phoenix-client/pyproject.toml", r'(?m)^version = "([^"]+)"')
-                  lines += ["*arize-phoenix-client*", f"```pip install arize-phoenix-client=={v}a{suffix}```"]
+                  lines += ["*arize-phoenix-client*", f"```pip install arize-phoenix-client=={v}.dev{suffix}```"]
               if evals_changed:
                   v = read_version("packages/phoenix-evals/pyproject.toml", r'(?m)^version = "([^"]+)"')
-                  lines += ["*arize-phoenix-evals*", f"```pip install arize-phoenix-evals=={v}a{suffix}```"]
+                  lines += ["*arize-phoenix-evals*", f"```pip install arize-phoenix-evals=={v}.dev{suffix}```"]
               if otel_changed:
                   v = read_version("packages/phoenix-otel/pyproject.toml", r'(?m)^version = "([^"]+)"')
-                  lines += ["*arize-phoenix-otel*", f"```pip install arize-phoenix-otel=={v}a{suffix}```"]
+                  lines += ["*arize-phoenix-otel*", f"```pip install arize-phoenix-otel=={v}.dev{suffix}```"]
 
           lines += ["", f"<{run_url}|View workflow run>"]
           text = "\n".join(lines)
