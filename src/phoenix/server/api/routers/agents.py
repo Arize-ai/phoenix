@@ -63,7 +63,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts
+from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
@@ -754,6 +754,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model=model,
             schema=request.app.state.graphql_schema,
             build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             allow_mutations=body.allow_mutations,
