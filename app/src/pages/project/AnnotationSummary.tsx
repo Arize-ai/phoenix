@@ -97,7 +97,6 @@ function AnnotationSummaryValue(props: {
   project: AnnotationSummaryValueFragment$key;
 }) {
   const { project, annotationName, filterCondition } = props;
-  const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     AnnotationSummaryQuery,
     AnnotationSummaryValueFragment$key
@@ -149,29 +148,71 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  const refetchAnnotationSummary = useEffectEvent(() => {
+  useRefetchOnStreamAdvance(() => {
     startTransition(() => {
       refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
   });
 
-  // Refetch the annotation summary when streaming data advances.
-  useEffect(() => {
-    refetchAnnotationSummary();
-  }, [fetchKey]);
+  return (
+    <AnnotationSummaryValueView
+      name={annotationName}
+      summary={data?.spanAnnotationSummary}
+      annotationConfigs={data?.annotationConfigs}
+    />
+  );
+}
 
+/**
+ * Refetch an annotation summary whenever streaming data advances. Shared by the
+ * span- and trace-level summary components so the stream-refetch wiring lives in
+ * one place.
+ */
+export function useRefetchOnStreamAdvance(refetch: () => void) {
+  const { fetchKey } = useStreamState();
+  const onStreamAdvance = useEffectEvent(refetch);
+  useEffect(() => {
+    onStreamAdvance();
+  }, [fetchKey]);
+}
+
+type AnnotationSummaryData = {
+  meanScore?: number | null;
+  count?: number | null;
+  scoreCount?: number | null;
+  labelCount?: number | null;
+  labelFractions?: readonly { label: string; fraction: number }[];
+};
+
+/**
+ * Renders a {@link SummaryValue} from a project annotation summary, resolving the
+ * matching annotation config by name. Shared by the span- and trace-level
+ * summary components, which differ only in which GraphQL summary field they read.
+ */
+export function AnnotationSummaryValueView({
+  name,
+  summary,
+  annotationConfigs,
+}: {
+  name: string;
+  summary?: AnnotationSummaryData | null;
+  annotationConfigs?: {
+    readonly edges: readonly {
+      readonly node: { readonly name?: string | null };
+    }[];
+  } | null;
+}) {
   return (
     <SummaryValue
-      name={annotationName}
-      meanScore={data?.spanAnnotationSummary?.meanScore}
-      labelFractions={data?.spanAnnotationSummary?.labelFractions}
-      count={data?.spanAnnotationSummary?.count}
-      scoreCount={data?.spanAnnotationSummary?.scoreCount}
-      labelCount={data?.spanAnnotationSummary?.labelCount}
+      name={name}
+      meanScore={summary?.meanScore}
+      labelFractions={summary?.labelFractions}
+      count={summary?.count}
+      scoreCount={summary?.scoreCount}
+      labelCount={summary?.labelCount}
       annotationConfig={
-        data?.annotationConfigs?.edges.find(
-          (edge) => edge.node.name === annotationName
-        )?.node as AnnotationConfig | undefined
+        annotationConfigs?.edges.find((edge) => edge.node.name === name)
+          ?.node as AnnotationConfig | undefined
       }
     />
   );
