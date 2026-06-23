@@ -1,0 +1,188 @@
+---
+title: "CI Eval Test Annotations"
+description: "Record annotations and evaluator results on Phoenix experiment runs"
+---
+
+CI eval test annotations are how the `@arizeai/phoenix-client/vitest` and
+`@arizeai/phoenix-client/jest` submodules record scored, labeled, or
+explained results on an experiment run. They map directly to Phoenix's
+`experiment_evaluations` REST surface — each annotation becomes one
+`ExperimentEvaluation` with an `ExperimentEvaluationResult` body.
+
+## The `Annotation` Shape
+
+```ts
+interface Annotation {
+  /** Phoenix evaluation name. Required. */
+  name: string;
+  /** Numeric or boolean score. Booleans are stored as 0 / 1. */
+  score?: number | boolean | null;
+  /** Categorical label. */
+  label?: string | null;
+  /** Free-form explanation, shown in the Phoenix UI. */
+  explanation?: string | null;
+  /** Custom metadata. */
+  metadata?: Record<string, unknown>;
+  /** Source of the annotation. Defaults to "CODE". */
+  annotatorKind?: "LLM" | "CODE" | "HUMAN";
+}
+```
+
+The fields line up with Phoenix's
+`ExperimentEvaluationResult` plus the `name` and `annotator_kind` carried
+on the surrounding evaluation body.
+
+## `logAnnotation(annotation)`
+
+Records a single annotation against the current run. Must be called
+inside a `test()` body.
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+
+px.describe("demo", () => {
+  px.test(
+    "manual annotation",
+    { input: { x: 1 }, expected: { y: 2 } },
+    async ({ input, expected }) => {
+      const result = myApp(input.x);
+      px.recordOutput({ y: result });
+
+      px.logAnnotation({
+        name: "harmfulness",
+        score: 0.2,
+        explanation: "no PII detected",
+        annotatorKind: "CODE",
+      });
+    },
+  );
+});
+```
+
+## `evaluate(evaluator, params?)`
+
+Runs an evaluator object and records its result as an annotation on the
+current run. An evaluator is any object with a `name` and an `evaluate`
+function, including evaluators created with
+`@arizeai/phoenix-evals.createEvaluator()` and
+`@arizeai/phoenix-client/experiments.asExperimentEvaluator()`.
+The evaluator call is traced as an OpenInference `EVALUATOR` span, and the
+annotation is linked back to that evaluator trace.
+
+If `params` is omitted, Phoenix supplies the current test's `input`,
+recorded `output`, `expected`, `metadata`, and task `traceId`. If `params`
+is supplied, it is merged on top of those defaults.
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const correctness = createEvaluator(
+  async ({ output, expected }: {
+    output: { sql: string };
+    expected: { sql: string };
+  }) => {
+    const grade = await llmAsJudge(output.sql, expected.sql);
+    return {
+      score: grade.score,
+      label: grade.passed ? "correct" : "incorrect",
+      explanation: grade.rationale,
+    };
+  },
+  { name: "correctness", kind: "LLM" },
+);
+
+px.describe("generate sql", () => {
+  px.test(
+    "select all",
+    {
+      input: { userQuery: "Get all users from the customers table" },
+      expected: { sql: "SELECT * FROM customers;" },
+    },
+    async ({ input, expected }) => {
+      const sql = await myApp(input.userQuery);
+      px.recordOutput({ sql });
+      await px.evaluate(correctness, {
+        output: { sql },
+        expected: expected ?? { sql: "" },
+      });
+    },
+  );
+});
+```
+
+The annotation name comes from `evaluator.name`. The evaluator result can be
+a number, boolean, string label, `null`, or an object with `score`, `label`,
+`explanation`, and `metadata`.
+
+## Using `@arizeai/phoenix-evals`
+
+`createEvaluator()` gives you a reusable evaluator object. `px.evaluate()`
+runs that evaluator in the test context, traces the call, and records its
+result on the experiment run. If the evaluator itself uses OpenInference
+telemetry, those implementation spans appear under the evaluator trace:
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+async function judgeHallucination(answer: string) {
+  return llmAsJudge({ answer });
+}
+
+const hallucination = createEvaluator(
+  async ({ output }: { output: { answer: string } }) => {
+    const result = await judgeHallucination(output.answer);
+    return {
+      score: result.score,
+      label: result.label,
+      explanation: result.explanation,
+    };
+  },
+  { name: "hallucination", kind: "LLM" },
+);
+```
+
+If you prefer to hand-write a plain evaluator, use the same shape:
+
+```ts
+const exactMatch = {
+  name: "exact_match",
+  kind: "CODE" as const,
+  evaluate: ({ output, expected }: {
+    output: { sql: string };
+    expected: { sql: string };
+  }) => ({
+    score: output.sql === expected.sql,
+  }),
+};
+```
+
+Use `createEvaluator()` or OpenInference decorators from
+`@arizeai/phoenix-otel` when the evaluator implementation should emit child
+spans of its own. The older `traceEvaluator(fn)` helper remains available for
+raw function wrapping, but evaluator objects are the preferred interface.
+
+## Built-In `pass` Annotation
+
+Every test automatically records a `pass` boolean annotation based on
+whether the test body threw. You don't have to log it yourself; it's
+included in the reporter summary and on the run in Phoenix.
+
+## Aggregating Annotations In CI
+
+Suite `acceptanceCriteria` aggregate annotation scores after all cases run.
+Use them when a metric should clear a threshold across the dataset, such as
+average `correctness >= 0.8` or `valid_sql` pass rate of `1.0`. See
+[CI Eval Tests: Vitest](./ci-evals-vitest#acceptance-criteria) for the full
+configuration shape.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/testing/helpers.ts</code></li>
+    <li><code>src/testing/acceptance.ts</code></li>
+    <li><code>src/testing/phoenix-test-tracking.ts</code></li>
+    <li><code>src/testing/types.ts</code></li>
+  </ul>
+</section>

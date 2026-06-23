@@ -1,0 +1,203 @@
+---
+title: "CI Eval Tests: Vitest"
+description: "Wire @arizeai/phoenix-client/vitest into a Vitest project"
+---
+
+`@arizeai/phoenix-client/vitest` ships a Vitest entrypoint plus an optional
+reporter that prints a Phoenix-flavored summary at the end of the run.
+
+## Setup
+
+Create a separate `phoenix.vitest.config.ts` so eval files don't get
+swept into your normal unit-test config:
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: ["**/*.eval.?(c|m)[jt]s"],
+    reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
+    setupFiles: ["dotenv/config"],
+    testTimeout: 30000,
+  },
+});
+```
+
+- `include` keeps eval suites separate from unit tests by matching the
+  `*.eval.ts` convention.
+- `reporters` keeps Vitest's default diagnostics and enables the Phoenix
+  summary block.
+- `setupFiles: ["dotenv/config"]` loads `PHOENIX_HOST`, `PHOENIX_API_KEY`,
+  and any other env vars from `.env`.
+- `testTimeout` is bumped because LLM calls can be slow.
+
+<Note>
+The `jsdom` test environment is not supported. Either omit `environment`
+or set it to `"node"`.
+</Note>
+
+Add a script to `package.json`:
+
+```json
+{
+  "scripts": {
+    "eval": "vitest run --config phoenix.vitest.config.ts"
+  }
+}
+```
+
+The script intentionally uses `vitest run` rather than watch mode —
+many evaluators include longer-running LLM calls.
+
+## API
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+```
+
+### `describe(name, fn, config?)`
+
+Declares a Phoenix test suite. The suite name is the dataset and
+experiment name on the Phoenix server. `describe.only` and
+`describe.skip` work like Vitest's variants.
+
+```ts
+px.describe("my suite", () => { ... }, {
+  datasetName: "override-dataset-and-experiment-name",
+  description: "what this suite is for",
+  metadata: { model: "gpt-4o-mini" },
+  client: myCustomPhoenixClient, // overrides createClient()
+  repetitions: 3,                // run each test in this suite 3x
+  acceptanceCriteria: [
+    { annotationName: "token_f1", metric: "average", threshold: 0.8 },
+    { annotationName: "valid_sql", metric: "passRate", threshold: 1 },
+  ],
+  dryRun: true,                  // run this suite locally; sync nothing
+});
+```
+
+| Field | Type | Description |
+|--------|------|-------------|
+| `datasetName` | `string` | Override the dataset / experiment name (defaults to the suite name). |
+| `description` | `string` | Description recorded on the dataset and experiment. |
+| `metadata` | `Record<string, unknown>` | Suite-level metadata applied to the experiment. |
+| `client` | `PhoenixClient` | Pre-configured `@arizeai/phoenix-client` instance. |
+| `repetitions` | `number` | Run each test in the suite this many times (default `1`; `PHOENIX_TEST_REPETITIONS` overrides the default). Per-test `repetitions` wins. |
+| `acceptanceCriteria` | `AcceptanceCriterion[]` | Aggregate annotation thresholds that fail the suite after all tests run. |
+| `dryRun` | `boolean` | Run the whole suite locally — no dataset, experiment, runs, or annotations are created in Phoenix. Same effect as `PHOENIX_TEST_TRACING=false`, scoped to this suite. |
+
+### `test(name, params, fn, timeout?)`
+
+Declares a single Phoenix test case. The `params` object carries the
+Phoenix `Example` fields. `test.only`, `test.skip`, and `test.each`
+mirror Vitest semantics. `it` is a re-export of `test`.
+
+```ts
+px.test(
+  "a case",
+  {
+    input: { userQuery: "..." },
+    expected: { sql: "..." },
+    metadata: { hard: true },
+    id: "stable-example-id",
+  },
+  async ({ input, expected, metadata }) => {
+    const sql = await myApp(input.userQuery);
+    px.recordOutput({ sql });
+    expect(sql).toEqual(expected?.sql);
+  },
+);
+```
+
+| Param field | Maps to |
+|--------|---------|
+| `input` | `Example.input` |
+| `expected` | `Example.output` (reference) |
+| `metadata` | `Example.metadata` |
+| `id` | `Example.id` (stable upsert id) |
+| `repetitions` | Number of runs against this example (overrides the suite value). Reported as `"<name> [rep i/N]"`. |
+| `dryRun` | When `true`, this case runs as an ordinary local test — no dataset example, no run, nothing uploaded — even if the suite syncs. |
+
+### `test.each(table)(name, fn, timeout?)`
+
+Run the same test body across many examples.
+
+```ts
+const DATASET = [
+  { input: { userQuery: "whats up" }, expected: { sql: "n/a" } },
+  { input: { userQuery: "how are you?" }, expected: { sql: "n/a" } },
+];
+
+px.describe("offtopic inputs", () => {
+  px.test.each(DATASET)("offtopic input", async ({ input, expected }) => {
+    const sql = await myApp(input.userQuery);
+    px.recordOutput({ sql });
+  });
+});
+```
+
+The name template supports `%i`, `%s`, and `%j` for parity with Vitest's
+`test.each`. Without a placeholder the row index is appended.
+
+### Logging
+
+- `px.recordOutput(value)` records the actual `output` for the run.
+- `px.logAnnotation({ name, score, ... })` records an annotation.
+- `px.evaluate(evaluator, params?)` runs an evaluator object and records its
+  result as an annotation linked to the evaluator trace. Evaluators can come
+  from `@arizeai/phoenix-evals.createEvaluator()`, `asExperimentEvaluator()`,
+  or any plain `{ name, evaluate }` object.
+
+See [CI Eval Test Annotations](./ci-evals-annotations) for the full annotation shape.
+
+### Acceptance Criteria
+
+Use `acceptanceCriteria` when a graded metric is allowed to miss some cases
+but must clear an aggregate bar in CI. Criteria run after the suite finishes,
+so all cases still execute and the reporter can show the full scorecard.
+
+```ts
+px.describe("text-to-sql scorecard", () => {
+  // tests log token_f1 and valid_sql annotations
+}, {
+  acceptanceCriteria: [
+    { annotationName: "token_f1", metric: "average", threshold: 0.8 },
+    { annotationName: "valid_sql", metric: "passRate", threshold: 1 },
+    {
+      annotationName: "correctness",
+      metric: "passRate",
+      threshold: 0.8,
+      passingScore: 0.7,
+    },
+  ],
+});
+```
+
+| Field | Description |
+|-------|-------------|
+| `annotationName` | Annotation score to aggregate. If a run logs the same annotation more than once, the last score counts. |
+| `metric` | `"average"` averages numeric scores and boolean scores (`true` = `1`, `false` = `0`); `"passRate"` computes the fraction of passing scores. |
+| `threshold` | Minimum acceptable aggregate value. Use `0.8` for an 80% bar. |
+| `passingScore` | For numeric `passRate`, the per-run score that counts as passing. Defaults to `1`. Boolean `passRate` uses `true`. |
+
+Missing annotations or annotations without numeric/boolean scores fail the
+criterion. Skipped tests do not count; dry-run tests do count because they
+still execute locally.
+
+## Reporter Output
+
+When `@arizeai/phoenix-client/vitest/reporter` is loaded, the runner prints
+a per-suite block at the end of the run with pass/fail counts,
+annotation aggregates, acceptance criteria, and links to the Phoenix dataset and experiment.
+The default Vitest reporter still runs alongside it.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/vitest/index.ts</code></li>
+    <li><code>src/vitest/reporter.ts</code></li>
+    <li><code>src/testing/runner.ts</code></li>
+    <li><code>src/testing/acceptance.ts</code></li>
+  </ul>
+</section>
