@@ -1,10 +1,8 @@
-"""Module-level ``px.*`` recording helpers backed by a contextvar (D11/D12).
+"""Module-level ``px.*`` recording helpers backed by a contextvar.
 
-A single per-run accumulator is set/reset around the test body in the plugin's
-``pytest_runtest_call`` hookwrapper, but ONLY for items carrying the ``phoenix`` marker. The
-helpers read that contextvar so an author writes ``px.log_output(...)`` /
-``px.log_evaluation(...)`` / ``px.evaluate(...)`` with no fixture parameter — which also works
-for unittest ``TestCase`` methods that receive no fixtures.
+The plugin sets a per-run accumulator around each marked test body, so authors call
+``px.log_output(...)`` / ``px.log_evaluation(...)`` / ``px.evaluate(...)`` with no fixture
+parameter — which also works for unittest ``TestCase`` methods that receive no fixtures.
 """
 
 from __future__ import annotations
@@ -80,9 +78,6 @@ def current_run() -> Optional[_RunRecord]:
     return _CURRENT_RUN.get()
 
 
-# --- Public module-level authoring surface (re-exported as ``px``) -------------------
-
-
 def log_output(output: Any) -> None:
     """Record the output under test for the current Phoenix test.
 
@@ -104,7 +99,7 @@ def log_evaluation(
     """Attach an evaluation annotation to the current run (keyed by ``name``).
 
     These annotations are independent of the assertion-derived ``pass`` annotation and gate
-    only in aggregate (D9); calling this does not by itself fail the pytest item.
+    only in aggregate; calling this does not by itself fail the pytest item.
     """
     _require_run().add_evaluation(
         name=name,

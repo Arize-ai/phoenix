@@ -1,4 +1,4 @@
-"""Collect git provenance for the reserved ``metadata.repo_info`` experiment key (D3).
+"""Collect git provenance for the reserved ``metadata.repo_info`` experiment key.
 
 The block is Braintrust-shaped and emitted by both ecosystem runners; the server reads only
 ``repo_info.commit`` for baseline resolution. Collection degrades gracefully: any git failure
@@ -43,7 +43,6 @@ def _sanitize_remote_url(url: Optional[str]) -> Optional[str]:
     except ValueError:
         return None
     if parts.username or parts.password:
-        # Rebuild netloc without the userinfo component.
         host = parts.hostname or ""
         if parts.port:
             host = f"{host}:{parts.port}"
@@ -55,7 +54,6 @@ def collect_repo_info() -> dict[str, Any]:
     """Collect git provenance. Returns ``{}`` when not in a git repo or git is unavailable."""
     commit = _git("rev-parse", "HEAD")
     if commit is None:
-        # Not a git repo (or git missing) -> graceful absence.
         return {}
 
     info: dict[str, Any] = {"commit": commit}

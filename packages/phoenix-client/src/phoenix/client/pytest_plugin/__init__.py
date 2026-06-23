@@ -1,7 +1,7 @@
 """Phoenix pytest plugin.
 
-Authoring surface (D11): mark a test with ``@pytest.mark.phoenix`` and record output /
-evaluations through the module-level helpers::
+Mark a test with ``@pytest.mark.phoenix`` and record output / evaluations through the
+module-level helpers::
 
     import phoenix.client.pytest_plugin as px
 
@@ -12,9 +12,8 @@ evaluations through the module-level helpers::
         px.log_output(result)
         assert result == answer
 
-The pytest11 entry point (registered in pyproject) makes the plugin active whenever both this
-package and pytest are installed. The ``PHOENIX_TEST_*`` env contract is shared verbatim with the
-TypeScript test runner.
+The pytest11 entry point activates the plugin whenever this package and pytest are both
+installed. The ``PHOENIX_TEST_*`` env contract is shared verbatim with the TypeScript test runner.
 """
 
 from __future__ import annotations

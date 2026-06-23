@@ -230,7 +230,7 @@ def test_repetitions_expand_to_distinct_runs(
     pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A marked test with N repetitions becomes N pytest items, each posting a distinct run
-    with a distinct repetition_number on the SAME dataset_example_id (D14)."""
+    with a distinct repetition_number on the SAME dataset_example_id."""
     monkeypatch.setenv("PHOENIX_TEST_REPETITIONS", "3")
     monkeypatch.setenv("PHOENIX_TEST_REPO_INFO", "false")
     pytester.makeconftest(
@@ -317,7 +317,7 @@ def test_repetitions_expand_to_distinct_runs(
 
 def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester) -> None:
     """@pytest.mark.phoenix(evaluators=[...]) runs each evaluator over the case automatically and
-    records its score as an annotation — no inline px.evaluate needed (D12 declarative form)."""
+    records its score as an annotation — no inline px.evaluate needed."""
     pytester.makeconftest(
         """
         import json, os

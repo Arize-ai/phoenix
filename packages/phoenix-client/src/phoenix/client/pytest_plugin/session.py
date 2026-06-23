@@ -2,7 +2,7 @@
 
 One :class:`SuiteState` per pytest session holds the mapping from resolved dataset name to its
 dataset + experiment, the per-item bindings (external_id -> dataset example), and the recorded
-runs. It centralizes the three correlated IDs of D14: ``experiment_id`` (one per dataset name,
+runs. It centralizes the three correlated IDs: ``experiment_id`` (one per dataset name,
 controller-created), ``dataset_example_id`` (resolved post-upload), and ``experiment_run_id``
 (returned by each run POST, the anchor for every annotation).
 """
@@ -32,7 +32,6 @@ class ItemBinding:
     nodeid: str
     dataset_name: str
     external_id: str
-    # Resolved during bootstrap / recording:
     dataset_example_id: Optional[str] = None
 
 
@@ -41,14 +40,13 @@ class DatasetGroup:
     """All marked items resolving to one dataset name -> one dataset + one experiment."""
 
     name: str
-    # external_id -> ItemBinding (deduped by external_id within the group)
+    # external_id -> ItemBinding
     bindings: dict[str, ItemBinding] = field(default_factory=dict)
     dataset_id: Optional[str] = None
     dataset_version_id: Optional[str] = None
     experiment_id: Optional[str] = None
     # external_id -> dataset example node_id (GlobalID)
     example_ids: dict[str, str] = field(default_factory=dict)
-    # Max resolved repetition count across this group's items (experiment.repetitions).
     max_repetitions: int = 1
 
 
@@ -76,8 +74,6 @@ class SuiteState:
         self._repo_info_conflict = False
         self._bootstrapped = False
 
-    # --- collection -----------------------------------------------------------------
-
     def register_item(
         self, item: "Item", *, dataset_name: str, external_id: str, repetitions: int = 1
     ) -> None:
@@ -86,7 +82,6 @@ class SuiteState:
         binding = ItemBinding(
             nodeid=item.nodeid, dataset_name=dataset_name, external_id=external_id
         )
-        # Dedup by external_id within the group (D13: one example per distinct id).
         group.bindings.setdefault(external_id, binding)
         self._bindings_by_nodeid[item.nodeid] = group.bindings[external_id]
         self._items_by_nodeid[item.nodeid] = item
@@ -97,8 +92,6 @@ class SuiteState:
     @property
     def dataset_names(self) -> list[str]:
         return list(self._groups)
-
-    # --- bootstrap (controller only) ------------------------------------------------
 
     @property
     def bootstrapped(self) -> bool:
@@ -137,9 +130,8 @@ class SuiteState:
         outputs = [e["output"] for e in examples]
         metadata = [e["metadata"] for e in examples]
         example_ids = [e["id"] for e in examples]
-        # Partial collection must NOT update-sync: action="update" deletes latest-version
-        # examples absent from the upload and would prune the shared dataset (D15). Fall back
-        # to append (no deletes) so a local `-k`/single-nodeid run never corrupts lineage.
+        # action="update" prunes latest-version examples absent from the upload; append-only
+        # avoids corrupting the shared dataset on partial runs.
         action = "append" if self.partial_collection else "update"
         dataset = self._client.datasets._upload_json_dataset(  # noqa: SLF001
             dataset_name=group.name,
@@ -158,11 +150,9 @@ class SuiteState:
         from phoenix.client.resources.experiments import _example_global_id
 
         dataset = self._client.datasets.get_dataset(dataset=group.dataset_id)
-        # Map our stamped metadata.pytest_nodeid back to each example's node GlobalID. The run
-        # endpoint records dataset_example_id as the node GlobalID; because we upload with custom
-        # example ids, the example "id" field carries our external_id while "node_id" carries the
-        # GlobalID. Resolve through the canonical helper (never "id") so we don't reintroduce the
-        # silent zero-runs bug fixed in PR #13702.
+        # Resolve each example's node GlobalID via _example_global_id, never "id": custom-id
+        # uploads put our external_id in "id" and the GlobalID in "node_id" (guards the PR
+        # #13702 zero-runs bug).
         by_nodeid: dict[str, str] = {}
         for example in dataset.examples:
             nodeid = (example.get("metadata") or {}).get("pytest_nodeid")
@@ -179,19 +169,15 @@ class SuiteState:
             return
         metadata: dict[str, Any] = {}
         if repo_info:
-            # repo_info is reserved for runner-collected git metadata (D3); it overwrites any
-            # user value. We only set it here so there is no user value to clobber yet.
+            # repo_info is a reserved metadata key; runner git provenance overwrites any user value.
             metadata[REPO_INFO_METADATA_KEY] = repo_info
         experiment = self._client.experiments.create(
             dataset_id=group.dataset_id,
             dataset_version_id=group.dataset_version_id,
             experiment_metadata=metadata or None,
-            # Max resolved N across the group's items (per-marker overrides included).
             repetitions=group.max_repetitions,
         )
         group.experiment_id = experiment["id"]
-
-    # --- xdist broadcast ------------------------------------------------------------
 
     def broadcast_payload(self) -> dict[str, dict[str, Any]]:
         return {
@@ -219,8 +205,6 @@ class SuiteState:
             for external_id, example_id in group.example_ids.items():
                 if external_id in group.bindings:
                     group.bindings[external_id].dataset_example_id = example_id
-
-    # --- recording ------------------------------------------------------------------
 
     def record_run(
         self,
@@ -267,7 +251,6 @@ class SuiteState:
             return
         recorded.experiment_run_id = run["id"]
 
-        # Assertion outcome -> reserved `pass` annotation (D12 default composition).
         self._safe_log_eval(
             experiment_run_id=run["id"],
             name=pass_annotation,
@@ -275,7 +258,6 @@ class SuiteState:
             label="pass" if passed else "fail",
             annotator_kind="CODE",
         )
-        # Inline px.evaluate / px.log_evaluation annotations (independent of `pass`).
         for name, kwargs in record.evaluations.items():
             self._safe_log_eval(
                 experiment_run_id=run["id"],
@@ -286,19 +268,13 @@ class SuiteState:
                 annotator_kind=kwargs.get("annotator_kind", "CODE"),
                 metadata=kwargs.get("metadata"),
             )
-        # Hoisted marker evaluators: @pytest.mark.phoenix(evaluators=[...]) runs each evaluator
-        # over the case automatically (D12 declarative form) — the "one task over a dataset with a
-        # uniform evaluator set" shape, with no inline px.evaluate required.
         self._run_marker_evaluators(binding, run_id=run["id"], output=record.output)
 
     def _run_marker_evaluators(self, binding: ItemBinding, *, run_id: str, output: Any) -> None:
-        """Run hoisted ``@pytest.mark.phoenix(evaluators=[...])`` evaluators over the case and
-        record each score as an annotation.
+        """Run hoisted ``@pytest.mark.phoenix(evaluators=[...])`` evaluators and record each score.
 
-        Each evaluator receives the case's parametrized fields plus the recorded ``output`` (the
-        same invocation path as ``px.evaluate``). Results gate only in aggregate — they never fail
-        the individual pytest item (D12). A failing evaluator degrades to a warning, like inline
-        evals, so one broken evaluator never sinks the run's other annotations.
+        Each evaluator receives the case's parametrized fields plus the recorded ``output``. A
+        failing evaluator degrades to a warning so it never sinks the run's other annotations.
         """
         item = self._items_by_nodeid.get(binding.nodeid)
         if item is None:
@@ -340,8 +316,6 @@ class SuiteState:
         except Exception as e:  # noqa: BLE001
             logger.warning("Phoenix plugin: failed to log evaluation %s: %s", kwargs.get("name"), e)
 
-    # --- summary --------------------------------------------------------------------
-
     @property
     def recorded_runs(self) -> list[RecordedRun]:
         return list(self._recorded)
@@ -373,8 +347,7 @@ def _example_fields(
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Derive input/output/metadata for a dataset example from a pytest item.
 
-    Parametrized inputs (``callspec.params``) become the example input; everything else stays
-    minimal so authors who want richer examples attach data via the marker / parametrize ids.
+    Parametrized inputs (``callspec.params``) become the example input.
     """
     input_payload: dict[str, Any] = {}
     output_payload: dict[str, Any] = {}

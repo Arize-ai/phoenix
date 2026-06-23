@@ -36,9 +36,7 @@ def resolve_dataset_name(item: "Item", *, override: Optional[str] = None) -> str
             return str(dataset)
     module = getattr(item, "module", None)
     if module is not None and getattr(module, "__name__", None):
-        # Use the file stem rather than the dotted import path for a friendlier dataset name.
         return str(module.__name__).rsplit(".", 1)[-1]
-    # Fallback: derive from the nodeid path.
     path = item.nodeid.split("::", 1)[0]
     return re.sub(r"\.py$", "", path).rsplit("/", 1)[-1]
 
@@ -76,21 +74,16 @@ def resolve_evaluators(item: "Item") -> list[Any]:
     return [evaluators]
 
 
-# Param id pytest assigns to the injected repetition value, e.g. "phxrep0".
+# Repetition param id set in plugin.pytest_generate_tests ("phxrepN").
 _REP_ID_RE = re.compile(r"phxrep\d+")
-# Matches the trailing "[...]" parametrize id group on a nodeid.
 _PARAM_GROUP_RE = re.compile(r"\[(?P<pid>.*)\]$")
 
 
 def stable_external_id(item: "Item") -> str:
-    """Derive a stable per-example ``external_id`` (D2).
+    """Derive a stable per-example ``external_id`` from the nodeid (including its parametrize id).
 
-    For parametrized items the ``pytest.param`` id is folded into the test's fully-qualified
-    name, so re-running the same suite maps each example to the same dataset example (a PATCH,
-    not a delete+recreate). The injected repetition token (``phxrepN``) is stripped so all N
-    repetitions of the same case share ONE external_id (same example, different
-    ``repetition_number``) — matching the server's ``(experiment, example, repetition)`` run
-    identity. Non-parametrized items use the bare nodeid.
+    The injected repetition token (``phxrepN``) is stripped so all N repetitions of one case
+    share a single example, differing only by the server's ``repetition_number``.
     """
     nodeid = str(item.nodeid)
     match = _PARAM_GROUP_RE.search(nodeid)
@@ -99,7 +92,6 @@ def stable_external_id(item: "Item") -> str:
     tokens = [t for t in match.group("pid").split("-") if not _REP_ID_RE.fullmatch(t)]
     base = nodeid[: match.start()]
     if not tokens:
-        # The only param was the repetition injection; drop the now-empty group entirely.
         return base
     return f"{base}[{'-'.join(tokens)}]"
 

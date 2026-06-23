@@ -1,4 +1,4 @@
-"""Happy-path + contract tests for the public log_run / log_evaluation client methods (D8)."""
+"""Happy-path + contract tests for the public log_run / log_evaluation client methods."""
 
 from __future__ import annotations
 
