@@ -1219,7 +1219,8 @@
             "group": "Guardrails & Safety",
             "icon": "shield-halved",
             "pages": [
-              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense"
+              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
+              "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
             ]
           },
           {
