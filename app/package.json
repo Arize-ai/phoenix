@@ -111,6 +111,9 @@
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
+  "portless": {
+    "appPort": 6006
+  },
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/mcp": "1.0.46",
@@ -151,6 +154,7 @@
     "graphql": "^16.14.2",
     "jsdom": "^29.1.1",
     "mprocs": "^0.9.6",
+    "portless": "^0.14.0",
     "only-allow": "^1.2.2",
     "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.54.0",
