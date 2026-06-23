@@ -104,7 +104,9 @@ Each evaluator is an LLM-as-a-judge that reads the **entire transcript** (the `m
 from phoenix.evals import LLM, ClassificationEvaluator, async_evaluate_dataframe
 from phoenix.trace import suppress_tracing
 
-judge = LLM(provider="anthropic", model="claude-sonnet-4-20250514")
+# Anthropic model used for the judges - change it here to run on a different model.
+MODEL = "claude-sonnet-4-6"
+judge = LLM(provider="anthropic", model=MODEL)
 
 coherence_evaluator = ClassificationEvaluator(
     name="coherence", llm=judge, prompt_template=SESSION_COHERENCE_PROMPT,
