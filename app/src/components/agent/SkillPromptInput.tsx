@@ -9,7 +9,10 @@ import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/Promp
 import { SkillHighlightOverlay } from "./SkillHighlightOverlay";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
-import type { SlashMenuItem } from "./usePromptSkillCommand";
+import type {
+  SkillCompletion,
+  SlashMenuItem,
+} from "./usePromptSkillCommand";
 import { usePromptSkillCommand } from "./usePromptSkillCommand";
 
 const wrapperCSS = css`
@@ -162,23 +165,21 @@ export function SkillPromptInput({
     );
   };
 
-  type CommitResult = { value: string; caret: number };
-
   // Apply a menu selection, then run `afterCommit` once React has flushed the
   // new value. Deferring past the frame lets `afterCommit` observe the
   // completed token (e.g. a submit reads it, not the partial query).
   const commitItem = (
     item: SlashMenuItem,
-    afterCommit: (result: CommitResult) => void
+    afterCommit: (completion: SkillCompletion) => void
   ) => {
-    const result = skillCommand.selectItem(value, item);
-    if (!result) return;
-    setValue(result.value);
-    requestAnimationFrame(() => afterCommit(result));
+    const completion = skillCommand.selectItem(value, item);
+    if (!completion) return;
+    setValue(completion.value);
+    requestAnimationFrame(() => afterCommit(completion));
   };
 
   // Put the caret just after the inserted token so the user can keep typing.
-  const restoreCaret = ({ value, caret }: CommitResult) => {
+  const restoreCaret = ({ value, caret }: SkillCompletion) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.focus();
