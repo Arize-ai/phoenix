@@ -24,13 +24,14 @@ tsx run_experiment.ts
 
 ## Run the eval-test example
 
-`sql.eval.ts` uses the `@arizeai/phoenix-client/vitest` submodule and
-should be run with Vitest:
+The vitest example lives in [`vitest/`](./vitest). `vitest/sql.eval.ts` uses
+the `@arizeai/phoenix-client/vitest` submodule and is run with Vitest, using the
+`vitest/phoenix.vitest.config.ts` config:
 
 ```sh
 cd js/packages/phoenix-client
 OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
-  --config examples/phoenix.vitest.config.ts examples/sql.eval.ts
+  --config examples/vitest/phoenix.vitest.config.ts examples/vitest/sql.eval.ts
 ```
 
 Run from the package root so `pnpm exec` can resolve the workspace package and

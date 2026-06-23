@@ -5,7 +5,7 @@
  * Run with:
  *   cd js/packages/phoenix-client
  *   OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
- *     --config examples/phoenix.vitest.config.ts examples/sql.eval.ts
+ *     --config examples/vitest/phoenix.vitest.config.ts examples/vitest/sql.eval.ts
  *
  * Expected env vars (when tracking to a Phoenix server):
  *   PHOENIX_HOST=https://app.phoenix.arize.com
