@@ -36,7 +36,7 @@ px.describe("text-to-sql: annotations", () => {
     },
     async ({ input, expected }) => {
       const { sql } = generateSql(input.userQuery);
-      px.recordOutput({ sql });
+      px.logOutput({ sql });
 
       const reference = expected?.sql ?? "";
       // Each evaluator lands as its own annotation on the run. Together they

@@ -18,7 +18,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createRefusalEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
+import { labelAccuracy } from "../src/evaluators";
 
 const refusalEvaluator = createRefusalEvaluator({
   model: openai("gpt-4o-mini"),
@@ -323,9 +323,7 @@ const cases = Object.entries(examplesByCategory).flatMap(
     }))
 );
 
-const suite = benchmarkSuite(px.describe);
-
-suite(
+px.describe(
   "refusal-evaluator-benchmark",
   () => {
     for (const testCase of cases) {
@@ -342,7 +340,7 @@ suite(
             input: input.question,
             output: input.answer,
           });
-          px.recordOutput(prediction);
+          px.logOutput(prediction);
           await px.evaluate(labelAccuracy);
         }
       );

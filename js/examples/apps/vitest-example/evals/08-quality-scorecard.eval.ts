@@ -28,7 +28,7 @@ import {
 /** Run the full evaluator panel and assert the universal guardrail. */
 async function score(userQuery: string, referenceSql: string): Promise<void> {
   const { sql } = generateSql(userQuery);
-  px.recordOutput({ sql });
+  px.logOutput({ sql });
   await px.evaluate(sqlExactMatch, { output: sql, expected: referenceSql });
   await px.evaluate(sqlSimilarity, { output: sql, expected: referenceSql });
   await px.evaluate(isValidSql, { output: sql });

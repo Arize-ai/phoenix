@@ -26,7 +26,7 @@ px.describe("text-to-sql: full eval set", () => {
   // `%s` interpolates the row's stringified input into the test name.
   px.test.each(TEXT_TO_SQL_CASES)("%s", async ({ input, expected }) => {
     const { sql } = generateSql(input.userQuery);
-    px.recordOutput({ sql });
+    px.logOutput({ sql });
 
     const reference = expected?.sql ?? "";
     await px.evaluate(sqlExactMatch, { output: sql, expected: reference });

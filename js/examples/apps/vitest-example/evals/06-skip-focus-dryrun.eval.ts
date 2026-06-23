@@ -25,7 +25,7 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
     },
     async ({ input, expected }) => {
       const { sql } = generateSql(input.userQuery);
-      px.recordOutput({ sql });
+      px.logOutput({ sql });
       expect(sql).toEqual(expected?.sql);
     }
   );
@@ -53,7 +53,7 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
     },
     async ({ input }) => {
       const { sql } = generateSql(input.userQuery);
-      px.recordOutput({ sql });
+      px.logOutput({ sql });
       expect(typeof sql).toBe("string");
     }
   );
@@ -64,7 +64,7 @@ px.describe("text-to-sql: skip / focus / dry-run", () => {
   //   { input: { userQuery: "How many users are there?" } },
   //   async ({ input }) => {
   //     const { sql } = generateSql(input.userQuery);
-  //     px.recordOutput({ sql });
+  //     px.logOutput({ sql });
   //     expect(sql).toContain("COUNT(*)");
   //   }
   // );

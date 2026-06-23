@@ -19,7 +19,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
+import { labelAccuracy } from "../src/evaluators";
 
 const relevanceEvaluator = createDocumentRelevanceEvaluator({
   model: openai("gpt-4o-mini"),
@@ -220,9 +220,7 @@ const cases = examples.map((example) => ({
     | "unrelated",
 }));
 
-const suite = benchmarkSuite(px.describe);
-
-suite(
+px.describe(
   "document-relevance-evaluator-benchmark",
   () => {
     for (const testCase of cases) {
@@ -241,7 +239,7 @@ suite(
             input: input.question,
             documentText: input.documentText,
           });
-          px.recordOutput(prediction);
+          px.logOutput(prediction);
           await px.evaluate(labelAccuracy);
         }
       );

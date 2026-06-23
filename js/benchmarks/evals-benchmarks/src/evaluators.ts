@@ -32,7 +32,7 @@ export interface ExpectedLabel {
  * Meta-evaluator: scores whether the evaluator-under-test's predicted `label`
  * matches the expected label on the dataset example. Reads the recorded run
  * output and the example's `expected` by default, so a benchmark only needs to
- * `recordOutput(prediction)` and then `await evaluate(labelAccuracy)`.
+ * `logOutput(prediction)` and then `await evaluate(labelAccuracy)`.
  */
 export const labelAccuracy: Evaluator = {
   name: "accuracy",

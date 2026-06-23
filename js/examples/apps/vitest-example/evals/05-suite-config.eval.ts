@@ -34,7 +34,7 @@ px.describe(
       },
       async ({ input, expected }) => {
         const { sql } = generateSql(input.userQuery);
-        px.recordOutput({ sql });
+        px.logOutput({ sql });
         await px.evaluate(sqlExactMatch, {
           output: sql,
           expected: expected?.sql ?? "",
@@ -54,7 +54,7 @@ px.describe(
       },
       async ({ input, expected }) => {
         const { sql } = generateSql(input.userQuery);
-        px.recordOutput({ sql });
+        px.logOutput({ sql });
         // This one is a known partial: graded, not asserted for exactness.
         await px.evaluate(sqlSimilarity, {
           output: sql,

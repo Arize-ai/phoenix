@@ -97,7 +97,7 @@ suite(
       },
       async ({ input, expected }) => {
         const sql = await generateSql(input.userQuery);
-        px.recordOutput({ sql });
+        px.logOutput({ sql });
         await px.evaluate(correctness, {
           output: sql,
           expected: expected?.sql ?? "",

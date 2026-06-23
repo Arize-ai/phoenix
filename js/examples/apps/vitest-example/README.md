@@ -20,7 +20,7 @@ real Phoenix instance when you're ready.
 | `params.input`                          | `Example.input`                               |
 | `params.expected`                       | `Example.output` (reference)                  |
 | each `expect(...)`                      | a `pass` annotation on the run                |
-| `px.recordOutput(...)`                  | the run's actual output                       |
+| `px.logOutput(...)`                     | the run's actual output                       |
 | `px.evaluate(...)` / `px.logAnnotation` | annotations on the run                        |
 
 ## Run it
@@ -78,7 +78,7 @@ usually means your eval set is too easy — not that your app is flawless.
 
 | File                                 | Demonstrates                                                                                       |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `evals/01-basics.eval.ts`            | `describe` / `test`, `input` / `expected`, `recordOutput`, assertions                              |
+| `evals/01-basics.eval.ts`            | `describe` / `test`, `input` / `expected`, `logOutput`, assertions                                 |
 | `evals/02-annotations.eval.ts`       | evaluator annotations via `px.evaluate` + `logAnnotation` on a case the app partly misses          |
 | `evals/03-test-each.eval.ts`         | running the full curated dataset with `test.each` and graded metrics                               |
 | `evals/04-repetitions.eval.ts`       | per-test and suite-level `repetitions`                                                             |

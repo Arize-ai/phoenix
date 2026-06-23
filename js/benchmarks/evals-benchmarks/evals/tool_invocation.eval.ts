@@ -20,7 +20,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
+import { labelAccuracy } from "../src/evaluators";
 
 const toolInvocationEvaluator = createToolInvocationEvaluator({
   model: openai("gpt-4o-mini"),
@@ -525,9 +525,7 @@ const cases = Object.entries(examplesByCategory).flatMap(
     }))
 );
 
-const suite = benchmarkSuite(px.describe);
-
-suite(
+px.describe(
   "tool-invocation-evaluator-benchmark",
   () => {
     for (const testCase of cases) {
@@ -549,7 +547,7 @@ suite(
             availableTools: input.availableTools,
             toolSelection: input.toolSelection,
           });
-          px.recordOutput(prediction);
+          px.logOutput(prediction);
           await px.evaluate(labelAccuracy);
         }
       );

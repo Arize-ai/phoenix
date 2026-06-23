@@ -26,7 +26,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
+import { labelAccuracy } from "../src/evaluators";
 
 const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: openai("gpt-4o-mini"),
@@ -86,9 +86,9 @@ const examples = [
       'Indogrammodes is a genus of moths of the Crambidae family. It contains only one species, Indogrammodes pectinicornalis, which is found in India.India, officially the Republic of India ("Bhārat Gaṇarājya"), is a country in South Asia. It is the seventh-largest country by area, the second-most populous country (with over 1.2 billion people), and the most populous democracy in the world.',
     question:
       "Which genus of moth in the world's seventh-largest country contains only one species?",
-    right_answer: "Crambidae",
+    right_answer: "Indogrammodes",
     unfaithful_answer:
-      "The Indogrammodes genus of moths found in India has only one species.",
+      "The Indogrammodes genus found in India contains several hundred species of moths.",
   },
   {
     knowledge:
@@ -96,7 +96,8 @@ const examples = [
     question:
       'Who was once considered the best kick boxer in the world, however he has been involved in a number of controversies relating to his "unsportsmanlike conducts" in the sport and crimes of violence outside of the ring.',
     right_answer: "Badr Hari",
-    unfaithful_answer: "Badr Hari is a notorious kickboxer.",
+    unfaithful_answer:
+      "Peter Aerts was the fighter once considered the best kickboxer in the world.",
   },
 ];
 
@@ -121,9 +122,7 @@ const cases = examples.flatMap((example) => [
   },
 ]);
 
-const suite = benchmarkSuite(px.describe);
-
-suite(
+px.describe(
   "faithfulness-evaluator-benchmark",
   () => {
     for (const testCase of cases) {
@@ -145,7 +144,7 @@ suite(
             context: input.context,
             output: input.answer,
           });
-          px.recordOutput(prediction);
+          px.logOutput(prediction);
           await px.evaluate(labelAccuracy);
         }
       );

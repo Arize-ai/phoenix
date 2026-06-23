@@ -20,7 +20,7 @@ import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals";
 
-import { benchmarkSuite, labelAccuracy } from "../src/evaluators";
+import { labelAccuracy } from "../src/evaluators";
 
 const toolResponseHandlingEvaluator = createToolResponseHandlingEvaluator({
   model: openai("gpt-4o-mini"),
@@ -798,9 +798,7 @@ const cases = Object.entries(examplesByCategory).flatMap(
     }))
 );
 
-const suite = benchmarkSuite(px.describe);
-
-suite(
+px.describe(
   "tool-response-handling-evaluator-benchmark",
   () => {
     for (const testCase of cases) {
@@ -827,7 +825,7 @@ suite(
             toolResult: input.toolResult,
             output: input.output,
           });
-          px.recordOutput(prediction);
+          px.logOutput(prediction);
           await px.evaluate(labelAccuracy);
         }
       );

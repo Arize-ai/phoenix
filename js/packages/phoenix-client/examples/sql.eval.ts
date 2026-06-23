@@ -109,7 +109,7 @@ px.describe("generate sql demo", () => {
     },
     async ({ input, expected }) => {
       const sql = await generateSql(input.userQuery as string);
-      px.recordOutput({ sql });
+      px.logOutput({ sql });
       await px.evaluate(correctness, {
         output: { sql },
         expected: expected ?? { sql: "" },
@@ -129,7 +129,7 @@ px.describe("generate sql demo", () => {
     },
   ])("offtopic input", async ({ input, expected }) => {
     const sql = await generateSql(input.userQuery as string);
-    px.recordOutput({ sql });
+    px.logOutput({ sql });
     await px.evaluate(correctness, {
       output: { sql },
       expected: expected ?? { sql: "" },
