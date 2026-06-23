@@ -19,7 +19,6 @@ import {
   MenuButton,
   MenuButtonValue,
   MenuContainer,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
@@ -34,6 +33,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
@@ -416,7 +416,10 @@ export const MenuHeaderTitleWithSearch = () => {
               items={FILTER_OPTIONS}
               selectionMode="multiple"
               renderEmptyState={() => (
-                <MenuEmpty>No categories found</MenuEmpty>
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.PriceTags />} />}
+                  description="No categories found"
+                />
               )}
               selectedKeys={selectedIds}
               onSelectionChange={(keys) => {
