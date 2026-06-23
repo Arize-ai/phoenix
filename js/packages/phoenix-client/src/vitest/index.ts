@@ -45,7 +45,7 @@ export {
 
 const hooks: RunnerHooks = {
   describe: vitestDescribe,
-  describeOnly: vitestDescribe,
+  describeOnly: vitestDescribe.only,
   describeSkip: vitestDescribe.skip,
   test: vitestTest,
   testOnly: vitestTest.only,

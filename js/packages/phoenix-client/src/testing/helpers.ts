@@ -14,7 +14,7 @@ import type {
 } from "./types";
 
 /**
- * lot the output produced by the test for the current run.
+ * Log the output produced by the test for the current run.
  *
  * Calling this multiple times overwrites the previously recorded value.
  * The argument can be any JSON-serializable value — typically an object
