@@ -396,6 +396,10 @@ jobs:
         id: filter
         with:
           base: main
+          # Diff against the dispatched feature branch, not the branch the
+          # workflow file was dispatched from (which is what paths-filter uses
+          # by default when `ref` is omitted).
+          ref: ${{ inputs.feature_branch }}
           filters: |
             main:
               - 'src/phoenix/**'
