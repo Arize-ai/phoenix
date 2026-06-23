@@ -1,0 +1,25 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import * as TreeViewStories from "./TreeView.stories.tsx";
+
+<Meta of={TreeViewStories} />
+
+# Tree View
+
+The starting primitive for a unified, keyboard-accessible tree used across the
+span, trace, and session views. Just bare divs with raw text inside a border —
+no indentation, padding, or theming yet. Those arrive as we iterate.
+
+<Canvas of={TreeViewStories.PrimitiveTree} />
+
+## Keyboard
+
+The tree is a single tab stop (roving tabindex): **Tab** moves onto it, **Tab**
+again moves past it.
+
+- **↑ / ↓** — move between rows
+- **← / →** — collapse / expand a row with children
+- **Home / End** — first / last row
+- **Enter / Space** — select the focused row
+
+The border highlights the focused row for keyboard nav and the hovered row for
+the mouse.
