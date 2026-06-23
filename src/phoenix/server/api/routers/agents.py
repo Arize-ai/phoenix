@@ -57,10 +57,7 @@ from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
     ChatContext,
-    GraphQLContext,
     ResolvedContexts,
-    SubagentsContext,
-    WebAccessContext,
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
@@ -283,27 +280,6 @@ class _SummarizeRequest(_ObservabilityMixin):
 
 class _SummarizeResponse(BaseModel):
     summary: str
-
-
-class _ServerAgentRunRequest(_ObservabilityMixin):
-    """Body for POST /agents/server/sessions/{session_id}/chat."""
-
-    model_config = ConfigDict(
-        populate_by_name=True,
-        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
-    )
-
-    input: str = Field(min_length=1)
-    model: AgentModelSelection
-    enable_web_access: bool = Field(default=False, alias="enableWebAccess")
-    allow_mutations: bool = Field(default=False, alias="allowMutations")
-
-
-class _ServerAgentRunResponse(_CamelModel):
-    output: str
-    session_id: str
-    trace: AssistantMessageMetadataTraceIds | None = None
-    usage: AssistantMessageMetadataUsage
 
 
 logger = logging.getLogger(__name__)
@@ -696,23 +672,26 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post(
-        "/agents/server/sessions/{session_id}/chat",
-        response_model=_ServerAgentRunResponse,
-    )
+    @router.post("/agents/server/sessions/{session_id}/chat")
     async def run_server_agent(
         session_id: str,
         request: Request,
-        body: _ServerAgentRunRequest,
-    ) -> _ServerAgentRunResponse:
+        request_body: ChatRequest,
+    ) -> Response:
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         if get_env_phoenix_agents_disable_bash():
             raise HTTPException(status_code=403, detail="Server agent is disabled")
 
+        body = request_body.root
+        resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
-        if body.allow_mutations and phoenix_user is not None and phoenix_user.is_viewer:
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        graphql_mutations_enabled = (
+            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
+        )
+        if graphql_mutations_enabled and is_viewer:
             raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
 
         recording = request.app.state.system_settings.agent_trace_recording
@@ -752,32 +731,29 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
-        web_access_enabled = body.enable_web_access and get_env_phoenix_agents_web_access_enabled()
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(
-                graphql=GraphQLContext(
-                    type="graphql",
-                    mutationsEnabled=body.allow_mutations,
-                ),
-                web_access=WebAccessContext(
-                    type="web_access",
-                    enabled=web_access_enabled,
-                ),
-                subagents=SubagentsContext(
-                    type="subagents",
-                    enabled=True,
-                ),
-            ),
-            is_viewer=phoenix_user.is_viewer if phoenix_user is not None else False,
+        web_access_enabled = (
+            resolved_contexts.web_access is not None
+            and resolved_contexts.web_access.enabled
+            and get_env_phoenix_agents_web_access_enabled()
         )
-        delegated_server_agent = build_delegated_server_agent(
-            model=model,
-            schema=request.app.state.graphql_schema,
-            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-            docs_mcp_server=request.app.state.docs_mcp_server,
-            enable_web_access=web_access_enabled,
-            allow_mutations=body.allow_mutations,
-            tracer_provider=tracer_provider,
+        deps = AgentDependencies(
+            contexts=resolved_contexts,
+            edit_permission=body.edit_permission,
+            is_viewer=is_viewer,
+        )
+        subagents_enabled = _subagents_enabled(resolved_contexts)
+        delegated_server_agent = (
+            build_delegated_server_agent(
+                model=model,
+                schema=request.app.state.graphql_schema,
+                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                enable_web_access=web_access_enabled,
+                allow_mutations=graphql_mutations_enabled,
+                tracer_provider=tracer_provider,
+            )
+            if subagents_enabled
+            else None
         )
         server_agent = build_server_agent(
             model=model,
@@ -786,42 +762,52 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
-            allow_mutations=body.allow_mutations,
+            allow_mutations=graphql_mutations_enabled,
             tracer_provider=tracer_provider,
             server_agent=delegated_server_agent,
         )
+        adapter: VercelAIAdapter[AgentDependencies, str] = VercelAIAdapter(
+            agent=server_agent,
+            run_input=body,
+            accept=request.headers.get("accept"),
+        )
 
-        try:
-            with detached_otel_context(), using_session(session_id=session_id):
-                result = await server_agent.run(body.input, deps=deps)
-            usage = result.usage()
-            span_context = agent_span_recorder.span_context if agent_span_recorder else None
-            trace_ids = (
-                AssistantMessageMetadataTraceIds(
-                    trace_id=format_trace_id(span_context.trace_id),
-                    root_span_id=format_span_id(span_context.span_id),
-                )
-                if span_context is not None
-                else None
+        async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            yield _build_message_metadata_chunk(
+                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                session_id=session_id,
+                usage=result.usage(),
             )
             _log_run_complete(result)
-            return _ServerAgentRunResponse(
-                output=result.output,
-                session_id=session_id,
-                trace=trace_ids,
-                usage=_build_usage_payload(usage),
-            )
-        finally:
-            if tracer is not None:
-                tracer.tracer_provider.force_flush()
-                if ingest_traces:
-                    project_id = await _ensure_project_exists(request.app.state.db, project_name)
-                    db_traces = tracer.get_db_traces(project_id=project_id)
-                    if db_traces:
-                        async with request.app.state.db() as session:
-                            await _persist_db_traces(session=session, db_traces=db_traces)
-                            await session.flush()
-                tracer.tracer_provider.shutdown()
+
+        async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            try:
+                with detached_otel_context(), using_session(session_id=session_id):
+                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    assert _is_async_generator(raw_stream)
+                    async with aclosing(raw_stream) as stream:
+                        async for chunk in stream:
+                            if isinstance(chunk, ToolInputAvailableChunk):
+                                chunk.provider_metadata = _get_updated_provider_metadata(
+                                    provider_metadata=chunk.provider_metadata or {},
+                                    tool_name=chunk.tool_name,
+                                )
+                            yield chunk
+            finally:
+                if tracer is not None:
+                    tracer.tracer_provider.force_flush()
+                    if ingest_traces:
+                        project_id = await _ensure_project_exists(
+                            request.app.state.db, project_name
+                        )
+                        db_traces = tracer.get_db_traces(project_id=project_id)
+                        if db_traces:
+                            async with request.app.state.db() as session:
+                                await _persist_db_traces(session=session, db_traces=db_traces)
+                                await session.flush()
+                    tracer.tracer_provider.shutdown()
+
+        return adapter.streaming_response(_stream_with_session())
 
     @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(

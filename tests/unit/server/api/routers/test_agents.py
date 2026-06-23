@@ -10,7 +10,7 @@ import httpx
 import pytest
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
-from pydantic_ai.usage import RunUsage
+from starlette.responses import StreamingResponse
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -34,29 +34,32 @@ from phoenix.server.types import DbSessionFactory, UserId
 
 def _server_agent_run_body(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
-        "input": "How many traces are in the default project?",
+        "trigger": "submit-message",
+        "id": "test-msg-id",
+        "messages": [
+            {
+                "id": "msg-1",
+                "role": "user",
+                "parts": [{"type": "text", "text": "How many traces are in the default project?"}],
+            }
+        ],
         "model": {
             "providerType": "builtin",
             "provider": "OPENAI",
             "modelName": "gpt-4.1",
         },
+        "contexts": [
+            {"type": "graphql", "mutationsEnabled": True},
+            {"type": "web_access", "enabled": True},
+            {"type": "subagents", "enabled": True},
+        ],
     }
     body.update(overrides)
     return body
 
 
-class _FakeAgentRunResult:
-    output = "There are 3 traces."
-
-    def usage(self) -> RunUsage:
-        return RunUsage(input_tokens=5, output_tokens=7)
-
-    def all_messages(self) -> list[Any]:
-        return []
-
-
 class TestServerAgentRunEndpoint:
-    async def test_runs_server_agent_without_ui_adapter(
+    async def test_runs_server_agent_with_ui_adapter(
         self,
         httpx_client: httpx.AsyncClient,
         monkeypatch: pytest.MonkeyPatch,
@@ -69,29 +72,54 @@ class TestServerAgentRunEndpoint:
             return object()
 
         class ServerAgent:
-            async def run(
-                self,
-                run_input: str,
-                *,
-                deps: AgentDependencies,
-            ) -> _FakeAgentRunResult:
-                captured["run_input"] = run_input
-                captured["deps"] = deps
-                return _FakeAgentRunResult()
+            pass
 
         def build_server_agent(**kwargs: Any) -> ServerAgent:
-            captured["server_agent_kwargs"] = kwargs
+            captured.setdefault("server_agent_kwargs", []).append(kwargs)
             return ServerAgent()
 
         def build_delegated_server_agent(**kwargs: Any) -> object:
             captured["delegated_server_agent_kwargs"] = kwargs
             return object()
 
+        class FakeVercelAIAdapter:
+            def __init__(
+                self,
+                *,
+                agent: ServerAgent,
+                run_input: Any,
+                accept: str | None,
+            ) -> None:
+                captured["adapter_agent"] = agent
+                captured["adapter_run_input"] = run_input
+                captured["adapter_accept"] = accept
+
+            def run_stream(
+                self, *, deps: AgentDependencies, on_complete: Any
+            ) -> AsyncIterator[Any]:
+                captured["deps"] = deps
+                captured["on_complete"] = on_complete
+
+                async def stream() -> AsyncIterator[Any]:
+                    if False:
+                        yield None
+
+                return stream()
+
+            def streaming_response(self, stream: Any) -> StreamingResponse:
+                async def body() -> AsyncIterator[bytes]:
+                    async for _ in stream:
+                        pass
+                    yield b"ok"
+
+                return StreamingResponse(body(), media_type="text/plain")
+
         monkeypatch.setattr(agents_router, "build_model", build_model)
         monkeypatch.setattr(
             agents_router, "build_delegated_server_agent", build_delegated_server_agent
         )
         monkeypatch.setattr(agents_router, "build_server_agent", build_server_agent)
+        monkeypatch.setattr(agents_router, "VercelAIAdapter", FakeVercelAIAdapter)
         monkeypatch.setattr(agents_router, "get_env_phoenix_agents_disable_bash", lambda: False)
         monkeypatch.setattr(
             agents_router, "get_env_phoenix_agents_web_access_enabled", lambda: True
@@ -99,28 +127,16 @@ class TestServerAgentRunEndpoint:
 
         response = await httpx_client.post(
             "/agents/server/sessions/test-session-id/chat",
-            json=_server_agent_run_body(enableWebAccess=True, allowMutations=True),
+            json=_server_agent_run_body(),
         )
 
         assert response.status_code == 200
-        assert response.json() == {
-            "output": "There are 3 traces.",
-            "sessionId": "test-session-id",
-            "trace": None,
-            "usage": {
-                "tokens": {
-                    "prompt": 5,
-                    "completion": 7,
-                    "total": 12,
-                },
-                "promptDetails": None,
-            },
-        }
-        assert captured["run_input"] == "How many traces are in the default project?"
+        assert response.text == "ok"
         assert isinstance(captured["deps"], AgentDependencies)
         assert captured["deps"].contexts.graphql is not None
         assert captured["deps"].contexts.graphql.mutations_enabled is True
-        server_agent_kwargs = captured["server_agent_kwargs"]
+        assert len(captured["server_agent_kwargs"]) == 1
+        server_agent_kwargs = captured["server_agent_kwargs"][0]
         assert server_agent_kwargs["enable_web_access"] is True
         assert server_agent_kwargs["allow_mutations"] is True
         assert server_agent_kwargs["server_agent"] is not None
