@@ -14,13 +14,10 @@ from typing import Any, Mapping, Optional
 
 @dataclass
 class _RunRecord:
-    """Per-test recording accumulator. One record per marked item invocation."""
-
     nodeid: str
     external_id: str
     output: Any = None
     output_logged: bool = False
-    # name -> evaluation kwargs accepted by Experiments.log_evaluation
     evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def set_output(self, value: Any) -> None:

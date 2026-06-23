@@ -1,9 +1,5 @@
-"""Phoenix pytest plugin: map a pytest suite onto a Phoenix dataset + experiment.
-
-Mapping: suite (resolved ``dataset=`` name, default = module name) = dataset; test = example +
-run; assertion outcome = reserved ``pass`` annotation; ``@pytest.mark.phoenix`` evaluators /
-inline ``px.evaluate`` = extra annotations. The ``PHOENIX_TEST_*`` env contract is shared with
-the TypeScript runner.
+"""Map a pytest suite onto a Phoenix dataset + experiment: suite = dataset, test = example +
+run, assertion outcome = reserved ``pass`` annotation, marker/inline evaluators = annotations.
 """
 
 from __future__ import annotations
@@ -26,7 +22,6 @@ from .marker import (
     resolve_repetitions,
     stable_external_id,
 )
-from .repo_info import collect_repo_info
 from .session import SuiteState
 
 if TYPE_CHECKING:
@@ -57,8 +52,7 @@ def pytest_configure(config: "Config") -> None:
 
 @pytest.fixture(name=REPETITION_PARAM, autouse=True)
 def _phoenix_repetition() -> int:
-    """Repetition index injected per item; autouse so the name always resolves on marked tests
-    for ``pytest_generate_tests`` to parametrize."""
+    """Repetition index; autouse so the param name always resolves for ``pytest_generate_tests``."""
     return 0
 
 
@@ -115,8 +109,6 @@ def pytest_collection_modifyitems(
     if not phoenix_items:
         return
 
-    # Partial collections (-k, single nodeid, last-failed) must not action="update" sync:
-    # the server prunes latest-version examples absent from the upload.
     partial = _is_partial_collection(session, config)
 
     state = SuiteState(config=cfg, partial_collection=partial)
@@ -135,8 +127,7 @@ def pytest_collection_modifyitems(
     if cfg.offline:
         return
     if _is_xdist_worker(config):
-        # Workers reuse the controller's experiment ids — experiment creation is not
-        # idempotent (unlike the dataset upsert).
+        # Workers reuse the controller's ids; experiment creation isn't idempotent (the upsert is).
         workerinput: dict[str, Any] = config.workerinput  # type: ignore[attr-defined]
         broadcast = workerinput.get("phoenix_experiments")
         if broadcast:
@@ -171,19 +162,15 @@ def _bootstrap_controller(state: SuiteState) -> None:
     """Upsert datasets + create experiments on the controller. Idempotent (no-op once done)."""
     if state.bootstrapped:
         return
-    repo_info = collect_repo_info() if state.config.collect_repo_info else {}
     try:
-        state.bootstrap(_make_client(), repo_info=repo_info, pass_annotation=_PASS_ANNOTATION)
+        state.bootstrap(_make_client(), pass_annotation=_PASS_ANNOTATION)
     except Exception as e:  # noqa: BLE001
-        # Best-effort: a bootstrap failure disables recording but a configured gate turns it
-        # fatal at teardown.
         logger.warning("Phoenix plugin: failed to initialize experiment recording: %s", e)
         state.record_bootstrap_error(e)
 
 
 def pytest_configure_node(node: Any) -> None:  # pragma: no cover - xdist hook
-    """xdist controller hook: bootstrap (if not yet) then broadcast experiment ids to each
-    worker via ``workerinput``. Workers never create experiments themselves."""
+    """xdist controller hook: bootstrap then broadcast experiment ids via ``workerinput``."""
     state = _get_state(node.config)
     if state is None or state.config.offline:
         return
@@ -193,8 +180,8 @@ def pytest_configure_node(node: Any) -> None:  # pragma: no cover - xdist hook
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item: "Item") -> Any:
-    """Single status-join hook: own the run accumulator and derive ``pass``+``error`` from one
-    signal (``outcome.excinfo``), then post the run and its annotations."""
+    """Own the run accumulator: derive ``pass``+``error`` from ``outcome.excinfo``, then post
+    the run and its annotations."""
     state = _get_state(item.config)
     binding = state.binding_for(item) if state is not None else None
     if binding is None:

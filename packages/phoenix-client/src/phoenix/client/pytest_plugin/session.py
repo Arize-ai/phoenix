@@ -1,11 +1,4 @@
-"""Suite-level state: dataset upsert, experiment correlation, and run recording.
-
-One :class:`SuiteState` per pytest session holds the mapping from resolved dataset name to its
-dataset + experiment, the per-item bindings (external_id -> dataset example), and the recorded
-runs. It centralizes the three correlated IDs: ``experiment_id`` (one per dataset name,
-controller-created), ``dataset_example_id`` (resolved post-upload), and ``experiment_run_id``
-(returned by each run POST, the anchor for every annotation).
-"""
+"""Suite-level state: dataset upsert, experiment correlation, and run recording."""
 
 from __future__ import annotations
 
@@ -17,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Optional
 from .config import PhoenixTestConfig
 from .context import _invoke_evaluator, _iter_scores, _RunRecord
 from .marker import REPETITION_PARAM, resolve_evaluators
-from .repo_info import REPO_INFO_METADATA_KEY
 
 if TYPE_CHECKING:
     from _pytest.nodes import Item
@@ -27,8 +19,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ItemBinding:
-    """Per-test binding produced at collection time and resolved during bootstrap."""
-
     nodeid: str
     dataset_name: str
     external_id: str
@@ -40,12 +30,11 @@ class DatasetGroup:
     """All marked items resolving to one dataset name -> one dataset + one experiment."""
 
     name: str
-    # external_id -> ItemBinding
     bindings: dict[str, ItemBinding] = field(default_factory=dict)
     dataset_id: Optional[str] = None
     dataset_version_id: Optional[str] = None
     experiment_id: Optional[str] = None
-    # external_id -> dataset example node_id (GlobalID)
+    # external_id -> dataset example node_id (GlobalID), not the example "id"
     example_ids: dict[str, str] = field(default_factory=dict)
     max_repetitions: int = 1
 
@@ -71,7 +60,6 @@ class SuiteState:
         self._recorded: list[RecordedRun] = []
         self._client: Any = None
         self._bootstrap_error: Optional[Exception] = None
-        self._repo_info_conflict = False
         self._bootstrapped = False
 
     def register_item(
@@ -97,13 +85,13 @@ class SuiteState:
     def bootstrapped(self) -> bool:
         return self._bootstrapped
 
-    def bootstrap(self, client: Any, *, repo_info: dict[str, Any], pass_annotation: str) -> None:
+    def bootstrap(self, client: Any, *, pass_annotation: str) -> None:
         self._client = client
         self._bootstrapped = True
         for group in self._groups.values():
             self._sync_dataset(group)
             self._resolve_examples(group)
-            self._create_experiment(group, repo_info=repo_info)
+            self._create_experiment(group)
 
     def record_bootstrap_error(self, error: Exception) -> None:
         self._bootstrap_error = error
@@ -130,8 +118,7 @@ class SuiteState:
         outputs = [e["output"] for e in examples]
         metadata = [e["metadata"] for e in examples]
         example_ids = [e["id"] for e in examples]
-        # action="update" prunes latest-version examples absent from the upload; append-only
-        # avoids corrupting the shared dataset on partial runs.
+        # action="update" prunes server examples absent from the upload; append on partial runs.
         action = "append" if self.partial_collection else "update"
         dataset = self._client.datasets._upload_json_dataset(  # noqa: SLF001
             dataset_name=group.name,
@@ -150,9 +137,8 @@ class SuiteState:
         from phoenix.client.resources.experiments import _example_global_id
 
         dataset = self._client.datasets.get_dataset(dataset=group.dataset_id)
-        # Resolve each example's node GlobalID via _example_global_id, never "id": custom-id
-        # uploads put our external_id in "id" and the GlobalID in "node_id" (guards the PR
-        # #13702 zero-runs bug).
+        # Use the node GlobalID, never "id": custom-id uploads put external_id in "id" and the
+        # GlobalID in "node_id" (guards the PR #13702 zero-runs bug).
         by_nodeid: dict[str, str] = {}
         for example in dataset.examples:
             nodeid = (example.get("metadata") or {}).get("pytest_nodeid")
@@ -164,17 +150,12 @@ class SuiteState:
                 group.example_ids[external_id] = example_id
                 binding.dataset_example_id = example_id
 
-    def _create_experiment(self, group: DatasetGroup, *, repo_info: dict[str, Any]) -> None:
+    def _create_experiment(self, group: DatasetGroup) -> None:
         if group.dataset_id is None:
             return
-        metadata: dict[str, Any] = {}
-        if repo_info:
-            # repo_info is a reserved metadata key; runner git provenance overwrites any user value.
-            metadata[REPO_INFO_METADATA_KEY] = repo_info
         experiment = self._client.experiments.create(
             dataset_id=group.dataset_id,
             dataset_version_id=group.dataset_version_id,
-            experiment_metadata=metadata or None,
             repetitions=group.max_repetitions,
         )
         group.experiment_id = experiment["id"]
@@ -271,11 +252,8 @@ class SuiteState:
         self._run_marker_evaluators(binding, run_id=run["id"], output=record.output)
 
     def _run_marker_evaluators(self, binding: ItemBinding, *, run_id: str, output: Any) -> None:
-        """Run hoisted ``@pytest.mark.phoenix(evaluators=[...])`` evaluators and record each score.
-
-        Each evaluator receives the case's parametrized fields plus the recorded ``output``. A
-        failing evaluator degrades to a warning so it never sinks the run's other annotations.
-        """
+        """Each evaluator gets the case's parametrized fields plus ``output``; a failure degrades
+        to a warning rather than sinking the run's other annotations."""
         item = self._items_by_nodeid.get(binding.nodeid)
         if item is None:
             return
@@ -345,10 +323,7 @@ class SuiteState:
 def _example_fields(
     item: Optional["Item"],
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """Derive input/output/metadata for a dataset example from a pytest item.
-
-    Parametrized inputs (``callspec.params``) become the example input.
-    """
+    """Derive the (input, output, metadata) dicts for a dataset example from a pytest item."""
     input_payload: dict[str, Any] = {}
     output_payload: dict[str, Any] = {}
     metadata_payload: dict[str, Any] = {}
@@ -375,8 +350,6 @@ def _jsonable(value: Any) -> Any:
 
 
 def _eval_input_for(item: "Item", output: Any) -> dict[str, Any]:
-    """Build the default input a hoisted marker evaluator receives: the case's parametrized
-    fields (minus the injected repetition param) plus the recorded ``output``."""
     eval_input: dict[str, Any] = {}
     callspec = getattr(item, "callspec", None)
     if callspec is not None and getattr(callspec, "params", None):

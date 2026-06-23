@@ -13,7 +13,7 @@ module-level helpers::
         assert result == answer
 
 The pytest11 entry point activates the plugin whenever this package and pytest are both
-installed. The ``PHOENIX_TEST_*`` env contract is shared verbatim with the TypeScript test runner.
+installed.
 """
 
 from __future__ import annotations

@@ -47,9 +47,8 @@ REPETITION_PARAM = "__phoenix_repetition__"
 def resolve_repetitions(marker: Optional[Any], *, env_default: int) -> int:
     """Resolve the repetition count for a marked test.
 
-    Precedence (mirrors the TS runner's ``resolveRepetitions``): per-test marker
-    ``repetitions=`` > suite/session ``PHOENIX_TEST_REPETITIONS`` (the ``env_default``) > 1.
-    Must be >= 1.
+    Precedence: per-test marker ``repetitions=`` > suite/session ``PHOENIX_TEST_REPETITIONS``
+    (the ``env_default``) > 1. Must be >= 1.
     """
     if marker is not None:
         reps = marker.kwargs.get("repetitions")

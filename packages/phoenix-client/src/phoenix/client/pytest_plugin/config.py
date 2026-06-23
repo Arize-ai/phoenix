@@ -1,8 +1,4 @@
-"""Environment-variable configuration for the Phoenix pytest plugin.
-
-The ``PHOENIX_TEST_*`` env grammar is a cross-ecosystem contract shared verbatim with the
-TypeScript test runner. Keep names and truthiness semantics in sync with that runner.
-"""
+"""Environment-variable configuration for the Phoenix pytest plugin (``PHOENIX_TEST_*``)."""
 
 from __future__ import annotations
 
@@ -27,7 +23,6 @@ def _env_bool(value: Optional[str], *, default: bool) -> bool:
         return True
     if normalized in _FALSY:
         return False
-    # Unrecognized strings are treated as truthy, matching the TS runner's loose parsing.
     return True
 
 
@@ -38,7 +33,6 @@ class PhoenixTestConfig:
     tracking: bool = True
     dry_run: bool = False
     repetitions: int = 1
-    collect_repo_info: bool = True
     dataset_override: Optional[str] = None
 
     @property
@@ -74,6 +68,5 @@ class PhoenixTestConfig:
             tracking=_env_bool(env.get("PHOENIX_TEST_TRACKING"), default=True),
             dry_run=_env_bool(env.get("PHOENIX_TEST_DRY_RUN"), default=False),
             repetitions=repetitions,
-            collect_repo_info=_env_bool(env.get("PHOENIX_TEST_REPO_INFO"), default=True),
             dataset_override=dataset_override,
         )

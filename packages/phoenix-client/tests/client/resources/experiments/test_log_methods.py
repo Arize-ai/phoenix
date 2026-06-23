@@ -75,7 +75,6 @@ def test_log_run_tolerate_existing_swallows_409() -> None:
         end_time=now,
         tolerate_existing=True,
     )
-    # Returns the locally-built run with its temp id rather than raising.
     assert run["id"].startswith("temp-")
 
 

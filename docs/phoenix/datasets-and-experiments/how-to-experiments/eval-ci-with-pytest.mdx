@@ -124,13 +124,10 @@ Booleans accept `1/true/yes/on` (truthy) and `0/false/no/off`/empty (falsy).
 | `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When false, the suite runs offline. |
 | `PHOENIX_TEST_DRY_RUN` | `false` | Run and collect, but make no network calls (also offline). |
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default repetition count for marked tests; must be an integer `>= 1`. |
-| `PHOENIX_TEST_REPO_INFO` | `true` | Collect git provenance into the experiment's `repo_info` metadata. |
 
 <Note>
-These names and their truthiness semantics are a cross-ecosystem contract shared
-verbatim with the TypeScript test runner. A malformed value (for example a
-non-integer `PHOENIX_TEST_REPETITIONS`) is a hard error so CI never silently runs
-misconfigured.
+A malformed value (for example a non-integer `PHOENIX_TEST_REPETITIONS`) is a hard
+error so CI never silently runs misconfigured.
 </Note>
 
 Connection to your Phoenix deployment uses the standard client variables —
@@ -147,29 +144,6 @@ red build.
 The contract a CI consumer depends on is small and stable: **pytest's exit code
 and the printed terminal summary**. Everything else (experiment IDs, payloads) is
 an implementation detail you may consume but should not treat as frozen.
-
-## The `repo_info` convention
-
-When `PHOENIX_TEST_REPO_INFO` is enabled (the default), the plugin records git
-provenance under the reserved `repo_info` key of the experiment's `metadata`:
-
-```json
-{
-  "commit": "…",
-  "branch": "…",
-  "dirty": false,
-  "author_name": "…",
-  "author_email": "…",
-  "commit_message": "…",
-  "commit_time": "…",
-  "remote_url": "…",
-  "tag": "…"
-}
-```
-
-Collection degrades gracefully: outside a git repository the block is simply
-absent. Credentials in `remote_url` are stripped. `repo_info` is reserved for
-runner-collected metadata — a runner overwrites any user-supplied `repo_info`.
 
 ## GitHub Actions recipe
 

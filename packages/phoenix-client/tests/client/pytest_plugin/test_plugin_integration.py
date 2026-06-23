@@ -28,8 +28,7 @@ def test_offline_mode_makes_no_client(
             assert 1 + 1 == 2
         """
     )
-    # If the plugin tried to build a client it would import phoenix.client.Client; we make that
-    # fatal so any network attempt fails the inner run loudly.
+    # Make client construction fatal so any network attempt fails the inner run loudly.
     pytester.makeconftest(
         """
         import phoenix.client.pytest_plugin.plugin as plugin
@@ -66,9 +65,8 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
                 self._examples = []
             def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
                                      example_ids, action, **kw):
-                # Faithful to a custom-id upload: the example "id" field echoes our uploaded
-                # external_id, while "node_id" carries the distinct server GlobalID. Runs must be
-                # recorded against node_id, not id (regression guard for PR #13702).
+                # Custom-id upload: "id" echoes our external_id, "node_id" is the server
+                # GlobalID. Runs must record node_id, not id (PR #13702 guard).
                 self._examples = [
                     {"id": eid, "node_id": f"DatasetExampleGID:{i}",
                      "input": inp, "output": {}, "metadata": md}
@@ -115,7 +113,6 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
             client = getattr(config, "_phoenix_fake_client", None)
             if client is None:
                 return
-            # Persist observed effects for the outer test to assert on.
             import json, os
             with open(os.path.join(str(config.rootdir), "effects.json"), "w") as f:
                 json.dump({
@@ -147,10 +144,8 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
 
     effects = json.loads((pytester.path / "effects.json").read_text())
     assert effects["n_runs"] == 3
-    # One `pass` annotation plus the inline `custom` annotation per run.
     assert effects["eval_names"] == ["custom", "pass"]
-    # Runs must be recorded against example node GlobalIDs, not the uploaded external_ids
-    # (regression guard for PR #13702: the external_ids contain "::", the node_ids do not).
+    # PR #13702 guard: runs key on node GlobalIDs, not external_ids (which contain "::").
     assert effects["run_examples"] == effects["node_ids"]
 
 
@@ -232,7 +227,6 @@ def test_repetitions_expand_to_distinct_runs(
     """A marked test with N repetitions becomes N pytest items, each posting a distinct run
     with a distinct repetition_number on the SAME dataset_example_id."""
     monkeypatch.setenv("PHOENIX_TEST_REPETITIONS", "3")
-    monkeypatch.setenv("PHOENIX_TEST_REPO_INFO", "false")
     pytester.makeconftest(
         """
         import json, os
@@ -299,19 +293,16 @@ def test_repetitions_expand_to_distinct_runs(
         """
     )
     result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
-    # Three native pytest items (one per repetition).
     result.assert_outcomes(passed=3)
 
     import json
 
     rep = json.loads((pytester.path / "rep.json").read_text())
     assert len(rep["runs"]) == 3
-    # Distinct, 1-based repetition_numbers.
     assert sorted(r["rep"] for r in rep["runs"]) == [1, 2, 3]
-    # All repetitions share ONE dataset example node GlobalID (stable external_id across reps).
+    # All repetitions share ONE example node GlobalID (stable external_id across reps).
     assert {r["example"] for r in rep["runs"]} == {"DatasetExampleGID:0"}
     assert rep["n_examples"] == 1
-    # experiment.repetitions reflects the resolved N.
     assert rep["experiment_repetitions"] == 3
 
 
@@ -369,14 +360,13 @@ def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester)
         import phoenix.client.pytest_plugin as px
 
         def correctness(output, expected, **_):
-            # A plain callable evaluator (no phoenix.evals dependency needed for the test).
             return {"name": "correctness", "score": 1.0 if output == expected else 0.0}
 
         @pytest.mark.phoenix(dataset="hoist-suite", evaluators=[correctness])
         @pytest.mark.parametrize("expected", ["ok"], ids=["case1"])
         def test_thing(expected):
             px.log_output("ok")
-            assert True   # no inline px.evaluate — the marker evaluator runs automatically
+            assert True
         """
     )
     result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
@@ -386,7 +376,5 @@ def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester)
 
     ev = json.loads((pytester.path / "ev.json").read_text())
     by_name = {e["name"]: e["score"] for e in ev["evals"]}
-    # The hoisted evaluator recorded its score WITHOUT any inline px.evaluate call,
     assert by_name.get("correctness") == 1.0
-    # alongside the assertion-derived `pass` annotation.
     assert by_name.get("pass") == 1.0
