@@ -249,7 +249,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
               </StatsSection>
             ) : null}
             {documentEvaluationNames.length > 0 ? (
-              <StatsSection title="Document Evaluations">
+              <StatsSection title="Document Annotations">
                 {documentEvaluationNames.map((name) => (
                   <DocumentEvaluationSummary
                     key={`document-${name}`}

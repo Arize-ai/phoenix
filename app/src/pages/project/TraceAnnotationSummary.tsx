@@ -1,14 +1,16 @@
-import { startTransition, useEffect, useEffectEvent } from "react";
+import { startTransition } from "react";
 import { graphql, useLazyLoadQuery, useRefetchableFragment } from "react-relay";
 import { useParams } from "react-router";
 
-import type { AnnotationConfig } from "@phoenix/components/annotation";
 import { useTimeRange } from "@phoenix/components/datetime";
-import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 
 import type { TraceAnnotationSummaryQuery } from "./__generated__/TraceAnnotationSummaryQuery.graphql";
 import type { TraceAnnotationSummaryValueFragment$key } from "./__generated__/TraceAnnotationSummaryValueFragment.graphql";
-import { Summary, SummaryValue } from "./AnnotationSummary";
+import {
+  AnnotationSummaryValueView,
+  Summary,
+  useRefetchOnStreamAdvance,
+} from "./AnnotationSummary";
 
 type TraceAnnotationSummaryProps = {
   annotationName: string;
@@ -75,7 +77,6 @@ function TraceAnnotationSummaryValue(props: {
   project: TraceAnnotationSummaryValueFragment$key;
 }) {
   const { project, annotationName, filterCondition } = props;
-  const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     TraceAnnotationSummaryQuery,
     TraceAnnotationSummaryValueFragment$key
@@ -127,30 +128,17 @@ function TraceAnnotationSummaryValue(props: {
     project
   );
 
-  const refetchAnnotationSummary = useEffectEvent(() => {
+  useRefetchOnStreamAdvance(() => {
     startTransition(() => {
       refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
   });
 
-  // Refetch the annotation summary when streaming data advances.
-  useEffect(() => {
-    refetchAnnotationSummary();
-  }, [fetchKey]);
-
   return (
-    <SummaryValue
+    <AnnotationSummaryValueView
       name={annotationName}
-      meanScore={data?.traceAnnotationSummary?.meanScore}
-      labelFractions={data?.traceAnnotationSummary?.labelFractions}
-      count={data?.traceAnnotationSummary?.count}
-      scoreCount={data?.traceAnnotationSummary?.scoreCount}
-      labelCount={data?.traceAnnotationSummary?.labelCount}
-      annotationConfig={
-        data?.annotationConfigs?.edges.find(
-          (edge) => edge.node.name === annotationName
-        )?.node as AnnotationConfig | undefined
-      }
+      summary={data?.traceAnnotationSummary}
+      annotationConfigs={data?.annotationConfigs}
     />
   );
 }
