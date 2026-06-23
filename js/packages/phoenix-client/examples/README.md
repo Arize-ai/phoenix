@@ -22,17 +22,28 @@ For example, to run `run_experiment.ts`:
 tsx run_experiment.ts
 ```
 
-## Run the eval-test example
+## Run the eval-test examples
 
-The vitest example lives in [`vitest/`](./vitest). `vitest/sql.eval.ts` uses
-the `@arizeai/phoenix-client/vitest` submodule and is run with Vitest, using the
-`vitest/phoenix.vitest.config.ts` config:
+The vitest examples live in [`vitest/`](./vitest) and use the
+`@arizeai/phoenix-client/vitest` submodule with the
+`vitest/phoenix.vitest.config.ts` config.
+
+- `01-basics` … `08-acceptance-scorecard` — a numbered tour of the full API
+  (annotations, `test.each`, repetitions, skip / dry-run / focus, reference-key
+  aliases, and acceptance criteria with `direction`). These run **fully offline**
+  against a deterministic stand-in app (`app.ts` / `evaluators.ts`) — no API keys.
+- `sql.eval.ts` — the same flow backed by a real OpenAI call when `OPENAI_API_KEY`
+  is set (otherwise it falls back to the offline stand-in).
+
+Run the whole suite locally without syncing anything to Phoenix:
 
 ```sh
 cd js/packages/phoenix-client
-OPENAI_API_KEY= PHOENIX_TEST_TRACING=false pnpm exec vitest run \
-  --config examples/vitest/phoenix.vitest.config.ts examples/vitest/sql.eval.ts
+PHOENIX_TEST_TRACING=false pnpm exec vitest run \
+  --config examples/vitest/phoenix.vitest.config.ts
 ```
 
-Run from the package root so `pnpm exec` can resolve the workspace package and
-dependencies.
+To track results to a Phoenix server, drop `PHOENIX_TEST_TRACING=false` and set
+`PHOENIX_HOST` / `PHOENIX_API_KEY`. Run a single file by appending its path
+(e.g. `examples/vitest/01-basics.eval.ts`). Run from the package root so
+`pnpm exec` can resolve the workspace package and dependencies.
