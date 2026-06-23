@@ -339,7 +339,7 @@ The dev server runs with `debugpy` enabled, allowing you to attach a debugger fr
   ```bash
    pnpm dev
   ```
-   This launches both the Python server and the frontend UI simultaneously using `mprocs`. The server will start with debugpy listening on port 5678.
+   This launches both the Python server and the frontend UI simultaneously using `concurrently`. The server will start with debugpy listening on port 5678.
   > **💡 Tip:** Use in-memory SQLite for a fresh database without affecting your existing on-disk data:
   >
   > ```bash
