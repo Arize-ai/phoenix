@@ -179,13 +179,13 @@ export function AgentObservabilitySettings() {
           >
             <span className="agent-observability__label">
               <Text weight="heavy" size="M">
-                Attach your user ID to session traces
+                Attach your email to session traces
               </Text>
               <Text color="text-500">
-                Tags assistant session traces with your Phoenix account ID so
-                sessions can be filtered by user. Only applies when trace
-                saving or export is enabled, and only when you are signed in.
-                This setting applies only to this browser.
+                Tags assistant session traces with your Phoenix account email so
+                sessions can be filtered by user. Only applies when trace saving
+                or export is enabled, and only when you are signed in. This
+                setting applies only to this browser.
               </Text>
             </span>
           </Switch>

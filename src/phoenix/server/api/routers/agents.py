@@ -1,6 +1,6 @@
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
-from contextlib import aclosing, nullcontext
+from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
@@ -184,7 +184,7 @@ class _ObservabilityMixin(BaseModel):
         alias="attachUserId",
         description=(
             "When true and the request is authenticated as a PhoenixUser, attaches "
-            "the user's identity as the OpenInference ``user.id`` span attribute on "
+            "the user's email as the OpenInference ``user.id`` span attribute on "
             "all traced work for this request."
         ),
     )
@@ -555,17 +555,29 @@ async def _upsert_project_sessions(
 
 def _maybe_using_user(
     attach_user_id: bool,
-    phoenix_user: PhoenixUser | None,
-):
+    phoenix_user_email: str | None,
+) -> AbstractContextManager[Any]:
     """Return a ``using_user`` context manager when the opt-in is set and the
-    request is authenticated as a PhoenixUser; otherwise return a no-op.
+    authenticated PhoenixUser has an email; otherwise return a no-op.
 
-    Attaches the Phoenix ``user.id`` OpenInference attribute to all spans
-    created inside the context so traces can be filtered by user.
+    Attaches the Phoenix user email as the ``user.id`` OpenInference attribute
+    to all spans created inside the context so traces can be filtered by user.
     """
-    if attach_user_id and phoenix_user is not None:
-        return using_user(str(phoenix_user.identity))
+    if attach_user_id and phoenix_user_email:
+        return using_user(phoenix_user_email)
     return nullcontext()
+
+
+async def _load_phoenix_user_email(
+    *,
+    session: AsyncSession,
+    phoenix_user: PhoenixUser | None,
+) -> str | None:
+    if phoenix_user is None:
+        return None
+    return await session.scalar(
+        select(models.User.email).where(models.User.id == int(phoenix_user.identity))
+    )
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -604,6 +616,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
 
         resolved_contexts = resolve_contexts(body.contexts)
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        phoenix_user_email: str | None = None
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -625,6 +640,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 model_provider_availability = ModelProviderAvailability()
                 if _contexts_need_model_provider_availability(resolved_contexts):
                     model_provider_availability = _load_model_provider_availability()
+                phoenix_user_email = await _load_phoenix_user_email(
+                    session=session,
+                    phoenix_user=phoenix_user,
+                )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -640,8 +659,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
-        user = request.user if "user" in request.scope else None
-        phoenix_user = user if isinstance(user, PhoenixUser) else None
         is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
         subagents_enabled = _subagents_enabled(resolved_contexts)
         graphql_mutations_enabled = (
@@ -710,7 +727,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 with (
                     detached_otel_context(),
                     using_session(session_id=session_id),
-                    _maybe_using_user(body.attach_user_id, phoenix_user),
+                    _maybe_using_user(body.attach_user_id, phoenix_user_email),
                 ):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
@@ -795,17 +812,21 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
                 )
+                user = request.user if "user" in request.scope else None
+                phoenix_user = user if isinstance(user, PhoenixUser) else None
+                phoenix_user_email = await _load_phoenix_user_email(
+                    session=session,
+                    phoenix_user=phoenix_user,
+                )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        user = request.user if "user" in request.scope else None
-        phoenix_user = user if isinstance(user, PhoenixUser) else None
         history = VercelAIAdapter.load_messages(body.messages)
         try:
             with (
                 detached_otel_context(),
                 using_metadata({"session_id": session_id}),
-                _maybe_using_user(body.attach_user_id, phoenix_user),
+                _maybe_using_user(body.attach_user_id, phoenix_user_email),
             ):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:

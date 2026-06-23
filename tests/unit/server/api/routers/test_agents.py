@@ -13,6 +13,7 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
 )
@@ -191,16 +192,78 @@ class TestMaybeUsingUser:
         return PhoenixUser(uid, UserClaimSet(subject=uid, attributes=attrs))
 
     def test_returns_nullcontext_when_flag_is_false(self) -> None:
-        phoenix_user = self._make_phoenix_user()
-        ctx = _maybe_using_user(attach_user_id=False, phoenix_user=phoenix_user)
+        ctx = _maybe_using_user(attach_user_id=False, phoenix_user_email="user@example.com")
         assert isinstance(ctx, nullcontext)
 
-    def test_returns_nullcontext_when_flag_is_true_but_no_user(self) -> None:
-        ctx = _maybe_using_user(attach_user_id=True, phoenix_user=None)
+    def test_returns_nullcontext_when_flag_is_true_but_no_email(self) -> None:
+        ctx = _maybe_using_user(attach_user_id=True, phoenix_user_email=None)
         assert isinstance(ctx, nullcontext)
 
-    def test_passes_user_identity_string_to_using_user(self) -> None:
-        user = self._make_phoenix_user(42)
+    def test_passes_user_email_to_using_user(self) -> None:
         with patch("phoenix.server.api.routers.agents.using_user") as mock_cm:
-            _maybe_using_user(attach_user_id=True, phoenix_user=user)
-        mock_cm.assert_called_once_with(str(user.identity))
+            _maybe_using_user(attach_user_id=True, phoenix_user_email="user@example.com")
+        mock_cm.assert_called_once_with("user@example.com")
+
+
+class TestLoadPhoenixUserEmail:
+    def _make_phoenix_user(self, user_id: int) -> PhoenixUser:
+        from phoenix.server.types import UserClaimSet, UserTokenAttributes
+
+        uid = UserId(user_id)
+        attrs = UserTokenAttributes(user_role="MEMBER")
+        return PhoenixUser(uid, UserClaimSet(subject=uid, attributes=attrs))
+
+    async def test_returns_none_when_no_phoenix_user(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            email = await _load_phoenix_user_email(session=session, phoenix_user=None)
+
+        assert email is None
+
+    async def test_loads_email_from_authenticated_user_row(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            user_role = models.UserRole(name="MEMBER")
+            session.add(user_role)
+            await session.flush()
+            user = models.User(
+                user_role_id=user_role.id,
+                username="agent-test-user",
+                email="agent-test-user@example.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+            session.add(user)
+            await session.flush()
+
+            email = await _load_phoenix_user_email(
+                session=session,
+                phoenix_user=self._make_phoenix_user(user.id),
+            )
+
+        assert email == "agent-test-user@example.com"
+
+    async def test_returns_none_when_user_row_has_no_email(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            user_role = models.UserRole(name="MEMBER")
+            session.add(user_role)
+            await session.flush()
+            user = models.User(
+                user_role_id=user_role.id,
+                username="agent-test-user-no-email",
+                email=None,
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LDAP",
+                ldap_unique_id="agent-test-user-no-email",
+            )
+            session.add(user)
+            await session.flush()
+
+            email = await _load_phoenix_user_email(
+                session=session,
+                phoenix_user=self._make_phoenix_user(user.id),
+            )
+
+        assert email is None
