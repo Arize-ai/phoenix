@@ -1,5 +1,3 @@
-"""Suite-level state: dataset upsert, experiment correlation, and run recording."""
-
 from __future__ import annotations
 
 import logging

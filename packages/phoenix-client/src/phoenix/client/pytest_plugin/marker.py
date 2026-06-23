@@ -1,5 +1,3 @@
-"""Helpers for reading the ``@pytest.mark.phoenix`` marker and deriving stable identifiers."""
-
 from __future__ import annotations
 
 import re

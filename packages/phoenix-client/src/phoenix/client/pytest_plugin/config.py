@@ -1,5 +1,3 @@
-"""Environment-variable configuration for the Phoenix pytest plugin (``PHOENIX_TEST_*``)."""
-
 from __future__ import annotations
 
 import os

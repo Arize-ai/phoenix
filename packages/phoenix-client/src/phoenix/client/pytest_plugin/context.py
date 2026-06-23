@@ -1,10 +1,3 @@
-"""Module-level ``px.*`` recording helpers backed by a contextvar.
-
-The plugin sets a per-run accumulator around each marked test body, so authors call
-``px.log_output(...)`` / ``px.log_evaluation(...)`` / ``px.evaluate(...)`` with no fixture
-parameter — which also works for unittest ``TestCase`` methods that receive no fixtures.
-"""
-
 from __future__ import annotations
 
 from contextvars import ContextVar, Token
@@ -44,6 +37,7 @@ class _RunRecord:
         }
 
 
+# A contextvar, not a fixture, so px.* helpers work in unittest TestCase methods (no fixtures).
 _CURRENT_RUN: ContextVar[Optional[_RunRecord]] = ContextVar(
     "phoenix_pytest_current_run", default=None
 )

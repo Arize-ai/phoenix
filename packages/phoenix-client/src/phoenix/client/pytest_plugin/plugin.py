@@ -1,7 +1,3 @@
-"""Map a pytest suite onto a Phoenix dataset + experiment: suite = dataset, test = example +
-run, assertion outcome = reserved ``pass`` annotation, marker/inline evaluators = annotations.
-"""
-
 from __future__ import annotations
 
 import logging
