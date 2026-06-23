@@ -1643,6 +1643,7 @@ export interface components {
             exportRemoteTraces?: boolean;
             /**
              * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
              * @default false
              */
             attachUserId?: boolean;
@@ -1695,6 +1696,7 @@ export interface components {
             exportRemoteTraces?: boolean;
             /**
              * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
              * @default false
              */
             attachUserId?: boolean;
@@ -5397,6 +5399,7 @@ export interface components {
             exportRemoteTraces?: boolean;
             /**
              * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
              * @default false
              */
             attachUserId?: boolean;
