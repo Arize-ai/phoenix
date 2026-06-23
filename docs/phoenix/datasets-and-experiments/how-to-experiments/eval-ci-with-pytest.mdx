@@ -3,35 +3,41 @@ title: "Eval CI with pytest"
 description: "Run LLM evals as pytest tests and record them as Phoenix experiments"
 ---
 
-The Phoenix pytest plugin lets you write LLM evaluations as ordinary pytest
-tests. Each marked test is recorded as a run in a Phoenix experiment, and pytest's
-exit code becomes your CI gate. A test suite maps to a dataset, each test case maps
-to a dataset example, and the assertion outcome is recorded as a reserved `pass`
-annotation.
+The Phoenix pytest plugin lets you write LLM evaluations as ordinary pytest tests and
+run them as part of your continuous integration pipeline. Each test that you mark is
+recorded as a run in a Phoenix experiment, so the same suite that gates your pull
+requests also builds a history of results you can inspect in Phoenix over time.
+
+A test suite maps to a dataset, each test case maps to a dataset example, and the
+outcome of the test's assertion is recorded as a reserved `pass` annotation. Because
+the results are recorded through ordinary pytest, the exit code of the test run becomes
+your CI gate without any additional configuration.
 
 ## Installation
 
 The plugin ships with `arize-phoenix-client` and is activated by the `pytest` extra.
-Once installed, it registers itself through pytest's plugin entry point — no
-configuration is required.
+Once it is installed, pytest discovers it automatically through its plugin entry point,
+so no `conftest.py` configuration is required.
 
 ```bash
 pip install "arize-phoenix-client[pytest]" pytest
 ```
 
-If your tests use `phoenix.evals` evaluators (via `@pytest.mark.phoenix(evaluators=...)`
-or `px.evaluate(...)`), also install the `evals` extra:
+If your evaluators are built on `phoenix.evals`, install the `evals` extra as well:
 
 ```bash
 pip install "arize-phoenix-client[pytest,evals]" pytest
 ```
 
-## Marking tests
+## Marking Tests
 
-Mark any test with `@pytest.mark.phoenix` to record it. Combine it with
-`pytest.parametrize` to turn each parameter set into a dataset example, and use
-the module-level `px.*` helpers to record output and scores.
+Apply the `@pytest.mark.phoenix` marker to any test you want to record. Tests without
+the marker run normally and are not sent to Phoenix. Combine the marker with
+`pytest.parametrize` to turn each set of parameters into a dataset example, and use the
+module-level `px` helpers to record the output and any evaluations.
 
+<Tabs>
+<Tab title="Python" icon="python">
 ```python
 import pytest
 
@@ -47,108 +53,154 @@ import phoenix.client.pytest_plugin as px
 def test_answers(question, expected):
     result = my_app(question)
     px.log_output(result)
-    px.log_evaluation(name="exact_match", score=1.0 if result == expected else 0.0)
+    px.log_evaluation(name="exact_match", score=float(result == expected))
     assert result == expected
 ```
+</Tab>
+</Tabs>
 
-### The marker
-
-`@pytest.mark.phoenix(dataset=None, evaluators=None)` accepts:
-
-- `dataset` — the dataset (and experiment) name. Defaults to the test module's
-  name when omitted. A `phoenix_dataset` value in `pytest.ini` overrides every
-  marker in the session and collapses the whole run into one experiment.
-- `evaluators` — one or more `phoenix.evals` evaluators run automatically against
-  each case, in addition to the assertion-derived `pass` annotation. This is the
-  "one task over a dataset with a uniform set of evaluators" shape.
-- `repetitions` — run the test multiple times (see [Repetitions](#repetitions)).
-
-Stable identity comes from the `parametrize` ids: re-running the same suite maps
-each case to the same dataset example, so runs accumulate as experiments over the
-same fixtures rather than creating duplicates.
-
-### Recording helpers
-
-Import the plugin module as `px` and call its helpers from inside a marked test:
-
-- `px.log_output(output)` — record the system's output for the run. Capture is
-  explicit because pytest warns on non-`None` test returns.
-- `px.log_evaluation(name=..., score=..., label=..., explanation=...)` — attach an
-  extra annotation to the run, keyed by `name`. The annotation is recorded
-  alongside the run; calling this does not by itself fail the test (only a failed
-  assertion does).
-- `px.evaluate(evaluator, **inputs)` — run a `phoenix.evals` evaluator inline,
-  record its score(s) on the run, and return the raw result so you can assert on
-  it. An assertion on the result feeds the `pass` annotation, so an inline
-  evaluation can gate the individual test.
-
-The helpers read a per-test context set by the plugin, so they take no fixture
-parameter and also work in `unittest.TestCase` methods (which receive no fixtures).
-Calling a helper outside a marked test raises an error.
-
-### Repetitions
-
-Because LLM outputs vary between runs, you can repeat each test to reduce noise.
-Per-test `repetitions=` on the marker takes precedence over the session-wide
-`PHOENIX_TEST_REPETITIONS` env var, which takes precedence over the default of `1`.
-
-```python
-@pytest.mark.phoenix(dataset="qa-suite", repetitions=3)
-def test_flaky_answer():
-    ...
-```
-
-Repetitions are expanded into real pytest items, so they are visible to `-k`,
-`pytest-xdist`, and your IDE. All repetitions of one case share the same dataset
-example and are recorded as distinct runs.
-
-## Offline mode
-
-Iterate locally without sending anything to Phoenix by disabling tracking.
-In offline mode the suite runs normally and prints how many tests ran without
-recording.
+Connect to your Phoenix deployment with the standard client environment variables and
+run the suite with pytest:
 
 ```bash
-PHOENIX_TEST_TRACKING=0 pytest   # disable recording entirely
+export PHOENIX_COLLECTOR_ENDPOINT=...   # your Phoenix endpoint
+export PHOENIX_API_KEY=...              # if your deployment requires authentication
+pytest
 ```
 
-## The `PHOENIX_TEST_*` env contract
+The `ids` you supply to `parametrize` give each case a stable identity. Re-running the
+suite maps each case back to the same dataset example, so runs accumulate as
+experiments over a fixed set of examples rather than creating duplicates.
 
-The plugin is configured entirely through environment variables, so the same test
-suite behaves differently in local development and CI without code changes.
-Booleans accept `1/true/yes/on` (truthy) and `0/false/no/off`/empty (falsy).
+### The Marker
 
-| Variable | Default | Meaning |
+`@pytest.mark.phoenix` accepts three optional keyword arguments:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+@pytest.mark.phoenix(
+    dataset="qa-suite",
+    evaluators=[correctness],
+    repetitions=3,
+)
+def test_answers(question, expected): ...
+```
+</Tab>
+</Tabs>
+
+- **`dataset`** sets the name of the dataset and experiment. When omitted, it defaults
+  to the name of the test's module. Setting `phoenix_dataset` in `pytest.ini` overrides
+  every marker in the session and collects the entire run into a single experiment.
+- **`evaluators`** is a list of evaluators that run automatically against every case.
+  Each evaluator's score is recorded as an annotation alongside the `pass` annotation,
+  and a failing evaluator never fails the test itself.
+- **`repetitions`** runs each case multiple times, which helps reduce noise when LLM
+  outputs vary between runs. Each repetition is expanded into a real pytest item
+  (visible to `-k`, `pytest-xdist`, and your IDE) and recorded as a distinct run against
+  the same example. A per-test value takes precedence over the `PHOENIX_TEST_REPETITIONS`
+  environment variable.
+
+## Logging Outputs
+
+Record the output of the system under test with `px.log_output`. Output capture is
+explicit because pytest emits a warning when a test returns a non-`None` value, so the
+output is passed to the helper rather than returned from the test.
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+def test_answers(question, expected):
+    result = my_app(question)
+    px.log_output(result)
+    assert result == expected
+```
+</Tab>
+</Tabs>
+
+## Logging Evaluations
+
+An evaluator is any callable that returns a dictionary with a `name` and a `score`;
+evaluators built on `phoenix.evals` are also accepted. There are three ways to attach
+evaluations to a run.
+
+Record a score directly with `px.log_evaluation`:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+px.log_evaluation(name="exact_match", score=1.0, label="correct")
+```
+</Tab>
+</Tabs>
+
+Run an evaluator inline with `px.evaluate`. The helper records the evaluator's score on
+the run and returns its result so the test can assert on it. Because a failed assertion
+feeds the `pass` annotation, an inline evaluation can gate the individual test:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+def correctness(output, expected, **_):
+    return {"name": "correctness", "score": float(output == expected)}
+
+
+def test_answers(question, expected):
+    answer = my_app(question)
+    px.log_output(answer)
+    result = px.evaluate(correctness, output=answer, expected=expected)
+    assert result["score"] == 1.0
+```
+</Tab>
+</Tabs>
+
+Pass an evaluator to the marker's `evaluators` argument to run it across every case in
+the suite without an inline call:
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+@pytest.mark.phoenix(dataset="qa-suite", evaluators=[correctness])
+def test_answers(question, expected):
+    px.log_output(my_app(question))
+```
+</Tab>
+</Tabs>
+
+Annotations recorded by `px.log_evaluation` and `px.evaluate` do not fail a test on
+their own. Only a failed assertion fails the pytest item.
+
+## Configuring with Environment Variables
+
+The plugin is configured entirely through environment variables, so the same suite can
+behave differently in local development and in CI without any code changes. Boolean
+variables accept `1`, `true`, `yes`, or `on` as truthy and `0`, `false`, `no`, or `off`
+as falsy.
+
+| Variable | Default | Description |
 | --- | --- | --- |
-| `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When false, the suite runs offline (collects and runs normally, but makes no network calls). |
-| `PHOENIX_TEST_REPETITIONS` | `1` | Default repetition count for marked tests; must be an integer `>= 1`. |
+| `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When set to a falsy value, the suite runs offline: the tests execute normally but nothing is sent to Phoenix. |
+| `PHOENIX_TEST_REPETITIONS` | `1` | Default number of repetitions for each marked test. The value must be an integer greater than or equal to 1; a malformed value raises an error so that CI never runs misconfigured. |
 
-<Note>
-A malformed value (for example a non-integer `PHOENIX_TEST_REPETITIONS`) is a hard
-error so CI never silently runs misconfigured.
-</Note>
-
-Connection to your Phoenix deployment uses the standard client variables —
+The connection to Phoenix uses the standard client variables:
 `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`.
 
-## CI gating
+To iterate locally without recording anything to Phoenix, disable tracking:
 
-pytest's exit code is your CI gate, with no configuration required: a failing
-assertion records `pass=False` for that run and fails the pytest item, exactly
-like a normal test, so the job fails. Uploads to Phoenix are best-effort and never
-fail a test on their own — a network problem degrades to a warning rather than a
-red build.
+```bash
+PHOENIX_TEST_TRACKING=0 pytest
+```
 
-The contract a CI consumer depends on is small and stable: **pytest's exit code
-and the printed terminal summary**. Everything else (experiment IDs, payloads) is
-an implementation detail you may consume but should not treat as frozen.
+## Gating CI
 
-## GitHub Actions recipe
+The exit code of the pytest run is your CI gate, and no additional configuration is
+required to use it. A failed assertion records `pass=False` for that run and fails the
+pytest item, exactly like a normal test, so the job fails. Uploads to Phoenix are
+best-effort and never fail a test on their own; a network problem is reported as a
+warning rather than failing the build.
 
-The following workflow installs the plugin, runs your eval suite, and gates the job
-on the pytest exit code. Copy it to `.github/workflows/eval-ci.yml`. A runnable copy
-plus an example test suite lives in the
-[client examples directory](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client/examples/pytest_plugin).
+The following GitHub Actions workflow installs the plugin, runs an eval suite, and gates
+the job on the pytest exit code.
 
 ```yaml
 name: eval-ci
@@ -161,15 +213,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      # The pytest extra activates the plugin entry point.
-      - name: Install dependencies
-        run: pip install "arize-phoenix-client[pytest]" pytest
-
+      - run: pip install "arize-phoenix-client[pytest]" pytest
       - name: Run eval suite
         env:
           PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
@@ -177,15 +224,6 @@ jobs:
         run: pytest tests/evals
 ```
 
-### Optional: post the summary as a PR comment
-
-The example workflow includes a commented-out step that captures the terminal
-summary and upserts it as a single PR comment, using a hidden marker to update its
-own previous comment instead of adding a duplicate on every run. It is an example
-consumer of the printed summary — adapt it to your needs rather than treating it
-as a maintained Phoenix artifact.
-
-<Tip>
-The terminal summary and pytest exit code are the only stable contracts. Build
-custom CI integrations against those, not against internal plugin behavior.
-</Tip>
+A runnable copy of this workflow and an example test suite, including an optional step
+that posts the run summary as a pull request comment, are available in the
+[client examples directory](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client/examples/pytest_plugin).
