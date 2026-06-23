@@ -2167,6 +2167,33 @@ class AzureOpenAIReasoningNonStreamingClient(
         assert_never(role)
 
 
+def _anthropic_beta_headers_for_tools(
+    tools: Iterable[Mapping[str, Any]],
+) -> dict[str, str] | None:
+    """Return the ``anthropic-beta`` header required to use the given tools, if any.
+
+    Anthropic's computer-use tools (e.g. ``computer_20250124``) are gated behind a
+    dated beta flag that must be sent as the ``anthropic-beta`` request header
+    (e.g. ``computer-use-2025-01-24``). This inspects the tool definitions, derives
+    the beta flag for each computer-use tool version present, and returns them as
+    a comma-separated header value. Returns ``None`` when no such tools are used.
+    """
+    betas: list[str] = []
+    for tool in tools:
+        tool_type = tool.get("type")
+        if not isinstance(tool_type, str) or not tool_type.startswith("computer_"):
+            continue
+        version = tool_type.removeprefix("computer_")
+        if len(version) != 8 or not version.isdigit():
+            continue
+        beta = f"computer-use-{version[:4]}-{version[4:6]}-{version[6:]}"
+        if beta not in betas:
+            betas.append(beta)
+    if not betas:
+        return None
+    return {"anthropic-beta": ",".join(betas)}
+
+
 @register_llm_client(
     provider_key=GenerativeProviderKey.ANTHROPIC,
     model_names=[
@@ -2219,7 +2246,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: PromptAnthropicInvocationParameters | None = None,
-    ) -> tuple["MessageCreateParamsBase", dict[str, Any] | None]:
+    ) -> tuple["MessageCreateParamsBase", dict[str, Any] | None, dict[str, str] | None]:
         from anthropic.types import JSONOutputFormatParam, OutputConfigParam, ToolParam
         from anthropic.types.message_create_params import MessageCreateParamsBase
         from anthropic.types.thinking_config_adaptive_param import ThinkingConfigAdaptiveParam
@@ -2243,6 +2270,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         if system_prompt:
             params["system"] = system_prompt
 
+        extra_headers: dict[str, str] | None = None
         if tools:
             if tc := tools.tool_choice:
                 if tc.type == "none":
@@ -2284,6 +2312,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                         t["description"] = f.description
                     tool_list.append(t)
                 params["tools"] = tool_list
+                extra_headers = _anthropic_beta_headers_for_tools(tool_list)
 
         output_config: OutputConfigParam | None = None
         if response_format:
@@ -2335,7 +2364,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         if output_config is not None:
             params["output_config"] = output_config
 
-        return params, extra_body
+        return params, extra_body, extra_headers
 
     def _anthropic_record_message_request_on_span(
         self,
@@ -2366,14 +2395,17 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         invocation_parameters: PromptAnthropicInvocationParameters | None = None,
         span: OTelSpan,
     ) -> AsyncMessageStreamManager[Any]:
-        params, extra_body = self._anthropic_message_params(
+        params, extra_body, extra_headers = self._anthropic_message_params(
             messages=messages,
             tools=tools,
             response_format=response_format,
             invocation_parameters=invocation_parameters,
         )
         self._anthropic_record_message_request_on_span(span, params, extra_body)
-        stream_manager = client.messages.stream(**params, extra_body=extra_body)
+        request_options: dict[str, Any] = {"extra_body": extra_body}
+        if extra_headers:
+            request_options["extra_headers"] = extra_headers
+        stream_manager = client.messages.stream(**params, **request_options)
         return stream_manager
 
     def _anthropic_apply_usage_to_span(self, span: OTelSpan, usage: Usage) -> None:
@@ -2418,14 +2450,17 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             async with AsyncExitStack() as stack:
                 client = await stack.enter_async_context(self._client_factory())
                 client._client = _HttpxClient(client._client, span=span)
-                params, extra_body = self._anthropic_message_params(
+                params, extra_body, extra_headers = self._anthropic_message_params(
                     messages=messages,
                     tools=tools,
                     response_format=response_format,
                     invocation_parameters=invocation_parameters,
                 )
                 self._anthropic_record_message_request_on_span(span, params, extra_body)
-                message = await client.messages.create(**params, extra_body=extra_body)
+                request_options: dict[str, Any] = {"extra_body": extra_body}
+                if extra_headers:
+                    request_options["extra_headers"] = extra_headers
+                message = await client.messages.create(**params, **request_options)
                 if message.usage:
                     self._anthropic_apply_usage_to_span(span, message.usage)
                 span.set_attribute(OUTPUT_VALUE, message.model_dump_json(exclude_none=True))

@@ -1,6 +1,6 @@
 {
   "name": "@arizeai/phoenix-cli",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "A command-line interface for Phoenix",
   "keywords": [
     "arize",
@@ -40,19 +40,19 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@arizeai/openinference-semantic-conventions": "^1.1.0",
+    "@arizeai/openinference-semantic-conventions": "^2.5.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-config": "workspace:*",
-    "@clack/prompts": "^1.0.1",
-    "commander": "^12.1.0",
-    "zod": "^4.0.14"
+    "@clack/prompts": "^1.5.1",
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^22.12.0",
+    "@types/node": "^25.9.3",
     "rimraf": "^6.1.3",
-    "tsc-alias": "^1.8.11",
-    "tsx": "^4.19.3",
-    "vitest": "^4.1.0"
+    "tsc-alias": "^1.8.17",
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=20"

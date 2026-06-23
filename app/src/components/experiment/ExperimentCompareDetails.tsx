@@ -715,7 +715,7 @@ function ExperimentSidebarItem({
               }
             `}
           >
-            <Icon svg={<Icons.ChevronRight />} />
+            <Icon svg={<Icons.ChevronRightSmall />} />
           </IconButton>
         )}
         <Checkbox
@@ -1032,7 +1032,7 @@ export function ExperimentItem({
           </Heading>
           {includeRepetitions && (
             <>
-              <Icon svg={<Icons.ChevronRight />} />
+              <Icon svg={<Icons.ChevronRightSmall />} />
               <Heading weight="heavy" level={3}>
                 repetition&nbsp;{experimentRepetition.repetitionNumber}
               </Heading>

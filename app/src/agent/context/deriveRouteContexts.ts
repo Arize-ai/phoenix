@@ -1,6 +1,9 @@
 import type { UIMatch } from "react-router";
 
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 
 import type { AgentContext } from "./agentContextTypes";
 
@@ -22,7 +25,7 @@ function collectRouteParams(matches: UIMatch[]): Record<string, string> {
  * route and URL.
  *
  * Route params are flattened across all matched routes, and contexts are
- * emitted in natural containment order: project → trace → span. The selected
+ * emitted in natural containment order: project → trace/session → span. The selected
  * span search param (from the spans table) takes precedence over a `spanId`
  * in the route, since it reflects the user's most recent selection.
  *
@@ -43,15 +46,40 @@ export function deriveRouteContexts(
   // agentContextTypes.ts for the format conventions.
   const projectNodeId = params["projectId"];
   const otelTraceId = params["traceId"];
+  const sessionNodeId = params["sessionId"];
+  const promptNodeId = params["promptId"];
+  const promptVersionNodeId = params["versionId"];
   const routeSpanNodeId = params["spanId"];
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
+  const activeOtelTraceId = otelTraceId ?? selectedTraceId;
 
   if (projectNodeId) {
     contexts.push({ type: "project", projectNodeId });
   }
 
-  if (projectNodeId && otelTraceId) {
-    contexts.push({ type: "trace", projectNodeId, otelTraceId });
+  if (projectNodeId && activeOtelTraceId) {
+    contexts.push({
+      type: "trace",
+      projectNodeId,
+      otelTraceId: activeOtelTraceId,
+    });
+  }
+
+  if (projectNodeId && sessionNodeId) {
+    contexts.push({ type: "session", projectNodeId, sessionNodeId });
+  }
+
+  if (promptNodeId) {
+    contexts.push({ type: "prompt", promptNodeId });
+  }
+
+  if (promptNodeId && promptVersionNodeId) {
+    contexts.push({
+      type: "prompt_version",
+      promptNodeId,
+      promptVersionNodeId,
+    });
   }
 
   if (selectedSpanNodeId) {

@@ -380,7 +380,7 @@ function TableCopyButton({
   return (
     <ActionIconButton
       label={copied ? "Copied table" : "Copy table as markdown"}
-      icon={copied ? <Icons.CheckmarkOutline /> : <Icons.DuplicateOutline />}
+      icon={copied ? <Icons.Checkmark /> : <Icons.Duplicate />}
       onPress={() => void onPress()}
     />
   );
@@ -401,7 +401,7 @@ function TableDownloadButton({
   return (
     <ActionIconButton
       label="Download table as CSV"
-      icon={<Icons.DownloadOutline />}
+      icon={<Icons.Download />}
       onPress={onPress}
     />
   );
@@ -416,7 +416,7 @@ function TableFullscreenButton({ children }: PropsWithChildren) {
         css={actionButtonCSS}
         size="S"
       >
-        <Icon svg={<Icons.ExpandOutline />} />
+        <Icon svg={<Icons.Expand />} />
       </IconButton>
       <ModalOverlay isDismissable>
         <Modal size="L">

@@ -14,8 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
     env:
       CI: "true"
 
@@ -69,13 +71,13 @@ jobs:
       - name: Upgrade JavaScript (pnpm) — app
         working-directory: ./app
         run: |
-          pnpm update --recursive --latest
+          pnpm update --recursive
           pnpm install --frozen-lockfile
 
       - name: Upgrade JavaScript (pnpm) — js
         working-directory: ./js
         run: |
-          pnpm update --recursive --latest
+          pnpm update --recursive
           pnpm install --frozen-lockfile
 
       - name: Detect changes
@@ -111,16 +113,37 @@ jobs:
             cat "$log"
             echo "::endgroup::"
           }
+          # Regenerate generated artifacts first: upgraded deps (strawberry,
+          # pydantic, fastapi, relay, openapi-typescript) can legitimately
+          # change generated output, and CI enforces that committed artifacts
+          # match regeneration (git diff --exit-code). Regenerating here lets
+          # the changed artifacts ride along in the upgrade commit and ensures
+          # the checks below run against them. A failure here means generation
+          # itself broke (e.g. an API change in a codegen tool).
+          run gen-graphql         make graphql
+          run gen-openapi         make openapi
+          run gen-generative-ui   make schema-generative-ui
           run python-format       make format-python
           run python-lint         make lint-python
           run python-typecheck    make typecheck-python
-          run app-fmt             bash -c "cd app && pnpm fmt:check"
-          run app-typecheck       bash -c "cd app && pnpm typecheck"
-          run app-lint            bash -c "cd app && pnpm lint"
-          run app-test            bash -c "cd app && pnpm test"
-          run app-build           bash -c "cd app && pnpm build"
-          run js-lint             bash -c "cd js && pnpm lint"
-          run js-test             bash -c "cd js && pnpm test"
+          # Formatters run in write mode (like format-python above): style
+          # churn from a formatter upgrade rides along in the commit instead
+          # of failing the check.
+          run app-fmt             make format-frontend
+          run app-typecheck       make typecheck-frontend
+          run app-lint            make lint-frontend
+          run app-test            make test-frontend
+          run app-build           make build-frontend
+          run js-fmt              make format-ts
+          run js-lint             make lint-ts
+          # Build before test: workspace packages resolve each other via dist/,
+          # so running tests against unbuilt packages fails on module resolution
+          # rather than real regressions. No `git diff --exit-code` here (unlike
+          # typescript-packages-CI.yml): the upgrade itself is uncommitted at
+          # this point, and anything the build regenerates is committed later
+          # by `git add -A`.
+          run js-build            make build-ts
+          run js-test             make test-ts
           # Write a one-line index of which checks failed for quick scanning.
           {
             echo "# Verify summary ($(date -u +%FT%TZ))"
@@ -173,7 +196,7 @@ jobs:
               --body "Automated weekly dependency upgrade.
 
           - \`uv lock --upgrade\` (Python)
-          - \`pnpm update --recursive --latest\` in \`app/\` and \`js/\`
+          - \`pnpm update --recursive\` in \`app/\` and \`js/\`
 
           All verification checks passed (typecheck, fmt, lint, test, build). Review and merge."
           fi
@@ -194,24 +217,26 @@ jobs:
       - name: Hand off to Claude (fix regressions)
         id: claude_fix
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure'
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # additional_permissions triggers an OIDC exchange that mints a
-          # short-lived app token with contents:write, exposed to subsequent
-          # steps as steps.claude_fix.outputs.github_token. Claude itself
-          # never sees the token — outputs are written after the step exits,
-          # and Claude's Bash allowlist excludes git remote/config, so prompt
-          # injection from a malicious dep cannot reach it from inside this
-          # step. The post-step commit/push uses the minted token instead of
-          # a long-lived PAT.
-          additional_permissions: |
-            contents: write
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
+          show_full_output: 'true'
           prompt: |
             You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
-            already ran (`uv lock --upgrade` for Python, `pnpm update -r --latest`
+            already ran (`uv lock --upgrade` for Python, `pnpm update -r`
             in `app/` and `js/`), but the verification step failed. The upgraded
             lockfiles and any package manifest changes are in the working tree
             (uncommitted). Your job is to fix the regressions in the working tree
@@ -236,6 +261,9 @@ jobs:
             only as evidence for what changed and what failed.
 
             Available log files (when present):
+              - `.scratch/verify/gen-graphql.log`
+              - `.scratch/verify/gen-openapi.log`
+              - `.scratch/verify/gen-generative-ui.log`
               - `.scratch/verify/python-format.log`
               - `.scratch/verify/python-lint.log`
               - `.scratch/verify/python-typecheck.log`
@@ -244,7 +272,9 @@ jobs:
               - `.scratch/verify/app-lint.log`
               - `.scratch/verify/app-test.log`
               - `.scratch/verify/app-build.log`
+              - `.scratch/verify/js-fmt.log`
               - `.scratch/verify/js-lint.log`
+              - `.scratch/verify/js-build.log`
               - `.scratch/verify/js-test.log`
 
             After applying fixes, re-run the failed check(s) your fixes target to
@@ -275,9 +305,10 @@ jobs:
               the policy.
             - No pre-releases in production Python deps (CLAUDE.md policy). Dev
               groups may use them when necessary.
-            - `pnpm update --latest` intentionally allows dependency ranges to
-              move beyond the existing `package.json` ranges. Preserve those range
-              bumps unless you pin a package back to avoid a substantive migration.
+            - `pnpm update --recursive` upgrades within the existing
+              `package.json` semver ranges (it does not bump the ranges
+              themselves). Preserve those in-range updates unless you pin a
+              package back to avoid a substantive migration.
 
             ## When checks pass
             Write a summary of what you did to `.scratch/pr-body.md` — this file
@@ -294,14 +325,16 @@ jobs:
       - name: Commit & open PR (after Claude fix)
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure' && steps.claude_fix.outcome == 'success'
         env:
-          # OIDC-minted app token from the claude-code-action step above.
-          # Short-lived, auto-revoked at job end, and triggers downstream CI
-          # (unlike GITHUB_TOKEN). The claude-code-action step embedded this
-          # same token into the origin remote URL, so the git push below
-          # picks it up.
-          GH_TOKEN: ${{ steps.claude_fix.outputs.github_token }}
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Compose the PR body: fixed header (non-injectable) + Claude's
@@ -312,7 +345,7 @@ jobs:
             echo "> Review the diff and fixes carefully before merging."
             echo ""
             echo "- \`uv lock --upgrade\` (Python)"
-            echo "- \`pnpm update --recursive --latest\` in \`app/\` and \`js/\`"
+            echo "- \`pnpm update --recursive\` in \`app/\` and \`js/\`"
             echo ""
             echo "## Fix summary"
             echo ""

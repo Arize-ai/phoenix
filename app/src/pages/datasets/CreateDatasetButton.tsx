@@ -113,7 +113,7 @@ export function CreateDatasetButton({
         data-testid="create-dataset-button"
         variant="primary"
         size="M"
-        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Database />} />}
         onPress={() => setIsOpen(true)}
         aria-label="Create a new dataset"
       >

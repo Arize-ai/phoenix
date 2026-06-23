@@ -154,7 +154,9 @@ export function AssistantMessageActions({
       return;
     }
     window.open(
-      prependBasename(`/redirects/traces/${metadata.trace.traceId}`),
+      prependBasename(
+        `/redirects/traces/${encodeURIComponent(metadata.trace.traceId)}`
+      ),
       "_blank",
       "noopener,noreferrer"
     );
@@ -222,7 +224,7 @@ export function AssistantMessageActions({
             }}
           >
             <Icon
-              svg={<Icons.ThumbsUpOutline />}
+              svg={<Icons.ThumbsUp />}
               color={selectedFeedback === "positive" ? "blue-700" : "inherit"}
             />
           </MessageAction>
@@ -237,7 +239,7 @@ export function AssistantMessageActions({
             }}
           >
             <Icon
-              svg={<Icons.ThumbsDownOutline />}
+              svg={<Icons.ThumbsDown />}
               color={selectedFeedback === "negative" ? "red-700" : "inherit"}
             />
           </MessageAction>

@@ -33,7 +33,7 @@ export function DatasetsEmpty() {
               <ExternalLinkButton
                 href="https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets"
                 target="_blank"
-                leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Book />} />}
               >
                 Documentation
               </ExternalLinkButton>

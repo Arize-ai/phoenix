@@ -77,10 +77,7 @@ export const AssignExamplesToSplitMenu = ({
         }
       }}
     >
-      <Button
-        leadingVisual={<Icon svg={<Icons.PieChartOutline />} />}
-        size={size}
-      >
+      <Button leadingVisual={<Icon svg={<Icons.PieChart />} />} size={size}>
         Assign to splits
       </Button>
       <MenuContainer placement="top start" shouldFlip>
@@ -184,7 +181,7 @@ const SplitApplyMenu = ({
                 setMode("create");
               }}
             >
-              <Icon svg={<Icons.PlusOutline />} />
+              <Icon svg={<Icons.Plus />} />
             </IconButton>
           }
         >
@@ -338,7 +335,7 @@ const SplitCreateMenu = ({
         <MenuHeaderTitle
           leadingContent={
             <IconButton onPress={() => setMode("apply")} size="S">
-              <Icon svg={<Icons.ChevronLeft />} />
+              <Icon svg={<Icons.ChevronLeftSmall />} />
             </IconButton>
           }
         >

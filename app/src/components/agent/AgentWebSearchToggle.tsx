@@ -76,7 +76,7 @@ export function AgentWebSearchToggle() {
         css={webSearchToggleCSS}
       >
         <span className="web-search-toggle__icon">
-          <Icon svg={<Icons.GlobeOutline />} />
+          <Icon svg={<Icons.Globe />} />
         </span>
         {isWebSearchEnabled ? <span>Search</span> : null}
       </AriaToggleButton>

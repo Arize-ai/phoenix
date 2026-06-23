@@ -9,13 +9,13 @@
     "dev": "tsx index.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.29",
+    "@ai-sdk/openai": "^3.0.71",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.2.3",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "@types/node": "^25.9.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   }
 }

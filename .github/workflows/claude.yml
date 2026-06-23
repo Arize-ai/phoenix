@@ -6,7 +6,10 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
+    # No `assigned` here: the action only honors assigned events via its
+    # assignee_trigger input (unset for us); its @claude body/title check
+    # applies only to `opened`, so an assigned run would always no-op.
+    types: [opened]
   pull_request_review:
     types: [submitted]
 
@@ -43,6 +46,11 @@ jobs:
         "seldo", "yfrigui2"
       ]'), github.actor)
     runs-on: ubuntu-latest
+    # Bound the interactive run so a hung/looping agent can't hold the runner
+    # indefinitely — which, with the queue concurrency above, would also block
+    # every later @claude on this PR. Higher than the read-only workflows since
+    # @claude may be asked to implement larger changes.
+    timeout-minutes: 60
     permissions:
       # Writes to PRs/issues and pushes from Claude go through the App token
       # minted by the OIDC exchange below — the workflow GITHUB_TOKEN is only
@@ -71,29 +79,28 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
           # Surface the full Claude SDK message stream in the step log (denied-tool
-          # details, tool calls, reasoning) instead of the sanitized summary. Safe
-          # here: inputs are public repo/PR/issue content, registered secrets are
-          # masked, and the OIDC app token is written to step outputs after this
-          # step exits — it is never in Claude's context. Note: logs are public.
+          # details, tool calls, reasoning) instead of the sanitized summary. Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
           show_full_output: 'true'
 
-          # Lets Claude read CI results on PRs. NOTE: the OIDC app token already
-          # gets contents/pull_requests/issues: write — the action's token
-          # exchange merges those DEFAULT_PERMISSIONS in whenever
-          # additional_permissions is non-empty (see claude-code-action
-          # src/github/token.ts). So write access is NOT the thing to add here.
+          # Request actions:read on the Claude App token. The non-empty
+          # additional_permissions input also makes the action request its
+          # DEFAULT_PERMISSIONS (contents/pull_requests/issues: write), which tag
+          # mode needs for comments and branch pushes. The github_ci MCP server
+          # uses the workflow GITHUB_TOKEN instead, enabled by job permissions above.
           additional_permissions: |
             actions: read
 
           # Enable the file-editing tools. In tag mode the action omits
-          # Edit/Write/MultiEdit from its auto-generated --allowedTools and relies
+          # Edit/Write from its auto-generated --allowedTools and relies
           # on `--permission-mode acceptEdits` to allow edits inside the workspace.
           # The headless SDK has no interactive approval handler, so any tool that
           # is neither on the allowlist nor covered by the permission mode falls
@@ -102,5 +109,5 @@ jobs:
           # Listing the edit tools explicitly guarantees they are allowed
           # independent of permission mode; the action merges them with its own
           # git/Read/Grep tools.
-          claude_args: '--allowedTools Edit,MultiEdit,Write'
+          claude_args: '--allowedTools Edit,Write'
 

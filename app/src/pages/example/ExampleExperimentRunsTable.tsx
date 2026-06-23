@@ -173,7 +173,7 @@ export function ExampleExperimentRunsTable({
                     annotation.trace && (
                       <View paddingTop="size-100">
                         <div css={annotationTooltipExtraCSS}>
-                          <Icon svg={<Icons.InfoOutline />} />
+                          <Icon svg={<Icons.Info />} />
                           <span>Click to view evaluator trace</span>
                         </div>
                       </View>
@@ -186,7 +186,7 @@ export function ExampleExperimentRunsTable({
                     onClick={() => {
                       if (annotation.trace) {
                         navigate(
-                          `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
+                          `/projects/${annotation.trace.projectId}/traces/${encodeURIComponent(annotation.trace.traceId)}`
                         );
                       }
                     }}
@@ -209,7 +209,7 @@ export function ExampleExperimentRunsTable({
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               onPress={() => {
                 navigate(
-                  `/projects/${trace.projectId}/traces/${trace.traceId}`
+                  `/projects/${trace.projectId}/traces/${encodeURIComponent(trace.traceId)}`
                 );
               }}
               aria-label="view trace"

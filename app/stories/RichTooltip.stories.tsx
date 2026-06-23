@@ -184,7 +184,7 @@ export const WithIconButton: Story = {
   render: (args: RichTooltipProps) => (
     <TooltipTrigger>
       <Button variant="quiet" size="S">
-        <Icon svg={<Icons.InfoOutline />} />
+        <Icon svg={<Icons.Info />} />
       </Button>
       <RichTooltip {...args}>
         <TooltipArrow />

@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 /**
  * A sequence of traceId/spanId pairs that represent the trace sequence.
@@ -75,13 +76,18 @@ export const makeTraceUrls = (
     .split("/")
     .filter((part) => part !== "");
   const makeUrl = (traceId: string, currentSpanId?: string) => {
-    // we always navigate directly to a traceId
-    let path = `/${projects}/${projectId}/${resource}/${traceId}`;
-    // we add a selected span node id if provided to makeUrl
-    if (currentSpanId) {
-      path += `?${SELECTED_SPAN_NODE_ID_PARAM}=${currentSpanId}`;
-    }
-    return path;
+    // we always navigate directly to a traceId; encode it because the ingested
+    // ID is not guaranteed to be path-safe and a path- or protocol-relative
+    // value would otherwise escape the intended route
+    const path = `/${projects}/${projectId}/${resource}/${encodeURIComponent(traceId)}`;
+    const search = withSearchParams(location.search, (params) => {
+      if (currentSpanId) {
+        params.set(SELECTED_SPAN_NODE_ID_PARAM, currentSpanId);
+      } else {
+        params.delete(SELECTED_SPAN_NODE_ID_PARAM);
+      }
+    });
+    return `${path}${search}${location.hash}`;
   };
   const hasNext = !!nextTraceId;
   const hasPrevious = !!previousTraceId;

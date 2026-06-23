@@ -7,14 +7,18 @@ import {
   parseBatchSpanAnnotateInput,
   type PendingBatchSpanAnnotate,
 } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { Button, ExternalLink, Flex, Text, View } from "@phoenix/components";
+import { Button, ExternalLink, Flex, Text } from "@phoenix/components";
 import { baseAnnotationLabelCSS } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { AnnotationTooltip } from "@phoenix/components/annotation/AnnotationTooltip";
 import type { Annotation } from "@phoenix/components/annotation/types";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import {
+  ToolPartApprovalActions,
+  ToolPartCodeBlock,
+  ToolPartLabel,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -116,31 +120,12 @@ function PendingBatchSpanAnnotateDetails({
           : `Proposed span annotations (${count})`}
       </ToolPartLabel>
       <SpanAnnotationList annotations={pendingAnnotation.annotations} />
-      <View paddingX="size-200">
-        <Flex direction="row-reverse" gap="size-100">
-          <Button
-            size="S"
-            variant="primary"
-            isDisabled={!canRespond}
-            onPress={() => void pendingAnnotation.accept?.()}
-          >
-            Accept
-          </Button>
-          <Button
-            size="S"
-            isDisabled={!canRespond}
-            onPress={() => void pendingAnnotation.reject?.()}
-          >
-            Reject
-          </Button>
-        </Flex>
-        {!canRespond ? (
-          <ToolPartCodeBlock>
-            This annotation was proposed in an earlier session and can&apos;t be
-            applied here. Re-run your request to have PXI propose it again.
-          </ToolPartCodeBlock>
-        ) : null}
-      </View>
+      <ToolPartApprovalActions
+        onAccept={() => void pendingAnnotation.accept?.()}
+        onReject={() => void pendingAnnotation.reject?.()}
+        isDisabled={!canRespond}
+        staleMessage="This annotation was proposed in an earlier session and can't be applied here. Re-run your request to have PXI propose it again."
+      />
     </Flex>
   );
 }
@@ -180,7 +165,10 @@ const spanAnnotationTargetLinkCSS = css`
   overflow-wrap: anywhere;
 `;
 
-const spanAnnotationListControlsCSS = css`
+// Inset a controls row (the accept/reject footer, the show-more toggle) to
+// match the horizontal padding of the annotation content above it, with a
+// little breathing room beneath.
+const spanAnnotationControlsCSS = css`
   padding: 0 var(--global-dimension-size-150) var(--global-dimension-size-125);
 `;
 
@@ -209,7 +197,7 @@ function SpanAnnotationList({
         />
       ))}
       {hasHiddenAnnotations ? (
-        <div css={spanAnnotationListControlsCSS}>
+        <div css={spanAnnotationControlsCSS}>
           <Button
             size="S"
             onPress={() => setIsExpanded(!isExpanded)}

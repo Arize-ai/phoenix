@@ -17,7 +17,7 @@ class Skill:
     summary: str
     content: str
     path: Path
-    resources: list[SkillResource] = field(default_factory=list)
+    resources: list[SkillResource[Any]] = field(default_factory=list)
     metadata: dict[str, Any] | None = None
 
     @classmethod
@@ -25,7 +25,7 @@ class Skill:
         cls,
         path: Path,
         *,
-        resources: list[SkillResource] | None = None,
+        resources: list[SkillResource[Any]] | None = None,
     ) -> Skill:
         skill_file = path.expanduser().resolve()
         if skill_file.name != "SKILL.md":

@@ -33,6 +33,14 @@ describe("buildAgentQuickActions", () => {
     expect(actions).toContain("Explain this trace");
   });
 
+  it("surfaces session-specific actions on a session page", () => {
+    expect(labels(buildAgentQuickActions(["project", "session"]))).toEqual([
+      "Summarize this session",
+      "Find session issues",
+      "Find critical issues",
+    ]);
+  });
+
   it("caps the number of actions and dedupes shared labels", () => {
     const actions = buildAgentQuickActions(["project", "trace", "span"]);
     expect(actions.length).toBeLessThanOrEqual(3);

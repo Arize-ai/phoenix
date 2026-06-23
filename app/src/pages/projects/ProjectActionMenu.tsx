@@ -117,7 +117,7 @@ export function ProjectActionMenu({
       <MenuTrigger>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover placement="bottom end">
           <Menu
@@ -151,7 +151,7 @@ export function ProjectActionMenu({
                 justifyContent={"start"}
                 alignItems={"center"}
               >
-                <Icon svg={<Icons.DuplicateOutline />} />
+                <Icon svg={<Icons.Duplicate />} />
                 <Text>Copy Name</Text>
               </Flex>
             </MenuItem>
@@ -173,7 +173,7 @@ export function ProjectActionMenu({
                 justifyContent={"start"}
                 alignItems={"center"}
               >
-                <Icon svg={<Icons.CloseCircleOutline />} />
+                <Icon svg={<Icons.CloseCircle />} />
                 <Text>Remove Data</Text>
               </Flex>
             </MenuItem>
@@ -185,7 +185,7 @@ export function ProjectActionMenu({
                   justifyContent={"start"}
                   alignItems={"center"}
                 >
-                  <Icon svg={<Icons.TrashOutline />} />
+                  <Icon svg={<Icons.Trash />} />
                   <Text>Delete</Text>
                 </Flex>
               </MenuItem>

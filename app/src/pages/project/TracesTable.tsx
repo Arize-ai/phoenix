@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -55,12 +55,12 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpanStatusCode,
@@ -119,6 +119,7 @@ const TableBody = <
   "use no memo";
   const navigate = useNavigate();
   const { traceId } = useParams();
+  const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -126,7 +127,14 @@ const TableBody = <
         return (
           <tr
             key={row.id}
-            onClick={() => navigate(`${row.original.trace.traceId}`)}
+            onClick={() =>
+              navigate(
+                getTraceDetailsPath({
+                  traceId: row.original.trace.traceId,
+                  searchParams,
+                })
+              )
+            }
             data-is-additional-row={row.original.__additionalRow}
             data-selected={isSelected}
             css={css(trCSS)}
@@ -200,6 +208,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
@@ -678,7 +687,7 @@ export function TracesTable(props: TracesTableProps) {
                   padding-left: ${props.row.depth * 2}rem;
                 `}
               >
-                <Icon svg={<Icons.MoreHorizontalOutline />} />
+                <Icon svg={<Icons.MoreHorizontal />} />
               </div>
             );
           }
@@ -716,7 +725,11 @@ export function TracesTable(props: TracesTableProps) {
           const spanId = row.original.__additionalRow ? null : row.original.id;
           return (
             <Link
-              to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
+              to={getTraceDetailsPath({
+                traceId,
+                spanNodeId: spanId,
+                searchParams,
+              })}
             >
               {getValue() as string}
             </Link>
@@ -847,7 +860,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns]
+    [annotationColumns, searchParams]
   );
 
   useEffect(() => {
@@ -1040,9 +1053,9 @@ export function TracesTable(props: TracesTableProps) {
                               className="sort-icon"
                               svg={
                                 header.column.getIsSorted() === "asc" ? (
-                                  <Icons.ArrowUpFilled />
+                                  <Icons.CaretUpFilled />
                                 ) : (
-                                  <Icons.ArrowDownFilled />
+                                  <Icons.CaretDownFilled />
                                 )
                               }
                             />

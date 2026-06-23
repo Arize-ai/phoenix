@@ -47,7 +47,7 @@ export function DeletePromptLabelButton(props: DeletePromptLabelButtonProps) {
     <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
       <Button
         size="S"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         aria-label="Delete Prompt Label"
         isDisabled={isDeleting}
       />

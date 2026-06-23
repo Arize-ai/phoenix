@@ -28,6 +28,7 @@ import { isHttpErrorWithStatus } from "../utils/isHttpError";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getDatasetExperimentsUrl, getExperimentUrl } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo.js";
+import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import {
   logExperimentResumeSummary,
   logLinks,
@@ -619,7 +620,7 @@ async function recordTaskResult({
         },
       },
       body: {
-        dataset_example_id: example.nodeId,
+        dataset_example_id: getExampleGlobalId(example),
         repetition_number: repetitionNumber,
         output: output as Record<string, unknown>,
         start_time: startTime.toISOString(),
@@ -695,7 +696,7 @@ async function runSingleTask({
         [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
         ...objectAsAttributes({
           experiment_id: experimentId,
-          dataset_example_id: example.nodeId,
+          dataset_example_id: getExampleGlobalId(example),
           repetition_number: repetitionNumber,
         }),
       });

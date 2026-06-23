@@ -289,7 +289,7 @@ function SimpleExperimentTable({
                         // Mock example details dialog
                       }}
                     >
-                      <Icon svg={<Icons.ExpandOutline />} />
+                      <Icon svg={<Icons.Expand />} />
                     </IconButton>
                     <Tooltip>
                       <TooltipArrow />
@@ -366,7 +366,7 @@ function SimpleExperimentTable({
                 // Mock action menu - no network required
               }}
             >
-              <Icon svg={<Icons.MoreHorizontalOutline />} />
+              <Icon svg={<Icons.MoreHorizontal />} />
             </IconButton>
           </Flex>
         );
@@ -380,7 +380,7 @@ function SimpleExperimentTable({
         if (!currentExperiment) {
           return (
             <Flex direction="row" gap="size-50">
-              <Icon svg={<Icons.MinusCircleOutline />} color="gray-800" />
+              <Icon svg={<Icons.MinusCircle />} color="gray-800" />
               <Text color="text-700">not run</Text>
             </Flex>
           );
@@ -399,7 +399,7 @@ function SimpleExperimentTable({
                   // Mock dialog
                 }}
               >
-                <Icon svg={<Icons.ExpandOutline />} />
+                <Icon svg={<Icons.Expand />} />
               </IconButton>
               <Tooltip>
                 <TooltipArrow />

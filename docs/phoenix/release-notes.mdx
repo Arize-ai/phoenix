@@ -13,6 +13,53 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize-devrel/user-interview).
 </Info>
 
+<ReleaseUpdate label="06.16.2026" href="/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing" title="Time Range, Metrics, and Sharing Upgrades">
+**Available in arize-phoenix 17.5.0+ through 17.7.0+**
+
+A batch of time range, project metrics, and PXI improvements rolled out across 17.5–17.7.
+
+- **Calendar time range picker** — choose an exact window from a two-month calendar with pan, zoom, and live streaming controls
+- **Shareable trace URLs** — trace and session links carry the active time range so a copied link reproduces your view
+- **New project metrics** — trace and session annotation scores plus prompt and completion token detail charts over time
+- **PXI subagents opt-in** — a settings toggle controls the parallel data-retrieval helpers, off by default
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.11.2026" href="/docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands" title="Time Range Selector — Search and Free-Form Durations">
+**Available in arize-phoenix 17.4.0+**
+
+Search the time range selector and type free-form durations to land on exactly the window you want.
+
+- **Search presets** — filter the preset list as you type
+- **Free-form durations** — `25m`, `2h`, `3d`, or `last 2 hours` create custom windows on the fly
+- **Inline editing** — type start and end dates directly in the navbar selector
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.11.2026" href="/docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands" title="PXI Slash Commands and Dataset Evaluator Editing">
+**Available in arize-phoenix 17.4.0+ (PXI beta)**
+
+The `/` menu in PXI chat now includes local commands like `/clear`, and PXI can manage a dataset's evaluators.
+
+- **`/clear`** — reset the conversation into a fresh session from the chat input
+- **Dataset evaluators** — PXI reads evaluator definitions, selects which run on the next playground experiment, and edits existing evaluators as accept/reject diffs
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.10.2026" href="/docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update" title="PXI Skills Menu, Subagents, and Playground Orchestration">
+**Available in arize-phoenix 17.3.0+ (PXI beta)**
+
+PXI can now drive much more of Phoenix for you — invoke skills with `/`, fan out parallel subagents, and run full prompt-iteration loops in the playground.
+
+- **Skills menu** — type `/` to invoke skills like `/debug-trace` and `/llm-evaluator-authoring`
+- **Subagents** — parallel, read-only data retrieval that keeps big lookups out of the main context
+- **Playground orchestration** — load datasets, switch models, set repetitions, manage comparison instances, toggle experiment recording, and cancel runs
+- **Evaluator authoring and dataset management** — draft LLM-judge and code evaluators, create datasets, and import spans as examples, all as reviewable diffs
+</ReleaseUpdate>
+
+<ReleaseUpdate label="06.10.2026" href="/docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update" title="Claude Fable 5 in the Playground">
+**Available in arize-phoenix 17.3.0+**
+
+The playground now supports Anthropic's Claude Fable 5 — `claude-fable-5` on Anthropic and `anthropic.claude-fable-5` on AWS Bedrock — with cost tracking included.
+</ReleaseUpdate>
+
 <ReleaseUpdate label="06.02.2026" href="/docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent" title="Introducing PXI">
 **Available in arize-phoenix 17.0.0+ (beta)**
 

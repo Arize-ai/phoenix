@@ -15,6 +15,14 @@ from phoenix.server.agents.capabilities.contexts.llm_evaluator import (
 )
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
+from phoenix.server.agents.capabilities.contexts.prompt import (
+    PromptContextCapability,
+    PromptVersionContextCapability,
+)
+from phoenix.server.agents.capabilities.contexts.session import SessionContextCapability
+from phoenix.server.agents.capabilities.tools.external.patch_experiment import (
+    PatchExperimentCapability,
+)
 from phoenix.server.agents.context import (
     AppContext,
     CodeEvaluatorContext,
@@ -23,9 +31,13 @@ from phoenix.server.agents.context import (
     PlaygroundBuiltinModelContext,
     PlaygroundContext,
     PlaygroundEvaluatorContext,
+    PlaygroundExperimentScaffoldContext,
     PlaygroundInstanceContext,
     ProjectContext,
+    PromptContext,
+    PromptVersionContext,
     ResolvedContexts,
+    SessionContext,
 )
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
@@ -149,6 +161,70 @@ class TestProjectContextCapabilityRender:
         assert long_condition not in content
 
 
+class TestSessionContextCapabilityRender:
+    def test_renders_session_context(self) -> None:
+        capability = SessionContextCapability(instructions=_DEFAULT_PROMPTS.session_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                session=SessionContext(
+                    type="session",
+                    project_node_id="UHJvamVjdDox",
+                    session_node_id="UHJvamVjdFNlc3Npb246MQ==",
+                ),
+            )
+        )
+
+        content = _render(capability, ctx)
+
+        assert content.startswith("<phoenix_session_context>")
+        assert '<project_node_id format="phoenix_node_id">UHJvamVjdDox</project_node_id>' in content
+        assert (
+            '<session_node_id format="phoenix_node_id">UHJvamVjdFNlc3Npb246MQ==</session_node_id>'
+        ) in content
+
+
+class TestPromptContextCapabilityRender:
+    def test_renders_prompt_context(self) -> None:
+        capability = PromptContextCapability(instructions=_DEFAULT_PROMPTS.prompt_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                prompt=PromptContext(
+                    type="prompt",
+                    prompt_node_id="UHJvbXB0OjE=",
+                ),
+            )
+        )
+
+        content = _render(capability, ctx)
+
+        assert content.startswith("<phoenix_prompt_context>")
+        assert '<prompt_node_id format="phoenix_node_id">UHJvbXB0OjE=</prompt_node_id>' in content
+
+
+class TestPromptVersionContextCapabilityRender:
+    def test_renders_prompt_version_context(self) -> None:
+        capability = PromptVersionContextCapability(
+            instructions=_DEFAULT_PROMPTS.prompt_version_context
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                prompt_version=PromptVersionContext(
+                    type="prompt_version",
+                    prompt_node_id="UHJvbXB0OjE=",
+                    prompt_version_node_id="UHJvbXB0VmVyc2lvbjox",
+                ),
+            )
+        )
+
+        content = _render(capability, ctx)
+
+        assert content.startswith("<phoenix_prompt_version_context>")
+        assert '<prompt_node_id format="phoenix_node_id">UHJvbXB0OjE=</prompt_node_id>' in content
+        assert (
+            '<prompt_version_node_id format="phoenix_node_id">UHJvbXB0VmVyc2lvbjox</prompt_version_node_id>'
+        ) in content
+
+
 class TestDatasetContextCapabilityRender:
     def test_evaluator_authoring_handoff_links_to_create_slideover(self) -> None:
         capability = DatasetContextCapability(
@@ -227,7 +303,7 @@ class TestDatasetContextCapabilityRender:
         content = _render(capability, ctx)
         assert "open_llm_evaluator_form" in content
         assert "load_skill" in content
-        assert "llm-evaluator-authoring" in content
+        assert "`evaluators`" in content
         assert (
             "[Create LLM evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
             "?createLlmEvaluator=true)"
@@ -274,7 +350,7 @@ class TestDatasetContextCapabilityRender:
 
 
 class TestCodeEvaluatorContextCapabilityRender:
-    def test_reinforces_direct_arguments_for_dataset_backed_evaluators(self) -> None:
+    def test_directs_load_evaluators_skill_for_authoring_methodology(self) -> None:
         capability = CodeEvaluatorContextCapability(
             instructions=_DEFAULT_PROMPTS.code_evaluator_context,
         )
@@ -287,10 +363,12 @@ class TestCodeEvaluatorContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
+        assert "load_skill" in content
+        assert "`evaluators`" in content
         assert "testPayload" in content
         assert "test_code_evaluator_draft" in content
 
-    def test_names_fixed_playground_output_schema_when_playground_mounted(self) -> None:
+    def test_omits_hoisted_field_topology_methodology(self) -> None:
         capability = CodeEvaluatorContextCapability(
             instructions=_DEFAULT_PROMPTS.code_evaluator_context,
         )
@@ -307,30 +385,8 @@ class TestCodeEvaluatorContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        assert "messages" in content
-        assert "tool_calls" in content
-        assert "function" in content
-        assert "arguments" in content
-        assert "available_tools" in content
-        assert "set_test_payload" in content
-        assert "testPayload" in content
-        assert "do not assume the signal is at a top-level key" not in content
-
-    def test_omits_playground_output_schema_without_playground(self) -> None:
-        capability = CodeEvaluatorContextCapability(
-            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
-        )
-        ctx = _get_run_context(
-            ResolvedContexts(
-                code_evaluator=CodeEvaluatorContext(
-                    type="code_evaluator",
-                    evaluator_node_id=None,
-                ),
-            )
-        )
-        content = _render(capability, ctx)
         assert "available_tools" not in content
-        assert "do not assume the signal is at a top-level key" in content
+        assert "do not assume the signal is at a top-level key" not in content
 
     def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
         capability = CodeEvaluatorContextCapability(
@@ -492,6 +548,40 @@ class TestPlaygroundContextCapabilityRender:
         assert "set_playground_experiment_recording" in content
         assert '<repetitions count="4"/>' in content
         assert "set_playground_repetitions" in content
+
+    def test_renders_staged_experiment_scaffold(self) -> None:
+        capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    next_experiment_scaffold=PlaygroundExperimentScaffoldContext(
+                        name="Shorter prompt",
+                        description="Trimmed by half",
+                        has_metadata=True,
+                    ),
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                )
+            )
+        )
+        content = _render(capability, ctx)
+        assert (
+            '<next_experiment_scaffold name="Shorter prompt" '
+            'description="Trimmed by half" hasMetadata="true"/>' in content
+        )
+
+    def test_renders_empty_scaffold_when_unset(self) -> None:
+        capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                )
+            )
+        )
+        content = _render(capability, ctx)
+        assert "<next_experiment_scaffold/>" in content
 
     def test_renders_experiment_id_when_set(self) -> None:
         capability = PlaygroundContextCapability(instructions=_DEFAULT_PROMPTS.playground_context)
@@ -667,3 +757,38 @@ class TestCodeEvaluatorContextCapabilityGate:
         content = _render(capability, ctx)
         assert "<mode>create</mode>" in content
         assert "<evaluator_node_id>" not in content
+
+
+class TestPatchExperimentCapabilityGate:
+    def _capability(self) -> PatchExperimentCapability:
+        return PatchExperimentCapability(
+            instructions=_DEFAULT_PROMPTS.patch_experiment_tool,
+        )
+
+    def _dataset_context(self) -> DatasetContext:
+        return DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox")
+
+    def _playground_context(self) -> PlaygroundContext:
+        return PlaygroundContext(
+            type="playground",
+            instances=[PlaygroundInstanceContext(instance_id=0)],
+        )
+
+    def test_excluded_without_dataset_or_playground_context(self) -> None:
+        ctx = _get_run_context(ResolvedContexts())
+        assert self._capability().include_for_run(ctx) is False
+
+    def test_included_with_dataset_context(self) -> None:
+        ctx = _get_run_context(ResolvedContexts(dataset=self._dataset_context()))
+        assert self._capability().include_for_run(ctx) is True
+
+    def test_included_with_playground_context(self) -> None:
+        ctx = _get_run_context(ResolvedContexts(playground=self._playground_context()))
+        assert self._capability().include_for_run(ctx) is True
+
+    def test_excluded_for_viewer_even_with_dataset_context(self) -> None:
+        ctx = _get_run_context(
+            ResolvedContexts(dataset=self._dataset_context()),
+            is_viewer=True,
+        )
+        assert self._capability().include_for_run(ctx) is False

@@ -1417,8 +1417,8 @@ class TestLlmEvaluatorFormToolGates:
         assert "submit_llm_evaluator_draft" not in tool_names
 
 
-class TestLlmEvaluatorAuthoringSkillLoadContract:
-    """The authoring skill is only reachable if a live surface both advertises
+class TestEvaluatorsSkillLoadContract:
+    """The evaluators skill is only reachable if a live surface both advertises
     it in the catalog and directs the agent to ``load_skill`` it. These assert
     that contract so the skill cannot silently become inert."""
 
@@ -1441,9 +1441,9 @@ class TestLlmEvaluatorAuthoringSkillLoadContract:
 
         all_text = "\n".join(_get_system_texts(captured_request.body))
         assert "load_skill" in all_text
-        assert "llm-evaluator-authoring" in all_text
+        assert "evaluators" in all_text
 
-    async def test_authoring_skill_advertised_with_dataset_context(
+    async def test_evaluators_skill_advertised_with_dataset_context(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -1460,9 +1460,29 @@ class TestLlmEvaluatorAuthoringSkillLoadContract:
         await agent.run("hello", deps=deps)
 
         all_text = "\n".join(_get_system_texts(captured_request.body))
-        assert "<name>llm-evaluator-authoring</name>" in all_text
+        assert "<name>evaluators</name>" in all_text
 
-    async def test_authoring_skill_absent_without_authoring_surface(
+    async def test_evaluators_skill_advertised_with_code_evaluator_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>evaluators</name>" in all_text
+
+    async def test_evaluators_skill_absent_without_authoring_surface(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -1473,7 +1493,63 @@ class TestLlmEvaluatorAuthoringSkillLoadContract:
         await agent.run("hello", deps=deps)
 
         all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>evaluators</name>" not in all_text
         assert "<name>llm-evaluator-authoring</name>" not in all_text
+
+
+class TestExperimentsSkillGate:
+    """The experiments skill is dataset-scoped: it advertises iff a dataset
+    context is mounted, and stays absent on evaluator-only or empty surfaces."""
+
+    async def test_experiments_skill_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>experiments</name>" in all_text
+
+    async def test_experiments_skill_absent_for_evaluator_only_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>experiments</name>" not in all_text
+
+    async def test_experiments_skill_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>experiments</name>" not in all_text
 
 
 class TestCapabilityInstructionsOverride:

@@ -88,7 +88,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
             slot="close"
             size="S"
             type="button"
-            leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Close />} />}
           />
         </div>
         {toast.content.action ? (

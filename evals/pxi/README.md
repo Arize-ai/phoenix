@@ -39,6 +39,62 @@ uv run python -m evals.pxi.harness.run_experiment --dataset set_spans_filter --s
 `regression` example. The runner prints a stdout summary and the Phoenix
 experiment URL.
 
+## Failure Reports
+
+The console summary keeps its compact, truncated tables -- that is the
+glance tier. For full-fidelity output there are two flags:
+
+### `--print-report` (local use)
+
+Pass `--print-report` to dump the full Markdown failure report to stdout at
+the end of the run. No-op when all examples pass.
+
+```bash
+uv run python -m evals.pxi.harness.run_experiment \
+  --dataset set_spans_filter --print-report
+```
+
+This is the recommended way to see full failure details locally: inputs,
+expected outputs, the agent's actual tool calls, per-evaluator
+scores/labels/explanations, and a Phoenix trace link -- all in one place in
+your terminal without writing any files.
+
+### `--report-dir DIR` (CI / artifact use)
+
+Pass `--report-dir` to write two files per dataset run:
+
+- **`<dataset>.report.json`** -- machine-readable: run metadata (experiment
+  name and URL, git sha/branch, model, provider, splits, timestamp) plus one
+  record per *failed or errored* example with the full untruncated `input`,
+  `expected`, `actual_output` (including every tool call the agent made),
+  per-evaluator score/label/explanation/error, any `task_error`, and a
+  per-example trace URL (`<base-url>/redirects/traces/<trace_id>`) when the
+  run was traced. Passing examples contribute to counts only.
+- **`<dataset>.report.md`** -- the same content as agent-friendly Markdown:
+  a digest table up top, one section per failed example (message histories
+  collapsed under `<details>`), and a repro footer with the exact local
+  command. The whole report is wrapped in sentinel markers
+  (`===== BEGIN PXI EVAL REPORT: <dataset> =====` / `===== END ... =====`)
+  so it can be grepped out of a CI log. Paste this into a coding agent to
+  diagnose and fix the failure -- it is self-sufficient context.
+
+In CI the workflow passes `--report-dir` rather than `--print-report` because
+GitHub Actions interprets any log line starting with `::` as a workflow
+command (e.g. `::endgroup::` closes a log group, `::error::` creates an
+annotation). Model output in the report can contain such lines, so the
+workflow writes to a file first and then `cat`s the file inside a
+`::stop-commands::` block to suspend command processing while the untrusted
+content is being logged. See `.github/workflows/pxi-evals.yml` for the full
+pattern.
+
+If a report would exceed GitHub's embedding limits (~1 MiB for step
+summaries, ~64 KiB per log line), the Markdown tier falls back to its digest
+plus a pointer at the JSON artifact; the JSON file never truncates example
+data. The one deliberate redaction in both tiers: the static system prompt
+that pydantic_ai repeats under `messages[].instructions` (~55 KB per model
+request) is replaced with a placeholder -- it is product prompt, not example
+data, and the full text is always viewable via the trace URL.
+
 The runner checks `/healthz` against whichever Phoenix URL is configured
 (default `http://localhost:6006`, or `PHOENIX_COLLECTOR_ENDPOINT` /
 `OTEL_EXPORTER_OTLP_ENDPOINT` if set) before uploading anything. To use a
@@ -285,8 +341,38 @@ Phoenix Cloud. It runs on PRs that change `evals/**` or
 the Actions tab.
 
 The workflow invokes the runner for every YAML file in
-`evals/pxi/datasets/*.yaml` with `--splits regression` and
-`--fail-on-regression`. The runner skips datasets when the requested split has
-no regression examples. Each dataset run is printed as its own log group with
-the dataset file and CI experiment name. The workflow keeps going after
-individual dataset failures, and the final status is red if any dataset fails.
+`evals/pxi/datasets/*.yaml` with `--splits regression`,
+`--fail-on-regression`, and `--report-dir`. The runner skips datasets when
+the requested split has no regression examples. Each dataset run is printed
+as its own log group with the dataset file and CI experiment name. The
+workflow keeps going after individual dataset failures, and the final status
+is red if any dataset fails.
+
+### Reading a CI failure
+
+Failure output is published through three channels, ranked by how you (or a
+coding agent) consume it:
+
+1. **Job log (primary, agents).** Each failed dataset's full Markdown report
+   is embedded in the log under a collapsed
+   `PXI EVAL FAILURE REPORT (agent-readable): <dataset>` group, wrapped in
+   `===== BEGIN/END PXI EVAL REPORT: <dataset> =====` sentinels. Retrieval
+   from a red check is two commands:
+
+   ```bash
+   gh pr checks <pr-number>           # find the failing run id from its URL
+   gh run view <run-id> --log-failed  # full agent-readable reports
+   ```
+
+   Paste the report between the sentinels into a coding agent; the repro
+   footer and experiment URL make it self-sufficient.
+2. **Step summary (humans).** The run's summary page shows the dataset
+   pass/fail table, a digest table per failed dataset (example id,
+   evaluator, score, one-line explanation, experiment link), and the full
+   report inside a `<details>` block for browser copy-paste.
+3. **JSON artifact (programmatic).** Both report files for every dataset are
+   uploaded as the `pxi-eval-reports-<run-id>` artifact on every run:
+
+   ```bash
+   gh run download <run-id> -n pxi-eval-reports-<run-id>
+   ```

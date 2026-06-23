@@ -1,4 +1,9 @@
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import {
+  useLoaderData,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -17,6 +22,7 @@ import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaul
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { SessionDetailsPaginator } from "@phoenix/pages/trace/SessionDetailsPaginator";
 import type { sessionLoader } from "@phoenix/pages/trace/sessionLoader";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import { SessionDetails } from "./SessionDetails";
 
@@ -28,7 +34,9 @@ export function SessionPage() {
   invariant(loaderData, "loaderData is required");
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
+  const parentSearch = clearSelectionScopedParams(location.search);
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "session-details",
   });
@@ -36,7 +44,13 @@ export function SessionPage() {
   return (
     <Drawer
       isOpen
-      onClose={() => navigate(`${rootPath}/${tab}`)}
+      onClose={() =>
+        navigate({
+          pathname: `${rootPath}/${tab}`,
+          search: parentSearch,
+          hash: location.hash,
+        })
+      }
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}

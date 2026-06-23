@@ -297,7 +297,7 @@ export function ModelMenu({
           <LinkButton
             size="S"
             variant="quiet"
-            leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Settings />} />}
             to="/settings/providers"
           >
             Configure AI Providers

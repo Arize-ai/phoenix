@@ -394,6 +394,25 @@
                   "docs/phoenix/tracing/concepts-tracing/how-tracing-works",
                   "docs/phoenix/tracing/concepts-tracing/annotations-concepts",
                   "docs/phoenix/tracing/concepts-tracing/translating-conventions",
+                  {
+                    "group": "OpenTelemetry and OpenInference",
+                    "pages": [
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/overview",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/signals",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/resource",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling",
+                      "docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector"
+                    ]
+                  },
                   "docs/phoenix/tracing/concepts-tracing/faqs-tracing"
                 ]
               },
@@ -1143,7 +1162,6 @@
             "pages": [
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python",
               "docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
               "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
               "docs/phoenix/cookbook/prompt-engineering/prompt-optimization",
               "docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments"
@@ -1157,6 +1175,7 @@
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
               "docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph",
+              "docs/phoenix/cookbook/tracing/openinference-best-practices",
               "docs/phoenix/cookbook/tracing/cookbooks"
             ]
           },
@@ -1165,8 +1184,7 @@
             "icon": "user-plus",
             "pages": [
               "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/using-human-annotations-for-eval-driven-development",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript",
-              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+              "docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript"
             ]
           },
           {
@@ -1186,6 +1204,7 @@
             "group": "Evaluation",
             "icon": "clipboard-check",
             "pages": [
+              "docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
               "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
               "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
               "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
@@ -1197,9 +1216,10 @@
             ]
           },
           {
-            "group": "Guardrails",
-            "icon": "shield-check",
+            "group": "Guardrails & Safety",
+            "icon": "shield-halved",
             "pages": [
+              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
               "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
             ]
           },
@@ -1228,6 +1248,9 @@
               {
                 "group": "06.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
+                  "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
+                  "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",
                   "docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent"
                 ]
               },
@@ -1550,6 +1573,10 @@
     ]
   },
   "redirects": [
+    {
+      "source": "/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset",
+      "destination": "/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset"
+    },
     {
       "source": "/docs/phoenix/phoenix-deployment-options",
       "destination": "/docs/phoenix/self-hosting/architecture"

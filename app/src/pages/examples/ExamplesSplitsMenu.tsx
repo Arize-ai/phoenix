@@ -39,10 +39,7 @@ export const ExamplesSplitsMenu = ({
 }: ExamplesSplitsMenuProps) => {
   return (
     <MenuTrigger>
-      <Button
-        leadingVisual={<Icon svg={<Icons.PieChartOutline />} />}
-        size={size}
-      >
+      <Button leadingVisual={<Icon svg={<Icons.PieChart />} />} size={size}>
         Splits
         {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>

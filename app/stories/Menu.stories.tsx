@@ -288,7 +288,7 @@ export const FilterMenu = () => {
         Generic filter menu with search and multi-select functionality
       </Text>
       <MenuTrigger>
-        <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+        <Button leadingVisual={<Icon svg={<Icons.PriceTags />} />}>
           Filter Categories
           {selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
         </Button>
@@ -298,12 +298,12 @@ export const FilterMenu = () => {
               <MenuHeaderTitle
                 leadingContent={
                   <IconButton size="S">
-                    <Icon svg={<Icons.ChevronLeft />} />
+                    <Icon svg={<Icons.ChevronLeftSmall />} />
                   </IconButton>
                 }
                 trailingContent={
                   <IconButton size="S">
-                    <Icon svg={<Icons.PlusCircleOutline />} />
+                    <Icon svg={<Icons.PlusCircle />} />
                   </IconButton>
                 }
               >
@@ -387,7 +387,7 @@ export const MenuHeaderTitleWithSearch = () => {
         between them.
       </Text>
       <MenuTrigger>
-        <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+        <Button leadingVisual={<Icon svg={<Icons.PriceTags />} />}>
           Select Categories
           {selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
         </Button>
@@ -397,7 +397,7 @@ export const MenuHeaderTitleWithSearch = () => {
               <MenuHeaderTitle
                 trailingContent={
                   <IconButton size="S">
-                    <Icon svg={<Icons.PlusCircleOutline />} />
+                    <Icon svg={<Icons.PlusCircle />} />
                   </IconButton>
                 }
               >

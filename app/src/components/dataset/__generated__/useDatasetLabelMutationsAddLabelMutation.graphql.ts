@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<707594cdfd4d14039665205b1c9f0013>>
+ * @generated SignedSource<<769ee772aee57dab19dcb4c791145912>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type useDatasetLabelMutationsAddLabelMutation$data = {
       readonly color: string;
       readonly id: string;
       readonly name: string;
+      readonly usageCount: number;
     };
     readonly datasets: ReadonlyArray<{
       readonly id: string;
@@ -66,34 +67,42 @@ v3 = {
   "name": "id",
   "storageKey": null
 },
-v4 = [
-  (v3/*: any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "name",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "color",
-    "storageKey": null
-  }
-],
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
 v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "color",
+  "storageKey": null
+},
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "DatasetLabel",
   "kind": "LinkedField",
   "name": "datasetLabel",
   "plural": false,
-  "selections": (v4/*: any*/),
+  "selections": [
+    (v3/*: any*/),
+    (v4/*: any*/),
+    (v5/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "usageCount",
+      "storageKey": null
+    }
+  ],
   "storageKey": null
 },
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "concreteType": "Dataset",
@@ -109,7 +118,11 @@ v6 = {
       "kind": "LinkedField",
       "name": "labels",
       "plural": true,
-      "selections": (v4/*: any*/),
+      "selections": [
+        (v3/*: any*/),
+        (v4/*: any*/),
+        (v5/*: any*/)
+      ],
       "storageKey": null
     }
   ],
@@ -133,8 +146,8 @@ return {
         "name": "createDatasetLabel",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
-          (v6/*: any*/)
+          (v6/*: any*/),
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
@@ -159,7 +172,7 @@ return {
         "name": "createDatasetLabel",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
+          (v6/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -181,23 +194,23 @@ return {
               }
             ]
           },
-          (v6/*: any*/)
+          (v7/*: any*/)
         ],
         "storageKey": null
       }
     ]
   },
   "params": {
-    "cacheID": "2ef998561a150eeacbaffdebc07bc94a",
+    "cacheID": "812ff73c35044115993d749c5ebef822",
     "id": null,
     "metadata": {},
     "name": "useDatasetLabelMutationsAddLabelMutation",
     "operationKind": "mutation",
-    "text": "mutation useDatasetLabelMutationsAddLabelMutation(\n  $input: CreateDatasetLabelInput!\n) {\n  createDatasetLabel(input: $input) {\n    datasetLabel {\n      id\n      name\n      color\n    }\n    datasets {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
+    "text": "mutation useDatasetLabelMutationsAddLabelMutation(\n  $input: CreateDatasetLabelInput!\n) {\n  createDatasetLabel(input: $input) {\n    datasetLabel {\n      id\n      name\n      color\n      usageCount\n    }\n    datasets {\n      id\n      labels {\n        id\n        name\n        color\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "0ea9c100ed6c060e7fc59b9c9f4e9db1";
+(node as any).hash = "edd67fe48c47ce070d116d1de17602ae";
 
 export default node;

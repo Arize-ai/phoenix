@@ -44,11 +44,21 @@ from tests.unit.graphql import AsyncGraphQLClient
 from tests.unit.vcr import CustomVCR
 
 
+def pytest_configure(config: Config) -> None:
+    config.addinivalue_line(
+        "markers",
+        "postgres_only: mark a test as requiring PostgreSQL (skipped under --db sqlite)",
+    )
+
+
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     db = config.getoption("--db")
     if db == "sqlite":
         skip_marker = pytest.mark.skip(reason="Skipping Postgres tests (--db sqlite)")
         for item in items:
+            if item.get_closest_marker("postgres_only") is not None:
+                item.add_marker(skip_marker)
+                continue
             if "dialect" in item.fixturenames:
                 if "postgresql" in item.callspec.params.values():
                     item.add_marker(skip_marker)

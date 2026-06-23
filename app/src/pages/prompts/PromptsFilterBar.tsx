@@ -45,7 +45,7 @@ export const PromptsFilterBar = () => {
           <CanModify>
             <LinkButton
               size="M"
-              leadingVisual={<Icon svg={<Icons.MessageSquareOutline />} />}
+              leadingVisual={<Icon svg={<Icons.MessageSquare />} />}
               variant="primary"
               to="/playground"
             >

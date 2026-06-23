@@ -1,11 +1,11 @@
 import React, {
   createContext,
   startTransition,
-  useCallback,
   useEffect,
   useEffectEvent,
   useState,
 } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   SET_TIME_RANGE_TOOL_NAME,
@@ -18,12 +18,19 @@ import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { OpenTimeRangeWithKey } from "./types";
 import {
   getMillisecondsUntilNextLastNTimeRangeRefresh,
+  getTimeRangeFromSearchParams,
   getTimeRangeFromLastNTimeRangeKey,
   isLastNTimeRangeKey,
+  setTimeRangeSearchParams,
 } from "./utils";
 
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
+  /**
+   * Set the time range with the state write wrapped in a transition so
+   * steering interactions (preset picks, pan/zoom) do not block the input
+   * event.
+   */
   setTimeRange: (timeRange: OpenTimeRangeWithKey) => void;
   /**
    * Apply a closed time range as a custom selection. Wraps the state write in
@@ -50,84 +57,141 @@ export function useTimeRange() {
   return context;
 }
 
+/**
+ * Resolve the time range to fall back to when the URL carries none, from the
+ * user's stored last-N preference. Defaults to the last 7 days when the stored
+ * value is missing or invalid.
+ */
+function getStoredTimeRange({
+  storedLastNTimeRangeKey,
+  now,
+}: {
+  storedLastNTimeRangeKey: unknown;
+  now: number;
+}): OpenTimeRangeWithKey {
+  // Guard against a malformed stored value before trusting it.
+  if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
+    return {
+      timeRangeKey: storedLastNTimeRangeKey,
+      ...getTimeRangeFromLastNTimeRangeKey(storedLastNTimeRangeKey, now),
+    };
+  }
+  // Fall back to the default time range
+  return {
+    timeRangeKey: "7d",
+    ...getTimeRangeFromLastNTimeRangeKey("7d", now),
+  };
+}
+
+/**
+ * Provides the active tracing time range to the app and keeps it in sync with
+ * the URL.
+ *
+ * The active range takes one of two shapes, mirroring the URL's two mutually
+ * exclusive representations (see {@link getTimeRangeFromSearchParams}):
+ * - **Live (last-N):** a `timeRangeKey` like "7d" with no bounds. It always
+ *   ends at "now" and refreshes on a timer (see {@link LastNTimeRangeKey}).
+ * - **Custom:** explicit start/end bounds with no key — a fixed window honored
+ *   verbatim.
+ *
+ * Because the URL is declarative — a key XOR explicit bounds — "is this range
+ * live?" is a pure function of its shape: a last-N key is always live, a custom
+ * range never is. No provenance tracking is needed to tell a self-authored URL
+ * apart from a shared/restored one.
+ *
+ * State is sourced with the following precedence:
+ * 1. The URL search params — the canonical, shareable source of truth.
+ * 2. The user's stored last-N preference — used when the URL carries no time
+ *    range (e.g. a fresh visit), and then seeded into the URL.
+ */
 export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
-  /**
-   * Load in the last N time range key from preferences
-   */
+  const [searchParams, setSearchParams] = useSearchParams();
   const storedLastNTimeRangeKey = usePreferencesContext(
     (state) => state.lastNTimeRangeKey
   );
-
   const setStoredLastNTimeRangeKey = usePreferencesContext(
     (state) => state.setLastNTimeRangeKey
   );
 
-  // Default to the last N time range stored in preferences
-  const [timeRange, _setTimeRange] = useState<OpenTimeRangeWithKey>(() => {
-    // Just to be safe, we check if the stored time range key is valid
-    if (isLastNTimeRangeKey(storedLastNTimeRangeKey)) {
-      return {
-        timeRangeKey: storedLastNTimeRangeKey,
-        ...getTimeRangeFromLastNTimeRangeKey(storedLastNTimeRangeKey),
-      };
-    } else {
-      // Fall back to the default time range
-      return {
-        timeRangeKey: "7d",
-        ...getTimeRangeFromLastNTimeRangeKey("7d"),
-      };
-    }
-  });
+  // The "now" anchor for resolving relative (last-N) windows. Bumped on a timer
+  // so live windows slide forward, and reset whenever a new last-N range is set.
+  const [timeRangeNow, setTimeRangeNow] = useState(() => Date.now());
 
-  const setTimeRange = useCallback(
-    (timeRange: OpenTimeRangeWithKey) => {
-      const nextTimeRange = isLastNTimeRangeKey(timeRange.timeRangeKey)
-        ? {
-            timeRangeKey: timeRange.timeRangeKey,
-            ...getTimeRangeFromLastNTimeRangeKey(timeRange.timeRangeKey),
-          }
-        : timeRange;
-      _setTimeRange(nextTimeRange);
-      // Store the last N time range key in preferences
+  // The URL wins when it carries a usable range; otherwise fall back to the
+  // stored preference (computed lazily, only when the URL carries no range).
+  const urlTimeRange = getTimeRangeFromSearchParams(searchParams, timeRangeNow);
+  const timeRange =
+    urlTimeRange ??
+    getStoredTimeRange({ storedLastNTimeRangeKey, now: timeRangeNow });
+  const timeRangeStartMs = timeRange.start?.getTime();
+
+  /**
+   * Set the active time range and reflect it in the URL.
+   *
+   * The URL write is declarative: a last-N key is written as just the key
+   * (clearing any bounds) and a custom range as just its bounds. The write
+   * replaces history (no new entry per change) and any last-N key is persisted
+   * as the user's preference.
+   */
+  const setTimeRange = (timeRange: OpenTimeRangeWithKey) => {
+    startTransition(() => {
+      setSearchParams(
+        (currentSearchParams) =>
+          setTimeRangeSearchParams({
+            searchParams: currentSearchParams,
+            timeRange,
+          }),
+        { replace: true }
+      );
+      // Persist the preset and re-anchor "now" so the live window refreshes.
       if (isLastNTimeRangeKey(timeRange.timeRangeKey)) {
         setStoredLastNTimeRangeKey(timeRange.timeRangeKey);
+        setTimeRangeNow(Date.now());
       }
-    },
-    [setStoredLastNTimeRangeKey]
-  );
+    });
+  };
 
-  const setCustomTimeRange = useCallback(
-    (timeRange: TimeRange) => {
-      startTransition(() => {
-        setTimeRange({
-          timeRangeKey: "custom",
-          start: timeRange.start,
-          end: timeRange.end,
-        });
-      });
-    },
-    [setTimeRange]
-  );
+  const setCustomTimeRange = (timeRange: TimeRange) => {
+    setTimeRange({
+      timeRangeKey: "custom",
+      start: timeRange.start,
+      end: timeRange.end,
+    });
+  };
 
+  // Seed a fresh URL from the stored preference on first load. Once the URL
+  // carries a range it is canonical, so this no-ops. A live window's refresh
+  // needs no URL write: the URL holds only the key, and the window is
+  // recomputed from `timeRangeNow` on each render.
+  useEffect(() => {
+    if (urlTimeRange != null) {
+      return;
+    }
+    const nextSearchParams = setTimeRangeSearchParams({
+      searchParams,
+      timeRange,
+    });
+    if (nextSearchParams.toString() === searchParams.toString()) {
+      return;
+    }
+    setSearchParams(nextSearchParams, { replace: true });
+  }, [urlTimeRange, searchParams, setSearchParams, timeRange]);
+
+  // Drive live refreshes. While a last-N range is live, schedule a bump of
+  // `timeRangeNow` for when its window next rolls over (the start of the next
+  // minute or hour) so the displayed window keeps tracking "now".
   useEffect(() => {
     if (!isLastNTimeRangeKey(timeRange.timeRangeKey)) {
       return;
     }
+    const timeRangeKey = timeRange.timeRangeKey;
     const timeoutId = window.setTimeout(() => {
-      _setTimeRange((currentTimeRange) => {
-        if (!isLastNTimeRangeKey(currentTimeRange.timeRangeKey)) {
-          return currentTimeRange;
-        }
-        return {
-          timeRangeKey: currentTimeRange.timeRangeKey,
-          ...getTimeRangeFromLastNTimeRangeKey(currentTimeRange.timeRangeKey),
-        };
-      });
-    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRange.timeRangeKey));
+      setTimeRangeNow(Date.now());
+    }, getMillisecondsUntilNextLastNTimeRangeRefresh(timeRangeKey));
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [timeRange]);
+  }, [timeRange.timeRangeKey, timeRangeStartMs]);
 
   useRegisterSetTimeRangeClientAction({ setTimeRange });
 

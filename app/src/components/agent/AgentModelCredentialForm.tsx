@@ -89,7 +89,7 @@ export function AgentModelCredentialForm({
     >
       <Flex direction="column" gap="size-150">
         <Flex direction="row" alignItems="center" gap="size-100">
-          <Icon color="danger" svg={<Icons.AlertTriangleOutline />} />
+          <Icon color="danger" svg={<Icons.AlertTriangle />} />
           <Text weight="heavy">
             {provider.name} credentials are not configured
           </Text>

@@ -483,7 +483,7 @@ function TraceRowChevron({ isExpanded }: { isExpanded: boolean }) {
       data-expanded={isExpanded}
       data-testid="session-trace-row-chevron"
     >
-      <Icon svg={<Icons.ChevronRight />} />
+      <Icon svg={<Icons.ChevronRightSmall />} />
     </span>
   );
 }

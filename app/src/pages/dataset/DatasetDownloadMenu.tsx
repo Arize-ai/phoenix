@@ -12,10 +12,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 export function DatasetDownloadMenu({ datasetId }: { datasetId: string }) {
   return (
     <MenuTrigger>
-      <Button
-        size="M"
-        leadingVisual={<Icon svg={<Icons.DownloadOutline />} />}
-      />
+      <Button size="M" leadingVisual={<Icon svg={<Icons.Download />} />} />
       <Popover>
         <Menu
           aria-label="Dataset download"

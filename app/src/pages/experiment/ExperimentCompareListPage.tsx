@@ -533,7 +533,7 @@ export function ExperimentCompareListPage({
                   flex: none;
                 `}
               >
-                <Icon svg={<Icons.ExpandOutline />} />
+                <Icon svg={<Icons.Expand />} />
               </IconButton>
               <Tooltip>
                 <TooltipArrow />
@@ -756,9 +756,9 @@ export function ExperimentCompareListPage({
                 className="sort-icon"
                 svg={
                   column.getIsSorted() === "asc" ? (
-                    <Icons.ArrowUpFilled />
+                    <Icons.CaretUpFilled />
                   ) : (
-                    <Icons.ArrowDownFilled />
+                    <Icons.CaretDownFilled />
                   )
                 }
               />
@@ -960,9 +960,9 @@ export function ExperimentCompareListPage({
                           className="sort-icon"
                           svg={
                             headerContext.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
+                              <Icons.CaretUpFilled />
                             ) : (
-                              <Icons.ArrowDownFilled />
+                              <Icons.CaretDownFilled />
                             )
                           }
                         />

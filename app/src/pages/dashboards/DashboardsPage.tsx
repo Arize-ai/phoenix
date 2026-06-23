@@ -10,7 +10,10 @@ import {
 import invariant from "tiny-invariant";
 
 import { Empty, Flex, Loading } from "@phoenix/components";
-import { ConnectedTimeRangeSelector } from "@phoenix/components/datetime";
+import {
+  ConnectedTimeRangeControls,
+  ConnectedTimeRangeSelector,
+} from "@phoenix/components/datetime";
 import { ProjectMenu } from "@phoenix/components/project";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
@@ -35,7 +38,6 @@ const toolbarCSS = css`
   gap: var(--global-dimension-size-200);
   padding: var(--global-dimension-size-200);
   border-bottom: 1px solid var(--global-border-color-default);
-  background-color: var(--global-color-gray-50);
 `;
 
 const projectMenuCSS = css`
@@ -77,7 +79,10 @@ export function DashboardsPage() {
             navigate(`/dashboards/projects/${projectId}`);
           }}
         />
-        <ConnectedTimeRangeSelector size="S" />
+        <Flex direction="row" alignItems="center" gap="size-100">
+          <ConnectedTimeRangeSelector size="S" />
+          <ConnectedTimeRangeControls size="S" />
+        </Flex>
       </div>
       <div css={contentCSS}>
         <Suspense fallback={<Loading />}>

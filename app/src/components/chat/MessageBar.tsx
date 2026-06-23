@@ -28,7 +28,7 @@ interface MessageBarProps {
   placeholder?: string;
   /**
    * Override the default send button icon.
-   * @default <Icons.PaperPlaneOutline />
+   * @default <Icons.PaperPlane />
    */
   icon?: React.ReactNode;
 }
@@ -58,7 +58,7 @@ export function MessageBar({
   onSendMessage,
   isSending = false,
   placeholder = "Type a message",
-  icon = <Icon svg={<Icons.PaperPlaneOutline />} />,
+  icon = <Icon svg={<Icons.PaperPlane />} />,
 }: MessageBarProps) {
   const [message, setMessage] = useState("");
 
@@ -97,9 +97,7 @@ export function MessageBar({
           isDisabled={!message.trim() || isSending}
           onPress={handleSend}
           aria-label={isSending ? "Sending message..." : "Send"}
-          leadingVisual={
-            isSending ? <Icon svg={<Icons.LoadingOutline />} /> : icon
-          }
+          leadingVisual={isSending ? <Icon svg={<Icons.Loading />} /> : icon}
         />
       </Flex>
     </View>

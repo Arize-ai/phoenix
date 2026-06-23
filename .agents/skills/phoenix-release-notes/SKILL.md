@@ -105,20 +105,9 @@ feature actually does. Commit messages are often terse — the code tells the re
 - Test additions or fixes
 - CI/CD and build changes
 - Code style or formatting changes
-- Internal tooling, skills, or dev workflows
+- Internal tooling, repo-internal agent skills (`.agents/skills/`), or dev workflows with no
+  product behavior change
 - Reverts that cancel out a feature within the same release
-
-**EXCLUDE — beta features (hard rule):**
-- **PXI agent** — anything under the `phoenix-pxi` namespace, the PXI runtime, or PXI tool
-  wiring. PXI is still in beta and is not announced in release notes.
-- **Phoenix AI Assistant** — the in-app assistant widget, its settings page
-  (`Settings → Agents`), system prompt customization, enable/disable toggle, and response
-  feedback (thumbs up/down, copy, open-trace). The assistant is still in beta.
-
-If a commit, PR, or feature touches PXI or the assistant, skip it entirely — do not mention it
-in individual MDX files, the aggregate `release-notes.mdx`, the year overview, or `docs.json`
-navigation. This exclusion stands even if the change is user-visible. Revisit only when the
-user explicitly says these features are GA.
 
 If a release contains only excluded changes, skip it — no release note needed.
 
@@ -128,7 +117,34 @@ Multiple commits often implement a single feature across server + client + UI. A
 commit, a Python client wrapper, and a TypeScript client wrapper should become one release note
 entry that mentions all relevant package versions — not three separate entries.
 
-## Step 3: Draft Individual MDX Files
+## Step 3: Draft MDX Files
+
+### Default to a single consolidated file
+
+**Prefer one release note over many.** Phoenix ships frequently, and a separate page per day
+produces a noisy, hard-to-scan release feed. Before creating files, look at the whole batch of
+undocumented releases together and ask: can these become **one** multi-topic file (Format B)?
+
+Consolidate into a single file when the batch:
+
+- Spans a short window (roughly a week or a handful of consecutive patch/minor versions), **or**
+- Shares a theme (e.g. several time range, metrics, or PXI improvements), **or**
+- Individually would produce thin pages (one or two features each).
+
+Each feature inside the consolidated file keeps its own `# Heading`, date line, and
+`**Available in arize-phoenix X.Y.Z+**` version line, so per-feature version provenance is
+preserved even though they share one page. The frontmatter `title` and file are dated by the
+**latest** release in the bundle, and the file `description` summarizes the whole bundle.
+
+Only split into multiple files when a feature is genuinely large enough to deserve a standalone
+page (a major launch, a breaking change, or a feature with substantial code examples and its own
+media). When in doubt, consolidate — it is easier to read one well-organized page than five thin
+ones.
+
+If you are **revising** an existing batch that was already split into several thin files,
+consolidate them: create one combined file dated by the latest release, delete the superseded
+files (`git rm`), and collapse their entries down to a single `<ReleaseUpdate>` block and a single
+year-overview `<Card>` and a single `docs.json` page path.
 
 ### File location
 
@@ -231,6 +247,7 @@ Match the version line to which packages are involved:
 **Available in arize-phoenix 13.14.0+**
 **Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
 **Available in arize-phoenix 13.13.0+ (server), arize-phoenix-client 1.31.0+ (Python)**
+**Available in arize-phoenix 15.1.0+ (beta)**
 **Breaking change in arize-phoenix-client 2.0.0**
 ```
 
@@ -238,12 +255,12 @@ Match the version line to which packages are involved:
 
 | Situation | Format |
 |-----------|--------|
-| Single major feature on a date | Format A |
-| Multiple features on a date range | Format B |
+| Multiple features across a short window or shared theme | **Format B — one consolidated file (default)** |
+| A single, genuinely major feature or breaking change worth its own page | Format A |
 | Feature spans server + client | One entry, mention all package versions |
 | Breaking change | Prefix title with "Breaking Change:" |
 | TS-only or Python-only feature | Show only the relevant language |
-| Video/screenshot available | Use `<video>` or `<Frame>` in the individual file |
+| Video/screenshot available | Use `<video>` or `<Frame>` in the relevant section of the file |
 
 ## Step 4: Update the Aggregate File
 
@@ -275,7 +292,10 @@ Rules:
 - `href` is the link to the individual MDX file
 - Link path has no `.mdx` extension
 - Keep each block to 5-10 lines
-- If one MDX file covers multiple features, create separate `<ReleaseUpdate>` blocks per feature date
+- For a consolidated multi-topic file, prefer a **single** `<ReleaseUpdate>` block labeled with the
+  latest date, whose bullets summarize the bundled features — one block per file, not one per
+  feature. Only split into multiple blocks when the bundled features fall on clearly distinct dates
+  that each merit their own line in the feed.
 
 ### Reverse-chronological insertion (do not skip this)
 

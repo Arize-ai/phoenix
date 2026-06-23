@@ -30,6 +30,10 @@ export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
     query.span
   );
   return (
-    <AnnotationSummaryGroupStacks span={span} renderEmptyState={() => null} />
+    <AnnotationSummaryGroupStacks
+      span={span}
+      leadingDivider
+      renderEmptyState={() => null}
+    />
   );
 }

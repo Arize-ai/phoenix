@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6155608e035120f09234c9b0337a9762>>
+ * @generated SignedSource<<e23573641ebe929b5307d638f38e9965>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -82,7 +82,7 @@ v4 = {
           "variableName": "timeRange"
         }
       ],
-      "concreteType": "SpanAnnotationScoreTimeSeries",
+      "concreteType": "AnnotationScoreTimeSeries",
       "kind": "LinkedField",
       "name": "spanAnnotationScoreTimeSeries",
       "plural": false,
@@ -90,7 +90,7 @@ v4 = {
         {
           "alias": null,
           "args": null,
-          "concreteType": "SpanAnnotationScoreTimeSeriesDataPoint",
+          "concreteType": "AnnotationScoreTimeSeriesDataPoint",
           "kind": "LinkedField",
           "name": "data",
           "plural": true,
@@ -105,7 +105,7 @@ v4 = {
             {
               "alias": null,
               "args": null,
-              "concreteType": "SpanAnnotationScoreWithLabel",
+              "concreteType": "AnnotationScoreWithLabel",
               "kind": "LinkedField",
               "name": "scoresWithLabels",
               "plural": true,

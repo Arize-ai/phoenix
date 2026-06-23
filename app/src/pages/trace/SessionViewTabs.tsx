@@ -42,7 +42,7 @@ export function SessionViewTabs({
       <TabList aria-label="Session view">
         <Tab id="turns">
           <span css={tabLabelCSS}>
-            <Icon svg={<Icons.MessagesSquareOutline />} />
+            <Icon svg={<Icons.MessagesSquare />} />
             Turns
             <Counter variant="quiet">{traceCount}</Counter>
           </span>

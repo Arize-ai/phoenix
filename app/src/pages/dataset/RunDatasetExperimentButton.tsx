@@ -50,7 +50,7 @@ export function RunDatasetExperimentButton(
           data-testid="run-dataset-experiment-button"
           size={size}
           variant={variant}
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
         >
           Experiment
         </Button>
@@ -84,7 +84,7 @@ export function RunDatasetExperimentButton(
               id={ExperimentAction.RUN_IN_PLAYGROUND}
             >
               <Flex direction="row" gap="size-100" alignItems="center">
-                <Icon svg={<Icons.PlayCircleOutline />} />
+                <Icon svg={<Icons.PlayCircle />} />
                 <Text>Run in Playground</Text>
               </Flex>
             </MenuItem>

@@ -5,12 +5,13 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional, cast
 import strawberry
 from aioitertools.itertools import groupby, islice
 from openinference.semconv.trace import SpanAttributes
-from sqlalchemy import and_, case, desc, distinct, exists, func, or_, select
+from sqlalchemy import Select, and_, case, desc, distinct, exists, func, or_, select
 from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from strawberry import ID, UNSET, lazy
-from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
+from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -32,6 +33,7 @@ from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -53,8 +55,80 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
 DEFAULT_PAGE_SIZE = 30
+_TOKEN_COUNT_DETAIL_EPSILON = 1e-9
+_TOKEN_COUNT_DETAIL_SORT_ORDER = {
+    "input": 0,
+    "output": 0,
+    "cache_read": 1,
+    "cache_write": 2,
+    "reasoning": 3,
+    "audio": 4,
+}
 if TYPE_CHECKING:
     from phoenix.server.api.types.ProjectTraceRetentionPolicy import ProjectTraceRetentionPolicy
+
+
+def _merge_token_count_detail(
+    details: list["TraceTokenCountDetailsTimeSeriesEntry"],
+    token_type: str,
+    token_count: float,
+) -> None:
+    """Add ``token_count`` tokens of ``token_type`` into ``details`` in place.
+
+    If an entry for ``token_type`` already exists, its count is incremented;
+    otherwise a new entry is appended. Contributions at or below
+    ``_TOKEN_COUNT_DETAIL_EPSILON`` are ignored so the breakdown does not
+    accumulate entries that round to zero.
+    """
+    if token_count <= _TOKEN_COUNT_DETAIL_EPSILON:
+        return
+    for detail in details:
+        if detail.token_type == token_type:
+            detail.token_count = (detail.token_count or 0) + token_count
+            return
+    details.append(
+        TraceTokenCountDetailsTimeSeriesEntry(
+            token_type=token_type,
+            token_count=token_count,
+        )
+    )
+
+
+def _ensure_token_count_details_total(
+    details: list["TraceTokenCountDetailsTimeSeriesEntry"],
+    total_token_count: Optional[float],
+    default_token_type: str,
+) -> None:
+    """Reconcile the per-type breakdown against the authoritative total.
+
+    The detail rows may not account for every token in ``total_token_count``
+    (the totals query is the source of truth, the breakdown only refines it).
+    Any unaccounted remainder is folded into ``default_token_type`` (e.g.
+    ``"input"`` for prompts, ``"output"`` for completions) so the entries sum
+    to the total. Does nothing when the total is unknown or already covered.
+    """
+    if total_token_count is None:
+        return
+    detail_token_count = sum(detail.token_count or 0 for detail in details)
+    remainder = total_token_count - detail_token_count
+    if remainder > _TOKEN_COUNT_DETAIL_EPSILON:
+        _merge_token_count_detail(details, default_token_type, remainder)
+
+
+def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEntry"]) -> None:
+    """Sort ``details`` in place into display order.
+
+    Entries are ordered by the rank in ``_TOKEN_COUNT_DETAIL_SORT_ORDER``;
+    unrecognized token types sort last and are then ordered alphabetically.
+    """
+    details.sort(
+        key=lambda detail: (
+            _TOKEN_COUNT_DETAIL_SORT_ORDER.get(
+                detail.token_type, len(_TOKEN_COUNT_DETAIL_SORT_ORDER)
+            ),
+            detail.token_type,
+        )
+    )
 
 
 @strawberry.type
@@ -319,11 +393,14 @@ class Project(Node):
 
     @strawberry.field
     async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
-        stmt = (
-            select(models.Trace)
-            .where(models.Trace.trace_id == str(trace_id))
-            .where(models.Trace.project_rowid == self.id)
-        )
+        stmt = select(models.Trace).where(models.Trace.project_rowid == self.id)
+        try:
+            trace_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(str(trace_id)), Trace.__name__
+            )
+            stmt = stmt.where(models.Trace.id == trace_rowid)
+        except ValueError:
+            stmt = stmt.where(models.Trace.trace_id == str(trace_id))
         async with info.context.db.read() as session:
             if (trace := await session.scalar(stmt)) is None:
                 return None
@@ -1170,6 +1247,35 @@ class Project(Node):
                 stmt = stmt.where(time_range.start <= models.Trace.start_time)
             if time_range.end:
                 stmt = stmt.where(models.Trace.start_time < time_range.end)
+        details_stmt = (
+            select(
+                bucket,
+                models.SpanCostDetail.is_prompt,
+                models.SpanCostDetail.token_type,
+                func.sum(func.coalesce(models.SpanCostDetail.tokens, 0)),
+            )
+            .join_from(
+                models.Trace,
+                models.SpanCost,
+                onclause=models.SpanCost.trace_rowid == models.Trace.id,
+            )
+            .join(
+                models.SpanCostDetail,
+                models.SpanCostDetail.span_cost_id == models.SpanCost.id,
+            )
+            .where(models.Trace.project_rowid == self.id)
+            .group_by(bucket, models.SpanCostDetail.is_prompt, models.SpanCostDetail.token_type)
+            .order_by(
+                bucket,
+                models.SpanCostDetail.is_prompt.desc(),
+                models.SpanCostDetail.token_type,
+            )
+        )
+        if time_range:
+            if time_range.start:
+                details_stmt = details_stmt.where(time_range.start <= models.Trace.start_time)
+            if time_range.end:
+                details_stmt = details_stmt.where(models.Trace.start_time < time_range.end)
         data: dict[datetime, TraceTokenCountTimeSeriesDataPoint] = {}
         async with info.context.db.read() as session:
             async for (
@@ -1185,6 +1291,37 @@ class Project(Node):
                     completion_token_count=completion_tokens,
                     total_token_count=total_tokens,
                 )
+            async for (
+                t,
+                is_prompt,
+                token_type,
+                token_count,
+            ) in await session.stream(details_stmt):
+                timestamp = _as_datetime(t)
+                data_point = data.setdefault(
+                    timestamp,
+                    TraceTokenCountTimeSeriesDataPoint(timestamp=timestamp),
+                )
+                details = (
+                    data_point.prompt_token_count_details
+                    if is_prompt
+                    else data_point.completion_token_count_details
+                )
+                _merge_token_count_detail(details, token_type, token_count)
+
+        for data_point in data.values():
+            _ensure_token_count_details_total(
+                data_point.prompt_token_count_details,
+                data_point.prompt_token_count,
+                "input",
+            )
+            _ensure_token_count_details_total(
+                data_point.completion_token_count_details,
+                data_point.completion_token_count,
+                "output",
+            )
+            _sort_token_count_details(data_point.prompt_token_count_details)
+            _sort_token_count_details(data_point.completion_token_count_details)
 
         data_timestamps: list[datetime] = [data_point.timestamp for data_point in data.values()]
         min_time = min([*data_timestamps, time_range.start])
@@ -1293,28 +1430,11 @@ class Project(Node):
         info: Info[Context, None],
         time_range: TimeRange,
         time_bin_config: Optional[TimeBinConfig] = UNSET,
-    ) -> "SpanAnnotationScoreTimeSeries":
-        if time_range.start is None:
-            raise BadRequest("Start time is required")
-
-        dialect = info.context.db.dialect
-        utc_offset_minutes = 0
-        field: Literal["minute", "hour", "day", "week", "month", "year"] = "hour"
-        if time_bin_config:
-            utc_offset_minutes = time_bin_config.utc_offset_minutes
-            if time_bin_config.scale is TimeBinScale.MINUTE:
-                field = "minute"
-            elif time_bin_config.scale is TimeBinScale.HOUR:
-                field = "hour"
-            elif time_bin_config.scale is TimeBinScale.DAY:
-                field = "day"
-            elif time_bin_config.scale is TimeBinScale.WEEK:
-                field = "week"
-            elif time_bin_config.scale is TimeBinScale.MONTH:
-                field = "month"
-            elif time_bin_config.scale is TimeBinScale.YEAR:
-                field = "year"
-        bucket = date_trunc(dialect, field, models.Trace.start_time, utc_offset_minutes)
+    ) -> "AnnotationScoreTimeSeries":
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        bucket = date_trunc(
+            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
+        )
         stmt = (
             select(
                 bucket,
@@ -1335,59 +1455,84 @@ class Project(Node):
             .group_by(bucket, models.SpanAnnotation.name)
             .order_by(bucket)
         )
-        if time_range:
-            if time_range.start:
-                stmt = stmt.where(time_range.start <= models.Trace.start_time)
-            if time_range.end:
-                stmt = stmt.where(models.Trace.start_time < time_range.end)
-        scores: dict[datetime, dict[str, float]] = {}
-        unique_names: set[str] = set()
-        async with info.context.db.read() as session:
-            async for (
-                t,
-                name,
-                average_score,
-            ) in await session.stream(stmt):
-                if average_score is None:
-                    continue
-                timestamp = _as_datetime(t)
-                if timestamp not in scores:
-                    scores[timestamp] = {}
-                scores[timestamp][name] = average_score
-                unique_names.add(name)
-
-        score_timestamps: list[datetime] = [timestamp for timestamp in scores]
-        min_time = min([*score_timestamps, time_range.start])
-        max_time = max(
-            [
-                *score_timestamps,
-                *([time_range.end] if time_range.end else [datetime.now(timezone.utc)]),
-            ],
-        )
-        data: dict[datetime, SpanAnnotationScoreTimeSeriesDataPoint] = {
-            timestamp: SpanAnnotationScoreTimeSeriesDataPoint(
-                timestamp=timestamp,
-                scores_with_labels=[
-                    SpanAnnotationScoreWithLabel(label=label, score=scores[timestamp][label])
-                    for label in scores[timestamp]
-                ],
-            )
-            for timestamp in score_timestamps
-        }
-        for timestamp in get_timestamp_range(
-            start_time=min_time,
-            end_time=max_time,
-            stride=field,
+        return await _annotation_score_time_series(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.Trace.start_time,
+            stride=stride,
             utc_offset_minutes=utc_offset_minutes,
-        ):
-            if timestamp not in data:
-                data[timestamp] = SpanAnnotationScoreTimeSeriesDataPoint(
-                    timestamp=timestamp,
-                    scores_with_labels=[],
-                )
-        return SpanAnnotationScoreTimeSeries(
-            data=sorted(data.values(), key=lambda x: x.timestamp),
-            names=sorted(list(unique_names)),
+        )
+
+    @strawberry.field
+    async def trace_annotation_score_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> "AnnotationScoreTimeSeries":
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        bucket = date_trunc(
+            info.context.db.dialect, stride, models.Trace.start_time, utc_offset_minutes
+        )
+        stmt = (
+            select(
+                bucket,
+                models.TraceAnnotation.name,
+                func.avg(models.TraceAnnotation.score).label("average_score"),
+            )
+            .join_from(
+                models.TraceAnnotation,
+                models.Trace,
+                onclause=models.TraceAnnotation.trace_rowid == models.Trace.id,
+            )
+            .where(models.Trace.project_rowid == self.id)
+            .group_by(bucket, models.TraceAnnotation.name)
+            .order_by(bucket)
+        )
+        return await _annotation_score_time_series(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.Trace.start_time,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
+        )
+
+    @strawberry.field
+    async def session_annotation_score_time_series(
+        self,
+        info: Info[Context, None],
+        time_range: TimeRange,
+        time_bin_config: Optional[TimeBinConfig] = UNSET,
+    ) -> "AnnotationScoreTimeSeries":
+        stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        bucket = date_trunc(
+            info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
+        )
+        stmt = (
+            select(
+                bucket,
+                models.ProjectSessionAnnotation.name,
+                func.avg(models.ProjectSessionAnnotation.score).label("average_score"),
+            )
+            .join_from(
+                models.ProjectSessionAnnotation,
+                models.ProjectSession,
+                onclause=models.ProjectSessionAnnotation.project_session_id
+                == models.ProjectSession.id,
+            )
+            .where(models.ProjectSession.project_id == self.id)
+            .group_by(bucket, models.ProjectSessionAnnotation.name)
+            .order_by(bucket)
+        )
+        return await _annotation_score_time_series(
+            db=info.context.db,
+            stmt=stmt,
+            time_range=time_range,
+            start_time_col=models.ProjectSession.start_time,
+            stride=stride,
+            utc_offset_minutes=utc_offset_minutes,
         )
 
     @strawberry.field
@@ -1561,11 +1706,23 @@ class TraceLatencyPercentileTimeSeries:
 
 
 @strawberry.type
+class TraceTokenCountDetailsTimeSeriesEntry:
+    token_type: str
+    token_count: Optional[float] = None
+
+
+@strawberry.type
 class TraceTokenCountTimeSeriesDataPoint:
     timestamp: datetime
     prompt_token_count: Optional[float] = None
     completion_token_count: Optional[float] = None
     total_token_count: Optional[float] = None
+    prompt_token_count_details: list[TraceTokenCountDetailsTimeSeriesEntry] = strawberry.field(
+        default_factory=list
+    )
+    completion_token_count_details: list[TraceTokenCountDetailsTimeSeriesEntry] = strawberry.field(
+        default_factory=list
+    )
 
 
 @strawberry.type
@@ -1587,21 +1744,95 @@ class TraceTokenCostTimeSeries:
 
 
 @strawberry.type
-class SpanAnnotationScoreWithLabel:
+class AnnotationScoreWithLabel:
     label: str
     score: float
 
 
 @strawberry.type
-class SpanAnnotationScoreTimeSeriesDataPoint:
+class AnnotationScoreTimeSeriesDataPoint:
     timestamp: datetime
-    scores_with_labels: list[SpanAnnotationScoreWithLabel]
+    scores_with_labels: list[AnnotationScoreWithLabel]
 
 
 @strawberry.type
-class SpanAnnotationScoreTimeSeries:
-    data: list[SpanAnnotationScoreTimeSeriesDataPoint]
+class AnnotationScoreTimeSeries:
+    data: list[AnnotationScoreTimeSeriesDataPoint]
     names: list[str]
+
+
+_TimeBinStride = Literal["minute", "hour", "day", "week", "month", "year"]
+
+
+def _time_bin_stride(time_bin_config: Optional[TimeBinConfig]) -> tuple[_TimeBinStride, int]:
+    if not time_bin_config:
+        return "hour", 0
+    return time_bin_config.scale.value, time_bin_config.utc_offset_minutes
+
+
+async def _annotation_score_time_series(
+    db: DbSessionFactory,
+    stmt: Select[Any],
+    time_range: TimeRange,
+    start_time_col: InstrumentedAttribute[datetime],
+    stride: _TimeBinStride,
+    utc_offset_minutes: int,
+) -> AnnotationScoreTimeSeries:
+    """Execute a (bucket, name, average_score) statement and fill in empty time bins.
+
+    Args:
+        db: The database session factory.
+        stmt: A statement selecting (time bucket, annotation name, average score) rows.
+        time_range: The requested time range; the start is required.
+        start_time_col: The timestamp column the time range filters on.
+        stride: The time bin stride used to fill in empty bins.
+        utc_offset_minutes: The UTC offset applied when binning timestamps.
+
+    Returns:
+        The average annotation scores per time bin, keyed by annotation name.
+    """
+    if time_range.start is None:
+        raise BadRequest("Start time is required")
+    stmt = stmt.where(time_range.start <= start_time_col)
+    if time_range.end:
+        stmt = stmt.where(start_time_col < time_range.end)
+    scores: dict[datetime, dict[str, float]] = {}
+    unique_names: set[str] = set()
+    async with db.read() as session:
+        async for bucket_value, name, average_score in await session.stream(stmt):
+            if average_score is None:
+                continue
+            timestamp = _as_datetime(bucket_value)
+            scores.setdefault(timestamp, {})[name] = average_score
+            unique_names.add(name)
+
+    min_time = min([*scores, time_range.start])
+    max_time = max([*scores, time_range.end if time_range.end else datetime.now(timezone.utc)])
+    data: dict[datetime, AnnotationScoreTimeSeriesDataPoint] = {
+        timestamp: AnnotationScoreTimeSeriesDataPoint(
+            timestamp=timestamp,
+            scores_with_labels=[
+                AnnotationScoreWithLabel(label=label, score=score)
+                for label, score in scores_by_name.items()
+            ],
+        )
+        for timestamp, scores_by_name in scores.items()
+    }
+    for timestamp in get_timestamp_range(
+        start_time=min_time,
+        end_time=max_time,
+        stride=stride,
+        utc_offset_minutes=utc_offset_minutes,
+    ):
+        if timestamp not in data:
+            data[timestamp] = AnnotationScoreTimeSeriesDataPoint(
+                timestamp=timestamp,
+                scores_with_labels=[],
+            )
+    return AnnotationScoreTimeSeries(
+        data=sorted(data.values(), key=lambda x: x.timestamp),
+        names=sorted(unique_names),
+    )
 
 
 INPUT_VALUE = SpanAttributes.INPUT_VALUE.split(".")

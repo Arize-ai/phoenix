@@ -263,6 +263,7 @@ function AgentChatController({
           forkFromMessage={forkFromMessage}
           modelMenuValue={menuValue}
           onModelChange={handleModelChange}
+          autoFocusInput
         >
           {activeSessionId ? (
             <ChatSessionUsage sessionId={activeSessionId} />

@@ -329,6 +329,15 @@ def _print_experiment_error(
     print("\033[91m" + formatted_exception + "\033[0m")  # prints in red
 
 
+def _example_global_id(example: v1.DatasetExample) -> str:
+    """
+    The example's node GlobalID, which experiment runs record as
+    ``dataset_example_id``. Servers that predate the ``node_id`` field
+    deliver the GlobalID in ``id`` instead.
+    """
+    return example.get("node_id") or example["id"]
+
+
 def _build_evaluation_tasks(
     task_runs: Sequence[ExperimentRun],
     evaluators_by_name: Mapping[EvaluatorName, Evaluator],
@@ -738,6 +747,8 @@ class Experiments:
                 id=DRY_RUN,
                 dataset_id=dataset.id,
                 dataset_version_id=dataset.version_id,
+                name=experiment_name or "",
+                description=experiment_description,
                 repetitions=repetitions,
                 metadata={},
                 project_name=None,
@@ -1606,7 +1617,7 @@ class Experiments:
             print("🌵️ This is a dry-run evaluation.")
 
         # Build evaluation tasks
-        examples_by_id = {ex["id"]: ex for ex in dataset.examples}
+        examples_by_id = {_example_global_id(ex): ex for ex in dataset.examples}
         evaluation_tasks = _build_evaluation_tasks(
             task_runs,
             evaluators_by_name,
@@ -1768,7 +1779,7 @@ class Experiments:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
-            "dataset_example_id": example["node_id"],
+            "dataset_example_id": _example_global_id(example),
             "output": output,
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
@@ -2480,6 +2491,8 @@ class AsyncExperiments:
                 id=DRY_RUN,
                 dataset_id=dataset.id,
                 dataset_version_id=dataset.version_id,
+                name=experiment_name or "",
+                description=experiment_description,
                 repetitions=repetitions,
                 metadata={},
                 project_name=None,
@@ -3359,7 +3372,7 @@ class AsyncExperiments:
             print("🌵️ This is a dry-run evaluation.")
 
         # Build evaluation tasks
-        examples_by_id = {ex["id"]: ex for ex in dataset.examples}
+        examples_by_id = {_example_global_id(ex): ex for ex in dataset.examples}
         evaluation_tasks = _build_evaluation_tasks(
             task_runs,
             evaluators_by_name,
@@ -3519,7 +3532,7 @@ class AsyncExperiments:
             trace_id = _str_trace_id(span_context.trace_id)
 
         exp_run: ExperimentRun = {
-            "dataset_example_id": example["node_id"],
+            "dataset_example_id": _example_global_id(example),
             "output": output,
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),

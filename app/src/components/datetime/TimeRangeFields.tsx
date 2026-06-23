@@ -1,9 +1,11 @@
-import { now, parseAbsolute } from "@internationalized/date";
+import { now } from "@internationalized/date";
 import { useCallback, useImperativeHandle, useRef, useState } from "react";
 import type { Ref } from "react";
 import { useFocusWithin } from "react-aria";
 import type { DateValue } from "react-aria-components";
 import { DateField, DateInput, DateSegment } from "react-aria-components";
+
+import { toDateValue } from "./utils";
 
 export type TimeRangeFieldsProps = {
   /** Start of the range to seed the start field with. */
@@ -44,13 +46,6 @@ export type TimeRangeFieldsHandle = {
   /** Commits the current field values if they have been edited. */
   commit: () => void;
 };
-
-function toDateValue(
-  date: Date | null | undefined,
-  timeZone: string
-): DateValue | null {
-  return date ? parseAbsolute(date.toISOString(), timeZone) : null;
-}
 
 /**
  * Inline, editable start/end date inputs used inside the time range selector.

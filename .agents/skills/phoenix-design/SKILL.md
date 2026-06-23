@@ -12,17 +12,16 @@ metadata:
 
 The keywords "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this specification are to be interpreted as described in BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here.
 
-## Rule Files
+## What Are You Doing?
 
-Read the relevant file(s) based on the task:
+Read the relevant reference(s) based on the task:
 
-| Rule file | When to read |
-|-----------|-------------|
-| `rules/layout.md` | Layout stability, scroll behavior, interaction patterns |
-| `rules/dialogs.md` | Alert dialog usage, variants, and content writing |
-| `rules/form-dialogs.md` | Form dialog structure, footer/submit placement, field metadata |
-| `rules/error-display.md` | Error scoping, inline alerts, input validation |
-| `rules/bem.md` | Naming CSS classes |
-| `rules/tokens.md` | Creating or consuming CSS design tokens |
-| `rules/icons.md` | Picking an icon for a noun (project, trace, span, file, etc.) |
-| `rules/counters.md` | Displaying counts in tabs, headings, or filter buttons |
+| Task | Reference |
+|------|-----------|
+| Layout stability, scroll behavior, interaction patterns | `references/layout.md` |
+| Alert and form dialog usage, footer button styling, content writing | `references/dialogs.md` |
+| Error scoping, inline alerts, input validation | `references/error-display.md` |
+| Naming CSS classes | `references/bem.md` |
+| Creating or consuming CSS design tokens | `references/tokens.md` |
+| Picking an icon for a noun (project, trace, span, file, etc.) | `references/icons.md` |
+| Displaying counts in tabs, headings, or filter buttons | `references/counters.md` |

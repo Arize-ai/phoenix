@@ -92,7 +92,7 @@ function DatasetsList(props: {
         <MenuHeaderTitle
           trailingContent={
             <IconButton size="S" onPress={onCreateNewDataset}>
-              <Icon svg={<Icons.PlusOutline />} />
+              <Icon svg={<Icons.Plus />} />
             </IconButton>
           }
         >

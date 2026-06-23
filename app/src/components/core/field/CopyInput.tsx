@@ -112,7 +112,7 @@ function CopyInput({
         >
           <Icon
             color={isCopied ? "success" : "inherit"}
-            svgKey={isCopied ? "Checkmark" : "DuplicateOutline"}
+            svgKey={isCopied ? "Checkmark" : "Duplicate"}
           />
         </Button>
         <Tooltip offset={1}>{isCopied ? "Copied" : "Copy"}</Tooltip>

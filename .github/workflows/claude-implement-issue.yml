@@ -4,33 +4,45 @@ on:
   issues:
     types: [labeled]
 
+# One implementation per issue. cancel-in-progress is false so an in-flight
+# run (which may already be committing/pushing a PR) is never killed mid-work;
+# a duplicate trigger queues behind it and the guard step then no-ops.
+concurrency:
+  group: claude-implement-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   implement:
-    # Only run when good-agent-issue label is added
-    if: github.event.label.name == 'good-agent-issue'
+    # Only run when the good-agent-issue label is added by someone on the
+    # explicit allowlist of GitHub usernames — the same list (and rationale)
+    # as claude.yml: author_association misclassifies private org members,
+    # github.actor is always the user who triggered the event, and `contains`
+    # compares case-insensitively. Keep the two lists in sync.
+    if: |
+      github.event.label.name == 'good-agent-issue' &&
+      contains(fromJSON('[
+        "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
+        "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
+        "seldo", "yfrigui2"
+      ]'), github.actor)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
+      # contents: read is all Claude can reach: the read-only workflow token is
+      # passed to the action below (so no write-scoped App token is minted via
+      # OIDC), and publishing is done by later steps with a PAT.
       contents: read
-      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
     env:
       GH_REPO: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
 
     steps:
-      - name: Guard – check permissions and duplicates
+      - name: Guard – check duplicates
         id: guard
         env:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-          REPO: ${{ github.repository }}
-          SENDER: ${{ github.event.sender.login }}
         run: |
-          # Verify sender has write access
-          PERMISSION=$(gh api "repos/$REPO/collaborators/$SENDER/permission" -q '.permission')
-          if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
-            echo "Sender $SENDER has '$PERMISSION' permission, skipping"
-            exit 0
-          fi
+          # The labeler is already vetted by the job-level username allowlist.
 
           # Skip if already assigned
           ASSIGNEES=$(gh issue view "$ISSUE_NUMBER" --json assignees -q '.assignees | length')
@@ -88,17 +100,23 @@ jobs:
       - name: Run Claude Code
         if: steps.guard.outputs.ready == 'true'
         id: claude
-        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Setting additional_permissions triggers the action to explicitly request
-          # contents/pull_requests/issues: write on the OIDC-minted app token, which
-          # the post-action "Commit and open PR" step uses via
-          # steps.claude.outputs.github_token.
-          additional_permissions: |
-            contents: write
+
+          # Hand the action the read-only workflow token instead of letting it
+          # mint a write-scoped Claude App token via OIDC. Claude never writes
+          # to GitHub here (a later step publishes with a PAT), so the GH_TOKEN
+          # in its environment stays read-only.
+          github_token: ${{ github.token }}
+
+          # Surface the full Claude SDK message stream in the step log instead of
+          # the sanitized summary (denied-tool detail, tool calls, reasoning). Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
+          show_full_output: 'true'
           prompt: |
             Implement GitHub issue #${{ github.event.issue.number }} end-to-end in the working tree.
             A separate workflow step will commit, push, and open the PR; do NOT attempt
@@ -165,11 +183,16 @@ jobs:
       - name: Commit and open PR
         if: steps.guard.outputs.ready == 'true' && steps.claude.outcome == 'success'
         env:
-          # App token minted by the claude-code-action OIDC exchange — short-lived,
-          # auto-revoked at job end, and (unlike GITHUB_TOKEN) triggers downstream CI.
-          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
+          # Separate publishing token; the claude-code-action app token has
+          # already been revoked by this point.
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
         run: |
           gh auth setup-git
+          # The Claude step rewrites origin to embed its app token in the URL
+          # and revokes that token when the step ends. URL-embedded credentials
+          # take precedence over gh's credential helper, so reset the remote to
+          # a clean URL to push with the PAT configured above.
+          git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then

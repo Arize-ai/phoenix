@@ -87,13 +87,13 @@ export const WithToolbar: Story = {
           <PromptInputFooter>
             <PromptInputTools>
               <PromptInputButton aria-label="Add attachment">
-                <Icon svg={<Icons.PlusOutline />} />
+                <Icon svg={<Icons.Plus />} />
               </PromptInputButton>
               <PromptInputButton aria-label="Search the web">
-                <Icon svg={<Icons.SearchOutline />} />
+                <Icon svg={<Icons.Search />} />
               </PromptInputButton>
               <PromptInputButton aria-label="Take screenshot">
-                <Icon svg={<Icons.ImageOutline />} />
+                <Icon svg={<Icons.Image />} />
               </PromptInputButton>
             </PromptInputTools>
             <PromptInputActions>
@@ -129,13 +129,13 @@ export const WithTooltips: Story = {
                 tooltip="Attach files"
                 aria-label="Attach files"
               >
-                <Icon svg={<Icons.PlusOutline />} />
+                <Icon svg={<Icons.Plus />} />
               </PromptInputButton>
               <PromptInputButton
                 tooltip={{ content: "Search the web", shortcut: "\u2318K" }}
                 aria-label="Search the web"
               >
-                <Icon svg={<Icons.SearchOutline />} />
+                <Icon svg={<Icons.Search />} />
               </PromptInputButton>
               <PromptInputButton
                 tooltip={{
@@ -145,7 +145,7 @@ export const WithTooltips: Story = {
                 }}
                 aria-label="Take screenshot"
               >
-                <Icon svg={<Icons.ImageOutline />} />
+                <Icon svg={<Icons.Image />} />
               </PromptInputButton>
             </PromptInputTools>
             <PromptInputActions>
@@ -190,7 +190,7 @@ export const WithModelSelector: Story = {
           <PromptInputFooter>
             <PromptInputTools>
               <PromptInputButton aria-label="Add attachment">
-                <Icon svg={<Icons.PlusOutline />} />
+                <Icon svg={<Icons.Plus />} />
               </PromptInputButton>
               <MenuTrigger>
                 <Button size="S" variant="quiet">
@@ -223,7 +223,7 @@ export const WithModelSelector: Story = {
                           />
                           <Text flex="1 1 auto">{model.name}</Text>
                           {model.name === selectedModel.name && (
-                            <Icon svg={<Icons.CheckmarkOutline />} />
+                            <Icon svg={<Icons.Checkmark />} />
                           )}
                         </Flex>
                       </MenuItem>
@@ -234,7 +234,7 @@ export const WithModelSelector: Story = {
             </PromptInputTools>
             <PromptInputActions>
               <PromptInputButton aria-label="Take screenshot">
-                <Icon svg={<Icons.ImageOutline />} />
+                <Icon svg={<Icons.Image />} />
               </PromptInputButton>
               <PromptInputSubmit />
             </PromptInputActions>
@@ -279,7 +279,7 @@ export const Streaming: Story = {
           <PromptInputFooter>
             <PromptInputTools>
               <PromptInputButton aria-label="Add attachment">
-                <Icon svg={<Icons.PlusOutline />} />
+                <Icon svg={<Icons.Plus />} />
               </PromptInputButton>
             </PromptInputTools>
             <PromptInputActions>
@@ -360,10 +360,10 @@ export const Gallery: Story = {
             <PromptInputFooter>
               <PromptInputTools>
                 <PromptInputButton aria-label="Add attachment">
-                  <Icon svg={<Icons.PlusOutline />} />
+                  <Icon svg={<Icons.Plus />} />
                 </PromptInputButton>
                 <PromptInputButton aria-label="Search">
-                  <Icon svg={<Icons.SearchOutline />} />
+                  <Icon svg={<Icons.Search />} />
                 </PromptInputButton>
               </PromptInputTools>
               <PromptInputActions>
@@ -382,7 +382,7 @@ export const Gallery: Story = {
             <PromptInputFooter>
               <PromptInputTools>
                 <PromptInputButton aria-label="Add attachment">
-                  <Icon svg={<Icons.PlusOutline />} />
+                  <Icon svg={<Icons.Plus />} />
                 </PromptInputButton>
               </PromptInputTools>
               <PromptInputActions>

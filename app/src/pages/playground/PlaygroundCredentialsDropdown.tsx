@@ -59,7 +59,7 @@ export function PlaygroundCredentialsDropdown() {
         <Button
           size="S"
           isDisabled={isRunning}
-          leadingVisual={<Icon svg={<Icons.KeyOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Key />} />}
         >
           API Keys
         </Button>
@@ -251,17 +251,14 @@ function ServerCredentialsView({ providers }: { providers: ModelProvider[] }) {
                       <Text color="success" size="S">
                         Configured
                       </Text>
-                      <Icon
-                        color="success"
-                        svg={<Icons.CheckmarkCircleOutline />}
-                      />
+                      <Icon color="success" svg={<Icons.CheckmarkCircle />} />
                     </Flex>
                   ) : (
                     <Flex direction="row" gap="size-50" alignItems="center">
                       <Text color="text-700" size="S">
                         Not Configured
                       </Text>
-                      <Icon svg={<Icons.MinusCircleOutline />} />
+                      <Icon svg={<Icons.MinusCircle />} />
                     </Flex>
                   )}
                 </Flex>

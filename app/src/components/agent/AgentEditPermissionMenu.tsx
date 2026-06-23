@@ -125,9 +125,7 @@ export function AgentEditPermissionMenu({
         isDisabled={isDisabled}
         css={triggerCSS}
         data-permission-mode={editPermissionMode}
-        leadingVisual={
-          isBypass ? <Icon svg={<Icons.ShieldOutline />} /> : undefined
-        }
+        leadingVisual={isBypass ? <Icon svg={<Icons.Shield />} /> : undefined}
       >
         <span>{getEditPermissionLabel(editPermissionMode)}</span>
       </Button>

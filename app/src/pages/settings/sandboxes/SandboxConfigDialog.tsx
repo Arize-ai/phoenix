@@ -89,7 +89,7 @@ export function SandboxConfigDialogTrigger(
         <Button
           size="S"
           variant="primary"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
         >
           New Sandbox
         </Button>
@@ -97,7 +97,7 @@ export function SandboxConfigDialogTrigger(
         <Button
           size="S"
           aria-label={`Edit ${props.config.name}`}
-          leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Edit />} />}
         />
       )}
       <ModalOverlay>
@@ -630,7 +630,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   css={css`
                     width: fit-content;
                   `}
-                  leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Plus />} />}
                   onPress={() => appendEnvVar({ name: "", secretKey: "" })}
                 >
                   Add Variable
@@ -785,7 +785,7 @@ function EnvVarRow({
         size="M"
         variant="quiet"
         aria-label="Remove variable"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         onPress={onRemove}
       />
     </div>

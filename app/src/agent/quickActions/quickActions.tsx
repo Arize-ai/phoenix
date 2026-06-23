@@ -30,6 +30,7 @@ const MAX_QUICK_ACTIONS = 3;
 const CONTEXT_SPECIFICITY: AgentContextType[] = [
   "span",
   "trace",
+  "session",
   "project",
   "playground",
 ];
@@ -47,13 +48,13 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
 > = {
   playground: [
     {
-      icon: <Icons.EditOutline />,
+      icon: <Icons.Edit />,
       label: "Enhance the prompt",
       prompt:
         "Improve the prompt in the playground to be clearer and more effective.",
     },
     {
-      icon: <Icons.PlayCircleOutline />,
+      icon: <Icons.PlayCircle />,
       label: "Run the playground",
       prompt: "Run the playground and summarize the results.",
     },
@@ -70,19 +71,19 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       prompt: "Find critical issues in my traces.",
     },
     {
-      icon: <Icons.FunnelOutline />,
+      icon: <Icons.Funnel />,
       label: "Filter to errors",
       prompt: "Filter the spans to show only the ones with errors.",
     },
     {
-      icon: <Icons.SearchOutline />,
+      icon: <Icons.Search />,
       label: "Search this project",
       prompt: "Search this project for spans related to a topic I describe.",
     },
   ],
   trace: [
     {
-      icon: <Icons.BookOutline />,
+      icon: <Icons.Book />,
       label: "Explain this trace",
       prompt: "Explain what happened in this trace.",
     },
@@ -92,14 +93,26 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       prompt: "Find what went wrong in this trace.",
     },
   ],
+  session: [
+    {
+      icon: <Icons.MessageSquare />,
+      label: "Summarize this session",
+      prompt: "Summarize what happened in this session.",
+    },
+    {
+      icon: <Icons.Trace />,
+      label: "Find session issues",
+      prompt: "Find the most important issues in this session.",
+    },
+  ],
   span: [
     {
-      icon: <Icons.BulbOutline />,
+      icon: <Icons.Bulb />,
       label: "Explain this span",
       prompt: "Explain what this span is doing.",
     },
     {
-      icon: <Icons.SearchOutline />,
+      icon: <Icons.Search />,
       label: "Debug this span",
       prompt: "Help me debug this span.",
     },

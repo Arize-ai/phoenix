@@ -14,12 +14,16 @@ import {
 import { getLocale, getTimeZone } from "@phoenix/utils/timeUtils";
 
 import { Badge } from "../core/badge";
+import { Button } from "../core/button";
 import { Text } from "../core/content";
 import { SearchField, SearchIcon } from "../core/field";
+import { Icon, Icons } from "../core/icon";
 import { ListBox, ListBoxItem } from "../core/listbox";
+import { MenuFooter } from "../core/menu";
 import { Popover } from "../core/overlay";
 import type { ComponentSize } from "../core/types";
 import { LAST_N_TIME_RANGES } from "./constants";
+import { TimeRangeCalendarPicker } from "./TimeRangeCalendarPicker";
 import { TimeRangeFields } from "./TimeRangeFields";
 import type { TimeRangeFieldsHandle } from "./TimeRangeFields";
 import type { OpenTimeRangeWithKey } from "./types";
@@ -131,6 +135,9 @@ const timeRangeSelectorCSS = css`
     font-variant-numeric: tabular-nums;
     color: var(--global-text-color-900);
     border-radius: var(--global-rounding-xsmall);
+    transition:
+      color 0.1s ease-out,
+      background-color 0.1s ease-out;
 
     &[data-type="literal"] {
       padding: 0;
@@ -145,8 +152,8 @@ const timeRangeSelectorCSS = css`
       color: var(--global-text-color-500);
     }
     &:focus {
-      color: var(--highlight-foreground);
-      background: var(--highlight-background);
+      color: var(--field-editing-foreground);
+      background: var(--field-editing-background);
       outline: none;
       caret-color: transparent;
     }
@@ -192,6 +199,11 @@ const badgeCSS = css`
   font-variant-numeric: tabular-nums;
 `;
 
+const calendarOptionCSS = css`
+  width: 100%;
+  justify-content: flex-start;
+`;
+
 const OPEN_VALUE_MIN_WIDTH = "var(--global-dimension-size-4000)";
 
 /**
@@ -215,11 +227,13 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   const timeRangeFieldsRef = useRef<TimeRangeFieldsHandle | null>(null);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isCalendarPickerOpen, setIsCalendarPickerOpen] = useState(false);
   const [popoverWidth, setPopoverWidth] = useState<string | undefined>();
   const [searchText, setSearchText] = useState("");
   const { contains } = useFilter({ sensitivity: "base" });
   const closePresets = useCallback(() => {
     setIsPresetsOpen(false);
+    setIsCalendarPickerOpen(false);
     setSearchText("");
   }, []);
   // The focused element belongs to this control if it lives inside the trigger
@@ -372,11 +386,13 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
   }, [isPresetsOpen, triggerLayoutKey]);
 
   useLayoutEffect(() => {
-    if (!isPopoverReady) {
+    if (!isPopoverReady || isCalendarPickerOpen) {
       return;
     }
+    // Also refocuses the search when the calendar picker closes back to the
+    // presets list.
     searchInputRef.current?.focus();
-  }, [isPopoverReady]);
+  }, [isPopoverReady, isCalendarPickerOpen]);
 
   return (
     <>
@@ -463,82 +479,120 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
         isNonModal
         // Escape is owned by the hotkey above (which also commits the edit).
         isKeyboardDismissDisabled
-        placement="bottom start"
+        // The calendar picker is wider than the trigger, so it hangs off the
+        // trigger's right edge to read as one clean column.
+        placement={isCalendarPickerOpen ? "bottom end" : "bottom start"}
         offset={2}
         style={{
-          width: popoverWidth,
-          // Match the focused field's active border so the open menu reads as a
-          // continuation of the field rather than a separate, gray-bordered
-          // surface.
-          borderColor: "var(--global-input-field-border-color-active)",
-          boxShadow: "none",
+          // The presets menu hugs the trigger; the calendar picker is content
+          // sized but never narrower than the trigger.
+          width: isCalendarPickerOpen ? "max-content" : popoverWidth,
+          minWidth: isCalendarPickerOpen ? popoverWidth : undefined,
+          // Clip full-bleed rows (the search header and calendar footer) to
+          // the popover's rounded corners.
+          overflow: "hidden",
+          // The popover keeps the standard menu chrome; only the open/resize
+          // animations are suppressed because opening is driven by focus and
+          // the width follows the trigger as the user edits the dates.
           transition: "none",
           animation: "none",
           transform: "translateY(0)",
           opacity: 1,
         }}
       >
-        <Autocomplete filter={contains}>
-          <SearchField
-            aria-label="Search time range presets"
-            size="M"
-            variant="quiet"
-            value={searchText}
-            onChange={setSearchText}
-            css={presetSearchCSS}
-          >
-            <SearchIcon />
-            <Input ref={searchInputRef} placeholder='Search or type "25m"' />
-          </SearchField>
-          <ListBox
-            aria-label="time range preset selection"
-            selectionMode="single"
-            selectedKeys={isCustom ? [] : [timeRangeKey]}
-            css={presetListBoxCSS}
-            renderEmptyState={() => (
-              <div css={presetEmptyStateCSS}>No matching time ranges</div>
-            )}
-            onSelectionChange={(selection) => {
-              const selectedKey =
-                selection === "all" ? undefined : selection.keys().next().value;
-              // Re-clicking the active preset toggles single-selection off,
-              // firing this with an empty selection; fall back to the active
-              // preset so that clicking any preset — even the current one —
-              // commits its (recomputed) range.
-              const keyToApply = isLastNTimeRangeKey(selectedKey)
-                ? selectedKey
-                : isLastNTimeRangeKey(timeRangeKey)
-                  ? timeRangeKey
-                  : undefined;
+        {isCalendarPickerOpen ? (
+          <TimeRangeCalendarPicker
+            value={{ start, end }}
+            timeZone={timeZone}
+            onCancel={() => setIsCalendarPickerOpen(false)}
+            onApply={(range) => {
               setIsEditing(false);
-              if (!keyToApply) {
-                closePresets();
-                return;
-              }
-              const nextRange = getTimeRangeFromLastNTimeRangeKey(keyToApply);
               closePresets();
-              onChange({ timeRangeKey: keyToApply, ...nextRange });
+              onChange({ timeRangeKey: "custom", ...range });
             }}
-          >
-            {searchSuggestions.map((suggestedKey) => (
-              // The search text itself is the text value so suggestions always
-              // survive the autocomplete filter (their labels may not contain
-              // the raw input, e.g. "25m" vs "Last 25 minutes").
-              <ListBoxItem
-                key={suggestedKey}
-                id={suggestedKey}
-                textValue={searchText}
+          />
+        ) : (
+          <>
+            <Autocomplete filter={contains}>
+              <SearchField
+                aria-label="Search time range presets"
+                size="M"
+                variant="quiet"
+                value={searchText}
+                onChange={setSearchText}
+                css={presetSearchCSS}
               >
-                {getLastNTimeRangeLabel(suggestedKey)}
-              </ListBoxItem>
-            ))}
-            {presetItems.map(({ key, label }) => (
-              <ListBoxItem key={key} id={key}>
-                {label}
-              </ListBoxItem>
-            ))}
-          </ListBox>
-        </Autocomplete>
+                <SearchIcon />
+                <Input
+                  ref={searchInputRef}
+                  placeholder='Search or type "25m"'
+                />
+              </SearchField>
+              <ListBox
+                aria-label="time range preset selection"
+                selectionMode="single"
+                selectedKeys={isCustom ? [] : [timeRangeKey]}
+                css={presetListBoxCSS}
+                renderEmptyState={() => (
+                  <div css={presetEmptyStateCSS}>No matching time ranges</div>
+                )}
+                onSelectionChange={(selection) => {
+                  const selectedKey =
+                    selection === "all"
+                      ? undefined
+                      : selection.keys().next().value;
+                  // Re-clicking the active preset toggles single-selection off,
+                  // firing this with an empty selection; fall back to the active
+                  // preset so that clicking any preset — even the current one —
+                  // commits its (recomputed) range.
+                  const keyToApply = isLastNTimeRangeKey(selectedKey)
+                    ? selectedKey
+                    : isLastNTimeRangeKey(timeRangeKey)
+                      ? timeRangeKey
+                      : undefined;
+                  setIsEditing(false);
+                  if (!keyToApply) {
+                    closePresets();
+                    return;
+                  }
+                  const nextRange =
+                    getTimeRangeFromLastNTimeRangeKey(keyToApply);
+                  closePresets();
+                  onChange({ timeRangeKey: keyToApply, ...nextRange });
+                }}
+              >
+                {searchSuggestions.map((suggestedKey) => (
+                  // The search text itself is the text value so suggestions always
+                  // survive the autocomplete filter (their labels may not contain
+                  // the raw input, e.g. "25m" vs "Last 25 minutes").
+                  <ListBoxItem
+                    key={suggestedKey}
+                    id={suggestedKey}
+                    textValue={searchText}
+                  >
+                    {getLastNTimeRangeLabel(suggestedKey)}
+                  </ListBoxItem>
+                ))}
+                {presetItems.map(({ key, label }) => (
+                  <ListBoxItem key={key} id={key}>
+                    {label}
+                  </ListBoxItem>
+                ))}
+              </ListBox>
+            </Autocomplete>
+            <MenuFooter>
+              <Button
+                size="S"
+                variant="quiet"
+                css={calendarOptionCSS}
+                leadingVisual={<Icon svg={<Icons.Calendar />} />}
+                onPress={() => setIsCalendarPickerOpen(true)}
+              >
+                Pick from a calendar
+              </Button>
+            </MenuFooter>
+          </>
+        )}
       </Popover>
     </>
   );
