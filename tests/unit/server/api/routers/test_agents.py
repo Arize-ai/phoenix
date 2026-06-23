@@ -17,6 +17,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
+    AgentDependencies,
     SandboxAvailability,
 )
 from phoenix.server.api.routers import agents as agents_router
@@ -68,7 +69,12 @@ class TestServerAgentRunEndpoint:
             return object()
 
         class ServerAgent:
-            async def run(self, run_input: str, *, deps: None) -> _FakeAgentRunResult:
+            async def run(
+                self,
+                run_input: str,
+                *,
+                deps: AgentDependencies,
+            ) -> _FakeAgentRunResult:
                 captured["run_input"] = run_input
                 captured["deps"] = deps
                 return _FakeAgentRunResult()
@@ -77,7 +83,14 @@ class TestServerAgentRunEndpoint:
             captured["server_agent_kwargs"] = kwargs
             return ServerAgent()
 
+        def build_delegated_server_agent(**kwargs: Any) -> object:
+            captured["delegated_server_agent_kwargs"] = kwargs
+            return object()
+
         monkeypatch.setattr(agents_router, "build_model", build_model)
+        monkeypatch.setattr(
+            agents_router, "build_delegated_server_agent", build_delegated_server_agent
+        )
         monkeypatch.setattr(agents_router, "build_server_agent", build_server_agent)
         monkeypatch.setattr(agents_router, "get_env_phoenix_agents_disable_bash", lambda: False)
         monkeypatch.setattr(
@@ -104,10 +117,16 @@ class TestServerAgentRunEndpoint:
             },
         }
         assert captured["run_input"] == "How many traces are in the default project?"
-        assert captured["deps"] is None
+        assert isinstance(captured["deps"], AgentDependencies)
+        assert captured["deps"].contexts.graphql is not None
+        assert captured["deps"].contexts.graphql.mutations_enabled is True
         server_agent_kwargs = captured["server_agent_kwargs"]
         assert server_agent_kwargs["enable_web_access"] is True
         assert server_agent_kwargs["allow_mutations"] is True
+        assert server_agent_kwargs["server_agent"] is not None
+        delegated_server_agent_kwargs = captured["delegated_server_agent_kwargs"]
+        assert delegated_server_agent_kwargs["enable_web_access"] is True
+        assert delegated_server_agent_kwargs["allow_mutations"] is True
 
     async def test_server_agent_run_respects_bash_disable_flag(
         self,

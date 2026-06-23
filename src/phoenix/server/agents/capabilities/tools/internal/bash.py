@@ -18,6 +18,7 @@ from strawberry.types.graphql import OperationType
 from typing_extensions import TypedDict
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.types import AgentDependencies
 from phoenix.server.api.context import Context
 
 WORKSPACE_ROOT = "/home/user/workspace"
@@ -323,7 +324,7 @@ class BashToolResult(TypedDict):
     stderr_truncated: bool
 
 
-class BashToolset(FunctionToolset[None]):
+class BashToolset(FunctionToolset[AgentDependencies]):
     """Toolset exposing a ``bash`` tool backed by a virtual shell."""
 
     def __init__(
@@ -369,7 +370,7 @@ class BashToolset(FunctionToolset[None]):
 
 
 @dataclass
-class BashCapability(AbstractStaticCapability[None]):
+class BashCapability(AbstractStaticCapability[AgentDependencies]):
     """Capability that adds a ``bash`` toolset."""
 
     schema: strawberry.Schema
@@ -377,7 +378,7 @@ class BashCapability(AbstractStaticCapability[None]):
     instructions: str
     allow_mutations: bool = False
 
-    def get_toolset(self) -> AgentToolset[None] | None:
+    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return BashToolset(
             schema=self.schema,
             build_graphql_context=self.build_graphql_context,

@@ -57,14 +57,17 @@ from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
     ChatContext,
+    GraphQLContext,
     ResolvedContexts,
+    SubagentsContext,
+    WebAccessContext,
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
-from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.server_agents import build_delegated_server_agent, build_server_agent
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
     iter_requested_skill_response_chunks,
@@ -750,6 +753,32 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
         web_access_enabled = body.enable_web_access and get_env_phoenix_agents_web_access_enabled()
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                graphql=GraphQLContext(
+                    type="graphql",
+                    mutationsEnabled=body.allow_mutations,
+                ),
+                web_access=WebAccessContext(
+                    type="web_access",
+                    enabled=web_access_enabled,
+                ),
+                subagents=SubagentsContext(
+                    type="subagents",
+                    enabled=True,
+                ),
+            ),
+            is_viewer=phoenix_user.is_viewer if phoenix_user is not None else False,
+        )
+        delegated_server_agent = build_delegated_server_agent(
+            model=model,
+            schema=request.app.state.graphql_schema,
+            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=web_access_enabled,
+            allow_mutations=body.allow_mutations,
+            tracer_provider=tracer_provider,
+        )
         server_agent = build_server_agent(
             model=model,
             schema=request.app.state.graphql_schema,
@@ -759,11 +788,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             enable_web_access=web_access_enabled,
             allow_mutations=body.allow_mutations,
             tracer_provider=tracer_provider,
+            server_agent=delegated_server_agent,
         )
 
         try:
             with detached_otel_context(), using_session(session_id=session_id):
-                result = await server_agent.run(body.input, deps=None)
+                result = await server_agent.run(body.input, deps=deps)
             usage = result.usage()
             span_context = agent_span_recorder.span_context if agent_span_recorder else None
             trace_ids = (
@@ -874,7 +904,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
         server_agent = (
-            build_server_agent(
+            build_delegated_server_agent(
                 model=model,
                 schema=request.app.state.graphql_schema,
                 build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
