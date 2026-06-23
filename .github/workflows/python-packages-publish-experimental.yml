@@ -4,9 +4,10 @@ name: Publish Any Pull Request
 # pull request, analogous to typescript-packages-publish-experimental.yml
 # (which uses pkg-pr-new for npm).
 #
-# Builds are stamped with a PEP 440 alpha suffix (e.g. 17.10.0a<run_id>), so pip
-# ignores them during normal resolution and installs them only when explicitly
-# requested (--pre or an exact pinned version).
+# Builds are stamped with a PEP 440 alpha suffix derived from the PR head commit
+# SHA (e.g. 17.10.0a<int(sha[:7], 16)>), so each commit maps to one deterministic
+# version. pip ignores these during normal resolution and installs them only when
+# explicitly requested (--pre or an exact pinned version).
 #
 # Publishing uses PyPI Trusted Publishers (OIDC) — no API tokens. One-time setup
 # per package on https://pypi.org:
@@ -89,15 +90,17 @@ jobs:
           version: "0.11.8"
           enable-cache: false
       - name: Stamp alpha version
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           python - <<'PY'
           import re, os
           path = "src/phoenix/version.py"
-          run_id = os.environ["GITHUB_RUN_ID"]
+          suffix = int(os.environ["HEAD_SHA"][:7], 16)
           content = open(path).read()
           new = re.sub(
               r'(__version__ = ")([^"]+)(")',
-              lambda m: f'{m.group(1)}{m.group(2)}a{run_id}{m.group(3)}',
+              lambda m: f'{m.group(1)}{m.group(2)}a{suffix}{m.group(3)}',
               content,
           )
           open(path, "w").write(new)
@@ -105,6 +108,8 @@ jobs:
       - name: Build distribution
         run: rm -rf dist && uv build
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        with:
+          skip-existing: true
 
   publish-sub-packages:
     name: Build and publish ${{ matrix.package_name }} (PyPI)
@@ -162,15 +167,16 @@ jobs:
         if: steps.check.outputs.needed == 'true'
         env:
           PYPROJECT_PATH: ${{ matrix.path }}/pyproject.toml
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           python - <<'PY'
           import re, os
           path = os.environ["PYPROJECT_PATH"]
-          run_id = os.environ["GITHUB_RUN_ID"]
+          suffix = int(os.environ["HEAD_SHA"][:7], 16)
           content = open(path).read()
           new = re.sub(
               r'(?m)^(version = ")([^"]+)(")',
-              lambda m: f'{m.group(1)}{m.group(2)}a{run_id}{m.group(3)}',
+              lambda m: f'{m.group(1)}{m.group(2)}a{suffix}{m.group(3)}',
               content,
           )
           open(path, "w").write(new)
@@ -181,6 +187,8 @@ jobs:
         run: uv build
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         if: steps.check.outputs.needed == 'true'
+        with:
+          skip-existing: true
 
   comment:
     name: Post PyPI install instructions
@@ -213,12 +221,12 @@ jobs:
           EVALS_CHANGED: ${{ needs.changes.outputs['phoenix-evals'] }}
           OTEL_CHANGED: ${{ needs.changes.outputs['phoenix-otel'] }}
           WORKFLOW_CHANGED: ${{ needs.changes.outputs.workflow_file }}
-          RUN_ID: ${{ github.run_id }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           python - <<'PY'
           import re, os
 
-          run_id = os.environ["RUN_ID"]
+          suffix = int(os.environ["HEAD_SHA"][:7], 16)
           main_result = os.environ["MAIN_RESULT"]
           packages_result = os.environ["PACKAGES_RESULT"]
           client_changed = os.environ["CLIENT_CHANGED"] == "true"
@@ -243,7 +251,7 @@ jobs:
               lines += [
                   "**arize-phoenix**",
                   "```",
-                  f"pip install arize-phoenix=={v}a{run_id}",
+                  f"pip install arize-phoenix=={v}a{suffix}",
                   "```",
                   "",
               ]
@@ -254,7 +262,7 @@ jobs:
                   lines += [
                       "**arize-phoenix-client**",
                       "```",
-                      f"pip install arize-phoenix-client=={v}a{run_id}",
+                      f"pip install arize-phoenix-client=={v}a{suffix}",
                       "```",
                       "",
                   ]
@@ -263,7 +271,7 @@ jobs:
                   lines += [
                       "**arize-phoenix-evals**",
                       "```",
-                      f"pip install arize-phoenix-evals=={v}a{run_id}",
+                      f"pip install arize-phoenix-evals=={v}a{suffix}",
                       "```",
                       "",
                   ]
@@ -272,7 +280,7 @@ jobs:
                   lines += [
                       "**arize-phoenix-otel**",
                       "```",
-                      f"pip install arize-phoenix-otel=={v}a{run_id}",
+                      f"pip install arize-phoenix-otel=={v}a{suffix}",
                       "```",
                       "",
                   ]
