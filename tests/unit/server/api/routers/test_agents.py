@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from unittest.mock import patch
+
+import pytest
 from jinja2 import Template
 
 from phoenix.db import models
@@ -11,8 +14,10 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.api.routers.agents import (
     _load_sandbox_availability,
+    _maybe_using_user,
 )
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import DbSessionFactory, UserId
 
 
 class TestLoadSandboxAvailability:
@@ -164,3 +169,87 @@ class TestEditCodeEvaluatorDraftToolRendering:
         # The projection requests env-var names only; the prompt explicitly
         # forbids requesting the secret-bearing field.
         assert "never `secretKey`" in rendered
+
+
+class TestObservabilityMixinAttachUserId:
+    """``_ObservabilityMixin.attach_user_id`` defaults to ``False`` and accepts
+    both the camelCase ``attachUserId`` alias and the snake_case field name."""
+
+    def test_defaults_to_false(self) -> None:
+        from phoenix.server.api.routers.agents import _ObservabilityMixin
+
+        mixin = _ObservabilityMixin()
+        assert mixin.attach_user_id is False
+
+    def test_camel_alias_accepted(self) -> None:
+        from phoenix.server.api.routers.agents import _ObservabilityMixin
+
+        mixin = _ObservabilityMixin.model_validate({"attachUserId": True})
+        assert mixin.attach_user_id is True
+
+    def test_snake_case_accepted(self) -> None:
+        from phoenix.server.api.routers.agents import _ObservabilityMixin
+
+        mixin = _ObservabilityMixin.model_validate({"attach_user_id": True})
+        assert mixin.attach_user_id is True
+
+
+class TestMaybeUsingUser:
+    """``_maybe_using_user`` gates the ``using_user`` context manager behind
+    the per-request opt-in flag and an authenticated ``PhoenixUser`` check.
+
+    Three cases:
+    1. Flag off → no-op, regardless of auth state.
+    2. Flag on, unauthenticated (``phoenix_user is None``) → no-op.
+    3. Flag on, authenticated ``PhoenixUser`` → ``using_user`` called with the
+       user's string identity.
+    """
+
+    def _make_phoenix_user(self, user_id: int = 1) -> PhoenixUser:
+        from phoenix.server.types import UserClaimSet, UserTokenAttributes
+
+        uid = UserId(user_id)
+        attrs = UserTokenAttributes(user_role="MEMBER")
+        return PhoenixUser(uid, UserClaimSet(subject=uid, attributes=attrs))
+
+    @pytest.mark.parametrize(
+        "phoenix_user_arg",
+        [None, "has_user"],
+        ids=["no_user", "with_user"],
+    )
+    def test_returns_nullcontext_when_flag_is_false(self, phoenix_user_arg: str | None) -> None:
+        import contextlib
+
+        phoenix_user = self._make_phoenix_user() if phoenix_user_arg == "has_user" else None
+        ctx = _maybe_using_user(attach_user_id=False, phoenix_user=phoenix_user)
+        assert isinstance(ctx, contextlib.nullcontext)
+
+    def test_returns_nullcontext_when_flag_is_true_but_no_user(self) -> None:
+        import contextlib
+
+        ctx = _maybe_using_user(attach_user_id=True, phoenix_user=None)
+        assert isinstance(ctx, contextlib.nullcontext)
+
+    def test_returns_using_user_context_when_authenticated(self) -> None:
+        from openinference.instrumentation import using_user as using_user_cls
+
+        user = self._make_phoenix_user(7)
+        ctx = _maybe_using_user(attach_user_id=True, phoenix_user=user)
+        assert isinstance(ctx, using_user_cls)
+
+    def test_passes_user_identity_string_to_using_user(self) -> None:
+        """The identity is str(UserId) — i.e. ``"User:<n>"`` — and that exact
+        string must be forwarded to ``using_user`` so the span attribute is
+        stable and matches what Phoenix stores."""
+        user = self._make_phoenix_user(42)
+        expected_identity = str(user.identity)  # e.g. "User:42"
+        with patch("openinference.instrumentation.using_user") as mock_cm:
+            _maybe_using_user(attach_user_id=True, phoenix_user=user)
+        mock_cm.assert_called_once_with(expected_identity)
+
+    def test_context_manager_enters_without_error(self) -> None:
+        """Sanity check: the returned context manager can be entered."""
+        user = self._make_phoenix_user(5)
+        ctx = _maybe_using_user(attach_user_id=True, phoenix_user=user)
+        with ctx:
+            pass  # must not raise

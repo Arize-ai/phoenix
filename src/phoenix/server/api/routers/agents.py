@@ -179,6 +179,15 @@ class _ObservabilityMixin(BaseModel):
 
     ingest_traces: bool = Field(default=False, alias="ingestTraces")
     export_remote_traces: bool = Field(default=False, alias="exportRemoteTraces")
+    attach_user_id: bool = Field(
+        default=False,
+        alias="attachUserId",
+        description=(
+            "When true and the request is authenticated as a PhoenixUser, attaches "
+            "the user's identity as the OpenInference ``user.id`` span attribute on "
+            "all traced work for this request."
+        ),
+    )
 
 
 class _ChatMessageMixin(_ObservabilityMixin):
@@ -544,6 +553,25 @@ async def _upsert_project_sessions(
     return {row.session_id: row for row in returned_rows}
 
 
+def _maybe_using_user(
+    attach_user_id: bool,
+    phoenix_user: PhoenixUser | None,
+):
+    """Return a ``using_user`` context manager when the opt-in is set and the
+    request is authenticated as a PhoenixUser; otherwise return a no-op.
+
+    Attaches the Phoenix ``user.id`` OpenInference attribute to all spans
+    created inside the context so traces can be filtered by user.
+    """
+    import contextlib
+
+    from openinference.instrumentation import using_user
+
+    if attach_user_id and phoenix_user is not None:
+        return using_user(str(phoenix_user.identity))
+    return contextlib.nullcontext()
+
+
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
@@ -683,7 +711,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
-                with detached_otel_context(), using_session(session_id=session_id):
+                with (
+                    detached_otel_context(),
+                    using_session(session_id=session_id),
+                    _maybe_using_user(body.attach_user_id, phoenix_user),
+                ):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
                     # Forced skills are streamed as their own `load_skill` steps so
@@ -770,9 +802,15 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
         history = VercelAIAdapter.load_messages(body.messages)
         try:
-            with detached_otel_context(), using_metadata({"session_id": session_id}):
+            with (
+                detached_otel_context(),
+                using_metadata({"session_id": session_id}),
+                _maybe_using_user(body.attach_user_id, phoenix_user),
+            ):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc

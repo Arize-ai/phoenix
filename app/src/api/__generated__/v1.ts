@@ -1641,6 +1641,11 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -1688,6 +1693,11 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -5385,6 +5395,11 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
             /** Model */
