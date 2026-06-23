@@ -36,9 +36,14 @@ export const createAnnotationConfigAgentTool =
         pending: {
           toolCallId: toolCall.toolCallId,
           toolName: CREATE_ANNOTATION_CONFIG_TOOL_NAME,
-          preview: { kind: "create", draft, projectId: input.projectId ?? null },
+          preview: {
+            kind: "create",
+            draft,
+            projectId: input.projectId ?? null,
+          },
         },
-        apply: () => commitCreateAnnotationConfig(draft, input.projectId ?? null),
+        apply: (draft) =>
+          commitCreateAnnotationConfig(draft, input.projectId ?? null),
         addToolOutput,
         agentStore,
       });
@@ -64,7 +69,7 @@ export const updateAnnotationConfigAgentTool =
           toolName: UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
           preview: { kind: "update", configId: input.id, draft },
         },
-        apply: () => commitUpdateAnnotationConfig(input.id, draft),
+        apply: (draft) => commitUpdateAnnotationConfig(input.id, draft),
         addToolOutput,
         agentStore,
       });

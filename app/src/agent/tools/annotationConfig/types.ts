@@ -2,6 +2,7 @@ import type { z } from "zod";
 
 import type {
   ApprovalApplyResult,
+  ApprovalSource,
   PendingApproval,
 } from "@phoenix/agent/shared/pendingApproval";
 
@@ -42,9 +43,14 @@ export type AnnotationConfigWriteApplyResult = ApprovalApplyResult;
 
 /**
  * An annotation-config write (create + optional project association, or full
- * replace) proposed by a tool call and awaiting the user's Accept/Reject in
- * manual edit mode — the generic {@link PendingApproval} specialized to the
- * annotation-config preview.
+ * replace) proposed by a tool call and awaiting the user's Create/Update/Reject
+ * in manual edit mode. `acceptDraft` lets the PXI approval card submit a
+ * user-edited draft instead of blindly applying the model's original proposal.
  */
 export type PendingAnnotationConfigWrite =
-  PendingApproval<AnnotationConfigWritePreview>;
+  PendingApproval<AnnotationConfigWritePreview> & {
+    acceptDraft?: (
+      draft: AnnotationConfigDraft,
+      options?: { approvalSource?: ApprovalSource }
+    ) => Promise<void>;
+  };
