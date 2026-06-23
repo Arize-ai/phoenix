@@ -1,6 +1,10 @@
 import { formatAcceptanceResult } from "./acceptance";
 import type { TestResult } from "./state";
-import type { AcceptanceResult, Annotation } from "./types";
+import type {
+  AcceptanceResult,
+  Annotation,
+  OptimizationDirection,
+} from "./types";
 
 /**
  * The serializable summary of one suite that the reporter renders. This is the
@@ -307,38 +311,52 @@ function aggregateAnnotations(
 // Miss detection + row selection
 // ---------------------------------------------------------------------------
 
+interface AcceptanceBar {
+  bar: number;
+  direction: OptimizationDirection;
+}
+
 /**
- * Per-annotation score bar below which a single run counts as a "miss". For a
- * `passRate` criterion this is the configured `passingScore` (default 1); for an
- * `average` criterion the aggregate threshold is reused as a per-run heuristic
- * (the suite-level acceptance block still reports the true aggregate verdict).
+ * Per-annotation score bar a single run must clear to avoid counting as a
+ * "miss". This is the criterion's `threshold` — a per-run bar for `passRate`,
+ * and the aggregate bar reused as a per-run heuristic for `average` (the
+ * suite-level acceptance block still reports the true aggregate verdict). The
+ * bar's `direction` flips which side counts as a miss.
  */
-function buildAcceptanceBars(suite: SuiteSummary): Map<string, number> {
-  const bars = new Map<string, number>();
+function buildAcceptanceBars(suite: SuiteSummary): Map<string, AcceptanceBar> {
+  const bars = new Map<string, AcceptanceBar>();
   for (const result of suite.acceptanceResults ?? []) {
-    bars.set(
-      result.annotationName,
-      result.metric === "passRate"
-        ? (result.passingScore ?? 1)
-        : result.threshold
-    );
+    bars.set(result.annotationName, {
+      bar: result.threshold,
+      direction: result.direction ?? "maximize",
+    });
   }
   return bars;
 }
 
 /**
- * Whether a passing test's evaluator scores fall short. A boolean `false`, or a
- * numeric score below its configured bar, is a miss; with no criterion for an
+ * Whether a passing test's evaluator scores fall short. When maximizing, a
+ * boolean `false` or a numeric score below its bar is a miss; when minimizing,
+ * a boolean `true` or a score above its bar is a miss. With no criterion for an
  * annotation, only a non-positive score counts (keeps zero-config suites quiet).
  */
-function isMiss(result: TestResult, bars: Map<string, number>): boolean {
+function isMiss(result: TestResult, bars: Map<string, AcceptanceBar>): boolean {
   for (const ann of result.annotations) {
     if (ann.name === "pass") continue;
+    const acceptanceBar = bars.get(ann.name);
+    const minimizing = acceptanceBar?.direction === "minimize";
     if (typeof ann.score === "boolean") {
-      if (!ann.score) return true;
+      if (minimizing ? ann.score : !ann.score) return true;
     } else if (typeof ann.score === "number" && Number.isFinite(ann.score)) {
-      const bar = bars.get(ann.name);
-      if (bar === undefined ? ann.score <= 0 : ann.score < bar) return true;
+      if (acceptanceBar === undefined) {
+        if (ann.score <= 0) return true;
+      } else if (
+        minimizing
+          ? ann.score > acceptanceBar.bar
+          : ann.score < acceptanceBar.bar
+      ) {
+        return true;
+      }
     }
   }
   return false;

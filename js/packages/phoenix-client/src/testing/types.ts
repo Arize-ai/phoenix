@@ -101,28 +101,37 @@ export interface TestConfig {
 /** Aggregate metric used to gate an eval suite in CI. */
 export type AcceptanceMetric = "average" | "passRate";
 
+/**
+ * Optimization direction for a criterion's scores: `"maximize"` (higher is
+ * better, the default) or `"minimize"` (lower is better). Controls every
+ * score comparison the criterion makes.
+ */
+export type OptimizationDirection = "maximize" | "minimize";
+
 /** One aggregate acceptance rule for annotation scores collected in a suite. */
 export interface AcceptanceCriterion {
   /** Annotation name to aggregate across completed test runs. */
   annotationName: string;
   /** Aggregate metric to compute for the annotation. */
   metric: AcceptanceMetric;
-  /** Minimum acceptable aggregate value. */
-  threshold: number;
   /**
-   * Minimum per-run score that counts as passing for `passRate`.
-   * Boolean scores pass when `true`; numeric scores default to `1`.
+   * Score bar the criterion must clear, in the configured direction. For
+   * `"average"` it is compared against the mean score across runs; for
+   * `"passRate"` every run's score must clear it (the suite passes only when
+   * all runs do). Boolean scores pass on `true` (or `false` when minimizing).
    */
-  passingScore?: number;
+  threshold: number;
+  /** Score direction; defaults to `"maximize"`. */
+  direction?: OptimizationDirection;
 }
 
 /** Computed result for one aggregate acceptance rule. */
 export interface AcceptanceResult extends AcceptanceCriterion {
-  /** Aggregate value, or `null` when no valid scores were available. */
+  /** Aggregate value (mean or pass rate), or `null` when no valid scores. */
   value: number | null;
   /** Number of numeric or boolean scores included in the aggregate. */
   sampleCount: number;
-  /** Whether the aggregate value met the configured threshold. */
+  /** Whether the aggregate cleared the criterion. */
   passed: boolean;
   /** Human-readable failure reason for invalid or empty aggregates. */
   failureReason?: string;
@@ -152,8 +161,9 @@ export interface SuiteConfig {
    */
   dryRun?: boolean;
   /**
-   * Aggregate annotation thresholds that gate the suite after all tests run.
-   * Each criterion fails the suite when its aggregate value is below threshold.
+   * Aggregate annotation criteria that gate the suite after all tests run.
+   * Each criterion fails the suite when its scores miss the configured bar
+   * (see {@link AcceptanceCriterion}).
    */
   acceptanceCriteria?: AcceptanceCriterion[];
 }

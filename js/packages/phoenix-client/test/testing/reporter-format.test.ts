@@ -145,7 +145,7 @@ describe("per-suite block", () => {
     const failing = suite([result("c", "passed", 0.75)], {}, false);
     const out = formatSuiteSummary(failing, COMPACT);
     expect(out).toContain("✗ acceptance");
-    expect(out).toContain("accuracy average 0.000 < 0.800");
+    expect(out).toContain("accuracy average 0.000 (need mean >= 0.800");
   });
 
   it("prints the experiment link in a problem block", () => {

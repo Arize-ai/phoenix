@@ -3,6 +3,7 @@ import type {
   AcceptanceCriterion,
   AcceptanceResult,
   Annotation,
+  OptimizationDirection,
 } from "./types";
 
 interface AcceptanceSample {
@@ -53,18 +54,14 @@ export function createAcceptanceFailureError(
 export function formatAcceptanceResult(result: AcceptanceResult): string {
   const status = result.passed ? "PASS" : "FAIL";
   const value = result.value === null ? "n/a" : result.value.toFixed(3);
-  const threshold = result.threshold.toFixed(3);
-  const comparison =
-    result.value === null
-      ? `${value}, threshold ${threshold}`
-      : `${value} ${result.value < result.threshold ? "<" : ">="} ${threshold}`;
+  const cmp = (result.direction ?? "maximize") === "minimize" ? "<=" : ">=";
   const sampleLabel = result.sampleCount === 1 ? "sample" : "samples";
-  const passingScore =
-    result.metric === "passRate" && result.passingScore !== undefined
-      ? `, passingScore ${result.passingScore.toFixed(3)}`
-      : "";
+  const requirement =
+    result.metric === "average"
+      ? `mean ${cmp} ${result.threshold.toFixed(3)}`
+      : `every run ${cmp} ${result.threshold.toFixed(3)}`;
   const reason = result.failureReason ? ` - ${result.failureReason}` : "";
-  return `${status} ${result.annotationName} ${result.metric} ${comparison} (${result.sampleCount} ${sampleLabel}${passingScore})${reason}`;
+  return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} ${sampleLabel})${reason}`;
 }
 
 function evaluateAcceptanceCriterion({
@@ -85,17 +82,38 @@ function evaluateAcceptanceCriterion({
     };
   }
 
-  const value =
-    criterion.metric === "average"
-      ? calculateAverage(samples)
-      : calculatePassRate({ samples, passingScore: criterion.passingScore });
+  const direction = criterion.direction ?? "maximize";
+  if (criterion.metric === "average") {
+    const value = calculateAverage(samples);
+    return {
+      ...criterion,
+      value,
+      sampleCount: samples.length,
+      passed: meetsBar(value, criterion.threshold, direction),
+    };
+  }
 
+  // passRate: the suite passes only when every run clears the per-run bar.
+  const value = calculatePassRate({
+    samples,
+    threshold: criterion.threshold,
+    direction,
+  });
   return {
     ...criterion,
     value,
     sampleCount: samples.length,
-    passed: value >= criterion.threshold,
+    passed: value >= 1,
   };
+}
+
+/** Whether `value` clears `bar` in the given optimization direction. */
+function meetsBar(
+  value: number,
+  bar: number,
+  direction: OptimizationDirection
+): boolean {
+  return direction === "minimize" ? value <= bar : value >= bar;
 }
 
 function collectAcceptanceSamples({
@@ -155,18 +173,32 @@ function calculateAverage(samples: readonly AcceptanceSample[]): number {
 
 function calculatePassRate({
   samples,
-  passingScore,
+  threshold,
+  direction,
 }: {
   samples: readonly AcceptanceSample[];
-  passingScore: number | undefined;
+  threshold: number;
+  direction: OptimizationDirection;
 }): number {
-  const numericPassingScore = passingScore ?? 1;
   const passed = samples.filter((sample) =>
-    typeof sample.score === "boolean"
-      ? sample.score
-      : sample.score >= numericPassingScore
+    runPasses(sample.score, threshold, direction)
   ).length;
   return passed / samples.length;
+}
+
+/**
+ * Whether a single run's score counts as a pass. Boolean scores pass on `true`
+ * (or `false` when minimizing); numeric scores must clear `threshold`.
+ */
+function runPasses(
+  score: number | boolean,
+  threshold: number,
+  direction: OptimizationDirection
+): boolean {
+  if (typeof score === "boolean") {
+    return direction === "minimize" ? !score : score;
+  }
+  return meetsBar(score, threshold, direction);
 }
 
 function scoreToNumber(score: number | boolean): number {
