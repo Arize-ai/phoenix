@@ -109,11 +109,52 @@ async function postAnnotation(
 }
 
 /**
+ * Deletes `user_feedback` annotations with the given identifier from both the
+ * span and trace annotation tables. Used to undo a previously submitted
+ * thumbs-up/down. The identifier is scoped to a single user+message pair so
+ * `delete_all=true` only removes that one annotation.
+ * Throws with a descriptive message on non-2xx responses.
+ */
+async function deleteAnnotations(args: {
+  projectName: string;
+  identifier: string;
+}) {
+  const { projectName, identifier } = args;
+  const query = {
+    name: FEEDBACK_ANNOTATION_NAME,
+    identifier,
+    annotator_kind: "HUMAN" as const,
+    delete_all: true,
+  };
+  const path = { project_identifier: projectName };
+
+  const [{ response: spanResponse }, { response: traceResponse }] =
+    await Promise.all([
+      authApiFetch.DELETE(
+        "/v1/projects/{project_identifier}/span_annotations",
+        { params: { path, query } }
+      ),
+      authApiFetch.DELETE(
+        "/v1/projects/{project_identifier}/trace_annotations",
+        { params: { path, query } }
+      ),
+    ]);
+
+  if (!spanResponse.ok) {
+    throw new Error(await getResponseErrorMessage(spanResponse));
+  }
+  if (!traceResponse.ok) {
+    throw new Error(await getResponseErrorMessage(traceResponse));
+  }
+}
+
+/**
  * Toolbar rendered below an assistant message with quick actions:
  *
  * - Thumbs up / thumbs down: writes a `user_feedback` annotation to both the
- *   root span and the trace. Requires the message to carry `traceId`,
- *   `rootSpanId`, and `sessionId` metadata.
+ *   root span and the trace. Clicking the active button again deletes the
+ *   annotation (undo). Requires the message to carry `traceId`, `rootSpanId`,
+ *   and `sessionId` metadata.
  * - Copy: copies the assistant's text response to the clipboard.
  * - Trace: opens the associated trace in a new tab. Requires `traceId`.
  *
@@ -134,6 +175,9 @@ export function AssistantMessageActions({
   const { viewer } = useViewer();
   const storeLocalTraces = useAgentContext(
     (state) => state.observability.storeLocalTraces
+  );
+  const assistantProjectName = useAgentContext(
+    (state) => state.agentsConfig.assistantProjectName
   );
   const [selectedFeedback, setSelectedFeedback] =
     useState<AssistantFeedback | null>(null);
@@ -168,16 +212,26 @@ export function AssistantMessageActions({
     }
     const { traceId, rootSpanId } = metadata.trace;
     const { sessionId } = metadata;
+    // Combining username with message id scopes the identifier to one
+    // user+message pair. Re-submitting upserts the existing record, and the
+    // delete path can safely use delete_all=true without touching other messages.
+    const identifier = `${viewer?.username ?? "anon"}:${message.id}`;
+
+    setIsSubmittingFeedback(true);
+
     if (selectedFeedback === feedback) {
+      // Undo: clicking the already-active button removes the annotation.
+      try {
+        await deleteAnnotations({ projectName: assistantProjectName, identifier });
+        setSelectedFeedback(null);
+      } catch {
+        // Swallow errors; UI state simply won't reflect the undo.
+      } finally {
+        setIsSubmittingFeedback(false);
+      }
       return;
     }
 
-    setIsSubmittingFeedback(true);
-    // Using the username as the identifier makes feedback per-user: the same
-    // user re-submitting updates their entry, while different users produce
-    // distinct annotation records. Anonymous viewers fall back to the message
-    // id, which still deduplicates against the same message.
-    const identifier = viewer?.username ?? message.id;
     const base = {
       annotator_kind: "HUMAN" as const,
       identifier,
