@@ -585,7 +585,7 @@ export function TimeRangeSelector(props: TimeRangeSelectorProps) {
                 size="S"
                 variant="quiet"
                 css={calendarOptionCSS}
-                leadingVisual={<Icon svg={<Icons.CalendarOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Calendar />} />}
                 onPress={() => setIsCalendarPickerOpen(true)}
               >
                 Pick from a calendar

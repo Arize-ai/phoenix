@@ -100,7 +100,7 @@ function SpanEventsListContent({ events }: { events: readonly SpanEvent[] }) {
             </View>
             {isException && (
               <View flex="none">
-                <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+                <Icon svg={<Icons.AlertTriangle />} color="danger" />
               </View>
             )}
             <Flex direction="row" gap="size-100">

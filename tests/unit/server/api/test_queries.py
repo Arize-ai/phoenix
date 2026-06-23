@@ -2866,3 +2866,16 @@ async def test_available_agent_skills_code_evaluator_context(
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
     # An evaluator context (without a dataset) unlocks only the evaluators skill.
     assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+
+
+async def test_node_with_noninteger_payload_returns_bad_request(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    bad_id = str(GlobalID("Trace", "abc"))
+    response = await gql_client.execute(
+        query="query ($id: ID!) { node(id: $id) { __typename } }",
+        variables={"id": bad_id},
+    )
+    assert response.data is None
+    assert response.errors
+    assert f"Invalid node id: {bad_id}" in response.errors[0].message

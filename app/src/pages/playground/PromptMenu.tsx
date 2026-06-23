@@ -300,7 +300,7 @@ export function PromptSelector({
             items={promptItems}
             renderEmptyState={() => (
               <CompactEmptyState
-                icon={<Icon svg={<Icons.EditOutline />} />}
+                icon={<Icon svg={<Icons.Edit />} />}
                 description="No prompts found"
               />
             )}
@@ -424,7 +424,7 @@ export function PromptVersionSelector({
                 items={versionItems}
                 renderEmptyState={() => (
                   <CompactEmptyState
-                    icon={<Icon svg={<Icons.GitBranchOutline />} />}
+                    icon={<Icon svg={<Icons.GitBranch />} />}
                     description="No versions found"
                   />
                 )}
@@ -485,7 +485,7 @@ export function PromptVersionSelector({
                 items={tagItems}
                 renderEmptyState={() => (
                   <CompactEmptyState
-                    icon={<Icon svg={<Icons.PriceTagsOutline />} />}
+                    icon={<Icon svg={<Icons.PriceTags />} />}
                     description="No tags found"
                   />
                 )}

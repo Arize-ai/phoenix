@@ -209,7 +209,7 @@ export function ProjectMenu({
             items={projects}
             renderEmptyState={() => (
               <CompactEmptyState
-                icon={<Icon svg={<Icons.FolderOutline />} />}
+                icon={<Icon svg={<Icons.Folder />} />}
                 description="No projects found"
               />
             )}

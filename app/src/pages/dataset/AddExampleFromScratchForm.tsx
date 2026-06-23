@@ -310,7 +310,7 @@ export function AddExampleFromScratchForm(
             size="S"
             isDisabled={!isValid || isCommitting}
             leadingVisual={
-              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
+              isCommitting ? <Icon svg={<Icons.Loading />} /> : null
             }
             trailingVisual={
               <Keyboard>

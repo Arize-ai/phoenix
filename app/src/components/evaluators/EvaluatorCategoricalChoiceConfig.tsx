@@ -214,7 +214,7 @@ export const EvaluatorCategoricalChoiceConfig = () => {
                 {index > 1 && (
                   <Button
                     type="button"
-                    leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                    leadingVisual={<Icon svg={<Icons.Trash />} />}
                     aria-label="Remove choice"
                     onPress={() => {
                       if (fields.length === 2) {
@@ -248,7 +248,7 @@ export const EvaluatorCategoricalChoiceConfig = () => {
               css={css`
                 width: fit-content;
               `}
-              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
               aria-label="Add choice"
               onPress={() => {
                 append({ label: "", score: undefined });

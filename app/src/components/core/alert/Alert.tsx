@@ -4,7 +4,8 @@ import type { ReactNode, SyntheticEvent } from "react";
 import { useTheme } from "@phoenix/contexts/ThemeContext";
 
 import { Text } from "../content";
-import { CloseOutline, Icon } from "../icon";
+import { Icon } from "../icon";
+import { Close } from "../icon/Icons";
 import type { SeverityLevel } from "../types";
 import { getSeverityIcon } from "./getSeverityIcon";
 
@@ -168,7 +169,7 @@ export const Alert = ({
       {extra}
       {dismissable ? (
         <button css={dismissButtonCSS} onClick={onDismissClick}>
-          {<Icon svg={<CloseOutline />} />}
+          {<Icon svg={<Close />} />}
         </button>
       ) : null}
     </div>

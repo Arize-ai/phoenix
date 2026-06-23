@@ -619,7 +619,7 @@ function ToolInvocationPartDetails({
                 className="tool-part__chevron"
               />
               <Icon
-                svg={icon ?? <Icons.WrenchOutline />}
+                svg={icon ?? <Icons.Wrench />}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -1030,7 +1030,7 @@ function getToolPresentation(
         preview: getBatchSpanAnnotateToolPreview(part),
         stateLabel: formatBatchSpanAnnotateState(part),
         statusVariant,
-        icon: <Icons.Edit2Outline />,
+        icon: <Icons.Edit2 />,
         details: <BatchSpanAnnotateToolDetails part={part} />,
       };
     case PATCH_EXPERIMENT_TOOL_NAME:
@@ -1061,7 +1061,7 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <LoadSkillToolDetails part={part} />,
-        icon: <Icons.GraduationCapOutline />,
+        icon: <Icons.GraduationCap />,
         variant: part.state === "output-available" ? "quiet" : "default",
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
@@ -1074,7 +1074,7 @@ function getToolPresentation(
         statusVariant,
         icon:
           toolName === NATIVE_WEB_SEARCH_TOOL_NAME ? (
-            <Icons.GlobeOutline />
+            <Icons.Globe />
           ) : undefined,
         // Native web tools have no bespoke renderer — fall back to the generic
         // input/output/error JSON view.
@@ -1085,7 +1085,7 @@ function getToolPresentation(
         preview: getCallSubagentName(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.SplitOutline />,
+        icon: <Icons.Split />,
         details: <GenericToolDetails part={part} />,
       };
     case SET_SPANS_FILTER_TOOL_NAME:
@@ -1093,7 +1093,7 @@ function getToolPresentation(
         preview: getSetSpansFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.FunnelOutline />,
+        icon: <Icons.Funnel />,
         details: <GenericToolDetails part={part} />,
       };
     default: {

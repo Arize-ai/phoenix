@@ -235,7 +235,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           variant={disabled ? "default" : "primary"}
           isDisabled={disabled}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           aria-label="Add Annotation"
         >
           Annotation
@@ -690,7 +690,7 @@ function SpanAnnotationsList(props: {
           height="100%"
         >
           <CompactEmptyState
-            icon={<Icon svg={<Icons.SettingsOutline />} />}
+            icon={<Icon svg={<Icons.Settings />} />}
             description="No annotation configurations for this project."
           />
         </Flex>

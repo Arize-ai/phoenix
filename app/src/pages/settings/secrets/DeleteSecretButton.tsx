@@ -45,7 +45,7 @@ export function DeleteSecretButton({
     >
       <Button
         variant="danger"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         aria-label={`Delete ${secretKey}`}
         size="S"
         onPress={() => {

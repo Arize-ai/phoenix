@@ -132,7 +132,7 @@ function ConfigureCredentialsButton({
             : `${backend.displayName} requires no credentials`
         }
         isDisabled={!hasCredentialSpecs}
-        leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Settings />} />}
       />
       <ModalOverlay>
         <Modal size="M">

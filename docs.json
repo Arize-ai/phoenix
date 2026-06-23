@@ -1208,6 +1208,7 @@
               "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
               "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
               "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
+              "docs/phoenix/cookbook/evaluation/session-level-evaluation",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
               "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
               "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
@@ -1219,7 +1220,8 @@
             "group": "Guardrails & Safety",
             "icon": "shield-halved",
             "pages": [
-              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense"
+              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
+              "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
             ]
           },
           {
@@ -1231,6 +1233,7 @@
               "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
+              "docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
             ]
           }

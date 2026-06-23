@@ -21,7 +21,7 @@ export function NewDatasetLabelButton(props: NewDatasetLabelButtonProps) {
       <Button
         size="S"
         variant="primary"
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={() => setShowNewDatasetLabelDialog(true)}
       >
         New Label

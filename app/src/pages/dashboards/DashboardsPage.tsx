@@ -43,7 +43,6 @@ const toolbarCSS = css`
   gap: var(--global-dimension-size-200);
   padding: var(--global-dimension-size-200);
   border-bottom: 1px solid var(--global-border-color-default);
-  background-color: var(--global-color-gray-50);
 `;
 
 const projectMenuCSS = css`

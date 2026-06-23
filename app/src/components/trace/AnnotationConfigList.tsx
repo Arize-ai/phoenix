@@ -274,7 +274,7 @@ export function AnnotationConfigList(props: {
         onSelectionChange={handleSelectionChange}
         renderEmptyState={() => (
           <CompactEmptyState
-            icon={<Icon svg={<Icons.ListOutline />} />}
+            icon={<Icon svg={<Icons.List />} />}
             description="No annotation configs found"
           />
         )}

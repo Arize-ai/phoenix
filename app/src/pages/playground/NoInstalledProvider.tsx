@@ -42,7 +42,7 @@ export const NoInstalledProvider = (props: NoInstalledProviderProps) => {
         gap="size-200"
       >
         <CompactEmptyState
-          icon={<Icon svg={<Icons.AlertCircleOutline />} />}
+          icon={<Icon svg={<Icons.AlertCircle />} />}
           description={NO_PROVIDER_MESSAGE.trim()}
         />
         {/* display instructions for installing a provider and a link to the documentation */}

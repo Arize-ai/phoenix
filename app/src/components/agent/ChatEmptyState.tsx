@@ -19,12 +19,12 @@ export type EmptyStateQuickAction = {
  */
 export const DEFAULT_QUICK_ACTIONS: EmptyStateQuickAction[] = [
   {
-    icon: <Icons.BulbOutline />,
+    icon: <Icons.Bulb />,
     label: "How do I use Phoenix?",
     prompt: "How do I use Phoenix?",
   },
   {
-    icon: <Icons.BookOutline />,
+    icon: <Icons.Book />,
     label: "Explain a concept",
     prompt: "Explain a Phoenix concept to me.",
   },

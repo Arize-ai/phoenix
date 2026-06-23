@@ -1,5 +1,4 @@
 import { Suspense, useMemo, useState } from "react";
-import { ModalOverlay } from "react-aria-components";
 import {
   graphql,
   useFragment,
@@ -8,13 +7,13 @@ import {
 } from "react-relay";
 
 import {
+  Alert,
   Autocomplete,
   Button,
   ColorSwatch,
   Dialog,
   DialogTrigger,
   Icon,
-  IconButton,
   Icons,
   Input,
   LinkButton,
@@ -24,7 +23,6 @@ import {
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
-  Modal,
   Popover,
   PopoverArrow,
   SearchField,
@@ -33,10 +31,12 @@ import {
 } from "@phoenix/components";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
-import { NewPromptLabelDialog } from "@phoenix/components/prompt/NewPromptLabelDialog";
+import { NewLabelForm } from "@phoenix/components/label";
+import { usePromptLabelMutations } from "@phoenix/components/prompt/usePromptLabelMutations";
 import type { PromptLabelConfigButton_allLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_allLabels.graphql";
 import type { PromptLabelConfigButton_promptLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_promptLabels.graphql";
 import type { PromptLabelConfigButtonUnsetLabelsMutation } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButtonUnsetLabelsMutation.graphql";
+import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { PromptLabelConfigButtonQuery } from "./__generated__/PromptLabelConfigButtonQuery.graphql";
 import type { PromptLabelConfigButtonSetLabelsMutation } from "./__generated__/PromptLabelConfigButtonSetLabelsMutation.graphql";
@@ -47,58 +47,36 @@ type PromptLabelConfigButtonProps = {
 
 export function PromptLabelConfigButton(props: PromptLabelConfigButtonProps) {
   const { promptId } = props;
-  const [showNewLabelDialog, setShowNewLabelDialog] = useState<boolean>(false);
-  const [isOpen, setIsOpen] = useState(false);
   return (
-    <>
-      <DialogTrigger
-        isOpen={isOpen && !showNewLabelDialog}
-        onOpenChange={(newIsOpen) => setIsOpen(newIsOpen)}
+    <DialogTrigger>
+      <Button
+        variant="quiet"
+        size="S"
+        leadingVisual={<Icon svg={<Icons.Settings />} />}
+        aria-label="Edit prompt labels"
+      />
+      <Popover
+        placement="bottom start"
+        shouldCloseOnInteractOutside={() => true}
       >
-        <Button
-          variant="quiet"
-          size="S"
-          leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
-          aria-label="Edit prompt labels"
-        />
-        <Popover>
-          <PopoverArrow />
-          <Dialog>
-            <Suspense fallback={<Loading />}>
-              <PromptLabelSelectionDialogContent
-                promptId={promptId}
-                onNewLabelPress={() => {
-                  setShowNewLabelDialog(true);
-                }}
-              />
-            </Suspense>
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
-      {showNewLabelDialog ? (
-        <ModalOverlay
-          isOpen
-          onOpenChange={(isOpen) => {
-            if (!isOpen) {
-              setShowNewLabelDialog(false);
-            }
-          }}
-        >
-          <Modal size="S">
-            <NewPromptLabelDialog
-              onCompleted={() => setShowNewLabelDialog(false)}
-            />
-          </Modal>
-        </ModalOverlay>
-      ) : null}
-    </>
+        <PopoverArrow />
+        <Dialog>
+          <Suspense fallback={<Loading />}>
+            <PromptLabelSelectionContent promptId={promptId} />
+          </Suspense>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }
 
-function PromptLabelSelectionDialogContent(props: {
-  promptId: string;
-  onNewLabelPress: () => void;
-}) {
+/**
+ * A self-contained label selection control for a prompt, suitable for rendering
+ * inside a popover (e.g. from a table row action menu). It supports applying
+ * existing labels and creating a new label inline, mirroring the datasets list
+ * experience ({@link DatasetLabelSelectionContent}).
+ */
+export function PromptLabelSelectionContent(props: { promptId: string }) {
   const { promptId } = props;
   const query = useLazyLoadQuery<PromptLabelConfigButtonQuery>(
     graphql`
@@ -114,17 +92,18 @@ function PromptLabelSelectionDialogContent(props: {
     { promptId }
   );
 
-  return <PromptLabelList query={query} prompt={query.prompt} {...props} />;
+  return <PromptLabelList query={query} prompt={query.prompt} />;
 }
+
 function PromptLabelList({
   query,
   prompt,
-  onNewLabelPress,
 }: {
   prompt: PromptLabelConfigButton_promptLabels$key;
   query: PromptLabelConfigButton_allLabels$key;
-  onNewLabelPress: () => void;
 }) {
+  const [mode, setMode] = useState<"apply" | "create">("apply");
+  const [error, setError] = useState<string | null>(null);
   const { contains } = useFilter({ sensitivity: "base" });
   const promptData = useFragment<PromptLabelConfigButton_promptLabels$key>(
     graphql`
@@ -156,10 +135,12 @@ function PromptLabelList({
     query
   );
 
-  const selectedLabelIds = promptData?.labels?.map((label) => label.id) || [];
-  const [selected, setSelected] = useState<Selection>(
-    () => new Set(selectedLabelIds)
+  const selectedLabelIds = useMemo(
+    () => promptData?.labels?.map((label) => label.id) ?? [],
+    [promptData?.labels]
   );
+  // Derive selected state directly from Relay data - no need for separate state
+  const selected = useMemo(() => new Set(selectedLabelIds), [selectedLabelIds]);
 
   const labels = useMemo(
     () => labelData.promptLabels.edges.map((edge) => edge.node),
@@ -205,24 +186,27 @@ function PromptLabelList({
       }
     `);
 
+  const onError = (error: Error) => {
+    const formattedError = getErrorMessagesFromRelayMutationError(error);
+    setError(formattedError?.[0] ?? error.message);
+  };
+
   const onSelectionChange = (selection: Selection) => {
     if (selection === "all") {
       return;
     }
     const newLabelIds = [...selection] as string[];
-    const labelIdsToAdd: string[] = newLabelIds.filter(
+    const labelIdsToAdd = newLabelIds.filter(
       (id) => !selectedLabelIds.includes(id)
     );
-    const labelIdsToRemove: string[] = selectedLabelIds.filter(
+    const labelIdsToRemove = selectedLabelIds.filter(
       (id) => !newLabelIds.includes(id)
     );
 
     if (labelIdsToAdd.length) {
       setPromptLabels({
-        variables: {
-          promptId: promptData.id,
-          promptLabelIds: labelIdsToAdd,
-        },
+        variables: { promptId: promptData.id, promptLabelIds: labelIdsToAdd },
+        onError,
       });
     }
     if (labelIdsToRemove.length) {
@@ -231,63 +215,108 @@ function PromptLabelList({
           promptId: promptData.id,
           promptLabelIds: labelIdsToRemove,
         },
+        onError,
       });
     }
-    setSelected(selection);
   };
+
   return (
     <>
-      <Autocomplete filter={contains}>
-        <MenuHeader>
-          <MenuHeaderTitle
-            trailingContent={
-              <IconButton size="S" onPress={onNewLabelPress}>
-                <Icon svg={<Icons.PlusOutline />} />
-              </IconButton>
-            }
-          >
-            Assign labels to this prompt
-          </MenuHeaderTitle>
-          <SearchField aria-label="Search labels" variant="quiet" autoFocus>
-            <SearchIcon />
-            <Input placeholder="Search labels..." />
-          </SearchField>
-        </MenuHeader>
-        <Menu
-          aria-label="labels"
-          items={labels}
-          selectionMode="multiple"
-          selectedKeys={selected}
-          onSelectionChange={onSelectionChange}
-          renderEmptyState={() => (
-            <CompactEmptyState
-              icon={<Icon svg={<Icons.PriceTagsOutline />} />}
-              description="No labels found"
-            />
-          )}
+      {error && <Alert variant="danger">{error}</Alert>}
+      <MenuHeader>
+        <MenuHeaderTitle
+          leadingContent={
+            mode === "create" ? (
+              <Button
+                variant="quiet"
+                size="S"
+                aria-label="Back to labels"
+                leadingVisual={<Icon svg={<Icons.ChevronLeftSmall />} />}
+                onPress={() => setMode("apply")}
+              />
+            ) : undefined
+          }
+          trailingContent={
+            mode === "apply" ? (
+              <Button
+                variant="quiet"
+                size="S"
+                aria-label="Create new label"
+                leadingVisual={<Icon svg={<Icons.Plus />} />}
+                onPress={() => setMode("create")}
+              />
+            ) : undefined
+          }
         >
-          {({ id, name, color }) => (
-            <MenuItem
-              id={id}
-              textValue={name}
-              leadingContent={
-                <ColorSwatch
-                  color={color ?? undefined}
-                  size="M"
-                  shape="circle"
+          {mode === "create" ? "Create New Label" : "Assign labels"}
+        </MenuHeaderTitle>
+      </MenuHeader>
+      {mode === "apply" && (
+        <>
+          <Autocomplete filter={contains}>
+            <MenuHeader>
+              <SearchField aria-label="Search labels" variant="quiet" autoFocus>
+                <SearchIcon />
+                <Input placeholder="Search labels..." />
+              </SearchField>
+            </MenuHeader>
+            <Menu
+              aria-label="labels"
+              items={labels}
+              selectionMode="multiple"
+              selectedKeys={selected}
+              onSelectionChange={onSelectionChange}
+              renderEmptyState={() => (
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.PriceTags />} />}
+                  description="No labels found"
                 />
-              }
+              )}
             >
-              {name}
-            </MenuItem>
-          )}
-        </Menu>
-      </Autocomplete>
-      <MenuFooter>
-        <LinkButton variant="quiet" size="S" to="/settings/prompts">
-          Edit Labels
-        </LinkButton>
-      </MenuFooter>
+              {({ id, name, color }) => (
+                <MenuItem
+                  id={id}
+                  textValue={name}
+                  leadingContent={
+                    <ColorSwatch
+                      color={color ?? undefined}
+                      size="M"
+                      shape="circle"
+                    />
+                  }
+                >
+                  {name}
+                </MenuItem>
+              )}
+            </Menu>
+          </Autocomplete>
+          <MenuFooter>
+            <LinkButton variant="quiet" size="S" to="/settings/prompts">
+              Edit Labels
+            </LinkButton>
+          </MenuFooter>
+        </>
+      )}
+      {mode === "create" && (
+        <CreateNewPromptLabel onCompleted={() => setMode("apply")} />
+      )}
+    </>
+  );
+}
+
+function CreateNewPromptLabel({ onCompleted }: { onCompleted: () => void }) {
+  const { addLabelMutation, isSubmitting, error } = usePromptLabelMutations();
+  return (
+    <>
+      {error && (
+        <Alert banner variant="danger">
+          {error}
+        </Alert>
+      )}
+      <NewLabelForm
+        onSubmit={(label) => addLabelMutation(label, onCompleted)}
+        isSubmitting={isSubmitting}
+      />
     </>
   );
 }

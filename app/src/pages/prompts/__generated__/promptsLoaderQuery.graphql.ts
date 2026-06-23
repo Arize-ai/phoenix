@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e7131b2efd51501919bf157361632f00>>
+ * @generated SignedSource<<a0df19159c1e7aa29e494b267ea4e970>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -111,6 +111,20 @@ return {
                         "name": "createdAt",
                         "storageKey": null
                       },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelName",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelProvider",
+                        "storageKey": null
+                      },
                       (v1/*: any*/)
                     ],
                     "storageKey": null
@@ -210,12 +224,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3bf444cc04be064fc037755409e3288d",
+    "cacheID": "4373e9645545d729885b58f67a08898c",
     "id": null,
     "metadata": {},
     "name": "promptsLoaderQuery",
     "operationKind": "query",
-    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query promptsLoaderQuery {\n  ...PromptsTable_prompts\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          modelName\n          modelProvider\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

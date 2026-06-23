@@ -40,6 +40,7 @@ import type {
 import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SpanDetails } from "./SpanDetails";
 import { TraceHeaderRootSpanAnnotations } from "./TraceHeaderRootSpanAnnotations";
+import { TraceHeaderTraceAnnotations } from "./TraceHeaderTraceAnnotations";
 
 type RootSpan = NonNullable<
   TraceDetailsQuery$data["project"]["trace"]
@@ -66,6 +67,7 @@ export function TraceDetails(props: TraceDetailsProps) {
         project: node(id: $id) {
           ... on Project {
             trace(traceId: $traceId) {
+              id
               projectSessionId
               ...ConnectedTraceTree
               rootSpans: spans(
@@ -133,6 +135,7 @@ export function TraceDetails(props: TraceDetailsProps) {
     >
       <TraceHeader
         projectId={projectId}
+        traceNodeId={data.project.trace.id}
         rootSpan={rootSpan}
         latencyMs={traceLatencyMs}
         costSummary={costSummary}
@@ -184,12 +187,14 @@ export function TraceDetails(props: TraceDetailsProps) {
 
 function TraceHeader({
   rootSpan,
+  traceNodeId,
   latencyMs,
   costSummary,
   sessionId,
   projectId,
 }: {
   rootSpan: RootSpan | null;
+  traceNodeId: string;
   latencyMs: number | null;
   costSummary?: CostSummary | null;
   sessionId?: string | null;
@@ -278,9 +283,19 @@ function TraceHeader({
             <Text size="L">--</Text>
           )}
         </Flex>
-        {rootSpan ? (
-          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-        ) : null}
+        <Suspense fallback={null}>
+          <Flex
+            direction="row"
+            gap="size-400"
+            alignItems="stretch"
+            alignSelf="stretch"
+          >
+            {rootSpan ? (
+              <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
+            ) : null}
+            <TraceHeaderTraceAnnotations traceId={traceNodeId} />
+          </Flex>
+        </Suspense>
         {sessionId && (
           <span
             css={css`

@@ -146,7 +146,7 @@ function NameCell({
       <TooltipTrigger>
         <TriggerWrap>
           <Icon
-            svg={<Icons.AlertTriangleOutline />}
+            svg={<Icons.AlertTriangle />}
             color="warning"
             aria-label="Configuration error"
           />

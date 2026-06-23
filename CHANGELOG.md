@@ -1,5 +1,39 @@
 # Changelog
 
+## [17.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.9.0...arize-phoenix-v17.10.0) (2026-06-20)
+
+
+### Features
+
+* **annotations:** show trace-level annotations in trace header ([#13853](https://github.com/Arize-ai/phoenix/issues/13853)) ([6420815](https://github.com/Arize-ai/phoenix/commit/6420815e8ac36d50b973ac4919d0efe6a75d4068))
+
+
+### Documentation
+
+* add Go OpenInference integrations to README ([13bc9e5](https://github.com/Arize-ai/phoenix/commit/13bc9e5e2a8f2905581a5094806ab7b641be91a5))
+
+## [17.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.1...arize-phoenix-v17.9.0) (2026-06-19)
+
+
+### Features
+
+* **agents:** add PHOENIX_AGENTS_DISABLE_BASH to disable server-side bash ([#13841](https://github.com/Arize-ai/phoenix/issues/13841)) ([0adf1f7](https://github.com/Arize-ai/phoenix/commit/0adf1f794f34dd883123565142facd325d9bbfe8))
+* **agents:** add serverside bash tool ([#13767](https://github.com/Arize-ai/phoenix/issues/13767)) ([dceb57c](https://github.com/Arize-ai/phoenix/commit/dceb57cc48c8267939dc2a33fff1a5c8c030ee1a))
+* **auth:** add ROLE_RESYNC for OAuth2 IDPs to preserve manual role overrides ([#13838](https://github.com/Arize-ai/phoenix/issues/13838)) ([585dd40](https://github.com/Arize-ai/phoenix/commit/585dd407e79c7b75ffcf754363f62a1bda9b6aef))
+* **prompts/datasets:** filter by label, manage labels from the list, prompt model column ([#13830](https://github.com/Arize-ai/phoenix/issues/13830)) ([669498a](https://github.com/Arize-ai/phoenix/commit/669498aef28dd5de45635270868c0d2e0571f535))
+* **pxi:** add prompt route contexts ([#13834](https://github.com/Arize-ai/phoenix/issues/13834)) ([4524f82](https://github.com/Arize-ai/phoenix/commit/4524f829eea23afb016c8c77e30cd5066a11957f))
+* **pxi:** render every tool call individually with execution summaries ([#13824](https://github.com/Arize-ai/phoenix/issues/13824)) ([279e1f5](https://github.com/Arize-ai/phoenix/commit/279e1f51bd3256a3db194111af1a303cc72a914f))
+* **ui:** show usage counts for dataset and prompt labels ([#13831](https://github.com/Arize-ai/phoenix/issues/13831)) ([b9b1589](https://github.com/Arize-ai/phoenix/commit/b9b158950e79669fab3f53de83dc85f83888b96b))
+
+
+### Bug Fixes
+
+* **agents:** explicitly deny network in server bash when web access off ([#13842](https://github.com/Arize-ai/phoenix/issues/13842)) ([dab3a5e](https://github.com/Arize-ai/phoenix/commit/dab3a5eb5a82d889ef9facf0a9acf6ca63b2ebb3))
+* app frame corner overlfow ([#13832](https://github.com/Arize-ai/phoenix/issues/13832)) ([4b936e9](https://github.com/Arize-ai/phoenix/commit/4b936e9dcd284c1dfa6b9b3e785b2a01af18c0f1))
+* **server:** actionable GraphQL errors for opaque node/trace id handling ([#13835](https://github.com/Arize-ai/phoenix/issues/13835)) ([3b40e5c](https://github.com/Arize-ai/phoenix/commit/3b40e5c5bb918577811c22da0377c54f7f3f0614))
+* **ui:** annotation display and summary preview nits ([#13829](https://github.com/Arize-ai/phoenix/issues/13829)) ([8e61d4a](https://github.com/Arize-ai/phoenix/commit/8e61d4ac34a4b775a3b5eb31568eb7ac3205ccc2))
+* **ui:** show three significant digits in GitHub star count ([#13844](https://github.com/Arize-ai/phoenix/issues/13844)) ([a975add](https://github.com/Arize-ai/phoenix/commit/a975add22f4f6b0702fd7051b982f5e5c3b491ed))
+
 ## [17.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.0...arize-phoenix-v17.8.1) (2026-06-17)
 
 

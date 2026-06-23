@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fd2aed5f8e6f1bad30fecd4970641be4>>
+ * @generated SignedSource<<78adad7f1ece80c1d46b638f29a27298>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,6 +105,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "usageCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "__typename",
                     "storageKey": null
                   }
@@ -161,12 +168,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6535608721c8bfc6cd7b5cd97463a7e0",
+    "cacheID": "e450d1e4086deef5d9ee322e015d4fa3",
     "id": null,
     "metadata": {},
     "name": "settingsPromptsPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsPromptsPageLoaderQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query settingsPromptsPageLoaderQuery {\n  ...PromptLabelsSettingsCardFragment\n}\n\nfragment PromptLabelsSettingsCardFragment on Query {\n  ...PromptLabelsTableFragment\n}\n\nfragment PromptLabelsTableFragment on Query {\n  promptLabels(first: 100) {\n    edges {\n      node {\n        id\n        name\n        description\n        color\n        usageCount\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

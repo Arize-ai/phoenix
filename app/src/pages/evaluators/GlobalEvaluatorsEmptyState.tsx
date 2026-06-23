@@ -435,7 +435,7 @@ export const GlobalEvaluatorsEmptyState = ({
           <Flex direction="row" gap="size-200">
             <div css={evaluatorTypeCardCSS}>
               <Flex direction="row" gap="size-100" alignItems="center">
-                <Icon svg={<Icons.Robot />} />
+                <Icon svg={<Icons.LLMOutput />} />
                 <Text weight="heavy">LLM Evaluators</Text>
               </Flex>
               <Text size="S" color="text-700">
@@ -467,7 +467,7 @@ export const GlobalEvaluatorsEmptyState = ({
           <ExternalLinkButton
             href="https://arize.com/docs/phoenix/evaluation/server-evals/overview"
             target="_blank"
-            leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Book />} />}
           >
             Documentation
           </ExternalLinkButton>

@@ -73,6 +73,7 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
     get_env_max_spans_queue_size,
+    get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
@@ -227,6 +228,8 @@ class AppConfig(NamedTuple):
     """ Whether to allow external resources like Google Fonts in the web interface """
     agent_assistant_disabled: bool = False
     """ Whether the agent assistant feature is disabled at the deployment level"""
+    agent_bash_disabled: bool = False
+    """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -292,6 +295,7 @@ class Static(StaticFiles):
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
                     "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
+                    "agent_bash_disabled": self._app_config.agent_bash_disabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -1026,8 +1030,12 @@ def create_app(
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
 
-    def _v1_only_openapi() -> dict[str, Any]:
-        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+    def _openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI.
+
+        In production, only routes under ``/v1`` are included. In dev mode,
+        agent routes (``/agents``) are also exposed so they appear in Swagger UI.
+        """
         if app.openapi_schema:
             return app.openapi_schema
         schema = get_openapi(
@@ -1038,13 +1046,14 @@ def create_app(
             routes=app.routes,
             separate_input_output_schemas=False,
         )
+        prefixes = ("/v1", "/agents") if dev else ("/v1",)
         schema["paths"] = {
-            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+            path: ops for path, ops in schema["paths"].items() if path.startswith(prefixes)
         }
         app.openapi_schema = schema
         return schema
 
-    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
+    app.openapi = _openapi  # type: ignore[method-assign]
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1091,6 +1100,7 @@ def create_app(
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
                     agent_assistant_disabled=get_env_disable_agent_assistant(),
+                    agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),

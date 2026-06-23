@@ -38,7 +38,7 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
       <Button
         variant="default"
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         trailingVisual={
           selectedLabelIds.length > 0 ? (
             <Counter>{selectedLabelIds.length}</Counter>
@@ -93,10 +93,10 @@ function DatasetLabelFilterContent({
 
   const handleSelectionChange = (selection: Selection) => {
     if (selection === "all") {
+      onSelectionChange(labels.map((l) => l.id));
       return;
     }
-    const newLabelIds = [...selection] as string[];
-    onSelectionChange(newLabelIds);
+    onSelectionChange([...selection] as string[]);
   };
 
   const handleClear = () => {
@@ -120,7 +120,7 @@ function DatasetLabelFilterContent({
           onSelectionChange={handleSelectionChange}
           renderEmptyState={() => (
             <CompactEmptyState
-              icon={<Icon svg={<Icons.PriceTagsOutline />} />}
+              icon={<Icon svg={<Icons.PriceTags />} />}
               description="No labels found"
             />
           )}
@@ -139,7 +139,12 @@ function DatasetLabelFilterContent({
         </Menu>
       </Autocomplete>
       <MenuFooter>
-        <Button variant="quiet" size="S" onPress={handleClear}>
+        <Button
+          variant="quiet"
+          size="S"
+          onPress={handleClear}
+          isDisabled={selectedLabelIds.length === 0}
+        >
           Clear All
         </Button>
       </MenuFooter>

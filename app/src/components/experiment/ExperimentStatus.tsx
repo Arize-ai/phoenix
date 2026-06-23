@@ -27,13 +27,13 @@ function getStatusVariant(status: ExperimentStatusValue): BadgeVariant {
 function getStatusIcon(status: ExperimentStatusValue) {
   switch (status) {
     case "RUNNING":
-      return <Icons.LoadingOutline />;
+      return <Icons.Loading />;
     case "COMPLETED":
       return <Icons.CheckmarkCircle />;
     case "ERROR":
-      return <Icons.CloseCircleOutline />;
+      return <Icons.CloseCircle />;
     case "STOPPED":
-      return <Icons.StopCircleOutline />;
+      return <Icons.StopCircle />;
   }
 }
 

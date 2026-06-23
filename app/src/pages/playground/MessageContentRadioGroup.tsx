@@ -39,7 +39,7 @@ export function AIMessageContentRadioGroup({
     >
       <TooltipTrigger delay={0}>
         <ToggleButton aria-label="text input" id={"text"}>
-          <Icon svg={<Icons.MessageSquareOutline />} />
+          <Icon svg={<Icons.MessageSquare />} />
         </ToggleButton>
         <Tooltip placement="top">
           <TooltipArrow />

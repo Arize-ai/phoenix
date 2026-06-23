@@ -219,7 +219,7 @@ function RunLatency({
 function RunError({ error }: { error: string }) {
   return (
     <Flex direction="row" gap="size-50" alignItems="center">
-      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+      <Icon svg={<Icons.AlertCircle />} color="danger" />
       <Text color="danger">{error}</Text>
     </Flex>
   );

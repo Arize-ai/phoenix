@@ -47,7 +47,7 @@ export function DocumentItem({
       collapsible
       title={
         <Flex direction="row" gap="size-50" alignItems="center">
-          <Icon svg={<Icons.FileOutline />} />
+          <Icon svg={<Icons.File />} />
           <Heading level={4}>
             document {document[DocumentAttributePostfixes.id]}
           </Heading>

@@ -10,6 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import type { Dispatch, SetStateAction } from "react";
 import {
   startTransition,
   useCallback,
@@ -43,6 +44,7 @@ import {
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifySuccess, useViewerCanModify } from "@phoenix/contexts";
+import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 import { makeSafeColumnId } from "@phoenix/utils/tableUtils";
 
 import type { DatasetsTable_datasets$key } from "./__generated__/DatasetsTable_datasets.graphql";
@@ -62,6 +64,7 @@ type DatasetsTableProps = {
   query: DatasetsTable_datasets$key;
   filter: string;
   labelFilter?: string[];
+  onLabelFilterChange?: Dispatch<SetStateAction<string[]>>;
 };
 
 function toGqlSort(sort: SortingState[number]): DatasetSort {
@@ -77,8 +80,15 @@ function toGqlSort(sort: SortingState[number]): DatasetSort {
 
 export function DatasetsTable(props: DatasetsTableProps) {
   "use no memo";
-  const { filter, labelFilter } = props;
+  const { filter, labelFilter, onLabelFilterChange } = props;
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  const toggleLabelFilter = useCallback(
+    (labelId: string) => {
+      onLabelFilterChange?.((prev) => toggleArrayItem(prev, labelId));
+    },
+    [onLabelFilterChange]
+  );
   const [columnSizing, setColumnSizing] = useState({});
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -197,11 +207,17 @@ export function DatasetsTable(props: DatasetsTableProps) {
             >
               {row.original.labels.map((label) => (
                 <li key={label.id}>
-                  <Token color={label.color}>
-                    <Truncate maxWidth={200} title={label.name}>
-                      {label.name}
-                    </Truncate>
-                  </Token>
+                  <StopPropagation>
+                    <Token
+                      color={label.color}
+                      onPress={() => toggleLabelFilter(label.id)}
+                      aria-label={`Filter datasets by label ${label.name}`}
+                    >
+                      <Truncate maxWidth={200} title={label.name}>
+                        {label.name}
+                      </Truncate>
+                    </Token>
+                  </StopPropagation>
                 </li>
               ))}
             </ul>
@@ -296,7 +312,7 @@ export function DatasetsTable(props: DatasetsTableProps) {
                 <LinkButton
                   size="S"
                   to={`/playground?datasetId=${row.original.id}`}
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   aria-label="Open dataset in Playground"
                 >
                   Playground
@@ -356,7 +372,14 @@ export function DatasetsTable(props: DatasetsTableProps) {
       });
     }
     return cols;
-  }, [filter, labelFilter, notifySuccess, refetch, canModify]);
+  }, [
+    filter,
+    labelFilter,
+    notifySuccess,
+    refetch,
+    canModify,
+    toggleLabelFilter,
+  ]);
 
   const table = useReactTable({
     columns,

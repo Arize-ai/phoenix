@@ -17,6 +17,10 @@ from phoenix.server.agents.capabilities.contexts.llm_evaluator import (
 )
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
+from phoenix.server.agents.capabilities.contexts.prompt import (
+    PromptContextCapability,
+    PromptVersionContextCapability,
+)
 from phoenix.server.agents.capabilities.contexts.session import SessionContextCapability
 from phoenix.server.agents.capabilities.contexts.span import SpanContextCapability
 from phoenix.server.agents.capabilities.contexts.trace import TraceContextCapability
@@ -40,6 +44,8 @@ def get_context_capability_function(
         ProjectContextCapability(instructions=prompts.project_context),
         TraceContextCapability(instructions=prompts.trace_context),
         SessionContextCapability(instructions=prompts.session_context),
+        PromptContextCapability(instructions=prompts.prompt_context),
+        PromptVersionContextCapability(instructions=prompts.prompt_version_context),
         SpanContextCapability(instructions=prompts.span_context),
         PlaygroundContextCapability(instructions=prompts.playground_context),
         CodeEvaluatorContextCapability(instructions=prompts.code_evaluator_context),
@@ -62,6 +68,8 @@ __all__ = [
     "GraphQLMutationsCapability",
     "LlmEvaluatorContextCapability",
     "PlaygroundContextCapability",
+    "PromptContextCapability",
+    "PromptVersionContextCapability",
     "ProjectContextCapability",
     "SessionContextCapability",
     "SpanContextCapability",

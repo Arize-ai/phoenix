@@ -60,7 +60,7 @@ export function PromptComboBox({
       placeholder="Select a prompt..."
       renderEmptyState={() => (
         <CompactEmptyState
-          icon={<Icon svg={<Icons.EditOutline />} />}
+          icon={<Icon svg={<Icons.Edit />} />}
           description="No prompts found"
         />
       )}

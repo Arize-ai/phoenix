@@ -64,7 +64,7 @@ interface CompactEmptyStateProps {
  * cards, and other small regions where a full empty state reads too heavy.
  * @example
  * <CompactEmptyState
- *   icon={<Icon svg={<Icons.DatabaseOutline />} />}
+ *   icon={<Icon svg={<Icons.Database />} />}
  *   description="No datasets found"
  * />
  */

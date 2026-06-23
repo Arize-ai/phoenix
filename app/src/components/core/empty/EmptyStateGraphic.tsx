@@ -47,38 +47,38 @@ interface EmptyStateGraphicSpec {
 // they share one spec — three discoverable keys, one source of truth.
 const tagSpec: EmptyStateGraphicSpec = {
   size: "small",
-  icon: <Icon svg={<Icons.PriceTagsOutline />} />,
+  icon: <Icon svg={<Icons.PriceTags />} />,
 };
 
 const EMPTY_STATE_GRAPHICS = {
   // Generic action prompts. `genericAdd` is the fallback for surfaces without
   // their own entry.
-  genericAdd: { size: "small", icon: <Icon svg={<Icons.PlusOutline />} /> },
-  genericEdit: { size: "small", icon: <Icon svg={<Icons.EditOutline />} /> },
+  genericAdd: { size: "small", icon: <Icon svg={<Icons.Plus />} /> },
+  genericEdit: { size: "small", icon: <Icon svg={<Icons.Edit />} /> },
   // Domain surfaces.
   trace: { size: "large", icon: <Icon svg={<Icons.Trace />} /> },
-  dataset: { size: "large", icon: <Icon svg={<Icons.DatabaseOutline />} /> },
+  dataset: { size: "large", icon: <Icon svg={<Icons.Database />} /> },
   evaluator: { size: "large", icon: <Icon svg={<Icons.Scale />} /> },
   session: {
     size: "large",
-    icon: <Icon svg={<Icons.MessagesSquareOutline />} />,
+    icon: <Icon svg={<Icons.MessagesSquare />} />,
   },
   experiment: {
     size: "large",
     icon: <Icon svg={<Icons.Experiment />} />,
   },
-  prompt: { size: "large", icon: <Icon svg={<Icons.TemplateOutline />} /> },
-  project: { size: "large", icon: <Icon svg={<Icons.FolderOutline />} /> },
-  annotation: { size: "small", icon: <Icon svg={<Icons.ThumbsUpOutline />} /> },
+  prompt: { size: "large", icon: <Icon svg={<Icons.Template />} /> },
+  project: { size: "large", icon: <Icon svg={<Icons.Folder />} /> },
+  annotation: { size: "small", icon: <Icon svg={<Icons.ThumbsUp />} /> },
   // The flag glyph is the intended icon for events (added to Icons.tsx).
   event: {
     size: "small",
-    icon: <Icon svg={<Icons.FlagTriangleRightOutline />} />,
+    icon: <Icon svg={<Icons.FlagTriangleRight />} />,
   },
-  attribute: { size: "small", icon: <Icon svg={<Icons.InfoOutline />} /> },
-  config: { size: "small", icon: <Icon svg={<Icons.SettingsOutline />} /> },
-  credential: { size: "small", icon: <Icon svg={<Icons.KeyOutline />} /> },
-  version: { size: "small", icon: <Icon svg={<Icons.GitBranchOutline />} /> },
+  attribute: { size: "small", icon: <Icon svg={<Icons.Info />} /> },
+  config: { size: "small", icon: <Icon svg={<Icons.Settings />} /> },
+  credential: { size: "small", icon: <Icon svg={<Icons.Key />} /> },
+  version: { size: "small", icon: <Icon svg={<Icons.GitBranch />} /> },
   tag: tagSpec,
   label: tagSpec,
   split: tagSpec,

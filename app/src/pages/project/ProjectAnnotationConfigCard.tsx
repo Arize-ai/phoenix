@@ -349,7 +349,7 @@ const ProjectAnnotationConfigCardContent = (
     return (
       <View paddingY="size-400">
         <CompactEmptyState
-          icon={<Icon svg={<Icons.SettingsOutline />} />}
+          icon={<Icon svg={<Icons.Settings />} />}
           description="No annotation configurations available."
         />
       </View>

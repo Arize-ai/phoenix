@@ -83,7 +83,7 @@ export function ColumnTag({
       title={column}
     >
       <span css={handleCSS}>
-        <Icon svg={<Icons.DragHandleOutline />} />
+        <Icon svg={<Icons.DragHandle />} />
       </span>
       <span css={labelCSS}>{column}</span>
     </div>

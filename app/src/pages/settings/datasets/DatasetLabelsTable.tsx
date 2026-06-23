@@ -9,6 +9,7 @@ import { graphql, useFragment } from "react-relay";
 
 import { Flex, Token } from "@phoenix/components";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 
@@ -33,6 +34,7 @@ export function DatasetLabelsTable({
               name
               description
               color
+              usageCount
             }
           }
         }
@@ -58,6 +60,11 @@ export function DatasetLabelsTable({
       {
         header: "description",
         accessorKey: "description",
+      },
+      {
+        header: "usage count",
+        accessorKey: "usageCount",
+        cell: IntCell,
       },
       {
         header: "",

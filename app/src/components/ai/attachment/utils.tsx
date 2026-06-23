@@ -57,21 +57,21 @@ function getContextCategoryIcon(category: string | undefined): ReactNode {
     case "trace":
       return <Icon svg={<Icons.Trace />} />;
     case "session":
-      return <Icon svg={<Icons.MessageSquareOutline />} />;
+      return <Icon svg={<Icons.MessageSquare />} />;
     case "span":
-      return <Icon svg={<Icons.WorkflowOutline />} />;
+      return <Icon svg={<Icons.Workflow />} />;
     case "span_filter":
-      return <Icon svg={<Icons.FunnelOutline />} />;
+      return <Icon svg={<Icons.Funnel />} />;
     case "dataset":
-      return <Icon svg={<Icons.DatabaseOutline />} />;
+      return <Icon svg={<Icons.Database />} />;
     case "playground":
-      return <Icon svg={<Icons.PlayCircleOutline />} />;
+      return <Icon svg={<Icons.PlayCircle />} />;
     case "code_evaluator":
-      return <Icon svg={<Icons.EditOutline />} />;
+      return <Icon svg={<Icons.Edit />} />;
     case "llm_evaluator":
       return <Icon svg={<Icons.Scale />} />;
     default:
-      return <Icon svg={<Icons.InfoOutline />} />;
+      return <Icon svg={<Icons.Info />} />;
   }
 }
 
@@ -85,16 +85,16 @@ export function getDefaultAttachmentIcon(data: AttachmentData): ReactNode {
   }
   switch (getMediaCategory(data)) {
     case "image":
-      return <Icon svg={<Icons.ImageOutline />} />;
+      return <Icon svg={<Icons.Image />} />;
     case "video":
-      return <Icon svg={<Icons.PlayCircleOutline />} />;
+      return <Icon svg={<Icons.PlayCircle />} />;
     case "audio":
-      return <Icon svg={<Icons.FileOutline />} />;
+      return <Icon svg={<Icons.File />} />;
     case "document":
-      return <Icon svg={<Icons.FileTextOutline />} />;
+      return <Icon svg={<Icons.FileText />} />;
     case "source":
-      return <Icon svg={<Icons.BookOutline />} />;
+      return <Icon svg={<Icons.Book />} />;
     default:
-      return <Icon svg={<Icons.FileOutline />} />;
+      return <Icon svg={<Icons.File />} />;
   }
 }
