@@ -161,14 +161,26 @@ export function SkillPromptInput({
     );
   };
 
-  const commitSelection = (index: number) => {
+  const commitSelection = (
+    index: number,
+    { submitIfCommand = false }: { submitIfCommand?: boolean } = {}
+  ) => {
     const item = skillCommand.filteredItems[index];
     if (!item) return;
     const result = skillCommand.selectItem(value, item);
     if (!result) return;
     setValue(result.value);
-    // Restore the caret after React applies the new value.
+    // Commands are UI actions with no follow-on text, so Enter completes and
+    // invokes them in one keystroke; skills always complete-only since the user
+    // typically keeps typing.
+    const submitAfter = submitIfCommand && item.kind === "command";
+    // Wait for React to apply the new value (so the submit reads the completed
+    // token, not the partial query) before restoring the caret or submitting.
     requestAnimationFrame(() => {
+      if (submitAfter) {
+        onSubmit();
+        return;
+      }
       const textarea = textareaRef.current;
       if (textarea) {
         textarea.focus();
@@ -201,7 +213,10 @@ export function SkillPromptInput({
         case "Enter":
         case "Tab":
           event.preventDefault();
-          commitSelection(skillCommand.activeIndex);
+          // Enter can invoke a highlighted command outright; Tab only completes.
+          commitSelection(skillCommand.activeIndex, {
+            submitIfCommand: event.key === "Enter",
+          });
           return;
         case "Escape":
           event.preventDefault();
