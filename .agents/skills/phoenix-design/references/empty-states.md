@@ -1,7 +1,7 @@
 # Empty-State Graphics
 
 `EmptyStateGraphic` renders the illustration shown above an `EmptyState`.
-Freeform composability is intentionally limited. Callers pick a named 
+Freeform composability is intentionally limited. Callers pick a named
 `variant` based on the application's canonical icons for specific features,
 automatically receiving the appropriate icon and card size.
 

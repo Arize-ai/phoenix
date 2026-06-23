@@ -13,7 +13,7 @@ import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEval
  * `EmptyState` / `EmptyStateGraphic` abstraction — i.e. it shows the *proposed*
  * migration of the existing content, not the current hand-rolled JSX. This
  * doubles as the drop-in spec: each config is what should land in the real
- * component. See EMPTY_STATE_AUDIT.md for the per-site reasoning.
+ * component.
  *
  * Conventions applied here (and to carry into the real migration):
  *   - Actions are a single strip mixing links and buttons.
@@ -26,10 +26,10 @@ import { GlobalEvaluatorsEmptyState } from "@phoenix/pages/evaluators/GlobalEval
  * No data/GraphQL/router glue is needed: `.storybook/preview.tsx` wraps every
  * story in ThemeProvider → PreferencesProvider → MemoryRouter.
  *
- * Story-name prefixes map to the audit's sections:
- *   "Marquee — …"  full-page zero-states (audit §1)
- *   "Table — …"    rendered inside a table tbody (audit §1/§5)
- *   "Span — …"     trace/span detail empties (audit §2)
+ * Story-name prefixes group the empty states by their production context:
+ *   "Marquee — …"  full-page zero-states
+ *   "Table — …"    rendered inside a table tbody
+ *   "Span — …"     trace/span detail empties
  */
 const meta: Meta = {
   title: "Empty States/In Context",
@@ -89,7 +89,7 @@ function TableShell({
 }
 
 // ---------------------------------------------------------------------------
-// Marquee — full-page zero-states (audit §1)
+// Marquee — full-page zero-states
 // ---------------------------------------------------------------------------
 
 export const MarqueeDatasets: Story = {
@@ -182,7 +182,6 @@ export const MarqueeExperiments: Story = {
  * link) — styling them as cards misrepresents them. They're really a composite
  * *graphic* explaining the two evaluator types, and deserve a dedicated
  * `EmptyStateGraphic` variant that keeps that detail, not the `cards` action.
- * See EMPTY_STATE_AUDIT.md §1.
  */
 export const MarqueeEvaluatorsPunted: Story = {
   name: "Marquee — Evaluators (punted, real component)",
@@ -190,7 +189,7 @@ export const MarqueeEvaluatorsPunted: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// Table — rendered inside a table tbody (audit §1/§5)
+// Table — rendered inside a table tbody
 // ---------------------------------------------------------------------------
 
 export const TableTraces: Story = {
@@ -238,7 +237,7 @@ export const TableSessions: Story = {
 };
 
 // ---------------------------------------------------------------------------
-// Span — trace/span detail empties (audit §2)
+// Span — trace/span detail empties
 // ---------------------------------------------------------------------------
 
 export const SpanAnnotations: Story = {

@@ -262,6 +262,8 @@ function LargeGraphic({ icon, ids }: { icon: ReactNode; ids: Ids }) {
       viewBox="0 0 198 158"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
       css={[colorsCSS, edgeFadeMaskCSS("34%", "34%"), tuckCSS]}
     >
       <g filter={`url(#${ids.f0})`}>
@@ -379,6 +381,8 @@ function SmallGraphic({ icon, ids }: { icon: ReactNode; ids: Ids }) {
       viewBox="0 0 198 140"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      focusable="false"
       css={[colorsCSS, edgeFadeMaskCSS("38%", "31%"), tuckCSS]}
     >
       <g filter={`url(#${ids.f0})`}>

@@ -72,6 +72,20 @@ const descriptionCSS = css`
   text-wrap: balance;
 `;
 
+const actionCardsCSS = css`
+  display: grid;
+  gap: var(--global-dimension-size-200);
+  width: min(100%, var(--global-dimension-size-4000));
+`;
+
+const actionCardsTwoColumnCSS = css`
+  width: min(100%, calc(var(--global-dimension-size-4000) * 2));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--global-dimension-size-4000)), 1fr)
+  );
+`;
+
 function ActionArea({ action }: { action: EmptyStateAction }) {
   if (action.type === "strip") {
     return (
@@ -106,24 +120,14 @@ function ActionArea({ action }: { action: EmptyStateAction }) {
   const cols = action.columns ?? 1;
   return (
     <div
-      css={
-        cols === 1
-          ? css`
-              display: grid;
-              gap: var(--global-dimension-size-200);
-              grid-template-columns: 1fr;
-              width: var(--global-dimension-size-4000);
-            `
-          : css`
-              display: grid;
-              gap: var(--global-dimension-size-200);
-              grid-template-columns: repeat(
-                2,
-                var(--global-dimension-size-4000)
-              );
-              width: fit-content;
-            `
-      }
+      css={[
+        actionCardsCSS,
+        cols === 2 && actionCardsTwoColumnCSS,
+        cols === 1 &&
+          css`
+            grid-template-columns: 1fr;
+          `,
+      ]}
     >
       {action.items.map((item, i) => (
         <LinkCard key={i} {...item} />
@@ -170,6 +174,7 @@ export function EmptyState({
       <Flex direction="column" gap={horizontalActionGap} alignItems="center">
         <Flex
           direction="row"
+          wrap
           gap="size-400"
           alignItems="center"
           justifyContent="center"
