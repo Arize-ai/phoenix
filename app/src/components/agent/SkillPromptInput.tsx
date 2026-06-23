@@ -9,10 +9,7 @@ import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/Promp
 import { SkillHighlightOverlay } from "./SkillHighlightOverlay";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
-import type {
-  SkillCompletion,
-  SlashMenuItem,
-} from "./usePromptSkillCommand";
+import type { SkillCompletion, SlashMenuItem } from "./usePromptSkillCommand";
 import { usePromptSkillCommand } from "./usePromptSkillCommand";
 
 const wrapperCSS = css`
