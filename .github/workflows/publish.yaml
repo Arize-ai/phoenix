@@ -541,7 +541,7 @@ jobs:
           skip-existing: true
 
   preview-summary:
-    name: Summarize alpha install instructions
+    name: Notify Slack with alpha install instructions
     needs: [preview-changes, preview-phoenix, preview-packages]
     if: |
       always() && (
@@ -562,7 +562,8 @@ jobs:
             packages/phoenix-evals/pyproject.toml
             packages/phoenix-otel/pyproject.toml
           sparse-checkout-cone-mode: false
-      - name: Write install instructions to job summary
+      - name: Build install instructions
+        id: notify
         env:
           MAIN_RESULT: ${{ needs.preview-phoenix.result }}
           PACKAGES_RESULT: ${{ needs.preview-packages.result }}
@@ -570,6 +571,8 @@ jobs:
           EVALS_CHANGED: ${{ needs.preview-changes.outputs['phoenix-evals'] }}
           OTEL_CHANGED: ${{ needs.preview-changes.outputs['phoenix-otel'] }}
           HEAD_SHA: ${{ needs.preview-changes.outputs.sha }}
+          FEATURE_BRANCH: ${{ inputs.feature_branch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python - <<'PY'
           import re, os
@@ -580,33 +583,49 @@ jobs:
           client_changed = os.environ["CLIENT_CHANGED"] == "true"
           evals_changed = os.environ["EVALS_CHANGED"] == "true"
           otel_changed = os.environ["OTEL_CHANGED"] == "true"
+          branch = os.environ["FEATURE_BRANCH"]
+          run_url = os.environ["RUN_URL"]
 
           def read_version(path, pattern):
               m = re.search(pattern, open(path).read())
               return m.group(1) if m else "unknown"
 
+          # Slack mrkdwn: *bold* uses a single asterisk, code uses backticks.
           lines = [
-              "## PyPI Preview Packages",
-              "",
-              "Install the alpha build using pip (pinning the exact version installs the pre-release):",
+              f"*PyPI preview packages* — `{branch}`",
+              "Install the alpha build with pip (pinning the exact version installs the pre-release):",
               "",
           ]
 
           if main_result == "success":
               v = read_version("src/phoenix/version.py", r'__version__ = "([^"]+)"')
-              lines += ["**arize-phoenix**", "```", f"pip install arize-phoenix=={v}a{suffix}", "```", ""]
+              lines += ["*arize-phoenix*", f"```pip install arize-phoenix=={v}a{suffix}```"]
 
           if packages_result == "success":
               if client_changed:
                   v = read_version("packages/phoenix-client/pyproject.toml", r'(?m)^version = "([^"]+)"')
-                  lines += ["**arize-phoenix-client**", "```", f"pip install arize-phoenix-client=={v}a{suffix}", "```", ""]
+                  lines += ["*arize-phoenix-client*", f"```pip install arize-phoenix-client=={v}a{suffix}```"]
               if evals_changed:
                   v = read_version("packages/phoenix-evals/pyproject.toml", r'(?m)^version = "([^"]+)"')
-                  lines += ["**arize-phoenix-evals**", "```", f"pip install arize-phoenix-evals=={v}a{suffix}", "```", ""]
+                  lines += ["*arize-phoenix-evals*", f"```pip install arize-phoenix-evals=={v}a{suffix}```"]
               if otel_changed:
                   v = read_version("packages/phoenix-otel/pyproject.toml", r'(?m)^version = "([^"]+)"')
-                  lines += ["**arize-phoenix-otel**", "```", f"pip install arize-phoenix-otel=={v}a{suffix}", "```", ""]
+                  lines += ["*arize-phoenix-otel*", f"```pip install arize-phoenix-otel=={v}a{suffix}```"]
 
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
-              f.write("\n".join(lines) + "\n")
+          lines += ["", f"<{run_url}|View workflow run>"]
+          text = "\n".join(lines)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("text<<SLACK_EOF\n" + text + "\nSLACK_EOF\n")
           PY
+      - name: Send message to Slack
+        if: steps.notify.outputs.text != ''
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "type": "mrkdwn",
+              "text": ${{ toJSON(steps.notify.outputs.text) }}
+            }
