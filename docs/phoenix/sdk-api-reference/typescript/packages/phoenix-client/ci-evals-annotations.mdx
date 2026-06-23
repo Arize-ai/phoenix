@@ -46,7 +46,7 @@ px.describe("demo", () => {
     { input: { x: 1 }, expected: { y: 2 } },
     async ({ input, expected }) => {
       const result = myApp(input.x);
-      px.recordOutput({ y: result });
+      px.logOutput({ y: result });
 
       px.logAnnotation({
         name: "harmfulness",
@@ -101,7 +101,7 @@ px.describe("generate sql", () => {
     },
     async ({ input, expected }) => {
       const sql = await myApp(input.userQuery);
-      px.recordOutput({ sql });
+      px.logOutput({ sql });
       await px.evaluate(correctness, {
         output: { sql },
         expected: expected ?? { sql: "" },

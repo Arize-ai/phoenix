@@ -9,7 +9,7 @@ into local development and CI. Each `describe()`
 block becomes a Phoenix dataset and a new experiment; each `test()`
 becomes a dataset example plus a recorded experiment run; the assertion
 outcome is captured as a `pass` boolean annotation. Anything you log via
-`recordOutput()` / `logAnnotation()` / `evaluate()` lands on the run.
+`logOutput()` / `logAnnotation()` / `evaluate()` lands on the run.
 Suite-level `acceptanceCriteria` can fail CI on aggregate annotation metrics,
 for example when average quality drops below `0.8`.
 
@@ -40,7 +40,7 @@ px.describe("generate sql demo", () => {
     },
     async ({ input, expected }) => {
       const sql = await myApp(input.userQuery);
-      px.recordOutput({ sql });
+      px.logOutput({ sql });
       expect(sql).toEqual(expected?.sql);
     },
   );
@@ -63,7 +63,7 @@ that shipped with your project.
 
 | Import | Purpose |
 |--------|---------|
-| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `recordOutput`, `logAnnotation`, `evaluate`) |
+| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `logOutput`, `logAnnotation`, `evaluate`) |
 | `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter that prints a Phoenix-flavored summary at the end of the run |
 | `@arizeai/phoenix-client/jest` | Same API surface, wired to Jest globals |
 | `@arizeai/phoenix-client/jest/reporter` | Jest reporter |
@@ -80,7 +80,7 @@ the Phoenix UI and the REST API.
 | `expected`                  | `Example.output` (reference)             |
 | `metadata`                  | `Example.metadata`                       |
 | `id`                        | `Example.id` (stable upsert id)          |
-| `recordOutput(value)`          | `ExperimentRun.output`                   |
+| `logOutput(value)`          | `ExperimentRun.output`                   |
 | `Annotation.name`           | `ExperimentEvaluation.name`              |
 | `Annotation.score`          | `ExperimentEvaluationResult.score`       |
 | `Annotation.label`          | `ExperimentEvaluationResult.label`       |
@@ -150,19 +150,39 @@ shown per suite in compact mode (failures are never hidden).
 
 ## Acceptance Criteria
 
-Use acceptance criteria for graded metrics where some misses are acceptable
-but the suite needs an aggregate quality bar:
+Acceptance criteria gate the suite on aggregate annotation scores. Every
+criterion has a `threshold`, and `metric` decides how it is applied:
+
+- `metric: "average"` — the mean score across all runs must clear `threshold`.
+- `metric: "passRate"` — **every** run's score must clear `threshold` (the
+  suite passes only when all runs do).
+
+Both accept an optional `direction` (`"maximize"`, the default, or
+`"minimize"`) that flips every comparison so lower scores win — useful for cost
+or latency.
 
 ```ts
 px.describe("text-to-sql", () => {
-  // tests log `token_f1` and `valid_sql` annotations
+  // tests log `token_f1` and `latency_ms` annotations
 }, {
   acceptanceCriteria: [
+    // the mean token_f1 across the suite must be >= 0.8
     { annotationName: "token_f1", metric: "average", threshold: 0.8 },
-    { annotationName: "valid_sql", metric: "passRate", threshold: 1 },
+    // every run must score >= 0.5 on token_f1
+    { annotationName: "token_f1", metric: "passRate", threshold: 0.5 },
+    // lower is better: the mean latency must stay <= 800ms
+    {
+      annotationName: "latency_ms",
+      metric: "average",
+      threshold: 800,
+      direction: "minimize",
+    },
   ],
 });
 ```
+
+Boolean scores pass on `true` (or `false` when minimizing), so a `passRate`
+criterion over a boolean annotation requires every run to be `true`.
 
 Criteria are evaluated after all tests run. If any criterion fails, the suite
 throws one aggregated error and the reporter prints an `Acceptance Criteria`
