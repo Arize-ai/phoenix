@@ -3,6 +3,10 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import {
+  CREATE_ANNOTATION_CONFIG_TOOL_NAME,
+  UPDATE_ANNOTATION_CONFIG_TOOL_NAME,
+} from "@phoenix/agent/tools/annotationConfig";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_DATASET_TOOL_NAME } from "@phoenix/agent/tools/createDataset";
@@ -54,6 +58,11 @@ import {
   AddDatasetExamplesToolDetails,
   getAddDatasetExamplesToolPreview,
 } from "./AddDatasetExamplesToolDetails";
+import {
+  AnnotationConfigWriteToolDetails,
+  getCreateAnnotationConfigToolPreview,
+  getUpdateAnnotationConfigToolPreview,
+} from "./AnnotationConfigWriteToolDetails";
 import {
   AskUserToolDetails,
   formatAskUserState,
@@ -1172,6 +1181,22 @@ function getToolPresentation(
         stateLabel: formatPatchExperimentState(part),
         statusVariant: getPatchExperimentStatusVariant(part) ?? statusVariant,
         details: <PatchExperimentToolDetails part={part} />,
+      };
+    case CREATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getCreateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Edit2 />,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
+      };
+    case UPDATE_ANNOTATION_CONFIG_TOOL_NAME:
+      return {
+        preview: getUpdateAnnotationConfigToolPreview(part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Edit2 />,
+        details: <AnnotationConfigWriteToolDetails part={part} />,
       };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
       return {

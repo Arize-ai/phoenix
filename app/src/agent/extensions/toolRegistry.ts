@@ -12,6 +12,10 @@ import { bashAgentTool } from "@phoenix/agent/tools/bash";
  * in `./registry/defineTool` or `./registry/defineClientActionTool`, then list
  * it in the appropriate array below.
  */
+import {
+  createAnnotationConfigAgentTool,
+  updateAnnotationConfigAgentTool,
+} from "@phoenix/agent/tools/annotationConfig";
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   editCodeEvaluatorDraftAgentTool,
@@ -192,6 +196,8 @@ const tools: AgentToolDefinition[] = [
   askUserAgentTool,
   batchSpanAnnotateAgentTool,
   patchExperimentAgentTool,
+  createAnnotationConfigAgentTool,
+  updateAnnotationConfigAgentTool,
 ];
 
 /** Ordered registry of all frontend-executable tools. */

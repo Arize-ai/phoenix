@@ -14,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingAnnotationConfigWrite } from "@phoenix/agent/tools/annotationConfig";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
@@ -426,6 +427,13 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pending: PendingDatasetWrite | null
   ) => void;
+  pendingAnnotationConfigWritesByToolCallId: Partial<
+    Record<string, PendingAnnotationConfigWrite>
+  >;
+  setPendingAnnotationConfigWrite: (
+    toolCallId: string,
+    pending: PendingAnnotationConfigWrite | null
+  ) => void;
   pendingPatchExperimentsByToolCallId: Partial<
     Record<string, PendingPatchExperiment>
   >;
@@ -688,6 +696,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptInstanceRemovalsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
+    pendingAnnotationConfigWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
     pendingPromptToolWritesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
@@ -1255,6 +1264,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingDatasetWrite" }
+      );
+    },
+    setPendingAnnotationConfigWrite: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingAnnotationConfigWritesByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingAnnotationConfigWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingAnnotationConfigWrite" }
       );
     },
     setPendingBatchSpanAnnotate: (toolCallId, annotation) => {

@@ -133,6 +133,12 @@ _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS = get_template(
 _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
     "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
 )
+_CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS = get_template(
+    "tools/CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS.xml.j2"
+)
+_UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS = get_template(
+    "tools/UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS.xml.j2"
+)
 _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
     "tools/READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
 )
@@ -255,6 +261,8 @@ class AgentPrompts:
     create_dataset_tool: Template = _CREATE_DATASET_TOOL_INSTRUCTIONS
     patch_experiment_tool: Template = _PATCH_EXPERIMENT_TOOL_INSTRUCTIONS
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
+    create_annotation_config_tool: Template = _CREATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
+    update_annotation_config_tool: Template = _UPDATE_ANNOTATION_CONFIG_TOOL_INSTRUCTIONS
     read_code_evaluator_draft_tool: Template = _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     edit_code_evaluator_draft_tool: Template = _EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     test_code_evaluator_draft_tool: Template = _TEST_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
