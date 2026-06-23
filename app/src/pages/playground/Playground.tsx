@@ -135,8 +135,10 @@ import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
 import { NoInstalledProvider } from "./NoInstalledProvider";
 import {
+  areExperimentScaffoldsForAgentEqual,
   arePlaygroundInstancesForAgentEqual,
   buildPlaygroundAgentContext,
+  getExperimentScaffoldForAgent,
   getPlaygroundInstanceForAgent,
 } from "./playgroundAgentContextUtils";
 import { PlaygroundConfigButton } from "./PlaygroundConfigButton";
@@ -242,7 +244,7 @@ function AddPromptButton() {
     <Button
       size="S"
       aria-label="add prompt"
-      leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+      leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
       isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
       onPress={() => {
         addInstance();
@@ -359,6 +361,10 @@ function PlaygroundContent() {
     (state) => state.recordExperiments
   );
   const repetitions = usePlaygroundContext((state) => state.repetitions);
+  const experimentScaffoldForAgent = usePlaygroundContext(
+    (state) => getExperimentScaffoldForAgent(state.nextExperimentScaffold),
+    areExperimentScaffoldsForAgentEqual
+  );
   const playgroundInstancesForAgent = usePlaygroundContext(
     (state) =>
       state.instances.map((instance) =>
@@ -388,9 +394,15 @@ function PlaygroundContent() {
       buildPlaygroundAgentContext({
         recordExperiments,
         repetitions,
+        nextExperimentScaffold: experimentScaffoldForAgent,
         instances: playgroundInstancesForAgent,
       }),
-    [playgroundInstancesForAgent, recordExperiments, repetitions]
+    [
+      playgroundInstancesForAgent,
+      recordExperiments,
+      repetitions,
+      experimentScaffoldForAgent,
+    ]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 

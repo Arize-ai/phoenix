@@ -109,7 +109,7 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
     <>
       <MenuTrigger>
         <Button
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           size="M"
           aria-label="Add Dataset Example"
           variant="primary"
@@ -131,13 +131,13 @@ export function AddDatasetExampleButton(props: AddDatasetExampleButtonProps) {
           >
             <MenuItem id={ExamplesAction.UPDATE_FROM_FILE}>
               <Flex direction="row" gap="size-100" alignItems="center">
-                <Icon svg={<Icons.FileOutline />} />
+                <Icon svg={<Icons.File />} />
                 <Text>Update Dataset From File</Text>
               </Flex>
             </MenuItem>
             <MenuItem id={ExamplesAction.ADD_MANUALLY}>
               <Flex direction="row" gap="size-100" alignItems="center">
-                <Icon svg={<Icons.EditOutline />} />
+                <Icon svg={<Icons.Edit />} />
                 <Text>Add Example Manually</Text>
               </Flex>
             </MenuItem>

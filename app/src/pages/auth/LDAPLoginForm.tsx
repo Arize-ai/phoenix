@@ -133,7 +133,7 @@ export function LDAPLoginForm(props: LDAPLoginFormProps) {
             type="submit"
             isDisabled={isLoading}
             leadingVisual={
-              isLoading ? <Icon svg={<Icons.LoadingOutline />} /> : undefined
+              isLoading ? <Icon svg={<Icons.Loading />} /> : undefined
             }
           >
             {isLoading ? "Logging In" : "Log In"}

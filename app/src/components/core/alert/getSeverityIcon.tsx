@@ -1,14 +1,14 @@
+import { Icon } from "../icon";
 import {
+  AlertCircle,
   AlertCircleFilled,
-  AlertCircleOutline,
+  AlertTriangle,
   AlertTriangleFilled,
-  AlertTriangleOutline,
+  CheckmarkCircle,
   CheckmarkCircleFilled,
-  CheckmarkCircleOutline,
-  Icon,
+  Info,
   InfoFilled,
-  InfoOutline,
-} from "../icon";
+} from "../icon/Icons";
 import type { SeverityLevel } from "../types";
 
 type IconOptions = {
@@ -25,16 +25,16 @@ export function getSeverityIcon(
   let svg;
   switch (severity) {
     case "warning":
-      svg = filled ? <AlertTriangleFilled /> : <AlertTriangleOutline />;
+      svg = filled ? <AlertTriangleFilled /> : <AlertTriangle />;
       break;
     case "info":
-      svg = filled ? <InfoFilled /> : <InfoOutline />;
+      svg = filled ? <InfoFilled /> : <Info />;
       break;
     case "danger":
-      svg = filled ? <AlertCircleFilled /> : <AlertCircleOutline />;
+      svg = filled ? <AlertCircleFilled /> : <AlertCircle />;
       break;
     case "success":
-      svg = filled ? <CheckmarkCircleFilled /> : <CheckmarkCircleOutline />;
+      svg = filled ? <CheckmarkCircleFilled /> : <CheckmarkCircle />;
       break;
   }
   return <Icon svg={svg} />;

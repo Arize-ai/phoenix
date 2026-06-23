@@ -202,12 +202,12 @@ export const appRouteObjects = createRoutesFromElements(
                 {
                   name: "Project Name",
                   value: data?.project?.name,
-                  iconKey: "TextOutline" as const,
+                  iconKey: "Text" as const,
                 },
                 {
                   name: "Project ID",
                   value: data?.project?.id,
-                  iconKey: "IDOutline" as const,
+                  iconKey: "ID" as const,
                 },
               ],
             }}
@@ -304,7 +304,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Metrics",
                     description:
-                      "View time-series metrics and observability charts for a project.",
+                      "View project time-series metrics, token usage breakdowns, cache read/write token charts, and observability panels.",
                   },
                 }}
               />
@@ -374,12 +374,12 @@ export const appRouteObjects = createRoutesFromElements(
                 {
                   name: "Dataset Name",
                   value: data?.dataset?.name,
-                  iconKey: "TextOutline" as const,
+                  iconKey: "Text" as const,
                 },
                 {
                   name: "Dataset ID",
                   value: data?.dataset?.id,
-                  iconKey: "IDOutline" as const,
+                  iconKey: "ID" as const,
                 },
               ],
             }}
@@ -615,12 +615,12 @@ export const appRouteObjects = createRoutesFromElements(
                     {
                       name: "Prompt Name",
                       value: data.prompt.name,
-                      iconKey: "TextOutline" as const,
+                      iconKey: "Text" as const,
                     },
                     {
                       name: "Prompt ID",
                       value: data.prompt.id,
-                      iconKey: "IDOutline" as const,
+                      iconKey: "ID" as const,
                     },
                   ];
                 }

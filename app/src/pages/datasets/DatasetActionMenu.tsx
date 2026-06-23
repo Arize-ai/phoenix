@@ -52,7 +52,8 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
       <MenuTrigger>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          aria-label="Dataset actions"
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover>
           <Menu
@@ -74,7 +75,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 justifyContent={"start"}
                 alignItems={"center"}
               >
-                <Icon svg={<Icons.Edit2Outline />} />
+                <Icon svg={<Icons.Edit2 />} />
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
@@ -86,7 +87,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                   justifyContent={"start"}
                   alignItems={"center"}
                 >
-                  <Icon svg={<Icons.PriceTagsOutline />} />
+                  <Icon svg={<Icons.PriceTags />} />
                   <Text>Label</Text>
                 </Flex>
               </MenuItem>
@@ -119,7 +120,7 @@ export function DatasetActionMenu(props: DatasetActionMenuProps) {
                 justifyContent={"start"}
                 alignItems={"center"}
               >
-                <Icon svg={<Icons.TrashOutline />} />
+                <Icon svg={<Icons.Trash />} />
                 <Text>Delete</Text>
               </Flex>
             </MenuItem>

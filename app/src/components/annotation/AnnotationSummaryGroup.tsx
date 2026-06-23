@@ -6,6 +6,7 @@ import { Flex } from "@phoenix/components";
 import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
+import { Divider } from "@phoenix/components/core/layout";
 import {
   Summary,
   SummaryValue,
@@ -135,6 +136,27 @@ const annotationLabelCSS = css`
   display: flex;
 `;
 
+/**
+ * Lays out a row of annotation summary stacks as peer columns alongside the
+ * other header metrics (status, cost, latency). An optional leading divider
+ * segments this group from whatever precedes it — the trace metrics, or a
+ * sibling annotation group (e.g. root span vs. trace) — without consuming the
+ * vertical space a stacked section label would. The divider is owned by the
+ * group so an empty group leaves no dangling separator behind.
+ */
+export const AnnotationSummaryGroupStacksRow = ({
+  leadingDivider = false,
+  children,
+}: {
+  leadingDivider?: boolean;
+  children: React.ReactNode;
+}) => (
+  <Flex direction="row" gap="size-400" alignItems="stretch" flex="none">
+    {leadingDivider ? <Divider orientation="vertical" /> : null}
+    {children}
+  </Flex>
+);
+
 export const AnnotationSummaryGroupTokens = ({
   span,
   showFilterActions = false,
@@ -198,39 +220,44 @@ export const AnnotationSummaryGroupTokens = ({
 export const AnnotationSummaryGroupStacks = ({
   span,
   renderEmptyState,
-}: AnnotationSummaryGroupProps) => {
+  leadingDivider = false,
+}: AnnotationSummaryGroupProps & { leadingDivider?: boolean }) => {
   const {
     sortedSummariesByName,
     annotationsByName,
     categoricalAnnotationConfigsByName,
   } = useAnnotationSummaryGroup(span);
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
-    return renderEmptyState();
+  const stacks = sortedSummariesByName
+    .map((summary) => {
+      const latestAnnotation = annotationsByName[summary.name]?.[0];
+      if (!latestAnnotation) {
+        return null;
+      }
+      return (
+        <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
+          <SummaryValue
+            name={latestAnnotation.name}
+            meanScore={summary.meanScore}
+            labelFractions={summary.labelFractions}
+            count={summary.count}
+            scoreCount={summary.scoreCount}
+            labelCount={summary.labelCount}
+            annotationConfig={
+              categoricalAnnotationConfigsByName[latestAnnotation.name]
+            }
+          />
+        </Summary>
+      );
+    })
+    .filter(Boolean);
+
+  if (stacks.length === 0) {
+    return renderEmptyState ? renderEmptyState() : null;
   }
   return (
-    <Flex direction="row" gap="size-400">
-      {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
-            <SummaryValue
-              name={latestAnnotation.name}
-              meanScore={summary.meanScore}
-              labelFractions={summary.labelFractions}
-              count={summary.count}
-              scoreCount={summary.scoreCount}
-              labelCount={summary.labelCount}
-              annotationConfig={
-                categoricalAnnotationConfigsByName[latestAnnotation.name]
-              }
-            />
-          </Summary>
-        );
-      })}
-    </Flex>
+    <AnnotationSummaryGroupStacksRow leadingDivider={leadingDivider}>
+      {stacks}
+    </AnnotationSummaryGroupStacksRow>
   );
 };

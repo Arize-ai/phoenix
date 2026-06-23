@@ -114,3 +114,31 @@ export function AgentWebAccessSettings() {
     </ul>
   );
 }
+
+export function AgentSubagentsSettings() {
+  const store = useAgentStore();
+  const capabilities = useAgentContext((state) => state.capabilities);
+  const definition = getAgentCapabilityDefinition("subagents.enabled");
+
+  return (
+    <ul css={settingsListCSS}>
+      <li css={settingRowCSS}>
+        <Switch
+          isSelected={capabilities[definition.key]}
+          onChange={(enabled) => {
+            store.getState().setCapability({ key: definition.key, enabled });
+          }}
+          labelPlacement="start"
+          css={settingSwitchCSS}
+        >
+          <span className="agent-settings__label">
+            <Text weight="heavy" size="M">
+              {definition.label}
+            </Text>
+            <Text color="text-500">{definition.description}</Text>
+          </span>
+        </Switch>
+      </li>
+    </ul>
+  );
+}

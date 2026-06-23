@@ -10,10 +10,10 @@ import type { TooltipProps } from "./types";
 const getIconByVariant = (variant: ContextualHelpProps["variant"]) => {
   switch (variant) {
     case "info":
-      return <Icons.InfoOutline />;
+      return <Icons.Info />;
     case "help":
     default:
-      return <Icons.QuestionOutline />;
+      return <Icons.Question />;
   }
 };
 

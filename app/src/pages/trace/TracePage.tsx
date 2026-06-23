@@ -1,5 +1,10 @@
 import { Suspense } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import {
   Dialog,
@@ -21,6 +26,7 @@ import { ShareLinkButton } from "@phoenix/components/ShareLinkButton";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
 import { TraceDetailsPaginator } from "@phoenix/pages/trace/TraceDetailsPaginator";
+import { withSearchParams } from "@phoenix/utils/urlUtils";
 
 import { TraceDetails } from "./TraceDetails";
 
@@ -31,8 +37,12 @@ export function TracePage() {
   const { traceId, projectId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { rootPath, tab } = useProjectRootPath();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const parentSearch = withSearchParams(searchParams, (params) => {
+    params.delete(SELECTED_SPAN_NODE_ID_PARAM);
+  });
   const { defaultSize, onSizeChange } = useDefaultDrawerSize({
     id: "trace-details",
   });
@@ -44,7 +54,13 @@ export function TracePage() {
   return (
     <Drawer
       isOpen
-      onClose={() => navigate(`${rootPath}/${tab}`)}
+      onClose={() =>
+        navigate({
+          pathname: `${rootPath}/${tab}`,
+          search: parentSearch,
+          hash: location.hash,
+        })
+      }
       defaultSize={defaultSize}
       minSize={DRAWER_DEFAULT_MIN_SIZE}
       onResize={onSizeChange}

@@ -1,5 +1,128 @@
 # Changelog
 
+## [17.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.9.0...arize-phoenix-v17.10.0) (2026-06-20)
+
+
+### Features
+
+* **annotations:** show trace-level annotations in trace header ([#13853](https://github.com/Arize-ai/phoenix/issues/13853)) ([6420815](https://github.com/Arize-ai/phoenix/commit/6420815e8ac36d50b973ac4919d0efe6a75d4068))
+
+
+### Documentation
+
+* add Go OpenInference integrations to README ([13bc9e5](https://github.com/Arize-ai/phoenix/commit/13bc9e5e2a8f2905581a5094806ab7b641be91a5))
+
+## [17.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.1...arize-phoenix-v17.9.0) (2026-06-19)
+
+
+### Features
+
+* **agents:** add PHOENIX_AGENTS_DISABLE_BASH to disable server-side bash ([#13841](https://github.com/Arize-ai/phoenix/issues/13841)) ([0adf1f7](https://github.com/Arize-ai/phoenix/commit/0adf1f794f34dd883123565142facd325d9bbfe8))
+* **agents:** add serverside bash tool ([#13767](https://github.com/Arize-ai/phoenix/issues/13767)) ([dceb57c](https://github.com/Arize-ai/phoenix/commit/dceb57cc48c8267939dc2a33fff1a5c8c030ee1a))
+* **auth:** add ROLE_RESYNC for OAuth2 IDPs to preserve manual role overrides ([#13838](https://github.com/Arize-ai/phoenix/issues/13838)) ([585dd40](https://github.com/Arize-ai/phoenix/commit/585dd407e79c7b75ffcf754363f62a1bda9b6aef))
+* **prompts/datasets:** filter by label, manage labels from the list, prompt model column ([#13830](https://github.com/Arize-ai/phoenix/issues/13830)) ([669498a](https://github.com/Arize-ai/phoenix/commit/669498aef28dd5de45635270868c0d2e0571f535))
+* **pxi:** add prompt route contexts ([#13834](https://github.com/Arize-ai/phoenix/issues/13834)) ([4524f82](https://github.com/Arize-ai/phoenix/commit/4524f829eea23afb016c8c77e30cd5066a11957f))
+* **pxi:** render every tool call individually with execution summaries ([#13824](https://github.com/Arize-ai/phoenix/issues/13824)) ([279e1f5](https://github.com/Arize-ai/phoenix/commit/279e1f51bd3256a3db194111af1a303cc72a914f))
+* **ui:** show usage counts for dataset and prompt labels ([#13831](https://github.com/Arize-ai/phoenix/issues/13831)) ([b9b1589](https://github.com/Arize-ai/phoenix/commit/b9b158950e79669fab3f53de83dc85f83888b96b))
+
+
+### Bug Fixes
+
+* **agents:** explicitly deny network in server bash when web access off ([#13842](https://github.com/Arize-ai/phoenix/issues/13842)) ([dab3a5e](https://github.com/Arize-ai/phoenix/commit/dab3a5eb5a82d889ef9facf0a9acf6ca63b2ebb3))
+* app frame corner overlfow ([#13832](https://github.com/Arize-ai/phoenix/issues/13832)) ([4b936e9](https://github.com/Arize-ai/phoenix/commit/4b936e9dcd284c1dfa6b9b3e785b2a01af18c0f1))
+* **server:** actionable GraphQL errors for opaque node/trace id handling ([#13835](https://github.com/Arize-ai/phoenix/issues/13835)) ([3b40e5c](https://github.com/Arize-ai/phoenix/commit/3b40e5c5bb918577811c22da0377c54f7f3f0614))
+* **ui:** annotation display and summary preview nits ([#13829](https://github.com/Arize-ai/phoenix/issues/13829)) ([8e61d4a](https://github.com/Arize-ai/phoenix/commit/8e61d4ac34a4b775a3b5eb31568eb7ac3205ccc2))
+* **ui:** show three significant digits in GitHub star count ([#13844](https://github.com/Arize-ai/phoenix/issues/13844)) ([a975add](https://github.com/Arize-ai/phoenix/commit/a975add22f4f6b0702fd7051b982f5e5c3b491ed))
+
+## [17.8.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.8.0...arize-phoenix-v17.8.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* resolve route path through FastAPI 0.137 _IncludedRouter in prometheus middleware ([#13822](https://github.com/Arize-ai/phoenix/issues/13822)) ([97d5faa](https://github.com/Arize-ai/phoenix/commit/97d5faaef0792ffb570af418815018258b929367))
+
+## [17.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.7.0...arize-phoenix-v17.8.0) (2026-06-17)
+
+
+### Features
+
+* **agents:** Agent GraphQL skill ([#13732](https://github.com/Arize-ai/phoenix/issues/13732)) ([17c9e41](https://github.com/Arize-ai/phoenix/commit/17c9e41a181645dd7100900c23c892204408d4f6))
+* pre-load background color respects saved theme and os prefs ([#13815](https://github.com/Arize-ai/phoenix/issues/13815)) ([5b77485](https://github.com/Arize-ai/phoenix/commit/5b77485ba808de797e3851af7bb2ae8cc5268e4d))
+
+
+### Bug Fixes
+
+* consolidate and standardize icons ([#13805](https://github.com/Arize-ai/phoenix/issues/13805)) ([cc0c964](https://github.com/Arize-ai/phoenix/commit/cc0c96497772bd6a14ffd044411a7f25cd37ff22))
+
+
+### Documentation
+
+* Add Phoenix release notes — 2026-06-17 ([#13806](https://github.com/Arize-ai/phoenix/issues/13806)) ([1622f32](https://github.com/Arize-ai/phoenix/commit/1622f3248a1cdc04885974ff781b777f465c0477))
+* reframe README PXI entry as Phoenix Intelligence agent ([#13803](https://github.com/Arize-ai/phoenix/issues/13803)) ([7b1d1b9](https://github.com/Arize-ai/phoenix/commit/7b1d1b943735c0e16b2b833da2b3281f907716b9))
+
+## [17.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.6.0...arize-phoenix-v17.7.0) (2026-06-16)
+
+
+### Features
+
+* Add token detail metrics charts ([#13764](https://github.com/Arize-ai/phoenix/issues/13764)) ([91b5f2d](https://github.com/Arize-ai/phoenix/commit/91b5f2db3588291a01092fa902275431ddceea6b))
+* **agents:** Add session context ([#13727](https://github.com/Arize-ai/phoenix/issues/13727)) ([031975c](https://github.com/Arize-ai/phoenix/commit/031975ccbe60e50967d8f192b6dfe6ca6de1daa7))
+* Make trace time range URLs shareable ([#13761](https://github.com/Arize-ai/phoenix/issues/13761)) ([4e1d228](https://github.com/Arize-ai/phoenix/commit/4e1d2280cac1cc70924ecdc6e53df2f74c0324d5))
+
+
+### Bug Fixes
+
+* **ui:** encode trace IDs when building trace/span routes ([#13785](https://github.com/Arize-ai/phoenix/issues/13785)) ([c5d39ab](https://github.com/Arize-ai/phoenix/commit/c5d39ab268d78771c982b52345dead4c724bad19))
+
+
+### Documentation
+
+* **cookbook:** Jailbreak and prompt injection defense cookbook ([#13729](https://github.com/Arize-ai/phoenix/issues/13729)) ([5a5e832](https://github.com/Arize-ai/phoenix/commit/5a5e8326e3175137afc98ec1ab9b3ee841ef28ad))
+
+## [17.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.5.0...arize-phoenix-v17.6.0) (2026-06-15)
+
+
+### Features
+
+* **agents:** experiment editing & eval skills ([#13704](https://github.com/Arize-ai/phoenix/issues/13704)) ([50b376e](https://github.com/Arize-ai/phoenix/commit/50b376e1d833e69bff2ae4a5e0251d68f33e3af4))
+* **metrics:** add trace and session annotation score time series ([#13722](https://github.com/Arize-ai/phoenix/issues/13722)) ([4c1791c](https://github.com/Arize-ai/phoenix/commit/4c1791ca404b5c2cb3e6db51ef108ce27825a6a8))
+* **ui:** pan and zoom time range controls with live streaming toggle ([#13725](https://github.com/Arize-ai/phoenix/issues/13725)) ([af5f983](https://github.com/Arize-ai/phoenix/commit/af5f983ad03cf927790247def8141b10e2d357ef))
+
+
+### Bug Fixes
+
+* sort projects by trace start_time to use composite index ([#13752](https://github.com/Arize-ai/phoenix/issues/13752)) ([32a464a](https://github.com/Arize-ai/phoenix/commit/32a464a2975d0b7ed6c5b2077c2bc799951b121d))
+
+## [17.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.4.0...arize-phoenix-v17.5.0) (2026-06-12)
+
+
+### Features
+
+* **agent:** add a subagents toggle to assistant settings ([#13733](https://github.com/Arize-ai/phoenix/issues/13733)) ([1e8c6ac](https://github.com/Arize-ai/phoenix/commit/1e8c6ac262379f17f09519f67e6508704e00daa8))
+* **agents:** improve agent product knowledge ([#13705](https://github.com/Arize-ai/phoenix/issues/13705)) ([67ebb3a](https://github.com/Arize-ai/phoenix/commit/67ebb3a40a32602ee54f032a6724d8aa2509b980))
+* **ui:** pick a time range from a calendar in the time range selector ([#13713](https://github.com/Arize-ai/phoenix/issues/13713)) ([94b8fd0](https://github.com/Arize-ai/phoenix/commit/94b8fd01d6a4ac6238f00af24a9afe2f2a4e1c68))
+
+
+### Bug Fixes
+
+* add Anthropic computer-use beta header ([#13242](https://github.com/Arize-ai/phoenix/issues/13242)) ([3d33799](https://github.com/Arize-ai/phoenix/commit/3d3379904c0e28d2323d9e4ef465d04c941590a0))
+* **agent:** focus PXI input on open ([#13653](https://github.com/Arize-ai/phoenix/issues/13653)) ([d3d6e40](https://github.com/Arize-ai/phoenix/commit/d3d6e40d08c3f430da9676ca7d8887f087e15431))
+* **deps:** update arize-phoenix-client to 2.8.0 ([#13676](https://github.com/Arize-ai/phoenix/issues/13676)) ([f93b1d4](https://github.com/Arize-ai/phoenix/commit/f93b1d47a80e0d0371020f09826a3785a788d2cb))
+* **deps:** update arize-phoenix-evals to 3.1.0 ([#13011](https://github.com/Arize-ai/phoenix/issues/13011)) ([50f6227](https://github.com/Arize-ai/phoenix/commit/50f62275f2d720559cbc02a1d9bc04917eb62cac))
+* don't mask graphql syntax and validation errors ([#13730](https://github.com/Arize-ai/phoenix/issues/13730)) ([e4f5396](https://github.com/Arize-ai/phoenix/commit/e4f53968696cccd28c66c70487aaa1c470567439))
+* expire prompt tool diffs on provider change ([#13641](https://github.com/Arize-ai/phoenix/issues/13641)) ([d5ba51b](https://github.com/Arize-ai/phoenix/commit/d5ba51b4b97952b967181c0d4e92dc4c9731fd68))
+* **js:** run package docs cleanup in postpublish instead of postpack ([#13715](https://github.com/Arize-ai/phoenix/issues/13715)) ([9ef860a](https://github.com/Arize-ai/phoenix/commit/9ef860a6a55625316ab3a507ab4c0c2b42bb46ed))
+* **ui:** use design system tooltip for project view mode toggle ([#13724](https://github.com/Arize-ai/phoenix/issues/13724)) ([66fcfc0](https://github.com/Arize-ai/phoenix/commit/66fcfc0cefce851d32abe4c682e2ed2598aab6d0))
+* wait for in-memory sqlite schema initialization ([#13637](https://github.com/Arize-ai/phoenix/issues/13637)) ([6fd5a8c](https://github.com/Arize-ai/phoenix/commit/6fd5a8c928b6ad9e15d2f51210f5a3620e202998))
+
+
+### Documentation
+
+* **cookbook:** dedupe + reframe custom LLM evaluator, fix create_dataset CSV bug ([#13694](https://github.com/Arize-ai/phoenix/issues/13694)) ([174f4de](https://github.com/Arize-ai/phoenix/commit/174f4decfb13db9ca85bf922c5edc8d1d4a651f8))
+* June 10-11 release notes; allow PXI in release-notes skill ([#13710](https://github.com/Arize-ai/phoenix/issues/13710)) ([4294d9d](https://github.com/Arize-ai/phoenix/commit/4294d9dc1d6fa7d66b7a100f68e066645b40a2b8))
+* **tracing:** OpenInference best practices cookbook and concepts ([#13538](https://github.com/Arize-ai/phoenix/issues/13538)) ([4a52ae2](https://github.com/Arize-ai/phoenix/commit/4a52ae21520f59c3485e5c519db1658203f2345e))
+* **tutorials:** level up trace-level evaluation cookbook ([#13693](https://github.com/Arize-ai/phoenix/issues/13693)) ([fb6e2e6](https://github.com/Arize-ai/phoenix/commit/fb6e2e60fb6e6e137ac2ee38a1aeb992970fe26e))
+
 ## [17.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.3.0...arize-phoenix-v17.4.0) (2026-06-11)
 
 

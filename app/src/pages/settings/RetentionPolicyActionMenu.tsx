@@ -80,7 +80,7 @@ export const RetentionPolicyActionMenu = ({
       <MenuTrigger>
         <Button
           size="S"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover>
           <Menu
@@ -103,7 +103,7 @@ export const RetentionPolicyActionMenu = ({
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.EditOutline />} />
+                <Icon svg={<Icons.Edit />} />
                 <Text>Edit</Text>
               </Flex>
             </MenuItem>
@@ -117,7 +117,7 @@ export const RetentionPolicyActionMenu = ({
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.TrashOutline />} />
+                <Icon svg={<Icons.Trash />} />
                 <Text>Delete</Text>
               </Flex>
             </MenuItem>
@@ -217,7 +217,7 @@ export const RetentionPolicyActionMenu = ({
                       isDisabled={isDeleting}
                       leadingVisual={
                         isDeleting ? (
-                          <Icon svg={<Icons.LoadingOutline />} />
+                          <Icon svg={<Icons.Loading />} />
                         ) : undefined
                       }
                     >

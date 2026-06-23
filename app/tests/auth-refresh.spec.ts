@@ -12,13 +12,15 @@ async function loginAsMember(page: Page) {
   await page.getByLabel("Email").fill("member@localhost.com");
   await page.getByLabel("Password").fill("member123");
   await page.getByRole("button", { name: "Log In", exact: true }).click();
-  await page.waitForURL("**/projects");
+  // The projects route seeds a recreatable time range (e.g. ?timeRangeKey=7d)
+  // into the URL, so match the path and tolerate any query string.
+  await page.waitForURL(/\/projects(\?|$)/);
 }
 
 async function openProjectsPage(page: Page) {
   await loginAsMember(page);
   await page.goto("/projects");
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
   await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
 }
 
@@ -49,7 +51,7 @@ test("recovers from an expired session by refreshing auth", async ({
   });
 
   await page.reload();
-  await page.waitForURL("**/projects");
+  await page.waitForURL(/\/projects(\?|$)/);
 
   await expect(page.getByRole("button", { name: "New Project" })).toBeVisible();
   await expect.poll(() => refreshRequests).toBeGreaterThan(0);
@@ -83,7 +85,9 @@ test("redirects to login when session refresh fails", async ({ page }) => {
   });
 
   await page.reload();
-  await page.waitForURL("**/login?returnUrl=%2Fprojects");
+  // returnUrl round-trips the projects URL, which may carry a recreatable time
+  // range (e.g. an encoded ?timeRangeKey=7d), so match the returnUrl prefix.
+  await page.waitForURL(/\/login\?returnUrl=%2Fprojects/);
 });
 
 test("redirects to login when session refresh times out", async ({ page }) => {
@@ -116,5 +120,5 @@ test("redirects to login when session refresh times out", async ({ page }) => {
   });
 
   await page.reload();
-  await page.waitForURL("**/login?returnUrl=%2Fprojects");
+  await page.waitForURL(/\/login\?returnUrl=%2Fprojects/);
 });

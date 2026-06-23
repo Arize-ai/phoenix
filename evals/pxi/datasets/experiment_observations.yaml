@@ -1,0 +1,212 @@
+dataset_name: experiment_observations
+description: >-
+  PXI eval suite for the experiment notes/metadata workflow. Covers staging an
+  experiment scaffold (hypothesis, changed variable, baseline) on the recording
+  tool before a recorded run, and appending a timestamped observation to an
+  experiment's metadata after reading its results — preserving the scaffold keys
+  a whole-metadata replace would otherwise clobber. Negatives cover read-only
+  requests that must not write any metadata back.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - tool_call_count_within_limit
+examples:
+  # --- Scaffold at creation: stage hypothesis/changed_variable/baseline before a recorded run ---
+  - id: stage-scaffold-before-run
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: false
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: >-
+            Before you run this, record the next experiment with the hypothesis
+            that a tighter system prompt reduces hedging, note that the system
+            prompt is the variable I changed, and label it so I can find it later.
+    expected:
+      tools:
+        required: [set_playground_experiment_recording]
+        forbidden: [patch_experiment]
+      tool_call_args:
+        set_playground_experiment_recording:
+          recordExperiments: true
+          experimentMetadata: { has_keys: [hypothesis, changed_variable] }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: scaffold_at_creation
+      difficulty: moderate
+      polarity: positive
+
+  - id: stage-scaffold-named-with-baseline
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: false
+          instances:
+            - instanceId: 102
+              experimentId: RXhwZXJpbWVudDox
+      messages:
+        - role: user
+          content: >-
+            Persist the next run as an experiment called "stricter-format-v2",
+            building on the experiment that's already loaded here as the baseline,
+            and stage a note that I tightened the output format instructions.
+    expected:
+      tools:
+        required: [set_playground_experiment_recording]
+        forbidden: [patch_experiment]
+      tool_call_args:
+        set_playground_experiment_recording:
+          recordExperiments: true
+          experimentName: { non_empty: true }
+          experimentMetadata: { has_keys: [baseline_experiment_id] }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: scaffold_at_creation
+      difficulty: moderate
+      polarity: positive
+
+  # --- Observations after reading results: append to metadata, preserving existing keys ---
+  - id: append-observation-after-reading
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 201
+              experimentId: RXhwZXJpbWVudDoxMA==
+      messages:
+        - role: user
+          content: What do the results of this experiment look like?
+        - role: assistant
+          tool_calls:
+            - id: r1
+              name: bash
+              args:
+                command: >-
+                  px-graphql 'query { node(id: "RXhwZXJpbWVudDoxMA==") { ... on Experiment { metadata averageRunLatencyMs } } }'
+        - role: tool
+          tool_call_id: r1
+          name: bash
+          content: >-
+            {"data":{"node":{"metadata":{},"averageRunLatencyMs":2840}}}
+        - role: user
+          content: >-
+            Quality held up but it's noticeably slower on the long inputs — add
+            that as an observation on this experiment so I remember it next time.
+    expected:
+      tools:
+        required: [patch_experiment]
+      tool_call_args:
+        patch_experiment:
+          experimentId: { non_empty: true }
+          metadata: { has_keys: [observations] }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: observation_after_results
+      difficulty: moderate
+      polarity: positive
+
+  - id: preserve-scaffold-when-appending
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 202
+              experimentId: RXhwZXJpbWVudDoyMA==
+      messages:
+        - role: user
+          content: How did this candidate do against the baseline?
+        - role: assistant
+          tool_calls:
+            - id: r1
+              name: bash
+              args:
+                command: >-
+                  px-graphql 'query { node(id: "RXhwZXJpbWVudDoyMA==") { ... on Experiment { metadata } } }'
+        - role: tool
+          tool_call_id: r1
+          name: bash
+          content: >-
+            {"data":{"node":{"metadata":{"hypothesis":"tighter system prompt
+            reduces hedging","changed_variable":"system_prompt","baseline_experiment_id":"RXhwZXJpbWVudDox"}}}}
+        - role: user
+          content: >-
+            The hedging is mostly gone but it now refuses two of the edge cases.
+            Record that observation on the experiment — don't lose the hypothesis
+            and baseline that are already on it.
+    expected:
+      tools:
+        required: [patch_experiment]
+      tool_call_args:
+        patch_experiment:
+          experimentId: { non_empty: true }
+          metadata:
+            has_keys:
+              - observations
+              - hypothesis
+              - changed_variable
+              - baseline_experiment_id
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: preserve_scaffold_on_append
+      difficulty: tricky
+      polarity: positive
+
+  # --- Negatives: reading results must not write metadata back ---
+  - id: read-results-only-no-patch
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 301
+              experimentId: RXhwZXJpbWVudDozMA==
+      messages:
+        - role: user
+          content: Just show me how this experiment's results came out — quality, latency, and cost.
+    expected:
+      tools:
+        forbidden: [patch_experiment, set_playground_experiment_recording]
+      budgets:
+        max_tool_calls: 3
+    metadata:
+      category: negative_read_only
+      difficulty: moderate
+      polarity: negative
+
+  - id: compare-only-no-patch
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          recordExperiments: true
+          instances:
+            - instanceId: 302
+              experimentId: RXhwZXJpbWVudDo0MA==
+      messages:
+        - role: user
+          content: >-
+            Compare this experiment against its baseline and tell me which one
+            handled the failure cases better.
+    expected:
+      tools:
+        forbidden: [patch_experiment]
+      budgets:
+        max_tool_calls: 3
+    metadata:
+      category: negative_compare_only
+      difficulty: moderate
+      polarity: negative

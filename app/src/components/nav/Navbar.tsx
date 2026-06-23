@@ -173,7 +173,7 @@ export function DocsLink({ isExpanded }: { isExpanded: boolean }) {
   return (
     <ExternalLink
       href="https://arize.com/docs/phoenix"
-      leadingVisual={<Icon svg={<Icons.BookOutline />} />}
+      leadingVisual={<Icon svg={<Icons.Book />} />}
       text="Documentation"
       isExpanded={isExpanded}
     />
@@ -199,15 +199,15 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
     let themeText: string;
     switch (themeMode) {
       case "light":
-        themeIcon = <Icons.SunOutline />;
+        themeIcon = <Icons.Sun />;
         themeText = "Light";
         break;
       case "dark":
-        themeIcon = <Icons.MoonOutline />;
+        themeIcon = <Icons.Moon />;
         themeText = "Dark";
         break;
       case "system":
-        themeIcon = <Icons.HalfMoonHalfSunOutline />;
+        themeIcon = <Icons.HalfMoonHalfSun />;
         themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
         break;
       default:
@@ -247,7 +247,7 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.HalfMoonHalfSunOutline />} />
+                <Icon svg={<Icons.HalfMoonHalfSun />} />
                 <Text>{`Auto (${systemTheme})`}</Text>
               </Flex>
             </MenuItem>
@@ -258,7 +258,7 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.MoonOutline />} />
+                <Icon svg={<Icons.Moon />} />
                 <Text>Dark</Text>
               </Flex>
             </MenuItem>
@@ -269,7 +269,7 @@ export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
                 justifyContent="start"
                 alignItems="center"
               >
-                <Icon svg={<Icons.SunOutline />} />
+                <Icon svg={<Icons.Sun />} />
                 <Text>Light</Text>
               </Flex>
             </MenuItem>

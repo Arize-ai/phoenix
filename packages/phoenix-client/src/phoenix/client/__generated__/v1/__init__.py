@@ -152,6 +152,8 @@ class Experiment(TypedDict):
     id: str
     dataset_id: str
     dataset_version_id: str
+    name: str
+    description: Optional[str]
     repetitions: int
     metadata: Mapping[str, Any]
     project_name: Optional[str]
@@ -332,6 +334,20 @@ class PlaygroundCustomProviderModelContext(TypedDict):
     modelName: str
 
 
+class PlaygroundEvaluatorContext(TypedDict):
+    datasetEvaluatorId: str
+    name: str
+    kind: Literal["LLM", "CODE", "BUILTIN"]
+    isBuiltin: bool
+    isApplied: bool
+
+
+class PlaygroundExperimentScaffoldContext(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    hasMetadata: NotRequired[bool]
+
+
 class PlaygroundInstanceContext(TypedDict):
     instanceId: int
     model: NotRequired[Union[PlaygroundBuiltinModelContext, PlaygroundCustomProviderModelContext]]
@@ -412,6 +428,11 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
     extra_body: NotRequired[Mapping[str, Any]]
+
+
+class PromptContext(TypedDict):
+    type: Literal["prompt"]
+    promptNodeId: str
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -565,6 +586,12 @@ class PromptToolRaw(TypedDict):
     raw: Mapping[str, Any]
 
 
+class PromptVersionContext(TypedDict):
+    type: Literal["prompt_version"]
+    promptNodeId: str
+    promptVersionNodeId: str
+
+
 class PromptVersionTag(TypedDict):
     name: str
     id: str
@@ -627,6 +654,12 @@ class SessionAnnotationData(TypedDict):
 class SessionAnnotationsResponseBody(TypedDict):
     data: Sequence[SessionAnnotation]
     next_cursor: Optional[str]
+
+
+class SessionContext(TypedDict):
+    type: Literal["session"]
+    projectNodeId: str
+    sessionNodeId: str
 
 
 class SessionNoteData(TypedDict):
@@ -710,6 +743,11 @@ class SpanNoteData(TypedDict):
 
 class StepStartUIPart(TypedDict):
     type: Literal["step-start"]
+
+
+class SubagentsContext(TypedDict):
+    type: Literal["subagents"]
+    enabled: bool
 
 
 class TextContentPart(TypedDict):
@@ -865,6 +903,16 @@ class TraceSpanData(TypedDict):
     status_code: str
     start_time: str
     end_time: str
+
+
+class UpdateExperimentRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
+class UpdateExperimentResponseBody(TypedDict):
+    data: Experiment
 
 
 class UpdateProjectRequestBody(TypedDict):
@@ -1238,7 +1286,9 @@ class PlaygroundContext(TypedDict):
     type: Literal["playground"]
     recordExperiments: NotRequired[bool]
     repetitions: NotRequired[int]
+    nextExperimentScaffold: NotRequired[PlaygroundExperimentScaffoldContext]
     instances: NotRequired[Sequence[PlaygroundInstanceContext]]
+    evaluators: NotRequired[Sequence[PlaygroundEvaluatorContext]]
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):
@@ -1513,6 +1563,9 @@ class ChatRegenerateMessage(TypedDict):
                 AppContext,
                 ProjectContext,
                 TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
@@ -1520,6 +1573,7 @@ class ChatRegenerateMessage(TypedDict):
                 DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
+                SubagentsContext,
             ]
         ]
     ]
@@ -1540,6 +1594,9 @@ class ChatSubmitMessage(TypedDict):
                 AppContext,
                 ProjectContext,
                 TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
@@ -1547,6 +1604,7 @@ class ChatSubmitMessage(TypedDict):
                 DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
+                SubagentsContext,
             ]
         ]
     ]

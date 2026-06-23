@@ -163,7 +163,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         justifyContent="start"
         alignItems="center"
       >
-        <Icon svg={<Icons.InfoOutline />} />
+        <Icon svg={<Icons.Info />} />
         <Text>View details</Text>
       </Flex>
     </MenuItem>,
@@ -177,7 +177,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         justifyContent="start"
         alignItems="center"
       >
-        <Icon svg={<Icons.DuplicateOutline />} />
+        <Icon svg={<Icons.Duplicate />} />
         <Text>Copy experiment ID</Text>
       </Flex>
     </MenuItem>,
@@ -194,7 +194,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           justifyContent="start"
           alignItems="center"
         >
-          <Icon svg={<Icons.PlayCircleOutline />} />
+          <Icon svg={<Icons.PlayCircle />} />
           <Text>Open in Playground</Text>
         </Flex>
       </MenuItem>
@@ -212,7 +212,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           justifyContent="start"
           alignItems="center"
         >
-          <Icon svg={<Icons.StopCircleOutline />} />
+          <Icon svg={<Icons.StopCircle />} />
           <Text>Stop</Text>
         </Flex>
       </MenuItem>
@@ -229,7 +229,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           justifyContent="start"
           alignItems="center"
         >
-          <Icon svg={<Icons.PlayCircleOutline />} />
+          <Icon svg={<Icons.PlayCircle />} />
           <Text>Resume</Text>
         </Flex>
       </MenuItem>
@@ -247,7 +247,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           justifyContent="start"
           alignItems="center"
         >
-          <Icon svg={<Icons.TrashOutline />} />
+          <Icon svg={<Icons.Trash />} />
           <Text>{isDeletingExperiment ? "Deleting..." : "Delete"}</Text>
         </Flex>
       </MenuItem>
@@ -260,7 +260,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
         <Button
           size={props.size}
           aria-label="Experiment action menu"
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover>
           <Menu

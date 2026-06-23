@@ -5,8 +5,11 @@ import { graphql, useFragment } from "react-relay";
 import { Flex } from "@phoenix/components";
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
+import { AnnotationSummaryGroupStacksRow } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import {
+  Summary,
+  SummaryValue,
   SummaryValueLabelPreview,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
@@ -192,5 +195,50 @@ export const TraceAnnotationSummaryGroupTokens = ({
         );
       })}
     </Flex>
+  );
+};
+
+export const TraceAnnotationSummaryGroupStacks = ({
+  trace,
+  renderEmptyState,
+  leadingDivider = false,
+}: TraceAnnotationSummaryGroupProps & { leadingDivider?: boolean }) => {
+  const {
+    sortedSummariesByName,
+    annotationsByName,
+    categoricalAnnotationConfigsByName,
+  } = useTraceAnnotationSummaryGroup(trace);
+
+  const stacks = sortedSummariesByName
+    .map((summary) => {
+      const latestAnnotation = annotationsByName[summary.name]?.[0];
+      if (!latestAnnotation) {
+        return null;
+      }
+      return (
+        <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
+          <SummaryValue
+            name={latestAnnotation.name}
+            meanScore={summary.meanScore}
+            labelFractions={summary.labelFractions}
+            count={summary.count}
+            scoreCount={summary.scoreCount}
+            labelCount={summary.labelCount}
+            annotationConfig={
+              categoricalAnnotationConfigsByName[latestAnnotation.name]
+            }
+          />
+        </Summary>
+      );
+    })
+    .filter(Boolean);
+
+  if (stacks.length === 0) {
+    return renderEmptyState ? renderEmptyState() : null;
+  }
+  return (
+    <AnnotationSummaryGroupStacksRow leadingDivider={leadingDivider}>
+      {stacks}
+    </AnnotationSummaryGroupStacksRow>
   );
 };

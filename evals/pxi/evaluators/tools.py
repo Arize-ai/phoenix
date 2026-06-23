@@ -285,6 +285,12 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 #   passing an empty value are semantically equivalent, e.g. ``tags`` (the save
 #   tool treats an omitted ``tags`` and ``tags: []`` identically), so the agent
 #   may legitimately produce either form.
+# - ``has_keys: [<key>, ...]`` -- observed must be a dict containing every
+#   listed key (presence only -- values are not checked, and nesting below the
+#   top level is not inspected). For object-valued args where the agent fills
+#   in free-form values but the set of keys is the contract, e.g. an experiment
+#   ``metadata`` object that must carry ``observations`` while preserving the
+#   scaffold keys an earlier write left behind.
 _MATCHER_KEYS: frozenset[str] = frozenset(
     {
         "equals",
@@ -295,6 +301,7 @@ _MATCHER_KEYS: frozenset[str] = frozenset(
         "non_empty",
         "absent",
         "empty_or_absent",
+        "has_keys",
     }
 )
 # Sentinel meaning "the key was not present at all in the observed call args."
@@ -334,7 +341,7 @@ def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
             return "matcher 'empty_or_absent' must be true"
         if len(matcher) > 1:
             return "matcher 'empty_or_absent' cannot be combined with other matchers"
-    for key in ("contains_all", "contains_any", "not_contains"):
+    for key in ("contains_all", "contains_any", "not_contains", "has_keys"):
         if key in matcher and _string_list_or_none(matcher[key]) is None:
             return f"matcher {key!r} must be a list of strings"
     return None
@@ -362,6 +369,11 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
             return False
     if "equals" in matcher and observed != matcher["equals"]:
         return False
+    if "has_keys" in matcher:
+        if not isinstance(observed, dict):
+            return False
+        if not all(wanted in observed for wanted in matcher["has_keys"]):
+            return False
     if "contains_all" in matcher:
         if not isinstance(observed, str):
             return False
@@ -599,14 +611,16 @@ def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     - Literal values compare with ``==``.
     - A dict whose top-level keys are all in the matcher vocabulary
       (``equals``, ``contains_all``, ``contains_any``, ``not_contains``,
-      ``any``, ``non_empty``, ``absent``, ``empty_or_absent``) is treated as a
-      matcher object. Matchers cover the cases where exact equality is too
-      strict -- commutative DSL clauses ("filter must mention both
+      ``any``, ``non_empty``, ``absent``, ``empty_or_absent``, ``has_keys``) is
+      treated as a matcher object. Matchers cover the cases where exact equality
+      is too strict -- commutative DSL clauses ("filter must mention both
       ``start_time`` and ``2026-04-03`` in any order"), free-form values
       (``{any: true}`` asserts presence only), required string content
       (``{non_empty: true}`` rejects blank text), absent values
       (``{absent: true}`` asserts the key was omitted), omitted-or-empty values
       (``{empty_or_absent: true}`` accepts a missing key or an empty
-      collection), and negative constraints (``not_contains``).
+      collection), negative constraints (``not_contains``), and required keys on
+      an object-valued arg (``{has_keys: [...]}`` asserts a dict carries every
+      listed key without pinning its values).
     """
     return evaluate_tool_call_args(output, expected)

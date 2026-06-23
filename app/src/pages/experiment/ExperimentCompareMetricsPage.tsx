@@ -197,7 +197,7 @@ export function ExperimentCompareMetricsPage({
 
     const comparisons = data.experimentRunMetricComparisons;
     const latencyMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.ClockOutline />} />,
+      icon: <Icon svg={<Icons.Clock />} />,
       title: "Latency",
       baseExperimentValue: baseExperiment.averageRunLatencyMs,
       comparison: {
@@ -210,7 +210,7 @@ export function ExperimentCompareMetricsPage({
       formatter: latencyMsFormatter,
     };
     const totalTokensMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.TokensOutline />} />,
+      icon: <Icon svg={<Icons.Tokens />} />,
       title: "Total Tokens",
       baseExperimentValue: baseExperiment.costSummary.total.tokens,
       comparison: {
@@ -222,7 +222,7 @@ export function ExperimentCompareMetricsPage({
       compareExperiments: [],
     };
     const promptTokensMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.TokensOutline />} />,
+      icon: <Icon svg={<Icons.Tokens />} />,
       title: "Prompt Tokens",
       baseExperimentValue: baseExperiment.costSummary.prompt.tokens,
       comparison: {
@@ -234,7 +234,7 @@ export function ExperimentCompareMetricsPage({
       compareExperiments: [],
     };
     const completionTokensMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.TokensOutline />} />,
+      icon: <Icon svg={<Icons.Tokens />} />,
       title: "Completion Tokens",
       baseExperimentValue: baseExperiment.costSummary.completion.tokens,
       comparison: {
@@ -246,7 +246,7 @@ export function ExperimentCompareMetricsPage({
       compareExperiments: [],
     };
     const totalCostMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.PriceTagsOutline />} />,
+      icon: <Icon svg={<Icons.PriceTags />} />,
       title: "Total Cost",
       baseExperimentValue: baseExperiment.costSummary.total.cost,
       comparison: {
@@ -259,7 +259,7 @@ export function ExperimentCompareMetricsPage({
       formatter: costFormatter,
     };
     const promptCostMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.PriceTagsOutline />} />,
+      icon: <Icon svg={<Icons.PriceTags />} />,
       title: "Prompt Cost",
       baseExperimentValue: baseExperiment.costSummary.prompt.cost,
       comparison: {
@@ -272,7 +272,7 @@ export function ExperimentCompareMetricsPage({
       formatter: costFormatter,
     };
     const completionCostMetric: MetricCardProps = {
-      icon: <Icon svg={<Icons.PriceTagsOutline />} />,
+      icon: <Icon svg={<Icons.PriceTags />} />,
       title: "Completion Cost",
       baseExperimentValue: baseExperiment.costSummary.completion.cost,
       comparison: {
@@ -648,7 +648,7 @@ function ImprovementAndRegressionCounter({
                 {numImprovements}
               </Text>
               <Icon
-                svg={<Icons.ThumbsUpOutline />}
+                svg={<Icons.ThumbsUp />}
                 color="success"
                 css={thumbIconCSS}
               />
@@ -660,7 +660,7 @@ function ImprovementAndRegressionCounter({
                 {numRegressions}
               </Text>
               <Icon
-                svg={<Icons.ThumbsDownOutline />}
+                svg={<Icons.ThumbsDown />}
                 color="danger"
                 css={thumbIconCSS}
               />

@@ -81,6 +81,26 @@ async def _add_span_cost(
     return span_cost
 
 
+async def _add_span_cost_detail(
+    session: AsyncSession,
+    span_cost: models.SpanCost,
+    token_type: str,
+    is_prompt: bool,
+    tokens: Optional[float],
+) -> models.SpanCostDetail:
+    span_cost_detail = models.SpanCostDetail(
+        span_cost_id=span_cost.id,
+        token_type=token_type,
+        is_prompt=is_prompt,
+        tokens=tokens,
+        cost=None,
+        cost_per_token=None,
+    )
+    session.add(span_cost_detail)
+    await session.flush()
+    return span_cost_detail
+
+
 @dataclass
 class _CostTestData:
     project: models.Project
@@ -450,6 +470,170 @@ class TestTopModels:
         assert not empty_cost_response.errors
         assert (empty_cost_data := empty_cost_response.data) is not None
         assert len(empty_cost_data["node"]["topModelsByCost"]) == 0
+
+
+class TestTraceTokenCountTimeSeries:
+    _QUERY = """
+        query ($projectId: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig!) {
+            node(id: $projectId) {
+                ... on Project {
+                    traceTokenCountTimeSeries(
+                        timeRange: $timeRange
+                        timeBinConfig: $timeBinConfig
+                    ) {
+                        data {
+                            timestamp
+                            promptTokenCount
+                            completionTokenCount
+                            totalTokenCount
+                            promptTokenCountDetails {
+                                tokenType
+                                tokenCount
+                            }
+                            completionTokenCountDetails {
+                                tokenType
+                                tokenCount
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    """
+
+    async def test_token_detail_breakdowns_match_prompt_and_completion_totals(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        base_time = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        async with db() as session:
+            project = await _add_project(session, name="token-detail-time-series-project")
+            model = await _add_generative_model(session, name="gpt-4o-mini", provider="openai")
+
+            trace_with_details = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=10),
+                end_time=base_time + timedelta(minutes=12),
+            )
+            span_with_details = await _add_span(
+                session,
+                trace=trace_with_details,
+                start_time=trace_with_details.start_time,
+                end_time=trace_with_details.end_time,
+            )
+            span_cost_with_details = await _add_span_cost(
+                session,
+                span=span_with_details,
+                trace=trace_with_details,
+                model=model,
+                total_tokens=170,
+                prompt_tokens=120,
+                completion_tokens=50,
+                span_start_time=span_with_details.start_time,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="input",
+                is_prompt=True,
+                tokens=50,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="cache_read",
+                is_prompt=True,
+                tokens=40,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="cache_write",
+                is_prompt=True,
+                tokens=30,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="output",
+                is_prompt=False,
+                tokens=45,
+            )
+            await _add_span_cost_detail(
+                session,
+                span_cost=span_cost_with_details,
+                token_type="reasoning",
+                is_prompt=False,
+                tokens=5,
+            )
+
+            trace_without_details = await _add_trace(
+                session,
+                project,
+                start_time=base_time + timedelta(minutes=35),
+                end_time=base_time + timedelta(minutes=37),
+            )
+            span_without_details = await _add_span(
+                session,
+                trace=trace_without_details,
+                start_time=trace_without_details.start_time,
+                end_time=trace_without_details.end_time,
+            )
+            await _add_span_cost(
+                session,
+                span=span_without_details,
+                trace=trace_without_details,
+                model=model,
+                total_tokens=80,
+                prompt_tokens=60,
+                completion_tokens=20,
+                span_start_time=span_without_details.start_time,
+            )
+            await session.commit()
+
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "projectId": str(GlobalID(type_name="Project", node_id=str(project.id))),
+                "timeRange": {
+                    "start": base_time.isoformat(),
+                    "end": (base_time + timedelta(hours=2)).isoformat(),
+                },
+                "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+
+        data = response.data["node"]["traceTokenCountTimeSeries"]["data"]
+        bucket = next(data_point for data_point in data if data_point["totalTokenCount"] == 250)
+        assert bucket["promptTokenCount"] == 180
+        assert bucket["completionTokenCount"] == 70
+
+        prompt_details = {
+            detail["tokenType"]: detail["tokenCount"]
+            for detail in bucket["promptTokenCountDetails"]
+        }
+        completion_details = {
+            detail["tokenType"]: detail["tokenCount"]
+            for detail in bucket["completionTokenCountDetails"]
+        }
+        assert prompt_details == {
+            "input": 110,
+            "cache_read": 40,
+            "cache_write": 30,
+        }
+        assert completion_details == {
+            "output": 65,
+            "reasoning": 5,
+        }
+        assert sum(prompt_details.values()) == bucket["promptTokenCount"]
+        assert sum(completion_details.values()) == bucket["completionTokenCount"]
+        assert (
+            bucket["promptTokenCount"] + bucket["completionTokenCount"] == bucket["totalTokenCount"]
+        )
 
 
 @pytest.mark.parametrize(
@@ -4851,3 +5035,251 @@ async def test_trace_count_returns_expected_count(
     assert not response.errors
     assert response.data is not None
     assert response.data["project"]["traceCount"] == 1
+
+
+class TestAnnotationScoreTimeSeries:
+    @pytest.fixture
+    async def _annotation_score_data(self, db: DbSessionFactory) -> models.Project:
+        """Creates a project with annotated traces and sessions in two hourly buckets.
+
+        Hour one (01:00) has a trace with two "quality" trace annotations (scores 0.2
+        and 0.4) and a session with one "satisfaction" annotation (score 0.5). Hour two
+        (02:00) has a trace with "quality" (0.8) and "toxicity" (1.0) trace annotations
+        and a session with one "satisfaction" annotation (score 0.9). Annotations named
+        "incomplete" have null scores and must be excluded from the results.
+        """
+        hour_one = datetime.fromisoformat("2024-01-01T01:15:00+00:00")
+        hour_two = datetime.fromisoformat("2024-01-01T02:20:00+00:00")
+        async with db() as session:
+            project = await _add_project(session)
+            session_one = await _add_project_session(session, project, start_time=hour_one)
+            session_two = await _add_project_session(session, project, start_time=hour_two)
+            trace_one = await _add_trace(session, project, session_one, start_time=hour_one)
+            trace_two = await _add_trace(session, project, session_two, start_time=hour_two)
+
+            def trace_annotation(
+                trace: models.Trace,
+                name: str,
+                score: Optional[float],
+                identifier: str = "",
+            ) -> models.TraceAnnotation:
+                return models.TraceAnnotation(
+                    trace_rowid=trace.id,
+                    name=name,
+                    label=None,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier=identifier,
+                    source="APP",
+                    user_id=None,
+                )
+
+            def session_annotation(
+                project_session: models.ProjectSession,
+                name: str,
+                score: Optional[float],
+            ) -> models.ProjectSessionAnnotation:
+                return models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name=name,
+                    label=None,
+                    score=score,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    identifier="",
+                    source="APP",
+                    user_id=None,
+                )
+
+            session.add_all(
+                [
+                    trace_annotation(trace_one, "quality", 0.2, identifier="a"),
+                    trace_annotation(trace_one, "quality", 0.4, identifier="b"),
+                    trace_annotation(trace_one, "incomplete", None),
+                    trace_annotation(trace_two, "quality", 0.8),
+                    trace_annotation(trace_two, "toxicity", 1.0),
+                    session_annotation(session_one, "satisfaction", 0.5),
+                    session_annotation(session_one, "incomplete", None),
+                    session_annotation(session_two, "satisfaction", 0.9),
+                ]
+            )
+        return project
+
+    @staticmethod
+    def _variables(project: models.Project) -> dict[str, Any]:
+        return {
+            "id": str(GlobalID(type_name="Project", node_id=str(project.id))),
+            "timeRange": {
+                "start": "2024-01-01T01:00:00+00:00",
+                "end": "2024-01-01T03:00:00+00:00",
+            },
+            "timeBinConfig": {"scale": "HOUR", "utcOffsetMinutes": 0},
+        }
+
+    @staticmethod
+    def _scores_by_timestamp(
+        data: list[dict[str, Any]],
+    ) -> dict[datetime, dict[str, float]]:
+        return {
+            datetime.fromisoformat(point["timestamp"]): {
+                score_with_label["label"]: score_with_label["score"]
+                for score_with_label in point["scoresWithLabels"]
+            }
+            for point in data
+            if point["scoresWithLabels"]
+        }
+
+    async def test_trace_annotation_score_time_series(
+        self,
+        _annotation_score_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        traceAnnotationScoreTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) {
+                            data {
+                                timestamp
+                                scoresWithLabels {
+                                    label
+                                    score
+                                }
+                            }
+                            names
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query, variables=self._variables(_annotation_score_data)
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["traceAnnotationScoreTimeSeries"]
+        assert res["names"] == ["quality", "toxicity"]
+        assert self._scores_by_timestamp(res["data"]) == {
+            datetime.fromisoformat("2024-01-01T01:00:00+00:00"): {
+                "quality": pytest.approx(0.3),
+            },
+            datetime.fromisoformat("2024-01-01T02:00:00+00:00"): {
+                "quality": pytest.approx(0.8),
+                "toxicity": pytest.approx(1.0),
+            },
+        }
+
+    async def test_session_annotation_score_time_series(
+        self,
+        _annotation_score_data: models.Project,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        query = """
+            query($id: ID!, $timeRange: TimeRange!, $timeBinConfig: TimeBinConfig) {
+                node(id: $id) {
+                    ... on Project {
+                        sessionAnnotationScoreTimeSeries(
+                            timeRange: $timeRange
+                            timeBinConfig: $timeBinConfig
+                        ) {
+                            data {
+                                timestamp
+                                scoresWithLabels {
+                                    label
+                                    score
+                                }
+                            }
+                            names
+                        }
+                    }
+                }
+            }
+        """
+        response = await gql_client.execute(
+            query=query, variables=self._variables(_annotation_score_data)
+        )
+        assert not response.errors
+        assert (data := response.data) is not None
+        res = data["node"]["sessionAnnotationScoreTimeSeries"]
+        assert res["names"] == ["satisfaction"]
+        assert self._scores_by_timestamp(res["data"]) == {
+            datetime.fromisoformat("2024-01-01T01:00:00+00:00"): {
+                "satisfaction": pytest.approx(0.5),
+            },
+            datetime.fromisoformat("2024-01-01T02:00:00+00:00"): {
+                "satisfaction": pytest.approx(0.9),
+            },
+        }
+
+
+async def test_trace_resolves_by_otel_id_and_global_node_id(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    # The trace resolver accepts either an OpenTelemetry trace id (a hex string)
+    # or a Relay global node id, decoding the latter when possible and otherwise
+    # falling back to an OpenTelemetry trace id lookup
+    # (see https://github.com/Arize-ai/phoenix/issues/13513).
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    trace_gid = str(GlobalID("Trace", str(trace.id)))
+    query = """
+    query ($pid: ID!, $tid: ID!) {
+      node(id: $pid) {
+        ... on Project {
+          trace(traceId: $tid) { id }
+        }
+      }
+    }
+    """
+
+    # Resolve by OpenTelemetry trace id.
+    response = await gql_client.execute(
+        query=query,
+        variables={"pid": project_gid, "tid": trace.trace_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"]["id"] == trace_gid
+
+    # Resolve by Relay global node id.
+    response = await gql_client.execute(
+        query=query,
+        variables={"pid": project_gid, "tid": trace_gid},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"]["id"] == trace_gid
+
+
+async def test_trace_with_unmatched_global_node_id_returns_null(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    node_id_as_trace_id = str(GlobalID("Trace", "2003"))
+    response = await gql_client.execute(
+        query="""
+        query ($pid: ID!, $tid: ID!) {
+          node(id: $pid) {
+            ... on Project {
+              trace(traceId: $tid) { id }
+            }
+          }
+        }
+        """,
+        variables={"pid": project_gid, "tid": node_id_as_trace_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"] is None

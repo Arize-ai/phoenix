@@ -18,7 +18,7 @@ interface IDBadgeProps {
 export const IDBadge = ({ id, size = "S" }: IDBadgeProps) => {
   return (
     <Badge size={size}>
-      <Icon svgKey="IDOutline" />
+      <Icon svgKey="ID" />
       <Text fontFamily="mono" size="S" color="text-700">
         {id}
       </Text>

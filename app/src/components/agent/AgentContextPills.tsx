@@ -31,6 +31,7 @@ function contextLabel(context: AgentContext): string {
     case "app":
     case "graphql":
     case "web_access":
+    case "subagents":
       // Request-only runtime metadata, not user-visible page context, so it
       // should never render as a pill.
       return "";
@@ -40,6 +41,12 @@ function contextLabel(context: AgentContext): string {
       return "Project";
     case "trace":
       return "Trace";
+    case "session":
+      return "Session";
+    case "prompt":
+      return "Prompt";
+    case "prompt_version":
+      return "Prompt Version";
     case "span":
       return "Span";
     case "code_evaluator":
@@ -56,6 +63,12 @@ function contextDetail(context: AgentContext): string | undefined {
   switch (context.type) {
     case "trace":
       return truncateId(context.otelTraceId);
+    case "session":
+      return truncateId(context.sessionNodeId);
+    case "prompt":
+      return truncateId(context.promptNodeId);
+    case "prompt_version":
+      return truncateId(context.promptVersionNodeId);
     case "span": {
       const spanId = context.spanNodeId ?? context.otelSpanId;
       if (spanId == null) {
@@ -112,7 +125,8 @@ export function AgentContextPills() {
     if (
       context.type === "app" ||
       context.type === "graphql" ||
-      context.type === "web_access"
+      context.type === "web_access" ||
+      context.type === "subagents"
     ) {
       return [];
     }

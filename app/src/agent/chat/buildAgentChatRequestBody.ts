@@ -69,7 +69,7 @@ function buildCurrentAppContext(): AgentContext {
 function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "graphql",
-    mutationsEnabled: capabilities["graphql.mutations"],
+    mutationsEnabled: capabilities["graphql.mutations"] ?? false,
   };
 }
 
@@ -81,7 +81,17 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
 function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "web_access",
-    enabled: capabilities["web.access"],
+    enabled: capabilities["web.access"] ?? false,
+  };
+}
+
+/**
+ * Build subagents context from the current capability snapshot.
+ */
+function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
+  return {
+    type: "subagents",
+    enabled: capabilities["subagents.enabled"] ?? false,
   };
 }
 
@@ -110,6 +120,7 @@ export function buildAgentChatRequestBody({
     buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
+    buildSubagentsContext(capabilities),
     ...contexts,
   ];
   return {

@@ -323,7 +323,7 @@ export const EvaluatorOutputPreview = () => {
                         size="S"
                         onPress={() => setPreviewResults([])}
                       >
-                        <Icon svg={<Icons.CloseOutline />} />
+                        <Icon svg={<Icons.Close />} />
                       </IconButton>
                     }
                   >
@@ -391,9 +391,9 @@ export const EvaluatorOutputPreview = () => {
               <Icon
                 svg={
                   isLoadingEvaluatorPreview ? (
-                    <Icons.LoadingOutline />
+                    <Icons.Loading />
                   ) : (
-                    <Icons.PlayCircleOutline />
+                    <Icons.PlayCircle />
                   )
                 }
               />

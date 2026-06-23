@@ -66,7 +66,7 @@ export function LatencyText({
       {showIcon ? (
         <Text color={color} size={size}>
           <Icon
-            svg={<Icons.ClockOutline />}
+            svg={<Icons.Clock />}
             css={css`
               font-size: 1.1em;
             `}

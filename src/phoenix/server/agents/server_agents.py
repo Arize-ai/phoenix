@@ -12,14 +12,16 @@ from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 
 from phoenix.server.agents.capabilities import MintlifyDocsMCPCapability
-from phoenix.server.agents.capabilities.tools.internal.run_graphql_query import (
-    RunGraphQLQueryCapability,
+from phoenix.server.agents.capabilities.skills import SkillsCapability, SkillsToolset
+from phoenix.server.agents.capabilities.tools.internal.bash import (
+    BashCapability,
 )
 from phoenix.server.agents.prompts import ServerAgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceCapabilityWrapper,
 )
+from phoenix.server.agents.skills.phoenix_graphql import PHOENIX_GRAPHQL_SKILL
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
     build_web_search_capability,
@@ -35,14 +37,10 @@ def build_server_agent(
     prompts: ServerAgentPrompts | None = None,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
+    allow_mutations: bool = False,
     tracer_provider: TracerProvider | None = None,
 ) -> AbstractAgent[None, str]:
-    """Construct server agent.
-
-    ``docs_mcp_server`` and ``enable_web_access`` are gated by the caller exactly as
-    they are for the main agent, so the sub-agent gains the docs MCP and web
-    search/fetch tools under the same conditions.
-    """
+    """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
     tracer: Tracer = OITracer(
@@ -50,12 +48,24 @@ def build_server_agent(
         config=TraceConfig(),
     )
     capabilities: list[AbstractCapability[None]] = [
-        RunGraphQLQueryCapability(
+        BashCapability(
             schema=schema,
             build_graphql_context=build_graphql_context,
-            instructions=resolved_prompts.run_graphql_query_tool.render(),
+            instructions=resolved_prompts.bash_tool.render(),
+            allow_mutations=allow_mutations,
         ),
     ]
+    capabilities.append(
+        SkillsCapability(
+            toolset=SkillsToolset[None](
+                skills=[PHOENIX_GRAPHQL_SKILL],
+                load_skill_template=resolved_prompts.load_skill,
+                load_skill_tool_template=resolved_prompts.load_skill_tool,
+                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
+            ),
+            instructions=resolved_prompts.skills,
+        )
+    )
     if docs_mcp_server is not None:
         capabilities.append(
             MintlifyDocsMCPCapability(

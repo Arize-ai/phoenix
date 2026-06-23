@@ -68,6 +68,12 @@ export function agentContextKey(context: AgentContext): string {
       return `project:${context.projectNodeId}`;
     case "trace":
       return `trace:${context.projectNodeId}:${context.otelTraceId}`;
+    case "session":
+      return `session:${context.projectNodeId}:${context.sessionNodeId}`;
+    case "prompt":
+      return `prompt:${context.promptNodeId}`;
+    case "prompt_version":
+      return `prompt_version:${context.promptNodeId}:${context.promptVersionNodeId}`;
     case "span": {
       const project = context.projectNodeId ?? "";
       const span = context.spanNodeId
@@ -79,5 +85,7 @@ export function agentContextKey(context: AgentContext): string {
       return "graphql";
     case "web_access":
       return "web_access";
+    case "subagents":
+      return "subagents";
   }
 }

@@ -38,7 +38,7 @@ export const ProjectViewModeToggle = () => {
         <ToggleButton
           id="grid"
           aria-label="Grid view"
-          leadingVisual={<Icon svg={<Icons.Grid />} />}
+          leadingVisual={<Icon svg={<Icons.GridFilled />} />}
         />
         <Tooltip>View projects in a grid</Tooltip>
       </TooltipTrigger>
@@ -46,7 +46,7 @@ export const ProjectViewModeToggle = () => {
         <ToggleButton
           id="table"
           aria-label="Table view"
-          leadingVisual={<Icon svg={<Icons.ListOutline />} />}
+          leadingVisual={<Icon svg={<Icons.List />} />}
         />
         <Tooltip>View projects in a table</Tooltip>
       </TooltipTrigger>

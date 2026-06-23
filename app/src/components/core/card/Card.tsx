@@ -76,7 +76,7 @@ function Card({
             aria-expanded={!isCollapsed}
           >
             <Icon
-              svg={<Icons.ChevronDown />}
+              svg={<Icons.ChevronDownSmall />}
               className="card__collapse-toggle-icon"
               aria-hidden="true"
             />

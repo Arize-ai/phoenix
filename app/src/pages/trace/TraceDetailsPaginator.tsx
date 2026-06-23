@@ -67,7 +67,7 @@ export const TraceDetailsPaginator = ({
           <Button
             size="S"
             id="next"
-            leadingVisual={<Icon svg={<Icons.ArrowDownwardOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowDown />} />}
             aria-label="Next trace"
             isDisabled={!hasNext}
             onPress={() => {
@@ -88,7 +88,7 @@ export const TraceDetailsPaginator = ({
           <Button
             size="S"
             id="previous"
-            leadingVisual={<Icon svg={<Icons.ArrowUpwardOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowUp />} />}
             aria-label="Previous trace"
             isDisabled={!hasPrevious}
             onPress={() => {

@@ -33,7 +33,11 @@ describe("getBashToolPreview", () => {
   it("prefers the summary once the full input is available", () => {
     const part = createBashPart({
       state: "input-available",
-      input: { command: "ls -la /phoenix", summary: "Listing your traces" },
+      input: {
+        command:
+          "phoenix-gql '{ projects(first: 1) { edges { node { spans(first: 5) { edges { node { name } } } } } } }' --data-only",
+        summary: "Listing your traces",
+      },
     });
 
     expect(getBashToolPreview(part)).toBe("Listing your traces");

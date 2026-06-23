@@ -2798,10 +2798,8 @@ async def test_available_agent_skills_base_catalog(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "debug-trace" in names
-    assert "annotate-spans" in names
-    assert "playground" not in names
-    assert "llm-evaluator-authoring" not in names
+    # No context mounted: only the always-on skills, in catalog order, no gated ones.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql"]
     # progressive-disclosure header is populated
     assert all(skill["description"] for skill in response.data["availableAgentSkills"])
     assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
@@ -2817,7 +2815,8 @@ async def test_available_agent_skills_playground_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "playground" in names
+    # Playground context adds the playground skill on top of the always-on base.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "playground"]
 
 
 async def test_available_agent_skills_dataset_context(
@@ -2830,4 +2829,53 @@ async def test_available_agent_skills_dataset_context(
     assert not response.errors
     assert response.data is not None
     names = [skill["name"] for skill in response.data["availableAgentSkills"]]
-    assert "llm-evaluator-authoring" in names
+    # Dataset context unlocks the dataset-backed trio: datasets, experiments, evaluators.
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "phoenix-graphql",
+        "datasets",
+        "experiments",
+        "evaluators",
+    ]
+
+
+async def test_available_agent_skills_llm_evaluator_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasLlmEvaluatorContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # An evaluator context (without a dataset) unlocks only the evaluators skill.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+
+
+async def test_available_agent_skills_code_evaluator_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasCodeEvaluatorContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # An evaluator context (without a dataset) unlocks only the evaluators skill.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+
+
+async def test_node_with_noninteger_payload_returns_bad_request(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    bad_id = str(GlobalID("Trace", "abc"))
+    response = await gql_client.execute(
+        query="query ($id: ID!) { node(id: $id) { __typename } }",
+        variables={"id": bad_id},
+    )
+    assert response.data is None
+    assert response.errors
+    assert f"Invalid node id: {bad_id}" in response.errors[0].message

@@ -60,7 +60,7 @@ export function ExperimentInputCell({
               aria-label="View example details"
               onPress={onExpand}
             >
-              <Icon svg={<Icons.ExpandOutline />} />
+              <Icon svg={<Icons.Expand />} />
             </IconButton>
             <Tooltip>
               <TooltipArrow />

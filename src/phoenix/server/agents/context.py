@@ -67,6 +67,29 @@ class TraceContext(_ChatContextBase):
     otel_trace_id: str = Field(alias="otelTraceId")
 
 
+class SessionContext(_ChatContextBase):
+    """Session the user is currently viewing."""
+
+    type: Literal["session"]
+    project_node_id: str = Field(alias="projectNodeId")
+    session_node_id: str = Field(alias="sessionNodeId")
+
+
+class PromptContext(_ChatContextBase):
+    """Prompt the user is currently viewing."""
+
+    type: Literal["prompt"]
+    prompt_node_id: str = Field(alias="promptNodeId")
+
+
+class PromptVersionContext(_ChatContextBase):
+    """Prompt version the user is currently viewing."""
+
+    type: Literal["prompt_version"]
+    prompt_node_id: str = Field(alias="promptNodeId")
+    prompt_version_node_id: str = Field(alias="promptVersionNodeId")
+
+
 class AgentSpanContext(_ChatContextBase):
     """Span the user has selected.
 
@@ -146,12 +169,40 @@ class PlaygroundEvaluatorContext(_ChatContextBase):
     is_applied: bool = Field(alias="isApplied")
 
 
+class PlaygroundExperimentScaffoldContext(_ChatContextBase):
+    """Experiment name/description/metadata the user has staged for the playground's
+    *next* dataset-backed run, before that run has started.
+
+    The playground UI lets the user pre-set how the next recorded run's experiment
+    will be named, described, and tagged (via the ``set_playground_experiment_recording``
+    tool or the recording form). That staged state is surfaced here so the agent can
+    see what is already set and avoid re-staging it.
+
+    Field semantics:
+    - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
+      or ``None`` when the user has not staged them.
+    - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
+      been staged is model-relevant (so the agent knows not to re-attach it); the
+      metadata object itself is deliberately kept out of the prompt.
+
+    A field left unstaged (``None`` / ``False``) falls back to the server default when
+    the run starts. The scaffold is consumed once that next run begins.
+    """
+
+    name: str | None = None
+    description: str | None = None
+    has_metadata: bool = Field(default=False, alias="hasMetadata")
+
+
 class PlaygroundContext(_ChatContextBase):
     """Playground prompt editor state mounted in the current browser route."""
 
     type: Literal["playground"]
     record_experiments: bool = Field(default=True, alias="recordExperiments")
     repetitions: int = 1
+    next_experiment_scaffold: PlaygroundExperimentScaffoldContext | None = Field(
+        default=None, alias="nextExperimentScaffold"
+    )
     instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
     evaluators: list[PlaygroundEvaluatorContext] = Field(default_factory=list)
 
@@ -198,19 +249,30 @@ class WebAccessContext(_ChatContextBase):
     enabled: bool
 
 
+class SubagentsContext(_ChatContextBase):
+    """User's per-turn request to expose the subagent-spawning tool."""
+
+    type: Literal["subagents"]
+    enabled: bool
+
+
 class ChatContext(
     RootModel[
         Annotated[
             AppContext
             | ProjectContext
             | TraceContext
+            | SessionContext
+            | PromptContext
+            | PromptVersionContext
             | AgentSpanContext
             | PlaygroundContext
             | CodeEvaluatorContext
             | LlmEvaluatorContext
             | DatasetContext
             | GraphQLContext
-            | WebAccessContext,
+            | WebAccessContext
+            | SubagentsContext,
             Field(discriminator="type"),
         ]
     ]
@@ -223,6 +285,9 @@ class ResolvedContexts:
     app: AppContext | None = None
     project: ProjectContext | None = None
     trace: TraceContext | None = None
+    session: SessionContext | None = None
+    prompt: PromptContext | None = None
+    prompt_version: PromptVersionContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
@@ -230,6 +295,7 @@ class ResolvedContexts:
     dataset: DatasetContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
+    subagents: SubagentsContext | None = None
 
 
 def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
@@ -250,12 +316,20 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.project = context_value
         elif isinstance(context_value, TraceContext):
             resolved.trace = context_value
+        elif isinstance(context_value, SessionContext):
+            resolved.session = context_value
+        elif isinstance(context_value, PromptContext):
+            resolved.prompt = context_value
+        elif isinstance(context_value, PromptVersionContext):
+            resolved.prompt_version = context_value
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
             resolved.graphql = context_value
         elif isinstance(context_value, WebAccessContext):
             resolved.web_access = context_value
+        elif isinstance(context_value, SubagentsContext):
+            resolved.subagents = context_value
         else:
             assert_never(context_value)
     return resolved

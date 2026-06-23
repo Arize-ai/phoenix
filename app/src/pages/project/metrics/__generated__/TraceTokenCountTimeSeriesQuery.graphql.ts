@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b9a71be1b9de3cc66178cbf77bfae5d9>>
+ * @generated SignedSource<<9826cd3e7eb2a30630fb88a248a3508e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,7 +28,15 @@ export type TraceTokenCountTimeSeriesQuery$data = {
     readonly traceTokenCountTimeSeries?: {
       readonly data: ReadonlyArray<{
         readonly completionTokenCount: number | null;
+        readonly completionTokenCountDetails: ReadonlyArray<{
+          readonly tokenCount: number | null;
+          readonly tokenType: string;
+        }>;
         readonly promptTokenCount: number | null;
+        readonly promptTokenCountDetails: ReadonlyArray<{
+          readonly tokenCount: number | null;
+          readonly tokenType: string;
+        }>;
         readonly timestamp: string;
         readonly totalTokenCount: number | null;
       }>;
@@ -63,7 +71,23 @@ v3 = [
     "variableName": "projectId"
   }
 ],
-v4 = {
+v4 = [
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokenType",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "tokenCount",
+    "storageKey": null
+  }
+],
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -120,6 +144,26 @@ v4 = {
               "kind": "ScalarField",
               "name": "totalTokenCount",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "TraceTokenCountDetailsTimeSeriesEntry",
+              "kind": "LinkedField",
+              "name": "promptTokenCountDetails",
+              "plural": true,
+              "selections": (v4/*: any*/),
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "TraceTokenCountDetailsTimeSeriesEntry",
+              "kind": "LinkedField",
+              "name": "completionTokenCountDetails",
+              "plural": true,
+              "selections": (v4/*: any*/),
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -150,7 +194,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -183,7 +227,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
+          (v5/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -197,16 +241,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e123a97bd485838cd5cb2b534eabd0d5",
+    "cacheID": "271dd9a2039761542883d47969aa23f1",
     "id": null,
     "metadata": {},
     "name": "TraceTokenCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceTokenCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceTokenCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          promptTokenCount\n          completionTokenCount\n          totalTokenCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceTokenCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceTokenCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          promptTokenCount\n          completionTokenCount\n          totalTokenCount\n          promptTokenCountDetails {\n            tokenType\n            tokenCount\n          }\n          completionTokenCountDetails {\n            tokenType\n            tokenCount\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "04ca506080201401409afce5ef6eb89d";
+(node as any).hash = "e03579d83337bb96055dc138e0477b40";
 
 export default node;

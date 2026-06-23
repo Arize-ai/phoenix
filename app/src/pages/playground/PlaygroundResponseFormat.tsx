@@ -115,7 +115,7 @@ export function PlaygroundResponseFormat({
           <CopyToClipboardButton text={currentValueRef} />
           <Button
             aria-label={`Delete ${label}`}
-            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
             size="S"
             onPress={() => {
               deleteResponseFormat({ instanceId: playgroundInstanceId });

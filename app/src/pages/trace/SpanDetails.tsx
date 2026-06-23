@@ -302,7 +302,7 @@ export function SpanDetails({
               >
                 <LinkButton
                   variant={span.spanKind !== "llm" ? "default" : "primary"}
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   isDisabled={span.spanKind !== "llm"}
                   to={`/playground/spans/${span.id}`}
                   size="S"
@@ -329,7 +329,7 @@ export function SpanDetails({
                       }
                     }
                   }}
-                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit2 />} />}
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (
@@ -460,7 +460,7 @@ function AddSpanToDatasetButton({
       <Button
         variant="default"
         size="S"
-        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Database />} />}
       >
         {buttonText}
       </Button>

@@ -386,7 +386,7 @@ function NewTagInlineForm({
       </TextField>
       <Button
         size="S"
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
         onPress={handleAdd}
         isDisabled={!inputValue.trim() || !!error}
       >

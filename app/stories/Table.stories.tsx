@@ -365,9 +365,9 @@ function BaseTable<T>({
                             className="sort-icon"
                             svg={
                               header.column.getIsSorted() === "asc" ? (
-                                <Icons.ArrowUpFilled />
+                                <Icons.CaretUpFilled />
                               ) : (
-                                <Icons.ArrowDownFilled />
+                                <Icons.CaretDownFilled />
                               )
                             }
                           />
@@ -638,7 +638,7 @@ const SelectableStoryComponent = () => {
           <Toolbar>
             <TooltipTrigger delay={0}>
               <IconButton onPress={() => setSelectedCount(0)}>
-                <Icon svg={<Icons.CloseOutline />} />
+                <Icon svg={<Icons.Close />} />
               </IconButton>
               <Tooltip>Clear selection</Tooltip>
             </TooltipTrigger>
@@ -649,7 +649,7 @@ const SelectableStoryComponent = () => {
             <Button
               variant="danger"
               size="M"
-              leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Trash />} />}
             >
               Delete
             </Button>
