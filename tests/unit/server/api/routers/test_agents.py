@@ -3,10 +3,14 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import nullcontext
+from typing import Any
 from unittest.mock import patch
 
+import httpx
+import pytest
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
+from pydantic_ai.usage import RunUsage
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -15,6 +19,7 @@ from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     SandboxAvailability,
 )
+from phoenix.server.api.routers import agents as agents_router
 from phoenix.server.api.routers.agents import (
     _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
@@ -24,6 +29,100 @@ from phoenix.server.api.routers.agents import (
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import DbSessionFactory, UserId
+
+
+def _server_agent_run_body(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "input": "How many traces are in the default project?",
+        "model": {
+            "providerType": "builtin",
+            "provider": "OPENAI",
+            "modelName": "gpt-4.1",
+        },
+    }
+    body.update(overrides)
+    return body
+
+
+class _FakeAgentRunResult:
+    output = "There are 3 traces."
+
+    def usage(self) -> RunUsage:
+        return RunUsage(input_tokens=5, output_tokens=7)
+
+    def all_messages(self) -> list[Any]:
+        return []
+
+
+class TestServerAgentRunEndpoint:
+    async def test_runs_server_agent_without_ui_adapter(
+        self,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        captured: dict[str, Any] = {}
+
+        async def build_model(*args: Any, **kwargs: Any) -> object:
+            captured["model_selection"] = args[0]
+            captured["tracer_provider"] = kwargs["tracer_provider"]
+            return object()
+
+        class ServerAgent:
+            async def run(self, run_input: str, *, deps: None) -> _FakeAgentRunResult:
+                captured["run_input"] = run_input
+                captured["deps"] = deps
+                return _FakeAgentRunResult()
+
+        def build_server_agent(**kwargs: Any) -> ServerAgent:
+            captured["server_agent_kwargs"] = kwargs
+            return ServerAgent()
+
+        monkeypatch.setattr(agents_router, "build_model", build_model)
+        monkeypatch.setattr(agents_router, "build_server_agent", build_server_agent)
+        monkeypatch.setattr(agents_router, "get_env_phoenix_agents_disable_bash", lambda: False)
+        monkeypatch.setattr(
+            agents_router, "get_env_phoenix_agents_web_access_enabled", lambda: True
+        )
+
+        response = await httpx_client.post(
+            "/agents/server/sessions/test-session-id/chat",
+            json=_server_agent_run_body(enableWebAccess=True, allowMutations=True),
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "output": "There are 3 traces.",
+            "sessionId": "test-session-id",
+            "trace": None,
+            "usage": {
+                "tokens": {
+                    "prompt": 5,
+                    "completion": 7,
+                    "total": 12,
+                },
+                "promptDetails": None,
+            },
+        }
+        assert captured["run_input"] == "How many traces are in the default project?"
+        assert captured["deps"] is None
+        server_agent_kwargs = captured["server_agent_kwargs"]
+        assert server_agent_kwargs["enable_web_access"] is True
+        assert server_agent_kwargs["allow_mutations"] is True
+
+    async def test_server_agent_run_respects_bash_disable_flag(
+        self,
+        httpx_client: httpx.AsyncClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(agents_router, "get_env_phoenix_agents_disable_bash", lambda: True)
+
+        response = await httpx_client.post(
+            "/agents/server/sessions/test-session-id/chat",
+            json=_server_agent_run_body(),
+        )
+
+        assert response.status_code == 403
+        assert response.text == "Server agent is disabled"
 
 
 class TestLoadSandboxAvailability:
