@@ -1865,10 +1865,6 @@
     <lastmod>2026-06-12T00:00:00+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/guardrails/designing-realtime-guardrails</loc>
-    <lastmod>2026-06-11T04:55:25+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-rag</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1891,6 +1887,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense</loc>
     <lastmod>2026-06-12T16:31:09+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/guardrails/designing-realtime-guardrails</loc>
+    <lastmod>2026-06-11T04:55:25+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments</loc>
