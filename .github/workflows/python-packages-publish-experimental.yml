@@ -1,22 +1,26 @@
 name: Publish Any Pull Request
 # TODO: Restrict to PRs from arize team members only.
 
-# Publishes pre-release builds to TestPyPI on pull requests, analogous to
+# Publishes pre-release (alpha) builds to PyPI on pull requests, analogous to
 # typescript-packages-publish-experimental.yml which uses pkg-pr-new for npm.
 #
-# Required one-time setup (per package on https://test.pypi.org):
+# Builds are stamped with a PEP 440 alpha suffix (e.g. 17.10.0a<run_id>) so they
+# are excluded from normal pip resolution and only installed when explicitly
+# requested (via --pre or an exact pinned version).
+#
+# Required one-time setup (per package on https://pypi.org):
 #   Configure a Trusted Publisher with:
 #     Owner:     arize-ai
 #     Repo:      phoenix
 #     Workflow:  python-packages-publish-experimental.yml
-#     Environment: testpypi/<package-name>  (e.g. testpypi/arize-phoenix-client)
+#     Environment: pypi/<package-name>  (e.g. pypi/arize-phoenix-client)
 #   And create matching GitHub environments in repo Settings → Environments.
 
 on:
   pull_request:
 
 concurrency:
-  group: testpypi-publish-${{ github.head_ref }}
+  group: pypi-publish-${{ github.head_ref }}
   cancel-in-progress: true
 
 permissions:
@@ -54,13 +58,13 @@ jobs:
               - '.github/workflows/python-packages-publish-experimental.yml'
 
   publish-main:
-    name: Build and publish arize-phoenix (TestPyPI)
+    name: Build and publish arize-phoenix (PyPI)
     needs: changes
     if: ${{ needs.changes.outputs.main == 'true' || needs.changes.outputs.workflow_file == 'true' }}
     runs-on: ubuntu-latest
     environment:
-      name: testpypi/arize-phoenix
-      url: https://test.pypi.org/p/arize-phoenix
+      name: pypi/arize-phoenix
+      url: https://pypi.org/p/arize-phoenix
     permissions:
       contents: read
       id-token: write
@@ -82,7 +86,7 @@ jobs:
           python-version: "3.10"
           version: "0.11.8"
           enable-cache: false
-      - name: Stamp dev version
+      - name: Stamp alpha version
         run: |
           python - <<'PY'
           import re, os
@@ -91,7 +95,7 @@ jobs:
           content = open(path).read()
           new = re.sub(
               r'(__version__ = ")([^"]+)(")',
-              lambda m: f'{m.group(1)}{m.group(2)}.dev{run_id}{m.group(3)}',
+              lambda m: f'{m.group(1)}{m.group(2)}a{run_id}{m.group(3)}',
               content,
           )
           open(path, "w").write(new)
@@ -99,17 +103,15 @@ jobs:
       - name: Build distribution
         run: rm -rf dist && uv build
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
   publish-sub-packages:
-    name: Build and publish ${{ matrix.package_name }} (TestPyPI)
+    name: Build and publish ${{ matrix.package_name }} (PyPI)
     needs: changes
     if: ${{ needs.changes.outputs['phoenix-client'] == 'true' || needs.changes.outputs['phoenix-evals'] == 'true' || needs.changes.outputs['phoenix-otel'] == 'true' || needs.changes.outputs.workflow_file == 'true' }}
     runs-on: ubuntu-latest
     environment:
-      name: testpypi/${{ matrix.package_name }}
-      url: https://test.pypi.org/p/${{ matrix.package_name }}
+      name: pypi/${{ matrix.package_name }}
+      url: https://pypi.org/p/${{ matrix.package_name }}
     permissions:
       contents: read
       id-token: write
@@ -154,7 +156,7 @@ jobs:
           python-version: "3.10"
           version: "0.11.8"
           enable-cache: false
-      - name: Stamp dev version
+      - name: Stamp alpha version
         if: steps.check.outputs.needed == 'true'
         env:
           PYPROJECT_PATH: ${{ matrix.path }}/pyproject.toml
@@ -166,7 +168,7 @@ jobs:
           content = open(path).read()
           new = re.sub(
               r'(?m)^(version = ")([^"]+)(")',
-              lambda m: f'{m.group(1)}{m.group(2)}.dev{run_id}{m.group(3)}',
+              lambda m: f'{m.group(1)}{m.group(2)}a{run_id}{m.group(3)}',
               content,
           )
           open(path, "w").write(new)
@@ -177,11 +179,9 @@ jobs:
         run: uv build
       - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
         if: steps.check.outputs.needed == 'true'
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
   comment:
-    name: Post TestPyPI install instructions
+    name: Post PyPI install instructions
     needs: [changes, publish-main, publish-sub-packages]
     if: |
       always() && (
@@ -229,10 +229,10 @@ jobs:
               return m.group(1) if m else "unknown"
 
           lines = [
-              "<!-- testpypi-preview -->",
-              "## TestPyPI Preview Packages",
+              "<!-- pypi-preview -->",
+              "## PyPI Preview Packages",
               "",
-              "Install using pip (dependencies are resolved from PyPI via `--extra-index-url`):",
+              "Install the alpha build using pip (pinning the exact version installs the pre-release):",
               "",
           ]
 
@@ -241,7 +241,7 @@ jobs:
               lines += [
                   "**arize-phoenix**",
                   "```",
-                  f"pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ arize-phoenix=={v}.dev{run_id}",
+                  f"pip install arize-phoenix=={v}a{run_id}",
                   "```",
                   "",
               ]
@@ -252,7 +252,7 @@ jobs:
                   lines += [
                       "**arize-phoenix-client**",
                       "```",
-                      f"pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ arize-phoenix-client=={v}.dev{run_id}",
+                      f"pip install arize-phoenix-client=={v}a{run_id}",
                       "```",
                       "",
                   ]
@@ -261,7 +261,7 @@ jobs:
                   lines += [
                       "**arize-phoenix-evals**",
                       "```",
-                      f"pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ arize-phoenix-evals=={v}.dev{run_id}",
+                      f"pip install arize-phoenix-evals=={v}a{run_id}",
                       "```",
                       "",
                   ]
@@ -270,7 +270,7 @@ jobs:
                   lines += [
                       "**arize-phoenix-otel**",
                       "```",
-                      f"pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ arize-phoenix-otel=={v}.dev{run_id}",
+                      f"pip install arize-phoenix-otel=={v}a{run_id}",
                       "```",
                       "",
                   ]
@@ -285,7 +285,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           COMMENT_BODY: ${{ steps.comment.outputs.body }}
         run: |
-          MARKER="<!-- testpypi-preview -->"
+          MARKER="<!-- pypi-preview -->"
           COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
             --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" | head -1)
           if [ -n "$COMMENT_ID" ]; then
