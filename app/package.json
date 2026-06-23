@@ -10,7 +10,7 @@
     "build:relay": "relay-compiler",
     "build:static": "cpy ./static ../src/phoenix/server",
     "chromatic": "source ./.env && npx chromatic",
-    "dev": "pnpm run ensure:env && mprocs",
+    "dev": "pnpm run ensure:env && node scripts/dev.mjs",
     "dev:embeddings": "pnpm run dev:server:embeddings & pnpm run build:static && pnpm run build:relay && source ./.env && vite",
     "dev:offline": "pnpm run dev:server:offline & pnpm run build:static && pnpm run build:relay && source ./.env && vite",
     "dev:server": "source ./.env && uv run python -Xfrozen_modules=off -m debugpy --listen ${DEBUGPY_PORT:-5678} -m phoenix.server.main serve --dev --debug --dev-vite-port ${VITE_PORT:-5173}",
