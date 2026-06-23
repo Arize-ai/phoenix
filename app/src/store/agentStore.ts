@@ -74,11 +74,11 @@ export type AgentObservabilitySettings = {
   /** Whether PXI traces should also be exported to a remote collector. */
   exportRemoteTraces: boolean;
   /**
-   * Whether the authenticated Phoenix user's ID should be attached to PXI
+   * Whether the authenticated Phoenix user's email should be attached to PXI
    * traces as the OpenInference `user.id` attribute. Defaults to false so
    * user attribution is opt-in. The backend only honours this flag for
    * authenticated PhoenixUser requests — the browser cannot supply an
-   * arbitrary user ID.
+   * arbitrary user value.
    */
   attachUserId: boolean;
   acknowledgedTraceConsent: AgentTraceConsentSettings | null;

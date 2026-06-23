@@ -184,13 +184,6 @@ class TestObservabilityMixinAttachUserId:
 
 
 class TestMaybeUsingUser:
-    def _make_phoenix_user(self, user_id: int = 1) -> PhoenixUser:
-        from phoenix.server.types import UserClaimSet, UserTokenAttributes
-
-        uid = UserId(user_id)
-        attrs = UserTokenAttributes(user_role="MEMBER")
-        return PhoenixUser(uid, UserClaimSet(subject=uid, attributes=attrs))
-
     def test_returns_nullcontext_when_flag_is_false(self) -> None:
         ctx = _maybe_using_user(attach_user_id=False, phoenix_user_email="user@example.com")
         assert isinstance(ctx, nullcontext)
@@ -252,8 +245,8 @@ class TestLoadPhoenixUserEmail:
                 user_role_id=user_role.id,
                 username="agent-test-user-no-email",
                 email=None,
-                password_hash=b"hash",
-                password_salt=b"salt",
+                password_hash=None,
+                password_salt=None,
                 reset_password=False,
                 auth_method="LDAP",
                 ldap_unique_id="agent-test-user-no-email",
