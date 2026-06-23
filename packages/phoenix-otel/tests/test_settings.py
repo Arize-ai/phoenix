@@ -33,6 +33,8 @@ def test_get_env_collector_endpoint(env: dict[str, str], expected: Optional[str]
     "endpoint, expected",
     [
         ("http://localhost:6006", "http://localhost:6006/v1/traces"),
+        ("http://localhost:6006/prefix", "http://localhost:6006/prefix/v1/traces"),
+        ("http://localhost:6006/prefix/", "http://localhost:6006/prefix/v1/traces"),
         ("http://localhost:6006/v1/traces", "http://localhost:6006/v1/traces"),
         ("http://localhost:6006/prefix/v1/traces", "http://localhost:6006/prefix/v1/traces"),
     ],

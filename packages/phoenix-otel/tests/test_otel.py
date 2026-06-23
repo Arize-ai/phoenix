@@ -528,6 +528,18 @@ class TestEndpointNormalization:
                 assert parsed.scheme == "http"
                 assert parsed.netloc == "localhost:4317"
 
+    def test_normalized_endpoint_preserves_env_http_path_prefix(self) -> None:
+        from phoenix.otel.otel import _normalized_endpoint
+
+        with patch(
+            "phoenix.otel.otel.get_env_collector_endpoint",
+            return_value="http://example.com/phoenix",
+        ):
+            parsed, endpoint = _normalized_endpoint(None, use_http=True)
+
+        assert parsed.path == "/phoenix/v1/traces"
+        assert endpoint == "http://example.com/phoenix/v1/traces"
+
 
 class TestPhoenixCloudEndpoint:
     def test_space_path_basic(self) -> None:
