@@ -42,7 +42,7 @@ describe("report artifacts", () => {
       {
         name: "artifact suite",
         trackingDisabled: true,
-        trackingDisabledReason: "PHOENIX_TEST_TRACKING is disabled",
+        trackingDisabledReason: "PHOENIX_TEST_TRACING is disabled",
         results: [
           {
             suiteName: "artifact suite",
@@ -94,7 +94,7 @@ function createSuiteState(): SuiteState {
     registeredExamples: new Map(),
     exampleIdsByTest: new Map(),
     trackingDisabled: true,
-    trackingDisabledReason: "PHOENIX_TEST_TRACKING is disabled",
+    trackingDisabledReason: "PHOENIX_TEST_TRACING is disabled",
     results: [
       {
         suiteName: "artifact suite",

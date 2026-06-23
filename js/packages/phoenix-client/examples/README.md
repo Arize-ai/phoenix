@@ -30,7 +30,7 @@ the `@arizeai/phoenix-client/vitest` submodule and is run with Vitest, using the
 
 ```sh
 cd js/packages/phoenix-client
-OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
+OPENAI_API_KEY= PHOENIX_TEST_TRACING=false pnpm exec vitest run \
   --config examples/vitest/phoenix.vitest.config.ts examples/vitest/sql.eval.ts
 ```
 

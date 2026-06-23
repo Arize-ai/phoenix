@@ -1,7 +1,7 @@
 /**
  * End-to-end test of the runner driving Vitest's own describe/test.
  *
- * `PHOENIX_TEST_TRACKING=false` is set globally so no network calls are made
+ * `PHOENIX_TEST_TRACING=false` is set globally so no network calls are made
  * to a Phoenix server. We assert that the public API records the run's
  * output, annotations, and evaluator results into the suite registry.
  */
@@ -17,7 +17,7 @@ import {
   test as pxTest,
 } from "../../src/vitest";
 
-const originalTracking = process.env.PHOENIX_TEST_TRACKING;
+const originalTracking = process.env.PHOENIX_TEST_TRACING;
 
 // Capture console.warn so we can assert on the "evaluate before logOutput"
 // warning emitted from a wrapped test body during the run phase.
@@ -30,15 +30,15 @@ console.warn = (...args: unknown[]) => {
 /* eslint-enable no-console */
 
 beforeAll(() => {
-  process.env.PHOENIX_TEST_TRACKING = "false";
+  process.env.PHOENIX_TEST_TRACING = "false";
 });
 afterAll(() => {
   // eslint-disable-next-line no-console
   console.warn = originalWarn;
   if (originalTracking === undefined) {
-    delete process.env.PHOENIX_TEST_TRACKING;
+    delete process.env.PHOENIX_TEST_TRACING;
   } else {
-    process.env.PHOENIX_TEST_TRACKING = originalTracking;
+    process.env.PHOENIX_TEST_TRACING = originalTracking;
   }
 });
 

@@ -28,11 +28,6 @@ import {
 import { currentRun, type RunState, type SuiteState } from "./state";
 import type { Annotation, KVMap } from "./types";
 
-function isTruthyFlag(value: string | undefined): boolean {
-  const v = (value ?? "").toLowerCase();
-  return v === "true" || v === "1" || v === "on" || v === "yes";
-}
-
 function isFalsyFlag(value: string | undefined): boolean {
   const v = (value ?? "").toLowerCase();
   return v === "false" || v === "0" || v === "off" || v === "no";
@@ -41,19 +36,15 @@ function isFalsyFlag(value: string | undefined): boolean {
 /**
  * Decide whether tests should sync to Phoenix.
  *
- * Tracking is enabled by default. It can be disabled globally by setting
- * `PHOENIX_TEST_TRACKING=false` (or `PHOENIX_TEST_DRY_RUN=true`), or per
- * suite via `SuiteConfig.dryRun`.
+ * Tracing is enabled by default. It can be disabled globally by setting
+ * `PHOENIX_TEST_TRACING=false`, or per suite via `SuiteConfig.dryRun`.
  */
 export function isTrackingEnabled(suite?: SuiteState): {
   enabled: boolean;
   reason?: string;
 } {
-  if (isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)) {
-    return { enabled: false, reason: "PHOENIX_TEST_TRACKING is disabled" };
-  }
-  if (isTruthyFlag(process.env.PHOENIX_TEST_DRY_RUN)) {
-    return { enabled: false, reason: "PHOENIX_TEST_DRY_RUN is enabled" };
+  if (isFalsyFlag(process.env.PHOENIX_TEST_TRACING)) {
+    return { enabled: false, reason: "PHOENIX_TEST_TRACING is disabled" };
   }
   if (suite?.config.dryRun) {
     return { enabled: false, reason: "suite configured dryRun" };
@@ -186,7 +177,7 @@ function buildLinks(
  * Initialize the suite: upload the dataset, create the experiment, and
  * register the OpenInference tracer.
  *
- * If tracking is disabled (no Phoenix env vars, or PHOENIX_TEST_TRACKING=false),
+ * If tracing is disabled (no Phoenix env vars, or PHOENIX_TEST_TRACING=false),
  * this populates a no-op tracer and exits without making any network calls.
  */
 export async function initializeSuite(suite: SuiteState): Promise<void> {

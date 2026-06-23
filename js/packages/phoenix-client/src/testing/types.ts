@@ -147,7 +147,7 @@ export interface SuiteConfig {
   /**
    * When `true`, the whole suite runs as ordinary local tests — no dataset
    * is uploaded and no experiment, runs, or annotations are created in
-   * Phoenix. Equivalent to `PHOENIX_TEST_TRACKING=false` scoped to this
+   * Phoenix. Equivalent to `PHOENIX_TEST_TRACING=false` scoped to this
    * suite. The reporter still prints a local summary.
    */
   dryRun?: boolean;
