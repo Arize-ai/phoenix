@@ -234,13 +234,13 @@ With only eight examples the two models may or may not separate cleanly on a giv
 Open the dataset's **Experiments** tab to see the runs side by side. Each experiment is a row; each evaluator becomes its own **score column** (so `field_accuracy` sits next to `jaro_winkler`), alongside operational columns — average **latency**, **cost**, and **error rate** — that matter for a real model choice but never show up on a public leaderboard.
 
 <Frame>
-![Comparing the gpt-5.5 and gpt-5.4-mini experiments in Phoenix — field_accuracy, jaro_winkler, latency, cost, and error rate side by side.](https://storage.googleapis.com/arize-phoenix-assets/assets/images/email-eval-harness-experiments.png)
+![Comparing the gpt-5.5 and gpt-5.4-mini experiments in Phoenix — field_accuracy, jaro_winkler, latency, cost, and error rate side by side.](https://storage.googleapis.com/arize-phoenix-assets/assets/images/email-eval-harness-experiments-v2.png)
 </Frame>
 
 The two metrics *can* rank the models differently — a model that writes better summaries (higher `jaro_winkler`) might still miscategorize more emails (lower `field_accuracy`), or vice versa. When they disagree, sort by the metric tied to your downstream needs (`field_accuracy`) rather than the forgiving one, and click any row to drop into the example-level view: the input email, the model's extraction, and each evaluator's score for that single example. That's where you *see why* one model wins — a `due_date` the model dropped, a sender it over-captured — instead of trusting an aggregate.
 
 <Frame>
-![The example-level compare view in Phoenix: the input email, the reference extraction, and the model's output with per-example field_accuracy and jaro_winkler scores.](https://storage.googleapis.com/arize-phoenix-assets/assets/images/email-eval-harness-example-level.png)
+![The example-level compare view in Phoenix: the input email, the reference extraction, and the model's output with per-example field_accuracy and jaro_winkler scores.](https://storage.googleapis.com/arize-phoenix-assets/assets/images/email-eval-harness-example-level-v2.png)
 </Frame>
 
 ## Where to go next
