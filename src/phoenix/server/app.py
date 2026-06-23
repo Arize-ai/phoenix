@@ -1030,8 +1030,12 @@ def create_app(
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
 
-    def _v1_only_openapi() -> dict[str, Any]:
-        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+    def _openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI.
+
+        In production, only routes under ``/v1`` are included. In dev mode,
+        agent routes (``/agents``) are also exposed so they appear in Swagger UI.
+        """
         if app.openapi_schema:
             return app.openapi_schema
         schema = get_openapi(
@@ -1042,13 +1046,14 @@ def create_app(
             routes=app.routes,
             separate_input_output_schemas=False,
         )
+        prefixes = ("/v1", "/agents") if dev else ("/v1",)
         schema["paths"] = {
-            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+            path: ops for path, ops in schema["paths"].items() if path.startswith(prefixes)
         }
         app.openapi_schema = schema
         return schema
 
-    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
+    app.openapi = _openapi  # type: ignore[method-assign]
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
