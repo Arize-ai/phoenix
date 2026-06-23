@@ -11,11 +11,7 @@ import {
 } from "@arizeai/phoenix-otel";
 import { describe, expect, it } from "vitest";
 
-import {
-  evaluate,
-  recordOutput,
-  traceEvaluator,
-} from "../../src/testing/helpers";
+import { evaluate, logOutput, traceEvaluator } from "../../src/testing/helpers";
 import {
   runTaskWithTracing,
   teardownSuite,
@@ -29,7 +25,7 @@ import {
 type EndedSpan = Parameters<SpanProcessor["onEnd"]>[0];
 
 describe("Phoenix test tracing", () => {
-  it("ends the task span at recordOutput and starts evaluators as separate traces", async () => {
+  it("ends the task span at logOutput and starts evaluators as separate traces", async () => {
     const harness = createTracingHarness();
     const run = createRunState(harness.suite);
     let eventsAtLogOutput: string[] = [];
@@ -46,7 +42,7 @@ describe("Phoenix test tracing", () => {
                 span.end();
               });
 
-            recordOutput({ answer: "hello" });
+            logOutput({ answer: "hello" });
             eventsAtLogOutput = [...harness.events];
 
             const evaluator = traceEvaluator(
@@ -135,7 +131,7 @@ describe("Phoenix test tracing", () => {
           harness.suite,
           "answers question",
           async () => {
-            recordOutput({ answer: "hello" });
+            logOutput({ answer: "hello" });
 
             const evaluator = createEvaluator(
               async ({ output }: { output: string }) => {
@@ -197,7 +193,7 @@ describe("Phoenix test tracing", () => {
           harness.suite,
           "dry run",
           async () => {
-            recordOutput({ answer: "hello" });
+            logOutput({ answer: "hello" });
 
             const evaluator = createEvaluator(
               async ({ output }: { output: string }) => {
@@ -235,7 +231,7 @@ describe("Phoenix test tracing", () => {
           harness.suite,
           "fails after output",
           async () => {
-            recordOutput({ answer: "hello" });
+            logOutput({ answer: "hello" });
             throw new Error("assertion failed");
           }
         );

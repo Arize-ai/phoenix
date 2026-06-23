@@ -20,7 +20,14 @@ import {
   type SuiteState,
   type TestResult,
 } from "./state";
-import type { KVMap, SuiteConfig, TestArgs, TestFn, TestParams } from "./types";
+import {
+  type KVMap,
+  resolveReference,
+  type SuiteConfig,
+  type TestArgs,
+  type TestFn,
+  type TestParams,
+} from "./types";
 
 /**
  * The minimum slice of a test runner (vitest or jest) the runner needs in
@@ -134,6 +141,11 @@ export function declareTest<Input extends KVMap, Expected extends KVMap>(
     );
   }
 
+  // Collapse the `expected` / `reference` / `output` aliases into the single
+  // canonical `expected` slot up front, so every downstream consumer (dataset
+  // upload, evaluator params, test args) reads one field.
+  params = normalizeReferenceOutput(params);
+
   // A per-test `dryRun` opts the case out of Phoenix entirely: no dataset
   // example, no experiment run, no annotations — it runs as an ordinary
   // local test. Suite-level dryRun (or PHOENIX_TEST_TRACKING=false) is
@@ -227,7 +239,7 @@ async function executeRun(opts: {
           metadata: opts.params.metadata,
         };
         const result = await opts.fn(args);
-        // If the user returned a value and didn't call recordOutput(),
+        // If the user returned a value and didn't call logOutput(),
         // adopt the return value as the run's output.
         if (
           result !== undefined &&
@@ -284,6 +296,18 @@ async function executeRun(opts: {
   if (thrown) {
     throw thrown;
   }
+}
+
+/**
+ * Return a copy of `params` with the reference output collapsed onto the
+ * canonical `expected` key and the `reference` / `output` aliases dropped.
+ */
+function normalizeReferenceOutput<Input extends KVMap, Expected extends KVMap>(
+  params: TestParams<Input, Expected>
+): TestParams<Input, Expected> {
+  const expected = resolveReference(params);
+  const { reference: _reference, output: _output, ...rest } = params;
+  return { ...rest, expected };
 }
 
 function isPlainObjectOrPrimitive(value: unknown): boolean {

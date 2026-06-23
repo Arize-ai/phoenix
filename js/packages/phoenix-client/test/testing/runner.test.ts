@@ -11,7 +11,7 @@ import { getAllSuites } from "../../src/testing/runner";
 import {
   evaluate,
   logAnnotation,
-  recordOutput,
+  logOutput,
   traceEvaluator,
   describe as pxDescribe,
   test as pxTest,
@@ -19,7 +19,7 @@ import {
 
 const originalTracking = process.env.PHOENIX_TEST_TRACKING;
 
-// Capture console.warn so we can assert on the "evaluate before recordOutput"
+// Capture console.warn so we can assert on the "evaluate before logOutput"
 // warning emitted from a wrapped test body during the run phase.
 /* eslint-disable no-console */
 const warnings: string[] = [];
@@ -51,7 +51,7 @@ pxDescribe("phoenix client test selftest", () => {
     },
     async ({ input, expected }) => {
       const greeting = `hello ${input.name}`;
-      recordOutput({ greeting });
+      logOutput({ greeting });
       logAnnotation({ name: "manual", score: 0.42 });
       await evaluate({
         name: "object_eval",
@@ -101,13 +101,13 @@ pxDescribe(
 
 pxDescribe("phoenix client test dry run", () => {
   pxTest("tracked case", { input: { kind: "tracked" } }, async () => {
-    recordOutput({ ok: true });
+    logOutput({ ok: true });
   });
   pxTest(
     "local-only case",
     { input: { kind: "local" }, dryRun: true },
     async () => {
-      recordOutput({ ok: true });
+      logOutput({ ok: true });
     }
   );
 });
@@ -140,12 +140,52 @@ pxDescribe("phoenix client test each", () => {
   );
 });
 
+// test.each rows accept the reference output under any alias, just like test().
+const aliasRows = [
+  { input: { q: "a" }, expected: { label: "ex" } },
+  { input: { q: "b" }, reference: { label: "ref" } },
+  { input: { q: "c" }, output: { label: "out" } },
+];
+pxDescribe("phoenix client test each aliases", () => {
+  pxTest.each(aliasRows)(
+    (row) => `each ${row.input.q}`,
+    async () => {}
+  );
+});
+
+// The reference output may be supplied under any of three interchangeable
+// keys; all normalize to the same `expected` slot the test body receives.
+const seenExpected: Record<string, unknown> = {};
+pxDescribe("phoenix client test reference aliases", () => {
+  pxTest(
+    "via expected",
+    { input: { q: "e" }, expected: { label: "from-expected" } },
+    async ({ expected }) => {
+      seenExpected.expected = expected;
+    }
+  );
+  pxTest(
+    "via reference",
+    { input: { q: "r" }, reference: { label: "from-reference" } },
+    async ({ expected }) => {
+      seenExpected.reference = expected;
+    }
+  );
+  pxTest(
+    "via output",
+    { input: { q: "o" }, output: { label: "from-output" } },
+    async ({ expected }) => {
+      seenExpected.output = expected;
+    }
+  );
+});
+
 pxDescribe("phoenix client test missing output", () => {
   pxTest(
-    "evaluate without recordOutput warns once",
+    "evaluate without logOutput warns once",
     { input: { n: 1 } },
     async () => {
-      // No recordOutput() — the evaluator receives output=undefined.
+      // No logOutput() — the evaluator receives output=undefined.
       await evaluate({
         name: "needs_output",
         evaluate: ({ output }: { output?: unknown }) => ({
@@ -246,10 +286,55 @@ describe("runner registry", () => {
     expect(splits).toEqual([["group-1"], ["group-2"]]);
   });
 
-  it("warns once per suite when evaluate runs before recordOutput", async () => {
+  it("normalizes expected / reference / output to the same slot", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    // The test body receives each alias under the canonical `expected` arg.
+    expect(seenExpected).toEqual({
+      expected: { label: "from-expected" },
+      reference: { label: "from-reference" },
+      output: { label: "from-output" },
+    });
+    // ...and each is registered as the dataset example's reference output.
+    const suite = getAllSuites().find(
+      (s) => s.name === "phoenix client test reference aliases"
+    );
+    expect(suite).toBeDefined();
+    const expectedByTest = Object.fromEntries(
+      [...suite!.registeredExamples.values()].map((e) => [
+        e.testName,
+        e.params.expected,
+      ])
+    );
+    expect(expectedByTest).toEqual({
+      "via expected": { label: "from-expected" },
+      "via reference": { label: "from-reference" },
+      "via output": { label: "from-output" },
+    });
+  });
+
+  it("test.each resolves reference output under any alias", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const suite = getAllSuites().find(
+      (s) => s.name === "phoenix client test each aliases"
+    );
+    expect(suite).toBeDefined();
+    const expectedByTest = Object.fromEntries(
+      [...suite!.registeredExamples.values()].map((e) => [
+        e.testName,
+        e.params.expected,
+      ])
+    );
+    expect(expectedByTest).toEqual({
+      "each a": { label: "ex" },
+      "each b": { label: "ref" },
+      "each c": { label: "out" },
+    });
+  });
+
+  it("warns once per suite when evaluate runs before logOutput", async () => {
     await new Promise((resolve) => setImmediate(resolve));
     const outputWarnings = warnings.filter(
-      (w) => w.includes("ran before") && w.includes("recordOutput()")
+      (w) => w.includes("ran before") && w.includes("logOutput()")
     );
     expect(outputWarnings).toHaveLength(1);
     expect(outputWarnings[0]).toContain("needs_output");

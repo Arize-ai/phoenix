@@ -130,7 +130,7 @@ export interface TestResult {
 }
 
 /**
- * AsyncLocalStorage that lets `recordOutput` / `logAnnotation` / `evaluate`
+ * AsyncLocalStorage that lets `logOutput` / `logAnnotation` / `evaluate`
  * reach the running test's state without threading it through arguments.
  */
 export const runStorage = new AsyncLocalStorage<RunState>();

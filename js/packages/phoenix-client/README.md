@@ -322,7 +322,7 @@ px.describe(
       },
       async ({ input, expected }) => {
         const sql = await generateSql(input.userQuery);
-        px.recordOutput({ sql });
+        px.logOutput({ sql });
         expect(sql).toEqual(expected?.sql);
       }
     );
@@ -334,6 +334,12 @@ px.describe(
   }
 );
 ```
+
+The reference output can be supplied under any one of three interchangeable
+keys — `expected`, `reference`, or `output` — so you can match whichever name
+your evaluators expect. They all resolve to the same slot: the dataset
+example's `output`, exposed to evaluators and the test body as `expected`.
+Supplying more than one at a time is a type error.
 
 Use `@arizeai/phoenix-client/vitest/reporter` or
 `@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and

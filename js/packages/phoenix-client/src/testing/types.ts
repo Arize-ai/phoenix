@@ -15,25 +15,34 @@ export type { AnnotatorKind };
 export type KVMap = Record<string, unknown>;
 
 /**
- * Inline parameters supplied alongside a single test case.
+ * The reference output for a test case, accepted under any one of three
+ * interchangeable keys. All three normalize to the same slot: when recorded to
+ * Phoenix the value becomes the dataset example's `output`, and it is exposed
+ * to evaluators as `expected` on `EvaluatorParams`. At most one key may be set.
+ *
+ * - `expected` — the canonical name (the ground-truth / reference output).
+ * - `reference` — alias preferred by frameworks that name the slot "reference".
+ * - `output` — alias for callers who think in terms of the example's `output`.
+ *
+ * Modeled as a union so supplying more than one key at a time is a type error.
+ */
+export type ReferenceOutput<Expected extends KVMap = KVMap> =
+  | { expected?: Expected; reference?: never; output?: never }
+  | { reference?: Expected; expected?: never; output?: never }
+  | { output?: Expected; expected?: never; reference?: never };
+
+/**
+ * Inline parameters common to every test case, excluding the reference output
+ * (which is supplied via {@link ReferenceOutput}).
  *
  * `input` is bound to the dataset example's input field. When recorded to
  * Phoenix this becomes the example's `input`.
- *
- * `expected` is the reference output. When recorded to Phoenix this
- * becomes the example's `output` and is exposed to evaluators as
- * `expected` on `EvaluatorParams`.
  */
-export interface TestParams<
-  Input extends KVMap = KVMap,
-  Expected extends KVMap = KVMap,
-> {
+export interface TestParamsBase<Input extends KVMap = KVMap> {
   /** Optional stable example id; used to upsert dataset examples between runs. */
   id?: string;
   /** Input for the example. Required. */
   input: Input;
-  /** Reference (expected) output for the example. Optional. */
-  expected?: Expected;
   /** Additional metadata stored on the dataset example and run. */
   metadata?: KVMap;
   /**
@@ -56,6 +65,29 @@ export interface TestParams<
    * Phoenix. Useful for scaffolding a case before it's ready to track.
    */
   dryRun?: boolean;
+}
+
+/**
+ * Inline parameters supplied alongside a single test case.
+ *
+ * Combines {@link TestParamsBase} with a {@link ReferenceOutput}, so the
+ * reference output may be given under `expected`, `reference`, or `output`
+ * (at most one). All three resolve to the same canonical `expected` slot.
+ */
+export type TestParams<
+  Input extends KVMap = KVMap,
+  Expected extends KVMap = KVMap,
+> = TestParamsBase<Input> & ReferenceOutput<Expected>;
+
+/**
+ * Resolve the canonical reference output from a value that may carry it under
+ * any of the `expected` / `reference` / `output` aliases (see
+ * {@link ReferenceOutput}). Returns the first one set, or `undefined` if none.
+ */
+export function resolveReference<Expected extends KVMap = KVMap>(
+  params: ReferenceOutput<Expected>
+): Expected | undefined {
+  return params.expected ?? params.reference ?? params.output;
 }
 
 /** Per-test runtime configuration. */
@@ -184,7 +216,7 @@ export type EvaluationResult =
 /**
  * Parameters passed to an evaluator when it runs inside a test. A relaxation of
  * the shared {@link EvaluatorParams}: `input` is always present, while `output`
- * (an evaluator may run before `recordOutput()`) and the remaining fields are
+ * (an evaluator may run before `logOutput()`) and the remaining fields are
  * optional. Deriving from `EvaluatorParams` keeps this aligned with the
  * experiment evaluator contract as that shape evolves.
  */
@@ -212,14 +244,20 @@ export type TestFn<
   Expected extends KVMap = KVMap,
 > = (args: TestArgs<Input, Expected>) => unknown | Promise<unknown>;
 
-/** Each-row shape accepted by `test.each(table)(name, fn)`. */
+/**
+ * Each-row shape accepted by `test.each(table)(name, fn)`.
+ *
+ * Like {@link TestParams}, the reference output is supplied via
+ * {@link ReferenceOutput} (`expected` / `reference` / `output`, at most one).
+ * The trailing index signature still permits arbitrary extra columns on a row
+ * (e.g. for `%j` name interpolation) without weakening that constraint.
+ */
 export type TestEachRow<
   Input extends KVMap = KVMap,
   Expected extends KVMap = KVMap,
 > = {
   id?: string;
   input: Input;
-  expected?: Expected;
   metadata?: KVMap;
   /** Per-row split assignment(s); see `TestParams.splits`. */
   splits?: string[];
@@ -227,4 +265,5 @@ export type TestEachRow<
   repetitions?: number;
   /** Per-row dry-run flag; see `TestParams.dryRun`. */
   dryRun?: boolean;
-} & Record<string, unknown>;
+} & ReferenceOutput<Expected> &
+  Record<string, unknown>;

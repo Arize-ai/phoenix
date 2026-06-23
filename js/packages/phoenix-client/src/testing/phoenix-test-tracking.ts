@@ -415,7 +415,7 @@ function hasTaskSpanEnded(run: RunState): boolean {
 }
 
 /**
- * End the current run's task span. `recordOutput()` calls this immediately so
+ * End the current run's task span. `logOutput()` calls this immediately so
  * evaluator work that follows is not included in the task span duration.
  */
 export function endTaskSpanForRun(run: RunState): void {

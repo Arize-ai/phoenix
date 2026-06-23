@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   evaluate,
   logAnnotation,
-  recordOutput,
+  logOutput,
   traceEvaluator,
 } from "../../src/testing/helpers";
 
 describe("helpers outside a test context", () => {
-  it("recordOutput throws when called outside a phoenix test", () => {
-    expect(() => recordOutput({ foo: 1 })).toThrowError(
+  it("logOutput throws when called outside a phoenix test", () => {
+    expect(() => logOutput({ foo: 1 })).toThrowError(
       /must be called inside a Phoenix eval test body/
     );
   });

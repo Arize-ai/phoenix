@@ -24,7 +24,7 @@ export function logOutput(output: unknown): void {
   const run = currentRun();
   if (!run) {
     throw new Error(
-      "recordOutput() must be called inside a Phoenix eval test body"
+      "logOutput() must be called inside a Phoenix eval test body"
     );
   }
   run.output = output;
@@ -145,7 +145,7 @@ export function traceEvaluator<EvaluatorParams extends KVMap, EvaluatorResult>(
  * Warn (at most once per suite) when an evaluator runs before any output was
  * recorded and none was passed explicitly. Such an evaluator receives
  * `output: undefined`, which silently scores against nothing — almost always a
- * forgotten `recordOutput()`. Harmless for evaluators that only read `input`.
+ * forgotten `logOutput()`. Harmless for evaluators that only read `input`.
  */
 const warnedOutputSuites = new WeakSet<SuiteState>();
 function warnEvaluateBeforeOutput(
@@ -158,8 +158,8 @@ function warnEvaluateBeforeOutput(
   // eslint-disable-next-line no-console
   console.warn(
     `[@arizeai/phoenix-client] evaluate("${evaluatorName}") ran before ` +
-      `recordOutput() on test "${testName}", so the evaluator received ` +
-      `output=undefined. Call recordOutput(...) first, or pass { output } ` +
+      `logOutput() on test "${testName}", so the evaluator received ` +
+      `output=undefined. Call logOutput(...) first, or pass { output } ` +
       `explicitly. (Ignore if this evaluator only needs input.)`
   );
 }

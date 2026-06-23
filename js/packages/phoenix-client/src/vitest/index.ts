@@ -9,6 +9,13 @@ import { createTestApi } from "../testing/define-api";
 import type { RunnerHooks } from "../testing/runner";
 
 export type {
+  PhoenixDescribe,
+  PhoenixTest,
+  PhoenixTestApi,
+  PhoenixTestEach,
+} from "../testing/define-api";
+
+export type {
   AcceptanceCriterion,
   AcceptanceMetric,
   AcceptanceResult,
@@ -19,12 +26,14 @@ export type {
   Evaluator,
   EvaluatorResult,
   KVMap,
+  ReferenceOutput,
   SuiteConfig,
   TestArgs,
   TestConfig,
   TestEachRow,
   TestFn,
   TestParams,
+  TestParamsBase,
 } from "../testing/types";
 
 export {
