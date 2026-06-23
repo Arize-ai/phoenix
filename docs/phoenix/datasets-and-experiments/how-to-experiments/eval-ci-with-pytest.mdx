@@ -104,12 +104,11 @@ example and are recorded as distinct runs.
 
 ## Offline mode
 
-Iterate locally without sending anything to Phoenix by setting either env var.
+Iterate locally without sending anything to Phoenix by disabling tracking.
 In offline mode the suite runs normally and prints how many tests ran without
 recording.
 
 ```bash
-PHOENIX_TEST_DRY_RUN=1 pytest    # collect + run, skip all network calls
 PHOENIX_TEST_TRACKING=0 pytest   # disable recording entirely
 ```
 
@@ -121,8 +120,7 @@ Booleans accept `1/true/yes/on` (truthy) and `0/false/no/off`/empty (falsy).
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When false, the suite runs offline. |
-| `PHOENIX_TEST_DRY_RUN` | `false` | Run and collect, but make no network calls (also offline). |
+| `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When false, the suite runs offline (collects and runs normally, but makes no network calls). |
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default repetition count for marked tests; must be an integer `>= 1`. |
 
 <Note>

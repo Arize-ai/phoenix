@@ -29,14 +29,13 @@ class PhoenixTestConfig:
     """Resolved plugin configuration for one pytest session."""
 
     tracking: bool = True
-    dry_run: bool = False
     repetitions: int = 1
     dataset_override: Optional[str] = None
 
     @property
     def offline(self) -> bool:
-        """True when no network calls should be made (tracking off or dry-run on)."""
-        return not self.tracking or self.dry_run
+        """True when no network calls should be made (tracking off)."""
+        return not self.tracking
 
     @classmethod
     def from_env(
@@ -64,7 +63,6 @@ class PhoenixTestConfig:
 
         return cls(
             tracking=_env_bool(env.get("PHOENIX_TEST_TRACKING"), default=True),
-            dry_run=_env_bool(env.get("PHOENIX_TEST_DRY_RUN"), default=False),
             repetitions=repetitions,
             dataset_override=dataset_override,
         )

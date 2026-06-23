@@ -16,7 +16,7 @@ Run it like any other pytest suite. The plugin activates automatically once
 
 Iterate locally without recording anything to Phoenix:
 
-    PHOENIX_TEST_DRY_RUN=1 pytest
+    PHOENIX_TEST_TRACKING=0 pytest
 """
 
 import pytest

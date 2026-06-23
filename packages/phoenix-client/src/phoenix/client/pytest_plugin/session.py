@@ -309,9 +309,8 @@ class SuiteState:
         return self._client
 
     def offline_summary_line(self) -> str:
-        reason = "tracking disabled" if not self.config.tracking else "dry-run"
         n = len(self._recorded)
-        return f"Phoenix: offline mode ({reason}); {n} test(s) ran without recording."
+        return f"Phoenix: offline mode (tracking disabled); {n} test(s) ran without recording."
 
     def summary_line(self) -> str:
         n = len(self._recorded)
