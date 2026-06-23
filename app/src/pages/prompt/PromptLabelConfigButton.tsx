@@ -20,7 +20,6 @@ import {
   LinkButton,
   Loading,
   Menu,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
@@ -32,6 +31,7 @@ import {
   type Selection,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { NewPromptLabelDialog } from "@phoenix/components/prompt/NewPromptLabelDialog";
 import type { PromptLabelConfigButton_allLabels$key } from "@phoenix/pages/prompt/__generated__/PromptLabelConfigButton_allLabels.graphql";
@@ -259,7 +259,12 @@ function PromptLabelList({
           selectionMode="multiple"
           selectedKeys={selected}
           onSelectionChange={onSelectionChange}
-          renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+          renderEmptyState={() => (
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.PriceTagsOutline />} />}
+              description="No labels found"
+            />
+          )}
         >
           {({ id, name, color }) => (
             <MenuItem

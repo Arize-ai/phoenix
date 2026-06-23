@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { ComboBoxProps } from "@phoenix/components";
-import { ComboBox, ComboBoxItem } from "@phoenix/components";
+import { ComboBox, ComboBoxItem, Icon, Icons } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 
 import type { PromptComboBoxQuery } from "./__generated__/PromptComboBoxQuery.graphql";
 
@@ -57,7 +58,12 @@ export function PromptComboBox({
       stopPropagation
       defaultItems={items}
       placeholder="Select a prompt..."
-      renderEmptyState={() => <div>No prompts found</div>}
+      renderEmptyState={() => (
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.EditOutline />} />}
+          description="No prompts found"
+        />
+      )}
       onSelectionChange={(key) => {
         if (typeof key !== "string" && key != null) {
           return;

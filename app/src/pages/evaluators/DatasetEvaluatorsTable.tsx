@@ -22,7 +22,11 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
-import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import {
+  CompactEmptyState,
+  EmptyState,
+  EmptyStateGraphic,
+} from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -125,18 +129,10 @@ const DatasetEvaluatorsEmpty = ({
   if (hasActiveFilter) {
     return (
       <TableEmptyWrap>
-        <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          gap="size-300"
-          maxWidth="700px"
-          margin="var(--global-dimension-size-300) auto"
-        >
-          <Text size="S" fontStyle="italic" color="text-500">
-            No evaluators found that match the given filter.
-          </Text>
-        </Flex>
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Search />} />}
+          description="No evaluators match that filter"
+        />
       </TableEmptyWrap>
     );
   }

@@ -10,9 +10,10 @@ import {
   CompositeField,
   Flex,
   LazyTabPanel,
+  Icon,
+  Icons,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -24,6 +25,7 @@ import {
   Text,
   Token,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeFormatters } from "@phoenix/hooks";
@@ -296,7 +298,12 @@ export function PromptSelector({
             selectionMode="single"
             selectedKeys={selectedPrompt ? [selectedPrompt.id] : []}
             items={promptItems}
-            renderEmptyState={() => <MenuEmpty>No prompts found</MenuEmpty>}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.EditOutline />} />}
+                description="No prompts found"
+              />
+            )}
             onAction={(key) => {
               onSelectPrompt(String(key));
             }}
@@ -416,7 +423,10 @@ export function PromptVersionSelector({
               <Menu
                 items={versionItems}
                 renderEmptyState={() => (
-                  <MenuEmpty>No versions found</MenuEmpty>
+                  <CompactEmptyState
+                    icon={<Icon svg={<Icons.GitBranchOutline />} />}
+                    description="No versions found"
+                  />
                 )}
                 selectionMode="single"
                 selectedKeys={
@@ -473,7 +483,12 @@ export function PromptVersionSelector({
               </MenuHeader>
               <Menu
                 items={tagItems}
-                renderEmptyState={() => <MenuEmpty>No tags found</MenuEmpty>}
+                renderEmptyState={() => (
+                  <CompactEmptyState
+                    icon={<Icon svg={<Icons.PriceTagsOutline />} />}
+                    description="No tags found"
+                  />
+                )}
                 selectionMode="single"
                 selectedKeys={selectedTagName ? [selectedTagName] : []}
                 onAction={(key) => {

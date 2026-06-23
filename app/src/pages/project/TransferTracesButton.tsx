@@ -16,7 +16,6 @@ import {
   Input,
   Loading,
   Menu,
-  MenuEmpty,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
@@ -25,6 +24,7 @@ import {
   SearchField,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { TransferTracesButtonTransferMutation } from "@phoenix/pages/project/__generated__/TransferTracesButtonTransferMutation.graphql";
 
@@ -194,7 +194,12 @@ function ProjectsList({
             onProjectSelect(projectId);
           }
         }}
-        renderEmptyState={() => <MenuEmpty>No projects found</MenuEmpty>}
+        renderEmptyState={() => (
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.FolderOutline />} />}
+            description="No projects found"
+          />
+        )}
       >
         {(item) => (
           <MenuItem
