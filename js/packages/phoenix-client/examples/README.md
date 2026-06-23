@@ -22,4 +22,16 @@ For example, to run `run_experiment.ts`:
 tsx run_experiment.ts
 ```
 
-Make sure you are in the `examples` directory when running the command, or provide the correct relative path to the example file.
+## Run the eval-test example
+
+`sql.eval.ts` uses the `@arizeai/phoenix-client/vitest` submodule and
+should be run with Vitest:
+
+```sh
+cd js/packages/phoenix-client
+OPENAI_API_KEY= PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
+  --config examples/phoenix.vitest.config.ts examples/sql.eval.ts
+```
+
+Run from the package root so `pnpm exec` can resolve the workspace package and
+dependencies.
