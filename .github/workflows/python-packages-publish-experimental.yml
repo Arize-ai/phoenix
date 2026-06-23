@@ -1,20 +1,22 @@
 name: Publish Any Pull Request
-# TODO: Restrict to PRs from arize team members only.
 
-# Publishes pre-release (alpha) builds to PyPI on pull requests, analogous to
-# typescript-packages-publish-experimental.yml which uses pkg-pr-new for npm.
+# Publishes pre-release (alpha) builds of the Python packages to PyPI on every
+# pull request, analogous to typescript-packages-publish-experimental.yml
+# (which uses pkg-pr-new for npm).
 #
-# Builds are stamped with a PEP 440 alpha suffix (e.g. 17.10.0a<run_id>) so they
-# are excluded from normal pip resolution and only installed when explicitly
-# requested (via --pre or an exact pinned version).
+# Builds are stamped with a PEP 440 alpha suffix (e.g. 17.10.0a<run_id>), so pip
+# ignores them during normal resolution and installs them only when explicitly
+# requested (--pre or an exact pinned version).
 #
-# Required one-time setup (per package on https://pypi.org):
-#   Configure a Trusted Publisher with:
-#     Owner:     arize-ai
-#     Repo:      phoenix
-#     Workflow:  python-packages-publish-experimental.yml
-#     Environment: pypi/<package-name>  (e.g. pypi/arize-phoenix-client)
-#   And create matching GitHub environments in repo Settings → Environments.
+# Publishing uses PyPI Trusted Publishers (OIDC) — no API tokens. One-time setup
+# per package on https://pypi.org:
+#   - Add a Trusted Publisher: owner arize-ai, repo phoenix,
+#     workflow python-packages-publish-experimental.yml,
+#     environment pypi/<package-name> (e.g. pypi/arize-phoenix-client).
+#   - Create the matching environment under repo Settings → Environments.
+#
+# TODO: Restrict to trusted PRs (e.g. require environment approval) before
+#       relying on this for the production PyPI packages.
 
 on:
   pull_request:
