@@ -137,7 +137,7 @@ Answer with exactly one word: `attack` or `safe`."""
 def llm_injection_judge(text):
     with suppress_tracing():
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",
             temperature=0,
             messages=[{"role": "user", "content": INJECTION_JUDGE_PROMPT.format(text=text)}],
         )
