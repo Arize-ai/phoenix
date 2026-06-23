@@ -136,7 +136,7 @@ const LabelMenuFilterContent = ({
           renderEmptyState={() => (
             <CompactEmptyState
               icon={<Icon svg={<Icons.PriceTags />} />}
-              description="No labels found"
+              description="No labels"
             />
           )}
           selectedKeys={selectedLabelIds}

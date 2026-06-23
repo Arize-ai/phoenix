@@ -238,7 +238,7 @@ function DatasetLabelList({
               renderEmptyState={() => (
                 <CompactEmptyState
                   icon={<Icon svg={<Icons.PriceTags />} />}
-                  description="No labels found"
+                  description="No labels"
                 />
               )}
             >

@@ -115,7 +115,7 @@ function DatasetsList(props: {
         renderEmptyState={() => (
           <CompactEmptyState
             icon={<Icon svg={<Icons.Database />} />}
-            description="No datasets found"
+            description="No datasets"
           />
         )}
         onSelectionChange={(selection) => {

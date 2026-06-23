@@ -130,8 +130,9 @@ const DatasetEvaluatorsEmpty = ({
     return (
       <TableEmptyWrap>
         <CompactEmptyState
-          icon={<Icon svg={<Icons.Search />} />}
-          description="No evaluators match that filter"
+          icon={<Icon svg={<Icons.Scale />} />}
+          description="No evaluators"
+          isFiltered
         />
       </TableEmptyWrap>
     );

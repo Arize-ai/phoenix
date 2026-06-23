@@ -418,7 +418,7 @@ export const MenuHeaderTitleWithSearch = () => {
               renderEmptyState={() => (
                 <CompactEmptyState
                   icon={<Icon svg={<Icons.PriceTags />} />}
-                  description="No categories found"
+                  description="No categories"
                 />
               )}
               selectedKeys={selectedIds}

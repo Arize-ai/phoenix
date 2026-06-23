@@ -275,7 +275,7 @@ export function AnnotationConfigList(props: {
         renderEmptyState={() => (
           <CompactEmptyState
             icon={<Icon svg={<Icons.List />} />}
-            description="No annotation configs found"
+            description="No annotation configs"
           />
         )}
       >

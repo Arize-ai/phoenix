@@ -1,3 +1,53 @@
+# Empty States
+
+## Filtered vs. genuinely empty
+
+A list that renders nothing has two distinct causes, and they must read
+differently:
+
+- **Genuinely empty** (no items exist, unfiltered view): topical icon + "No
+  <things>" — e.g. the tag icon + "No tags".
+- **Filtered to nothing** (a search/filter matched nothing): the search icon +
+  "No results".
+
+When a surface can be in either state — most menus, comboboxes, and
+filterable tables — it must transition between them: "No tags" with the tag
+icon until the user types a query, then "No results" with the search icon. This
+transition must hold even when the underlying list is empty — typing into a
+tags menu that has zero tags is still a search, so it reads "No results", not
+"No tags".
+
+`CompactEmptyState` handles this automatically inside a React Aria
+`Autocomplete` or `ComboBox`: it reads the live input value from context, so a
+non-empty query flips the icon/description to the search icon + "No results".
+Call sites just pass the topical icon and description:
+
+```tsx
+<Menu
+  items={tags}
+  renderEmptyState={() => (
+    <CompactEmptyState
+      icon={<Icon svg={<Icons.PriceTags />} />}
+      description="No tags"
+    />
+  )}
+>
+```
+
+Pass the `isFiltered` prop explicitly only for surfaces with no such context —
+e.g. a server-filtered table that tracks its own filter string:
+
+```tsx
+<CompactEmptyState
+  icon={<Icon svg={<Icons.Scale />} />}
+  description="No evaluators"
+  isFiltered={!!filter}
+/>
+```
+
+Do not gate `isFiltered` on `items.length` — with zero items that never flips,
+so a search in an empty list wrongly stays on the topical state.
+
 # Empty-State Graphics
 
 `EmptyStateGraphic` renders the illustration shown above an `EmptyState`.

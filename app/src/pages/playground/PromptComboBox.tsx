@@ -61,7 +61,7 @@ export function PromptComboBox({
       renderEmptyState={() => (
         <CompactEmptyState
           icon={<Icon svg={<Icons.Edit />} />}
-          description="No prompts found"
+          description="No prompts"
         />
       )}
       onSelectionChange={(key) => {

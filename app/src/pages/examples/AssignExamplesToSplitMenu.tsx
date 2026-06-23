@@ -293,7 +293,7 @@ const SplitMenuApplyContent = ({
       renderEmptyState={() => (
         <CompactEmptyState
           icon={<Icon svg={<Icons.Split />} />}
-          description="No splits found"
+          description="No splits"
         />
       )}
       // NOTE: Menu is no longer multi-select, so we track the menu open state manually

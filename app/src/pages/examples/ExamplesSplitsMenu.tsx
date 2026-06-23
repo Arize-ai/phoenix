@@ -124,7 +124,7 @@ const SplitMenuFilterContent = ({
       renderEmptyState={() => (
         <CompactEmptyState
           icon={<Icon svg={<Icons.Split />} />}
-          description="No splits found"
+          description="No splits"
         />
       )}
       selectedKeys={selectedSplitIds}

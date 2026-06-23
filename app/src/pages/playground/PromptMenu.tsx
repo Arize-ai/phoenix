@@ -301,7 +301,7 @@ export function PromptSelector({
             renderEmptyState={() => (
               <CompactEmptyState
                 icon={<Icon svg={<Icons.Edit />} />}
-                description="No prompts found"
+                description="No prompts"
               />
             )}
             onAction={(key) => {
@@ -425,7 +425,7 @@ export function PromptVersionSelector({
                 renderEmptyState={() => (
                   <CompactEmptyState
                     icon={<Icon svg={<Icons.GitBranch />} />}
-                    description="No versions found"
+                    description="No versions"
                   />
                 )}
                 selectionMode="single"
@@ -486,7 +486,7 @@ export function PromptVersionSelector({
                 renderEmptyState={() => (
                   <CompactEmptyState
                     icon={<Icon svg={<Icons.PriceTags />} />}
-                    description="No tags found"
+                    description="No tags"
                   />
                 )}
                 selectionMode="single"

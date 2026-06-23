@@ -197,7 +197,7 @@ function ProjectsList({
         renderEmptyState={() => (
           <CompactEmptyState
             icon={<Icon svg={<Icons.Folder />} />}
-            description="No projects found"
+            description="No projects"
           />
         )}
       >

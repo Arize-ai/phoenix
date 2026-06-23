@@ -210,7 +210,7 @@ export function ProjectMenu({
             renderEmptyState={() => (
               <CompactEmptyState
                 icon={<Icon svg={<Icons.Folder />} />}
-                description="No projects found"
+                description="No projects"
               />
             )}
             selectedKeys={selectedProjectId ? [selectedProjectId] : []}

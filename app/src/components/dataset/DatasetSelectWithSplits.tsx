@@ -234,7 +234,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             renderEmptyState={() => (
               <CompactEmptyState
                 icon={<Icon svg={<Icons.Database />} />}
-                description="No datasets found"
+                description="No datasets"
               />
             )}
           >
