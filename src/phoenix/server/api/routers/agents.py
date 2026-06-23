@@ -1,6 +1,7 @@
+import asyncio
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
-from contextlib import aclosing
+from contextlib import aclosing, suppress
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
@@ -26,6 +27,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ProviderMetadata,
     StartChunk,
     ToolInputAvailableChunk,
+    ToolOutputAvailableChunk,
 )
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
@@ -63,6 +65,11 @@ from phoenix.server.agents.skill_requests import (
     resolve_requested_skills,
 )
 from phoenix.server.agents.skills import get_skills_for_contexts
+from phoenix.server.agents.subagent_progress import (
+    SubagentProgressEmitter,
+    bind_subagent_progress_emitter,
+    replace_subagent_final_output,
+)
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
@@ -684,36 +691,99 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with detached_otel_context(), using_session(session_id=session_id):
-                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
-                    assert _is_async_generator(raw_stream)
-                    # Forced skills are streamed as their own `load_skill` steps so
-                    # the browser transcript matches what the model received. They
-                    # are emitted once, right after the stream's opening `start`
-                    # chunk and before the model's own output.
-                    forced_skills_streamed = not forced_skills
-                    async with aclosing(raw_stream) as stream:
-                        async for chunk in stream:
-                            if isinstance(chunk, ToolInputAvailableChunk):
-                                chunk.provider_metadata = _get_updated_provider_metadata(
-                                    provider_metadata=chunk.provider_metadata or {},
-                                    tool_name=chunk.tool_name,
-                                )
-                            yield chunk
-                            if not forced_skills_streamed and isinstance(chunk, StartChunk):
-                                for forced_chunk in iter_requested_skill_response_chunks(
-                                    skills=forced_skills,
-                                    load_skill_template=agent_prompts.load_skill,
-                                ):
-                                    if isinstance(forced_chunk, ToolInputAvailableChunk):
-                                        forced_chunk.provider_metadata = (
-                                            _get_updated_provider_metadata(
-                                                provider_metadata=forced_chunk.provider_metadata
-                                                or {},
-                                                tool_name=forced_chunk.tool_name,
+                    progress_emitter = SubagentProgressEmitter()
+                    raw_queue: asyncio.Queue[BaseChunk | Exception | None] = asyncio.Queue()
+
+                    async def _enqueue_raw_chunk(chunk: BaseChunk) -> None:
+                        if isinstance(chunk, ToolInputAvailableChunk):
+                            chunk.provider_metadata = _get_updated_provider_metadata(
+                                provider_metadata=chunk.provider_metadata or {},
+                                tool_name=chunk.tool_name,
+                            )
+                        await raw_queue.put(chunk)
+
+                    async def _produce_raw_chunks() -> None:
+                        try:
+                            with bind_subagent_progress_emitter(progress_emitter):
+                                raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                                assert _is_async_generator(raw_stream)
+                                # Forced skills are streamed as their own `load_skill` steps so
+                                # the browser transcript matches what the model received. They
+                                # are emitted once, right after the stream's opening `start`
+                                # chunk and before the model's own output.
+                                forced_skills_streamed = not forced_skills
+                                async with aclosing(raw_stream) as stream:
+                                    async for chunk in stream:
+                                        await _enqueue_raw_chunk(chunk)
+                                        if not forced_skills_streamed and isinstance(
+                                            chunk, StartChunk
+                                        ):
+                                            forced_chunks = iter_requested_skill_response_chunks(
+                                                skills=forced_skills,
+                                                load_skill_template=agent_prompts.load_skill,
                                             )
+                                            for forced_chunk in forced_chunks:
+                                                await _enqueue_raw_chunk(forced_chunk)
+                                            forced_skills_streamed = True
+                        except Exception as exc:
+                            await raw_queue.put(exc)
+                        finally:
+                            await raw_queue.put(None)
+
+                    producer = asyncio.create_task(_produce_raw_chunks())
+                    raw_done = False
+                    try:
+                        while not raw_done or not progress_emitter.empty():
+                            tasks: set[asyncio.Task[BaseChunk | Exception | None]] = set()
+                            raw_task: asyncio.Task[BaseChunk | Exception | None] | None = None
+                            progress_task: asyncio.Task[BaseChunk | Exception | None] | None = None
+                            if not raw_done:
+                                raw_task = asyncio.create_task(raw_queue.get())
+                                tasks.add(raw_task)
+                            if not raw_done or not progress_emitter.empty():
+                                progress_task = asyncio.create_task(progress_emitter.get())
+                                tasks.add(progress_task)
+
+                            done, pending = await asyncio.wait(
+                                tasks,
+                                return_when=asyncio.FIRST_COMPLETED,
+                            )
+                            for pending_task in pending:
+                                pending_task.cancel()
+                            for pending_task in pending:
+                                with suppress(asyncio.CancelledError):
+                                    await pending_task
+
+                            completed_tasks: list[asyncio.Task[BaseChunk | Exception | None]] = []
+                            if progress_task is not None and progress_task in done:
+                                completed_tasks.append(progress_task)
+                            if raw_task is not None and raw_task in done:
+                                completed_tasks.append(raw_task)
+                            for task in completed_tasks:
+                                item = task.result()
+                                if task is raw_task:
+                                    if item is None:
+                                        raw_done = True
+                                        continue
+                                    if isinstance(item, Exception):
+                                        raise item
+                                    if isinstance(item, ToolOutputAvailableChunk):
+                                        item = replace_subagent_final_output(
+                                            emitter=progress_emitter,
+                                            chunk=item,
                                         )
-                                    yield forced_chunk
-                                forced_skills_streamed = True
+                                    yield item
+                                elif task is progress_task:
+                                    if item is None:
+                                        continue
+                                    if isinstance(item, Exception):
+                                        raise item
+                                    yield item
+                    finally:
+                        if not producer.done():
+                            producer.cancel()
+                            with suppress(asyncio.CancelledError):
+                                await producer
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
