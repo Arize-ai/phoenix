@@ -13,7 +13,6 @@ from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.subagent_progress import (
     SubagentUIMessageAccumulator,
     build_subagent_tool_output,
-    get_subagent_progress_emitter,
 )
 from phoenix.server.agents.types import AgentDependencies
 
@@ -38,7 +37,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
         server_agent: AbstractAgent[None, str],
     ) -> None:
         async def call_subagent(ctx: RunContext[AgentDependencies], name: str, task: str) -> str:
-            emitter = get_subagent_progress_emitter()
+            emitter = ctx.deps.subagent_progress_emitter
             if emitter is None or ctx.tool_call_id is None:
                 result = await server_agent.run(
                     task,

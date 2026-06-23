@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-import contextvars
-from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any
 from uuid import uuid4
 
 from pydantic_ai.ui.vercel_ai.response_types import (
@@ -35,9 +33,6 @@ from pydantic_ai.ui.vercel_ai.response_types import (
 )
 from pydantic_core import to_jsonable_python
 
-_SUBAGENT_PROGRESS_EMITTER: contextvars.ContextVar[SubagentProgressEmitter | None] = (
-    contextvars.ContextVar("phoenix_subagent_progress_emitter", default=None)
-)
 _MISSING = object()
 
 
@@ -65,19 +60,6 @@ class SubagentProgressEmitter:
 
     def get_final_output(self, *, tool_call_id: str) -> Any:
         return self._final_outputs_by_tool_call_id.get(tool_call_id, _MISSING)
-
-
-@contextmanager
-def bind_subagent_progress_emitter(emitter: SubagentProgressEmitter) -> Iterator[None]:
-    token = _SUBAGENT_PROGRESS_EMITTER.set(emitter)
-    try:
-        yield
-    finally:
-        _SUBAGENT_PROGRESS_EMITTER.reset(token)
-
-
-def get_subagent_progress_emitter() -> SubagentProgressEmitter | None:
-    return _SUBAGENT_PROGRESS_EMITTER.get()
 
 
 @dataclass

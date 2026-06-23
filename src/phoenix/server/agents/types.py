@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, field
-from typing import Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from pydantic_ai import DeferredToolRequests
 
 from phoenix.server.agents.context import ResolvedContexts
+
+if TYPE_CHECKING:
+    from phoenix.server.agents.subagent_progress import SubagentProgressEmitter
 
 AgentOutput: TypeAlias = str | DeferredToolRequests
 
@@ -44,4 +49,9 @@ class AgentDependencies:
     sandbox_availability: SandboxAvailability = field(default_factory=SandboxAvailability)
     model_provider_availability: ModelProviderAvailability = field(
         default_factory=ModelProviderAvailability
+    )
+    subagent_progress_emitter: SubagentProgressEmitter | None = field(
+        default=None,
+        repr=False,
+        compare=False,
     )
