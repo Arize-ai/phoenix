@@ -1232,6 +1232,7 @@
               "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
+              "docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
             ]
           }
