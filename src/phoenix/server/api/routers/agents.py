@@ -1,11 +1,11 @@
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
-from contextlib import aclosing
+from contextlib import aclosing, nullcontext
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
-from openinference.instrumentation import using_metadata, using_session
+from openinference.instrumentation import using_metadata, using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
@@ -563,13 +563,9 @@ def _maybe_using_user(
     Attaches the Phoenix ``user.id`` OpenInference attribute to all spans
     created inside the context so traces can be filtered by user.
     """
-    import contextlib
-
-    from openinference.instrumentation import using_user
-
     if attach_user_id and phoenix_user is not None:
         return using_user(str(phoenix_user.identity))
-    return contextlib.nullcontext()
+    return nullcontext()
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:

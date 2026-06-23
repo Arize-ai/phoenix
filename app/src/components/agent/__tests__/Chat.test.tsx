@@ -67,6 +67,7 @@ function renderChatView(root: Root, { autoFocusInput = false } = {}) {
           observability={{
             storeLocalTraces: true,
             exportRemoteTraces: false,
+            attachUserId: false,
             acknowledgedTraceConsent: {
               allowLocalTraces: true,
               allowRemoteExport: false,

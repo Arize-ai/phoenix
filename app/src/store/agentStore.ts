@@ -509,6 +509,10 @@ function mergeAgentPersistedState(
   return {
     ...currentState,
     ...persisted,
+    observability: {
+      ...currentState.observability,
+      ...persisted.observability,
+    },
     capabilities: normalizeAgentCapabilities({
       capabilities: persisted.capabilities,
       defaultCapabilities: currentState.capabilities,
