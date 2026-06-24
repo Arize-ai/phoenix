@@ -3,6 +3,7 @@ sphinx==7.3.7
 pydata-sphinx-theme
 linkify-it-py
 sphinx_design
+pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]<2
 packages/phoenix-evals
 
 -e .
