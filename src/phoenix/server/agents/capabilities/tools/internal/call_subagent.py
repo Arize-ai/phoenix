@@ -136,6 +136,7 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDependencies]):
 
 
 def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
+    """Return whether a UI message has content worth publishing as progress."""
     for part in message.parts:
         if isinstance(part, StepStartUIPart):
             continue
