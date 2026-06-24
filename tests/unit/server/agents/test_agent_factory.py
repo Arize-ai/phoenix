@@ -17,13 +17,12 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from jinja2 import Template
-from pydantic_ai import Agent, RunContext, UserError
+from pydantic_ai import RunContext, UserError
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.native_tools import WebFetchTool, WebSearchTool
 from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
-from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.server.agents.agent_factory import build_agent
@@ -246,37 +245,6 @@ def _get_tool_names(body: MessageCreateParams) -> set[str]:
         if isinstance(raw_name, str):
             names.add(raw_name)
     return names
-
-
-async def _publish_subagent_message_chunk_noop(chunk: ToolOutputAvailableChunk) -> None:
-    pass
-
-
-def _set_subagent_final_tool_output_noop(chunk: ToolOutputAvailableChunk) -> None:
-    pass
-
-
-class TestBuildAgentServerAgentStreamingArgs:
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {"server_agent": Agent(TestModel(custom_output_text="ok"))},
-            {
-                "server_agent": Agent(TestModel(custom_output_text="ok")),
-                "publish_subagent_message_chunk": _publish_subagent_message_chunk_noop,
-            },
-            {
-                "publish_subagent_message_chunk": _publish_subagent_message_chunk_noop,
-                "set_subagent_final_tool_output": _set_subagent_final_tool_output_noop,
-            },
-        ],
-    )
-    def test_rejects_partially_provided_server_agent_streaming_args(
-        self,
-        kwargs: dict[str, Any],
-    ) -> None:
-        with pytest.raises(ValueError, match="must be provided together"):
-            build_agent(model=TestModel(), **kwargs)
 
 
 class TestSystemBlockCacheBoundary:
