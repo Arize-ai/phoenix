@@ -39,8 +39,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "vitest": "^4.1.8"
+    "@types/node": "^25.9.4",
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=18"
