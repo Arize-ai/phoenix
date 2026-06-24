@@ -30,7 +30,7 @@ dependencies = [
   "jsonschema",
   "pystache",
   "PyYAML",
-  "starlette>=0.37.0",
+  "starlette>=0.37.0,<2",
   "uvicorn",
   "psutil",
   "strawberry-graphql==0.316.0",
