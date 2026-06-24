@@ -466,18 +466,25 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
     return contexts.dataset is not None or contexts.llm_evaluator is not None
 
 
+class _SubagentMessageChunksClosed:
+    """Sentinel marking the subagent progress chunk queue as closed."""
+
+
+_SUBAGENT_MESSAGE_CHUNKS_CLOSED = _SubagentMessageChunksClosed()
+
+
 async def _interleave_agent_and_subagent_message_chunks(
     *,
     agent_message_chunks: AsyncIterator[BaseChunk],
-    subagent_message_chunks: asyncio.Queue[BaseChunk | None],
+    subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed],
     final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk],
 ) -> AsyncIterator[BaseChunk]:
     async def _next_agent_message_chunk() -> BaseChunk:
         return await anext(agent_message_chunks)
 
     agent_task: asyncio.Task[BaseChunk] | None = asyncio.create_task(_next_agent_message_chunk())
-    subagent_task: asyncio.Task[BaseChunk | None] | None = asyncio.create_task(
-        subagent_message_chunks.get()
+    subagent_task: asyncio.Task[BaseChunk | _SubagentMessageChunksClosed] | None = (
+        asyncio.create_task(subagent_message_chunks.get())
     )
     try:
         while agent_task is not None or subagent_task is not None:
@@ -491,7 +498,7 @@ async def _interleave_agent_and_subagent_message_chunks(
                     agent_chunk = agent_task.result()
                 except StopAsyncIteration:
                     agent_task = None
-                    await subagent_message_chunks.put(None)
+                    await subagent_message_chunks.put(_SUBAGENT_MESSAGE_CHUNKS_CLOSED)
                 else:
                     if isinstance(agent_chunk, ToolOutputAvailableChunk):
                         final_tool_output = final_tool_outputs_by_tool_call_id.pop(
@@ -507,7 +514,7 @@ async def _interleave_agent_and_subagent_message_chunks(
 
             if subagent_task is not None and subagent_task in done_tasks:
                 subagent_chunk = subagent_task.result()
-                if subagent_chunk is None:
+                if isinstance(subagent_chunk, _SubagentMessageChunksClosed):
                     subagent_task = None
                 else:
                     yield subagent_chunk
@@ -702,7 +709,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if subagents_enabled
             else None
         )
-        subagent_message_chunks: asyncio.Queue[BaseChunk | None] = asyncio.Queue()
+        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
         final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
         publish_subagent_message_chunk: (
             Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None
