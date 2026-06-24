@@ -6,6 +6,10 @@ const config: StorybookConfig = {
   stories: ["../stories/*.mdx", "../stories/*.stories.@(js|jsx|mjs|ts|tsx)"],
   core: {
     disableWhatsNewNotifications: true,
+    disableTelemetry: true,
+  },
+  features: {
+    sidebarOnboardingChecklist: false,
   },
   addons: [
     "@storybook/addon-docs",
