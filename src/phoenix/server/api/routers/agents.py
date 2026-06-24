@@ -486,6 +486,7 @@ async def _interleave_agent_and_subagent_message_chunks(
     subagent_task: asyncio.Task[BaseChunk | _SubagentMessageChunksClosed] | None = (
         asyncio.create_task(subagent_message_chunks.get())
     )
+    completed_tool_call_ids: set[str] = set()
     try:
         while agent_task is not None or subagent_task is not None:
             pending_tasks = {task for task in (agent_task, subagent_task) if task is not None}
@@ -509,6 +510,8 @@ async def _interleave_agent_and_subagent_message_chunks(
                             agent_message_chunk = agent_message_chunk.model_copy(
                                 update={"output": final_tool_output.output}
                             )
+                        if agent_message_chunk.preliminary is not True:
+                            completed_tool_call_ids.add(agent_message_chunk.tool_call_id)
                     yield agent_message_chunk
                     agent_task = asyncio.create_task(_next_agent_message_chunk())
 
@@ -517,7 +520,15 @@ async def _interleave_agent_and_subagent_message_chunks(
                 if isinstance(subagent_message_chunk, _SubagentMessageChunksClosed):
                     subagent_task = None
                 else:
-                    yield subagent_message_chunk
+                    # A queued progress chunk can arrive after the parent stream
+                    # has emitted the terminal tool output. Do not let stale
+                    # preliminary state overwrite the completed tool part.
+                    if not (
+                        isinstance(subagent_message_chunk, ToolOutputAvailableChunk)
+                        and subagent_message_chunk.preliminary is True
+                        and subagent_message_chunk.tool_call_id in completed_tool_call_ids
+                    ):
+                        yield subagent_message_chunk
                     subagent_task = asyncio.create_task(subagent_message_chunks.get())
     finally:
         tasks_to_cancel: list[asyncio.Task[Any]] = []
