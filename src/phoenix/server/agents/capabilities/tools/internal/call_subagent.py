@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic
 
 from pydantic import BaseModel
 from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
+from pydantic_ai.tools import AgentDepsT
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 from pydantic_ai.ui.vercel_ai import VercelAIEventStream
 from pydantic_ai.ui.vercel_ai.request_types import (
@@ -23,8 +24,6 @@ from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
-
-AgentDepsT = TypeVar("AgentDepsT")
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
 Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \
