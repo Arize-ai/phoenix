@@ -1,5 +1,29 @@
 # Changelog
 
+## [17.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.10.0...arize-phoenix-v17.11.0) (2026-06-24)
+
+
+### Features
+
+* **agent:** submit highlighted command on Enter in skill prompt ([#13868](https://github.com/Arize-ai/phoenix/issues/13868)) ([ea02242](https://github.com/Arize-ai/phoenix/commit/ea0224278315ca2734072e97f44e6760dd5e4ef5))
+* **annotations:** show trace annotation summaries in project stats panel ([#13855](https://github.com/Arize-ai/phoenix/issues/13855)) ([604a087](https://github.com/Arize-ai/phoenix/commit/604a087256a161e99a82c6b00e5d419b92626d91))
+* **evals:** agent-readable failure reports for PXI eval harness (closes [#13668](https://github.com/Arize-ai/phoenix/issues/13668)) ([#13737](https://github.com/Arize-ai/phoenix/issues/13737)) ([c59fb82](https://github.com/Arize-ai/phoenix/commit/c59fb82d220201fee4188445a4a1ff8a8b2e02e1))
+* **server:** expose agent endpoints in Swagger UI when running with --dev ([#13873](https://github.com/Arize-ai/phoenix/issues/13873)) ([25cb3de](https://github.com/Arize-ai/phoenix/commit/25cb3de333a07284acd5638a2e2317a933f3b07d))
+
+
+### Bug Fixes
+
+* **server:** cap pydantic-ai-slim below 2.0 to unbreak PyPI installs ([#13881](https://github.com/Arize-ai/phoenix/issues/13881)) ([379e231](https://github.com/Arize-ai/phoenix/commit/379e231ec7a7ce6108c61a2649419d5781f2b459))
+* **trace:** add bounded HTTP timeouts to dataset/trace fixtures ([#13747](https://github.com/Arize-ai/phoenix/issues/13747)) ([6438a80](https://github.com/Arize-ai/phoenix/commit/6438a80c0174e472453ef3c5f3e4aec6f5ee474d))
+* **ui:** restore outline shape for thumbs up/down feedback icons ([#13871](https://github.com/Arize-ai/phoenix/issues/13871)) ([e3bc988](https://github.com/Arize-ai/phoenix/commit/e3bc98801defd52ded4b3cb7f4bdb6cb7fb6137b))
+
+
+### Documentation
+
+* **tutorials:** level up email model-comparison into eval-harness cookbook (DEV-357) ([#13718](https://github.com/Arize-ai/phoenix/issues/13718)) ([537b7e6](https://github.com/Arize-ai/phoenix/commit/537b7e6494615a06ba052eb60477b563c5c3a904))
+* **tutorials:** level up session-level evaluation cookbook ([#13728](https://github.com/Arize-ai/phoenix/issues/13728)) ([d411ea0](https://github.com/Arize-ai/phoenix/commit/d411ea0ce5aefe7aa0dbd2ffcf94a08b06369635))
+* **tutorials:** level up the realtime guardrails cookbook (concept-first) ([#13721](https://github.com/Arize-ai/phoenix/issues/13721)) ([ef2be08](https://github.com/Arize-ai/phoenix/commit/ef2be08634ffc33fddd912da30a366a15ebdc4cb))
+
 ## [17.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.9.0...arize-phoenix-v17.10.0) (2026-06-20)
 
 
