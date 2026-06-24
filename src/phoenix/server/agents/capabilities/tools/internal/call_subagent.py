@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, cast
 
 from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
@@ -12,6 +11,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
     DataUIPart,
     ReasoningUIPart,
     StepStartUIPart,
+    SubmitMessage,
     TextUIPart,
     UIMessage,
 )
@@ -59,7 +59,9 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 nonlocal final_summary
                 final_summary = result.output
 
-            event_stream = VercelAIEventStream(run_input=cast(Any, task))
+            event_stream = VercelAIEventStream(
+                run_input=_get_subagent_request_data(tool_call_id=tool_call_id, task=task)
+            )
             async with server_agent.run_stream_events(
                 task,
                 deps=None,
@@ -142,6 +144,19 @@ def _has_visible_ui_message_parts(message: UIMessage) -> bool:
             continue
         return True
     return False
+
+
+def _get_subagent_request_data(*, tool_call_id: str, task: str) -> SubmitMessage:
+    return SubmitMessage(
+        id=f"subagent-{tool_call_id}",
+        messages=[
+            UIMessage(
+                id=f"subagent-task-{tool_call_id}",
+                role="user",
+                parts=[TextUIPart(text=task)],
+            )
+        ],
+    )
 
 
 def _get_ui_message_text(message: UIMessage) -> str:
