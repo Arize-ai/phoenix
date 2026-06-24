@@ -126,7 +126,7 @@ export interface TestConfig {
  * - `"passRate"` — gate on consistency: each run **passes** when the
  *   criterion's `passFn` predicate returns `true` for its annotation, and the
  *   suite passes when the **fraction** of runs that pass is at least
- *   `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass; `threshold: 1` ⇒ all).
+ *   `minPassRate` (e.g. `minPassRate: 0.9` ⇒ 90% must pass; `1` ⇒ all).
  */
 export type AcceptanceMetric = "average" | "passRate";
 
@@ -165,9 +165,9 @@ export interface AverageAcceptanceCriterion extends AcceptanceCriterionBase {
 
 /**
  * Gate the suite on the **pass rate**: each run passes when `passFn` returns
- * `true` for its annotation, and the suite passes when at least `threshold` of
- * runs do. `passFn` decides what "passing" means, so any logic works — a score
- * bar, a score range, a label match, a metadata check, etc.
+ * `true` for its annotation, and the suite passes when at least `minPassRate`
+ * of runs do. `passFn` decides what "passing" means, so any logic works — a
+ * score bar, a score range, a label match, a metadata check, etc.
  */
 export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
   metric: "passRate";
@@ -181,9 +181,9 @@ export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
   /**
    * Minimum fraction of runs (`0`–`1`) that must pass for the suite to pass —
    * e.g. `0.9` requires 90% of runs to satisfy `passFn`, `1` requires all of
-   * them. Always compared as `passRate >= threshold`.
+   * them. The suite passes when `passRate >= minPassRate`.
    */
-  threshold: number;
+  minPassRate: number;
 }
 
 /**

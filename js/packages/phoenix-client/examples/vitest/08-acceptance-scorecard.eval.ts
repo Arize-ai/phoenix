@@ -6,7 +6,7 @@
  *     (`direction: "minimize"` flips the comparison for lower-is-better metrics).
  *   - "passRate" — each run passes when `passFn` returns true for its
  *     annotation; the suite passes when the fraction of passing runs is at
- *     least `threshold`.
+ *     least `minPassRate`.
  *
  * Criteria run after every case, so the reporter prints the full scorecard
  * before failing CI on a miss.
@@ -56,14 +56,14 @@ px.describe(
         annotationName: "token_f1",
         metric: "passRate",
         passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
-        threshold: 0.9,
+        minPassRate: 0.9,
       },
       // hard floor: every run must produce valid SQL (boolean must be true)
       {
         annotationName: "valid_sql",
         metric: "passRate",
         passFn: (a) => a.score === true,
-        threshold: 1,
+        minPassRate: 1,
       },
       // lower-is-better: the mean latency must stay at or below 200ms
       {

@@ -56,7 +56,7 @@ export function formatAcceptanceResult(result: AcceptanceResult): string {
     const cmp = (result.direction ?? "maximize") === "minimize" ? "<=" : ">=";
     requirement = `mean ${cmp} ${result.threshold.toFixed(3)}`;
   } else {
-    requirement = `pass rate >= ${result.threshold.toFixed(3)}`;
+    requirement = `pass rate >= ${result.minPassRate.toFixed(3)}`;
   }
   const reason = result.failureReason ? ` - ${result.failureReason}` : "";
   return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} ${sampleLabel})${reason}`;
@@ -96,8 +96,8 @@ function evaluateAcceptanceCriterion({
   }
 
   // passRate: each run passes when `passFn` returns true for its annotation;
-  // the suite passes when the fraction of passing runs is at least `threshold`.
-  // The reported value is that fraction.
+  // the suite passes when the fraction of passing runs is at least
+  // `minPassRate`. The reported value is that fraction.
   if (annotations.length === 0) {
     return {
       ...criterion,
@@ -115,7 +115,7 @@ function evaluateAcceptanceCriterion({
     ...criterion,
     value,
     sampleCount: annotations.length,
-    passed: value >= criterion.threshold,
+    passed: value >= criterion.minPassRate,
   };
 }
 

@@ -163,8 +163,8 @@ Each criterion aggregates one annotation (by `annotationName`) with one
   long as the mean holds.
 - **`passRate`** — gate on consistency. Each run *passes* when its `passFn`
   predicate returns `true`, and the suite passes when the **fraction** of
-  passing runs is at least `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass;
-  `threshold: 1` ⇒ all of them).
+  passing runs is at least `minPassRate` (e.g. `minPassRate: 0.9` ⇒ 90% must
+  pass; `minPassRate: 1` ⇒ all of them).
 
 `passFn` receives the run's annotation (`score`, `label`, `explanation`,
 `metadata`, …) and returns a boolean, so it can express any pass rule — a score
@@ -182,14 +182,14 @@ px.describe("text-to-sql", () => {
       annotationName: "token_f1",
       metric: "passRate",
       passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
-      threshold: 0.9,
+      minPassRate: 0.9,
     },
     // hard floor: every run must produce valid SQL (boolean must be true)
     {
       annotationName: "valid_sql",
       metric: "passRate",
       passFn: (a) => a.score === true,
-      threshold: 1,
+      minPassRate: 1,
     },
     // budget: lower is better, so the mean latency must stay <= 800ms
     {

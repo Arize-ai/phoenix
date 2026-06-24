@@ -334,7 +334,7 @@ px.describe(
         annotationName: "pass",
         metric: "passRate",
         passFn: (a) => a.score === true,
-        threshold: 1,
+        minPassRate: 1,
       },
     ],
   }

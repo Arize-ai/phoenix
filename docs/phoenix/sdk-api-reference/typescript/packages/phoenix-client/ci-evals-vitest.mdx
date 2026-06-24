@@ -75,7 +75,7 @@ px.describe("my suite", () => { ... }, {
       annotationName: "token_f1",
       metric: "passRate",
       passFn: (a) => typeof a.score === "number" && a.score >= 0.5,
-      threshold: 0.9,
+      minPassRate: 0.9,
     },
   ],
   dryRun: true,                  // run this suite locally; sync nothing
@@ -167,7 +167,7 @@ annotation (by `annotationName`) with one `metric`:
   must clear `threshold` (compared in `direction`).
 - `metric: "passRate"` — gate on consistency: each run passes when its `passFn`
   predicate returns `true`, and the suite passes when the fraction of passing
-  runs is at least `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass).
+  runs is at least `minPassRate` (e.g. `minPassRate: 0.9` ⇒ 90% must pass).
 
 `passFn` receives the run's annotation and returns a boolean, so it can express
 any pass rule — a score bar, a range, a label match, a metadata check, etc.
@@ -184,14 +184,14 @@ px.describe("text-to-sql scorecard", () => {
       annotationName: "token_f1",
       metric: "passRate",
       passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
-      threshold: 0.9,
+      minPassRate: 0.9,
     },
     // hard floor: every run must produce valid SQL (boolean must be true)
     {
       annotationName: "valid_sql",
       metric: "passRate",
       passFn: (a) => a.score === true,
-      threshold: 1,
+      minPassRate: 1,
     },
     // budget: lower is better, so the mean latency must stay <= 800ms
     {
@@ -207,10 +207,11 @@ px.describe("text-to-sql scorecard", () => {
 | Field | Description |
 |-------|-------------|
 | `annotationName` | Annotation to aggregate. If a run logs the same annotation more than once, the last one counts. |
-| `metric` | `"average"` checks the mean of all numeric/boolean scores against `threshold` (tolerates weak runs if the mean holds); `"passRate"` counts runs whose `passFn` returns `true` and requires that **fraction** to reach `threshold`. |
-| `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes, given its last annotation for `annotationName` (`score`, `label`, `explanation`, `metadata`, …). |
-| `threshold` | For `average`, the bar the mean must clear (in `direction`). For `passRate`, the minimum fraction of runs (`0`–`1`) that must pass (`1` = all). |
+| `metric` | `"average"` checks the mean of all numeric/boolean scores against `threshold` (tolerates weak runs if the mean holds); `"passRate"` counts runs whose `passFn` returns `true` and requires that **fraction** to reach `minPassRate`. |
+| `threshold` | **`average` only.** The bar the mean must clear (in `direction`). |
 | `direction` | **`average` only.** `"maximize"` (default; higher mean is better, clears `threshold` when `>=`) or `"minimize"` (lower is better, clears when `<=`). Use `"minimize"` for cost, latency, or error rates. |
+| `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes, given its last annotation for `annotationName` (`score`, `label`, `explanation`, `metadata`, …). |
+| `minPassRate` | **`passRate` only.** Minimum fraction of runs (`0`–`1`) that must pass for the suite to pass (`1` = all). The suite passes when `passRate >= minPassRate`. |
 
 **Edge cases.** An `average` criterion with no numeric/boolean scores — or a
 `passRate` criterion whose annotation was never logged — fails rather than
