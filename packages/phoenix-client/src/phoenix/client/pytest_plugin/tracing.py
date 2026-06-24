@@ -18,23 +18,23 @@ from phoenix.client.resources.experiments import (
     OPENINFERENCE_SPAN_KIND,
     OUTPUT_MIME_TYPE,
     OUTPUT_VALUE,
-    _get_tracer,
-    _str_trace_id,
+    _get_tracer,  # pyright: ignore[reportPrivateUsage]
+    _str_trace_id,  # pyright: ignore[reportPrivateUsage]
     capture_spans,
 )
 
 logger = logging.getLogger(__name__)
 
 _JSON_MIME = JSON.value
-_DEGRADE_WARNED = False
+_degrade_warned = False
 
 
 def _warn_degraded(detail: str) -> None:
     """Surface a single visible warning the first time tracing degrades this process."""
-    global _DEGRADE_WARNED
-    if _DEGRADE_WARNED:
+    global _degrade_warned
+    if _degrade_warned:
         return
-    _DEGRADE_WARNED = True
+    _degrade_warned = True
     logger.warning(
         "Phoenix plugin: tracing degraded; runs/evaluations will not link to traces (%s)",
         detail,

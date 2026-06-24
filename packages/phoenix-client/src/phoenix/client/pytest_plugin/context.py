@@ -151,23 +151,29 @@ def _invoke_evaluator(evaluator: Any, eval_input: Mapping[str, Any]) -> Any:
 def _iter_scores(result: Any, *, default_name: str) -> list[dict[str, Any]]:
     """Normalize a `phoenix.evals` Score / Sequence[Score] / dict into eval-kwarg dicts."""
     scores: list[dict[str, Any]] = []
-    candidates = result if isinstance(result, (list, tuple)) else [result]
+    if isinstance(result, (list, tuple)):
+        seq: Any = result
+        candidates: list[Any] = list(seq)
+    else:
+        candidates = [result]
     for idx, item in enumerate(candidates):
         if item is None:
             continue
-        name = getattr(item, "name", None)
+        name: Any = getattr(item, "name", None)
         if name is None and isinstance(item, Mapping):
-            name = item.get("name")
+            mapping: Mapping[Any, Any] = item
+            name = mapping.get("name")
         if not name:
             name = default_name if len(candidates) == 1 else f"{default_name}-{idx + 1}"
         if isinstance(item, Mapping):
+            mapping = item
             scores.append(
                 {
                     "name": name,
-                    "score": item.get("score"),
-                    "label": item.get("label"),
-                    "explanation": item.get("explanation"),
-                    "metadata": item.get("metadata"),
+                    "score": mapping.get("score"),
+                    "label": mapping.get("label"),
+                    "explanation": mapping.get("explanation"),
+                    "metadata": mapping.get("metadata"),
                 }
             )
         else:

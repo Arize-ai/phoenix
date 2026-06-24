@@ -79,7 +79,10 @@ def test_log_run_tolerate_existing_swallows_409() -> None:
 
 
 def test_log_evaluation_requires_result_or_error() -> None:
-    exp = Experiments(client=_client(lambda r: httpx.Response(200, json={"data": {"id": "x"}})))
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": {"id": "x"}})
+
+    exp = Experiments(client=_client(handler))
     with pytest.raises(ValueError):
         exp.log_evaluation(experiment_run_id="ExperimentRun:1", name="pass")
 

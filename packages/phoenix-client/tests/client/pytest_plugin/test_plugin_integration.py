@@ -7,6 +7,8 @@ offline-mode test asserts zero client construction.
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 pytest_plugins = ["pytester"]
@@ -434,10 +436,10 @@ def pytest_unconfigure(config):
 """
 
 
-def _trace_effects(pytester: pytest.Pytester) -> dict:
+def _trace_effects(pytester: pytest.Pytester) -> dict[str, Any]:
     import json
 
-    return json.loads((pytester.path / "trace.json").read_text())
+    return cast("dict[str, Any]", json.loads((pytester.path / "trace.json").read_text()))
 
 
 def _is_trace_id(value: object) -> bool:
@@ -612,10 +614,10 @@ def pytest_unconfigure(config):
 _TRACING_CAPTURE_CONFTEST = _SPAN_CAPTURE_HEADER + _TRACING_CONFTEST + _SPAN_CAPTURE_FOOTER
 
 
-def _spans(pytester: pytest.Pytester) -> list:
+def _spans(pytester: pytest.Pytester) -> list[dict[str, Any]]:
     import json
 
-    return json.loads((pytester.path / "spans.json").read_text())
+    return cast("list[dict[str, Any]]", json.loads((pytester.path / "spans.json").read_text()))
 
 
 def test_failing_test_records_error_chain_span(pytester: pytest.Pytester) -> None:

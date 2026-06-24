@@ -6,7 +6,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 from .config import PhoenixTestConfig
-from .context import _invoke_evaluator, _iter_scores, _RunRecord
+from .context import (
+    _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+    _iter_scores,  # pyright: ignore[reportPrivateUsage]
+    _RunRecord,  # pyright: ignore[reportPrivateUsage]
+)
 from .marker import REPETITION_PARAM, resolve_evaluators
 from .tracing import SuiteTracer, build_suite_tracer
 
@@ -160,16 +164,20 @@ class SuiteState:
     def _resolve_examples(self, group: DatasetGroup) -> None:
         if group.dataset_id is None:
             return
-        from phoenix.client.resources.experiments import _example_global_id
+        from phoenix.client.resources.experiments import (
+            _example_global_id,  # pyright: ignore[reportPrivateUsage]
+        )
 
         dataset = self._client.datasets.get_dataset(dataset=group.dataset_id)
         # Use the node GlobalID, never "id": custom-id uploads put external_id in "id" and the
         # GlobalID in "node_id" (guards the PR #13702 zero-runs bug).
         by_nodeid: dict[str, str] = {}
         for example in dataset.examples:
-            nodeid = (example.get("metadata") or {}).get("pytest_nodeid")
+            example_any: Any = example
+            metadata: Any = example_any.get("metadata") or {}
+            nodeid: Any = metadata.get("pytest_nodeid")
             if nodeid:
-                by_nodeid[str(nodeid)] = _example_global_id(example)
+                by_nodeid[str(nodeid)] = _example_global_id(example_any)
         for external_id, binding in group.bindings.items():
             example_id = by_nodeid.get(binding.nodeid)
             if example_id:

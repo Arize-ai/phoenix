@@ -4,12 +4,16 @@ import logging
 import os
 from contextlib import nullcontext
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pytest
 
 from .config import PhoenixTestConfig, PhoenixTestConfigError
-from .context import _RunRecord, reset_current_run, set_current_run
+from .context import (
+    _RunRecord,  # pyright: ignore[reportPrivateUsage]
+    reset_current_run,
+    set_current_run,
+)
 from .marker import (
     MARKER_NAME,
     REPETITION_PARAM,
@@ -125,8 +129,10 @@ def pytest_collection_modifyitems(
         return
     if _is_xdist_worker(config):
         # Workers reuse the controller's ids; experiment creation isn't idempotent (the upsert is).
-        workerinput: dict[str, Any] = config.workerinput  # type: ignore[attr-defined]
-        broadcast = workerinput.get("phoenix_experiments")
+        workerinput = cast("dict[str, Any]", config.workerinput)  # type: ignore[attr-defined]
+        broadcast = cast(
+            "Optional[dict[str, dict[str, Any]]]", workerinput.get("phoenix_experiments")
+        )
         if broadcast:
             state.adopt_broadcast(broadcast)
         return
@@ -179,6 +185,7 @@ def pytest_configure_node(node: Any) -> None:  # pragma: no cover - xdist hook
 def pytest_runtest_call(item: "Item") -> Any:
     """Own the run accumulator: derive ``pass``+``error`` from ``outcome.excinfo``, then post
     the run and its annotations."""
+    outcome: Any = None
     state = _get_state(item.config)
     binding = state.binding_for(item) if state is not None else None
     if binding is None:
@@ -190,6 +197,7 @@ def pytest_runtest_call(item: "Item") -> Any:
     record = _RunRecord(nodeid=item.nodeid, external_id=binding.external_id, tracer=tracer)
     token = set_current_run(record)
     start_time = datetime.now(timezone.utc)
+    handle: Any = None
     span_cm: Any = (
         tracer.chain_span(
             f"Test: {item.nodeid}",
@@ -209,7 +217,7 @@ def pytest_runtest_call(item: "Item") -> Any:
         record.trace_id = getattr(handle, "trace_id", None)
         reset_current_run(token)
         end_time = datetime.now(timezone.utc)
-        excinfo = outcome.excinfo  # (type, value, tb) or None
+        excinfo: Any = outcome.excinfo  # (type, value, tb) or None
         error = None
         passed = True
         if excinfo is not None:

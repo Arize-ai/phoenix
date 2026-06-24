@@ -63,11 +63,12 @@ def resolve_evaluators(item: "Item") -> list[Any]:
     marker = get_marker(item)
     if marker is None:
         return []
-    evaluators = marker.kwargs.get("evaluators")
+    evaluators: Any = marker.kwargs.get("evaluators")
     if evaluators is None:
         return []
     if isinstance(evaluators, (list, tuple)):
-        return list(evaluators)
+        seq: Any = evaluators
+        return list(seq)
     return [evaluators]
 
 
