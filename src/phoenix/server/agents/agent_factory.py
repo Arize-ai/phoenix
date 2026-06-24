@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import overload
 
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
@@ -58,34 +57,6 @@ def get_skills_capability_function(
         )
 
     return _build
-
-
-@overload
-def build_agent(
-    *,
-    model: Model,
-    prompts: AgentPrompts | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
-    enable_web_access: bool = False,
-    tracer_provider: TracerProvider | None = None,
-    server_agent: None = None,
-    publish_subagent_message_chunk: None = None,
-    set_subagent_final_tool_output: None = None,
-) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]: ...
-
-
-@overload
-def build_agent(
-    *,
-    model: Model,
-    prompts: AgentPrompts | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
-    enable_web_access: bool = False,
-    tracer_provider: TracerProvider | None = None,
-    server_agent: AbstractAgent[None, str],
-    publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]],
-    set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None],
-) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]: ...
 
 
 def build_agent(

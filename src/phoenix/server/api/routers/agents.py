@@ -740,9 +740,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
-            server_agent=server_agent,  # type: ignore[arg-type]
-            publish_subagent_message_chunk=publish_subagent_message_chunk,  # type: ignore[arg-type]
-            set_subagent_final_tool_output=set_subagent_final_tool_output,  # type: ignore[arg-type]
+            server_agent=server_agent,
+            publish_subagent_message_chunk=publish_subagent_message_chunk,
+            set_subagent_final_tool_output=set_subagent_final_tool_output,
         )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
