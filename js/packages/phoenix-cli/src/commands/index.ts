@@ -1,4 +1,5 @@
 export * from "./annotationConfig";
+export * from "./agent";
 export * from "./auth";
 export * from "./profile";
 export * from "./project";

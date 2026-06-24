@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { printBanner } from "./banner";
 import {
   createAnnotationConfigCommand,
+  createAgentCommand,
   createApiCommand,
   createAuthCommand,
   createDatasetCommand,
@@ -32,6 +33,7 @@ export function createProgram(): Command {
 
   // Register commands
   program.addCommand(createAnnotationConfigCommand());
+  program.addCommand(createAgentCommand());
   program.addCommand(createAuthCommand());
   program.addCommand(createProfileCommand());
   program.addCommand(createProjectCommand());
