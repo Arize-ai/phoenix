@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+from pydantic import BaseModel
 from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
@@ -28,6 +29,15 @@ Delegate a natural-language task to the Phoenix GraphQL server agent, which quer
 the Phoenix backend and returns a concise answer. Use for any task that requires \
 data about projects, traces, spans, datasets, experiments, or evaluations.
 """
+
+
+class CallSubagentOutput(BaseModel):
+    summary: str
+    message: UIMessage
+
+
+class CallSubagentOutputChunk(ToolOutputAvailableChunk):
+    output: CallSubagentOutput
 
 
 class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
@@ -73,15 +83,12 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                     if not _has_visible_ui_message_parts(message):
                         continue
                     await publish_subagent_message_chunk(
-                        ToolOutputAvailableChunk(
+                        CallSubagentOutputChunk(
                             tool_call_id=tool_call_id,
-                            output={
-                                "summary": final_summary or _get_ui_message_text(message),
-                                "message": message.model_dump(
-                                    by_alias=True,
-                                    exclude_none=True,
-                                ),
-                            },
+                            output=CallSubagentOutput(
+                                summary=final_summary or _get_ui_message_text(message),
+                                message=message,
+                            ),
                             preliminary=True,
                         )
                     )
@@ -96,15 +103,9 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 final_summary if final_summary is not None else _get_ui_message_text(latest_message)
             )
             set_subagent_final_tool_output(
-                ToolOutputAvailableChunk(
+                CallSubagentOutputChunk(
                     tool_call_id=tool_call_id,
-                    output={
-                        "summary": summary,
-                        "message": latest_message.model_dump(
-                            by_alias=True,
-                            exclude_none=True,
-                        ),
-                    },
+                    output=CallSubagentOutput(summary=summary, message=latest_message),
                 )
             )
             return summary

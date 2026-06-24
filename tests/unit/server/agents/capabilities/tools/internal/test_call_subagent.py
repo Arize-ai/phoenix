@@ -3,9 +3,11 @@ from __future__ import annotations
 import pytest
 from pydantic_ai import Agent, RunContext, RunUsage
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.ui.vercel_ai.request_types import TextUIPart
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities.tools.internal.call_subagent import (
+    CallSubagentOutput,
     CallSubAgentToolset,
 )
 from phoenix.server.agents.context import ResolvedContexts
@@ -67,13 +69,17 @@ class TestCallSubAgentToolset:
         [final_chunk] = final_chunks
         assert final_chunk.tool_call_id == "parent-tool-call-1"
         assert final_chunk.preliminary is None
-        assert final_chunk.output["summary"] == "subagent summary"
-        message = final_chunk.output["message"]
-        assert message["role"] == "assistant"
+        assert isinstance(final_chunk.output, CallSubagentOutput)
+        assert final_chunk.output.summary == "subagent summary"
+        message = final_chunk.output.message
+        assert message.role == "assistant"
         assert any(
-            part["type"] == "text" and part["text"] == "subagent summary"
-            for part in message["parts"]
+            isinstance(part, TextUIPart) and part.text == "subagent summary"
+            for part in message.parts
         )
+        dumped_chunk = final_chunk.model_dump(by_alias=True, exclude_none=True)
+        assert dumped_chunk["output"]["summary"] == "subagent summary"
+        assert dumped_chunk["output"]["message"]["role"] == "assistant"
 
     async def test_errors_clearly_when_tool_call_id_is_missing(self) -> None:
         published_chunks: list[ToolOutputAvailableChunk] = []
