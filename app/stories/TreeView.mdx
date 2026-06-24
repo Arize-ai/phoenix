@@ -11,6 +11,13 @@ no indentation, padding, or theming yet. Those arrive as we iterate.
 
 <Canvas of={TreeViewStories.PrimitiveTree} />
 
+## Mouse
+
+- **Click a row** — selects it.
+- **Click the selected row again** — opens / closes it (toggles its children).
+- **Click the chevron** — opens / closes the row without changing selection.
+- Hovering a row highlights it.
+
 ## Keyboard
 
 The tree is a single tab stop (roving tabindex): **Tab** moves onto it, **Tab**
@@ -19,7 +26,7 @@ again moves past it.
 - **↑ / ↓** — move between rows
 - **← / →** — collapse / expand a row with children
 - **Home / End** — first / last row
-- **Enter / Space** — select the focused row
+- **Enter / Space** — select the focused row (re-press to open it)
 
-The border highlights the focused row for keyboard nav and the hovered row for
-the mouse.
+Rows show three states: hovered (mouse), focused (keyboard outline), and
+selected (filled).
