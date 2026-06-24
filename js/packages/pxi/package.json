@@ -1,0 +1,60 @@
+{
+  "name": "@arizeai/pxi",
+  "version": "0.1.0",
+  "description": "Phoenix Intelligence (PXI) — a terminal chatbot for the Phoenix server agent",
+  "keywords": [
+    "agent",
+    "arize",
+    "cli",
+    "llmops",
+    "phoenix",
+    "pxi",
+    "tui"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/pxi",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "bin": {
+    "pxi": "src/index.tsx"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "package.json"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.tsx",
+    "start": "bun run src/index.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-config": "workspace:*",
+    "@opentui/core": "^0.4.1",
+    "@opentui/react": "^0.4.1",
+    "ai": "^6.0.208",
+    "commander": "^15.0.0",
+    "react": "^19.2.6"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^25.9.4",
+    "@types/react": "^19.2.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "engines": {
+    "bun": ">=1.2",
+    "node": ">=20"
+  }
+}
