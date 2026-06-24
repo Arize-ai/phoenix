@@ -910,6 +910,9 @@ function CallSubagentToolDetails({ part }: { part: ToolInvocationPart }) {
 
 function CallSubagentMessagePart({ part }: { part: MessagePart }) {
   if (part.type === "text") {
+    if (part.text.trim().length === 0) {
+      return null;
+    }
     return (
       <MarkdownBlock mode="markdown" renderMode="streaming" margin="none">
         {part.text}
@@ -917,6 +920,9 @@ function CallSubagentMessagePart({ part }: { part: MessagePart }) {
     );
   }
   if (part.type === "reasoning") {
+    if (part.text.trim().length === 0) {
+      return null;
+    }
     return (
       <ToolPartExpandableSection>
         <ToolPartCodeBlock>{part.text}</ToolPartCodeBlock>
@@ -931,9 +937,13 @@ function CallSubagentMessagePart({ part }: { part: MessagePart }) {
       <ToolPart part={part} defaultOpen={part.state !== "output-available"} />
     );
   }
+  const value = stringifyToolValue(part);
+  if (value.trim().length === 0) {
+    return null;
+  }
   return (
     <ToolPartExpandableSection>
-      <ToolPartCodeBlock>{stringifyToolValue(part)}</ToolPartCodeBlock>
+      <ToolPartCodeBlock>{value}</ToolPartCodeBlock>
     </ToolPartExpandableSection>
   );
 }
