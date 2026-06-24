@@ -35,7 +35,16 @@ The vitest examples live in [`vitest/`](./vitest) and use the
 - `sql.eval.ts` — the same flow backed by a real OpenAI call when `OPENAI_API_KEY`
   is set (otherwise it falls back to the offline stand-in).
 
-Run the whole suite locally without syncing anything to Phoenix:
+The examples import the package's built entrypoints (e.g.
+`@arizeai/phoenix-client/vitest/reporter`, which the package maps to `dist/`),
+so build the package once first — in a fresh checkout `dist/` does not exist yet:
+
+```sh
+cd js/packages/phoenix-client
+pnpm build
+```
+
+Then run the whole suite locally without syncing anything to Phoenix:
 
 ```sh
 cd js/packages/phoenix-client

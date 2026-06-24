@@ -329,7 +329,8 @@ px.describe(
   },
   {
     acceptanceCriteria: [
-      { annotationName: "pass", metric: "passRate", threshold: 1 },
+      // every test must pass (the auto-logged `pass` boolean must be true)
+      { annotationName: "pass", metric: "passThreshold", threshold: 1 },
     ],
   }
 );
@@ -344,8 +345,10 @@ Supplying more than one at a time is a type error.
 Use `@arizeai/phoenix-client/vitest/reporter` or
 `@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
 experiment links, annotation aggregates, and acceptance criteria at the end
-of a run. Acceptance criteria gate graded metrics after the suite finishes,
-so CI can allow an 80% score while still running every case.
+of a run. Acceptance criteria gate the suite after it finishes — `average`
+checks an aggregate bar (so CI can allow a mean of 80% while still running
+every case), and `passThreshold` enforces a per-run floor that every case must
+clear.
 
 See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
 `ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full

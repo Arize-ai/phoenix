@@ -70,9 +70,8 @@ that shipped with your project.
 
 ## Phoenix Terminology
 
-The public API uses Phoenix terms end-to-end. There is no LangSmith
-naming layer — what you read in this package matches what shows up in
-the Phoenix UI and the REST API.
+The public API uses Phoenix terms end-to-end — what you read in this package
+matches what shows up in the Phoenix UI and the REST API.
 
 | Test field                  | Phoenix concept                          |
 | --------------------------- | ---------------------------------------- |
@@ -150,27 +149,35 @@ shown per suite in compact mode (failures are never hidden).
 
 ## Acceptance Criteria
 
-Acceptance criteria gate the suite on aggregate annotation scores. Every
-criterion has a `threshold`, and `metric` decides how it is applied:
+Acceptance criteria turn a suite into a CI gate. After every test runs, Phoenix
+aggregates the annotation scores you logged and fails the suite if any criterion
+misses its bar. Because they run *after* all tests, every case still executes
+and the reporter prints the full scorecard before failing — you see every
+regression in one run, not just the first.
 
-- `metric: "average"` — the mean score across all runs must clear `threshold`.
-- `metric: "passRate"` — **every** run's score must clear `threshold` (the
-  suite passes only when all runs do).
+Each criterion aggregates one annotation (by `annotationName`) with one
+`metric`:
 
-Both accept an optional `direction` (`"maximize"`, the default, or
-`"minimize"`) that flips every comparison so lower scores win — useful for cost
-or latency.
+- **`average`** — gate on overall quality. The mean score across all runs must
+  clear `threshold`. A few weak runs are tolerated as long as the mean holds.
+- **`passThreshold`** — gate on the worst case. **Every** run's score must clear
+  `threshold` individually; the suite fails if even one run misses. Use it as a
+  per-run floor when no single regression is acceptable.
+
+`threshold` is always a bar on an individual score, never a rate. For `average`
+it is compared against the mean; for `passThreshold` it is the bar each run must
+clear on its own.
 
 ```ts
 px.describe("text-to-sql", () => {
-  // tests log `token_f1` and `latency_ms` annotations
+  // each test logs `token_f1` (0–1), `valid_sql` (boolean), and `latency_ms`
 }, {
   acceptanceCriteria: [
-    // the mean token_f1 across the suite must be >= 0.8
+    // overall quality: the mean token_f1 across the suite must be >= 0.8
     { annotationName: "token_f1", metric: "average", threshold: 0.8 },
-    // every run must score >= 0.5 on token_f1
-    { annotationName: "token_f1", metric: "passRate", threshold: 0.5 },
-    // lower is better: the mean latency must stay <= 800ms
+    // hard floor: every run must produce valid SQL (boolean → must be true)
+    { annotationName: "valid_sql", metric: "passThreshold", threshold: 1 },
+    // budget: lower is better, so the mean latency must stay <= 800ms
     {
       annotationName: "latency_ms",
       metric: "average",
@@ -181,12 +188,36 @@ px.describe("text-to-sql", () => {
 });
 ```
 
-Boolean scores pass on `true` (or `false` when minimizing), so a `passRate`
-criterion over a boolean annotation requires every run to be `true`.
+### Direction
 
-Criteria are evaluated after all tests run. If any criterion fails, the suite
-throws one aggregated error and the reporter prints an `Acceptance Criteria`
-block with observed values and sample counts.
+`direction` flips every comparison the criterion makes:
+
+- `"maximize"` (default) — higher is better; a score passes when it is `>=` the
+  threshold.
+- `"minimize"` — lower is better; a score passes when it is `<=` the threshold.
+  Use it for cost, latency, or error-rate annotations.
+
+### Scoring details
+
+- **Booleans** count as `1` (`true`) / `0` (`false`). Under `passThreshold` a
+  boolean run passes on `true` (or on `false` when minimizing), so a boolean
+  `passThreshold` criterion requires every run to be `true`.
+- **Duplicate annotations** — if a run logs the same `annotationName` more than
+  once, the last score counts.
+- **Missing or non-numeric scores** — a criterion whose annotation never
+  produced a numeric or boolean score fails with a "no scores found" reason
+  rather than passing vacuously.
+- **Skipped vs dry-run** — skipped tests are excluded from the aggregate;
+  dry-run tests are included because they still execute locally.
+
+### Reporter output
+
+Criteria are evaluated once, after all tests finish. If any fail, the suite
+throws a single aggregated error and the reporter prints an `Acceptance
+Criteria` block listing each criterion's observed value, the bar it needed to
+clear, and its sample count. The reported value is the **mean** for `average`,
+and the **fraction of runs that cleared the bar** for `passThreshold` (so a
+passing `passThreshold` criterion reads `1.000`).
 
 ## Where To Start
 

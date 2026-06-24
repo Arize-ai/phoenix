@@ -56,8 +56,3 @@ export function sqlTokenF1(output: SqlOutput, expected?: SqlOutput): number {
 export function looksLikeSql(output: SqlOutput): boolean {
   return /^\s*select\b/i.test(output.sql) && output.sql.trim().endsWith(";");
 }
-
-/** Deterministic pseudo-latency (ms) derived from the query length. */
-export function estimateLatencyMs({ userQuery }: SqlInput): number {
-  return 50 + userQuery.length * 3;
-}

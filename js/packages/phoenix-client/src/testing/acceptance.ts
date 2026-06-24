@@ -93,7 +93,8 @@ function evaluateAcceptanceCriterion({
     };
   }
 
-  // passRate: the suite passes only when every run clears the per-run bar.
+  // passThreshold: the suite passes only when every run clears the per-run bar.
+  // The reported value is the fraction of runs that cleared it.
   const value = calculatePassRate({
     samples,
     threshold: criterion.threshold,

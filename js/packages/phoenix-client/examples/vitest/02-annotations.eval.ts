@@ -7,7 +7,7 @@
  */
 import * as px from "@arizeai/phoenix-client/vitest";
 
-import { estimateLatencyMs, generateSql } from "./app";
+import { generateSql } from "./app";
 import { correctness, tokenF1, validSql } from "./evaluators";
 
 px.describe("02 · annotations", () => {
@@ -17,8 +17,13 @@ px.describe("02 · annotations", () => {
       input: { userQuery: "show me all orders" },
       expected: { sql: "SELECT * FROM orders;" },
     },
+
     async ({ input }) => {
-      px.logOutput(generateSql(input));
+      // Measure the real wall-clock time of the call we're evaluating.
+      const start = performance.now();
+      const output = generateSql(input);
+      const latencyMs = performance.now() - start;
+      px.logOutput(output);
 
       // Evaluator-produced annotations: boolean, graded, and structural.
       await px.evaluate(correctness);
@@ -28,9 +33,9 @@ px.describe("02 · annotations", () => {
       // A manual numeric annotation with an explanation.
       px.logAnnotation({
         name: "latency_ms",
-        score: estimateLatencyMs(input),
+        score: latencyMs,
         annotatorKind: "CODE",
-        explanation: "Estimated from query length (offline stand-in).",
+        explanation: "Wall-clock time to generate the SQL.",
       });
 
       // A manual label-only annotation (e.g. a human rubric tag).

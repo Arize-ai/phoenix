@@ -544,6 +544,9 @@ export async function postAnnotation(
               : (annotation.score ?? null),
           label: annotation.label ?? null,
           explanation: annotation.explanation ?? null,
+          // Forward annotation metadata, matching the experiment evaluator
+          // upload path in `runExperiment`. Spread so it's omitted when unset.
+          ...(annotation.metadata ? { metadata: annotation.metadata } : {}),
         },
         error: null,
         trace_id: annotation.traceId ?? null,

@@ -236,6 +236,8 @@ export function createTestApi(getHooks: () => RunnerHooks): PhoenixTestApi {
             expected: resolveReference(row),
             metadata: row.metadata,
             splits: row.splits,
+            repetitions: row.repetitions,
+            dryRun: row.dryRun,
           },
           fn,
           "default",

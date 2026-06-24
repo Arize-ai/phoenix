@@ -140,6 +140,19 @@ pxDescribe("phoenix client test each", () => {
   );
 });
 
+// Row-level `repetitions` and `dryRun` must be forwarded onto each declared
+// test, just like the equivalent fields on `test()`.
+const controlRows = [
+  { input: { q: "tracked" }, repetitions: 3 },
+  { input: { q: "local" }, dryRun: true },
+];
+pxDescribe("phoenix client test each controls", () => {
+  pxTest.each(controlRows)(
+    (row) => `control ${row.input.q}`,
+    async () => {}
+  );
+});
+
 // test.each rows accept the reference output under any alias, just like test().
 const aliasRows = [
   { input: { q: "a" }, expected: { label: "ex" } },
@@ -270,6 +283,16 @@ describe("runner registry", () => {
     expect(local?.status).toBe("passed");
   });
 
+  it("a skipped test does not register a dataset example", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const suite = getAllSuites().find(
+      (s) => s.name === "phoenix client test selftest"
+    );
+    expect(suite).toBeDefined();
+    // The skipped case must not be uploaded to the tracked dataset.
+    expect([...suite!.registeredExamples.keys()]).not.toContain("is skipped");
+  });
+
   it("test.each accepts a name function and forwards splits", async () => {
     await new Promise((resolve) => setImmediate(resolve));
     const suite = getAllSuites().find(
@@ -284,6 +307,20 @@ describe("runner registry", () => {
       (e) => e.params.splits
     );
     expect(splits).toEqual([["group-1"], ["group-2"]]);
+  });
+
+  it("test.each forwards row-level repetitions and dryRun", async () => {
+    await new Promise((resolve) => setImmediate(resolve));
+    const suite = getAllSuites().find(
+      (s) => s.name === "phoenix client test each controls"
+    );
+    expect(suite).toBeDefined();
+    // The `repetitions: 3` row expands to three runs, lifting the suite max.
+    expect(suite!.maxRepetitions).toBe(3);
+    // The `dryRun: true` row opts out of Phoenix, so it registers no example.
+    expect([...suite!.registeredExamples.keys()]).toEqual(["control tracked"]);
+    const local = suite!.results.find((r) => r.testName === "control local");
+    expect(local?.dryRun).toBe(true);
   });
 
   it("normalizes expected / reference / output to the same slot", async () => {

@@ -15,7 +15,25 @@ export type { AnnotatorKind };
 export type KVMap = Record<string, unknown>;
 
 /**
- * The reference output for a test case, accepted under any one of three
+ * Domain language
+ * ---------------
+ * The unit these tests evaluate over is an **Example**: a single AI example —
+ * an `input`, its `expected` output, and optional `metadata` / `splits` — over
+ * which the task under test is run and then scored. This is the same notion as
+ * the dataset `Example` (`../types/datasets`): each test case _is_ one example.
+ * When tracked, a case is recorded to Phoenix as a dataset example and
+ * evaluated as one experiment run.
+ *
+ * These field names form the shared vocabulary across this module:
+ * - `input`    — the example's input, passed to the task under evaluation.
+ * - `expected` — the example's expected (reference / ground-truth) output.
+ * - `metadata` — extra fields carried on the example.
+ * - `splits`   — slice labels for the example.
+ * - `id`       — stable example id, used to upsert the example across runs.
+ */
+
+/**
+ * The expected output of an `Example`, accepted under any one of three
  * interchangeable keys. All three normalize to the same slot: when recorded to
  * Phoenix the value becomes the dataset example's `output`, and it is exposed
  * to evaluators as `expected` on `EvaluatorParams`. At most one key may be set.
@@ -32,21 +50,21 @@ export type ReferenceOutput<Expected extends KVMap = KVMap> =
   | { output?: Expected; expected?: never; reference?: never };
 
 /**
- * Inline parameters common to every test case, excluding the reference output
- * (which is supplied via {@link ReferenceOutput}).
+ * The `Example` fields that define a single test case, excluding its
+ * expected output (which is supplied separately via {@link ReferenceOutput}).
  *
- * `input` is bound to the dataset example's input field. When recorded to
- * Phoenix this becomes the example's `input`.
+ * `input` is the example's input — the value fed to the task under evaluation.
+ * When the case is tracked, this becomes the dataset example's `input`.
  */
 export interface TestParamsBase<Input extends KVMap = KVMap> {
-  /** Optional stable example id; used to upsert dataset examples between runs. */
+  /** Optional stable example id; used to upsert the example between runs. */
   id?: string;
-  /** Input for the example. Required. */
+  /** The example's input — fed to the task under evaluation. Required. */
   input: Input;
-  /** Additional metadata stored on the dataset example and run. */
+  /** Additional metadata stored on the example and its run. */
   metadata?: KVMap;
   /**
-   * Split assignment(s) for the dataset example, used to slice the dataset and
+   * Split assignment(s) for the example, used to slice the dataset and
    * experiment in the Phoenix UI (e.g. `["factual_accuracy", "correct"]`).
    */
   splits?: string[];
@@ -68,11 +86,12 @@ export interface TestParamsBase<Input extends KVMap = KVMap> {
 }
 
 /**
- * Inline parameters supplied alongside a single test case.
+ * The full inline definition of a single `Example` under test.
  *
  * Combines {@link TestParamsBase} with a {@link ReferenceOutput}, so the
- * reference output may be given under `expected`, `reference`, or `output`
- * (at most one). All three resolve to the same canonical `expected` slot.
+ * example's expected output may be given under `expected`, `reference`, or
+ * `output` (at most one). All three resolve to the same canonical `expected`
+ * slot.
  */
 export type TestParams<
   Input extends KVMap = KVMap,
@@ -80,8 +99,8 @@ export type TestParams<
 > = TestParamsBase<Input> & ReferenceOutput<Expected>;
 
 /**
- * Resolve the canonical reference output from a value that may carry it under
- * any of the `expected` / `reference` / `output` aliases (see
+ * Resolve an `Example`'s expected output from a value that may carry it
+ * under any of the `expected` / `reference` / `output` aliases (see
  * {@link ReferenceOutput}). Returns the first one set, or `undefined` if none.
  */
 export function resolveReference<Expected extends KVMap = KVMap>(
@@ -98,8 +117,17 @@ export interface TestConfig {
   metadata?: KVMap;
 }
 
-/** Aggregate metric used to gate an eval suite in CI. */
-export type AcceptanceMetric = "average" | "passRate";
+/**
+ * How a criterion aggregates an annotation's scores to gate the suite:
+ *
+ * - `"average"` — gate on overall quality: the **mean** score across all runs
+ *   must clear the `threshold`. A few weak runs are tolerated as long as the
+ *   mean holds.
+ * - `"passThreshold"` — gate on the worst case: **every** run's score must
+ *   clear the `threshold` individually. The suite fails if even one run misses.
+ *   Use it as a per-run floor when no single regression is acceptable.
+ */
+export type AcceptanceMetric = "average" | "passThreshold";
 
 /**
  * Optimization direction for a criterion's scores: `"maximize"` (higher is
@@ -108,26 +136,49 @@ export type AcceptanceMetric = "average" | "passRate";
  */
 export type OptimizationDirection = "maximize" | "minimize";
 
-/** One aggregate acceptance rule for annotation scores collected in a suite. */
+/**
+ * One aggregate acceptance rule, evaluated once after every test in the suite
+ * has run. Each criterion aggregates a single annotation's scores with one
+ * {@link AcceptanceMetric} and fails the suite when the result misses its
+ * `threshold`.
+ *
+ * Scoring notes shared by both metrics:
+ * - Boolean scores count as `1` (`true`) / `0` (`false`).
+ * - If a run logs the same annotation more than once, the last score counts.
+ * - Skipped tests are excluded; dry-run tests are included (they still run).
+ * - A criterion whose annotation never produced a numeric or boolean score
+ *   fails (rather than passing vacuously) — see {@link AcceptanceResult.failureReason}.
+ */
 export interface AcceptanceCriterion {
   /** Annotation name to aggregate across completed test runs. */
   annotationName: string;
-  /** Aggregate metric to compute for the annotation. */
+  /** How to aggregate the annotation's scores; see {@link AcceptanceMetric}. */
   metric: AcceptanceMetric;
   /**
-   * Score bar the criterion must clear, in the configured direction. For
-   * `"average"` it is compared against the mean score across runs; for
-   * `"passRate"` every run's score must clear it (the suite passes only when
-   * all runs do). Boolean scores pass on `true` (or `false` when minimizing).
+   * The per-score bar to clear, compared in the configured `direction` (so
+   * "clear" means `>=` when maximizing, `<=` when minimizing). This is always a
+   * bar on an individual score, never a rate: for `"average"` it is compared
+   * against the mean score across runs; for `"passThreshold"` every run's score
+   * must clear it. Boolean scores pass on `true` (or `false` when minimizing).
    */
   threshold: number;
-  /** Score direction; defaults to `"maximize"`. */
+  /**
+   * Optimization direction; defaults to `"maximize"`. `"maximize"` treats
+   * higher scores as better (pass when `>= threshold`); `"minimize"` treats
+   * lower scores as better (pass when `<= threshold`) — use it for cost,
+   * latency, or error-rate annotations.
+   */
   direction?: OptimizationDirection;
 }
 
 /** Computed result for one aggregate acceptance rule. */
 export interface AcceptanceResult extends AcceptanceCriterion {
-  /** Aggregate value (mean or pass rate), or `null` when no valid scores. */
+  /**
+   * The aggregate the criterion gated on, or `null` when no valid scores were
+   * found. For `"average"` this is the mean score; for `"passThreshold"` it is
+   * the fraction of runs that cleared the bar (so a passing `passThreshold`
+   * criterion reports `1`).
+   */
   value: number | null;
   /** Number of numeric or boolean scores included in the aggregate. */
   sampleCount: number;
@@ -169,16 +220,17 @@ export interface SuiteConfig {
 }
 
 /**
- * Arguments passed to a `test()` body. These are read straight from the
+ * Arguments passed to a `test()` body: the `Example` under test, exposed
+ * as its `input`, `expected` output, and `metadata`. Read straight from the
  * test's {@link TestParams} — the runner does not transform them.
  */
 export interface TestArgs<
   Input extends KVMap = KVMap,
   Expected extends KVMap = KVMap,
 > {
-  /** The example input under test. */
+  /** The example's input under test. */
   input: Input;
-  /** The reference (expected) output, when one was supplied. */
+  /** The example's expected (reference) output, when one was supplied. */
   expected?: Expected;
   /** Any metadata attached to the example. */
   metadata?: KVMap;
@@ -231,7 +283,7 @@ export type EvaluationResult =
  * experiment evaluator contract as that shape evolves.
  */
 export type EvaluationParams = Partial<EvaluatorParams> & {
-  /** The example input under test. */
+  /** The example's input under test. */
   input: KVMap;
 };
 
@@ -255,9 +307,10 @@ export type TestFn<
 > = (args: TestArgs<Input, Expected>) => unknown | Promise<unknown>;
 
 /**
- * Each-row shape accepted by `test.each(table)(name, fn)`.
+ * Each-row shape accepted by `test.each(table)(name, fn)`; each row defines one
+ * `Example`.
  *
- * Like {@link TestParams}, the reference output is supplied via
+ * Like {@link TestParams}, the example's expected output is supplied via
  * {@link ReferenceOutput} (`expected` / `reference` / `output`, at most one).
  * The trailing index signature still permits arbitrary extra columns on a row
  * (e.g. for `%j` name interpolation) without weakening that constraint.

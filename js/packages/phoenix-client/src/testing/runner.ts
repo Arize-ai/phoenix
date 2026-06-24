@@ -155,7 +155,11 @@ export function declareTest<Input extends KVMap, Expected extends KVMap>(
   // Avoid silently overwriting an example registration when the same test name
   // is declared twice in the same suite.
   const uniqueName = ensureUniqueName(suite, name);
-  if (!isDryRun) {
+  // Skipped cases never run, and registering them would still upload their
+  // example to the tracked dataset via `initializeSuite()` — contradicting the
+  // skip contract and letting unfinished/flaky cases mutate the dataset. Dry-run
+  // cases opt out of Phoenix entirely. Neither should register an example.
+  if (!isDryRun && variant !== "skip") {
     suite.registeredExamples.set(uniqueName, {
       testName: uniqueName,
       params: params as TestParams,

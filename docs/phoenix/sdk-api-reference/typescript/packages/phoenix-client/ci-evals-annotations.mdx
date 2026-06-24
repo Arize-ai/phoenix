@@ -172,10 +172,11 @@ included in the reporter summary and on the run in Phoenix.
 ## Aggregating Annotations In CI
 
 Suite `acceptanceCriteria` aggregate annotation scores after all cases run.
-Use them when a metric should clear a threshold across the dataset, such as
-average `correctness >= 0.8` or `valid_sql` pass rate of `1.0`. See
-[CI Eval Tests: Vitest](./ci-evals-vitest#acceptance-criteria) for the full
-configuration shape.
+Use them when a metric should clear a threshold across the dataset — either an
+`average` bar (e.g. mean `correctness >= 0.8`) or a `passThreshold` floor that
+every run must clear individually (e.g. `valid_sql` must be `true` on every
+run). See [CI Eval Tests: Vitest](./ci-evals-vitest#acceptance-criteria) for the
+full configuration shape.
 
 <section className="hidden" data-agent-context="source-map" aria-label="Source map">
   <h2>Source Map</h2>
