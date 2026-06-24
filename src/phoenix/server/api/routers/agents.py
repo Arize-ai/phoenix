@@ -724,13 +724,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        logger.info(
-            "server agent model: %s.%s settings=%r",
-            type(model).__module__,
-            type(model).__qualname__,
-            getattr(model, "settings", None),
-        )
-
         web_access_enabled = (
             resolved_contexts.web_access is not None
             and resolved_contexts.web_access.enabled

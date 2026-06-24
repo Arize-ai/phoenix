@@ -32,10 +32,14 @@ from phoenix.server.api.context import Context
 
 
 async def _discard_subagent_message_chunk(_: ToolOutputAvailableChunk) -> None:
+    # TODO: Wire this to the direct server-agent route so preliminary
+    # `call_subagent` output chunks stream to the client instead of being dropped.
     return None
 
 
 def _discard_subagent_final_tool_output(_: ToolOutputAvailableChunk) -> None:
+    # TODO: Store final `call_subagent` output chunks for the direct server-agent
+    # stream so the renderer can replace preliminary sub-agent output.
     return None
 
 
