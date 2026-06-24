@@ -329,8 +329,13 @@ px.describe(
   },
   {
     acceptanceCriteria: [
-      // every test must pass (the auto-logged `pass` boolean must be true)
-      { annotationName: "pass", metric: "passThreshold", threshold: 1 },
+      // every test must pass (100% of the auto-logged `pass` boolean is true)
+      {
+        annotationName: "pass",
+        metric: "passRate",
+        passThreshold: 1,
+        threshold: 1,
+      },
     ],
   }
 );
@@ -347,8 +352,8 @@ Use `@arizeai/phoenix-client/vitest/reporter` or
 experiment links, annotation aggregates, and acceptance criteria at the end
 of a run. Acceptance criteria gate the suite after it finishes — `average`
 checks an aggregate bar (so CI can allow a mean of 80% while still running
-every case), and `passThreshold` enforces a per-run floor that every case must
-clear.
+every case), and `passRate` requires a minimum fraction of runs to clear a
+per-run `passThreshold`.
 
 See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
 `ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full

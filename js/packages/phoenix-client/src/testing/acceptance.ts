@@ -59,7 +59,7 @@ export function formatAcceptanceResult(result: AcceptanceResult): string {
   const requirement =
     result.metric === "average"
       ? `mean ${cmp} ${result.threshold.toFixed(3)}`
-      : `every run ${cmp} ${result.threshold.toFixed(3)}`;
+      : `pass rate >= ${result.threshold.toFixed(3)} @ run ${cmp} ${result.passThreshold.toFixed(3)}`;
   const reason = result.failureReason ? ` - ${result.failureReason}` : "";
   return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} ${sampleLabel})${reason}`;
 }
@@ -93,18 +93,19 @@ function evaluateAcceptanceCriterion({
     };
   }
 
-  // passThreshold: the suite passes only when every run clears the per-run bar.
-  // The reported value is the fraction of runs that cleared it.
+  // passRate: each run passes when its score clears `passThreshold`; the suite
+  // passes when the fraction of runs that pass is at least `threshold`. The
+  // reported value is that fraction.
   const value = calculatePassRate({
     samples,
-    threshold: criterion.threshold,
+    passThreshold: criterion.passThreshold,
     direction,
   });
   return {
     ...criterion,
     value,
     sampleCount: samples.length,
-    passed: value >= 1,
+    passed: value >= criterion.threshold,
   };
 }
 
@@ -174,15 +175,15 @@ function calculateAverage(samples: readonly AcceptanceSample[]): number {
 
 function calculatePassRate({
   samples,
-  threshold,
+  passThreshold,
   direction,
 }: {
   samples: readonly AcceptanceSample[];
-  threshold: number;
+  passThreshold: number;
   direction: OptimizationDirection;
 }): number {
   const passed = samples.filter((sample) =>
-    runPasses(sample.score, threshold, direction)
+    runPasses(sample.score, passThreshold, direction)
   ).length;
   return passed / samples.length;
 }

@@ -121,13 +121,14 @@ export interface TestConfig {
  * How a criterion aggregates an annotation's scores to gate the suite:
  *
  * - `"average"` — gate on overall quality: the **mean** score across all runs
- *   must clear the `threshold`. A few weak runs are tolerated as long as the
- *   mean holds.
- * - `"passThreshold"` — gate on the worst case: **every** run's score must
- *   clear the `threshold` individually. The suite fails if even one run misses.
- *   Use it as a per-run floor when no single regression is acceptable.
+ *   must clear the criterion's `threshold`. A few weak runs are tolerated as
+ *   long as the mean holds.
+ * - `"passRate"` — gate on consistency: each run **passes** when its score
+ *   clears the per-run `passThreshold`, and the suite passes when the
+ *   **fraction** of runs that pass is at least `threshold` (e.g.
+ *   `threshold: 0.9` ⇒ 90% of runs must pass; `threshold: 1` ⇒ all of them).
  */
-export type AcceptanceMetric = "average" | "passThreshold";
+export type AcceptanceMetric = "average" | "passRate";
 
 /**
  * Optimization direction for a criterion's scores: `"maximize"` (higher is
@@ -136,48 +137,78 @@ export type AcceptanceMetric = "average" | "passThreshold";
  */
 export type OptimizationDirection = "maximize" | "minimize";
 
+/** Fields shared by every {@link AcceptanceCriterion} variant. */
+export interface AcceptanceCriterionBase {
+  /** Annotation name to aggregate across completed test runs. */
+  annotationName: string;
+  /**
+   * Optimization direction; defaults to `"maximize"`. `"maximize"` treats
+   * higher scores as better (a score clears a bar when `>=` it); `"minimize"`
+   * treats lower scores as better (clears when `<=` it) — use it for cost,
+   * latency, or error-rate annotations. Applies to every per-score comparison
+   * the criterion makes (the mean for `"average"`, the per-run bar for
+   * `"passRate"`); the `"passRate"` fraction itself is always compared `>=`.
+   */
+  direction?: OptimizationDirection;
+}
+
+/**
+ * Gate the suite on the **mean** score: the average across all runs must clear
+ * `threshold` (compared in `direction`).
+ */
+export interface AverageAcceptanceCriterion extends AcceptanceCriterionBase {
+  metric: "average";
+  /**
+   * The bar the mean score must clear, compared in `direction`. Boolean scores
+   * average as `1` (`true`) / `0` (`false`).
+   */
+  threshold: number;
+}
+
+/**
+ * Gate the suite on the **pass rate**: each run passes when its score clears
+ * the per-run `passThreshold`, and the suite passes when at least `threshold`
+ * of runs do.
+ */
+export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
+  metric: "passRate";
+  /**
+   * Per-run bar: a single run passes when its score clears this, compared in
+   * `direction`. Boolean scores pass on `true` (or `false` when minimizing),
+   * regardless of this value.
+   */
+  passThreshold: number;
+  /**
+   * Minimum fraction of runs (`0`–`1`) that must pass for the suite to pass —
+   * e.g. `0.9` requires 90% of runs to clear `passThreshold`, `1` requires all
+   * of them. Always compared as `passRate >= threshold`.
+   */
+  threshold: number;
+}
+
 /**
  * One aggregate acceptance rule, evaluated once after every test in the suite
  * has run. Each criterion aggregates a single annotation's scores with one
- * {@link AcceptanceMetric} and fails the suite when the result misses its
- * `threshold`.
+ * {@link AcceptanceMetric} and fails the suite when the result misses its bar.
  *
- * Scoring notes shared by both metrics:
+ * Scoring notes shared by every metric:
  * - Boolean scores count as `1` (`true`) / `0` (`false`).
  * - If a run logs the same annotation more than once, the last score counts.
  * - Skipped tests are excluded; dry-run tests are included (they still run).
  * - A criterion whose annotation never produced a numeric or boolean score
  *   fails (rather than passing vacuously) — see {@link AcceptanceResult.failureReason}.
  */
-export interface AcceptanceCriterion {
-  /** Annotation name to aggregate across completed test runs. */
-  annotationName: string;
-  /** How to aggregate the annotation's scores; see {@link AcceptanceMetric}. */
-  metric: AcceptanceMetric;
-  /**
-   * The per-score bar to clear, compared in the configured `direction` (so
-   * "clear" means `>=` when maximizing, `<=` when minimizing). This is always a
-   * bar on an individual score, never a rate: for `"average"` it is compared
-   * against the mean score across runs; for `"passThreshold"` every run's score
-   * must clear it. Boolean scores pass on `true` (or `false` when minimizing).
-   */
-  threshold: number;
-  /**
-   * Optimization direction; defaults to `"maximize"`. `"maximize"` treats
-   * higher scores as better (pass when `>= threshold`); `"minimize"` treats
-   * lower scores as better (pass when `<= threshold`) — use it for cost,
-   * latency, or error-rate annotations.
-   */
-  direction?: OptimizationDirection;
-}
+export type AcceptanceCriterion =
+  | AverageAcceptanceCriterion
+  | PassRateAcceptanceCriterion;
 
-/** Computed result for one aggregate acceptance rule. */
-export interface AcceptanceResult extends AcceptanceCriterion {
+/** The computed fields added to an {@link AcceptanceCriterion} once evaluated. */
+export interface AcceptanceResultFields {
   /**
    * The aggregate the criterion gated on, or `null` when no valid scores were
-   * found. For `"average"` this is the mean score; for `"passThreshold"` it is
-   * the fraction of runs that cleared the bar (so a passing `passThreshold`
-   * criterion reports `1`).
+   * found. For `"average"` this is the mean score; for `"passRate"` it is the
+   * fraction of runs that passed (so a fully-passing `"passRate"` criterion
+   * reports `1`).
    */
   value: number | null;
   /** Number of numeric or boolean scores included in the aggregate. */
@@ -187,6 +218,9 @@ export interface AcceptanceResult extends AcceptanceCriterion {
   /** Human-readable failure reason for invalid or empty aggregates. */
   failureReason?: string;
 }
+
+/** Computed result for one aggregate acceptance rule. */
+export type AcceptanceResult = AcceptanceCriterion & AcceptanceResultFields;
 
 /** Suite-level configuration accepted by `describe()`. */
 export interface SuiteConfig {

@@ -33,7 +33,7 @@ describe("acceptance criteria", () => {
     });
   });
 
-  it("passes passThreshold only when every run clears the per-run bar", () => {
+  it("fails passRate when the fraction passing is below threshold", () => {
     const results = [
       createResult([{ name: "token_f1", score: 0.81 }]),
       createResult([{ name: "token_f1", score: 0.79 }]),
@@ -45,41 +45,54 @@ describe("acceptance criteria", () => {
       criteria: [
         {
           annotationName: "token_f1",
-          metric: "passThreshold",
-          threshold: 0.8,
+          metric: "passRate",
+          passThreshold: 0.8,
+          threshold: 1,
         },
       ],
       results,
     });
 
-    // 0.79 misses the 0.8 bar, so the pass rate is 2/3 and the suite fails.
+    // 0.79 misses the 0.8 per-run bar, so 2/3 pass — below the required 100%.
     expect(result).toMatchObject({
       annotationName: "token_f1",
-      metric: "passThreshold",
-      threshold: 0.8,
+      metric: "passRate",
+      passThreshold: 0.8,
+      threshold: 1,
       value: expect.closeTo(0.667, 3),
       sampleCount: 3,
       passed: false,
     });
   });
 
-  it("passes passThreshold when all runs clear the per-run bar", () => {
+  it("passes passRate when the fraction passing meets threshold", () => {
     const results = [
       createResult([{ name: "token_f1", score: 0.81 }]),
+      createResult([{ name: "token_f1", score: 0.79 }]),
       createResult([{ name: "token_f1", score: 1 }]),
     ];
 
     const [result] = evaluateAcceptanceCriteria({
       criteria: [
-        { annotationName: "token_f1", metric: "passThreshold", threshold: 0.8 },
+        {
+          annotationName: "token_f1",
+          metric: "passRate",
+          passThreshold: 0.8,
+          threshold: 0.6,
+        },
       ],
       results,
     });
 
-    expect(result).toMatchObject({ value: 1, sampleCount: 2, passed: true });
+    // 2/3 = 0.667 clears the required 0.6 pass rate.
+    expect(result).toMatchObject({
+      value: expect.closeTo(0.667, 3),
+      sampleCount: 3,
+      passed: true,
+    });
   });
 
-  it("treats boolean passThreshold scores as pass on true", () => {
+  it("treats boolean passRate scores as pass on true", () => {
     const results = [
       createResult([{ name: "valid_sql", score: true }]),
       createResult([{ name: "valid_sql", score: true }]),
@@ -90,13 +103,15 @@ describe("acceptance criteria", () => {
       criteria: [
         {
           annotationName: "valid_sql",
-          metric: "passThreshold",
-          threshold: 0.5,
+          metric: "passRate",
+          passThreshold: 0.5,
+          threshold: 1,
         },
       ],
       results,
     });
 
+    // 2/3 runs are `true`, short of the required 100%.
     expect(result).toMatchObject({
       value: expect.closeTo(0.667, 3),
       sampleCount: 3,
@@ -176,18 +191,19 @@ describe("acceptance criteria", () => {
       criteria: [
         {
           annotationName: "valid_sql",
-          metric: "passThreshold",
-          threshold: 0.8,
+          metric: "passRate",
+          passThreshold: 0.8,
+          threshold: 1,
         },
       ],
       results: [createResult([{ name: "valid_sql", score: false }])],
     });
 
     expect(formatAcceptanceResult(result)).toBe(
-      "FAIL valid_sql passThreshold 0.000 (need every run >= 0.800; 1 sample)"
+      "FAIL valid_sql passRate 0.000 (need pass rate >= 1.000 @ run >= 0.800; 1 sample)"
     );
     expect(createAcceptanceFailureError([result])?.message).toContain(
-      "Acceptance criteria failed:\n  FAIL valid_sql passThreshold 0.000 (need every run >= 0.800; 1 sample)"
+      "Acceptance criteria failed:\n  FAIL valid_sql passRate 0.000 (need pass rate >= 1.000 @ run >= 0.800; 1 sample)"
     );
   });
 });

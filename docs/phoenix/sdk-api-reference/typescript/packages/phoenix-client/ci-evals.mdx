@@ -160,13 +160,14 @@ Each criterion aggregates one annotation (by `annotationName`) with one
 
 - **`average`** — gate on overall quality. The mean score across all runs must
   clear `threshold`. A few weak runs are tolerated as long as the mean holds.
-- **`passThreshold`** — gate on the worst case. **Every** run's score must clear
-  `threshold` individually; the suite fails if even one run misses. Use it as a
-  per-run floor when no single regression is acceptable.
+- **`passRate`** — gate on consistency. Each run *passes* when its score clears
+  the per-run `passThreshold`, and the suite passes when the **fraction** of
+  passing runs is at least `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass;
+  `threshold: 1` ⇒ all of them).
 
-`threshold` is always a bar on an individual score, never a rate. For `average`
-it is compared against the mean; for `passThreshold` it is the bar each run must
-clear on its own.
+The two metrics split the work across two fields: `passThreshold` is the bar an
+individual run must clear, and `threshold` is the mean bar (`average`) or the
+required pass-rate fraction (`passRate`).
 
 ```ts
 px.describe("text-to-sql", () => {
@@ -175,8 +176,20 @@ px.describe("text-to-sql", () => {
   acceptanceCriteria: [
     // overall quality: the mean token_f1 across the suite must be >= 0.8
     { annotationName: "token_f1", metric: "average", threshold: 0.8 },
-    // hard floor: every run must produce valid SQL (boolean → must be true)
-    { annotationName: "valid_sql", metric: "passThreshold", threshold: 1 },
+    // consistency: at least 90% of runs must score >= 0.7 on token_f1
+    {
+      annotationName: "token_f1",
+      metric: "passRate",
+      passThreshold: 0.7,
+      threshold: 0.9,
+    },
+    // hard floor: every run must produce valid SQL (boolean → all must be true)
+    {
+      annotationName: "valid_sql",
+      metric: "passRate",
+      passThreshold: 1,
+      threshold: 1,
+    },
     // budget: lower is better, so the mean latency must stay <= 800ms
     {
       annotationName: "latency_ms",
@@ -190,18 +203,21 @@ px.describe("text-to-sql", () => {
 
 ### Direction
 
-`direction` flips every comparison the criterion makes:
+`direction` controls when a score counts as good. It applies to every per-score
+comparison — the mean for `average`, the per-run `passThreshold` for `passRate`
+(the `passRate` fraction itself is always compared `>=`):
 
-- `"maximize"` (default) — higher is better; a score passes when it is `>=` the
-  threshold.
-- `"minimize"` — lower is better; a score passes when it is `<=` the threshold.
-  Use it for cost, latency, or error-rate annotations.
+- `"maximize"` (default) — higher is better; a score clears its bar when it is
+  `>=` the bar.
+- `"minimize"` — lower is better; a score clears its bar when it is `<=` the
+  bar. Use it for cost, latency, or error-rate annotations.
 
 ### Scoring details
 
-- **Booleans** count as `1` (`true`) / `0` (`false`). Under `passThreshold` a
-  boolean run passes on `true` (or on `false` when minimizing), so a boolean
-  `passThreshold` criterion requires every run to be `true`.
+- **Booleans** count as `1` (`true`) / `0` (`false`). Under `passRate` a boolean
+  run passes on `true` (or on `false` when minimizing), regardless of
+  `passThreshold`, so a boolean `passRate` criterion with `threshold: 1`
+  requires every run to be `true`.
 - **Duplicate annotations** — if a run logs the same `annotationName` more than
   once, the last score counts.
 - **Missing or non-numeric scores** — a criterion whose annotation never
@@ -216,8 +232,8 @@ Criteria are evaluated once, after all tests finish. If any fail, the suite
 throws a single aggregated error and the reporter prints an `Acceptance
 Criteria` block listing each criterion's observed value, the bar it needed to
 clear, and its sample count. The reported value is the **mean** for `average`,
-and the **fraction of runs that cleared the bar** for `passThreshold` (so a
-passing `passThreshold` criterion reads `1.000`).
+and the **fraction of runs that passed** for `passRate` (so a fully-passing
+`passRate` criterion reads `1.000`).
 
 ## Where To Start
 

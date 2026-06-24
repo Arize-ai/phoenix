@@ -318,8 +318,8 @@ interface AcceptanceBar {
 
 /**
  * Per-annotation score bar a single run must clear to avoid counting as a
- * "miss". This is the criterion's `threshold` — a per-run bar for `passThreshold`,
- * and the aggregate bar reused as a per-run heuristic for `average` (the
+ * "miss". For `passRate` this is the criterion's per-run `passThreshold`; for
+ * `average` it is the aggregate `threshold` reused as a per-run heuristic (the
  * suite-level acceptance block still reports the true aggregate verdict). The
  * bar's `direction` flips which side counts as a miss.
  */
@@ -327,7 +327,8 @@ function buildAcceptanceBars(suite: SuiteSummary): Map<string, AcceptanceBar> {
   const bars = new Map<string, AcceptanceBar>();
   for (const result of suite.acceptanceResults ?? []) {
     bars.set(result.annotationName, {
-      bar: result.threshold,
+      bar:
+        result.metric === "passRate" ? result.passThreshold : result.threshold,
       direction: result.direction ?? "maximize",
     });
   }
