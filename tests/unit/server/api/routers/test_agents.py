@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
+from contextlib import nullcontext
+from unittest.mock import patch
 
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
@@ -15,10 +17,13 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.api.routers.agents import (
     _interleave_agent_and_subagent_message_chunks,
+    _load_phoenix_user_email,
     _load_sandbox_availability,
+    _maybe_using_user,
     _SubagentMessageChunksClosed,
 )
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import DbSessionFactory, UserId
 
 
 class TestLoadSandboxAvailability:
@@ -202,3 +207,93 @@ class TestEditCodeEvaluatorDraftToolRendering:
         # The projection requests env-var names only; the prompt explicitly
         # forbids requesting the secret-bearing field.
         assert "never `secretKey`" in rendered
+
+
+class TestObservabilityMixinAttachUserId:
+    def test_defaults_to_false_and_accepts_camel_alias(self) -> None:
+        from phoenix.server.api.routers.agents import _ObservabilityMixin
+
+        mixin = _ObservabilityMixin()
+        assert mixin.attach_user_id is False
+
+        mixin = _ObservabilityMixin.model_validate({"attachUserId": True})
+        assert mixin.attach_user_id is True
+
+
+class TestMaybeUsingUser:
+    def test_returns_nullcontext_when_flag_is_false(self) -> None:
+        ctx = _maybe_using_user(attach_user_id=False, phoenix_user_email="user@example.com")
+        assert isinstance(ctx, nullcontext)
+
+    def test_returns_nullcontext_when_flag_is_true_but_no_email(self) -> None:
+        ctx = _maybe_using_user(attach_user_id=True, phoenix_user_email=None)
+        assert isinstance(ctx, nullcontext)
+
+    def test_passes_user_email_to_using_user(self) -> None:
+        with patch("phoenix.server.api.routers.agents.using_user") as mock_cm:
+            _maybe_using_user(attach_user_id=True, phoenix_user_email="user@example.com")
+        mock_cm.assert_called_once_with("user@example.com")
+
+
+class TestLoadPhoenixUserEmail:
+    def _make_phoenix_user(self, user_id: int) -> PhoenixUser:
+        from phoenix.server.types import UserClaimSet, UserTokenAttributes
+
+        uid = UserId(user_id)
+        attrs = UserTokenAttributes(user_role="MEMBER")
+        return PhoenixUser(uid, UserClaimSet(subject=uid, attributes=attrs))
+
+    async def test_returns_none_when_no_phoenix_user(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            email = await _load_phoenix_user_email(session=session, phoenix_user=None)
+
+        assert email is None
+
+    async def test_loads_email_from_authenticated_user_row(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            user_role = models.UserRole(name="MEMBER")
+            session.add(user_role)
+            await session.flush()
+            user = models.User(
+                user_role_id=user_role.id,
+                username="agent-test-user",
+                email="agent-test-user@example.com",
+                password_hash=b"hash",
+                password_salt=b"salt",
+                reset_password=False,
+                auth_method="LOCAL",
+            )
+            session.add(user)
+            await session.flush()
+
+            email = await _load_phoenix_user_email(
+                session=session,
+                phoenix_user=self._make_phoenix_user(user.id),
+            )
+
+        assert email == "agent-test-user@example.com"
+
+    async def test_returns_none_when_user_row_has_no_email(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            user_role = models.UserRole(name="MEMBER")
+            session.add(user_role)
+            await session.flush()
+            user = models.User(
+                user_role_id=user_role.id,
+                username="agent-test-user-no-email",
+                email=None,
+                password_hash=None,
+                password_salt=None,
+                reset_password=False,
+                auth_method="LDAP",
+                ldap_unique_id="agent-test-user-no-email",
+            )
+            session.add(user)
+            await session.flush()
+
+            email = await _load_phoenix_user_email(
+                session=session,
+                phoenix_user=self._make_phoenix_user(user.id),
+            )
+
+        assert email is None

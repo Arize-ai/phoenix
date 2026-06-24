@@ -465,6 +465,7 @@ describe("agentStore", () => {
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,
         exportRemoteTraces: false,
+        attachUserId: false,
         acknowledgedTraceConsent: null,
       });
       expect(store.getState().fabPlacement).toBe("bottom-end");
@@ -491,6 +492,7 @@ describe("agentStore", () => {
       expect(store.getState().observability).toEqual({
         storeLocalTraces: false,
         exportRemoteTraces: true,
+        attachUserId: false,
         acknowledgedTraceConsent: {
           allowLocalTraces: true,
           allowRemoteExport: true,
@@ -540,6 +542,33 @@ describe("agentStore", () => {
         ...createDefaultAgentCapabilities(),
         "graphql.mutations": true,
         "web.access": true,
+      });
+    });
+  });
+
+  describe("persisted observability", () => {
+    it("backfills missing observability keys when rehydrating persisted state", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: {
+            observability: {
+              storeLocalTraces: false,
+              exportRemoteTraces: true,
+              acknowledgedTraceConsent: null,
+            },
+          },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
       });
     });
   });

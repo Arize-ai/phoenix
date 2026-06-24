@@ -20,18 +20,26 @@ async function fetchSummary({
   messages,
   ingestTraces,
   exportRemoteTraces,
+  attachUserId,
 }: {
   sessionId: string;
   modelSelection: AgentModelSelection;
   messages: AgentUIMessage[];
   ingestTraces: boolean;
   exportRemoteTraces: boolean;
+  attachUserId: boolean;
 }): Promise<string> {
   const { data, response } = await authApiFetch.POST(SUMMARIZE_PATH, {
     params: {
       path: { agent_id: ASSISTANT_AGENT_ID, session_id: sessionId },
     },
-    body: { messages, ingestTraces, exportRemoteTraces, model: modelSelection },
+    body: {
+      messages,
+      ingestTraces,
+      exportRemoteTraces,
+      attachUserId,
+      model: modelSelection,
+    },
   });
   if (!response.ok || !data) {
     throw new Error(`summarize request failed: ${response.status}`);
@@ -81,6 +89,7 @@ export function useGenerateSessionSummary() {
         messages: session.messages,
         ingestTraces: traceRecording.ingestTraces,
         exportRemoteTraces: traceRecording.exportRemoteTraces,
+        attachUserId: state.observability.attachUserId,
       })
         .then((summary) => {
           if (summary) {

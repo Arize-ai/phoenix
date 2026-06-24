@@ -1641,6 +1641,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -1688,6 +1694,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -5385,6 +5397,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
             /** Model */
