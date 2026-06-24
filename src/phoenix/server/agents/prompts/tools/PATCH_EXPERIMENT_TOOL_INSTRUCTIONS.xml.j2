@@ -10,7 +10,8 @@
   </preflight>
   <metadata>
     - `metadata` replaces the experiment's metadata object as a whole. There is no deep merge: any key you omit from the object you submit is dropped.
-    - Before editing metadata, read the experiment's current metadata with `phoenix-gql`. Build the new object from it, preserve every unrelated key, and submit the complete object.
+    - Before editing metadata, read the experiment's current metadata with `phoenix-gql` unless the current message history already includes the experiment metadata you need from a recent tool result. Build the new object from the latest available metadata, preserve every unrelated key, and submit the complete object.
+    - If the user asks to record an observation immediately after a tool result that already returned the target experiment's metadata, do not re-read the experiment just to confirm it. Use the metadata in history and call this tool.
     - Record post-hoc findings under an `observations` array. Append a new entry `{ "at": "<ISO 8601 timestamp>", "by": "pxi", "note": "<your observation>" }` to the existing `observations` (or start the array if absent), and keep all other metadata keys — such as `hypothesis`, `changed_variable`, or `baseline_experiment_id` — exactly as they were. Do not overwrite earlier observations.
   </metadata>
   <rules>
