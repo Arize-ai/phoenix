@@ -86,7 +86,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                         CallSubagentOutputChunk(
                             tool_call_id=tool_call_id,
                             output=CallSubagentOutput(
-                                summary=final_summary or _get_ui_message_text(message),
+                                summary=final_summary or _get_fallback_subagent_summary(message),
                                 message=message,
                             ),
                             preliminary=True,
@@ -100,7 +100,9 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                     parts=[],
                 )
             summary = (
-                final_summary if final_summary is not None else _get_ui_message_text(latest_message)
+                final_summary
+                if final_summary is not None
+                else _get_fallback_subagent_summary(latest_message)
             )
             set_subagent_final_tool_output(
                 CallSubagentOutputChunk(
@@ -161,7 +163,8 @@ def _get_subagent_request_data(*, tool_call_id: str, task: str) -> SubmitMessage
     )
 
 
-def _get_ui_message_text(message: UIMessage) -> str:
+def _get_fallback_subagent_summary(message: UIMessage) -> str:
+    """Use streamed text, or a data-error message, when the final result is unavailable."""
     text = "".join(part.text for part in message.parts if isinstance(part, TextUIPart)).strip()
     if text:
         return text
