@@ -138,6 +138,7 @@ export function AgentChatHeader({
           fill="var(--global-text-color-900)"
           css={css`
             transform: scale(0.7);
+            flex-shrink: 0;
           `}
         />
         <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
