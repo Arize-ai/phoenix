@@ -53,7 +53,7 @@ def _build_run_bash(*, allow_mutations: bool) -> RunBash:
     async def run(command: str) -> dict[str, Any]:
         tools = await toolset.get_tools(ctx)
         result: dict[str, Any] = await toolset.call_tool(
-            "bash", {"command": command}, ctx, tools["bash"]
+            "bash", {"summary": "Run shell command", "command": command}, ctx, tools["bash"]
         )
         return result
 
@@ -68,6 +68,31 @@ def run_bash() -> RunBash:
 @pytest.fixture
 def run_bash_with_mutations() -> RunBash:
     return _build_run_bash(allow_mutations=True)
+
+
+async def test_tool_schema_requires_summary_and_command() -> None:
+    toolset = BashToolset(
+        schema=strawberry.Schema(query=Query, mutation=Mutation),
+        build_graphql_context=lambda: Mock(spec=Context),
+        allow_mutations=False,
+    )
+    ctx: RunContext[None] = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+    tools = await toolset.get_tools(ctx)
+
+    schema = tools["bash"].tool_def.parameters_json_schema
+
+    assert schema["properties"] == {
+        "summary": {
+            "description": (
+                "Short, user-facing description of what this command does.\n"
+                "Shown as the collapsed preview in the UI. Use active voice and\n"
+                "5-10 words."
+            ),
+            "type": "string",
+        },
+        "command": {"description": "The shell command to execute.", "type": "string"},
+    }
+    assert schema["required"] == ["summary", "command"]
 
 
 async def test_query_returns_data_payload(run_bash: RunBash) -> None:
