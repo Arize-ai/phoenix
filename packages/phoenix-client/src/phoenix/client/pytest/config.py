@@ -10,18 +10,28 @@ class PhoenixTestConfigError(ValueError):
 
 
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
-_FALSY = frozenset({"0", "false", "no", "off", ""})
+_FALSY = frozenset({"0", "false", "no", "off"})
 
 
-def _env_bool(value: Optional[str], *, default: bool) -> bool:
+def _env_bool(value: Optional[str], *, default: bool, name: str = "value") -> bool:
+    """Parse a boolean env var symmetrically.
+
+    Unset or empty -> ``default``; ``1/true/yes/on`` -> True; ``0/false/no/off`` -> False.
+    Anything else is an error: a typo like ``PHOENIX_TEST_TRACKING=flase`` fails loudly rather
+    than silently resolving to True.
+    """
     if value is None:
         return default
     normalized = value.strip().lower()
+    if not normalized:
+        return default
     if normalized in _TRUTHY:
         return True
     if normalized in _FALSY:
         return False
-    return True
+    raise PhoenixTestConfigError(
+        f"{name} must be a boolean ({sorted(_TRUTHY | _FALSY)}) or empty, got {value!r}"
+    )
 
 
 @dataclass(frozen=True)
@@ -69,7 +79,9 @@ class PhoenixTestConfig:
             dataset_override = env_dataset.strip()
 
         return cls(
-            tracking=_env_bool(env.get("PHOENIX_TEST_TRACKING"), default=True),
+            tracking=_env_bool(
+                env.get("PHOENIX_TEST_TRACKING"), default=True, name="PHOENIX_TEST_TRACKING"
+            ),
             repetitions=repetitions,
             dataset_override=dataset_override,
         )

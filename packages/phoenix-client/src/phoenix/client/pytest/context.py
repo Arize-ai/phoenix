@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
@@ -120,6 +121,7 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
     """
     run = _require_run()
     default_name = getattr(evaluator, "name", "evaluation")
+    default_kind = _annotator_kind_for(evaluator)
     trace_id: Optional[str] = None
     if run.tracer is not None:
         with run.tracer.evaluator_span(
@@ -135,7 +137,7 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
             score=score.get("score"),
             label=score.get("label"),
             explanation=score.get("explanation"),
-            annotator_kind=score.get("annotator_kind", "LLM"),
+            annotator_kind=score.get("annotator_kind") or default_kind,
             metadata=score.get("metadata"),
             trace_id=trace_id,
         )
@@ -143,12 +145,108 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
 
 
 def _invoke_evaluator(evaluator: Any, eval_input: Mapping[str, Any]) -> Any:
-    """Call a ``phoenix.evals``-style evaluator. Accepts an ``evaluate(input=...)`` object."""
-    if hasattr(evaluator, "evaluate"):
-        return evaluator.evaluate(dict(eval_input))
+    """Call an evaluator with the test's eval input, dispatching on how it accepts arguments.
+
+    Four evaluator surfaces are supported:
+
+    - a ``phoenix.evals`` evaluator — ``evaluate(self, eval_input, input_mapping=None)`` takes the
+      input mapping *positionally*;
+    - a ``phoenix.client.create_evaluator`` object — ``evaluate(self, **kwargs)`` takes the input
+      fields as *keywords* (calling it positionally raises ``TypeError``);
+    - an *async* evaluator — an async ``create_evaluator``/``BaseEvaluator`` whose sync
+      ``evaluate`` is a stub that raises ``NotImplementedError`` (the logic lives in
+      ``async_evaluate``), or a plain ``async def`` callable that returns a coroutine. Either way
+      the coroutine is driven to completion, so an async evaluator records like a sync one;
+    - a plain (sync) callable returning a result — invoked with the fields as keywords.
+    """
+    evaluate = getattr(evaluator, "evaluate", None)
+    if callable(evaluate):
+        try:
+            result = _call_evaluate(evaluate, eval_input)
+        except NotImplementedError:
+            # An async-only evaluator (e.g. an async create_evaluator) stubs out evaluate() and
+            # implements async_evaluate() instead; mirror the experiment runner and use that.
+            result = _invoke_async_evaluate(evaluator, eval_input)
+        return _resolved(result)
     if callable(evaluator):
-        return evaluator(**eval_input)
+        return _resolved(evaluator(**eval_input))
     raise TypeError(f"Object {evaluator!r} is not a usable evaluator")
+
+
+def _invoke_async_evaluate(evaluator: Any, eval_input: Mapping[str, Any]) -> Any:
+    """Fall back to an evaluator's ``async_evaluate`` when its sync ``evaluate`` is a stub."""
+    async_evaluate = getattr(evaluator, "async_evaluate", None)
+    if not callable(async_evaluate):
+        raise NotImplementedError(
+            f"Evaluator {evaluator!r} stubs out evaluate() but has no usable async_evaluate()"
+        )
+    return _call_evaluate(async_evaluate, eval_input)
+
+
+def _resolved(result: Any) -> Any:
+    """Drive a coroutine/awaitable result to a value so async evaluators record like sync ones."""
+    if inspect.isawaitable(result):
+        return _run_blocking(result)
+    return result
+
+
+def _run_blocking(awaitable: Any) -> Any:
+    """Drive an awaitable to a value from sync code, whether or not a loop is already running.
+
+    With no running loop (the usual case — evaluators run from ``makereport`` or a sync test
+    body) ``asyncio.run`` suffices. Inside a running loop (an inline ``evaluate()`` called from
+    an async test), we can't re-enter it, so the awaitable is driven on a dedicated worker
+    thread with its own loop.
+    """
+    import asyncio
+
+    async def _await() -> Any:
+        return await awaitable
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_await())
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(lambda: asyncio.run(_await())).result()
+
+
+def _call_evaluate(evaluate: Any, eval_input: Mapping[str, Any]) -> Any:
+    """Invoke an ``evaluate`` method, passing the eval input positionally when it declares a
+    positional parameter (``phoenix.evals``) and by keyword when it is ``**kwargs``-only
+    (``create_evaluator``)."""
+    try:
+        params = list(inspect.signature(evaluate).parameters.values())
+    except (TypeError, ValueError):
+        return evaluate(dict(eval_input))
+    accepts_positional = any(
+        p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+        for p in params
+    )
+    if accepts_positional:
+        return evaluate(dict(eval_input))
+    return evaluate(**eval_input)
+
+
+def _annotator_kind_for(evaluator: Any) -> str:
+    """Best-effort annotator kind (``"CODE"``/``"LLM"``) for an evaluator object.
+
+    Reads a ``create_evaluator`` object's ``_kind``/``kind`` (an ``AnnotatorKind`` or str) or a
+    ``phoenix.evals`` evaluator's ``source`` (``"llm"`` -> LLM, else CODE). Plain callables and
+    unknown objects default to CODE: a hoisted Python function is code, not an LLM judge.
+    """
+    kind: Any = getattr(evaluator, "_kind", None)
+    if kind is None:
+        kind = getattr(evaluator, "kind", None)
+    if kind is not None:
+        text = str(getattr(kind, "value", kind)).upper()
+        return "LLM" if "LLM" in text else "CODE"
+    source = getattr(evaluator, "source", None)
+    if isinstance(source, str):
+        return "LLM" if source.lower() == "llm" else "CODE"
+    return "CODE"
 
 
 def _iter_scores(result: Any, *, default_name: str) -> list[dict[str, Any]]:

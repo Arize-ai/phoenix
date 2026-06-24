@@ -46,6 +46,29 @@ def test_offline_mode_makes_no_client(
     result.stdout.fnmatch_lines(["*offline mode*tracking disabled*"])
 
 
+def test_plugin_loads_without_xdist_installed(
+    pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The xdist hook ``pytest_configure_node`` is declared optional. xdist is not a dependency
+    of the ``pytest`` extra, so without that the plugin would raise a ``PluginValidationError``
+    (unknown hook) on every run when xdist is absent. ``-p no:xdist`` deregisters xdist's
+    hookspecs, reproducing a no-xdist install; the suite must still collect and run."""
+    monkeypatch.setenv("PHOENIX_TEST_TRACKING", "false")  # offline: no client needed
+    pytester.makepyfile(
+        test_noxdist="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="noxdist-suite")
+        def test_one():
+            px.log_output("ok")
+            assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "-p", "no:xdist", "--no-header")
+    result.assert_outcomes(passed=1)
+
+
 def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) -> None:
     """A marked, parametrized suite creates one dataset+experiment, one run per case, and a
     `pass` annotation derived from the assertion outcome."""
@@ -683,3 +706,391 @@ def test_failing_test_output_carries_trace_id(pytester: pytest.Pytester) -> None
     out = result.stdout.str()
     assert "phoenix trace" in out
     assert run_tid in out
+
+
+# --- xdist (`-n`) records via controller-side collection + broadcast ------------------------
+
+_XDIST_CONFTEST = """
+import json, os
+import phoenix.client.pytest.plugin as plugin
+
+class _FakeDataset:
+    id = "Dataset:1"; version_id = "Version:1"
+    def __init__(self, ex): self._ex = ex
+    @property
+    def examples(self): return self._ex
+
+class _FakeDatasets:
+    def __init__(self): self._ex = []; self.uploads = 0
+    def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                             example_ids, action, **kw):
+        self.uploads += 1
+        self._ex = [{"id": eid, "node_id": f"DatasetExampleGID:{i}",
+                     "input": inp, "output": {}, "metadata": md}
+                    for i, (inp, md, eid) in enumerate(zip(inputs, metadata, example_ids))]
+        return _FakeDataset(self._ex)
+    def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+class _FakeExperiments:
+    def __init__(self): self.runs = []; self.evals = []; self.creates = 0
+    def create(self, *, repetitions=1, **kw):
+        self.creates += 1
+        return {"id": "Experiment:1", "project_name": None}
+    def log_run(self, *, experiment_id, dataset_example_id, repetition_number=1,
+                error=None, tolerate_existing=False, **kw):
+        rid = f"ExperimentRun:{len(self.runs)}"
+        self.runs.append({"id": rid, "example": dataset_example_id})
+        return {"id": rid}
+    def log_evaluation(self, *, experiment_run_id, name, **kw):
+        self.evals.append({"name": name}); return {"id": "A:1"}
+
+class _FakeClient:
+    def __init__(self):
+        self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+_CLIENT = _FakeClient()
+
+def pytest_configure(config):
+    plugin._make_client = lambda: _CLIENT
+    config._c = _CLIENT
+
+def pytest_unconfigure(config):
+    c = config._c
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "controller")
+    with open(os.path.join(str(config.rootdir), f"effects-{worker}.json"), "w") as f:
+        json.dump({
+            "worker": worker,
+            "creates": c.experiments.creates,
+            "uploads": c.datasets.uploads,
+            "n_runs": len(c.experiments.runs),
+            "n_pass_evals": sum(1 for e in c.experiments.evals if e["name"] == "pass"),
+        }, f)
+"""
+
+
+def test_xdist_records_runs_via_controller_bootstrap(pytester: pytest.Pytester) -> None:
+    """Under ``-n`` the controller (which xdist forbids from collecting) force-collects, creates
+    exactly one dataset+experiment, and broadcasts the ids; workers then record every run. Before
+    this fix this whole path was a silent no-op."""
+    pytester.makeconftest(_XDIST_CONFTEST)
+    pytester.makepyfile(
+        test_par="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="xdist-suite")
+        @pytest.mark.parametrize("n", [1, 2, 3, 4], ids=["a", "b", "c", "d"])
+        def test_sq(n):
+            px.log_output(n * n)
+            assert n * n >= n
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "-n", "2", "--no-header")
+    result.assert_outcomes(passed=4)
+
+    import glob
+    import json
+
+    effects = [json.loads(open(p).read()) for p in glob.glob(str(pytester.path / "effects-*.json"))]
+    # Exactly one process — the controller — created the dataset+experiment (creation isn't
+    # idempotent, so per-worker bootstrap would have made N experiments).
+    creators = [e for e in effects if e["creates"] > 0]
+    assert len(creators) == 1
+    assert creators[0]["worker"] == "controller"
+    assert creators[0]["creates"] == 1
+    assert creators[0]["uploads"] == 1
+    assert creators[0]["n_runs"] == 0  # the controller does not execute tests
+    # Workers recorded all four runs and their pass annotations.
+    assert sum(e["n_runs"] for e in effects if e["worker"] != "controller") == 4
+    assert sum(e["n_pass_evals"] for e in effects if e["worker"] != "controller") == 4
+
+
+# --- skip / xfail / xpass are classified from the report, not the raw exception -------------
+
+_OUTCOMES_CONFTEST = """
+import json, os
+import phoenix.client.pytest.plugin as plugin
+
+class _FakeDataset:
+    id = "Dataset:1"; version_id = "Version:1"
+    def __init__(self, ex): self._ex = ex
+    @property
+    def examples(self): return self._ex
+
+class _FakeDatasets:
+    def __init__(self): self._ex = []
+    def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                             example_ids, action, **kw):
+        self._ex = [{"id": eid, "node_id": f"DatasetExampleGID:{i}",
+                     "input": inp, "output": {}, "metadata": md}
+                    for i, (inp, md, eid) in enumerate(zip(inputs, metadata, example_ids))]
+        return _FakeDataset(self._ex)
+    def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+class _FakeExperiments:
+    def __init__(self): self.runs = []; self.evals = []
+    def create(self, **kw): return {"id": "Experiment:1"}
+    def log_run(self, *, error=None, **kw):
+        self.runs.append({"error": error}); return {"id": f"ExperimentRun:{len(self.runs)}"}
+    def log_evaluation(self, *, name, score=None, **kw):
+        self.evals.append({"name": name, "score": score}); return {"id": "A:1"}
+
+class _FakeClient:
+    def __init__(self): self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+_CLIENT = _FakeClient()
+
+def pytest_configure(config):
+    plugin._make_client = lambda: _CLIENT
+    config._c = _CLIENT
+def pytest_unconfigure(config):
+    c = config._c
+    with open(os.path.join(str(config.rootdir), "outcomes.json"), "w") as f:
+        json.dump({"n_runs": len(c.experiments.runs),
+                   "pass_scores": [e["score"] for e in c.experiments.evals
+                                   if e["name"] == "pass"]}, f)
+"""
+
+
+def test_skip_and_xfail_outcomes_are_not_mislabeled(pytester: pytest.Pytester) -> None:
+    """Call-phase skips (in-body ``pytest.skip``) and expected-xfails are no longer recorded as
+    failed ``pass`` annotations; only real pass/fail (and xpass) record runs."""
+    pytester.makeconftest(_OUTCOMES_CONFTEST)
+    pytester.makepyfile(
+        test_outcomes="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="outcomes")
+        def test_pass():
+            px.log_output("ok"); assert True
+
+        @pytest.mark.phoenix(dataset="outcomes")
+        def test_fail():
+            px.log_output("no"); assert False
+
+        @pytest.mark.phoenix(dataset="outcomes")
+        def test_inbody_skip():
+            px.log_output("x"); pytest.skip("later")
+
+        @pytest.mark.phoenix(dataset="outcomes")
+        @pytest.mark.skip(reason="marker")
+        def test_marker_skip():
+            px.log_output("x")
+
+        @pytest.mark.phoenix(dataset="outcomes")
+        @pytest.mark.xfail(reason="known")
+        def test_xfail_fail():
+            px.log_output("x"); assert False
+
+        @pytest.mark.phoenix(dataset="outcomes")
+        @pytest.mark.xfail(reason="maybe")
+        def test_xpass():
+            px.log_output("x"); assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    result.assert_outcomes(passed=1, failed=1, skipped=2, xfailed=1, xpassed=1)
+
+    import json
+
+    fx = json.loads((pytester.path / "outcomes.json").read_text())
+    # pass + fail + xpass record runs; the two skips and the expected-xfail do not.
+    assert fx["n_runs"] == 3
+    assert sorted(fx["pass_scores"]) == [0.0, 1.0, 1.0]
+
+
+# --- setup / teardown phases are classified, not just the call phase ------------------------
+
+_PHASES_CONFTEST = """
+import json, os
+import phoenix.client.pytest.plugin as plugin
+
+class _FakeDataset:
+    id = "Dataset:1"; version_id = "Version:1"
+    def __init__(self, ex): self._ex = ex
+    @property
+    def examples(self): return self._ex
+
+class _FakeDatasets:
+    def __init__(self): self._ex = []
+    def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                             example_ids, action, **kw):
+        self._ex = [{"id": eid, "node_id": f"DatasetExampleGID:{i}",
+                     "input": inp, "output": {}, "metadata": md}
+                    for i, (inp, md, eid) in enumerate(zip(inputs, metadata, example_ids))]
+        return _FakeDataset(self._ex)
+    def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+class _FakeExperiments:
+    def __init__(self): self.runs = []; self.evals = []
+    def create(self, **kw): return {"id": "Experiment:1"}
+    def log_run(self, *, error=None, **kw):
+        self.runs.append({"error": error}); return {"id": f"ExperimentRun:{len(self.runs)}"}
+    def log_evaluation(self, *, name, score=None, **kw):
+        self.evals.append({"name": name, "score": score}); return {"id": "A:1"}
+
+class _FakeClient:
+    def __init__(self): self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+_CLIENT = _FakeClient()
+
+def pytest_configure(config):
+    plugin._make_client = lambda: _CLIENT
+    config._c = _CLIENT
+def pytest_unconfigure(config):
+    c = config._c
+    with open(os.path.join(str(config.rootdir), "phases.json"), "w") as f:
+        json.dump({"n_runs": len(c.experiments.runs),
+                   "run_errors": [r["error"] for r in c.experiments.runs],
+                   "eval_names": sorted({e["name"] for e in c.experiments.evals}),
+                   "pass_scores": [e["score"] for e in c.experiments.evals
+                                   if e["name"] == "pass"]}, f)
+"""
+
+
+def test_setup_error_records_error_run(pytester: pytest.Pytester) -> None:
+    """A fixture that raises in setup is recorded as an errored run instead of vanishing from
+    the experiment. The call phase never fires, so the run carries the setup error and a failing
+    `pass`; hoisted evaluators are suppressed (there is no output to evaluate)."""
+    pytester.makeconftest(_PHASES_CONFTEST)
+    pytester.makepyfile(
+        test_setup="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.fixture
+        def broken():
+            raise RuntimeError("setup boom")
+
+        def grader(output, **_):
+            return {"name": "grader", "score": 1.0}
+
+        @pytest.mark.phoenix(dataset="phases", evaluators=[grader])
+        def test_needs_fixture(broken):
+            px.log_output("never reached")
+            assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    result.assert_outcomes(errors=1)
+
+    import json
+
+    fx = json.loads((pytester.path / "phases.json").read_text())
+    assert fx["n_runs"] == 1  # recorded, did not vanish
+    assert fx["run_errors"][0] is not None and "setup boom" in fx["run_errors"][0]
+    assert fx["pass_scores"] == [0.0]  # recorded as a failing run
+    assert fx["eval_names"] == ["pass"]  # hoisted grader suppressed (no output to evaluate)
+
+
+def test_teardown_failure_downgrades_run_to_fail(pytester: pytest.Pytester) -> None:
+    """A test whose body passes but whose teardown errors is recorded as a failing run, not a
+    pass — pytest reports it as an error, and the recorded outcome must agree."""
+    pytester.makeconftest(_PHASES_CONFTEST)
+    pytester.makepyfile(
+        test_teardown="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="phases")
+        def test_body_ok(request):
+            def _boom():
+                raise RuntimeError("teardown boom")
+            request.addfinalizer(_boom)
+            px.log_output("ok")
+            assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    result.assert_outcomes(passed=1, errors=1)
+
+    import json
+
+    fx = json.loads((pytester.path / "phases.json").read_text())
+    assert fx["n_runs"] == 1
+    assert fx["pass_scores"] == [0.0]  # body passed, but teardown error downgrades to fail
+    assert fx["run_errors"][0] is not None and "teardown boom" in fx["run_errors"][0]
+
+
+# --- a tolerated 409 (temp run id) must not post annotations against an unresolved id --------
+
+_DUP_CONFTEST = """
+import json, os
+import phoenix.client.pytest.plugin as plugin
+
+class _FakeDataset:
+    id = "Dataset:1"; version_id = "Version:1"
+    def __init__(self, ex): self._ex = ex
+    @property
+    def examples(self): return self._ex
+
+class _FakeDatasets:
+    def __init__(self): self._ex = []
+    def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                             example_ids, action, **kw):
+        self._ex = [{"id": example_ids[0], "node_id": "DatasetExampleGID:0",
+                     "input": inputs[0], "output": {}, "metadata": metadata[0]}]
+        return _FakeDataset(self._ex)
+    def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+class _FakeExperiments:
+    def __init__(self): self.runs = 0; self.evals = []
+    def create(self, **kw): return {"id": "Experiment:1"}
+    def log_run(self, **kw):
+        self.runs += 1
+        # Simulate experiments.log_run(tolerate_existing=True) swallowing a 409: a locally-built
+        # run carrying a temp id that resolves to nothing server-side.
+        return {"id": "temp-deadbeefcafe"}
+    def log_evaluation(self, *, name, **kw):
+        self.evals.append(name); return {"id": "A:1"}
+
+class _FakeClient:
+    def __init__(self): self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+_CLIENT = _FakeClient()
+
+def pytest_configure(config):
+    plugin._make_client = lambda: _CLIENT
+    config._c = _CLIENT
+def pytest_unconfigure(config):
+    c = config._c
+    with open(os.path.join(str(config.rootdir), "dup.json"), "w") as f:
+        json.dump({"n_runs": c.experiments.runs, "eval_names": c.experiments.evals}, f)
+"""
+
+
+def test_tolerated_409_temp_id_skips_annotations(pytester: pytest.Pytester) -> None:
+    """When ``log_run`` returns a temp id (a tolerated 409), the plugin skips the pass annotation
+    and evaluations instead of silently posting them against an id the server can't resolve.
+
+    This is the exact branch a rerun plugin (e.g. ``pytest-rerunfailures``) would trigger: re-
+    executing the same ``(experiment, example, repetition)`` makes ``log_run(tolerate_existing=
+    True)`` swallow the server's 409 and return a temp id. Injecting that temp id directly covers
+    the plugin-side behaviour without depending on a rerun plugin being installed."""
+    pytester.makeconftest(_DUP_CONFTEST)
+    pytester.makepyfile(
+        test_dup="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="dup")
+        def test_one():
+            px.log_output("x")
+            px.log_evaluation(name="custom", score=1.0)
+            assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    result.assert_outcomes(passed=1)
+
+    import json
+
+    fx = json.loads((pytester.path / "dup.json").read_text())
+    assert fx["n_runs"] == 1  # the run was attempted
+    assert fx["eval_names"] == []  # but nothing was posted against the temp id
+
+
+# create_evaluator keyword dispatch and annotator-kind derivation are covered by the unit tests
+# TestInvokeEvaluator / TestAnnotatorKind; the record -> log_evaluation path is exercised by the
+# outcome test above, so no separate hoisted-evaluator integration test is kept here.

@@ -173,12 +173,18 @@ def test_answers(question, expected):
 Annotations recorded by `log_evaluation` and `evaluate` do not fail a test on
 their own. Only a failed assertion fails the pytest item.
 
+Evaluations are keyed by `name` on a run, so calling `log_evaluation` or `evaluate` more than
+once with the same `name` keeps only the last result. Give each evaluation you want to retain a
+distinct `name`.
+
 ## Configuring with Environment Variables
 
 The plugin is configured entirely through environment variables, so the same suite can
 behave differently in local development and in CI without any code changes. Boolean
 variables accept `1`, `true`, `yes`, or `on` as truthy and `0`, `false`, `no`, or `off`
-as falsy.
+as falsy. An empty or unset value uses the documented default; any other value raises an
+error, so a typo such as `PHOENIX_TEST_TRACKING=flase` fails the run rather than silently
+enabling recording.
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -194,6 +200,32 @@ To iterate locally without recording anything to Phoenix, disable tracking:
 ```bash
 PHOENIX_TEST_TRACKING=0 pytest
 ```
+
+Repetitions still expand into multiple pytest items when tracking is off — which is useful for
+surfacing flaky failures locally — they simply record nothing to Phoenix.
+
+## How the dataset stays in sync
+
+On a **full** run — you pass a directory, or no path at all — the plugin _updates_ the
+dataset to match exactly the collected cases, pruning examples for tests that no longer
+exist. On a **partial** run — when you filter the collection with `-k`, `-m`, a specific
+file, or a `::node` id — it only _appends_, leaving examples for the unselected tests in
+place. This keeps a filtered run such as `pytest tests/evals/test_sql.py` from deleting the
+rest of the dataset, at the cost that renamed or removed cases are pruned only on a full run.
+
+Because a full run updates the dataset to match its collected cases, two runs writing the **same
+dataset name at the same time** — for example, parallel CI jobs that don't set
+`PHOENIX_TEST_DATASET` — can prune each other's examples and pin their experiments to different
+dataset versions. This is safe for a single runner (`pytest -n` is one run across many workers,
+which the plugin coordinates). For genuinely concurrent runs, give each its own dataset name, for
+example `PHOENIX_TEST_DATASET=evals-${GIT_BRANCH}`.
+
+## Running in parallel (pytest-xdist)
+
+The plugin supports `pytest -n`. The controller process creates the dataset and experiment
+once and hands their ids to the workers, which record runs in parallel — so exactly one
+experiment is created regardless of the worker count. Enabling recording under xdist costs
+one extra collection pass on the controller; set `PHOENIX_TEST_TRACKING=false` to skip it.
 
 ## Gating CI
 

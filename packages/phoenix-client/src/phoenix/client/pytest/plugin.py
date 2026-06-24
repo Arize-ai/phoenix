@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import nullcontext
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pytest
+from _pytest.outcomes import Skipped
 
 from .config import PhoenixTestConfig, PhoenixTestConfigError
 from .context import (
@@ -33,7 +35,29 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _STATE_ATTR = "_phoenix_suite_state"
+_SESSION_ATTR = "_phoenix_session"
+_CONTROLLER_COLLECTED_ATTR = "_phoenix_controller_collected"
 _PASS_ANNOTATION = "pass"
+
+
+@dataclass
+class _PendingRun:
+    """Run context captured during the call phase, finalized at teardown once ``makereport`` has
+    classified every phase. The pass/fail decision needs the call report (built after the call
+    phase), and posting is deferred to teardown so a teardown failure can downgrade the verdict."""
+
+    binding: Any
+    record: _RunRecord
+    start_time: datetime
+    end_time: datetime
+    repetition_number: int
+    skipped: bool = False
+    passed: bool = True
+    error: Optional[str] = None
+
+
+# Carries the pending run from the call hookwrapper to makereport on the same item.
+_PENDING_RUN_KEY: "pytest.StashKey[_PendingRun]" = pytest.StashKey()
 
 
 def pytest_addoption(parser: "Parser") -> None:
@@ -99,6 +123,28 @@ def _is_xdist_worker(config: "Config") -> bool:
     return hasattr(config, "workerinput")
 
 
+def _is_xdist_controller(config: "Config") -> bool:
+    """True on the xdist controller: distribution is active (``-n``/``--dist``) and this is not a
+    worker. xdist short-circuits item collection on the controller, so the plugin must force a
+    collection here (see ``pytest_sessionstart``) to bootstrap before workers start."""
+    if _is_xdist_worker(config):
+        return False
+    return getattr(getattr(config, "option", None), "dist", "no") != "no"
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Stash the session so the xdist controller can collect in ``pytest_configure_node``.
+
+    We can't collect here: other plugins initialize during ``pytest_sessionstart`` too, and forcing
+    a collection before they're ready crashes plugins that hook collection (e.g. syrupy sets
+    ``config._syrupy`` in its own sessionstart, then trips in ``pytest_collection_finish``). By
+    ``pytest_configure_node`` every sessionstart hook has run, so collection is safe there.
+    """
+    if _is_xdist_controller(session.config):
+        setattr(session.config, _SESSION_ATTR, session)
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(
     session: pytest.Session, config: "Config", items: "list[Item]"
@@ -137,7 +183,7 @@ def pytest_collection_modifyitems(
             "Optional[dict[str, dict[str, Any]]]", workerinput.get("phoenix_experiments")
         )
         if broadcast:
-            state.adopt_broadcast(broadcast)
+            state.adopt_broadcast(broadcast, client=_make_client())
         return
     _bootstrap_controller(state)
 
@@ -175,19 +221,63 @@ def _bootstrap_controller(state: SuiteState) -> None:
         state.record_bootstrap_error(e)
 
 
-def pytest_configure_node(node: Any) -> None:  # pragma: no cover - xdist hook
-    """xdist controller hook: bootstrap then broadcast experiment ids via ``workerinput``."""
-    state = _get_state(node.config)
+@pytest.hookimpl(optionalhook=True)
+def pytest_configure_node(node: Any) -> None:  # pragma: no cover - exercised via xdist subprocess
+    """xdist controller hook (once per worker): ensure the controller has collected + bootstrapped,
+    then broadcast the experiment ids to the worker via ``workerinput``.
+
+    The controller can't collect in the normal collection phase (xdist forbids it) nor in
+    ``pytest_sessionstart`` (other plugins aren't initialized that early). By this hook every
+    sessionstart hook has run, so the one-time forced collection in ``_ensure_controller_collected``
+    is safe.
+
+    ``optionalhook=True`` because this is an xdist hookspec: xdist is not a dependency of the
+    ``pytest`` extra, and without the marker pytest's ``check_pending`` would raise a
+    ``PluginValidationError`` on every run when xdist is absent.
+    """
+    config = node.config
+    _ensure_controller_collected(config)
+    state = _get_state(config)
     if state is None or state.config.offline:
         return
     _bootstrap_controller(state)
     node.workerinput["phoenix_experiments"] = state.broadcast_payload()
 
 
+def _ensure_controller_collected(config: "Config") -> None:
+    """Force a one-time controller-side collection under xdist, building the suite state.
+
+    Bounded to a single attempt (so a non-Phoenix suite pays at most one extra collection pass)
+    and never raises: if collection fails, recording stays disabled rather than the suite broken.
+    Uses ``perform_collect`` (not raw ``genitems``) so deselection (``-k``/``-m``) still applies.
+    Set ``PHOENIX_TEST_TRACKING=false`` to skip it entirely.
+    """
+    if getattr(config, _CONTROLLER_COLLECTED_ATTR, False):
+        return
+    setattr(config, _CONTROLLER_COLLECTED_ATTR, True)
+    if _get_state(config) is not None:
+        return
+    session = getattr(config, _SESSION_ATTR, None)
+    if session is None:
+        return
+    try:
+        cfg = PhoenixTestConfig.from_env(dataset_override=config.getini("phoenix_dataset") or None)
+    except PhoenixTestConfigError:
+        return  # surfaces as a UsageError when the worker runs its own collection
+    if cfg.offline:
+        return
+    try:
+        session.perform_collect()
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Phoenix plugin: controller-side collection under xdist failed: %s", e)
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_call(item: "Item") -> Any:
-    """Own the run accumulator: derive ``pass``+``error`` from ``outcome.excinfo``, then post
-    the run and its annotations."""
+    """Open the test's CHAIN span and capture the run context, stashing it for ``makereport`` to
+    finalize. The pass/fail decision is deferred there because the call phase alone cannot tell a
+    failure from an expected-xfail or an in-body skip (both raise here but pytest resolves them
+    later, in ``makereport``)."""
     outcome: Any = None
     state = _get_state(item.config)
     binding = state.binding_for(item) if state is not None else None
@@ -221,32 +311,133 @@ def pytest_runtest_call(item: "Item") -> Any:
         reset_current_run(token)
         end_time = datetime.now(timezone.utc)
         excinfo: Any = outcome.excinfo  # (type, value, tb) or None
-        error = None
-        passed = True
-        if excinfo is not None:
-            exc = excinfo[1]
-            passed = False
-            error = repr(exc)
-        if not passed and record.trace_id:
+        exc = excinfo[1] if excinfo is not None else None
+        if exc is not None and not isinstance(exc, Skipped) and record.trace_id:
             # Surface the trace id in the failure output so a reader (human or agent) can open
-            # the underlying trace in Phoenix straight from the test log.
+            # the underlying trace in Phoenix straight from the test log. Skips raise here too
+            # but aren't failures, so they get no hint.
             project = state.project_name_for(binding.dataset_name)
             hint = f"trace_id: {record.trace_id}"
             if project:
                 hint += f"\nproject: {project}"
             item.add_report_section("call", "phoenix trace", hint)
         # Server expects a 1-based repetition_number.
-        state.record_run(
-            binding,
+        item.stash[_PENDING_RUN_KEY] = _PendingRun(
+            binding=binding,
             record=record,
             start_time=start_time,
             end_time=end_time,
-            passed=passed,
-            error=error,
-            pass_annotation=_PASS_ANNOTATION,
             repetition_number=repetition_index(item) + 1,
         )
     return outcome
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: "Item", call: Any) -> Any:
+    """Finalize the run from pytest's per-phase reports, so the recorded outcome reflects the
+    whole test lifecycle rather than the call phase alone:
+
+    - a **setup** failure (e.g. a fixture error) is recorded as an errored run — the call hook
+      never fires for it, so without this the case would silently vanish from the experiment;
+    - the **call** verdict is captured but not posted yet (``passed`` incl. non-strict xpass;
+      ``failed`` incl. strict xpass; ``skipped`` in-body ``pytest.skip``/expected-xfail);
+    - posting is deferred to **teardown** so a teardown failure downgrades an otherwise-passing
+      run to a failure, matching pytest's own verdict (it reports such a test as an error).
+
+    In-body skips and expected-xfails are not recorded, matching marker-level skips that never
+    reach the call phase.
+    """
+    outcome: Any = yield
+    state = _get_state(item.config)
+    if state is None:
+        return
+    report: Any = outcome.get_result()
+
+    if report.when == "setup":
+        if report.failed:
+            _record_setup_error(state, item, call)
+        return
+
+    if _PENDING_RUN_KEY not in item.stash:
+        return
+    pending = item.stash[_PENDING_RUN_KEY]
+
+    if report.when == "call":
+        if report.skipped:
+            pending.skipped = True
+        else:
+            pending.passed = bool(report.passed)
+            if not pending.passed:
+                pending.error = _excinfo_repr(call) or "test failed"
+        return
+
+    if report.when == "teardown":
+        del item.stash[_PENDING_RUN_KEY]
+        if pending.skipped:
+            return
+        passed = pending.passed
+        error = pending.error
+        if report.failed:
+            # The body may have passed, but teardown errored; pytest reports this as an error,
+            # so the recorded run must not claim success.
+            passed = False
+            error = error or _excinfo_repr(call) or "teardown failed"
+        state.record_run(
+            pending.binding,
+            record=pending.record,
+            start_time=pending.start_time,
+            end_time=pending.end_time,
+            passed=passed,
+            error=error,
+            pass_annotation=_PASS_ANNOTATION,
+            repetition_number=pending.repetition_number,
+        )
+
+
+def _excinfo_repr(call: Any) -> Optional[str]:
+    """``repr`` of the exception captured for a phase (``None`` when the phase did not raise)."""
+    excinfo = getattr(call, "excinfo", None)
+    exc = excinfo.value if excinfo is not None else None
+    return repr(exc) if exc is not None else None
+
+
+def _record_setup_error(state: SuiteState, item: "Item", call: Any) -> None:
+    """Record an errored run for a case whose setup failed.
+
+    The call hook never runs for a setup failure, so no run context was captured: there is no
+    output and no test span. Hoisted evaluators are suppressed (there is nothing to evaluate);
+    only the ``pass=fail`` annotation is recorded so the error is visible in the experiment
+    instead of the case silently disappearing.
+    """
+    binding = state.binding_for(item)
+    if binding is None:
+        return
+    record = _RunRecord(nodeid=item.nodeid, external_id=binding.external_id, tracer=None)
+    start_time, end_time = _call_times(call)
+    state.record_run(
+        binding,
+        record=record,
+        start_time=start_time,
+        end_time=end_time,
+        passed=False,
+        error=_excinfo_repr(call) or "setup failed",
+        pass_annotation=_PASS_ANNOTATION,
+        repetition_number=repetition_index(item) + 1,
+        run_evaluators=False,
+    )
+
+
+def _call_times(call: Any) -> tuple[datetime, datetime]:
+    """The phase's (start, stop) as UTC datetimes, falling back to ``now`` if unavailable."""
+    start = getattr(call, "start", None)
+    stop = getattr(call, "stop", None)
+    if isinstance(start, (int, float)) and isinstance(stop, (int, float)):
+        return (
+            datetime.fromtimestamp(start, timezone.utc),
+            datetime.fromtimestamp(stop, timezone.utc),
+        )
+    now = datetime.now(timezone.utc)
+    return now, now
 
 
 def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: "Config") -> None:

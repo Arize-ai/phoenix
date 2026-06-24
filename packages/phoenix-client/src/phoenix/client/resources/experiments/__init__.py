@@ -5,6 +5,7 @@ import json
 import logging
 import random
 import traceback
+import uuid
 from binascii import hexlify
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
@@ -2153,7 +2154,9 @@ class Experiments:
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
-            "id": f"temp-{random.randint(1000, 9999)}",
+            # Collision-resistant placeholder; replaced by the server id on success. The
+            # "temp-" prefix is load-bearing: consumers detect a tolerated-409 run by it.
+            "id": f"temp-{uuid.uuid4().hex}",
             "experiment_id": experiment_id,
         }
         if trace_id:
@@ -4023,7 +4026,9 @@ class AsyncExperiments:
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
-            "id": f"temp-{random.randint(1000, 9999)}",
+            # Collision-resistant placeholder; replaced by the server id on success. The
+            # "temp-" prefix is load-bearing: consumers detect a tolerated-409 run by it.
+            "id": f"temp-{uuid.uuid4().hex}",
             "experiment_id": experiment_id,
         }
         if trace_id:

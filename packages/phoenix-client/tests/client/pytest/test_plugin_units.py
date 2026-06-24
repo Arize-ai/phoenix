@@ -110,9 +110,11 @@ class TestBroadcastTracing:
         payload = state.broadcast_payload()
         assert payload["ds"]["project_name"] == "proj-x"
 
+        from phoenix.client import Client
+
         worker = SuiteState(config=PhoenixTestConfig(tracking=True), partial_collection=False)
         worker._groups["ds"] = DatasetGroup(name="ds")  # pyright: ignore[reportPrivateUsage]
-        worker.adopt_broadcast(payload)
+        worker.adopt_broadcast(payload, client=Client())
         tracer = worker.tracer_for("ds")
         assert tracer is not None
         assert tracer.resource.attributes.get(ResourceAttributes.PROJECT_NAME) == "proj-x"
@@ -174,3 +176,138 @@ class TestIterScores:
 
     def test_uninterpretable_return_degrades_to_empty(self) -> None:
         assert _iter_scores(object(), default_name="x") == []
+
+
+class TestEnvBool:
+    """PHOENIX_TEST_TRACKING parsing is symmetric and fails loud on typos."""
+
+    def test_none_and_empty_resolve_to_default(self) -> None:
+        from phoenix.client.pytest.config import _env_bool  # pyright: ignore[reportPrivateUsage]
+
+        assert _env_bool(None, default=True) is True
+        assert _env_bool(None, default=False) is False
+        assert _env_bool("", default=True) is True
+        assert _env_bool("   ", default=False) is False
+
+    def test_recognized_values(self) -> None:
+        from phoenix.client.pytest.config import _env_bool  # pyright: ignore[reportPrivateUsage]
+
+        assert _env_bool("yes", default=False) is True
+        assert _env_bool("1", default=False) is True
+        assert _env_bool("OFF", default=True) is False
+        assert _env_bool("false", default=True) is False
+
+    def test_unrecognized_raises(self) -> None:
+        from phoenix.client.pytest.config import _env_bool  # pyright: ignore[reportPrivateUsage]
+
+        with pytest.raises(PhoenixTestConfigError):
+            _env_bool("flase", default=True)
+
+    def test_from_env_tracking(self) -> None:
+        # empty -> default (True), not the old silent "off"; a typo fails loud.
+        assert PhoenixTestConfig.from_env({"PHOENIX_TEST_TRACKING": ""}).tracking is True
+        assert PhoenixTestConfig.from_env({"PHOENIX_TEST_TRACKING": "no"}).tracking is False
+        with pytest.raises(PhoenixTestConfigError):
+            PhoenixTestConfig.from_env({"PHOENIX_TEST_TRACKING": "garbage"})
+
+
+class TestAnnotatorKind:
+    """_annotator_kind_for derives CODE/LLM from the evaluator instead of defaulting to LLM."""
+
+    def test_plain_callable_is_code(self) -> None:
+        from phoenix.client.pytest.context import (
+            _annotator_kind_for,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        def ev(output: Any) -> float:
+            return 1.0
+
+        assert _annotator_kind_for(ev) == "CODE"
+
+    def test_create_evaluator_kind_is_honored(self) -> None:
+        from phoenix.client.pytest.context import (
+            _annotator_kind_for,  # pyright: ignore[reportPrivateUsage]
+        )
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="LLM", name="judge")
+        def llm_ev(output: Any) -> float:
+            return 1.0
+
+        @create_evaluator(kind="CODE", name="match")
+        def code_ev(output: Any) -> bool:
+            return True
+
+        assert _annotator_kind_for(llm_ev) == "LLM"
+        assert _annotator_kind_for(code_ev) == "CODE"
+
+
+class TestInvokeEvaluator:
+    """_invoke_evaluator dispatches by signature so create_evaluator objects work."""
+
+    def test_create_evaluator_object_dispatches_by_keyword(self) -> None:
+        from phoenix.client.pytest.context import (
+            _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="CODE", name="exact")
+        def exact(output: Any, expected: Any = None) -> bool:
+            return output == "hi"
+
+        # create_evaluator objects expose evaluate(self, **kwargs); a positional dict used to
+        # raise TypeError. The result is a normalized EvaluationResult dict.
+        result = _invoke_evaluator(exact, {"output": "hi"})
+        assert result["score"] == 1.0
+
+    def test_plain_callable_dispatches_by_keyword(self) -> None:
+        from phoenix.client.pytest.context import (
+            _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        def ev(output: Any) -> dict[str, Any]:
+            return {"score": 0.5}
+
+        assert _invoke_evaluator(ev, {"output": "x"})["score"] == 0.5
+
+    def test_async_create_evaluator_runs_via_async_evaluate(self) -> None:
+        # An async create_evaluator stubs out evaluate() (it raises NotImplementedError) and puts
+        # the logic in async_evaluate(); the plugin must fall back to it and await the coroutine
+        # instead of letting the NotImplementedError escape or dropping the score.
+        from phoenix.client.pytest.context import (
+            _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="CODE", name="async_exact")
+        async def exact(output: Any, expected: Any = None) -> bool:
+            return output == "hi"
+
+        result = _invoke_evaluator(exact, {"output": "hi"})
+        assert result["score"] == 1.0
+
+    def test_plain_async_callable_is_awaited(self) -> None:
+        # A bare ``async def`` evaluator returns a coroutine; it must be driven to its value
+        # rather than handed to the scorer as an (uninterpretable, never-awaited) coroutine.
+        from phoenix.client.pytest.context import (
+            _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        async def ev(output: Any) -> dict[str, Any]:
+            return {"score": 0.25}
+
+        assert _invoke_evaluator(ev, {"output": "x"})["score"] == 0.25
+
+    def test_async_evaluator_scores_record_through_iter_scores(self) -> None:
+        # End-to-end: an async evaluator's resolved result flows through _iter_scores to a
+        # concrete score (previously dropped as an uninterpretable coroutine).
+        from phoenix.client.pytest.context import (
+            _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        async def grader(output: Any) -> float:
+            return 0.5
+
+        result = _invoke_evaluator(grader, {"output": "x"})
+        (score,) = _iter_scores(result, default_name="grader")
+        assert score["score"] == 0.5

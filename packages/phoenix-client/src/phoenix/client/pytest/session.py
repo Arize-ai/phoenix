@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from .config import PhoenixTestConfig
 from .context import (
+    _annotator_kind_for,  # pyright: ignore[reportPrivateUsage]
     _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
     _iter_scores,  # pyright: ignore[reportPrivateUsage]
     _RunRecord,  # pyright: ignore[reportPrivateUsage]
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from _pytest.nodes import Item
 
 logger = logging.getLogger(__name__)
+
+# experiments.log_run(tolerate_existing=True) returns a locally-built run carrying an id with
+# this prefix when the server already has the run (a tolerated 409). Such an id resolves to
+# nothing server-side, so it must not be used as the target of annotation posts.
+_TEMP_RUN_ID_PREFIX = "temp-"
 
 
 @dataclass
@@ -207,10 +213,8 @@ class SuiteState:
             for name, g in self._groups.items()
         }
 
-    def adopt_broadcast(self, payload: dict[str, dict[str, Any]]) -> None:
-        from phoenix.client import Client
-
-        self._client = Client()
+    def adopt_broadcast(self, payload: dict[str, dict[str, Any]], *, client: Any) -> None:
+        self._client = client
         for name, data in payload.items():
             group = self._groups.get(name)
             if group is None:
@@ -236,6 +240,7 @@ class SuiteState:
         error: Optional[str],
         pass_annotation: str,
         repetition_number: int = 1,
+        run_evaluators: bool = True,
     ) -> None:
         recorded = RecordedRun(
             nodeid=binding.nodeid,
@@ -269,10 +274,22 @@ class SuiteState:
         except Exception as e:  # noqa: BLE001
             logger.warning("Phoenix plugin: failed to log run for %s: %s", binding.nodeid, e)
             return
-        recorded.experiment_run_id = run["id"]
+        run_id = run["id"]
+        recorded.experiment_run_id = run_id
+        if isinstance(run_id, str) and run_id.startswith(_TEMP_RUN_ID_PREFIX):
+            # The server already had this run (a tolerated 409) and returned a temp id that
+            # resolves to nothing. Posting annotations against it would silently fail each one,
+            # so skip them with a single clear warning rather than dropping data quietly.
+            logger.warning(
+                "Phoenix plugin: a run already exists for %s (repetition %d); skipping its "
+                "annotations to avoid posting against an unresolved run id.",
+                binding.nodeid,
+                repetition_number,
+            )
+            return
 
         self._safe_log_eval(
-            experiment_run_id=run["id"],
+            experiment_run_id=run_id,
             name=pass_annotation,
             score=1.0 if passed else 0.0,
             label="pass" if passed else "fail",
@@ -281,7 +298,7 @@ class SuiteState:
         )
         for name, kwargs in record.evaluations.items():
             self._safe_log_eval(
-                experiment_run_id=run["id"],
+                experiment_run_id=run_id,
                 name=name,
                 score=kwargs.get("score"),
                 label=kwargs.get("label"),
@@ -290,12 +307,15 @@ class SuiteState:
                 metadata=kwargs.get("metadata"),
                 trace_id=kwargs.get("trace_id") or record.trace_id,
             )
-        self._run_marker_evaluators(
-            binding,
-            run_id=run["id"],
-            output=record.output,
-            tracer=self._tracers.get(binding.dataset_name),
-        )
+        if run_evaluators:
+            # A setup-errored run has no output to evaluate, so the caller suppresses hoisted
+            # evaluators; the pass=fail annotation above still records the error.
+            self._run_marker_evaluators(
+                binding,
+                run_id=run_id,
+                output=record.output,
+                tracer=self._tracers.get(binding.dataset_name),
+            )
 
     def _run_marker_evaluators(
         self,
@@ -321,6 +341,7 @@ class SuiteState:
                 or getattr(evaluator, "__name__", None)
                 or "evaluation"
             )
+            default_kind = _annotator_kind_for(evaluator)
             trace_id: Optional[str] = None
             try:
                 if tracer is not None:
@@ -346,7 +367,7 @@ class SuiteState:
                     score=score.get("score"),
                     label=score.get("label"),
                     explanation=score.get("explanation"),
-                    annotator_kind=score.get("annotator_kind", "LLM"),
+                    annotator_kind=score.get("annotator_kind") or default_kind,
                     metadata=score.get("metadata"),
                     trace_id=trace_id,
                 )
