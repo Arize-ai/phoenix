@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
@@ -60,7 +62,7 @@ def build_agent(
     *,
     model: Model,
     prompts: AgentPrompts | None = None,
-    docs_mcp_server: MCPToolset | None = None,
+    docs_mcp_server: MCPToolset[Any] | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
     server_agent: AbstractAgent[None, str] | None = None,

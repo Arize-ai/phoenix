@@ -137,7 +137,7 @@ def should_build_docs_mcp_server() -> bool:
     return not get_env_disable_agent_assistant() and get_env_allow_external_resources()
 
 
-def build_shared_docs_mcp_server() -> MCPToolset | None:
+def build_shared_docs_mcp_server() -> MCPToolset[Any] | None:
     """Build a single docs-MCP toolset to share across all eval task runs.
 
     The production server constructs this once at startup and enters its
@@ -435,7 +435,7 @@ def _example_input(example: dict[str, Any]) -> dict[str, Any]:
 
 
 def make_task(
-    docs_mcp_server: MCPToolset | None = None,
+    docs_mcp_server: MCPToolset[Any] | None = None,
 ) -> Any:
     """Build a Phoenix experiment task callable bound to a shared toolset.
 
@@ -473,7 +473,7 @@ async def run_pxi_example(
     input: dict[str, Any],
     *,
     stable_example_id: str | None = None,
-    docs_mcp_server: MCPToolset | None = None,
+    docs_mcp_server: MCPToolset[Any] | None = None,
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 

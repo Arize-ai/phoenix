@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -35,7 +35,7 @@ def build_server_agent(
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
     prompts: ServerAgentPrompts | None = None,
-    docs_mcp_server: MCPToolset | None = None,
+    docs_mcp_server: MCPToolset[Any] | None = None,
     enable_web_access: bool = False,
     allow_mutations: bool = False,
     tracer_provider: TracerProvider | None = None,
