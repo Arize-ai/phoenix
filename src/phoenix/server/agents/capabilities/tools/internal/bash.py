@@ -349,14 +349,6 @@ class BashToolset(FunctionToolset[None]):
         shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
 
         async def bash(summary: str, command: str) -> BashToolResult:
-            """Execute a shell command in the virtual shell.
-
-            Args:
-                summary: Short, user-facing description of what this command does.
-                    Shown as the collapsed preview in the UI. Use active voice and
-                    5-10 words.
-                command: The shell command to execute.
-            """
             result = await shell.execute(command)
             result_dict = result.to_dict()
             return {
