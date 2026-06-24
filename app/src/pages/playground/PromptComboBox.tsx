@@ -2,8 +2,7 @@ import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import type { ComboBoxProps } from "@phoenix/components";
-import { ComboBox, ComboBoxItem, Icon, Icons } from "@phoenix/components";
-import { CompactEmptyState } from "@phoenix/components/core/empty";
+import { ComboBox, ComboBoxItem } from "@phoenix/components";
 
 import type { PromptComboBoxQuery } from "./__generated__/PromptComboBoxQuery.graphql";
 
@@ -58,12 +57,9 @@ export function PromptComboBox({
       stopPropagation
       defaultItems={items}
       placeholder="Select a prompt..."
-      renderEmptyState={() => (
-        <CompactEmptyState
-          icon={<Icon svg={<Icons.Edit />} />}
-          description="No prompts"
-        />
-      )}
+      // No renderEmptyState: this is a custom-value name picker, so a typed name
+      // that matches nothing should just close the menu, not show "No prompts".
+      // Omitting it sets allowsEmptyCollection=false, so the popover won't open.
       onSelectionChange={(key) => {
         if (typeof key !== "string" && key != null) {
           return;
