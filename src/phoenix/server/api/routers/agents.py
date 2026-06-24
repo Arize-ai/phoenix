@@ -5,12 +5,10 @@ from collections.abc import (
     AsyncIterator,
     Callable,
     Iterable,
-    Mapping,
-    MutableMapping,
 )
 from contextlib import aclosing
 from copy import deepcopy
-from typing import Annotated, Any, Literal, TypeVar, cast
+from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_metadata, using_session
@@ -471,15 +469,11 @@ async def _interleave_agent_and_subagent_message_chunks(
     *,
     agent_message_chunks: AsyncIterator[BaseChunk],
     subagent_message_chunks: asyncio.Queue[BaseChunk | None],
-    final_tool_outputs_by_tool_call_id: Mapping[str, ToolOutputAvailableChunk],
+    final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk],
 ) -> AsyncIterator[BaseChunk]:
     async def _next_agent_message_chunk() -> BaseChunk:
         return await anext(agent_message_chunks)
 
-    final_tool_outputs = cast(
-        MutableMapping[str, ToolOutputAvailableChunk],
-        final_tool_outputs_by_tool_call_id,
-    )
     agent_task: asyncio.Task[BaseChunk] | None = asyncio.create_task(_next_agent_message_chunk())
     subagent_task: asyncio.Task[BaseChunk | None] | None = asyncio.create_task(
         subagent_message_chunks.get()
@@ -499,7 +493,7 @@ async def _interleave_agent_and_subagent_message_chunks(
                     await subagent_message_chunks.put(None)
                 else:
                     if isinstance(agent_chunk, ToolOutputAvailableChunk):
-                        final_tool_output = final_tool_outputs.pop(
+                        final_tool_output = final_tool_outputs_by_tool_call_id.pop(
                             agent_chunk.tool_call_id,
                             None,
                         )
