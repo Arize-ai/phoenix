@@ -123,7 +123,7 @@ def build_agent(
         assert publish_subagent_message_chunk is not None
         assert set_subagent_final_tool_output is not None
         capabilities.append(
-            CallSubAgentCapability(
+            CallSubAgentCapability[AgentDependencies](
                 server_agent=server_agent,
                 instructions=resolved_prompts.call_subagent_tool.render(),
                 publish_subagent_message_chunk=publish_subagent_message_chunk,

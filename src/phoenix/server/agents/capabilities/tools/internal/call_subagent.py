@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 from pydantic_ai import AgentRunResult, RunContext, Tool
@@ -22,7 +23,8 @@ from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
-from phoenix.server.agents.types import AgentDependencies
+
+AgentDepsT = TypeVar("AgentDepsT")
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
 Delegate a natural-language task to the Phoenix GraphQL server agent, which queries \
@@ -40,7 +42,7 @@ class CallSubagentOutputChunk(ToolOutputAvailableChunk):
     output: CallSubagentOutput
 
 
-class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
+class CallSubAgentToolset(FunctionToolset[AgentDepsT], Generic[AgentDepsT]):
     """Toolset exposing the main agent's ``call_subagent`` delegation tool.
 
     The tool delegates a natural-language task to the GraphQL server agent and
@@ -55,7 +57,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
         publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]],
         set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None],
     ) -> None:
-        async def call_subagent(ctx: RunContext[AgentDependencies], name: str, task: str) -> str:
+        async def call_subagent(ctx: RunContext[AgentDepsT], name: str, task: str) -> str:
             tool_call_id = ctx.tool_call_id
             if tool_call_id is None:
                 raise RuntimeError(
@@ -118,7 +120,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
 
 
 @dataclass
-class CallSubAgentCapability(AbstractStaticCapability[AgentDependencies]):
+class CallSubAgentCapability(AbstractStaticCapability[AgentDepsT], Generic[AgentDepsT]):
     """Capability that adds the `call_subagent` tool to an agent."""
 
     server_agent: AbstractAgent[None, str]
@@ -126,8 +128,8 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDependencies]):
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None]
 
-    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
-        return CallSubAgentToolset(
+    def get_toolset(self) -> AgentToolset[AgentDepsT] | None:
+        return CallSubAgentToolset[AgentDepsT](
             server_agent=self.server_agent,
             publish_subagent_message_chunk=self.publish_subagent_message_chunk,
             set_subagent_final_tool_output=self.set_subagent_final_tool_output,

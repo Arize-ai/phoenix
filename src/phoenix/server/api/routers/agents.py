@@ -64,7 +64,7 @@ from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
-from phoenix.server.agents.server_agents import build_delegated_server_agent, build_server_agent
+from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
     iter_requested_skill_response_chunks,
@@ -736,25 +736,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
-        deps = AgentDependencies(
-            contexts=resolved_contexts,
-            edit_permission=body.edit_permission,
-            is_viewer=is_viewer,
-        )
         subagents_enabled = _subagents_enabled(resolved_contexts)
-        delegated_server_agent = (
-            build_delegated_server_agent(
-                model=model,
-                schema=request.app.state.graphql_schema,
-                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
-                docs_mcp_server=request.app.state.docs_mcp_server,
-                enable_web_access=web_access_enabled,
-                allow_mutations=graphql_mutations_enabled,
-                tracer_provider=tracer_provider,
-            )
-            if subagents_enabled
-            else None
-        )
         server_agent = build_server_agent(
             model=model,
             schema=request.app.state.graphql_schema,
@@ -764,9 +746,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             enable_web_access=web_access_enabled,
             allow_mutations=graphql_mutations_enabled,
             tracer_provider=tracer_provider,
-            server_agent=delegated_server_agent,
+            enable_subagents=subagents_enabled,
         )
-        adapter: VercelAIAdapter[AgentDependencies, str] = VercelAIAdapter(
+        adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
             agent=server_agent,
             run_input=body,
             accept=request.headers.get("accept"),
@@ -783,7 +765,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with detached_otel_context(), using_session(session_id=session_id):
-                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
                     async with aclosing(raw_stream) as stream:
                         async for chunk in stream:
@@ -890,7 +872,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
         )
         server_agent = (
-            build_delegated_server_agent(
+            build_server_agent(
                 model=model,
                 schema=request.app.state.graphql_schema,
                 build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
@@ -898,6 +880,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 enable_web_access=web_access_enabled,
                 allow_mutations=graphql_mutations_enabled,
                 tracer_provider=tracer_provider,
+                enable_subagents=False,
             )
             if subagents_enabled
             else None

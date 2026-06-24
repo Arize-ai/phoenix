@@ -78,10 +78,6 @@ class TestServerAgentRunEndpoint:
             captured.setdefault("server_agent_kwargs", []).append(kwargs)
             return ServerAgent()
 
-        def build_delegated_server_agent(**kwargs: Any) -> object:
-            captured["delegated_server_agent_kwargs"] = kwargs
-            return object()
-
         class FakeVercelAIAdapter:
             def __init__(
                 self,
@@ -95,7 +91,7 @@ class TestServerAgentRunEndpoint:
                 captured["adapter_accept"] = accept
 
             def run_stream(
-                self, *, deps: AgentDependencies, on_complete: Any
+                self, *, deps: None, on_complete: Any
             ) -> AsyncIterator[Any]:
                 captured["deps"] = deps
                 captured["on_complete"] = on_complete
@@ -115,9 +111,6 @@ class TestServerAgentRunEndpoint:
                 return StreamingResponse(body(), media_type="text/plain")
 
         monkeypatch.setattr(agents_router, "build_model", build_model)
-        monkeypatch.setattr(
-            agents_router, "build_delegated_server_agent", build_delegated_server_agent
-        )
         monkeypatch.setattr(agents_router, "build_server_agent", build_server_agent)
         monkeypatch.setattr(agents_router, "VercelAIAdapter", FakeVercelAIAdapter)
         monkeypatch.setattr(agents_router, "get_env_phoenix_agents_disable_bash", lambda: False)
@@ -132,17 +125,12 @@ class TestServerAgentRunEndpoint:
 
         assert response.status_code == 200
         assert response.text == "ok"
-        assert isinstance(captured["deps"], AgentDependencies)
-        assert captured["deps"].contexts.graphql is not None
-        assert captured["deps"].contexts.graphql.mutations_enabled is True
+        assert captured["deps"] is None
         assert len(captured["server_agent_kwargs"]) == 1
         server_agent_kwargs = captured["server_agent_kwargs"][0]
         assert server_agent_kwargs["enable_web_access"] is True
         assert server_agent_kwargs["allow_mutations"] is True
-        assert server_agent_kwargs["server_agent"] is not None
-        delegated_server_agent_kwargs = captured["delegated_server_agent_kwargs"]
-        assert delegated_server_agent_kwargs["enable_web_access"] is True
-        assert delegated_server_agent_kwargs["allow_mutations"] is True
+        assert server_agent_kwargs["enable_subagents"] is True
 
     async def test_server_agent_run_respects_bash_disable_flag(
         self,
@@ -314,9 +302,6 @@ class TestAgentDependenciesShape:
     tool-side)."""
 
     def test_defaults_are_safe_fail(self) -> None:
-        from phoenix.server.agents.types import (
-            AgentDependencies,
-        )
 
         deps = AgentDependencies(contexts=ResolvedContexts())
         assert deps.is_viewer is False
