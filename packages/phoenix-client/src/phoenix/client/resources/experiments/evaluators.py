@@ -127,20 +127,24 @@ def _default_eval_scorer(result: Any) -> EvaluationResult:
     elif isinstance(result, str):
         return {"label": result}
     elif isinstance(result, tuple) and len(result) >= 2:  # pyright: ignore[reportUnknownArgumentType]
-        # Handle tuple results like (score, label) or (score, label, explanation)
+        # A 2-tuple is (score, explanation); a 3+-tuple is (score, label, explanation).
         score_val = result[0]  # pyright: ignore[reportUnknownVariableType]
-        label_val = result[1]  # pyright: ignore[reportUnknownVariableType]
         score = float(score_val) if score_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
-        label = str(label_val) if label_val is not None else None  # pyright: ignore[reportUnknownArgumentType]
-        explanation = str(result[2]) if len(result) > 2 and result[2] is not None else None  # pyright: ignore[reportUnknownArgumentType, reportUnknownArgumentType]
 
         result_dict: dict[str, Any] = {}
         if score is not None:
             result_dict["score"] = score
-        if label is not None:
-            result_dict["label"] = label
-        if explanation is not None:
-            result_dict["explanation"] = explanation
+        if len(result) == 2:  # pyright: ignore[reportUnknownArgumentType]
+            explanation_val = result[1]  # pyright: ignore[reportUnknownVariableType]
+            if explanation_val is not None:
+                result_dict["explanation"] = str(explanation_val)  # pyright: ignore[reportUnknownArgumentType]
+        else:
+            label_val = result[1]  # pyright: ignore[reportUnknownVariableType]
+            if label_val is not None:
+                result_dict["label"] = str(label_val)  # pyright: ignore[reportUnknownArgumentType]
+            explanation_val = result[2]  # pyright: ignore[reportUnknownVariableType]
+            if explanation_val is not None:
+                result_dict["explanation"] = str(explanation_val)  # pyright: ignore[reportUnknownArgumentType]
         return cast(EvaluationResult, result_dict)
     else:
         raise ValueError(f"Unsupported evaluation result type: {type(result)}")  # pyright: ignore[reportUnknownArgumentType]
