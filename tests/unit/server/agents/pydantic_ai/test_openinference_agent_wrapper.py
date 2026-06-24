@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import pytest
@@ -27,6 +28,7 @@ from pydantic_ai.messages import (
     NativeToolCallPart,
     NativeToolReturnPart,
     TextPart,
+    ThinkingPart,
     ToolCallPart,
     ToolReturnPart,
     UserPromptPart,
@@ -149,6 +151,7 @@ def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper:
                         tool_call_id="native-call-1",
                         provider_name="openai",
                         provider_details={"status": "completed"},
+                        timestamp=datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
                     ),
                     TextPart(content="I found Phoenix tracing documentation."),
                 ]
@@ -215,6 +218,30 @@ def _get_tool_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
     return [s for s in spans if (s.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == TOOL]
 
 
+@pytest.fixture
+def make_agent_with_response_parts(
+    tracer: Tracer,
+) -> Callable[[list[Any]], OpenInferenceAgentWrapper]:
+    def _make_agent_with_response_parts(parts: list[Any]) -> OpenInferenceAgentWrapper:
+        class _StaticResponseModel(WrapperModel):
+            async def request(
+                self,
+                messages: list[ModelMessage],
+                model_settings: ModelSettings | None,
+                model_request_parameters: ModelRequestParameters,
+            ) -> ModelResponse:
+                return ModelResponse(parts=parts)
+
+        inner: Agent[None, str] = Agent(
+            OpenInferenceModelWrapper(_StaticResponseModel(TestModel()), tracer=tracer),
+            name="StaticResponseAgent",
+            deps_type=type(None),
+        )
+        return OpenInferenceAgentWrapper(inner, tracer=tracer)
+
+    return _make_agent_with_response_parts
+
+
 async def test_iter_emits_agent_span_for_text_response(
     wrapped_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
@@ -259,6 +286,51 @@ async def test_iter_emits_agent_span_for_text_response(
     llm_span = llm_spans[0]
     assert llm_span.parent is not None
     assert llm_span.parent.span_id == agent_span.context.span_id
+
+
+async def test_agent_span_filters_empty_thinking_for_single_text_output(
+    make_agent_with_response_parts: Callable[[list[Any]], OpenInferenceAgentWrapper],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    wrapped_agent = make_agent_with_response_parts(
+        [ThinkingPart(content=""), TextPart(content="Visible answer.")]
+    )
+
+    result = await wrapped_agent.run("question")
+
+    assert result.output == "Visible answer."
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    attributes = dict(agent_span.attributes or {})
+    assert attributes.pop(OUTPUT_VALUE) == "Visible answer."
+    assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+
+async def test_agent_span_serializes_multiple_text_blocks_as_json_array(
+    make_agent_with_response_parts: Callable[[list[Any]], OpenInferenceAgentWrapper],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    wrapped_agent = make_agent_with_response_parts(
+        [
+            ThinkingPart(content=""),
+            TextPart(content="First block."),
+            TextPart(content="Second block."),
+        ]
+    )
+
+    await wrapped_agent.run("question")
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    attributes = dict(agent_span.attributes or {})
+    output_value = attributes.pop(OUTPUT_VALUE)
+    assert isinstance(output_value, str)
+    parsed_output = json.loads(output_value)
+    assert parsed_output == [
+        {"content": "First block.", "part_kind": "text"},
+        {"content": "Second block.", "part_kind": "text"},
+    ]
+    assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
 
 
 async def test_run_emits_agent_span_for_text_response(
@@ -659,6 +731,36 @@ async def test_emits_tool_span_for_provider_native_tool(
     assert tool_span.parent.span_id == agent_span.context.span_id
     assert tool_span.context.trace_id == agent_span.context.trace_id
     assert tool_span.status.status_code == StatusCode.OK
+
+    agent_attributes = dict(agent_span.attributes or {})
+    output_value = agent_attributes.pop(OUTPUT_VALUE)
+    assert isinstance(output_value, str)
+    parsed_output = json.loads(output_value)
+    assert parsed_output == [
+        {
+            "args": {"query": "phoenix tracing"},
+            "part_kind": "builtin-tool-call",
+            "provider_details": {"type": "web_search_call"},
+            "provider_name": "openai",
+            "tool_call_id": "native-call-1",
+            "tool_name": "web_search",
+        },
+        {
+            "content": {"results": [{"title": "Phoenix"}]},
+            "outcome": "success",
+            "part_kind": "builtin-tool-return",
+            "provider_details": {"status": "completed"},
+            "provider_name": "openai",
+            "timestamp": "2026-01-02T03:04:05Z",
+            "tool_call_id": "native-call-1",
+            "tool_name": "web_search",
+        },
+        {
+            "content": "I found Phoenix tracing documentation.",
+            "part_kind": "text",
+        },
+    ]
+    assert agent_attributes.pop(OUTPUT_MIME_TYPE) == JSON
 
     attributes = dict(tool_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
