@@ -80,7 +80,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 chunks = event_stream.transform_stream(stream, on_complete=_on_complete)
                 async for message in accumulate_ui_message_chunks_to_ui_messages(chunks):
                     latest_message = message
-                    if not _has_visible_ui_message_parts(message):
+                    if not _has_renderable_ui_message_parts(message):
                         continue
                     await publish_subagent_message_chunk(
                         CallSubagentOutputChunk(
@@ -135,7 +135,7 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDependencies]):
         return self.instructions
 
 
-def _has_visible_ui_message_parts(message: UIMessage) -> bool:
+def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
     for part in message.parts:
         if isinstance(part, StepStartUIPart):
             continue
