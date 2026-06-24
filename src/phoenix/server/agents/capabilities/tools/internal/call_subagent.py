@@ -19,7 +19,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.subagent_progress import (
+from phoenix.server.agents.data_stream_protocol import (
     accumulate_ui_message_chunks_to_ui_messages,
 )
 from phoenix.server.agents.types import AgentDependencies
