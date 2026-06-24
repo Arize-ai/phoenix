@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from .config import PhoenixTestConfig
 from .context import _invoke_evaluator, _iter_scores, _RunRecord
 from .marker import REPETITION_PARAM, resolve_evaluators
+from .tracing import SuiteTracer, build_suite_tracer
 
 if TYPE_CHECKING:
     from _pytest.nodes import Item
@@ -32,6 +33,7 @@ class DatasetGroup:
     dataset_id: Optional[str] = None
     dataset_version_id: Optional[str] = None
     experiment_id: Optional[str] = None
+    project_name: Optional[str] = None
     # external_id -> dataset example node_id (GlobalID), not the example "id"
     example_ids: dict[str, str] = field(default_factory=dict)
     max_repetitions: int = 1
@@ -59,6 +61,7 @@ class SuiteState:
         self._client: Any = None
         self._bootstrap_error: Optional[Exception] = None
         self._bootstrapped = False
+        self._tracers: dict[str, SuiteTracer] = {}
 
     def register_item(
         self, item: "Item", *, dataset_name: str, external_id: str, repetitions: int = 1
@@ -90,6 +93,31 @@ class SuiteState:
             self._sync_dataset(group)
             self._resolve_examples(group)
             self._create_experiment(group)
+        self._build_tracers()
+
+    def _build_tracers(self) -> None:
+        if self.config.offline:
+            return
+        base_url, headers = self._tracer_endpoint()
+        for group in self._groups.values():
+            tracer = build_suite_tracer(
+                project_name=group.project_name, base_url=base_url, headers=headers
+            )
+            if tracer is not None:
+                self._tracers[group.name] = tracer
+
+    def _tracer_endpoint(self) -> tuple[Optional[str], Optional[dict[str, str]]]:
+        http_client = getattr(self._client, "_client", None)
+        if http_client is None:
+            return None, None
+        return str(http_client.base_url), dict(http_client.headers)
+
+    def tracer_for(self, dataset_name: str) -> Optional[SuiteTracer]:
+        return self._tracers.get(dataset_name)
+
+    def project_name_for(self, dataset_name: str) -> Optional[str]:
+        group = self._groups.get(dataset_name)
+        return group.project_name if group is not None else None
 
     def record_bootstrap_error(self, error: Exception) -> None:
         self._bootstrap_error = error
@@ -157,6 +185,7 @@ class SuiteState:
             repetitions=group.max_repetitions,
         )
         group.experiment_id = experiment["id"]
+        group.project_name = experiment.get("project_name")
 
     def broadcast_payload(self) -> dict[str, dict[str, Any]]:
         return {
@@ -164,6 +193,7 @@ class SuiteState:
                 "dataset_id": g.dataset_id,
                 "dataset_version_id": g.dataset_version_id,
                 "experiment_id": g.experiment_id,
+                "project_name": g.project_name,
                 "example_ids": dict(g.example_ids),
             }
             for name, g in self._groups.items()
@@ -180,10 +210,12 @@ class SuiteState:
             group.dataset_id = data.get("dataset_id")
             group.dataset_version_id = data.get("dataset_version_id")
             group.experiment_id = data.get("experiment_id")
+            group.project_name = data.get("project_name")
             group.example_ids = dict(data.get("example_ids") or {})
             for external_id, example_id in group.example_ids.items():
                 if external_id in group.bindings:
                     group.bindings[external_id].dataset_example_id = example_id
+        self._build_tracers()
 
     def record_run(
         self,
@@ -222,6 +254,7 @@ class SuiteState:
                 start_time=start_time,
                 end_time=end_time,
                 repetition_number=repetition_number,
+                trace_id=record.trace_id,
                 error=error,
                 tolerate_existing=True,
             )
@@ -236,6 +269,7 @@ class SuiteState:
             score=1.0 if passed else 0.0,
             label="pass" if passed else "fail",
             annotator_kind="CODE",
+            trace_id=record.trace_id,
         )
         for name, kwargs in record.evaluations.items():
             self._safe_log_eval(
@@ -246,12 +280,26 @@ class SuiteState:
                 explanation=kwargs.get("explanation"),
                 annotator_kind=kwargs.get("annotator_kind", "CODE"),
                 metadata=kwargs.get("metadata"),
+                trace_id=kwargs.get("trace_id") or record.trace_id,
             )
-        self._run_marker_evaluators(binding, run_id=run["id"], output=record.output)
+        self._run_marker_evaluators(
+            binding,
+            run_id=run["id"],
+            output=record.output,
+            tracer=self._tracers.get(binding.dataset_name),
+        )
 
-    def _run_marker_evaluators(self, binding: ItemBinding, *, run_id: str, output: Any) -> None:
+    def _run_marker_evaluators(
+        self,
+        binding: ItemBinding,
+        *,
+        run_id: str,
+        output: Any,
+        tracer: Optional[SuiteTracer],
+    ) -> None:
         """Each evaluator gets the case's parametrized fields plus ``output``; a failure degrades
-        to a warning rather than sinking the run's other annotations."""
+        to a warning rather than sinking the run's other annotations. Each invocation is wrapped
+        in an EVALUATOR span whose trace_id links its annotation."""
         item = self._items_by_nodeid.get(binding.nodeid)
         if item is None:
             return
@@ -265,8 +313,16 @@ class SuiteState:
                 or getattr(evaluator, "__name__", None)
                 or "evaluation"
             )
+            trace_id: Optional[str] = None
             try:
-                result = _invoke_evaluator(evaluator, eval_input)
+                if tracer is not None:
+                    with tracer.evaluator_span(
+                        f"Evaluation: {default_name}", input_value=eval_input
+                    ) as handle:
+                        result = _invoke_evaluator(evaluator, eval_input)
+                    trace_id = handle.trace_id
+                else:
+                    result = _invoke_evaluator(evaluator, eval_input)
             except Exception as e:  # noqa: BLE001
                 logger.warning(
                     "Phoenix plugin: hoisted evaluator %s failed for %s: %s",
@@ -284,6 +340,7 @@ class SuiteState:
                     explanation=score.get("explanation"),
                     annotator_kind=score.get("annotator_kind", "LLM"),
                     metadata=score.get("metadata"),
+                    trace_id=trace_id,
                 )
 
     def _safe_log_eval(self, **kwargs: Any) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -184,12 +185,28 @@ def pytest_runtest_call(item: "Item") -> Any:
         outcome = yield
         return outcome
 
-    record = _RunRecord(nodeid=item.nodeid, external_id=binding.external_id)
+    assert state is not None
+    tracer = state.tracer_for(binding.dataset_name)
+    record = _RunRecord(nodeid=item.nodeid, external_id=binding.external_id, tracer=tracer)
     token = set_current_run(record)
     start_time = datetime.now(timezone.utc)
+    span_cm: Any = (
+        tracer.chain_span(
+            f"Test: {item.nodeid}",
+            input_value=_chain_input(item),
+            output_getter=lambda: record.output,
+            # pytest captures a failing test's exception into ``outcome`` rather than raising
+            # it through the hookwrapper ``yield``; hand it to the span so it records ERROR.
+            error_getter=lambda: outcome.excinfo[1] if outcome.excinfo else None,
+        )
+        if tracer is not None
+        else nullcontext(None)
+    )
     try:
-        outcome = yield
+        with span_cm as handle:
+            outcome = yield
     finally:
+        record.trace_id = getattr(handle, "trace_id", None)
         reset_current_run(token)
         end_time = datetime.now(timezone.utc)
         excinfo = outcome.excinfo  # (type, value, tb) or None
@@ -199,7 +216,14 @@ def pytest_runtest_call(item: "Item") -> Any:
             exc = excinfo[1]
             passed = False
             error = repr(exc)
-        assert state is not None
+        if not passed and record.trace_id:
+            # Surface the trace id in the failure output so a reader (human or agent) can open
+            # the underlying trace in Phoenix straight from the test log.
+            project = state.project_name_for(binding.dataset_name)
+            hint = f"trace_id: {record.trace_id}"
+            if project:
+                hint += f"\nproject: {project}"
+            item.add_report_section("call", "phoenix trace", hint)
         # Server expects a 1-based repetition_number.
         state.record_run(
             binding,
@@ -224,6 +248,16 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: "Con
         write(state.offline_summary_line())
     else:
         write(state.summary_line())
+
+
+def _chain_input(item: "Item") -> dict[str, Any]:
+    """The CHAIN span input: the test's parametrized fields, or its nodeid when unparametrized."""
+    callspec = getattr(item, "callspec", None)
+    if callspec is not None and getattr(callspec, "params", None):
+        params = {k: v for k, v in callspec.params.items() if k != REPETITION_PARAM}
+        if params:
+            return params
+    return {"nodeid": item.nodeid}
 
 
 def _make_client() -> Any:

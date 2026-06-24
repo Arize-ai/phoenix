@@ -12,6 +12,10 @@ class _RunRecord:
     output: Any = None
     output_logged: bool = False
     evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # Test CHAIN trace_id (set by the hookwrapper) carried onto bare annotations.
+    trace_id: Optional[str] = None
+    # Suite tracer for the test's dataset; lets inline px.evaluate open EVALUATOR spans.
+    tracer: Any = None
 
     def set_output(self, value: Any) -> None:
         self.output = value
@@ -26,6 +30,7 @@ class _RunRecord:
         explanation: Optional[str] = None,
         annotator_kind: str = "CODE",
         metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
     ) -> None:
         self.evaluations[name] = {
             "name": name,
@@ -34,6 +39,7 @@ class _RunRecord:
             "explanation": explanation,
             "annotator_kind": annotator_kind,
             "metadata": dict(metadata) if metadata else None,
+            "trace_id": trace_id,
         }
 
 
@@ -110,8 +116,17 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
     optional ``phoenix.evals`` dependency is imported lazily; the adapter is intentionally thin.
     """
     run = _require_run()
-    result = _invoke_evaluator(evaluator, eval_input)
-    for score in _iter_scores(result, default_name=getattr(evaluator, "name", "evaluation")):
+    default_name = getattr(evaluator, "name", "evaluation")
+    trace_id: Optional[str] = None
+    if run.tracer is not None:
+        with run.tracer.evaluator_span(
+            f"Evaluation: {default_name}", input_value=dict(eval_input)
+        ) as handle:
+            result = _invoke_evaluator(evaluator, eval_input)
+        trace_id = handle.trace_id
+    else:
+        result = _invoke_evaluator(evaluator, eval_input)
+    for score in _iter_scores(result, default_name=default_name):
         run.add_evaluation(
             name=score["name"],
             score=score.get("score"),
@@ -119,6 +134,7 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
             explanation=score.get("explanation"),
             annotator_kind=score.get("annotator_kind", "LLM"),
             metadata=score.get("metadata"),
+            trace_id=trace_id,
         )
     return result
 
