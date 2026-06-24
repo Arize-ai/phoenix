@@ -26,6 +26,7 @@ const PARENTS = ["One", "Two", "Three"];
 // to collapse/expand) and the slot="chevron" button. No wrapper component yet —
 // extract one when the span, trace, or session views actually consume it.
 const treeCSS = css`
+  width: 350px;
   border: 1px solid var(--global-border-color-default);
 
   & [role="row"] {
@@ -39,6 +40,26 @@ const treeCSS = css`
   & .row-label {
     flex: 1;
     padding: var(--global-dimension-size-100);
+  }
+  /* row content: main + (future) extra, side by side, filling up to the chevron.
+     Base padding here; the inline paddingLeft adds depth indentation. */
+  & .row-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: var(--global-dimension-size-100);
+  }
+  /* main content: a vertical stack of up to three lines */
+  & .row-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  /* one line within main: text pieces laid out horizontally */
+  & .row-line {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
   }
   /* pale hover */
   & [role="row"][data-hovered] {
@@ -193,12 +214,16 @@ const renderNode = (node: TreeNode) => (
     <TreeItemContent>
       {({ isExpanded, level, hasChildItems }) => (
         <>
-          <span
-            className="row-label"
+          {/* content = main + extra; extra ignored for now */}
+          <div
+            className="row-content"
             style={{ paddingLeft: `calc(${level - 1} * 1.25rem + var(--global-dimension-size-100))` }}
           >
-            {node.label}
-          </span>
+            <div className="row-main">
+              {/* up to three lines; just the label line for now */}
+              <div className="row-line">{node.label}</div>
+            </div>
+          </div>
           {hasChildItems ? (
             <Button slot="chevron" aria-label={isExpanded ? "Collapse" : "Expand"}>
               {isExpanded ? "▾" : "▸"}
