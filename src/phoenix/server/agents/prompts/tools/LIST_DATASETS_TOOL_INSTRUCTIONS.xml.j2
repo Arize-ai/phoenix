@@ -1,5 +1,8 @@
 <tool name="list_datasets">
   <description>List the datasets in this Phoenix instance, returning each dataset's id, name, and example count. Read-only. Filter by a case-insensitive substring of the name and/or by label names, and paginate with a cursor. Use this to find existing datasets — to resolve which dataset the user means, and to check whether a name is already taken before creating one.</description>
+  <do_not_use>
+    - Do not use this for a Phoenix UI link request when recent `get_route_info` output already returned a concrete `link` with empty `missingParams`. Answer with that link directly; do not verify the dataset name.
+  </do_not_use>
   <when_to_use>
     - Before create_dataset, to check whether the user's chosen name already exists (names are unique).
     - To turn the user's loose reference ("my regression set") into a specific dataset id you can act on.
@@ -7,6 +10,7 @@
   </when_to_use>
   <rules>
     - Prefer this over hand-writing GraphQL (e.g. via bash) to list datasets.
+    - Do not use this just to rebuild a UI link when recent message history already contains a `get_route_info` result with a concrete `link` and empty `missingParams` for the requested destination. Answer with that link.
     - The name filter is a substring match, so it can return several datasets. When more than one could be what the user means, do not assume the first — use ask_user to confirm which dataset before acting on it.
     - To find datasets carrying a label, pass the label name(s) in `labelNames` (discover label names with list_labels). It can be combined with the name filter.
     - If the result reports more pages, call again with the returned cursor in `after` to continue.

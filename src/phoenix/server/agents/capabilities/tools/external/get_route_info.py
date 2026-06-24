@@ -15,7 +15,8 @@ NAME = "get_route_info"
 
 DESCRIPTION = (
     "Search Phoenix's current React Router route catalog for internal app destinations. "
-    "Use this before generating Phoenix UI links."
+    "Use this before generating Phoenix UI links or answering where to configure, open, "
+    "view, or manage something in the Phoenix UI."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -25,7 +26,8 @@ PARAMETERS: dict[str, Any] = {
             "type": "string",
             "description": (
                 "Natural-language destination to search for, such as "
-                "`data retention policy`, `project traces`, or `agent settings`."
+                "`data retention policy`, `sandbox dependencies`, `project traces`, "
+                "`AI provider credentials`, or `agent settings`."
             ),
         },
         "path": {

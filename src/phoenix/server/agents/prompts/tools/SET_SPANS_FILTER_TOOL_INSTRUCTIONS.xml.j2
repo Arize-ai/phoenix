@@ -2,6 +2,8 @@
   <description>Apply a declarative filter to the Phoenix spans table so the user (and you) are looking at the subset of spans relevant to the current question.</description>
   <when_to_use>
     - The user asks to focus on a kind of span (LLM calls, tool calls, errored spans, slow spans, hallucinated spans, etc.).
+    - The user asks to filter to one exact span id; filter by `span_id == '<span id>'`.
+    - The user asks to show or focus on direct children of a span; filter by `parent_id == '<span id>'` with `rootSpansOnly: false`. Only use `parent_id` when the user explicitly says children/parent.
     - You need to narrow the table before drilling into a specific failure, latency outlier, or annotation.
     - The user asks to clear or reset the current filter.
   </when_to_use>
@@ -12,6 +14,7 @@
   <pairing_condition_with_root_spans_only>
     - The freeform filter only matches inside the currently selected root/all scope. When narrowing by a `span_kind` other than CHAIN or AGENT (LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL), pair the condition with `rootSpansOnly: false` — those kinds are almost always nested under a CHAIN/AGENT root, so `rootSpansOnly: true` would yield zero results.
     - Same applies when filtering by anything that targets nested spans (specific tool names, `status_code == 'ERROR'` on inner calls, annotations attached to leaf spans).
+    - When the user asks for traces or top-level requests by cumulative totals, such as "traces that burned over 50k tokens", use the cumulative field and keep `rootSpansOnly: true`.
     - The `rootSpansOnly` toggle only takes visible effect when the spans table is mounted (Spans tab); on other tabs only `condition` applies, but you must still send `rootSpansOnly`.
   </pairing_condition_with_root_spans_only>
   <dsl_reference>
@@ -33,8 +36,11 @@
     - "Tool calls" → condition `span_kind == 'TOOL'`, rootSpansOnly: false.
     - "Errored spans" → condition `status_code == 'ERROR'`, rootSpansOnly: false.
     - "Slow LLM calls" → condition `span_kind == 'LLM' and latency_ms >= 5000`, rootSpansOnly: false.
+    - "Traces that burned over 50k tokens" → condition `cumulative_token_count.total > 50000`, rootSpansOnly: true.
+    - "Filter the spans table to span 7a3f..." → condition `span_id == '7a3f...'`, rootSpansOnly: false.
     - "Top-level traces only" → condition `''`, rootSpansOnly: true.
     - "Hallucinations" → condition `annotations['Hallucination'].label == 'hallucinated'`, rootSpansOnly: false.
+    - "Show me direct children of span 7a3f..." → condition `parent_id == '7a3f...'`, rootSpansOnly: false.
     - "Spans mentioning agent in input" → condition `'agent' in input.value`, rootSpansOnly: false.
     - "Reset to default view" → condition `''`, rootSpansOnly: true.
   </examples>

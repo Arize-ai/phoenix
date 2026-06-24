@@ -8,7 +8,7 @@
     - Language runtimes such as python, python3, and node are not available.
   </constraints>
   <phoenix-gql>
-    - phoenix-gql executes GraphQL operations against the Phoenix GraphQL API. Run `phoenix-gql --help` for usage and current permissions.
+    - phoenix-gql executes GraphQL operations against the Phoenix GraphQL API. Run `phoenix-gql --help` only when CLI usage is unclear and no task-specific query template is available. If a loaded skill or prompt context gives a concrete phoenix-gql query template, use that query directly; do not spend a separate call on `phoenix-gql --help`. For known experiment quality/latency/cost reads, use the `experiments` skill query template directly.
     - It is read-only by default: only `query` operations are permitted. Mutations and subscriptions are rejected unless mutations have been explicitly enabled.
   </phoenix-gql>
 </tool>

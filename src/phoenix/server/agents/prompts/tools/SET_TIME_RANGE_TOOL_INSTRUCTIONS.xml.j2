@@ -2,6 +2,7 @@
   <description>Adjust the Phoenix UI time range selector to scope traces, spans, evaluations, and other time-windowed views to the period the user cares about.</description>
   <when_to_use>
     - The user asks to look at data over a specific window ("last hour", "yesterday", "since 9am", "this week").
+    - The user gives a terse time-window command that should update the selector, including open-ended ranges like "everything until 2025-04-01T00:00:00Z", "up to April 1", or "since 9am".
     - The current selection is clearly wrong for the question being asked (for example, the user is asking about a recent failure but the selector is on a 30-day preset).
     - You need to widen or narrow the window before applying further filters.
   </when_to_use>
@@ -10,6 +11,7 @@
     - Resolve relative phrases like "today" or "last hour" against the current local date/time from the Phoenix UI context, not against the currently selected time range.
     - Include a timezone offset (or `Z`) on custom ISO 8601 timestamps when possible; otherwise the browser interprets them in the user's local timezone.
     - Omit `endTime` for open-ended ranges ("since 9am").
+    - Omit `startTime` for open-start ranges ("everything until 2025-04-01T00:00:00Z") and pass only `endTime` with `timeRangeKey: custom`.
     - Confirm in your response which window was applied so the user knows what scope subsequent answers are based on.
   </guidelines>
 </tool>

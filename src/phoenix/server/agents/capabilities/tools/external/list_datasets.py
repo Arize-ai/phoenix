@@ -14,7 +14,9 @@ from phoenix.server.agents.types import AgentDependencies
 NAME = "list_datasets"
 
 DESCRIPTION = (
-    "List the datasets in this Phoenix instance, returning each dataset's id, name, and example "
+    "Do NOT call this for a Phoenix UI link request when recent get_route_info output already "
+    "contains a concrete link for the requested destination; answer with that link. Otherwise, "
+    "list the datasets in this Phoenix instance, returning each dataset's id, name, and example "
     "count. Read-only. Filter by a case-insensitive substring of the name and/or by label names, "
     "and paginate with a cursor. Use this to resolve which dataset the user means and to check "
     "whether a name is already taken before creating one. Prefer this over hand-writing GraphQL."

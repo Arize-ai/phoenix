@@ -51,8 +51,9 @@ PARAMETERS: dict[str, Any] = {
 DESCRIPTION = (
     "Set the Phoenix app time range selector. Use preset `timeRangeKey` values for "
     "standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with "
-    "`startTime` and optional `endTime` for specific calendar windows. The Phoenix UI "
-    "context includes the current date/time in the user's browser timezone; base "
+    "`startTime` and/or `endTime` for specific calendar windows, including open-ended "
+    "commands like 'since 9am' or 'everything until 2025-04-01T00:00:00Z'. The Phoenix "
+    "UI context includes the current date/time in the user's browser timezone; base "
     "relative calendar phrases on that value, not on the currently selected time range."
 )
 

@@ -1,8 +1,8 @@
 ---
 name: debug-trace
 description: >
-  Diagnose failure modes by systematically investigating traces. Trigger when the user explicitly asks for cross-trace diagnosis: "what's going wrong?", "were there errors?", "debug this", "where is my agent struggling?". Do NOT trigger on: (1) advice questions ("what should I do?"), (2) statistical questions ("what's the average latency?"), (3) summarize requests, (4) trace filtering ("show me traces with errors"), (5) vague questions ("is there a problem?"), (6) unrelated requests.
-summary: Investigate traces to identify concrete failure modes, likely root causes, and prioritized fixes.
+  Do NOT load for vague health checks ("is there a problem with my project?"), generic advice/improvement ("what should I do to fix my agent?"), simple error/count checks, trace filtering, summaries, statistics, or unrelated requests. Load only for explicit trace failure diagnosis/root-cause analysis: "where is my agent struggling?", "debug this", "what's going wrong?", "why are these traces failing?".
+summary: Diagnose explicit trace failures and root causes from Phoenix traces.
 ---
 
 ### Orientation

@@ -1,6 +1,6 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground tool call, including single-shot prompt rewrites.
+description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground tool call, including single-shot prompt rewrites. Do NOT load just to read or compare an existing experimentId; query experiment results directly or use `experiments`.
 summary: Author, edit, run, compare, and improve prompts in the Phoenix playground.
 ---
 
@@ -85,10 +85,12 @@ starting a recorded run.
 
 ### Reading experiment results
 
-When an instance carries an `experimentId`, read its cost and evaluator scores with `phoenix-gql`:
+When an instance carries an `experimentId`, read its cost and evaluator scores with `phoenix-gql`.
+Use the standard query directly; do not load `phoenix-graphql` or run `phoenix-gql --help` first for
+this common read:
 
 ```
-phoenix-gql --vars '{"experimentId":"<id>"}' 'query($experimentId: ID!){ node(id:$experimentId){ ...on Experiment { runCount expectedRunCount job{status} costSummary{total{cost tokens}} annotationSummaries{annotationName meanScore count errorCount} } } }'
+phoenix-gql --data-only --vars '{"experimentId":"<id>"}' 'query($experimentId: ID!){ node(id:$experimentId){ ...on Experiment { id name sequenceNumber runCount expectedRunCount job{status} errorRate averageLatencyMs: averageRunLatencyMs costSummary{total{cost tokens}} annotationSummaries{annotationName meanScore count errorCount} runs(first:50){edges{node{id latencyMs error output annotations{edges{node{name label score explanation error}}}}}} } } }'
 ```
 
 An `experimentId` only means the experiment is queryable, not that the run finished — trust the

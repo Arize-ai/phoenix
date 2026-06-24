@@ -6,7 +6,8 @@ description: >
   the `phoenix-gql` bash command) — it contains schema entrypoints and patterns
   that eliminate the need for introspection; (2) when the user asks for help writing
   GraphQL queries for their own scripts, tools, or integrations against Phoenix —
-  it covers the endpoint, authentication, and client examples.
+  it covers the endpoint, authentication, and client examples. Do NOT load for UI state
+  changes such as filtering the spans table; use the dedicated UI tool instead.
 summary: Answer data questions with efficient GraphQL queries, or get working GraphQL for your own scripts and integrations against the Phoenix API.
 ---
 

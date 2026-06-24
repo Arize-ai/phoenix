@@ -1,7 +1,7 @@
 ---
 name: experiments
 description: >
-  Run, read, and compare dataset-backed experiments to find evidence that a prompt or pipeline is improving. Trigger when the user wants to iterate over a dataset with experiments, compare experiment runs, read experiment quality/latency/cost, or decide whether a change actually helped. Running a prompt over a dataset is implicitly an experiment — load this skill when dataset-backed work begins, before authoring evaluators for the experiment and before starting the recorded run, not only when reading results. Do NOT trigger on: (1) manual prompt drafting with no dataset-backed evaluation in scope (use `playground`), (2) authoring or refining an evaluator's logic or rubric (use `evaluators`), (3) cross-trace failure diagnosis with no experiment in scope (use `debug-trace`).
+  Run, read, and compare dataset-backed experiments to find evidence that a prompt or pipeline is improving. Trigger when the user wants to iterate over a dataset with experiments, compare experiment runs, review experiment quality/latency/cost together, or decide whether a change actually helped. Running a prompt over a dataset is implicitly an experiment — load this skill when dataset-backed work begins, before authoring evaluators for the experiment and before starting the recorded run, not only when reading results. Do NOT trigger on: (1) manual prompt drafting with no dataset-backed evaluation in scope (use `playground`), (2) authoring or refining an evaluator's logic or rubric (use `evaluators`), (3) cross-trace failure diagnosis with no experiment in scope (use `debug-trace`), (4) a one-off closed-form experiment lookup such as a single average score or count (query it directly).
 summary: Iterate over a dataset with experiments — run, read results across quality, latency, and cost, and compare candidates to drive improvement.
 ---
 
@@ -64,6 +64,19 @@ is drivable end-to-end, pausing only when one of those two conditions is genuine
    and cost, and the evaluator explanations cited as evidence for the verdict.
 9. Continue hypothesis → run → compare → report until the evidence meets the stated goal, then save
    the prompt version the evidence supports or the accepted tradeoff selects.
+
+## Reading Experiment Results With phoenix-gql
+
+For standard experiment reads, this skill has enough schema guidance to query directly. Do not run
+`phoenix-gql --help` and do not load `phoenix-graphql` just to read quality, latency, cost, or
+annotation explanations for a known experiment ID.
+
+When the user asks for quality, latency, and cost together, include summary metrics and run-level
+annotation explanations in one query:
+
+```
+phoenix-gql --data-only --vars '{"experimentId":"<id>"}' 'query($experimentId: ID!){ node(id:$experimentId){ ...on Experiment { id name sequenceNumber runCount expectedRunCount job{status} errorRate averageLatencyMs: averageRunLatencyMs costSummary{total{cost tokens}} annotationSummaries{annotationName meanScore count errorCount} runs(first:50){edges{node{id latencyMs error output annotations{edges{node{name label score explanation error}}}}}} } } }'
+```
 
 ## Recording What You Learned
 

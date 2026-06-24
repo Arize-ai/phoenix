@@ -15,7 +15,7 @@
     The selectable sandbox inventory is not inlined here. When you need to pick a `sandboxConfigId`, fetch it on-demand with the `bash` tool's `phoenix-gql` command and filter to the selectable set yourself. Query `sandboxBackends { backendType status }` and `sandboxProviders { backendType enabled configs { id name language enabled config { envVars { name } internetAccess { mode } dependencies { packages } } } }`, then keep only configs where the provider `enabled` is true, the config `enabled` is true, and the config's backend has `status` `AVAILABLE`. The remaining `config.id` values are the only valid `sandboxConfigId` choices, and each config's `language` must match the draft language. Request only `envVars { name }` — never `secretKey`.
   </available_sandbox_configs>
   <guidance>
-    Before authoring or revising this evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology.
+    Before authoring or revising this evaluator, `load_skill` the `evaluators` skill for the evaluator authoring methodology. This comes before any sandbox-availability response: even when the form cannot be edited because no usable sandbox is configured, load the skill first, then explain the sandbox blocker.
     Call `read_code_evaluator_draft` before proposing edits to capture the latest draft snapshot and `testPayload`.
 {% if can_edit_draft %}
     Call `edit_code_evaluator_draft` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.

@@ -6,6 +6,7 @@
 {% endif %}
   <experiments_methodology>
     Running a prompt over this dataset is implicitly an experiment. Before designing a dataset run or its evaluators — and before reading or comparing experiment results — `load_skill` the `experiments` skill for the iteration methodology if it is not already loaded.
+    Do NOT load the `experiments` skill for a one-off closed-form metric lookup, such as "What's the average relevance score on my last experiment?", run count, or error count. Query the value directly.
   </experiments_methodology>
   <code_evaluator_authoring>
 {% if is_code_evaluator_form_mounted %}
