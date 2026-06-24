@@ -112,9 +112,6 @@
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
-  "portless": {
-    "appPort": 6006
-  },
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/mcp": "1.0.46",
@@ -155,12 +152,12 @@
     "eslint-plugin-react-hooks": "~7.0.1",
     "graphql": "^16.14.2",
     "jsdom": "^29.1.1",
-    "portless": "^0.14.0",
     "only-allow": "^1.2.2",
     "openapi-typescript": "^7.13.0",
     "oxfmt": "^0.54.0",
     "oxlint": "~1.69.0",
     "playwright": "^1.61.0",
+    "portless": "^0.14.0",
     "relay-compiler": "^20.1.1",
     "rollup-plugin-visualizer": "^7.0.1",
     "storybook": "^10.4.6",
@@ -178,5 +175,8 @@
     "node": ">=22"
   },
   "packageManager": "pnpm@11.3.0",
+  "portless": {
+    "appPort": 6006
+  },
   "url": "https://github.com/Arize-ai/phoenix/issues"
 }
