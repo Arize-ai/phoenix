@@ -1,12 +1,22 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
+
+vi.mock("@phoenix/components/code", () => ({
+  CodeBlock: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  CodeWrap: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/code/JSONEditor", () => ({
+  JSONEditor: () => null,
+}));
 
 import { getToolPartPreview, ToolPart } from "../ToolPart";
 import type { ToolInvocationPart } from "../toolPartTypes";

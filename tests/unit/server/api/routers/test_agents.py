@@ -16,6 +16,7 @@ from phoenix.server.agents.types import (
 from phoenix.server.api.routers.agents import (
     _interleave_agent_and_subagent_message_chunks,
     _load_sandbox_availability,
+    _SubagentMessageChunksClosed,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -146,7 +147,9 @@ class TestInterleaveAgentAndSubagentMessageChunks:
             output={"summary": "still running"},
             preliminary=True,
         )
-        subagent_message_chunks = asyncio.Queue()
+        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
 
         async def agent_chunks() -> AsyncIterator[BaseChunk]:
             yield final_chunk
