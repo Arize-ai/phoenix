@@ -30,3 +30,22 @@ again moves past it.
 
 Rows show three states: hovered (mouse), focused (keyboard outline), and
 selected (filled).
+
+## Nested
+
+The tree nests to arbitrary depth. Children are rendered recursively, and
+each row indents by its depth (`level` from react-aria). Only rows that have
+children show a chevron; leaves show an empty filler block in the same spot so
+labels and row edges stay aligned. The same keyboard and selection model
+applies at every level.
+
+<Canvas of={TreeViewStories.NestedTree} />
+
+## Examples
+
+The shapes the tree will render in practice, stacked. Each is an independent
+tree with its own selection and expansion. A single **span** stack (root → mid →
+end); a **trace** wrapping that stack; a **session** of turns; and a **session**
+whose children are traces.
+
+<Canvas of={TreeViewStories.ExampleTrees} />
