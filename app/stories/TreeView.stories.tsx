@@ -103,10 +103,15 @@ const treeCSS = css`
   }
 `;
 
-/** The most primitive tree: bare divs, raw text, keyboard + mouse navigable. */
-export const PrimitiveTree: StoryFn = () => {
+// Shared tree state + the unified interaction model. An "interaction" is any
+// activation of a row — pointer click OR keyboard (Enter/Space) — since
+// react-aria fires onPressStart for both. The rule, applied identically to all:
+//   - row inactive → activate it, leave fold state alone
+//   - row already active → toggle its fold
+// The chevron button is separate and always toggles fold (react-aria slot).
+const useTreeState = (initialExpanded: Iterable<Key> = []) => {
   const [selected, setSelected] = useState<Selection>(new Set<Key>());
-  const [expanded, setExpanded] = useState<Set<Key>>(new Set());
+  const [expanded, setExpanded] = useState<Set<Key>>(new Set(initialExpanded));
 
   const toggleExpanded = (key: Key) =>
     setExpanded((prev) => {
@@ -115,30 +120,36 @@ export const PrimitiveTree: StoryFn = () => {
       return next;
     });
 
-  // First press selects; pressing the row when it's already selected toggles its
-  // expansion. `selected` here is the pre-press value, so the initial selecting
-  // press is a no-op for expansion.
-  const onParentPressStart = (key: Key) => {
+  // `selected` is the pre-press value, so the press that first activates a row
+  // is a no-op for fold; only a press on an already-active row toggles it.
+  const onRowInteract = (key: Key) => {
     if (selected instanceof Set && selected.has(key)) toggleExpanded(key);
   };
 
+  const treeProps = {
+    selectionMode: "single" as const,
+    disallowEmptySelection: true,
+    selectedKeys: selected,
+    onSelectionChange: setSelected,
+    expandedKeys: expanded,
+    onExpandedChange: (keys: Selection) => setExpanded(new Set(keys)),
+  };
+
+  return { treeProps, onRowInteract };
+};
+
+/** The most primitive tree: bare divs, raw text, keyboard + mouse navigable. */
+export const PrimitiveTree: StoryFn = () => {
+  const { treeProps, onRowInteract } = useTreeState();
+
   return (
-    <Tree
-      aria-label="Primitive tree"
-      selectionMode="single"
-      disallowEmptySelection
-      css={treeCSS}
-      selectedKeys={selected}
-      onSelectionChange={setSelected}
-      expandedKeys={expanded}
-      onExpandedChange={(keys) => setExpanded(new Set(keys))}
-    >
+    <Tree aria-label="Primitive tree" css={treeCSS} {...treeProps}>
       {PARENTS.map((label) => (
         <TreeItem
           key={label}
           id={label}
           textValue={label}
-          onPressStart={() => onParentPressStart(label)}
+          onPressStart={() => onRowInteract(label)}
         >
           <TreeItemContent>
             {({ isExpanded }) => (
@@ -158,6 +169,7 @@ export const PrimitiveTree: StoryFn = () => {
               key={`${label}-${child}`}
               id={`${label}-${child}`}
               textValue={child}
+              onPressStart={() => onRowInteract(`${label}-${child}`)}
             >
               <TreeItemContent>
                 <span className="row-label">{child}</span>
@@ -209,52 +221,60 @@ const NESTED: TreeNode[] = [
 ];
 
 // `level` (1-based, from react-aria) drives indentation; leaves render no chevron.
-const renderNode = (node: TreeNode) => (
-  <TreeItem key={node.id} id={node.id} textValue={node.label}>
-    <TreeItemContent>
-      {({ isExpanded, level, hasChildItems }) => (
-        <>
-          {/* content = main + extra; extra ignored for now */}
-          <div
-            className="row-content"
-            style={{ paddingLeft: `calc(${level - 1} * 1.25rem + var(--global-dimension-size-100))` }}
-          >
-            <div className="row-main">
-              {/* up to three lines; just the label line for now */}
-              <div className="row-line">{node.label}</div>
+// Factory so each tree can bind its own onRowInteract; recurses via `render`.
+const makeRenderNode = (onRowInteract: (key: Key) => void) => {
+  const render = (node: TreeNode) => (
+    <TreeItem
+      key={node.id}
+      id={node.id}
+      textValue={node.label}
+      onPressStart={() => onRowInteract(node.id)}
+    >
+      <TreeItemContent>
+        {({ isExpanded, level, hasChildItems }) => (
+          <>
+            {/* content = main + extra; extra ignored for now */}
+            <div
+              className="row-content"
+              style={{
+                paddingLeft: `calc(${level - 1} * 1.25rem + var(--global-dimension-size-100))`,
+              }}
+            >
+              <div className="row-main">
+                {/* up to three lines; just the label line for now */}
+                <div className="row-line">{node.label}</div>
+              </div>
             </div>
-          </div>
-          {hasChildItems ? (
-            <Button slot="chevron" aria-label={isExpanded ? "Collapse" : "Expand"}>
-              {isExpanded ? "▾" : "▸"}
-            </Button>
-          ) : (
-            <span className="chevron-placeholder" aria-hidden />
-          )}
-        </>
-      )}
-    </TreeItemContent>
-    {node.children?.map(renderNode)}
-  </TreeItem>
-);
+            {hasChildItems ? (
+              <Button
+                slot="chevron"
+                aria-label={isExpanded ? "Collapse" : "Expand"}
+              >
+                {isExpanded ? "▾" : "▸"}
+              </Button>
+            ) : (
+              <span className="chevron-placeholder" aria-hidden />
+            )}
+          </>
+        )}
+      </TreeItemContent>
+      {node.children?.map(render)}
+    </TreeItem>
+  );
+  return render;
+};
 
 /** Arbitrary-depth tree, rendered recursively. Same keyboard + mouse model. */
 export const NestedTree: StoryFn = () => {
-  const [selected, setSelected] = useState<Selection>(new Set<Key>());
-  const [expanded, setExpanded] = useState<Set<Key>>(
-    new Set(["agent", "agent.act", "agent.act.tool"])
-  );
+  const { treeProps, onRowInteract } = useTreeState([
+    "agent",
+    "agent.act",
+    "agent.act.tool",
+  ]);
+  const renderNode = makeRenderNode(onRowInteract);
 
   return (
-    <Tree
-      aria-label="Nested tree"
-      selectionMode="single"
-      css={treeCSS}
-      selectedKeys={selected}
-      onSelectionChange={setSelected}
-      expandedKeys={expanded}
-      onExpandedChange={(keys) => setExpanded(new Set(keys))}
-    >
+    <Tree aria-label="Nested tree" css={treeCSS} {...treeProps}>
       {NESTED.map(renderNode)}
     </Tree>
   );
@@ -269,21 +289,13 @@ const StandaloneTree = ({
   label: string;
   nodes: TreeNode[];
 }) => {
-  const [selected, setSelected] = useState<Selection>(new Set<Key>());
   const allIds = (ns: TreeNode[]): Key[] =>
     ns.flatMap((n) => [n.id, ...(n.children ? allIds(n.children) : [])]);
-  const [expanded, setExpanded] = useState<Set<Key>>(new Set(allIds(nodes)));
+  const { treeProps, onRowInteract } = useTreeState(allIds(nodes));
+  const renderNode = makeRenderNode(onRowInteract);
 
   return (
-    <Tree
-      aria-label={label}
-      selectionMode="single"
-      css={treeCSS}
-      selectedKeys={selected}
-      onSelectionChange={setSelected}
-      expandedKeys={expanded}
-      onExpandedChange={(keys) => setExpanded(new Set(keys))}
-    >
+    <Tree aria-label={label} css={treeCSS} {...treeProps}>
       {nodes.map(renderNode)}
     </Tree>
   );
