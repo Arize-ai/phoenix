@@ -467,7 +467,7 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
 
 
 class _SubagentMessageChunksClosed:
-    """Sentinel marking the subagent progress chunk queue as closed."""
+    """Sentinel marking the subagent message chunk queue as closed."""
 
 
 _SUBAGENT_MESSAGE_CHUNKS_CLOSED = _SubagentMessageChunksClosed()
@@ -495,29 +495,29 @@ async def _interleave_agent_and_subagent_message_chunks(
             )
             if agent_task is not None and agent_task in done_tasks:
                 try:
-                    agent_chunk = agent_task.result()
+                    agent_message_chunk = agent_task.result()
                 except StopAsyncIteration:
                     agent_task = None
                     await subagent_message_chunks.put(_SUBAGENT_MESSAGE_CHUNKS_CLOSED)
                 else:
-                    if isinstance(agent_chunk, ToolOutputAvailableChunk):
+                    if isinstance(agent_message_chunk, ToolOutputAvailableChunk):
                         final_tool_output = final_tool_outputs_by_tool_call_id.pop(
-                            agent_chunk.tool_call_id,
+                            agent_message_chunk.tool_call_id,
                             None,
                         )
                         if final_tool_output is not None:
-                            agent_chunk = agent_chunk.model_copy(
+                            agent_message_chunk = agent_message_chunk.model_copy(
                                 update={"output": final_tool_output.output}
                             )
-                    yield agent_chunk
+                    yield agent_message_chunk
                     agent_task = asyncio.create_task(_next_agent_message_chunk())
 
             if subagent_task is not None and subagent_task in done_tasks:
-                subagent_chunk = subagent_task.result()
-                if isinstance(subagent_chunk, _SubagentMessageChunksClosed):
+                subagent_message_chunk = subagent_task.result()
+                if isinstance(subagent_message_chunk, _SubagentMessageChunksClosed):
                     subagent_task = None
                 else:
-                    yield subagent_chunk
+                    yield subagent_message_chunk
                     subagent_task = asyncio.create_task(subagent_message_chunks.get())
     finally:
         tasks_to_cancel: list[asyncio.Task[Any]] = []
@@ -721,12 +721,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if server_agent is not None:
 
             async def _publish_subagent_message_chunk(
-                chunk: ToolOutputAvailableChunk,
+                subagent_message_chunk: ToolOutputAvailableChunk,
             ) -> None:
-                await subagent_message_chunks.put(chunk)
+                await subagent_message_chunks.put(subagent_message_chunk)
 
-            def _set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
-                final_tool_outputs_by_tool_call_id[chunk.tool_call_id] = chunk
+            def _set_subagent_final_tool_output(
+                final_tool_output: ToolOutputAvailableChunk,
+            ) -> None:
+                final_tool_outputs_by_tool_call_id[final_tool_output.tool_call_id] = (
+                    final_tool_output
+                )
 
             publish_subagent_message_chunk = _publish_subagent_message_chunk
             set_subagent_final_tool_output = _set_subagent_final_tool_output
@@ -788,38 +792,50 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         # Forced skills are streamed as their own `load_skill` steps so
                         # the browser transcript matches what the model received. They
                         # are emitted once, right after the stream's opening `start`
-                        # chunk and before the model's own output.
+                        # message chunk and before the model's own output.
                         forced_skills_streamed = not forced_skills
                         async with aclosing(raw_stream) as stream:
-                            async for chunk in stream:
-                                if isinstance(chunk, ToolInputAvailableChunk):
-                                    chunk.provider_metadata = _get_updated_provider_metadata(
-                                        provider_metadata=chunk.provider_metadata or {},
-                                        tool_name=chunk.tool_name,
+                            async for agent_message_chunk in stream:
+                                if isinstance(agent_message_chunk, ToolInputAvailableChunk):
+                                    agent_message_chunk.provider_metadata = (
+                                        _get_updated_provider_metadata(
+                                            provider_metadata=agent_message_chunk.provider_metadata
+                                            or {},
+                                            tool_name=agent_message_chunk.tool_name,
+                                        )
                                     )
-                                yield chunk
-                                if not forced_skills_streamed and isinstance(chunk, StartChunk):
-                                    for forced_chunk in iter_requested_skill_response_chunks(
-                                        skills=forced_skills,
-                                        load_skill_template=agent_prompts.load_skill,
-                                    ):
-                                        if isinstance(forced_chunk, ToolInputAvailableChunk):
-                                            forced_chunk.provider_metadata = (
-                                                _get_updated_provider_metadata(
-                                                    provider_metadata=forced_chunk.provider_metadata
-                                                    or {},
-                                                    tool_name=forced_chunk.tool_name,
-                                                )
+                                yield agent_message_chunk
+                                if not forced_skills_streamed and isinstance(
+                                    agent_message_chunk,
+                                    StartChunk,
+                                ):
+                                    forced_skill_message_chunks = (
+                                        iter_requested_skill_response_chunks(
+                                            skills=forced_skills,
+                                            load_skill_template=agent_prompts.load_skill,
+                                        )
+                                    )
+                                    for forced_skill_message_chunk in forced_skill_message_chunks:
+                                        if isinstance(
+                                            forced_skill_message_chunk, ToolInputAvailableChunk
+                                        ):
+                                            provider_metadata = _get_updated_provider_metadata(
+                                                provider_metadata=forced_skill_message_chunk.provider_metadata
+                                                or {},
+                                                tool_name=forced_skill_message_chunk.tool_name,
                                             )
-                                        yield forced_chunk
+                                            forced_skill_message_chunk.provider_metadata = (
+                                                provider_metadata
+                                            )
+                                        yield forced_skill_message_chunk
                                     forced_skills_streamed = True
 
-                    async for chunk in _interleave_agent_and_subagent_message_chunks(
+                    async for message_chunk in _interleave_agent_and_subagent_message_chunks(
                         agent_message_chunks=_agent_message_chunks(),
                         subagent_message_chunks=subagent_message_chunks,
                         final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
                     ):
-                        yield chunk
+                        yield message_chunk
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
