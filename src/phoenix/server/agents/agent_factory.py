@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from typing import overload
+
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
@@ -13,6 +16,7 @@ from pydantic_ai.capabilities import (
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities import (
     AnthropicPromptCacheCapability,
@@ -56,6 +60,34 @@ def get_skills_capability_function(
     return _build
 
 
+@overload
+def build_agent(
+    *,
+    model: Model,
+    prompts: AgentPrompts | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    enable_web_access: bool = False,
+    tracer_provider: TracerProvider | None = None,
+    server_agent: None = None,
+    publish_subagent_message_chunk: None = None,
+    set_subagent_final_tool_output: None = None,
+) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]: ...
+
+
+@overload
+def build_agent(
+    *,
+    model: Model,
+    prompts: AgentPrompts | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    enable_web_access: bool = False,
+    tracer_provider: TracerProvider | None = None,
+    server_agent: AbstractAgent[None, str],
+    publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]],
+    set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None],
+) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]: ...
+
+
 def build_agent(
     *,
     model: Model,
@@ -64,7 +96,23 @@ def build_agent(
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
     server_agent: AbstractAgent[None, str] | None = None,
+    publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
+    | None = None,
+    set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
+    server_agent_args = (
+        server_agent,
+        publish_subagent_message_chunk,
+        set_subagent_final_tool_output,
+    )
+    if any(arg is not None for arg in server_agent_args) and not all(
+        arg is not None for arg in server_agent_args
+    ):
+        raise ValueError(
+            "server_agent, publish_subagent_message_chunk, and "
+            "set_subagent_final_tool_output must be provided together."
+        )
+
     resolved_prompts = prompts or AgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
     tracer: Tracer = OITracer(
@@ -101,10 +149,14 @@ def build_agent(
         if (web_fetch := build_web_fetch_capability(model)) is not None:
             capabilities.append(web_fetch)
     if server_agent is not None:
+        assert publish_subagent_message_chunk is not None
+        assert set_subagent_final_tool_output is not None
         capabilities.append(
             CallSubAgentCapability(
                 server_agent=server_agent,
                 instructions=resolved_prompts.call_subagent_tool.render(),
+                publish_subagent_message_chunk=publish_subagent_message_chunk,
+                set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
         )
 

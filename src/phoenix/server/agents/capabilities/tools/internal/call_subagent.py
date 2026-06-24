@@ -1,12 +1,26 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any, cast
 
-from pydantic_ai import RunContext, Tool
+from pydantic_ai import AgentRunResult, RunContext, Tool
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
+from pydantic_ai.ui.vercel_ai import VercelAIEventStream
+from pydantic_ai.ui.vercel_ai.request_types import (
+    DataUIPart,
+    ReasoningUIPart,
+    StepStartUIPart,
+    TextUIPart,
+    UIMessage,
+)
+from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.subagent_progress import (
+    accumulate_ui_message_chunks_to_ui_messages,
+)
 from phoenix.server.agents.types import AgentDependencies
 
 CALL_SUBAGENT_TOOL_DESCRIPTION = """\
@@ -28,14 +42,70 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
         self,
         *,
         server_agent: AbstractAgent[None, str],
+        publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]],
+        set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None],
     ) -> None:
         async def call_subagent(ctx: RunContext[AgentDependencies], name: str, task: str) -> str:
-            result = await server_agent.run(
+            tool_call_id = ctx.tool_call_id
+            if tool_call_id is None:
+                raise RuntimeError(
+                    "Internal error: call_subagent was invoked without a tool_call_id."
+                )
+
+            final_summary: str | None = None
+            latest_message: UIMessage | None = None
+
+            async def _on_complete(result: AgentRunResult[str]) -> None:
+                nonlocal final_summary
+                final_summary = result.output
+
+            event_stream = VercelAIEventStream(run_input=cast(Any, task))
+            async with server_agent.run_stream_events(
                 task,
                 deps=None,
                 usage=ctx.usage,
+            ) as stream:
+                chunks = event_stream.transform_stream(stream, on_complete=_on_complete)
+                async for message in accumulate_ui_message_chunks_to_ui_messages(chunks):
+                    latest_message = message
+                    if not _has_visible_ui_message_parts(message):
+                        continue
+                    await publish_subagent_message_chunk(
+                        ToolOutputAvailableChunk(
+                            tool_call_id=tool_call_id,
+                            output={
+                                "summary": final_summary or _get_ui_message_text(message),
+                                "message": message.model_dump(
+                                    by_alias=True,
+                                    exclude_none=True,
+                                ),
+                            },
+                            preliminary=True,
+                        )
+                    )
+
+            if latest_message is None:
+                latest_message = UIMessage(
+                    id=f"subagent-{tool_call_id}",
+                    role="assistant",
+                    parts=[],
+                )
+            summary = (
+                final_summary if final_summary is not None else _get_ui_message_text(latest_message)
             )
-            return result.output
+            set_subagent_final_tool_output(
+                ToolOutputAvailableChunk(
+                    tool_call_id=tool_call_id,
+                    output={
+                        "summary": summary,
+                        "message": latest_message.model_dump(
+                            by_alias=True,
+                            exclude_none=True,
+                        ),
+                    },
+                )
+            )
+            return summary
 
         super().__init__(
             tools=[Tool(call_subagent, takes_ctx=True, description=CALL_SUBAGENT_TOOL_DESCRIPTION)]
@@ -48,11 +118,43 @@ class CallSubAgentCapability(AbstractStaticCapability[AgentDependencies]):
 
     server_agent: AbstractAgent[None, str]
     instructions: str
+    publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
+    set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None]
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return CallSubAgentToolset(
             server_agent=self.server_agent,
+            publish_subagent_message_chunk=self.publish_subagent_message_chunk,
+            set_subagent_final_tool_output=self.set_subagent_final_tool_output,
         )
 
     def get_static_instructions(self) -> str:
         return self.instructions
+
+
+def _has_visible_ui_message_parts(message: UIMessage) -> bool:
+    for part in message.parts:
+        if isinstance(part, StepStartUIPart):
+            continue
+        if isinstance(part, TextUIPart | ReasoningUIPart):
+            if part.text:
+                return True
+            continue
+        return True
+    return False
+
+
+def _get_ui_message_text(message: UIMessage) -> str:
+    text = "".join(part.text for part in message.parts if isinstance(part, TextUIPart)).strip()
+    if text:
+        return text
+    for part in message.parts:
+        if (
+            isinstance(part, DataUIPart)
+            and part.type == "data-error"
+            and isinstance(part.data, dict)
+        ):
+            error_text = part.data.get("errorText")
+            if isinstance(error_text, str):
+                return error_text
+    return ""

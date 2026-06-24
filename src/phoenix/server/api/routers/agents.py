@@ -1,8 +1,16 @@
+import asyncio
 import logging
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Callable,
+    Iterable,
+    Mapping,
+    MutableMapping,
+)
 from contextlib import aclosing
 from copy import deepcopy
-from typing import Annotated, Any, Literal, TypeVar
+from typing import Annotated, Any, Literal, TypeVar, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_metadata, using_session
@@ -26,6 +34,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ProviderMetadata,
     StartChunk,
     ToolInputAvailableChunk,
+    ToolOutputAvailableChunk,
 )
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
@@ -458,6 +467,68 @@ def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bo
     return contexts.dataset is not None or contexts.llm_evaluator is not None
 
 
+async def _interleave_agent_and_subagent_message_chunks(
+    *,
+    agent_message_chunks: AsyncIterator[BaseChunk],
+    subagent_message_chunks: asyncio.Queue[BaseChunk | None],
+    final_tool_outputs_by_tool_call_id: Mapping[str, ToolOutputAvailableChunk],
+) -> AsyncIterator[BaseChunk]:
+    async def _next_agent_message_chunk() -> BaseChunk:
+        return await anext(agent_message_chunks)
+
+    final_tool_outputs = cast(
+        MutableMapping[str, ToolOutputAvailableChunk],
+        final_tool_outputs_by_tool_call_id,
+    )
+    agent_task: asyncio.Task[BaseChunk] | None = asyncio.create_task(_next_agent_message_chunk())
+    subagent_task: asyncio.Task[BaseChunk | None] | None = asyncio.create_task(
+        subagent_message_chunks.get()
+    )
+    try:
+        while agent_task is not None or subagent_task is not None:
+            pending_tasks = {task for task in (agent_task, subagent_task) if task is not None}
+            done_tasks, _ = await asyncio.wait(
+                pending_tasks,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if agent_task is not None and agent_task in done_tasks:
+                try:
+                    agent_chunk = agent_task.result()
+                except StopAsyncIteration:
+                    agent_task = None
+                    await subagent_message_chunks.put(None)
+                else:
+                    if isinstance(agent_chunk, ToolOutputAvailableChunk):
+                        final_tool_output = final_tool_outputs.pop(
+                            agent_chunk.tool_call_id,
+                            None,
+                        )
+                        if final_tool_output is not None:
+                            agent_chunk = agent_chunk.model_copy(
+                                update={"output": final_tool_output.output}
+                            )
+                    yield agent_chunk
+                    agent_task = asyncio.create_task(_next_agent_message_chunk())
+
+            if subagent_task is not None and subagent_task in done_tasks:
+                subagent_chunk = subagent_task.result()
+                if subagent_chunk is None:
+                    subagent_task = None
+                else:
+                    yield subagent_chunk
+                    subagent_task = asyncio.create_task(subagent_message_chunks.get())
+    finally:
+        tasks_to_cancel: list[asyncio.Task[Any]] = []
+        if agent_task is not None:
+            tasks_to_cancel.append(agent_task)
+        if subagent_task is not None:
+            tasks_to_cancel.append(subagent_task)
+        for task in tasks_to_cancel:
+            task.cancel()
+        if tasks_to_cancel:
+            await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -636,13 +707,32 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             if subagents_enabled
             else None
         )
-        agent = build_agent(
-            model=model,
-            docs_mcp_server=request.app.state.docs_mcp_server,
-            enable_web_access=web_access_enabled,
-            tracer_provider=tracer_provider,
-            server_agent=server_agent,
-        )
+        subagent_message_chunks: asyncio.Queue[BaseChunk | None] = asyncio.Queue()
+        final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
+
+        async def _publish_subagent_message_chunk(chunk: ToolOutputAvailableChunk) -> None:
+            await subagent_message_chunks.put(chunk)
+
+        def _set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
+            final_tool_outputs_by_tool_call_id[chunk.tool_call_id] = chunk
+
+        if server_agent is None:
+            agent = build_agent(
+                model=model,
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                enable_web_access=web_access_enabled,
+                tracer_provider=tracer_provider,
+            )
+        else:
+            agent = build_agent(
+                model=model,
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                enable_web_access=web_access_enabled,
+                tracer_provider=tracer_provider,
+                server_agent=server_agent,
+                publish_subagent_message_chunk=_publish_subagent_message_chunk,
+                set_subagent_final_tool_output=_set_subagent_final_tool_output,
+            )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
         if body.requested_skills:
@@ -686,34 +776,43 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 with detached_otel_context(), using_session(session_id=session_id):
                     raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
-                    # Forced skills are streamed as their own `load_skill` steps so
-                    # the browser transcript matches what the model received. They
-                    # are emitted once, right after the stream's opening `start`
-                    # chunk and before the model's own output.
-                    forced_skills_streamed = not forced_skills
-                    async with aclosing(raw_stream) as stream:
-                        async for chunk in stream:
-                            if isinstance(chunk, ToolInputAvailableChunk):
-                                chunk.provider_metadata = _get_updated_provider_metadata(
-                                    provider_metadata=chunk.provider_metadata or {},
-                                    tool_name=chunk.tool_name,
-                                )
-                            yield chunk
-                            if not forced_skills_streamed and isinstance(chunk, StartChunk):
-                                for forced_chunk in iter_requested_skill_response_chunks(
-                                    skills=forced_skills,
-                                    load_skill_template=agent_prompts.load_skill,
-                                ):
-                                    if isinstance(forced_chunk, ToolInputAvailableChunk):
-                                        forced_chunk.provider_metadata = (
-                                            _get_updated_provider_metadata(
-                                                provider_metadata=forced_chunk.provider_metadata
-                                                or {},
-                                                tool_name=forced_chunk.tool_name,
+
+                    async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                        # Forced skills are streamed as their own `load_skill` steps so
+                        # the browser transcript matches what the model received. They
+                        # are emitted once, right after the stream's opening `start`
+                        # chunk and before the model's own output.
+                        forced_skills_streamed = not forced_skills
+                        async with aclosing(raw_stream) as stream:
+                            async for chunk in stream:
+                                if isinstance(chunk, ToolInputAvailableChunk):
+                                    chunk.provider_metadata = _get_updated_provider_metadata(
+                                        provider_metadata=chunk.provider_metadata or {},
+                                        tool_name=chunk.tool_name,
+                                    )
+                                yield chunk
+                                if not forced_skills_streamed and isinstance(chunk, StartChunk):
+                                    for forced_chunk in iter_requested_skill_response_chunks(
+                                        skills=forced_skills,
+                                        load_skill_template=agent_prompts.load_skill,
+                                    ):
+                                        if isinstance(forced_chunk, ToolInputAvailableChunk):
+                                            forced_chunk.provider_metadata = (
+                                                _get_updated_provider_metadata(
+                                                    provider_metadata=forced_chunk.provider_metadata
+                                                    or {},
+                                                    tool_name=forced_chunk.tool_name,
+                                                )
                                             )
-                                        )
-                                    yield forced_chunk
-                                forced_skills_streamed = True
+                                        yield forced_chunk
+                                    forced_skills_streamed = True
+
+                    async for chunk in _interleave_agent_and_subagent_message_chunks(
+                        agent_message_chunks=_agent_message_chunks(),
+                        subagent_message_chunks=subagent_message_chunks,
+                        final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
+                    ):
+                        yield chunk
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
