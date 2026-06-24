@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -149,41 +152,46 @@ def _invoke_evaluator(evaluator: Any, eval_input: Mapping[str, Any]) -> Any:
 
 
 def _iter_scores(result: Any, *, default_name: str) -> list[dict[str, Any]]:
-    """Normalize a `phoenix.evals` Score / Sequence[Score] / dict into eval-kwarg dicts."""
-    scores: list[dict[str, Any]] = []
-    if isinstance(result, (list, tuple)):
-        seq: Any = result
-        candidates: list[Any] = list(seq)
+    """Normalize an evaluator's return value into eval-kwarg dicts.
+
+    The return-shape dispatch is delegated to the experiments runner's canonical
+    ``_default_eval_scorer`` so a pytest evaluator accepts exactly the same shapes as one
+    passed to ``run_experiment``: a ``phoenix.evals`` Score (or sequence of them), an
+    ``EvaluationResult`` dict (or sequence), or a bare ``bool`` / ``float`` / ``str`` /
+    ``(score, explanation)`` tuple. The only pytest-specific concern kept here is naming —
+    a result that carries no name of its own is keyed by the evaluator's ``default_name``
+    (suffixed ``-N`` when one evaluator yields several scores).
+    """
+    if result is None:
+        return []
+    from phoenix.client.resources.experiments.evaluators import (
+        _default_eval_scorer,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    try:
+        normalized = _default_eval_scorer(result)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Phoenix plugin: could not interpret evaluator result %r: %s", result, e)
+        return []
+    if isinstance(normalized, Sequence) and not isinstance(normalized, (str, bytes, dict)):
+        entries: list[Any] = list(normalized)
     else:
-        candidates = [result]
-    for idx, item in enumerate(candidates):
-        if item is None:
+        entries = [normalized]
+    scores: list[dict[str, Any]] = []
+    for idx, entry in enumerate(entries):
+        if not isinstance(entry, Mapping):
             continue
-        name: Any = getattr(item, "name", None)
-        if name is None and isinstance(item, Mapping):
-            mapping: Mapping[Any, Any] = item
-            name = mapping.get("name")
-        if not name:
-            name = default_name if len(candidates) == 1 else f"{default_name}-{idx + 1}"
-        if isinstance(item, Mapping):
-            mapping = item
-            scores.append(
-                {
-                    "name": name,
-                    "score": mapping.get("score"),
-                    "label": mapping.get("label"),
-                    "explanation": mapping.get("explanation"),
-                    "metadata": mapping.get("metadata"),
-                }
-            )
-        else:
-            scores.append(
-                {
-                    "name": name,
-                    "score": getattr(item, "score", None),
-                    "label": getattr(item, "label", None),
-                    "explanation": getattr(item, "explanation", None),
-                    "metadata": getattr(item, "metadata", None),
-                }
-            )
+        mapping: Mapping[str, Any] = entry
+        name = mapping.get("name") or (
+            default_name if len(entries) == 1 else f"{default_name}-{idx + 1}"
+        )
+        scores.append(
+            {
+                "name": name,
+                "score": mapping.get("score"),
+                "label": mapping.get("label"),
+                "explanation": mapping.get("explanation"),
+                "metadata": mapping.get("metadata"),
+            }
+        )
     return scores
