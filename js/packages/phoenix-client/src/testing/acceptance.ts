@@ -6,10 +6,6 @@ import type {
   OptimizationDirection,
 } from "./types";
 
-interface AcceptanceSample {
-  score: number | boolean;
-}
-
 /**
  * Evaluate all configured aggregate acceptance rules against completed runs.
  * @param params - Evaluation parameters.
@@ -54,12 +50,14 @@ export function createAcceptanceFailureError(
 export function formatAcceptanceResult(result: AcceptanceResult): string {
   const status = result.passed ? "PASS" : "FAIL";
   const value = result.value === null ? "n/a" : result.value.toFixed(3);
-  const cmp = (result.direction ?? "maximize") === "minimize" ? "<=" : ">=";
   const sampleLabel = result.sampleCount === 1 ? "sample" : "samples";
-  const requirement =
-    result.metric === "average"
-      ? `mean ${cmp} ${result.threshold.toFixed(3)}`
-      : `pass rate >= ${result.threshold.toFixed(3)} @ run ${cmp} ${result.passThreshold.toFixed(3)}`;
+  let requirement: string;
+  if (result.metric === "average") {
+    const cmp = (result.direction ?? "maximize") === "minimize" ? "<=" : ">=";
+    requirement = `mean ${cmp} ${result.threshold.toFixed(3)}`;
+  } else {
+    requirement = `pass rate >= ${result.threshold.toFixed(3)}`;
+  }
   const reason = result.failureReason ? ` - ${result.failureReason}` : "";
   return `${status} ${result.annotationName} ${result.metric} ${value} (need ${requirement}; ${result.sampleCount} ${sampleLabel})${reason}`;
 }
@@ -71,40 +69,52 @@ function evaluateAcceptanceCriterion({
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
 }): AcceptanceResult {
-  const samples = collectAcceptanceSamples({ criterion, results });
-  if (samples.length === 0) {
+  const annotations = collectAnnotations({ criterion, results });
+
+  if (criterion.metric === "average") {
+    // Only numeric / boolean scores can be averaged.
+    const scores = annotations
+      .map((annotation) => annotation.score)
+      .filter(isValidScore);
+    if (scores.length === 0) {
+      return {
+        ...criterion,
+        value: null,
+        sampleCount: 0,
+        passed: false,
+        failureReason: "no numeric or boolean scores found",
+      };
+    }
+    const direction = criterion.direction ?? "maximize";
+    const value = calculateAverage(scores);
+    return {
+      ...criterion,
+      value,
+      sampleCount: scores.length,
+      passed: meetsBar(value, criterion.threshold, direction),
+    };
+  }
+
+  // passRate: each run passes when `passFn` returns true for its annotation;
+  // the suite passes when the fraction of passing runs is at least `threshold`.
+  // The reported value is that fraction.
+  if (annotations.length === 0) {
     return {
       ...criterion,
       value: null,
       sampleCount: 0,
       passed: false,
-      failureReason: "no numeric or boolean scores found",
+      failureReason: "no matching annotations found",
     };
   }
-
-  const direction = criterion.direction ?? "maximize";
-  if (criterion.metric === "average") {
-    const value = calculateAverage(samples);
-    return {
-      ...criterion,
-      value,
-      sampleCount: samples.length,
-      passed: meetsBar(value, criterion.threshold, direction),
-    };
-  }
-
-  // passRate: each run passes when its score clears `passThreshold`; the suite
-  // passes when the fraction of runs that pass is at least `threshold`. The
-  // reported value is that fraction.
-  const value = calculatePassRate({
-    samples,
-    passThreshold: criterion.passThreshold,
-    direction,
-  });
+  const passed = annotations.filter((annotation) =>
+    criterion.passFn(annotation)
+  ).length;
+  const value = passed / annotations.length;
   return {
     ...criterion,
     value,
-    sampleCount: samples.length,
+    sampleCount: annotations.length,
     passed: value >= criterion.threshold,
   };
 }
@@ -118,13 +128,18 @@ function meetsBar(
   return direction === "minimize" ? value <= bar : value >= bar;
 }
 
-function collectAcceptanceSamples({
+/**
+ * The last annotation matching `annotationName` from each non-skipped run that
+ * logged it. One entry per run; runs that never logged the annotation are
+ * omitted.
+ */
+function collectAnnotations({
   criterion,
   results,
 }: {
   criterion: AcceptanceCriterion;
   results: readonly TestResult[];
-}): AcceptanceSample[] {
+}): Annotation[] {
   return results
     .filter((result) => result.status !== "skipped")
     .map((result) =>
@@ -133,10 +148,7 @@ function collectAcceptanceSamples({
         annotationName: criterion.annotationName,
       })
     )
-    .filter((annotation): annotation is Annotation => annotation !== undefined)
-    .map((annotation) => annotation.score)
-    .filter(isValidScore)
-    .map((score) => ({ score }));
+    .filter((annotation): annotation is Annotation => annotation !== undefined);
 }
 
 function findLastAnnotation({
@@ -166,41 +178,11 @@ function isValidScore(score: Annotation["score"]): score is number | boolean {
   );
 }
 
-function calculateAverage(samples: readonly AcceptanceSample[]): number {
-  const total = samples
-    .map((sample) => scoreToNumber(sample.score))
+function calculateAverage(scores: readonly (number | boolean)[]): number {
+  const total = scores
+    .map(scoreToNumber)
     .reduce((sum, score) => sum + score, 0);
-  return total / samples.length;
-}
-
-function calculatePassRate({
-  samples,
-  passThreshold,
-  direction,
-}: {
-  samples: readonly AcceptanceSample[];
-  passThreshold: number;
-  direction: OptimizationDirection;
-}): number {
-  const passed = samples.filter((sample) =>
-    runPasses(sample.score, passThreshold, direction)
-  ).length;
-  return passed / samples.length;
-}
-
-/**
- * Whether a single run's score counts as a pass. Boolean scores pass on `true`
- * (or `false` when minimizing); numeric scores must clear `threshold`.
- */
-function runPasses(
-  score: number | boolean,
-  threshold: number,
-  direction: OptimizationDirection
-): boolean {
-  if (typeof score === "boolean") {
-    return direction === "minimize" ? !score : score;
-  }
-  return meetsBar(score, threshold, direction);
+  return total / scores.length;
 }
 
 function scoreToNumber(score: number | boolean): number {

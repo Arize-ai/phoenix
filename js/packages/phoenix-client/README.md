@@ -333,7 +333,7 @@ px.describe(
       {
         annotationName: "pass",
         metric: "passRate",
-        passThreshold: 1,
+        passFn: (a) => a.score === true,
         threshold: 1,
       },
     ],
@@ -352,8 +352,8 @@ Use `@arizeai/phoenix-client/vitest/reporter` or
 experiment links, annotation aggregates, and acceptance criteria at the end
 of a run. Acceptance criteria gate the suite after it finishes — `average`
 checks an aggregate bar (so CI can allow a mean of 80% while still running
-every case), and `passRate` requires a minimum fraction of runs to clear a
-per-run `passThreshold`.
+every case), and `passRate` requires a minimum fraction of runs to satisfy a
+per-run `passFn` predicate.
 
 See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
 `ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full

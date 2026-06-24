@@ -2,10 +2,11 @@
  * 08 · Acceptance criteria — gate the suite on aggregate scores in CI.
  *
  * `metric` decides how scores are aggregated and gated:
- *   - "average" — the mean score across runs must clear `threshold`.
- *   - "passRate" — each run passes when its score clears `passThreshold`; the
- *     suite passes when the fraction of passing runs is at least `threshold`.
- * `direction: "minimize"` flips the comparison for lower-is-better metrics.
+ *   - "average" — the mean score across runs must clear `threshold`
+ *     (`direction: "minimize"` flips the comparison for lower-is-better metrics).
+ *   - "passRate" — each run passes when `passFn` returns true for its
+ *     annotation; the suite passes when the fraction of passing runs is at
+ *     least `threshold`.
  *
  * Criteria run after every case, so the reporter prints the full scorecard
  * before failing CI on a miss.
@@ -54,14 +55,14 @@ px.describe(
       {
         annotationName: "token_f1",
         metric: "passRate",
-        passThreshold: 0.7,
+        passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
         threshold: 0.9,
       },
-      // hard floor: every run must produce valid SQL (boolean → all true)
+      // hard floor: every run must produce valid SQL (boolean must be true)
       {
         annotationName: "valid_sql",
         metric: "passRate",
-        passThreshold: 1,
+        passFn: (a) => a.score === true,
         threshold: 1,
       },
       // lower-is-better: the mean latency must stay at or below 200ms

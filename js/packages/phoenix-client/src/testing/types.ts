@@ -123,10 +123,10 @@ export interface TestConfig {
  * - `"average"` — gate on overall quality: the **mean** score across all runs
  *   must clear the criterion's `threshold`. A few weak runs are tolerated as
  *   long as the mean holds.
- * - `"passRate"` — gate on consistency: each run **passes** when its score
- *   clears the per-run `passThreshold`, and the suite passes when the
- *   **fraction** of runs that pass is at least `threshold` (e.g.
- *   `threshold: 0.9` ⇒ 90% of runs must pass; `threshold: 1` ⇒ all of them).
+ * - `"passRate"` — gate on consistency: each run **passes** when the
+ *   criterion's `passFn` predicate returns `true` for its annotation, and the
+ *   suite passes when the **fraction** of runs that pass is at least
+ *   `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass; `threshold: 1` ⇒ all).
  */
 export type AcceptanceMetric = "average" | "passRate";
 
@@ -141,15 +141,6 @@ export type OptimizationDirection = "maximize" | "minimize";
 export interface AcceptanceCriterionBase {
   /** Annotation name to aggregate across completed test runs. */
   annotationName: string;
-  /**
-   * Optimization direction; defaults to `"maximize"`. `"maximize"` treats
-   * higher scores as better (a score clears a bar when `>=` it); `"minimize"`
-   * treats lower scores as better (clears when `<=` it) — use it for cost,
-   * latency, or error-rate annotations. Applies to every per-score comparison
-   * the criterion makes (the mean for `"average"`, the per-run bar for
-   * `"passRate"`); the `"passRate"` fraction itself is always compared `>=`.
-   */
-  direction?: OptimizationDirection;
 }
 
 /**
@@ -163,25 +154,34 @@ export interface AverageAcceptanceCriterion extends AcceptanceCriterionBase {
    * average as `1` (`true`) / `0` (`false`).
    */
   threshold: number;
+  /**
+   * Optimization direction; defaults to `"maximize"`. `"maximize"` treats a
+   * higher mean as better (clears when `>= threshold`); `"minimize"` treats a
+   * lower mean as better (clears when `<= threshold`) — use it for cost,
+   * latency, or error-rate annotations.
+   */
+  direction?: OptimizationDirection;
 }
 
 /**
- * Gate the suite on the **pass rate**: each run passes when its score clears
- * the per-run `passThreshold`, and the suite passes when at least `threshold`
- * of runs do.
+ * Gate the suite on the **pass rate**: each run passes when `passFn` returns
+ * `true` for its annotation, and the suite passes when at least `threshold` of
+ * runs do. `passFn` decides what "passing" means, so any logic works — a score
+ * bar, a score range, a label match, a metadata check, etc.
  */
 export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
   metric: "passRate";
   /**
-   * Per-run bar: a single run passes when its score clears this, compared in
-   * `direction`. Boolean scores pass on `true` (or `false` when minimizing),
-   * regardless of this value.
+   * Predicate deciding whether a single run passes, given the run's last
+   * {@link Annotation} for `annotationName` (its `score`, `label`,
+   * `explanation`, `metadata`, …). Runs whose predicate returns `true` count
+   * toward the pass rate.
    */
-  passThreshold: number;
+  passFn: (annotation: Annotation) => boolean;
   /**
    * Minimum fraction of runs (`0`–`1`) that must pass for the suite to pass —
-   * e.g. `0.9` requires 90% of runs to clear `passThreshold`, `1` requires all
-   * of them. Always compared as `passRate >= threshold`.
+   * e.g. `0.9` requires 90% of runs to satisfy `passFn`, `1` requires all of
+   * them. Always compared as `passRate >= threshold`.
    */
   threshold: number;
 }
@@ -193,10 +193,10 @@ export interface PassRateAcceptanceCriterion extends AcceptanceCriterionBase {
  *
  * Scoring notes shared by every metric:
  * - Boolean scores count as `1` (`true`) / `0` (`false`).
- * - If a run logs the same annotation more than once, the last score counts.
+ * - If a run logs the same annotation more than once, the last one counts.
  * - Skipped tests are excluded; dry-run tests are included (they still run).
- * - A criterion whose annotation never produced a numeric or boolean score
- *   fails (rather than passing vacuously) — see {@link AcceptanceResult.failureReason}.
+ * - A criterion whose annotation was never logged on any run fails (rather
+ *   than passing vacuously) — see {@link AcceptanceResultFields.failureReason}.
  */
 export type AcceptanceCriterion =
   | AverageAcceptanceCriterion
@@ -205,13 +205,13 @@ export type AcceptanceCriterion =
 /** The computed fields added to an {@link AcceptanceCriterion} once evaluated. */
 export interface AcceptanceResultFields {
   /**
-   * The aggregate the criterion gated on, or `null` when no valid scores were
-   * found. For `"average"` this is the mean score; for `"passRate"` it is the
-   * fraction of runs that passed (so a fully-passing `"passRate"` criterion
+   * The aggregate the criterion gated on, or `null` when there were no runs to
+   * aggregate. For `"average"` this is the mean score; for `"passRate"` it is
+   * the fraction of runs that passed (so a fully-passing `"passRate"` criterion
    * reports `1`).
    */
   value: number | null;
-  /** Number of numeric or boolean scores included in the aggregate. */
+  /** Number of runs included in the aggregate. */
   sampleCount: number;
   /** Whether the aggregate cleared the criterion. */
   passed: boolean;

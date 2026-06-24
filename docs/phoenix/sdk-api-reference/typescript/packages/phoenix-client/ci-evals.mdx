@@ -159,15 +159,16 @@ Each criterion aggregates one annotation (by `annotationName`) with one
 `metric`:
 
 - **`average`** — gate on overall quality. The mean score across all runs must
-  clear `threshold`. A few weak runs are tolerated as long as the mean holds.
-- **`passRate`** — gate on consistency. Each run *passes* when its score clears
-  the per-run `passThreshold`, and the suite passes when the **fraction** of
+  clear `threshold` (compared in `direction`). A few weak runs are tolerated as
+  long as the mean holds.
+- **`passRate`** — gate on consistency. Each run *passes* when its `passFn`
+  predicate returns `true`, and the suite passes when the **fraction** of
   passing runs is at least `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass;
   `threshold: 1` ⇒ all of them).
 
-The two metrics split the work across two fields: `passThreshold` is the bar an
-individual run must clear, and `threshold` is the mean bar (`average`) or the
-required pass-rate fraction (`passRate`).
+`passFn` receives the run's annotation (`score`, `label`, `explanation`,
+`metadata`, …) and returns a boolean, so it can express any pass rule — a score
+bar, a score range, a label match, a metadata check, etc.
 
 ```ts
 px.describe("text-to-sql", () => {
@@ -180,14 +181,14 @@ px.describe("text-to-sql", () => {
     {
       annotationName: "token_f1",
       metric: "passRate",
-      passThreshold: 0.7,
+      passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
       threshold: 0.9,
     },
-    // hard floor: every run must produce valid SQL (boolean → all must be true)
+    // hard floor: every run must produce valid SQL (boolean must be true)
     {
       annotationName: "valid_sql",
       metric: "passRate",
-      passThreshold: 1,
+      passFn: (a) => a.score === true,
       threshold: 1,
     },
     // budget: lower is better, so the mean latency must stay <= 800ms
@@ -203,26 +204,27 @@ px.describe("text-to-sql", () => {
 
 ### Direction
 
-`direction` controls when a score counts as good. It applies to every per-score
-comparison — the mean for `average`, the per-run `passThreshold` for `passRate`
-(the `passRate` fraction itself is always compared `>=`):
+`direction` applies to the `average` metric only — `passRate` encodes its own
+comparison inside `passFn`:
 
-- `"maximize"` (default) — higher is better; a score clears its bar when it is
-  `>=` the bar.
-- `"minimize"` — lower is better; a score clears its bar when it is `<=` the
-  bar. Use it for cost, latency, or error-rate annotations.
+- `"maximize"` (default) — higher is better; the mean clears `threshold` when it
+  is `>=` it.
+- `"minimize"` — lower is better; the mean clears `threshold` when it is `<=`
+  it. Use it for cost, latency, or error-rate annotations.
 
 ### Scoring details
 
-- **Booleans** count as `1` (`true`) / `0` (`false`). Under `passRate` a boolean
-  run passes on `true` (or on `false` when minimizing), regardless of
-  `passThreshold`, so a boolean `passRate` criterion with `threshold: 1`
-  requires every run to be `true`.
+- **`passFn` flexibility** — because `passFn` receives the whole annotation, a
+  `passRate` criterion can gate on a score bar (`a.score >= 0.7`), a range
+  (`a.score >= 0.5 && a.score <= 0.9`), a label (`a.label === "correct"`), or
+  any combination. Booleans arrive as `a.score === true` / `false`.
+- **Booleans in `average`** count as `1` (`true`) / `0` (`false`) when computing
+  the mean.
 - **Duplicate annotations** — if a run logs the same `annotationName` more than
-  once, the last score counts.
-- **Missing or non-numeric scores** — a criterion whose annotation never
-  produced a numeric or boolean score fails with a "no scores found" reason
-  rather than passing vacuously.
+  once, the last one counts.
+- **Missing annotations** — an `average` criterion with no numeric/boolean
+  scores, or a `passRate` criterion whose annotation was never logged, fails
+  with a "no … found" reason rather than passing vacuously.
 - **Skipped vs dry-run** — skipped tests are excluded from the aggregate;
   dry-run tests are included because they still execute locally.
 

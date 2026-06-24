@@ -174,8 +174,8 @@ included in the reporter summary and on the run in Phoenix.
 Suite `acceptanceCriteria` aggregate annotation scores after all cases run.
 Use them when a metric should clear a threshold across the dataset — either an
 `average` bar (e.g. mean `correctness >= 0.8`) or a `passRate` rule requiring a
-minimum fraction of runs to clear a per-run `passThreshold` (e.g. 100% of runs
-must have `valid_sql === true`). See
+minimum fraction of runs to satisfy a per-run `passFn` predicate (e.g. 100% of
+runs must have `valid_sql === true`). See
 [CI Eval Tests: Vitest](./ci-evals-vitest#acceptance-criteria) for the full
 configuration shape.
 

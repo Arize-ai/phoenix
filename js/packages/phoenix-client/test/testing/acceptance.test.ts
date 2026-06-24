@@ -38,7 +38,6 @@ describe("acceptance criteria", () => {
       createResult([{ name: "token_f1", score: 0.81 }]),
       createResult([{ name: "token_f1", score: 0.79 }]),
       createResult([{ name: "token_f1", score: 1 }]),
-      createResult([{ name: "token_f1", score: null }]),
     ];
 
     const [result] = evaluateAcceptanceCriteria({
@@ -46,18 +45,18 @@ describe("acceptance criteria", () => {
         {
           annotationName: "token_f1",
           metric: "passRate",
-          passThreshold: 0.8,
+          passFn: (annotation) =>
+            typeof annotation.score === "number" && annotation.score >= 0.8,
           threshold: 1,
         },
       ],
       results,
     });
 
-    // 0.79 misses the 0.8 per-run bar, so 2/3 pass — below the required 100%.
+    // 0.79 fails the predicate, so 2/3 pass — below the required 100%.
     expect(result).toMatchObject({
       annotationName: "token_f1",
       metric: "passRate",
-      passThreshold: 0.8,
       threshold: 1,
       value: expect.closeTo(0.667, 3),
       sampleCount: 3,
@@ -77,7 +76,8 @@ describe("acceptance criteria", () => {
         {
           annotationName: "token_f1",
           metric: "passRate",
-          passThreshold: 0.8,
+          passFn: (annotation) =>
+            typeof annotation.score === "number" && annotation.score >= 0.8,
           threshold: 0.6,
         },
       ],
@@ -92,30 +92,30 @@ describe("acceptance criteria", () => {
     });
   });
 
-  it("treats boolean passRate scores as pass on true", () => {
+  it("evaluates passFn against the full annotation (e.g. label)", () => {
     const results = [
-      createResult([{ name: "valid_sql", score: true }]),
-      createResult([{ name: "valid_sql", score: true }]),
-      createResult([{ name: "valid_sql", score: false }]),
+      createResult([{ name: "verdict", label: "correct" }]),
+      createResult([{ name: "verdict", label: "correct" }]),
+      createResult([{ name: "verdict", label: "wrong" }]),
     ];
 
     const [result] = evaluateAcceptanceCriteria({
       criteria: [
         {
-          annotationName: "valid_sql",
+          annotationName: "verdict",
           metric: "passRate",
-          passThreshold: 0.5,
-          threshold: 1,
+          passFn: (annotation) => annotation.label === "correct",
+          threshold: 0.6,
         },
       ],
       results,
     });
 
-    // 2/3 runs are `true`, short of the required 100%.
+    // 2/3 runs are labeled "correct", clearing the required 0.6 pass rate.
     expect(result).toMatchObject({
       value: expect.closeTo(0.667, 3),
       sampleCount: 3,
-      passed: false,
+      passed: true,
     });
   });
 
@@ -192,7 +192,7 @@ describe("acceptance criteria", () => {
         {
           annotationName: "valid_sql",
           metric: "passRate",
-          passThreshold: 0.8,
+          passFn: (annotation) => annotation.score === true,
           threshold: 1,
         },
       ],
@@ -200,10 +200,10 @@ describe("acceptance criteria", () => {
     });
 
     expect(formatAcceptanceResult(result)).toBe(
-      "FAIL valid_sql passRate 0.000 (need pass rate >= 1.000 @ run >= 0.800; 1 sample)"
+      "FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 sample)"
     );
     expect(createAcceptanceFailureError([result])?.message).toContain(
-      "Acceptance criteria failed:\n  FAIL valid_sql passRate 0.000 (need pass rate >= 1.000 @ run >= 0.800; 1 sample)"
+      "Acceptance criteria failed:\n  FAIL valid_sql passRate 0.000 (need pass rate >= 1.000; 1 sample)"
     );
   });
 });

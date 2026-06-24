@@ -71,7 +71,12 @@ px.describe("my suite", () => { ... }, {
   repetitions: 3,                // run each test in this suite 3x
   acceptanceCriteria: [
     { annotationName: "token_f1", metric: "average", threshold: 0.8 },
-    { annotationName: "token_f1", metric: "passRate", passThreshold: 0.5, threshold: 0.9 },
+    {
+      annotationName: "token_f1",
+      metric: "passRate",
+      passFn: (a) => typeof a.score === "number" && a.score >= 0.5,
+      threshold: 0.9,
+    },
   ],
   dryRun: true,                  // run this suite locally; sync nothing
 });
@@ -159,14 +164,13 @@ reporter shows the full scorecard before failing. Each criterion aggregates one
 annotation (by `annotationName`) with one `metric`:
 
 - `metric: "average"` — gate on overall quality: the mean score across all runs
-  must clear `threshold`.
-- `metric: "passRate"` — gate on consistency: each run passes when its score
-  clears the per-run `passThreshold`, and the suite passes when the fraction of
-  passing runs is at least `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass).
+  must clear `threshold` (compared in `direction`).
+- `metric: "passRate"` — gate on consistency: each run passes when its `passFn`
+  predicate returns `true`, and the suite passes when the fraction of passing
+  runs is at least `threshold` (e.g. `threshold: 0.9` ⇒ 90% must pass).
 
-The two metrics split the work across two fields: `passThreshold` is the bar an
-individual run must clear, and `threshold` is the mean bar (`average`) or the
-required pass-rate fraction (`passRate`).
+`passFn` receives the run's annotation and returns a boolean, so it can express
+any pass rule — a score bar, a range, a label match, a metadata check, etc.
 
 ```ts
 px.describe("text-to-sql scorecard", () => {
@@ -179,14 +183,14 @@ px.describe("text-to-sql scorecard", () => {
     {
       annotationName: "token_f1",
       metric: "passRate",
-      passThreshold: 0.7,
+      passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
       threshold: 0.9,
     },
-    // hard floor: every run must produce valid SQL (boolean → all must be true)
+    // hard floor: every run must produce valid SQL (boolean must be true)
     {
       annotationName: "valid_sql",
       metric: "passRate",
-      passThreshold: 1,
+      passFn: (a) => a.score === true,
       threshold: 1,
     },
     // budget: lower is better, so the mean latency must stay <= 800ms
@@ -202,15 +206,16 @@ px.describe("text-to-sql scorecard", () => {
 
 | Field | Description |
 |-------|-------------|
-| `annotationName` | Annotation score to aggregate. If a run logs the same annotation more than once, the last score counts. |
-| `metric` | `"average"` checks the mean of all scores against `threshold` (tolerates weak runs if the mean holds); `"passRate"` counts runs that clear `passThreshold` and requires that **fraction** to reach `threshold`. Booleans count as `1` (`true`) / `0` (`false`). |
-| `passThreshold` | **`passRate` only.** Per-run bar a single run's score must clear (in `direction`) to count as a pass. Booleans pass on `true` (or `false` when minimizing), regardless of this value. |
+| `annotationName` | Annotation to aggregate. If a run logs the same annotation more than once, the last one counts. |
+| `metric` | `"average"` checks the mean of all numeric/boolean scores against `threshold` (tolerates weak runs if the mean holds); `"passRate"` counts runs whose `passFn` returns `true` and requires that **fraction** to reach `threshold`. |
+| `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes, given its last annotation for `annotationName` (`score`, `label`, `explanation`, `metadata`, …). |
 | `threshold` | For `average`, the bar the mean must clear (in `direction`). For `passRate`, the minimum fraction of runs (`0`–`1`) that must pass (`1` = all). |
-| `direction` | `"maximize"` (default; higher is better, clears a bar when `>=`) or `"minimize"` (lower is better, clears when `<=`). Applies to the mean / per-run bar; the `passRate` fraction is always compared `>=`. Use `"minimize"` for cost, latency, or error rates. |
+| `direction` | **`average` only.** `"maximize"` (default; higher mean is better, clears `threshold` when `>=`) or `"minimize"` (lower is better, clears when `<=`). Use `"minimize"` for cost, latency, or error rates. |
 
-**Edge cases.** A criterion whose annotation never produced a numeric or boolean
-score fails (rather than passing vacuously). Skipped tests are excluded from the
-aggregate; dry-run tests are included because they still execute locally.
+**Edge cases.** An `average` criterion with no numeric/boolean scores — or a
+`passRate` criterion whose annotation was never logged — fails rather than
+passing vacuously. Skipped tests are excluded from the aggregate; dry-run tests
+are included because they still execute locally.
 
 In the reporter's `Acceptance Criteria` block the reported value is the **mean**
 for `average` and the **fraction of runs that passed** for `passRate` (so a
