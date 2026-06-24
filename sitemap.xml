@@ -1297,6 +1297,22 @@
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1923,6 +1939,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing</loc>
