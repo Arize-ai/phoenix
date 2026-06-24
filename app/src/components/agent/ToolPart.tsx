@@ -48,6 +48,7 @@ import {
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
+import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import {
   AddDatasetExamplesToolDetails,
@@ -135,7 +136,11 @@ import {
   ToolPartStatus,
 } from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
-import { formatToolState, isToolUIPart } from "./toolPartTypes";
+import {
+  formatToolState,
+  isToolUIPart,
+  stringifyToolValue,
+} from "./toolPartTypes";
 import { useToolDisclosure } from "./useToolDisclosure";
 import {
   formatWritePromptToolsState,
@@ -202,6 +207,17 @@ export const toolPartCSS = css`
     overflow-x: auto;
     padding-top: var(--global-dimension-size-125);
     padding-bottom: var(--global-dimension-size-75);
+  }
+
+  .tool-part__subagent-message {
+    font-family: var(--ac-global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    padding: 0 var(--global-dimension-size-250) var(--global-dimension-size-125);
+  }
+
+  .tool-part__subagent-message > .tool-part {
+    margin-top: var(--global-dimension-size-100);
   }
 
   .tool-part__line {
@@ -588,6 +604,10 @@ function ToolInvocationPartDetails({
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
+  const statusState =
+    part.state === "output-available" && part.preliminary === true
+      ? "input-available"
+      : part.state;
 
   return (
     <details
@@ -641,7 +661,7 @@ function ToolInvocationPartDetails({
           ) : null}
           {showQuietSummary
             ? null
-            : renderToolPartStatus(part.state, stateLabel, statusVariant)}
+            : renderToolPartStatus(statusState, stateLabel, statusVariant)}
         </div>
       </summary>
       <div>{details}</div>
@@ -848,6 +868,111 @@ function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
         </>
       ) : null}
     </div>
+  );
+}
+
+type CallSubagentOutput = {
+  summary: string;
+  messageParts: MessagePart[];
+};
+
+function CallSubagentToolDetails({ part }: { part: ToolInvocationPart }) {
+  const output =
+    part.state === "output-available"
+      ? parseCallSubagentOutput(part.output)
+      : null;
+  if (!output) {
+    return <GenericToolDetails part={part} />;
+  }
+
+  return (
+    <div className="tool-part__body">
+      {output.summary ? (
+        <>
+          <ToolPartLabel>Summary</ToolPartLabel>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{output.summary}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
+        </>
+      ) : null}
+      <ToolPartLabel>Subagent</ToolPartLabel>
+      <div className="tool-part__subagent-message">
+        {output.messageParts.map((messagePart, index) => (
+          <CallSubagentMessagePart
+            key={`${messagePart.type}-${index}`}
+            part={messagePart}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CallSubagentMessagePart({ part }: { part: MessagePart }) {
+  if (part.type === "text") {
+    return (
+      <MarkdownBlock mode="markdown" renderMode="streaming" margin="none">
+        {part.text}
+      </MarkdownBlock>
+    );
+  }
+  if (part.type === "reasoning") {
+    return (
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{part.text}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
+    );
+  }
+  if (part.type === "step-start") {
+    return null;
+  }
+  if (isToolUIPart(part)) {
+    return (
+      <ToolPart part={part} defaultOpen={part.state !== "output-available"} />
+    );
+  }
+  return (
+    <ToolPartExpandableSection>
+      <ToolPartCodeBlock>{stringifyToolValue(part)}</ToolPartCodeBlock>
+    </ToolPartExpandableSection>
+  );
+}
+
+function parseCallSubagentOutput(output: unknown): CallSubagentOutput | null {
+  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+    return null;
+  }
+  const outputRecord = output as Record<string, unknown>;
+  const message = outputRecord.message;
+  if (
+    typeof message !== "object" ||
+    message === null ||
+    Array.isArray(message)
+  ) {
+    return null;
+  }
+  const messageRecord = message as Record<string, unknown>;
+  const parts = messageRecord.parts;
+  if (!isMessagePartArray(parts)) {
+    return null;
+  }
+  const summary = outputRecord.summary;
+  return {
+    summary: typeof summary === "string" ? summary : "",
+    messageParts: parts,
+  };
+}
+
+function isMessagePartArray(value: unknown): value is MessagePart[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (part): part is MessagePart =>
+        typeof part === "object" &&
+        part !== null &&
+        "type" in part &&
+        typeof (part as { type?: unknown }).type === "string"
+    )
   );
 }
 
@@ -1083,10 +1208,13 @@ function getToolPresentation(
     case CALL_SUBAGENT_TOOL_NAME:
       return {
         preview: getCallSubagentName(part),
-        stateLabel: formatToolState(part.state),
+        stateLabel:
+          part.state === "output-available" && part.preliminary === true
+            ? "Running"
+            : formatToolState(part.state),
         statusVariant,
         icon: <Icons.Split />,
-        details: <GenericToolDetails part={part} />,
+        details: <CallSubagentToolDetails part={part} />,
       };
     case SET_SPANS_FILTER_TOOL_NAME:
       return {
