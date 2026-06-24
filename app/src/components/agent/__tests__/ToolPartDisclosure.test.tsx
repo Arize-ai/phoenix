@@ -18,6 +18,12 @@ vi.mock("@phoenix/components/code/JSONEditor", () => ({
   JSONEditor: () => null,
 }));
 
+vi.mock("@phoenix/components/markdown", () => ({
+  MarkdownBlock: ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
+
 import { getToolPartPreview, ToolPart } from "../ToolPart";
 import type { ToolInvocationPart } from "../toolPartTypes";
 
@@ -208,5 +214,51 @@ describe("tool disclosure controls", () => {
     expect(
       container.querySelector("details.tool-part")?.hasAttribute("open")
     ).toBe(true);
+  });
+
+  it("does not render empty subagent message parts under nested tools", () => {
+    renderToolPart(
+      createToolPart({
+        type: "tool-call_subagent",
+        toolCallId: "tool-call-subagent",
+        input: { name: "Phoenix data", task: "Summarize latency" },
+        output: {
+          summary: "Done",
+          message: {
+            id: "subagent-message",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-bash",
+                toolCallId: "tool-call-bash",
+                state: "output-available",
+                input: { command: "echo hi" },
+                output: "hi",
+              },
+              {
+                type: "reasoning",
+                text: "",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "   ",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "Visible answer",
+                state: "done",
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    click(container.querySelector("summary"));
+
+    expect(container.textContent).toContain("Visible answer");
+    expect(container.textContent).not.toContain("(empty)");
   });
 });
