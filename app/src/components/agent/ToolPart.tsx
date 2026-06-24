@@ -188,12 +188,12 @@ export const toolPartCSS = css`
     display: none;
   }
 
-  &[open] summary {
+  &[open] > summary {
     border-bottom: 1px solid var(--tool-call-body-border-color);
   }
 
   /* Rotate chevron when open */
-  &[open] .tool-part__chevron {
+  &[open] > summary .tool-part__chevron {
     transform: rotate(0deg);
   }
 
@@ -428,7 +428,7 @@ export const toolPartCSS = css`
     overflow: visible;
     transition: border-color 150ms ease;
 
-    summary {
+    > summary {
       background: none;
     }
 
@@ -449,19 +449,19 @@ export const toolPartCSS = css`
       transition: none;
     }
 
-    summary {
+    > summary {
       border-bottom: none;
     }
 
-    .tool-part__summary {
+    > summary .tool-part__summary {
       font-size: var(--global-font-size-s);
     }
 
-    .tool-part__title-text {
+    > summary .tool-part__title-text {
       color: var(--tool-call-quiet-color);
     }
 
-    .tool-part__body {
+    > div > .tool-part__body {
       background: none;
     }
   }
@@ -933,9 +933,7 @@ function CallSubagentMessagePart({ part }: { part: MessagePart }) {
     return null;
   }
   if (isToolUIPart(part)) {
-    return (
-      <ToolPart part={part} defaultOpen={part.state !== "output-available"} />
-    );
+    return <ToolPart part={part} />;
   }
   const value = stringifyToolValue(part);
   if (value.trim().length === 0) {
