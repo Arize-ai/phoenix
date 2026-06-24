@@ -1,5 +1,13 @@
 # @arizeai/phoenix-client
 
+## 6.11.0
+
+### Minor Changes
+
+- 7efabf6: **Beta:** Add a vitest/jest-based CI eval testing API to `@arizeai/phoenix-client`. New `./vitest`, `./vitest/reporter`, `./jest`, and `./jest/reporter` entrypoints expose a Phoenix reporter (scoreboard + results table), acceptance-criteria support with an optimization `direction` ("maximize"/"minimize"), and tracing that records runs back to Phoenix. `jest` and `vitest` are added as optional peer dependencies.
+
+  This API is in beta and may change in a future release.
+
 ## 6.10.1
 
 ### Patch Changes
