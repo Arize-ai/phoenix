@@ -373,12 +373,21 @@ export function ChatView({
       if (!element) {
         return;
       }
-      // Align restored chat history before first paint; useStickToBottom handles later
-      // resize/follow behavior once its observers are attached.
+      // Synchronously pin restored history to the bottom before first paint so
+      // reopening the panel never flashes the transcript scrolled to the top.
       element.scrollTop = element.scrollHeight - element.clientHeight;
     },
     [scrollRef]
   );
+  // The synchronous alignment above writes scrollTop directly, which leaves
+  // useStickToBottom's lock disengaged. Reopening the panel remounts this view,
+  // and once restored content finishes measuring after mount the controller
+  // stops following — stranding the transcript partway down (#13527). Re-assert
+  // the bottom through the controller on mount to engage the lock; "instant"
+  // keeps it flush without an animated catch-up.
+  useLayoutEffect(() => {
+    void scrollToBottom({ animation: "instant" });
+  }, [scrollToBottom]);
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Seed the input from any prompt staged for this session (e.g. forked from a
