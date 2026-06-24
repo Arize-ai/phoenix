@@ -3,6 +3,7 @@ import logging
 from collections.abc import (
     AsyncGenerator,
     AsyncIterator,
+    Awaitable,
     Callable,
     Iterable,
 )
@@ -703,30 +704,35 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
         subagent_message_chunks: asyncio.Queue[BaseChunk | None] = asyncio.Queue()
         final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
+        publish_subagent_message_chunk: (
+            Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None
+        ) = None
+        set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None
 
-        async def _publish_subagent_message_chunk(chunk: ToolOutputAvailableChunk) -> None:
-            await subagent_message_chunks.put(chunk)
+        if server_agent is not None:
+            async def _publish_subagent_message_chunk(
+                chunk: ToolOutputAvailableChunk,
+            ) -> None:
+                await subagent_message_chunks.put(chunk)
 
-        def _set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
-            final_tool_outputs_by_tool_call_id[chunk.tool_call_id] = chunk
+            def _set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
+                final_tool_outputs_by_tool_call_id[chunk.tool_call_id] = chunk
 
-        if server_agent is None:
-            agent = build_agent(
-                model=model,
-                docs_mcp_server=request.app.state.docs_mcp_server,
-                enable_web_access=web_access_enabled,
-                tracer_provider=tracer_provider,
-            )
-        else:
-            agent = build_agent(
-                model=model,
-                docs_mcp_server=request.app.state.docs_mcp_server,
-                enable_web_access=web_access_enabled,
-                tracer_provider=tracer_provider,
-                server_agent=server_agent,
-                publish_subagent_message_chunk=_publish_subagent_message_chunk,
-                set_subagent_final_tool_output=_set_subagent_final_tool_output,
-            )
+            publish_subagent_message_chunk = _publish_subagent_message_chunk
+            set_subagent_final_tool_output = _set_subagent_final_tool_output
+
+        subagent_streaming_kwargs: dict[str, Any] = {
+            "server_agent": server_agent,
+            "publish_subagent_message_chunk": publish_subagent_message_chunk,
+            "set_subagent_final_tool_output": set_subagent_final_tool_output,
+        }
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=web_access_enabled,
+            tracer_provider=tracer_provider,
+            **subagent_streaming_kwargs,
+        )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
         if body.requested_skills:
