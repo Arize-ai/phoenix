@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Union
 
 if TYPE_CHECKING:
@@ -7,7 +6,6 @@ from phoenix.client.resources.datasets import Dataset
 from phoenix.client.resources.experiments.evaluators import create_evaluator
 from phoenix.client.resources.experiments.types import (
     ExperimentEvaluators,
-    ExperimentRun,
     ExperimentTask,
     RanExperiment,
     RateLimitErrors,
@@ -1026,161 +1024,6 @@ async def async_resume_evaluation(
     )
 
 
-def log_run(
-    *,
-    experiment_id: str,
-    dataset_example_id: str,
-    output: Any,
-    start_time: datetime,
-    end_time: datetime,
-    repetition_number: int = 1,
-    trace_id: Optional[str] = None,
-    error: Optional[str] = None,
-    tolerate_existing: bool = False,
-    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    client: Optional["Client"] = None,
-) -> ExperimentRun:
-    """Post a single experiment run and return the server record.
-
-    Functional wrapper around :meth:`phoenix.client.resources.experiments.Experiments.log_run`.
-    """
-    if client is None:
-        from phoenix.client.client import Client
-
-        client = Client()
-    return client.experiments.log_run(
-        experiment_id=experiment_id,
-        dataset_example_id=dataset_example_id,
-        output=output,
-        start_time=start_time,
-        end_time=end_time,
-        repetition_number=repetition_number,
-        trace_id=trace_id,
-        error=error,
-        tolerate_existing=tolerate_existing,
-        timeout=timeout,
-    )
-
-
-async def async_log_run(
-    *,
-    experiment_id: str,
-    dataset_example_id: str,
-    output: Any,
-    start_time: datetime,
-    end_time: datetime,
-    repetition_number: int = 1,
-    trace_id: Optional[str] = None,
-    error: Optional[str] = None,
-    tolerate_existing: bool = False,
-    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    client: Optional["AsyncClient"] = None,
-) -> ExperimentRun:
-    """Post a single experiment run and return the server record (async).
-
-    Functional wrapper around
-    :meth:`phoenix.client.resources.experiments.AsyncExperiments.log_run`.
-    """
-    if client is None:
-        from phoenix.client.client import AsyncClient
-
-        client = AsyncClient()
-    return await client.experiments.log_run(
-        experiment_id=experiment_id,
-        dataset_example_id=dataset_example_id,
-        output=output,
-        start_time=start_time,
-        end_time=end_time,
-        repetition_number=repetition_number,
-        trace_id=trace_id,
-        error=error,
-        tolerate_existing=tolerate_existing,
-        timeout=timeout,
-    )
-
-
-def log_evaluation(
-    *,
-    experiment_run_id: str,
-    name: str,
-    annotator_kind: str = "CODE",
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    score: Optional[float] = None,
-    label: Optional[str] = None,
-    explanation: Optional[str] = None,
-    error: Optional[str] = None,
-    metadata: Optional[Mapping[str, Any]] = None,
-    trace_id: Optional[str] = None,
-    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    client: Optional["Client"] = None,
-) -> dict[str, Any]:
-    """Post (upsert) a single evaluation for an experiment run.
-
-    Functional wrapper around
-    :meth:`phoenix.client.resources.experiments.Experiments.log_evaluation`.
-    """
-    if client is None:
-        from phoenix.client.client import Client
-
-        client = Client()
-    return client.experiments.log_evaluation(
-        experiment_run_id=experiment_run_id,
-        name=name,
-        annotator_kind=annotator_kind,
-        start_time=start_time,
-        end_time=end_time,
-        score=score,
-        label=label,
-        explanation=explanation,
-        error=error,
-        metadata=metadata,
-        trace_id=trace_id,
-        timeout=timeout,
-    )
-
-
-async def async_log_evaluation(
-    *,
-    experiment_run_id: str,
-    name: str,
-    annotator_kind: str = "CODE",
-    start_time: Optional[datetime] = None,
-    end_time: Optional[datetime] = None,
-    score: Optional[float] = None,
-    label: Optional[str] = None,
-    explanation: Optional[str] = None,
-    error: Optional[str] = None,
-    metadata: Optional[Mapping[str, Any]] = None,
-    trace_id: Optional[str] = None,
-    timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    client: Optional["AsyncClient"] = None,
-) -> dict[str, Any]:
-    """Post (upsert) a single evaluation for an experiment run (async).
-
-    Functional wrapper around
-    :meth:`phoenix.client.resources.experiments.AsyncExperiments.log_evaluation`.
-    """
-    if client is None:
-        from phoenix.client.client import AsyncClient
-
-        client = AsyncClient()
-    return await client.experiments.log_evaluation(
-        experiment_run_id=experiment_run_id,
-        name=name,
-        annotator_kind=annotator_kind,
-        start_time=start_time,
-        end_time=end_time,
-        score=score,
-        label=label,
-        explanation=explanation,
-        error=error,
-        metadata=metadata,
-        trace_id=trace_id,
-        timeout=timeout,
-    )
-
-
 __all__ = [
     "run_experiment",
     "async_run_experiment",
@@ -1193,8 +1036,4 @@ __all__ = [
     "evaluate_experiment",
     "async_evaluate_experiment",
     "create_evaluator",
-    "log_run",
-    "async_log_run",
-    "log_evaluation",
-    "async_log_evaluation",
 ]
