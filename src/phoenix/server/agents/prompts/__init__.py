@@ -295,6 +295,7 @@ class ServerAgentPrompts:
     load_skill: Template = _LOAD_SKILL_TEMPLATE
     load_skill_tool: Template = _LOAD_SKILL_TOOL_TEMPLATE
     read_skill_resource_tool: Template = _READ_SKILL_RESOURCE_TOOL_TEMPLATE
+    call_subagent_tool: Template = _CALL_SUBAGENT_TOOL_INSTRUCTIONS
 
 
 __all__ = [

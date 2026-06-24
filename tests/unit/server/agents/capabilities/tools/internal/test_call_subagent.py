@@ -25,7 +25,7 @@ def _run_context(tool_call_id: str | None) -> RunContext[AgentDependencies]:
 
 async def _call_subagent_tool(
     *,
-    toolset: CallSubAgentToolset,
+    toolset: CallSubAgentToolset[AgentDependencies],
     ctx: RunContext[AgentDependencies],
 ) -> str:
     tools = await toolset.get_tools(ctx)
@@ -50,7 +50,7 @@ class TestCallSubAgentToolset:
         def set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
             final_chunks.append(chunk)
 
-        toolset = CallSubAgentToolset(
+        toolset = CallSubAgentToolset[AgentDependencies](
             server_agent=Agent(TestModel(custom_output_text="subagent summary")),
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,
@@ -91,7 +91,7 @@ class TestCallSubAgentToolset:
         def set_subagent_final_tool_output(chunk: ToolOutputAvailableChunk) -> None:
             final_chunks.append(chunk)
 
-        toolset = CallSubAgentToolset(
+        toolset = CallSubAgentToolset[AgentDependencies](
             server_agent=Agent(TestModel(custom_output_text="subagent summary")),
             publish_subagent_message_chunk=publish_subagent_message_chunk,
             set_subagent_final_tool_output=set_subagent_final_tool_output,

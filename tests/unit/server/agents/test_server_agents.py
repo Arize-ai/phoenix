@@ -44,6 +44,24 @@ async def test_skills_toolset_advertised(
     assert "bash" in tool_names
     assert "load_skill" in tool_names
     assert "read_skill_resource" in tool_names
+    assert "call_subagent" not in tool_names
+
+
+async def test_call_subagent_toolset_advertised_when_enabled(
+    model: TestModel,
+    schema: strawberry.Schema,
+) -> None:
+    agent = build_server_agent(
+        model=model,
+        schema=schema,
+        build_graphql_context=lambda: Mock(spec=Context),
+        enable_subagents=True,
+    )
+    await agent.run("hi")
+
+    assert model.last_model_request_parameters is not None
+    tool_names = {tool.name for tool in model.last_model_request_parameters.function_tools}
+    assert "call_subagent" in tool_names
 
 
 async def test_skill_catalog_rendered_into_instructions(

@@ -63,7 +63,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.prompts import AgentPrompts
+from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
 from phoenix.server.agents.server_agents import build_server_agent
 from phoenix.server.agents.skill_requests import (
     inject_requested_skills,
@@ -348,6 +348,16 @@ def _build_message_metadata_chunk(
         if span_context is not None
         else None
     )
+    return MessageMetadataChunk(
+        message_metadata=AssistantMessageMetadata(
+            session_id=session_id,
+            trace=trace_ids,
+            usage=_build_usage_payload(usage),
+        )
+    )
+
+
+def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
     usage_payload = AssistantMessageMetadataUsage(
         tokens=AssistantMessageMetadataUsageTokens(
             prompt=usage.input_tokens,
@@ -360,13 +370,7 @@ def _build_message_metadata_chunk(
             cache_read=usage.cache_read_tokens,
             cache_write=usage.cache_write_tokens,
         )
-    return MessageMetadataChunk(
-        message_metadata=AssistantMessageMetadata(
-            session_id=session_id,
-            trace=trace_ids,
-            usage=usage_payload,
-        )
-    )
+    return usage_payload
 
 
 async def _persist_db_traces(
@@ -668,6 +672,118 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
+    @router.post("/agents/server/sessions/{session_id}/chat")
+    async def run_server_agent(
+        session_id: str,
+        request: Request,
+        request_body: ChatRequest,
+    ) -> Response:
+        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+            raise HTTPException(status_code=403, detail="Agents are disabled")
+        if get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+
+        body = request_body.root
+        resolved_contexts = resolve_contexts(body.contexts)
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        graphql_mutations_enabled = (
+            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
+        )
+        if graphql_mutations_enabled and is_viewer:
+            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
+
+        recording = request.app.state.system_settings.agent_trace_recording
+        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
+        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        project_name = get_env_phoenix_agents_assistant_project_name()
+        tracer = (
+            Tracer(
+                span_cost_calculator=request.app.state.span_cost_calculator,
+                enable_remote_export=export_remote_traces,
+                project_name=project_name,
+            )
+            if (ingest_traces or export_remote_traces)
+            else None
+        )
+        tracer_provider = tracer.tracer_provider if tracer is not None else None
+        agent_span_recorder: _AgentSpanContextRecorder | None = None
+        if tracer is not None:
+            agent_span_recorder = _AgentSpanContextRecorder()
+            tracer.tracer_provider.add_span_processor(agent_span_recorder)
+
+        try:
+            async with request.app.state.db() as session:
+                model = await build_model(
+                    body.model,
+                    session=session,
+                    decrypt=request.app.state.decrypt,
+                    tracer_provider=tracer_provider,
+                )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+        web_access_enabled = (
+            resolved_contexts.web_access is not None
+            and resolved_contexts.web_access.enabled
+            and get_env_phoenix_agents_web_access_enabled()
+        )
+        subagents_enabled = _subagents_enabled(resolved_contexts)
+        server_agent = build_server_agent(
+            model=model,
+            schema=request.app.state.graphql_schema,
+            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            prompts=ServerAgentPrompts(base=AgentPrompts().base),
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=web_access_enabled,
+            allow_mutations=graphql_mutations_enabled,
+            tracer_provider=tracer_provider,
+            enable_subagents=subagents_enabled,
+        )
+        adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
+            agent=server_agent,
+            run_input=body,
+            accept=request.headers.get("accept"),
+        )
+
+        async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            yield _build_message_metadata_chunk(
+                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                session_id=session_id,
+                usage=result.usage(),
+            )
+            _log_run_complete(result)
+
+        async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            try:
+                with detached_otel_context(), using_session(session_id=session_id):
+                    raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
+                    assert _is_async_generator(raw_stream)
+                    async with aclosing(raw_stream) as stream:
+                        async for chunk in stream:
+                            if isinstance(chunk, ToolInputAvailableChunk):
+                                chunk.provider_metadata = _get_updated_provider_metadata(
+                                    provider_metadata=chunk.provider_metadata or {},
+                                    tool_name=chunk.tool_name,
+                                )
+                            yield chunk
+            finally:
+                if tracer is not None:
+                    tracer.tracer_provider.force_flush()
+                    if ingest_traces:
+                        project_id = await _ensure_project_exists(
+                            request.app.state.db, project_name
+                        )
+                        db_traces = tracer.get_db_traces(project_id=project_id)
+                        if db_traces:
+                            async with request.app.state.db() as session:
+                                await _persist_db_traces(session=session, db_traces=db_traces)
+                                await session.flush()
+                    tracer.tracer_provider.shutdown()
+
+        return adapter.streaming_response(_stream_with_session())
+
     @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(
         agent_id: str,
@@ -757,6 +873,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 enable_web_access=web_access_enabled,
                 allow_mutations=graphql_mutations_enabled,
                 tracer_provider=tracer_provider,
+                enable_subagents=False,
             )
             if subagents_enabled
             else None

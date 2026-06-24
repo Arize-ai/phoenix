@@ -1510,6 +1510,7 @@ class FieldSummarizeRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
 
 
 class AssistantMessageMetadata(TypedDict):
@@ -1557,6 +1558,7 @@ class ChatRegenerateMessage(TypedDict):
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -1588,6 +1590,7 @@ class ChatSubmitMessage(TypedDict):
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
