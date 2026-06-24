@@ -70,7 +70,7 @@ class CallSubAgentToolset(FunctionToolset[AgentDependencies]):
                 final_summary = result.output
 
             event_stream = VercelAIEventStream(
-                run_input=_get_subagent_request_data(tool_call_id=tool_call_id, task=task)
+                run_input=_get_dummy_request_data(tool_call_id=tool_call_id, task=task)
             )
             async with server_agent.run_stream_events(
                 task,
@@ -150,7 +150,8 @@ def _has_renderable_ui_message_parts(message: UIMessage) -> bool:
     return False
 
 
-def _get_subagent_request_data(*, tool_call_id: str, task: str) -> SubmitMessage:
+def _get_dummy_request_data(*, tool_call_id: str, task: str) -> SubmitMessage:
+    """Build placeholder request data required by the Vercel event stream."""
     return SubmitMessage(
         id=f"subagent-{tool_call_id}",
         messages=[
