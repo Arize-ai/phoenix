@@ -879,7 +879,16 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
+                  {
+                    "group": "CI eval tests",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations"
+                    ]
+                  }
                 ]
               },
               {
@@ -1250,6 +1259,7 @@
               {
                 "group": "06.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
                   "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
                   "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
                   "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
 from contextlib import nullcontext
 from unittest.mock import patch
 
 from jinja2 import Template
+from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -13,9 +16,11 @@ from phoenix.server.agents.types import (
     SandboxAvailability,
 )
 from phoenix.server.api.routers.agents import (
+    _interleave_agent_and_subagent_message_chunks,
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
+    _SubagentMessageChunksClosed,
 )
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.types import DbSessionFactory, UserId
@@ -133,6 +138,38 @@ class TestLoadSandboxAvailability:
             )
 
         assert availability.has_usable is False
+
+
+class TestInterleaveAgentAndSubagentMessageChunks:
+    async def test_drops_stale_preliminary_subagent_chunk_after_final_output(self) -> None:
+        tool_call_id = "call-subagent-1"
+        final_chunk = ToolOutputAvailableChunk(
+            tool_call_id=tool_call_id,
+            output={"summary": "final"},
+        )
+        stale_preliminary_chunk = ToolOutputAvailableChunk(
+            tool_call_id=tool_call_id,
+            output={"summary": "still running"},
+            preliminary=True,
+        )
+        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
+
+        async def agent_chunks() -> AsyncIterator[BaseChunk]:
+            yield final_chunk
+            await subagent_message_chunks.put(stale_preliminary_chunk)
+
+        chunks = [
+            chunk
+            async for chunk in _interleave_agent_and_subagent_message_chunks(
+                agent_message_chunks=agent_chunks(),
+                subagent_message_chunks=subagent_message_chunks,
+                final_tool_outputs_by_tool_call_id={},
+            )
+        ]
+
+        assert chunks == [final_chunk]
 
 
 class TestAgentDependenciesShape:

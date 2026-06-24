@@ -74,7 +74,7 @@
  *
  * @see https://en.wikipedia.org/wiki/Communicating_sequential_processes
  *
- * @template T The type of values sent through the channel
+ * @template Message The type of values sent through the channel
  *
  * @example Safe Producer-Consumer Pattern
  * ```typescript
@@ -116,8 +116,8 @@
 /**
  * Internal type for blocked senders waiting to deliver values
  */
-interface Sender<T> {
-  readonly value: T;
+interface Sender<Message> {
+  readonly value: Message;
   readonly resolve: () => void;
   readonly reject: (error: Error) => void;
 }
@@ -125,8 +125,8 @@ interface Sender<T> {
 /**
  * Internal type for blocked receivers waiting for values
  */
-interface Receiver<T> {
-  readonly resolve: (value: T | typeof CLOSED) => void;
+interface Receiver<Message> {
+  readonly resolve: (value: Message | typeof CLOSED) => void;
   readonly reject: (error: Error) => void;
 }
 
@@ -149,10 +149,10 @@ const ERRORS = {
   NEGATIVE_CAPACITY: "Channel capacity must be non-negative",
 } as const satisfies Record<string, string>;
 
-export class Channel<T> {
-  #buffer: T[] = [];
-  #sendQueue: Sender<T>[] = [];
-  #receiveQueue: Receiver<T>[] = [];
+export class Channel<Message> {
+  #buffer: Message[] = [];
+  #sendQueue: Sender<Message>[] = [];
+  #receiveQueue: Receiver<Message>[] = [];
   #closed = false;
   readonly #capacity: number;
 
@@ -191,7 +191,7 @@ export class Channel<T> {
    * @param value - The value to send
    * @throws {ChannelError} If channel is closed
    */
-  async send(value: T): Promise<void> {
+  async send(value: Message): Promise<void> {
     if (this.#closed) {
       throw new ChannelError(ERRORS.SEND_TO_CLOSED);
     }
@@ -221,7 +221,7 @@ export class Channel<T> {
    *
    * @returns The received value, or CLOSED symbol if channel is closed and empty
    */
-  async receive(): Promise<T | typeof CLOSED> {
+  async receive(): Promise<Message | typeof CLOSED> {
     // Drain buffer first
     if (this.#buffer.length > 0) {
       const value = this.#buffer.shift()!;
@@ -249,7 +249,7 @@ export class Channel<T> {
     }
 
     // Block until value available
-    return new Promise<T | typeof CLOSED>((resolve, reject) => {
+    return new Promise<Message | typeof CLOSED>((resolve, reject) => {
       this.#receiveQueue.push({ resolve, reject });
     });
   }
@@ -271,7 +271,7 @@ export class Channel<T> {
    * }
    * ```
    */
-  tryReceive(): T | typeof CLOSED | undefined {
+  tryReceive(): Message | typeof CLOSED | undefined {
     // Drain buffer first
     if (this.#buffer.length > 0) {
       const value = this.#buffer.shift()!;
@@ -362,7 +362,7 @@ export class Channel<T> {
   /**
    * Async iterator support for for-await-of loops
    */
-  async *[Symbol.asyncIterator](): AsyncIterableIterator<T> {
+  async *[Symbol.asyncIterator](): AsyncIterableIterator<Message> {
     while (true) {
       const value = await this.receive();
       if (value === CLOSED) return;
@@ -392,6 +392,8 @@ export const CLOSED = Symbol("CLOSED");
  * }
  * ```
  */
-export function isClosed<T>(value: T | typeof CLOSED): value is typeof CLOSED {
+export function isClosed<Message>(
+  value: Message | typeof CLOSED
+): value is typeof CLOSED {
   return value === CLOSED;
 }

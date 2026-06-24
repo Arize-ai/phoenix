@@ -1,0 +1,87 @@
+---
+title: "06.24.2026: Annotations, Labels, and PXI Server Tools"
+description: "Trace-level annotations surfaced across the trace header and project stats, label management from the prompts and datasets lists, OAuth2 role-override preservation, and a server-side bash tool for PXI subagents."
+---
+
+# Trace-Level Annotations Across the UI
+
+June 22, 2026
+
+**Available in arize-phoenix 17.10.0+ (trace header) and 17.11.0+ (project stats panel)**
+
+Trace-level annotations now appear next to span annotations everywhere you review feedback, so
+scores attached to a whole trace are as visible as scores on individual spans.
+
+- **Trace header** — the trace details header shows trace annotation summaries as peer columns
+  beside Status, Total Cost, and Latency, with root span and trace annotations segmented by a
+  subtle divider so each source reads clearly in a single compact row
+- **Project stats panel** — the spans Stats aside groups feedback into clearly headed sections —
+  Span Annotations, Document Evaluations, and Trace Annotations — so every level of feedback reads
+  as its own section
+- **Live updates** — trace annotation summaries refetch as streaming data advances, keeping scores
+  current while you watch a project
+
+# Manage Prompt and Dataset Labels from the List Pages
+
+June 19, 2026
+
+**Available in arize-phoenix 17.9.0+**
+
+Label management moves onto the Prompts and Datasets list pages, so you can filter and organize
+without leaving the table.
+
+- **Click to filter** — click any label token on the Prompts or Datasets list to toggle it as a
+  filter; the active filter is persisted to the URL, so a filtered view is shareable and survives
+  reloads
+- **Manage labels inline** — add labels from a row's action menu and create new ones inline, with
+  no modal, on both the prompts and datasets lists
+- **Usage counts** — the label tables in settings show how many prompts or datasets reference each
+  label, making it easy to spot which labels are in use and which are unused
+- **Prompt model column** — the prompts table adds a model column showing each prompt's provider
+  icon and model name
+
+# Preserve Manual Role Overrides for OAuth2 Logins
+
+June 19, 2026
+
+**Available in arize-phoenix 17.9.0+**
+
+When you map roles from an OAuth2 identity provider with `ROLE_ATTRIBUTE_PATH`, an existing user's
+role was previously re-synced from the IDP on every login — silently overwriting any role you set
+by hand in the Phoenix admin UI. A new per-IDP flag lets those manual overrides stick.
+
+- **Opt out of re-sync** — set `PHOENIX_OAUTH2_<IDP_NAME>_ROLE_RESYNC=false` to stop overwriting an
+  existing user's role from IDP claims on login
+- **New users unaffected** — newly provisioned users still receive their mapped role, so role
+  mapping stays active while manual overrides survive re-login
+- **Defaults preserved** — the flag defaults to `true`, so existing deployments keep their current
+  behavior unless you turn re-sync off
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/docs/phoenix/self-hosting/features/authentication">
+    Configure OAuth2 identity providers and role mapping for self-hosted Phoenix.
+  </Card>
+</CardGroup>
+
+# Server-Side Bash Tool for PXI Subagents
+
+June 19, 2026
+
+**Available in arize-phoenix 17.9.0+ (PXI beta)**
+
+PXI subagents now run a sandboxed `bash` tool with a built-in `phoenix-gql` command, letting them
+query your Phoenix data through the GraphQL API the same way the main agent does — and respecting
+the same mutation gate, so subagents stay queries-only by default.
+
+- **Network gated by web access** — outbound network built-ins (`curl`, `wget`, `http`) stay
+  offline unless web access is enabled; with it off, every outbound request is positively denied
+  with the SSRF guard on
+- **Deployment kill switch** — set `PHOENIX_AGENTS_DISABLE_BASH=true` to disable the server-side
+  bash tool entirely, which also hides the subagents toggle from the agent settings UI; the
+  in-browser bash tool is unaffected
+
+<CardGroup cols={2}>
+  <Card title="PXI Agent" icon="robot" href="/docs/phoenix/pxi">
+    Learn how to enable and use PXI in your Phoenix deployment.
+  </Card>
+</CardGroup>
