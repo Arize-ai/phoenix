@@ -230,7 +230,8 @@ function isAnnotationShaped(value: unknown): value is Annotation {
  * Phoenix's `experiment_evaluations` endpoint is keyed by
  * `(experiment_run_id, name)` so two annotations with the same name on
  * the same run race each other. We collapse duplicates by name (last
- * wins) and post serially so the final state is deterministic.
+ * wins) up front, which makes the final state deterministic; the
+ * remaining writes target distinct names, so they post in parallel.
  */
 export async function flushAnnotations(
   runId: string | undefined,
@@ -242,7 +243,9 @@ export async function flushAnnotations(
   for (const annotation of annotations) {
     byName.set(annotation.name, annotation);
   }
-  for (const annotation of byName.values()) {
-    await postAnnotation(suite, runId, annotation);
-  }
+  await Promise.all(
+    Array.from(byName.values(), (annotation) =>
+      postAnnotation(suite, runId, annotation)
+    )
+  );
 }

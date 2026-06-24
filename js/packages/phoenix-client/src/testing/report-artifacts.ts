@@ -192,12 +192,22 @@ function createTestResultSummary(result: TestResult): TestResult {
     status: result.status,
     output: toJsonSafeValue(result.output),
     annotations: result.annotations.map(
-      ({ name, score, label, explanation, annotatorKind }) => ({
+      ({
         name,
         score,
         label,
         explanation,
         annotatorKind,
+        metadata,
+        traceId,
+      }) => ({
+        name,
+        score,
+        label,
+        explanation,
+        annotatorKind,
+        metadata,
+        traceId,
       })
     ),
     error: result.error,
