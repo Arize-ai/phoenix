@@ -17,7 +17,7 @@ class _RunRecord:
     evaluations: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Test CHAIN trace_id (set by the hookwrapper) carried onto bare annotations.
     trace_id: Optional[str] = None
-    # Suite tracer for the test's dataset; lets inline px.evaluate open EVALUATOR spans.
+    # Suite tracer for the test's dataset; lets inline evaluate() open EVALUATOR spans.
     tracer: Any = None
 
     def set_output(self, value: Any) -> None:

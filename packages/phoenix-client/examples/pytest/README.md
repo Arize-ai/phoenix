@@ -3,7 +3,7 @@
 Run LLM evals as a normal pytest suite and gate CI on the results.
 
 - `test_evals.py` — an example eval suite using `@pytest.mark.phoenix` and the
-  `px.log_output` / `px.log_evaluation` helpers.
+  `log_output` / `log_evaluation` helpers.
 - `eval-ci.yml` — a copy-paste GitHub Actions workflow that installs the plugin,
   runs the suite, and fails the job on the pytest exit code. It includes an
   optional, commented-out step that upserts a single PR comment with the printed

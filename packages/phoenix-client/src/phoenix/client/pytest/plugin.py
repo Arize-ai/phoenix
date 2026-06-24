@@ -39,7 +39,10 @@ _PASS_ANNOTATION = "pass"
 def pytest_addoption(parser: "Parser") -> None:
     parser.addini(
         "phoenix_dataset",
-        help="Phoenix dataset name override; collapses the whole session into one experiment.",
+        help=(
+            "Phoenix dataset name override; collapses the collected tests into one experiment. "
+            "The PHOENIX_TEST_DATASET env var takes precedence over this."
+        ),
         default=None,
     )
 

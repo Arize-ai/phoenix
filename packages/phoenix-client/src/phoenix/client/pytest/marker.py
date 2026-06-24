@@ -22,8 +22,13 @@ def iter_phoenix_items(items: "Iterable[Item]") -> "Iterator[Item]":
 def resolve_dataset_name(item: "Item", *, override: Optional[str] = None) -> str:
     """Resolve the dataset (= suite) name for an item.
 
-    Precedence: ``pytest.ini`` ``phoenix_dataset`` override > marker ``dataset=`` kwarg >
-    module name (the zero-ceremony default).
+    Precedence: ``override`` (``PHOENIX_TEST_DATASET`` env var, else the ``phoenix_dataset``
+    ini option) > marker ``dataset=`` kwarg > the test file's path relative to rootdir,
+    sans ``.py`` (the zero-ceremony default), e.g. ``tests/evals/test_sql``.
+
+    The path default mirrors pytest's nodeid, which is unique within a session, so
+    same-basename files in different directories never collapse into one dataset (the bare
+    module-name default did).
     """
     if override:
         return override
@@ -32,11 +37,7 @@ def resolve_dataset_name(item: "Item", *, override: Optional[str] = None) -> str
         dataset = marker.kwargs.get("dataset")
         if dataset:
             return str(dataset)
-    module = getattr(item, "module", None)
-    if module is not None and getattr(module, "__name__", None):
-        return str(module.__name__).rsplit(".", 1)[-1]
-    path = item.nodeid.split("::", 1)[0]
-    return re.sub(r"\.py$", "", path).rsplit("/", 1)[-1]
+    return re.sub(r"\.py$", "", item.nodeid.split("::", 1)[0])
 
 
 REPETITION_PARAM = "__phoenix_repetition__"

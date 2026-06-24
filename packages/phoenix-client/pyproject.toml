@@ -46,7 +46,7 @@ evals = [
 ]
 
 [project.entry-points.pytest11]
-phoenix = "phoenix.client.pytest_plugin.plugin"
+phoenix = "phoenix.client.pytest.plugin"
 
 [project.urls]
 Documentation = "https://arize.com/docs/phoenix/"

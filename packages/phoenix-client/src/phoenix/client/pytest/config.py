@@ -61,6 +61,13 @@ class PhoenixTestConfig:
         else:
             repetitions = 1
 
+        # PHOENIX_TEST_DATASET wins over the phoenix_dataset ini option so CI can name the
+        # dataset per invocation (e.g. PHOENIX_TEST_DATASET=smoke pytest -m smoke) without
+        # editing committed config.
+        env_dataset = env.get("PHOENIX_TEST_DATASET")
+        if env_dataset is not None and env_dataset.strip():
+            dataset_override = env_dataset.strip()
+
         return cls(
             tracking=_env_bool(env.get("PHOENIX_TEST_TRACKING"), default=True),
             repetitions=repetitions,

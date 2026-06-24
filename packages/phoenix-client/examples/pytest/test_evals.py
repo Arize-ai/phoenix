@@ -4,7 +4,7 @@ Example: a Phoenix eval suite written as pytest tests.
 Each test marked with @pytest.mark.phoenix becomes one run in a Phoenix
 experiment. The suite (here, this module) maps to a dataset; each test case
 maps to a dataset example; the assertion outcome is recorded as the reserved
-``pass`` annotation. Extra scores attach via px.log_evaluation / px.evaluate.
+``pass`` annotation. Extra scores attach via log_evaluation / evaluate.
 
 Run it like any other pytest suite. The plugin activates automatically once
 ``arize-phoenix-client[pytest]`` is installed:
@@ -21,7 +21,7 @@ Iterate locally without recording anything to Phoenix:
 
 import pytest
 
-import phoenix.client.pytest_plugin as px
+from phoenix.client.pytest import log_evaluation, log_output
 
 
 def my_app(question: str) -> str:
@@ -41,9 +41,9 @@ def my_app(question: str) -> str:
 def test_answers(question: str, expected: str) -> None:
     result = my_app(question)
     # Capture the output explicitly (pytest warns on non-None test returns).
-    px.log_output(result)
+    log_output(result)
     # Attach an extra score in addition to the assertion-derived ``pass`` annotation.
-    px.log_evaluation(name="exact_match", score=1.0 if result == expected else 0.0)
+    log_evaluation(name="exact_match", score=1.0 if result == expected else 0.0)
     # A failed assertion records pass=False for this run; it does not stop the suite
     # from recording the other runs.
     assert result == expected

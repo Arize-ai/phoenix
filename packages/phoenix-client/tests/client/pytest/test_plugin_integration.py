@@ -22,7 +22,7 @@ def test_offline_mode_makes_no_client(
     pytester.makepyfile(
         test_offline="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="offline-suite")
         def test_one():
@@ -33,7 +33,7 @@ def test_offline_mode_makes_no_client(
     # Make client construction fatal so any network attempt fails the inner run loudly.
     pytester.makeconftest(
         """
-        import phoenix.client.pytest_plugin.plugin as plugin
+        import phoenix.client.pytest.plugin as plugin
 
         def pytest_configure(config):
             def _boom():
@@ -51,7 +51,7 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
     `pass` annotation derived from the assertion outcome."""
     pytester.makeconftest(
         """
-        import phoenix.client.pytest_plugin.plugin as plugin
+        import phoenix.client.pytest.plugin as plugin
 
         class _FakeDataset:
             id = "Dataset:1"
@@ -129,7 +129,7 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
     pytester.makepyfile(
         test_suite="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="qa-suite")
         @pytest.mark.parametrize("n", [1, 2, 3], ids=["a", "b", "c"])
@@ -156,7 +156,7 @@ def test_failing_test_records_run_with_error(pytester: pytest.Pytester) -> None:
     pytester.makeconftest(
         """
         import json, os
-        import phoenix.client.pytest_plugin.plugin as plugin
+        import phoenix.client.pytest.plugin as plugin
 
         class _FakeDataset:
             id = "Dataset:1"
@@ -205,7 +205,7 @@ def test_failing_test_records_run_with_error(pytester: pytest.Pytester) -> None:
     pytester.makepyfile(
         test_fail="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="fail-suite")
         def test_boom():
@@ -232,7 +232,7 @@ def test_repetitions_expand_to_distinct_runs(
     pytester.makeconftest(
         """
         import json, os
-        import phoenix.client.pytest_plugin.plugin as plugin
+        import phoenix.client.pytest.plugin as plugin
 
         class _FakeDataset:
             id = "Dataset:1"; version_id = "Version:1"
@@ -286,7 +286,7 @@ def test_repetitions_expand_to_distinct_runs(
     pytester.makepyfile(
         test_rep="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="rep-suite")
         def test_one():
@@ -314,7 +314,7 @@ def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester)
     pytester.makeconftest(
         """
         import json, os
-        import phoenix.client.pytest_plugin.plugin as plugin
+        import phoenix.client.pytest.plugin as plugin
 
         class _FakeDataset:
             id = "Dataset:1"; version_id = "Version:1"
@@ -359,7 +359,7 @@ def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester)
     pytester.makepyfile(
         test_hoist="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         def correctness(output, expected, **_):
             return {"name": "correctness", "score": 1.0 if output == expected else 0.0}
@@ -387,7 +387,7 @@ def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester)
 # project_name so the suite tracer is built.
 _TRACING_CONFTEST = """
 import json, os
-import phoenix.client.pytest_plugin.plugin as plugin
+import phoenix.client.pytest.plugin as plugin
 
 class _Http:
     base_url = ""
@@ -452,7 +452,7 @@ def test_run_carries_chain_trace_id(pytester: pytest.Pytester) -> None:
     pytester.makepyfile(
         test_run="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():
@@ -472,7 +472,7 @@ def test_bare_annotations_inherit_chain_trace_id(pytester: pytest.Pytester) -> N
     pytester.makepyfile(
         test_bare="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():
@@ -498,7 +498,7 @@ def test_inline_evaluate_carries_own_evaluator_trace_id(pytester: pytest.Pyteste
     pytester.makepyfile(
         test_inline="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         def grader(output, **_):
             return {"name": "grader", "score": 1.0}
@@ -524,7 +524,7 @@ def test_marker_evaluator_carries_own_evaluator_trace_id(pytester: pytest.Pytest
     pytester.makepyfile(
         test_marker="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         def correctness(output, **_):
             return {"name": "correctness", "score": 1.0}
@@ -550,8 +550,8 @@ def test_offline_builds_no_tracer(
     monkeypatch.setenv("PHOENIX_TEST_TRACKING", "false")
     pytester.makeconftest(
         """
-        import phoenix.client.pytest_plugin.plugin as plugin
-        import phoenix.client.pytest_plugin.tracing as tracing
+        import phoenix.client.pytest.plugin as plugin
+        import phoenix.client.pytest.tracing as tracing
 
         def pytest_configure(config):
             def _boom(*a, **k):
@@ -565,7 +565,7 @@ def test_offline_builds_no_tracer(
     pytester.makepyfile(
         test_off="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():
@@ -580,7 +580,7 @@ def test_offline_builds_no_tracer(
 # ``SimpleSpanProcessor`` for the no-op one) so a test can read back the actual exported span
 # status/events. The appended ``pytest_unconfigure`` dumps spans and shadows the trace.json one.
 _SPAN_CAPTURE_HEADER = """
-import phoenix.client.pytest_plugin.tracing as _tracing
+import phoenix.client.pytest.tracing as _tracing
 from opentelemetry.sdk import trace as _trace_sdk
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor as _SSP
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter as _IMSE
@@ -627,7 +627,7 @@ def test_failing_test_records_error_chain_span(pytester: pytest.Pytester) -> Non
     pytester.makepyfile(
         test_fail="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():
@@ -648,7 +648,7 @@ def test_passing_test_records_ok_chain_span(pytester: pytest.Pytester) -> None:
     pytester.makepyfile(
         test_ok="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():
@@ -668,7 +668,7 @@ def test_failing_test_output_carries_trace_id(pytester: pytest.Pytester) -> None
     pytester.makepyfile(
         test_fail="""
         import pytest
-        import phoenix.client.pytest_plugin as px
+        import phoenix.client.pytest as px
 
         @pytest.mark.phoenix(dataset="trace-suite")
         def test_one():

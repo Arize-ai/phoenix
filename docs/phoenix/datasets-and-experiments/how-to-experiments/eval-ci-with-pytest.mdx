@@ -34,14 +34,14 @@ pip install "arize-phoenix-client[pytest,evals]" pytest
 Apply the `@pytest.mark.phoenix` marker to any test you want to record. Tests without
 the marker run normally and are not sent to Phoenix. Combine the marker with
 `pytest.parametrize` to turn each set of parameters into a dataset example, and use the
-module-level `px` helpers to record the output and any evaluations.
+module-level helpers to record the output and any evaluations.
 
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
 import pytest
 
-import phoenix.client.pytest_plugin as px
+from phoenix.client.pytest import evaluate, log_evaluation, log_output
 
 
 @pytest.mark.phoenix(dataset="qa-suite")
@@ -52,8 +52,8 @@ import phoenix.client.pytest_plugin as px
 )
 def test_answers(question, expected):
     result = my_app(question)
-    px.log_output(result)
-    px.log_evaluation(name="exact_match", score=float(result == expected))
+    log_output(result)
+    log_evaluation(name="exact_match", score=float(result == expected))
     assert result == expected
 ```
 </Tab>
@@ -90,8 +90,11 @@ def test_answers(question, expected): ...
 </Tabs>
 
 - **`dataset`** sets the name of the dataset and experiment. When omitted, it defaults
-  to the name of the test's module. Setting `phoenix_dataset` in `pytest.ini` overrides
-  every marker in the session and collects the entire run into a single experiment.
+  to the test file's path relative to your project root (for example,
+  `tests/evals/test_sql`), so tests in different files become separate datasets and two
+  files that share a basename never collide. The full precedence is `PHOENIX_TEST_DATASET`
+  (environment) > `phoenix_dataset` (`pytest.ini`) > this `dataset=` kwarg > the file-path
+  default.
 - **`evaluators`** is a list of evaluators that run automatically against every case.
   Each evaluator's score is recorded as an annotation alongside the `pass` annotation,
   and a failing evaluator never fails the test itself.
@@ -103,7 +106,7 @@ def test_answers(question, expected): ...
 
 ## Logging Outputs
 
-Record the output of the system under test with `px.log_output`. Output capture is
+Record the output of the system under test with `log_output`. Output capture is
 explicit because pytest emits a warning when a test returns a non-`None` value, so the
 output is passed to the helper rather than returned from the test.
 
@@ -112,7 +115,7 @@ output is passed to the helper rather than returned from the test.
 ```python
 def test_answers(question, expected):
     result = my_app(question)
-    px.log_output(result)
+    log_output(result)
     assert result == expected
 ```
 </Tab>
@@ -124,17 +127,17 @@ An evaluator is any callable that returns a dictionary with a `name` and a `scor
 evaluators built on `phoenix.evals` are also accepted. There are three ways to attach
 evaluations to a run.
 
-Record a score directly with `px.log_evaluation`:
+Record a score directly with `log_evaluation`:
 
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
-px.log_evaluation(name="exact_match", score=1.0, label="correct")
+log_evaluation(name="exact_match", score=1.0, label="correct")
 ```
 </Tab>
 </Tabs>
 
-Run an evaluator inline with `px.evaluate`. The helper records the evaluator's score on
+Run an evaluator inline with `evaluate`. The helper records the evaluator's score on
 the run and returns its result so the test can assert on it. Because a failed assertion
 feeds the `pass` annotation, an inline evaluation can gate the individual test:
 
@@ -147,8 +150,8 @@ def correctness(output, expected, **_):
 
 def test_answers(question, expected):
     answer = my_app(question)
-    px.log_output(answer)
-    result = px.evaluate(correctness, output=answer, expected=expected)
+    log_output(answer)
+    result = evaluate(correctness, output=answer, expected=expected)
     assert result["score"] == 1.0
 ```
 </Tab>
@@ -162,12 +165,12 @@ the suite without an inline call:
 ```python
 @pytest.mark.phoenix(dataset="qa-suite", evaluators=[correctness])
 def test_answers(question, expected):
-    px.log_output(my_app(question))
+    log_output(my_app(question))
 ```
 </Tab>
 </Tabs>
 
-Annotations recorded by `px.log_evaluation` and `px.evaluate` do not fail a test on
+Annotations recorded by `log_evaluation` and `evaluate` do not fail a test on
 their own. Only a failed assertion fails the pytest item.
 
 ## Configuring with Environment Variables
@@ -181,6 +184,7 @@ as falsy.
 | --- | --- | --- |
 | `PHOENIX_TEST_TRACKING` | `true` | Master switch for recording. When set to a falsy value, the suite runs offline: the tests execute normally but nothing is sent to Phoenix. |
 | `PHOENIX_TEST_REPETITIONS` | `1` | Default number of repetitions for each marked test. The value must be an integer greater than or equal to 1; a malformed value raises an error so that CI never runs misconfigured. |
+| `PHOENIX_TEST_DATASET` | _(file path)_ | Names the dataset for every collected test, taking precedence over both `phoenix_dataset` and the marker's `dataset=`. When unset, each test falls back to its marker `dataset=` or, failing that, its file path. Combine it with pytest's own selection (`-m`, `-k`, or a path) to turn a subset of the suite into a named dataset per run, for example `PHOENIX_TEST_DATASET=smoke pytest -m smoke`. |
 
 The connection to Phoenix uses the standard client variables:
 `PHOENIX_COLLECTOR_ENDPOINT`, `PHOENIX_API_KEY`, and `PHOENIX_CLIENT_HEADERS`.
@@ -226,4 +230,4 @@ jobs:
 
 A runnable copy of this workflow and an example test suite, including an optional step
 that posts the run summary as a pull request comment, are available in the
-[client examples directory](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client/examples/pytest_plugin).
+[client examples directory](https://github.com/Arize-ai/phoenix/tree/main/packages/phoenix-client/examples/pytest).

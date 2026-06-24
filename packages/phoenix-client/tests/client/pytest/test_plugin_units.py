@@ -2,14 +2,40 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any, Optional, cast
+
 import pytest
 from openinference.semconv.resource import ResourceAttributes
 
-from phoenix.client.pytest_plugin.config import PhoenixTestConfig, PhoenixTestConfigError
-from phoenix.client.pytest_plugin.context import (
+from phoenix.client.pytest.config import PhoenixTestConfig, PhoenixTestConfigError
+from phoenix.client.pytest.context import (
     _iter_scores,  # pyright: ignore[reportPrivateUsage]
 )
-from phoenix.client.pytest_plugin.session import DatasetGroup, SuiteState
+from phoenix.client.pytest.marker import resolve_dataset_name
+from phoenix.client.pytest.session import DatasetGroup, SuiteState
+
+if TYPE_CHECKING:
+    from _pytest.nodes import Item
+
+
+class _FakeMarker:
+    def __init__(self, **kwargs: Any) -> None:
+        self.kwargs = kwargs
+
+
+class _FakeItem:
+    def __init__(self, nodeid: str, marker: Optional[_FakeMarker] = None) -> None:
+        self.nodeid = nodeid
+        self._marker = marker
+
+    def get_closest_marker(self, name: str) -> Optional[_FakeMarker]:
+        return self._marker
+
+
+def _dataset_name(
+    nodeid: str, *, marker: Optional[_FakeMarker] = None, override: Optional[str] = None
+) -> str:
+    return resolve_dataset_name(cast("Item", _FakeItem(nodeid, marker)), override=override)
 
 
 class TestConfig:
@@ -18,6 +44,7 @@ class TestConfig:
         assert cfg.tracking is True
         assert cfg.offline is False
         assert cfg.repetitions == 1
+        assert cfg.dataset_override is None
 
     def test_tracking_false_is_offline(self) -> None:
         assert PhoenixTestConfig.from_env({"PHOENIX_TEST_TRACKING": "false"}).offline is True
@@ -25,6 +52,51 @@ class TestConfig:
     def test_repetitions_invalid_raises(self) -> None:
         with pytest.raises(PhoenixTestConfigError):
             PhoenixTestConfig.from_env({"PHOENIX_TEST_REPETITIONS": "zero"})
+
+    @pytest.mark.parametrize(
+        "env_dataset,ini_override,expected",
+        [
+            ("smoke", None, "smoke"),
+            ("smoke", "from-ini", "smoke"),
+            (None, "from-ini", "from-ini"),
+            ("   ", "from-ini", "from-ini"),
+        ],
+        ids=["env-only", "env-beats-ini", "ini-when-no-env", "blank-env-falls-back-to-ini"],
+    )
+    def test_dataset_override_precedence(
+        self, env_dataset: Optional[str], ini_override: Optional[str], expected: str
+    ) -> None:
+        env = {"PHOENIX_TEST_DATASET": env_dataset} if env_dataset is not None else {}
+        cfg = PhoenixTestConfig.from_env(env, dataset_override=ini_override)
+        assert cfg.dataset_override == expected
+
+
+class TestResolveDatasetName:
+    @pytest.mark.parametrize(
+        "nodeid,marker,override,expected",
+        [
+            ("tests/agent/test_eval.py::test_x", None, None, "tests/agent/test_eval"),
+            ("tests/sql/test_eval.py::test_x", None, None, "tests/sql/test_eval"),
+            ("tests/test_qa.py::test_answers[arithmetic]", None, None, "tests/test_qa"),
+            ("tests/test_qa.py::test_x", _FakeMarker(dataset="qa-suite"), None, "qa-suite"),
+            ("tests/test_qa.py::test_x", _FakeMarker(dataset="qa-suite"), "smoke", "smoke"),
+        ],
+        ids=[
+            "path-default",
+            "same-basename-different-dir-no-collision",
+            "strips-parametrize-id",
+            "marker-beats-path",
+            "override-beats-marker",
+        ],
+    )
+    def test_resolution(
+        self,
+        nodeid: str,
+        marker: Optional[_FakeMarker],
+        override: Optional[str],
+        expected: str,
+    ) -> None:
+        assert _dataset_name(nodeid, marker=marker, override=override) == expected
 
 
 class TestBroadcastTracing:
