@@ -4593,6 +4593,79 @@
             "description": "Not Found"
           }
         }
+      },
+      "post": {
+        "tags": [
+          "prompts"
+        ],
+        "summary": "Create prompt version",
+        "description": "Create a new version for an existing prompt by identifier.",
+        "operationId": "createPromptVersion",
+        "parameters": [
+          {
+            "name": "prompt_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The identifier of the prompt, i.e. name or ID.",
+              "title": "Prompt Identifier"
+            },
+            "description": "The identifier of the prompt, i.e. name or ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePromptVersionRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The created prompt version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePromptVersionResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
       }
     },
     "/v1/prompt_versions/{prompt_version_id}": {
@@ -8050,6 +8123,44 @@
           "data"
         ],
         "title": "CreatePromptResponseBody"
+      },
+      "CreatePromptVersionRequestBody": {
+        "properties": {
+          "version": {
+            "$ref": "#/components/schemas/PromptVersionData"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PromptVersionTagData"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "CreatePromptVersionRequestBody"
+      },
+      "CreatePromptVersionResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PromptVersion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreatePromptVersionResponseBody"
       },
       "CreateSessionNoteRequestBody": {
         "properties": {
