@@ -10,7 +10,7 @@ from pydantic_ai.capabilities import (
     CombinedCapability,
     DynamicCapability,
 )
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
 
@@ -60,7 +60,7 @@ def build_agent(
     *,
     model: Model,
     prompts: AgentPrompts | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPToolset | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
     server_agent: AbstractAgent[None, str] | None = None,
