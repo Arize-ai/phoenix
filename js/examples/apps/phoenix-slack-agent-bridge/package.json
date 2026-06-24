@@ -1,0 +1,27 @@
+{
+  "name": "phoenix-slack-agent-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prototype Slack bridge for the Phoenix server agent chat endpoint",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx --env-file=.env src/server.ts",
+    "start": "node --env-file=.env dist/server.js"
+  },
+  "dependencies": {
+    "@chat-adapter/slack": "^4.31.0",
+    "@chat-adapter/state-memory": "^4.31.0",
+    "@hono/node-server": "2.0.1",
+    "chat": "^4.31.0",
+    "hono": "4.12.18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
