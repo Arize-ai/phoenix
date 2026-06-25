@@ -2,7 +2,7 @@ import { Box, Text, useApp, useInput } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { createPxiChatClient, createUserMessage } from "./client";
-import { formatMarkdownForTerminal } from "./markdown";
+import { Markdown } from "./inkMarkdown";
 import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
 import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
@@ -48,8 +48,9 @@ function MessageParts({ message }: { message: PxiMessage }) {
     <Box flexDirection="column">
       {message.parts.map((part, index) => {
         if (part.type === "text") {
-          const text = formatMarkdownForTerminal({ text: part.text });
-          return <Text key={`${message.id}-text-${index}`}>{text || " "}</Text>;
+          return (
+            <Markdown key={`${message.id}-text-${index}`}>{part.text}</Markdown>
+          );
         }
         const tool = getToolProgressFromPart({ part });
         if (tool) {

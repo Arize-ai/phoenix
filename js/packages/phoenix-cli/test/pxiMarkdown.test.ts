@@ -23,9 +23,14 @@ describe("formatMarkdownForTerminal", () => {
     expect(formatted).not.toContain("| --- |");
   });
 
-  it("leaves non-table markdown unchanged", () => {
-    const text = "- one\n- two";
+  it("renders markdown lists without raw markdown markers", () => {
+    const formatted = formatMarkdownForTerminal({
+      text: "- one\n- two",
+      maxWidth: 80,
+    });
 
-    expect(formatMarkdownForTerminal({ text })).toBe(text);
+    expect(formatted).toContain("one");
+    expect(formatted).toContain("two");
+    expect(formatted).not.toContain("- one");
   });
 });

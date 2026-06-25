@@ -1,3 +1,6 @@
+import { Marked } from "marked";
+import { markedTerminal } from "marked-terminal";
+
 import { fitColumnsToWidth, truncateCell } from "../commands/formatTable";
 
 const MARKDOWN_TABLE_SEPARATOR_PATTERN =
@@ -100,27 +103,81 @@ function renderMarkdownTable({
   return [top, headerRow, mid, ...bodyRows, bot].join("\n");
 }
 
-export function formatMarkdownForTerminal({
+// There is only ever one terminal width in play at a time, so a single cached
+// renderer is enough to avoid re-registering the marked-terminal extension on
+// every render. Rebuild it only when the width actually changes (e.g. resize),
+// which keeps this bounded instead of accumulating an entry per resize.
+let cachedRenderer: { width: number; renderer: Marked } | null = null;
+
+function getMarkedRenderer(width: number): Marked {
+  if (cachedRenderer?.width === width) {
+    return cachedRenderer.renderer;
+  }
+  const renderer = new Marked();
+  renderer.use(
+    markedTerminal(Number.isFinite(width) ? { width, reflowText: false } : {})
+  );
+  cachedRenderer = { width, renderer };
+  return renderer;
+}
+
+function renderMarkdownBlock({
   text,
   maxWidth,
+}: {
+  text: string;
+  maxWidth: number;
+}): string {
+  if (text.trim() === "") {
+    return "";
+  }
+  const renderer = getMarkedRenderer(maxWidth);
+  // The marked-terminal extension renders synchronously, so `parse` returns a
+  // string (marked's types don't narrow this from the `async: false` option).
+  const rendered = renderer.parse(text, { async: false }) as string;
+  return rendered.replace(/\n+$/, "");
+}
+
+export function formatMarkdownForTerminal({
+  text,
+  maxWidth = process.stdout.columns ?? Infinity,
 }: {
   text: string;
   maxWidth?: number;
 }): string {
   const lines = text.split("\n");
-  const formattedLines: string[] = [];
+  const segments: string[] = [];
+  let buffer: string[] = [];
+
+  const flushBuffer = () => {
+    if (buffer.length === 0) {
+      return;
+    }
+    const rendered = renderMarkdownBlock({
+      text: buffer.join("\n"),
+      maxWidth,
+    });
+    if (rendered !== "") {
+      segments.push(rendered);
+    }
+    buffer = [];
+  };
+
   let index = 0;
   while (index < lines.length) {
     const parsedTable = parseMarkdownTable({ lines, startIndex: index });
     if (parsedTable) {
-      formattedLines.push(
-        renderMarkdownTable({ rows: parsedTable.rows, maxWidth })
-      );
+      // Tables keep the bespoke, width-aware renderer; everything else flows
+      // through marked-terminal for clean headings, lists, emphasis, and code.
+      flushBuffer();
+      segments.push(renderMarkdownTable({ rows: parsedTable.rows, maxWidth }));
       index = parsedTable.nextIndex;
       continue;
     }
-    formattedLines.push(lines[index]!);
+    buffer.push(lines[index]!);
     index += 1;
   }
-  return formattedLines.join("\n");
+  flushBuffer();
+
+  return segments.join("\n");
 }
