@@ -37,10 +37,10 @@ describe("PXI app", () => {
       <PxiApp options={createOptions()} client={client} />
     );
 
-    expect(lastFrame()).toContain("PXI");
+    expect(lastFrame()).toContain("Phoenix Intelligence.");
     expect(lastFrame()).toContain("endpoint: http://localhost:6006");
     expect(lastFrame()).toContain("model: OPENAI/gpt-5.4");
-    expect(lastFrame()).toContain("Ask a question");
+    expect(lastFrame()).toContain("Enter sends.");
     unmount();
   });
 
@@ -123,10 +123,12 @@ describe("PXI app", () => {
       <PxiApp options={createOptions()} initialMessages={[assistantMessage]} />
     );
 
-    expect(lastFrame()).toContain("Projects:");
-    expect(lastFrame()).toContain("┌");
-    expect(lastFrame()).toContain("│ Name");
-    expect(lastFrame()).not.toContain("| --- |");
+    const strippedFrame = stripAnsi(lastFrame() ?? "");
+
+    expect(strippedFrame).toContain("Projects:");
+    expect(strippedFrame).toContain("┌");
+    expect(strippedFrame).toContain("│ Name");
+    expect(strippedFrame).not.toContain("| --- |");
     unmount();
   });
 

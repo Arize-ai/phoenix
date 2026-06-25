@@ -129,9 +129,7 @@ function Transcript({
   phoenixBaseUrl?: string;
 }) {
   if (messages.length === 0) {
-    return (
-      <Text color="gray">Phoenix Intelligence.</Text>
-    );
+    return <Text color="gray">Phoenix Intelligence.</Text>;
   }
   return (
     <Box flexDirection="column">

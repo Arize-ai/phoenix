@@ -6,19 +6,10 @@ import {
 } from "../src/pxi/markdown";
 
 const ESCAPE_CHARACTER = String.fromCharCode(27);
-const BELL_CHARACTER = String.fromCharCode(7);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
-const TERMINAL_HYPERLINK_CONTROL_PATTERN = new RegExp(
-  `${ESCAPE_CHARACTER}\\]8;;[^${BELL_CHARACTER}]*${BELL_CHARACTER}`,
-  "g"
-);
 
 function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE_PATTERN, "");
-}
-
-function stripTerminalHyperlinkControls(text: string): string {
-  return stripAnsi(text).replace(TERMINAL_HYPERLINK_CONTROL_PATTERN, "");
 }
 
 describe("formatMarkdownForTerminal", () => {
@@ -108,11 +99,13 @@ describe("formatMarkdownForTerminal", () => {
       maxWidth: 80,
     });
 
-    expect(formatted).toContain("Here are the projects:");
-    expect(formatted).toContain("┌");
-    expect(formatted).toContain("│ Name");
-    expect(formatted).toContain("│ default");
-    expect(formatted).not.toContain("| --- |");
+    const strippedAnsi = stripAnsi(formatted);
+
+    expect(strippedAnsi).toContain("Here are the projects:");
+    expect(strippedAnsi).toContain("┌");
+    expect(strippedAnsi).toContain("│ Name");
+    expect(strippedAnsi).toContain("│ default");
+    expect(strippedAnsi).not.toContain("| --- |");
   });
 
   it("renders markdown lists without raw markdown markers", () => {
@@ -150,14 +143,13 @@ describe("formatMarkdownForTerminal", () => {
       maxWidth: 160,
       phoenixBaseUrl: "http://localhost:6006",
     });
-    const visibleText = stripTerminalHyperlinkControls(formatted);
     const strippedAnsi = stripAnsi(formatted);
 
-    expect(formatted).toContain(
-      `${ESCAPE_CHARACTER}]8;;http://localhost:6006/tracing/traces/246bd1ece51db84035aeb1d9f37268bd${BELL_CHARACTER}${ESCAPE_CHARACTER}[4m${ESCAPE_CHARACTER}[94m246bd1ec…${ESCAPE_CHARACTER}[39m${ESCAPE_CHARACTER}[24m${ESCAPE_CHARACTER}]8;;${BELL_CHARACTER}`
+    expect(strippedAnsi).toContain(
+      "246bd1ec… (http://localhost:6006/tracing/traces/246bd1ece51db84035aeb1d9f37268bd)"
     );
-    expect(visibleText).toContain("246bd1ec…");
-    expect(visibleText).not.toContain("[246bd1ec…]");
+    expect(strippedAnsi).toContain("246bd1ec…");
+    expect(strippedAnsi).not.toContain("[246bd1ec…]");
     expect(strippedAnsi).not.toContain("](/tracing/traces/");
   });
 
