@@ -274,7 +274,7 @@ describe("agentStore", () => {
       expect(forked.context).toEqual(["span:123"]);
     });
 
-    it("stages restored input for the forked session", () => {
+    it("stages restored input as the forked session draft", () => {
       const store = createAgentStore();
       const sourceId = store.getState().createSession();
 
@@ -284,9 +284,7 @@ describe("agentStore", () => {
         restoredInput: "edit me",
       });
 
-      expect(store.getState().consumePendingInput(forkId!)).toBe("edit me");
-      // Consuming clears the staged input.
-      expect(store.getState().consumePendingInput(forkId!)).toBeNull();
+      expect(store.getState().draftInputBySessionId[forkId!]).toBe("edit me");
     });
 
     it("prefixes the source summary with (fork)", () => {
@@ -367,19 +365,85 @@ describe("agentStore", () => {
     });
   });
 
-  describe("pending input", () => {
-    it("sets and consumes pending input once", () => {
+  describe("draft input", () => {
+    it("sets and clears draft input", () => {
       const store = createAgentStore();
-      store.getState().setPendingInput("session-1", "hello");
-      expect(store.getState().consumePendingInput("session-1")).toBe("hello");
-      expect(store.getState().consumePendingInput("session-1")).toBeNull();
+      store.getState().setDraftInput("session-1", "hello");
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe("hello");
+
+      store.getState().setDraftInput("session-1", "");
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe(
+        undefined
+      );
     });
 
-    it("clears pending input when set to null", () => {
+    it("clears draft input when set to null", () => {
       const store = createAgentStore();
-      store.getState().setPendingInput("session-1", "hello");
-      store.getState().setPendingInput("session-1", null);
-      expect(store.getState().consumePendingInput("session-1")).toBeNull();
+      store.getState().setDraftInput("session-1", "hello");
+      store.getState().setDraftInput("session-1", null);
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe(
+        undefined
+      );
+    });
+
+    it("drops a session draft when that session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setDraftInput(sessionId, "hello");
+
+      store.getState().deleteSession(sessionId);
+
+      expect(store.getState().draftInputBySessionId[sessionId]).toBeUndefined();
+    });
+
+    it("clears all drafts when all sessions are cleared", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setDraftInput(sessionId, "hello");
+
+      store.getState().clearAllSessions();
+
+      expect(store.getState().draftInputBySessionId).toEqual({});
+    });
+
+    it("prunes drafts owned by sessions dropped on retention", () => {
+      const store = createAgentStore();
+      const firstSessionId = store.getState().createSession();
+      store.getState().setDraftInput(firstSessionId, "old draft");
+
+      const secondSessionId = store.getState().createSession();
+      store.getState().setDraftInput(secondSessionId, "new draft");
+
+      expect(
+        store.getState().draftInputBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
+        "new draft"
+      );
+    });
+
+    it("prunes inactive drafts when recent session storage is disabled", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const firstSessionId = store.getState().createSession();
+      store.getState().setDraftInput(firstSessionId, "old draft");
+      const secondSessionId = store.getState().createSession();
+      store.getState().setDraftInput(secondSessionId, "new draft");
+
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: false,
+      });
+
+      expect(
+        store.getState().draftInputBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
+        "new draft"
+      );
     });
   });
 
