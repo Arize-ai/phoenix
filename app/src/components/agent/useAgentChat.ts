@@ -3,6 +3,7 @@ import type { ChatStatus } from "ai";
 import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
+import { createAgentTurnTracer } from "@phoenix/agent/chat/agentTurnTracing";
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
@@ -11,6 +12,7 @@ import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
+  shouldKeepTurnOpenForPendingToolOutput,
   shouldSendAutomaticallyAfterToolOutput,
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
@@ -39,6 +41,15 @@ import {
   useGenerateSessionSummary,
   type AgentModelSelection,
 } from "./useGenerateSessionSummary";
+
+type AgentTurnTracer = ReturnType<typeof createAgentTurnTracer>;
+
+type PendingFinish = {
+  finalMessages: AgentUIMessage[] | undefined;
+  message: AgentUIMessage;
+};
+
+const turnTracersByChat = new WeakMap<Chat<AgentUIMessage>, AgentTurnTracer>();
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
@@ -94,74 +105,159 @@ export function useAgentChat({
             // be recreated without losing visible conversation history.
             const initialMessages =
               store.getState().sessionMap[sessionId]?.messages ?? [];
+            const turnTracer = createAgentTurnTracer({
+              sessionId,
+              fetch: authFetch,
+              getAgentsConfig: () => store.getState().agentsConfig,
+              getObservability: () => store.getState().observability,
+            });
+            let pendingFinish: PendingFinish | null = null;
+            let hasBackendTurnCompleted = false;
+            let hasReachedTerminalSendDecision = false;
+            const finalizePendingFinish = () => {
+              if (pendingFinish == null) {
+                return;
+              }
+              const { finalMessages, message } = pendingFinish;
+              pendingFinish = null;
+              const usage = message.metadata?.usage;
+              if (usage != null) {
+                store.getState().setSessionUsage(sessionId, {
+                  ...usage.tokens,
+                  ...(usage.promptDetails
+                    ? { promptDetails: usage.promptDetails }
+                    : {}),
+                });
+              }
+              // Finalized history is mirrored into the durable store so idle
+              // runtimes can be reclaimed and later reconstructed from state.
+              if (finalMessages) {
+                store.getState().setSessionMessages(sessionId, finalMessages);
+                generateSummary({
+                  sessionId,
+                  modelSelection: modelSelectionRef.current,
+                });
+              }
+            };
+            const completePendingTurnIfReady = async () => {
+              if (
+                pendingFinish == null ||
+                !hasBackendTurnCompleted ||
+                !hasReachedTerminalSendDecision
+              ) {
+                return;
+              }
+              await turnTracer.endTurn();
+              finalizePendingFinish();
+            };
+            const updateTerminalSendDecision = (messages: AgentUIMessage[]) => {
+              const shouldSendAutomatically =
+                shouldSendAutomaticallyAfterToolOutput({ messages });
+              if (
+                !shouldKeepTurnOpenForPendingToolOutput({
+                  messages,
+                  shouldSendAutomatically,
+                }) &&
+                !shouldSendAutomatically
+              ) {
+                hasReachedTerminalSendDecision = true;
+              }
+            };
             const chat = new Chat<AgentUIMessage>({
               id: sessionId,
               messages: initialMessages,
               transport: new DefaultChatTransport({
                 api: chatApiUrl,
-                fetch: authFetch,
+                fetch: turnTracer.fetch,
                 prepareSendMessagesRequest: ({
                   body,
                   id,
                   messages,
                   trigger,
                   messageId,
-                }) => ({
-                  body: buildAgentChatRequestBody({
-                    body,
-                    id,
-                    messages,
-                    trigger,
-                    messageId,
-                    capabilities: store.getState().capabilities,
-                    observability: store.getState().observability,
-                    agentsConfig: store.getState().agentsConfig,
-                    permissions: store.getState().permissions,
-                    contexts: selectActiveContexts(store.getState()),
-                    modelSelection: modelSelectionRef.current,
-                  }),
-                }),
+                }) => {
+                  turnTracer.startTurn(trigger);
+                  turnTracer.setTurnInput(getLastUserText(messages));
+                  hasBackendTurnCompleted = false;
+                  hasReachedTerminalSendDecision = false;
+                  return {
+                    body: buildAgentChatRequestBody({
+                      body,
+                      id,
+                      messages,
+                      trigger,
+                      messageId,
+                      capabilities: store.getState().capabilities,
+                      observability: store.getState().observability,
+                      agentsConfig: store.getState().agentsConfig,
+                      permissions: store.getState().permissions,
+                      contexts: selectActiveContexts(store.getState()),
+                      modelSelection: modelSelectionRef.current,
+                    }),
+                  };
+                },
               }),
               // Tool execution must target the runtime-owned chat instance so
               // tool outputs continue to attach to the correct conversation
               // even if the visible React surface remounts during the request.
               onToolCall: ({ toolCall }) => {
-                void handleAgentToolCall({
+                void turnTracer.traceToolCall({
                   toolCall,
-                  sessionId,
-                  addToolOutput: chat.addToolOutput,
-                  appendMessagePart: (part) => {
-                    chat.messages = appendPartToToolMessage({
-                      messages: chat.messages,
-                      toolCallId: toolCall.toolCallId,
-                      part,
-                    });
-                  },
-                  agentStore: store,
+                  execute: (recordToolOutput) =>
+                    handleAgentToolCall({
+                      toolCall,
+                      sessionId,
+                      addToolOutput: async (toolOutput) => {
+                        recordToolOutput(toolOutput);
+                        await chat.addToolOutput(toolOutput);
+                      },
+                      appendMessagePart: (part) => {
+                        chat.messages = appendPartToToolMessage({
+                          messages: chat.messages,
+                          toolCallId: toolCall.toolCallId,
+                          part,
+                        });
+                      },
+                      agentStore: store,
+                    }),
                 });
               },
-              sendAutomaticallyWhen: shouldSendAutomaticallyAfterToolOutput,
+              sendAutomaticallyWhen: async (options) => {
+                const shouldSendAutomatically =
+                  shouldSendAutomaticallyAfterToolOutput(options);
+                if (
+                  shouldKeepTurnOpenForPendingToolOutput({
+                    messages: options.messages,
+                    shouldSendAutomatically,
+                  })
+                ) {
+                  return false;
+                }
+                if (!shouldSendAutomatically) {
+                  hasReachedTerminalSendDecision = true;
+                  await completePendingTurnIfReady();
+                }
+                return shouldSendAutomatically;
+              },
+              onError: (error) => {
+                pendingFinish = null;
+                void turnTracer.endTurn(error);
+              },
+              onData: (dataPart) => {
+                if (dataPart.type !== "data-pxi-turn-complete") {
+                  return;
+                }
+                hasBackendTurnCompleted = dataPart.data.backendTraceFlushed;
+                void completePendingTurnIfReady();
+              },
               onFinish: ({ messages: finalMessages, message }) => {
-                const usage = message.metadata?.usage;
-                if (usage != null) {
-                  store.getState().setSessionUsage(sessionId, {
-                    ...usage.tokens,
-                    ...(usage.promptDetails
-                      ? { promptDetails: usage.promptDetails }
-                      : {}),
-                  });
-                }
-                // Finalized history is mirrored into the durable store so idle
-                // runtimes can be reclaimed and later reconstructed from state.
-                if (finalMessages) {
-                  store.getState().setSessionMessages(sessionId, finalMessages);
-                  generateSummary({
-                    sessionId,
-                    modelSelection: modelSelectionRef.current,
-                  });
-                }
+                pendingFinish = { finalMessages, message };
+                turnTracer.setTurnOutput(getMessageText(message));
+                updateTerminalSendDecision(finalMessages);
+                void completePendingTurnIfReady();
               },
             });
+            turnTracersByChat.set(chat, turnTracer);
             return chat;
           },
         });
@@ -238,6 +334,9 @@ export function useAgentChat({
 
   const handleStopWithToolCleanup = async () => {
     await stop();
+    if (chatInstance) {
+      await turnTracersByChat.get(chatInstance)?.endTurn(USER_INTERRUPT_ERROR);
+    }
     setMessages(removeInterruptedToolInputParts);
 
     const latestMessages = chatInstance?.messages ?? messages;
@@ -464,6 +563,20 @@ function removeInterruptedToolInputParts(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+function getLastUserText(messages: AgentUIMessage[]): string | null {
+  const userMessage = messages.findLast((message) => message.role === "user");
+  return userMessage ? getMessageText(userMessage) : null;
+}
+
+function getMessageText(message: AgentUIMessage): string | null {
+  const text = message.parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .trim();
+  return text || null;
 }
 
 function appendPartToToolMessage({
