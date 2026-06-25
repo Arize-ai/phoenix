@@ -7,6 +7,8 @@ import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 import { ChatView } from "../Chat";
 
+type ChatViewSendMessage = Parameters<typeof ChatView>[0]["sendMessage"];
+
 vi.mock("@phoenix/agent/quickActions/quickActions", () => ({
   useAgentQuickActions: () => [],
 }));
@@ -51,7 +53,18 @@ vi.mock("../ChatMessage", () => ({
   UserMessage: () => null,
 }));
 
-function renderChatView(root: Root, { autoFocusInput = false } = {}) {
+function renderChatView(
+  root: Root,
+  {
+    autoFocusInput = false,
+    chatKey = "chat",
+    sendMessage = vi.fn<ChatViewSendMessage>(),
+  }: {
+    autoFocusInput?: boolean;
+    chatKey?: string;
+    sendMessage?: ChatViewSendMessage;
+  } = {}
+) {
   act(() => {
     root.render(
       <ThemeProvider themeMode="light" disableBodyTheme>
@@ -75,9 +88,10 @@ function renderChatView(root: Root, { autoFocusInput = false } = {}) {
           }}
         >
           <ChatView
+            key={chatKey}
             sessionId="session-1"
             messages={[]}
-            sendMessage={vi.fn()}
+            sendMessage={sendMessage}
             stop={async () => undefined}
             status="ready"
             error={undefined}
@@ -90,6 +104,33 @@ function renderChatView(root: Root, { autoFocusInput = false } = {}) {
           />
         </AgentProvider>
       </ThemeProvider>
+    );
+  });
+}
+
+function setTextareaValue(textarea: HTMLTextAreaElement, value: string): void {
+  const valueSetter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    "value"
+  )?.set;
+  act(() => {
+    if (valueSetter) {
+      valueSetter.call(textarea, value);
+    } else {
+      textarea.value = value;
+    }
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+function pressEnter(textarea: HTMLTextAreaElement): void {
+  act(() => {
+    textarea.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Enter",
+      })
     );
   });
 }
@@ -147,5 +188,43 @@ describe("ChatView", () => {
 
     expect(textarea).not.toBeNull();
     expect(document.activeElement).not.toBe(textarea);
+  });
+
+  it("preserves the prompt draft when the chat view remounts", () => {
+    renderChatView(root, { chatKey: "initial" });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    expect(textarea).not.toBeNull();
+
+    setTextareaValue(textarea!, "preserve this draft");
+
+    renderChatView(root, { chatKey: "remounted" });
+
+    const remountedTextarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    expect(remountedTextarea).not.toBeNull();
+    expect(remountedTextarea?.value).toBe("preserve this draft");
+  });
+
+  it("clears the prompt draft after submit", () => {
+    const sendMessage = vi.fn<ChatViewSendMessage>();
+    renderChatView(root, { sendMessage });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>(
+      'textarea[aria-label="Message input"]'
+    );
+    expect(textarea).not.toBeNull();
+
+    setTextareaValue(textarea!, "send this draft");
+    pressEnter(textarea!);
+
+    expect(sendMessage).toHaveBeenCalledWith(
+      { text: "send this draft" },
+      undefined
+    );
+    expect(textarea?.value).toBe("");
   });
 });
