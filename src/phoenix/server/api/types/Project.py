@@ -549,7 +549,7 @@ class Project(Node):
         stmt = select(table).filter_by(project_id=self.id)
         if time_range:
             if time_range.start:
-                stmt = stmt.where(time_range.start <= table.start_time)
+                stmt = stmt.where(time_range.start <= table.end_time)
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
