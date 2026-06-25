@@ -17,7 +17,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
+from opentelemetry.trace import SpanContext, format_span_id, format_trace_id, get_current_span
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
@@ -29,6 +29,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
+    DataChunk,
     MessageMetadataChunk,
     ProviderMetadata,
     StartChunk,
@@ -93,7 +94,7 @@ from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
-from phoenix.tracers import Tracer, detached_otel_context
+from phoenix.tracers import Tracer, detached_otel_context, extract_otel_context
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
@@ -172,6 +173,14 @@ class AssistantMessageMetadata(_CamelModel):
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
     usage: AssistantMessageMetadataUsage | None = None
+
+
+class AssistantTurnCompleteData(_CamelModel):
+    """Custom data part payload emitted after backend tracing has flushed."""
+
+    session_id: str
+    trace: AssistantMessageMetadataTraceIds | None = None
+    backend_trace_flushed: bool
 
 
 class AssistantMetadataUIMessage(UIMessage):
@@ -377,6 +386,39 @@ def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
     return usage_payload
 
 
+def _build_turn_complete_chunk(
+    *,
+    span_context: SpanContext | None,
+    session_id: str,
+    backend_trace_flushed: bool,
+) -> DataChunk:
+    """Build the terminal Vercel custom data part for a backend chat stream."""
+    trace_ids = (
+        AssistantMessageMetadataTraceIds(
+            trace_id=format_trace_id(span_context.trace_id),
+            root_span_id=format_span_id(span_context.span_id),
+        )
+        if span_context is not None
+        else None
+    )
+    return DataChunk(
+        type="data-pxi-turn-complete",
+        data=AssistantTurnCompleteData(
+            session_id=session_id,
+            trace=trace_ids,
+            backend_trace_flushed=backend_trace_flushed,
+        ).model_dump(by_alias=True),
+        transient=True,
+    )
+
+
+def _get_span_context(context: Context | None) -> SpanContext | None:
+    if context is None:
+        return None
+    span_context = get_current_span(context).get_span_context()
+    return span_context if span_context.is_valid else None
+
+
 async def _persist_db_traces(
     *,
     session: AsyncSession,
@@ -395,7 +437,53 @@ async def _persist_db_traces(
         # persistent one loaded from the upsert, so SQLAlchemy resolves the FK
         # from the relationship and doesn't try to cascade-insert a duplicate.
         db_trace.project_session = persistent_by_session_id[project_session.session_id]
-    session.add_all(db_traces)
+
+    existing_traces_by_trace_id = {
+        trace.trace_id: trace
+        for trace in await session.scalars(
+            select(models.Trace).where(
+                models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces})
+            )
+        )
+    }
+    span_ids = {db_span.span_id for db_trace in db_traces for db_span in db_trace.spans}
+    existing_span_ids = (
+        set(
+            await session.scalars(
+                select(models.Span.span_id).where(models.Span.span_id.in_(span_ids))
+            )
+        )
+        if span_ids
+        else set()
+    )
+    traces_to_insert: list[models.Trace] = []
+    spans_to_insert: list[models.Span] = []
+    for db_trace in db_traces:
+        db_trace.spans = [
+            db_span for db_span in db_trace.spans if db_span.span_id not in existing_span_ids
+        ]
+        existing_trace = existing_traces_by_trace_id.get(db_trace.trace_id)
+        if existing_trace is None:
+            if db_trace.spans:
+                traces_to_insert.append(db_trace)
+            continue
+        if db_trace.start_time < existing_trace.start_time:
+            existing_trace.start_time = db_trace.start_time
+        if existing_trace.end_time < db_trace.end_time:
+            existing_trace.end_time = db_trace.end_time
+        if existing_trace.project_session_rowid is None and db_trace.project_session is not None:
+            existing_trace.project_session = db_trace.project_session
+        if existing_trace.project_session is not None:
+            if db_trace.start_time < existing_trace.project_session.start_time:
+                existing_trace.project_session.start_time = db_trace.start_time
+            if existing_trace.project_session.end_time < db_trace.end_time:
+                existing_trace.project_session.end_time = db_trace.end_time
+        for db_span in db_trace.spans:
+            db_span.trace = existing_trace
+            if db_span.span_cost is not None:
+                db_span.span_cost.trace = existing_trace
+            spans_to_insert.append(db_span)
+    session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
     return project_ids
 
@@ -981,18 +1069,54 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model_provider_availability=model_provider_availability,
         )
 
+        request_parent_span_context: SpanContext | None = None
+        is_backend_trace_flushed = tracer is None
+
+        async def _flush_and_persist_backend_traces() -> bool:
+            nonlocal is_backend_trace_flushed
+            if is_backend_trace_flushed:
+                return True
+            if tracer is None:
+                is_backend_trace_flushed = True
+                return True
+            tracer.tracer_provider.force_flush()
+            is_backend_trace_flushed = True
+            if ingest_traces:
+                project_id = await _ensure_project_exists(request.app.state.db, project_name)
+                db_traces = tracer.get_db_traces(project_id=project_id)
+                await _persist_db_traces_and_emit_event(
+                    db=request.app.state.db,
+                    event_queue=request.state.event_queue,
+                    db_traces=db_traces,
+                )
+            return True
+
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            span_context = (
+                agent_span_recorder.span_context
+                if agent_span_recorder and agent_span_recorder.span_context is not None
+                else request_parent_span_context
+            )
             yield _build_message_metadata_chunk(
-                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                span_context=span_context,
                 session_id=session_id,
                 usage=result.usage,
             )
             _log_run_complete(result)
+            backend_trace_flushed = await _flush_and_persist_backend_traces()
+            yield _build_turn_complete_chunk(
+                span_context=span_context,
+                session_id=session_id,
+                backend_trace_flushed=backend_trace_flushed,
+            )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
+                parent_context = extract_otel_context(dict(request.headers))
+                nonlocal request_parent_span_context
+                request_parent_span_context = _get_span_context(parent_context)
                 with (
-                    detached_otel_context(),
+                    detached_otel_context(parent_context),
                     using_session(session_id=session_id),
                     _maybe_using_user(body.attach_user_id, phoenix_user_email),
                 ):
@@ -1049,17 +1173,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         yield message_chunk
             finally:
                 if tracer is not None:
-                    tracer.tracer_provider.force_flush()
-                    if ingest_traces:
-                        project_id = await _ensure_project_exists(
-                            request.app.state.db, project_name
-                        )
-                        db_traces = tracer.get_db_traces(project_id=project_id)
-                        await _persist_db_traces_and_emit_event(
-                            db=request.app.state.db,
-                            event_queue=request.state.event_queue,
-                            db_traces=db_traces,
-                        )
+                    await _flush_and_persist_backend_traces()
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -1112,8 +1226,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         history = VercelAIAdapter.load_messages(body.messages)
         try:
+            parent_context = extract_otel_context(dict(request.headers))
             with (
-                detached_otel_context(),
+                detached_otel_context(parent_context),
                 using_metadata({"session_id": session_id}),
                 _maybe_using_user(body.attach_user_id, phoenix_user_email),
             ):

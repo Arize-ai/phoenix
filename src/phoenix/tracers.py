@@ -11,6 +11,7 @@ import wrapt
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry import context as otel_context
+from opentelemetry import propagate
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -35,16 +36,22 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def detached_otel_context() -> Iterator[None]:
+def detached_otel_context(parent_context: otel_context.Context | None = None) -> Iterator[None]:
     """Hide the ambient OpenTelemetry context so that spans started inside the
-    block become roots (i.e. they have no parent), rather than children of
-    whatever span happens to be current — typically an ASGI/FastAPI
-    server-request span that is not exported with the Phoenix-agents trace."""
-    token = otel_context.attach(otel_context.Context())
+    block become roots or children of an explicitly propagated parent, rather
+    than children of whatever span happens to be current — typically an
+    ASGI/FastAPI server-request span that is not exported with the
+    Phoenix-agents trace."""
+    token = otel_context.attach(parent_context or otel_context.Context())
     try:
         yield
     finally:
         otel_context.detach(token)
+
+
+def extract_otel_context(carrier: dict[str, str]) -> otel_context.Context:
+    """Extract W3C trace context without inheriting the ambient server span."""
+    return propagate.extract(carrier, context=otel_context.Context())
 
 
 class _BufferedSpanExporter(SpanExporter):
