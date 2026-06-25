@@ -131,6 +131,25 @@ describe("formatMarkdownForTerminal", () => {
     expect(formatted).not.toContain("](/settings/data)");
   });
 
+  it("renders Phoenix-relative markdown links inside tables as absolute terminal links", () => {
+    const formatted = stripAnsi(
+      formatMarkdownForTerminal({
+        text: [
+          "| Trace | Status |",
+          "| --- | --- |",
+          "| [246bd1ec…](/tracing/traces/246bd1ece51db84035aeb1d9f37268bd) | OK |",
+        ].join("\n"),
+        maxWidth: 160,
+        phoenixBaseUrl: "http://localhost:6006",
+      })
+    );
+
+    expect(formatted).toContain(
+      "[246bd1ec…](http://localhost:6006/tracing/traces/246bd1ece51db84035aeb1d9f37268bd)"
+    );
+    expect(formatted).not.toContain("](/tracing/traces/");
+  });
+
   it("does not rewrite links inside fenced code blocks", () => {
     const formatted = stripAnsi(
       formatMarkdownForTerminal({

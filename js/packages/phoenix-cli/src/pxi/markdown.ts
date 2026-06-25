@@ -1,4 +1,4 @@
-import { Marked, type Token } from "marked";
+import { Lexer, Marked, type Token } from "marked";
 import { markedTerminal } from "marked-terminal";
 
 import { fitColumnsToWidth, truncateCell } from "../commands/formatTable";
@@ -62,14 +62,95 @@ function normalizeRows(rows: string[][]): string[][] {
   );
 }
 
+function replaceMarkdownTokenHref({
+  raw,
+  href,
+  resolvedHref,
+}: {
+  raw: string;
+  href: string;
+  resolvedHref: string;
+}): string {
+  if (href === resolvedHref) {
+    return raw;
+  }
+  const hrefIndex = raw.lastIndexOf(href);
+  if (hrefIndex === -1) {
+    return raw;
+  }
+  return `${raw.slice(0, hrefIndex)}${resolvedHref}${raw.slice(
+    hrefIndex + href.length
+  )}`;
+}
+
+function hasNestedInlineTokens(
+  token: Token
+): token is Token & { raw: string; text: string; tokens: Token[] } {
+  return (
+    "raw" in token &&
+    typeof token.raw === "string" &&
+    "text" in token &&
+    typeof token.text === "string" &&
+    "tokens" in token &&
+    Array.isArray(token.tokens)
+  );
+}
+
+function renderAbsolutizedInlineToken({
+  token,
+  phoenixBaseUrl,
+}: {
+  token: Token;
+  phoenixBaseUrl?: string;
+}): string {
+  if (token.type === "link" || token.type === "image") {
+    return replaceMarkdownTokenHref({
+      raw: token.raw,
+      href: token.href,
+      resolvedHref: resolvePhoenixMarkdownHref({
+        href: token.href,
+        phoenixBaseUrl,
+      }),
+    });
+  }
+  if (hasNestedInlineTokens(token)) {
+    const rewrittenText = absolutizeInlineMarkdownLinks({
+      text: token.text,
+      phoenixBaseUrl,
+    });
+    return token.raw.replace(token.text, rewrittenText);
+  }
+  return "raw" in token && typeof token.raw === "string" ? token.raw : "";
+}
+
+function absolutizeInlineMarkdownLinks({
+  text,
+  phoenixBaseUrl,
+}: {
+  text: string;
+  phoenixBaseUrl?: string;
+}): string {
+  const lexer = new Lexer();
+  return lexer
+    .inlineTokens(text)
+    .map((token) => renderAbsolutizedInlineToken({ token, phoenixBaseUrl }))
+    .join("");
+}
+
 function renderMarkdownTable({
   rows,
   maxWidth = process.stdout.columns ?? Infinity,
+  phoenixBaseUrl,
 }: {
   rows: string[][];
   maxWidth?: number;
+  phoenixBaseUrl?: string;
 }): string {
-  const normalizedRows = normalizeRows(rows);
+  const normalizedRows = normalizeRows(rows).map((row) =>
+    row.map((cell) =>
+      absolutizeInlineMarkdownLinks({ text: cell, phoenixBaseUrl })
+    )
+  );
   const naturalWidths = normalizedRows[0]!.map((_, columnIndex) =>
     normalizedRows.reduce(
       (maxWidthForColumn, row) =>
@@ -250,7 +331,13 @@ export function formatMarkdownForTerminal({
       // Tables keep the bespoke, width-aware renderer; everything else flows
       // through marked-terminal for clean headings, lists, emphasis, and code.
       flushBuffer();
-      segments.push(renderMarkdownTable({ rows: parsedTable.rows, maxWidth }));
+      segments.push(
+        renderMarkdownTable({
+          rows: parsedTable.rows,
+          maxWidth,
+          phoenixBaseUrl,
+        })
+      );
       index = parsedTable.nextIndex;
       continue;
     }
