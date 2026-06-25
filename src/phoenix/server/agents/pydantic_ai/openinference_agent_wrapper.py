@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
 from inspect import Signature, signature
-from typing import Any, Callable, Literal, TypeAlias
+from typing import Any, Callable, Literal, TypeAlias, overload
 
 import pydantic
 from openinference.instrumentation import (
@@ -287,19 +287,37 @@ def _get_message_io_attributes(
     message: ModelMessage,
     role: Literal["input", "output"],
 ) -> dict[str, AttributeValue]:
-    parts = _get_parts_with_non_empty_content(message)
-    text = _get_single_text_content(parts)
-    if text is not None:
-        value: str = text
-        mime_type = OpenInferenceMimeTypeValues.TEXT
-    else:
-        value = _dump_parts_json(message=message, parts=parts)
-        mime_type = OpenInferenceMimeTypeValues.JSON
+    value, mime_type = _get_message_io_value(message)
     if role == "input":
         return get_input_attributes(value, mime_type=mime_type)
     elif role == "output":
         return get_output_attributes(value, mime_type=mime_type)
     assert_never(role)
+
+
+def _get_message_io_value(message: ModelMessage) -> tuple[str, OpenInferenceMimeTypeValues]:
+    """Return the display value and MIME type for a turn-level message."""
+    if isinstance(message, ModelRequest):
+        request_parts = _get_parts_with_non_empty_content(message)
+        text = _get_single_text_content(request_parts)
+        if text is not None:
+            return text, OpenInferenceMimeTypeValues.TEXT
+        return _dump_model_request_parts_json(request_parts), OpenInferenceMimeTypeValues.JSON
+    if isinstance(message, ModelResponse):
+        response_parts = _get_parts_with_non_empty_content(message)
+        text = _get_single_text_content(response_parts)
+        if text is not None:
+            return text, OpenInferenceMimeTypeValues.TEXT
+        return _dump_model_response_parts_json(response_parts), OpenInferenceMimeTypeValues.JSON
+    assert_never(message)
+
+
+@overload
+def _get_parts_with_non_empty_content(message: ModelRequest) -> list[ModelRequestPart]: ...
+
+
+@overload
+def _get_parts_with_non_empty_content(message: ModelResponse) -> list[ModelResponsePart]: ...
 
 
 def _get_parts_with_non_empty_content(
@@ -376,19 +394,16 @@ def _get_text_content_from_user_content_item(item: UserContent) -> str | None:
     assert_never(item)
 
 
-def _dump_parts_json(
-    *,
-    message: ModelMessage,
-    parts: list[ModelRequestPart] | list[ModelResponsePart],
-) -> str:
-    """Serialize parts as a top-level JSON array with null-valued fields omitted."""
-    if isinstance(message, ModelRequest):
-        payload = _MODEL_REQUEST_PARTS_ADAPTER.dump_python(parts, mode="json")
-        return safe_json_dumps(_drop_none_fields(payload))
-    if isinstance(message, ModelResponse):
-        payload = _MODEL_RESPONSE_PARTS_ADAPTER.dump_python(parts, mode="json")
-        return safe_json_dumps(_drop_none_fields(payload))
-    assert_never(message)
+def _dump_model_request_parts_json(parts: list[ModelRequestPart]) -> str:
+    """Serialize request parts as a top-level JSON array without null-valued fields."""
+    payload = _MODEL_REQUEST_PARTS_ADAPTER.dump_python(parts, mode="json")
+    return safe_json_dumps(_drop_none_fields(payload))
+
+
+def _dump_model_response_parts_json(parts: list[ModelResponsePart]) -> str:
+    """Serialize response parts as a top-level JSON array without null-valued fields."""
+    payload = _MODEL_RESPONSE_PARTS_ADAPTER.dump_python(parts, mode="json")
+    return safe_json_dumps(_drop_none_fields(payload))
 
 
 def _drop_none_fields(value: Any) -> Any:
