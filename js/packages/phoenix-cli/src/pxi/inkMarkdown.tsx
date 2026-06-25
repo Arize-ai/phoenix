@@ -14,7 +14,16 @@ import { formatMarkdownForTerminal } from "./markdown";
  * but render through {@link formatMarkdownForTerminal}, which uses the current
  * `marked` + `marked-terminal` API and preserves our width-aware table layout.
  */
-export function Markdown({ children }: { children: string }) {
-  const rendered = formatMarkdownForTerminal({ text: children });
+export function Markdown({
+  children,
+  phoenixBaseUrl,
+}: {
+  children: string;
+  phoenixBaseUrl?: string;
+}) {
+  const rendered = formatMarkdownForTerminal({
+    text: children,
+    phoenixBaseUrl,
+  });
   return <Text>{rendered || " "}</Text>;
 }

@@ -43,13 +43,24 @@ function InlineToolProgress({ tool }: { tool: ToolProgress }) {
   );
 }
 
-function MessageParts({ message }: { message: PxiMessage }) {
+function MessageParts({
+  message,
+  phoenixBaseUrl,
+}: {
+  message: PxiMessage;
+  phoenixBaseUrl?: string;
+}) {
   return (
     <Box flexDirection="column">
       {message.parts.map((part, index) => {
         if (part.type === "text") {
           return (
-            <Markdown key={`${message.id}-text-${index}`}>{part.text}</Markdown>
+            <Markdown
+              key={`${message.id}-text-${index}`}
+              phoenixBaseUrl={phoenixBaseUrl}
+            >
+              {part.text}
+            </Markdown>
           );
         }
         const tool = getToolProgressFromPart({ part });
@@ -62,7 +73,13 @@ function MessageParts({ message }: { message: PxiMessage }) {
   );
 }
 
-function Transcript({ messages }: { messages: PxiMessage[] }) {
+function Transcript({
+  messages,
+  phoenixBaseUrl,
+}: {
+  messages: PxiMessage[];
+  phoenixBaseUrl?: string;
+}) {
   if (messages.length === 0) {
     return (
       <Text color="gray">Ask a question to start a PXI server-agent chat.</Text>
@@ -78,7 +95,7 @@ function Transcript({ messages }: { messages: PxiMessage[] }) {
             <Text color={color} bold>
               {label}
             </Text>
-            <MessageParts message={message} />
+            <MessageParts message={message} phoenixBaseUrl={phoenixBaseUrl} />
           </Box>
         );
       })}
@@ -209,7 +226,10 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         session: {options.sessionId}
       </Text>
       <Box marginTop={1} flexDirection="column">
-        <Transcript messages={messages} />
+        <Transcript
+          messages={messages}
+          phoenixBaseUrl={options.config.endpoint}
+        />
       </Box>
       {error ? (
         <Box marginTop={1}>

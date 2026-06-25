@@ -6,10 +6,21 @@ import { PxiApp, ThinkingIndicator } from "../src/pxi/App";
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
 import type { PxiChatClient, PxiMessage } from "../src/pxi/types";
 
-function createOptions() {
+const ESCAPE_CHARACTER = String.fromCharCode(27);
+const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
+
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_ESCAPE_PATTERN, "");
+}
+
+function createOptions({
+  endpoint = "http://localhost:6006",
+}: {
+  endpoint?: string;
+} = {}) {
   return resolvePxiRuntimeOptions({
     cliOptions: {
-      endpoint: "http://localhost:6006",
+      endpoint,
       provider: "OPENAI",
       model: "gpt-5.4",
     },
@@ -116,6 +127,32 @@ describe("PXI app", () => {
     expect(lastFrame()).toContain("┌");
     expect(lastFrame()).toContain("│ Name");
     expect(lastFrame()).not.toContain("| --- |");
+    unmount();
+  });
+
+  it("renders assistant Phoenix-relative links with the configured endpoint", () => {
+    const assistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: "Open [data retention](/settings/data).",
+          state: "done",
+        },
+      ],
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp
+        options={createOptions({ endpoint: "https://example.com/phoenix" })}
+        initialMessages={[assistantMessage]}
+      />
+    );
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("data retention");
+    expect(frame).toContain("https://example.com/phoenix/settings/data");
+    expect(frame).not.toContain("](/settings/data)");
     unmount();
   });
 });
