@@ -11,6 +11,22 @@ type ParsedMarkdownTable = {
   nextIndex: number;
 };
 
+type RenderedTableCell = {
+  visibleText: string;
+  renderedText: string;
+};
+
+type RenderedInlineMarkdown = {
+  visibleText: string;
+  renderedText: string;
+};
+
+const ANSI_OSC_HYPERLINK_PREFIX = "\u001B]8;;";
+const ANSI_OSC_TERMINATOR = "\u0007";
+const ANSI_OSC_HYPERLINK_SUFFIX = `${ANSI_OSC_HYPERLINK_PREFIX}${ANSI_OSC_TERMINATOR}`;
+const ANSI_LINK_STYLE = "\u001B[4m\u001B[94m";
+const ANSI_LINK_STYLE_RESET = "\u001B[39m\u001B[24m";
+
 function splitMarkdownTableRow(line: string): string[] {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
   return trimmed.split("|").map((cell) => cell.trim());
@@ -62,27 +78,6 @@ function normalizeRows(rows: string[][]): string[][] {
   );
 }
 
-function replaceMarkdownTokenHref({
-  raw,
-  href,
-  resolvedHref,
-}: {
-  raw: string;
-  href: string;
-  resolvedHref: string;
-}): string {
-  if (href === resolvedHref) {
-    return raw;
-  }
-  const hrefIndex = raw.lastIndexOf(href);
-  if (hrefIndex === -1) {
-    return raw;
-  }
-  return `${raw.slice(0, hrefIndex)}${resolvedHref}${raw.slice(
-    hrefIndex + href.length
-  )}`;
-}
-
 function hasNestedInlineTokens(
   token: Token
 ): token is Token & { raw: string; text: string; tokens: Token[] } {
@@ -96,45 +91,140 @@ function hasNestedInlineTokens(
   );
 }
 
-function renderAbsolutizedInlineToken({
+function createTerminalHyperlink({
+  text,
+  href,
+}: {
+  text: string;
+  href: string;
+}): string {
+  if (!text || !href) {
+    return text;
+  }
+  return `${ANSI_OSC_HYPERLINK_PREFIX}${href}${ANSI_OSC_TERMINATOR}${ANSI_LINK_STYLE}${text}${ANSI_LINK_STYLE_RESET}${ANSI_OSC_HYPERLINK_SUFFIX}`;
+}
+
+function renderInlineMarkdownToken({
   token,
   phoenixBaseUrl,
 }: {
   token: Token;
   phoenixBaseUrl?: string;
-}): string {
-  if (token.type === "link" || token.type === "image") {
-    return replaceMarkdownTokenHref({
-      raw: token.raw,
-      href: token.href,
-      resolvedHref: resolvePhoenixMarkdownHref({
-        href: token.href,
-        phoenixBaseUrl,
-      }),
-    });
-  }
-  if (hasNestedInlineTokens(token)) {
-    const rewrittenText = absolutizeInlineMarkdownLinks({
-      text: token.text,
+}): RenderedInlineMarkdown {
+  if (token.type === "link") {
+    const renderedLabel = renderInlineMarkdownTokens({
+      tokens: token.tokens ?? new Lexer().inlineTokens(token.text),
       phoenixBaseUrl,
     });
-    return token.raw.replace(token.text, rewrittenText);
+    const resolvedHref = resolvePhoenixMarkdownHref({
+      href: token.href,
+      phoenixBaseUrl,
+    });
+    return {
+      visibleText: renderedLabel.visibleText,
+      renderedText: createTerminalHyperlink({
+        text: renderedLabel.renderedText,
+        href: resolvedHref,
+      }),
+    };
   }
-  return "raw" in token && typeof token.raw === "string" ? token.raw : "";
+  if (token.type === "image") {
+    const resolvedHref = resolvePhoenixMarkdownHref({
+      href: token.href,
+      phoenixBaseUrl,
+    });
+    return {
+      visibleText: token.text,
+      renderedText: createTerminalHyperlink({
+        text: token.text,
+        href: resolvedHref,
+      }),
+    };
+  }
+  if (token.type === "codespan") {
+    return {
+      visibleText: token.text,
+      renderedText: token.text,
+    };
+  }
+  if (token.type === "br") {
+    return {
+      visibleText: " ",
+      renderedText: " ",
+    };
+  }
+  if (token.type === "text" || token.type === "escape") {
+    return {
+      visibleText: token.text,
+      renderedText: token.text,
+    };
+  }
+  if (hasNestedInlineTokens(token)) {
+    return renderInlineMarkdownTokens({
+      tokens: token.tokens,
+      phoenixBaseUrl,
+    });
+  }
+  if ("raw" in token && typeof token.raw === "string") {
+    return {
+      visibleText: token.raw,
+      renderedText: token.raw,
+    };
+  }
+  return {
+    visibleText: "",
+    renderedText: "",
+  };
 }
 
-function absolutizeInlineMarkdownLinks({
+function renderInlineMarkdownTokens({
+  tokens,
+  phoenixBaseUrl,
+}: {
+  tokens: Token[];
+  phoenixBaseUrl?: string;
+}): RenderedInlineMarkdown {
+  return tokens.reduce<RenderedInlineMarkdown>(
+    (renderedMarkdown, token) => {
+      const renderedToken = renderInlineMarkdownToken({
+        token,
+        phoenixBaseUrl,
+      });
+      return {
+        visibleText: renderedMarkdown.visibleText + renderedToken.visibleText,
+        renderedText:
+          renderedMarkdown.renderedText + renderedToken.renderedText,
+      };
+    },
+    { visibleText: "", renderedText: "" }
+  );
+}
+
+function renderInlineMarkdown({
   text,
   phoenixBaseUrl,
 }: {
   text: string;
   phoenixBaseUrl?: string;
-}): string {
+}): RenderedInlineMarkdown {
   const lexer = new Lexer();
-  return lexer
-    .inlineTokens(text)
-    .map((token) => renderAbsolutizedInlineToken({ token, phoenixBaseUrl }))
-    .join("");
+  return renderInlineMarkdownTokens({
+    tokens: lexer.inlineTokens(text),
+    phoenixBaseUrl,
+  });
+}
+
+function renderTableCell({
+  cell,
+  width,
+}: {
+  cell: RenderedTableCell;
+  width: number;
+}): string {
+  if (cell.visibleText.length > width) {
+    return truncateCell(cell.visibleText, width);
+  }
+  return `${cell.renderedText}${" ".repeat(width - cell.visibleText.length)}`;
 }
 
 function renderMarkdownTable({
@@ -147,14 +237,18 @@ function renderMarkdownTable({
   phoenixBaseUrl?: string;
 }): string {
   const normalizedRows = normalizeRows(rows).map((row) =>
-    row.map((cell) =>
-      absolutizeInlineMarkdownLinks({ text: cell, phoenixBaseUrl })
-    )
+    row.map((cell) => {
+      const renderedCell = renderInlineMarkdown({ text: cell, phoenixBaseUrl });
+      return {
+        visibleText: renderedCell.visibleText,
+        renderedText: renderedCell.renderedText,
+      };
+    })
   );
   const naturalWidths = normalizedRows[0]!.map((_, columnIndex) =>
     normalizedRows.reduce(
       (maxWidthForColumn, row) =>
-        Math.max(maxWidthForColumn, row[columnIndex]!.length),
+        Math.max(maxWidthForColumn, row[columnIndex]!.visibleText.length),
       0
     )
   );
@@ -175,7 +269,10 @@ function renderMarkdownTable({
       row
         .map(
           (cell, columnIndex) =>
-            ` ${truncateCell(cell, colWidths[columnIndex]!)} `
+            ` ${renderTableCell({
+              cell,
+              width: colWidths[columnIndex]!,
+            })} `
         )
         .join("│") +
       "│"

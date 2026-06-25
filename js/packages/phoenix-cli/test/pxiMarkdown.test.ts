@@ -6,10 +6,19 @@ import {
 } from "../src/pxi/markdown";
 
 const ESCAPE_CHARACTER = String.fromCharCode(27);
+const BELL_CHARACTER = String.fromCharCode(7);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
+const TERMINAL_HYPERLINK_CONTROL_PATTERN = new RegExp(
+  `${ESCAPE_CHARACTER}\\]8;;[^${BELL_CHARACTER}]*${BELL_CHARACTER}`,
+  "g"
+);
 
 function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE_PATTERN, "");
+}
+
+function stripTerminalHyperlinkControls(text: string): string {
+  return stripAnsi(text).replace(TERMINAL_HYPERLINK_CONTROL_PATTERN, "");
 }
 
 describe("formatMarkdownForTerminal", () => {
@@ -132,22 +141,24 @@ describe("formatMarkdownForTerminal", () => {
   });
 
   it("renders Phoenix-relative markdown links inside tables as absolute terminal links", () => {
-    const formatted = stripAnsi(
-      formatMarkdownForTerminal({
-        text: [
-          "| Trace | Status |",
-          "| --- | --- |",
-          "| [246bd1ec…](/tracing/traces/246bd1ece51db84035aeb1d9f37268bd) | OK |",
-        ].join("\n"),
-        maxWidth: 160,
-        phoenixBaseUrl: "http://localhost:6006",
-      })
-    );
+    const formatted = formatMarkdownForTerminal({
+      text: [
+        "| Trace | Status |",
+        "| --- | --- |",
+        "| [246bd1ec…](/tracing/traces/246bd1ece51db84035aeb1d9f37268bd) | OK |",
+      ].join("\n"),
+      maxWidth: 160,
+      phoenixBaseUrl: "http://localhost:6006",
+    });
+    const visibleText = stripTerminalHyperlinkControls(formatted);
+    const strippedAnsi = stripAnsi(formatted);
 
     expect(formatted).toContain(
-      "[246bd1ec…](http://localhost:6006/tracing/traces/246bd1ece51db84035aeb1d9f37268bd)"
+      `${ESCAPE_CHARACTER}]8;;http://localhost:6006/tracing/traces/246bd1ece51db84035aeb1d9f37268bd${BELL_CHARACTER}${ESCAPE_CHARACTER}[4m${ESCAPE_CHARACTER}[94m246bd1ec…${ESCAPE_CHARACTER}[39m${ESCAPE_CHARACTER}[24m${ESCAPE_CHARACTER}]8;;${BELL_CHARACTER}`
     );
-    expect(formatted).not.toContain("](/tracing/traces/");
+    expect(visibleText).toContain("246bd1ec…");
+    expect(visibleText).not.toContain("[246bd1ec…]");
+    expect(strippedAnsi).not.toContain("](/tracing/traces/");
   });
 
   it("does not rewrite links inside fenced code blocks", () => {
