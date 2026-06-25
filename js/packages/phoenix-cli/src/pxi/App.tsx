@@ -8,6 +8,18 @@ import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
 type PxiStatus = "idle" | "streaming";
 
+const PXI_BANNER = String.raw`
+__/\\\\\\\\\\\\\____/\\\_______/\\\__/\\\\\\\\\\\_
+ _\/\\\/////////\\\_\///\\\___/\\\/__\/////\\\///__
+  _\/\\\_______\/\\\___\///\\\\\\/________\/\\\_____
+   _\/\\\\\\\\\\\\\/______\//\\\\__________\/\\\_____
+    _\/\\\/////////_________\/\\\\__________\/\\\_____
+     _\/\\\__________________/\\\\\\_________\/\\\_____
+      _\/\\\________________/\\\////\\\_______\/\\\_____
+       _\/\\\______________/\\\/___\///\\\__/\\\\\\\\\\\_
+        _\///______________\///_______\///__\///////////__
+`;
+
 const THINKING_FRAMES = [
   "PXI is thinking   ",
   "PXI is thinking.  ",
@@ -20,6 +32,42 @@ export type PxiAppProps = {
   client?: PxiChatClient;
   initialMessages?: PxiMessage[];
 };
+
+type BannerSegment = { text: string; raised: boolean };
+
+// The 3D banner is drawn with two kinds of strokes: the `\` runs form the
+// raised faces of the letters, while `/` and `_` are the recessed shading.
+// Group each line into runs so the raised strokes can be colored distinctly.
+function getBannerSegments(line: string): BannerSegment[] {
+  const segments: BannerSegment[] = [];
+  for (const char of line) {
+    const raised = char === "\\";
+    const last = segments[segments.length - 1];
+    if (last && last.raised === raised) {
+      last.text += char;
+    } else {
+      segments.push({ text: char, raised });
+    }
+  }
+  return segments;
+}
+
+function PxiBanner() {
+  const lines = PXI_BANNER.replace(/^\n|\n$/g, "").split("\n");
+  return (
+    <Box flexDirection="column" marginY={1}>
+      {lines.map((line, lineIndex) => (
+        <Text key={lineIndex}>
+          {getBannerSegments(line).map((segment, index) => (
+            <Text key={index} color={segment.raised ? "blue" : "gray"}>
+              {segment.text}
+            </Text>
+          ))}
+        </Text>
+      ))}
+    </Box>
+  );
+}
 
 function getModelLabel(options: PxiRuntimeOptions): string {
   if (options.modelSelection.providerType === "custom") {
@@ -82,7 +130,7 @@ function Transcript({
 }) {
   if (messages.length === 0) {
     return (
-      <Text color="gray">Ask a question to start a PXI server-agent chat.</Text>
+      <Text color="gray">Phoenix Intelligence.</Text>
     );
   }
   return (
@@ -220,7 +268,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      <Text bold>PXI</Text>
+      <PxiBanner />
       <Text color="gray">
         endpoint: {options.config.endpoint} | model: {getModelLabel(options)} |
         session: {options.sessionId}
