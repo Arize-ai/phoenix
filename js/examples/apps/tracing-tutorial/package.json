@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.71",
-    "@arizeai/openinference-core": "^2.2.0",
+    "@arizeai/openinference-core": "^2.3.0",
     "@arizeai/openinference-semantic-conventions": "^2.5.0",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",

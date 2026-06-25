@@ -78,8 +78,8 @@ importers:
         specifier: ^1.0.49
         version: 1.0.49(zod@4.4.3)
       '@arizeai/openinference-core':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.3.0
+        version: 2.3.0
       '@arizeai/phoenix-client':
         specifier: workspace:*
         version: link:../../../packages/phoenix-client
@@ -358,8 +358,8 @@ importers:
         specifier: ^3.0.71
         version: 3.0.71(zod@4.4.3)
       '@arizeai/openinference-core':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.3.0
+        version: 2.3.0
       '@arizeai/openinference-semantic-conventions':
         specifier: ^2.5.0
         version: 2.5.0
@@ -502,8 +502,8 @@ importers:
   packages/phoenix-evals:
     dependencies:
       '@arizeai/openinference-core':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.3.0
+        version: 2.3.0
       '@opentelemetry/api':
         specifier: ^1.9.1
         version: 1.9.1
@@ -594,8 +594,8 @@ importers:
   packages/phoenix-otel:
     dependencies:
       '@arizeai/openinference-core':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.3.0
+        version: 2.3.0
       '@arizeai/openinference-semantic-conventions':
         specifier: ^2.5.0
         version: 2.5.0
@@ -734,6 +734,9 @@ packages:
 
   '@arizeai/openinference-core@2.2.0':
     resolution: {integrity: sha512-Ix1u/nphZj1yHqmyIfeBe2AVfnilTwgtvfXemJxc/6F+4JC7Rks6VMlPCfB8NXvMOhop2IveA6EyxYMkv/PH/A==}
+
+  '@arizeai/openinference-core@2.3.0':
+    resolution: {integrity: sha512-oDLMjWvUmfA4dAlxWzXb2zJ+oHdRoFoNRTWuIt1w+p9KYeOk5ssmDV/cylFnAeLVJDimXvqG3Wl9s93f/HEeAw==}
 
   '@arizeai/openinference-genai@0.1.7':
     resolution: {integrity: sha512-w1sevI+y1tFusyzlLkuI7mdT87IsvO9cBGljxB0cd/tM9/TWV5/A0m9fZd/hys/jgMRRQCU+AW4tGBWcCZ/WCQ==}
@@ -5237,6 +5240,12 @@ snapshots:
       zod: 4.4.3
 
   '@arizeai/openinference-core@2.2.0':
+    dependencies:
+      '@arizeai/openinference-semantic-conventions': 2.5.0
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/core': 1.30.1(@opentelemetry/api@1.9.1)
+
+  '@arizeai/openinference-core@2.3.0':
     dependencies:
       '@arizeai/openinference-semantic-conventions': 2.5.0
       '@opentelemetry/api': 1.9.1
