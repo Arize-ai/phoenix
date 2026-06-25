@@ -63,13 +63,22 @@ class MaxDaysRule(_MaxDays, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        stmt = (
+        affected = set(
+            await session.scalars(
+                sa.select(Trace.project_rowid)
+                .where(Trace.project_rowid.in_(project_rowids))
+                .where(self.max_days_filter)
+                .distinct()
+            )
+        )
+        if not affected:
+            return set()
+        await session.execute(
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
             .where(self.max_days_filter)
-            .returning(Trace.project_rowid)
         )
-        return set(await session.scalars(stmt))
+        return affected
 
 
 class MaxCountRule(_MaxCount, BaseModel):
@@ -87,13 +96,22 @@ class MaxCountRule(_MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        stmt = (
+        affected = set(
+            await session.scalars(
+                sa.select(Trace.project_rowid)
+                .where(Trace.project_rowid.in_(project_rowids))
+                .where(self.max_count_filter(project_rowids))
+                .distinct()
+            )
+        )
+        if not affected:
+            return set()
+        await session.execute(
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
             .where(self.max_count_filter(project_rowids))
-            .returning(Trace.project_rowid)
         )
-        return set(await session.scalars(stmt))
+        return affected
 
 
 class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
@@ -111,13 +129,22 @@ class MaxDaysOrCountRule(_MaxDays, _MaxCount, BaseModel):
             return set()
         from phoenix.db.models import Trace
 
-        stmt = (
+        affected = set(
+            await session.scalars(
+                sa.select(Trace.project_rowid)
+                .where(Trace.project_rowid.in_(project_rowids))
+                .where(sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)))
+                .distinct()
+            )
+        )
+        if not affected:
+            return set()
+        await session.execute(
             sa.delete(Trace)
             .where(Trace.project_rowid.in_(project_rowids))
             .where(sa.or_(self.max_days_filter, self.max_count_filter(project_rowids)))
-            .returning(Trace.project_rowid)
         )
-        return set(await session.scalars(stmt))
+        return affected
 
 
 class TraceRetentionRule(RootModel[Union[MaxDaysRule, MaxCountRule, MaxDaysOrCountRule]]):
