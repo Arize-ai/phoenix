@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
   Button,
   type Key,
@@ -65,10 +65,9 @@ const treeCSS = css`
   & [role="row"][data-hovered] {
     background: var(--global-card-header-background-color-hover);
   }
-  /* darker selected, plus bold */
+  /* darker selected */
   & [role="row"][data-selected] {
     background: var(--global-list-item-selected-background-color);
-    font-weight: bold;
   }
   /* hovering a selected row still shows hover bg */
   & [role="row"][data-selected][data-hovered] {
@@ -79,27 +78,86 @@ const treeCSS = css`
     outline: 1px solid var(--global-color-primary);
     outline-offset: -1px;
   }
-  /* clickable expansion button, flush against the row's right edge */
+  /* clickable expansion button, flush against the row's right edge. Background
+     is transparent so it inherits the row's state (normal/hover/selected); it
+     only intensifies when the chevron itself is hovered directly. */
   & [slot="chevron"] {
     margin-left: auto;
     align-self: stretch;
     padding: var(--global-dimension-size-100);
     cursor: pointer;
     border: none;
-    background: var(--global-input-field-background-color);
+    background: transparent;
   }
   & [slot="chevron"][data-hovered] {
     background: var(--global-input-field-background-color-hover);
   }
-  /* leaf-row filler: same footprint and background as the chevron, but empty
-     and non-interactive — keeps the right-hand column visually continuous */
+  /* leaf-row filler: same footprint as the chevron, empty and non-interactive —
+     transparent so it tracks the row background like the chevron does */
   & .chevron-placeholder {
     margin-left: auto;
     align-self: stretch;
     box-sizing: content-box;
     width: 1ch;
     padding: var(--global-dimension-size-100);
-    background: var(--global-input-field-background-color);
+    background: transparent;
+  }
+
+  /* ---- layout demo pieces (six example-tree row layouts) ---- */
+  /* leading icon slot: an 18x18 placeholder, top-aligned and indented inline
+     with the rest of the row content */
+  & .lead-icon {
+    flex: none;
+    align-self: flex-start;
+    width: 18px;
+    height: 18px;
+    margin-right: var(--global-dimension-size-100);
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
+  }
+  /* "extra" column inside the body: sits between the main content and the
+     chevron, holds the timing readout */
+  & .row-extra {
+    display: flex;
+    align-items: center;
+    padding-left: var(--global-dimension-size-200);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  /* stack the body lines with a little breathing room */
+  & .row-main {
+    gap: var(--global-dimension-size-50);
+  }
+  /* inline atom text; title grows to push date/time to the right edge */
+  & .atom {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  & .atom--title {
+    flex: 1;
+  }
+  & .row-preview {
+    font-size: 12px;
+  }
+  /* chip row: groups packed left by default, or spread across full width */
+  & .row-chips {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--global-dimension-size-200);
+  }
+  & .row-chips--spread {
+    justify-content: space-between;
+  }
+  & .chip-group {
+    display: flex;
+    gap: var(--global-dimension-size-50);
+  }
+  & .chip {
+    padding: 2px var(--global-dimension-size-50);
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-small);
+    font-size: 11px;
   }
 `;
 
@@ -220,9 +278,121 @@ const NESTED: TreeNode[] = [
   { id: "cleanup", label: "cleanup" },
 ];
 
+// ---- six row layouts -------------------------------------------------------
+// The wireframe is a layout spec, so rows render labeled placeholder boxes
+// ("Prefix", "Title", chips…) rather than real node content. A single
+// config-driven renderer covers all six; each `RowLayout` describes the outer
+// columns (icon / timing / chevron), the headline atoms, preview lines, and
+// chip arrangement.
+const CHIP_GROUPS = {
+  metrics: ["Tkn", "Lat", "Cst"],
+  annotations: ["Fbk", "Not"],
+  source: ["Tool", "LLM"],
+} as const;
+
+const ATOM_LABEL: Record<string, string> = {
+  prefix: "Prefix",
+  badge: "Badge",
+  title: "Title",
+  date: "Date",
+  time: "Time",
+  dot: "Dot",
+};
+
+type RowLayout = {
+  icon?: boolean; // outer leading "Icon" box
+  timing?: boolean; // outer trailing "Timing" box
+  chevron?: boolean; // outer trailing expand control
+  headline: (keyof typeof ATOM_LABEL)[]; // first line; "title" flexes
+  previews?: number; // number of full-width preview lines
+  chips?: "packed" | "spread" | false; // metric/annotation/source chip groups
+};
+
+const LAYOUTS: Record<string, RowLayout> = {
+  // current track
+  general: {
+    icon: true,
+    chevron: true,
+    headline: ["prefix", "title", "date"],
+    previews: 2,
+    chips: "packed",
+  },
+  traceSpan: {
+    icon: true,
+    chevron: true,
+    headline: ["prefix", "title", "date"],
+    chips: "packed",
+  },
+  turn: {
+    headline: ["prefix", "title", "date"],
+    previews: 2,
+    chips: "spread",
+  },
+  // alternate
+  turnAlt: {
+    headline: ["prefix", "badge", "title", "time"],
+    previews: 2,
+    chips: "packed",
+  },
+  traceAlt: {
+    timing: true,
+    chevron: true,
+    headline: ["prefix", "badge", "title", "time"],
+    chips: "packed",
+  },
+  spanAlt: {
+    timing: true,
+    chevron: true,
+    headline: ["dot", "title"],
+  },
+};
+
+const Chips = ({ spread }: { spread?: boolean }) => (
+  <div className={`row-chips${spread ? " row-chips--spread" : ""}`}>
+    {(Object.keys(CHIP_GROUPS) as (keyof typeof CHIP_GROUPS)[]).map((group) => (
+      <div className="chip-group" key={group}>
+        {CHIP_GROUPS[group].map((chip) => (
+          <span className="chip" key={chip}>
+            {chip}
+          </span>
+        ))}
+      </div>
+    ))}
+  </div>
+);
+
+const RowMain = ({ layout }: { layout: RowLayout }) => (
+  <div className="row-main">
+    <div className="row-line">
+      {layout.headline.map((atom) => (
+        <span className={`atom atom--${atom}`} key={atom}>
+          {ATOM_LABEL[atom]}
+        </span>
+      ))}
+    </div>
+    {Array.from({ length: layout.previews ?? 0 }).map((_, i) => (
+      <div className="row-preview" key={i}>
+        Preview line
+      </div>
+    ))}
+    {layout.chips && <Chips spread={layout.chips === "spread"} />}
+  </div>
+);
+
+const Chevron = ({ isExpanded }: { isExpanded: boolean }) => (
+  <Button slot="chevron" aria-label={isExpanded ? "Collapse" : "Expand"}>
+    {isExpanded ? "▾" : "▸"}
+  </Button>
+);
+
 // `level` (1-based, from react-aria) drives indentation; leaves render no chevron.
 // Factory so each tree can bind its own onRowInteract; recurses via `render`.
-const makeRenderNode = (onRowInteract: (key: Key) => void) => {
+// With a `layout` the row renders that wireframe; without one it falls back to
+// the plain single-line label (used by PrimitiveTree/NestedTree).
+const makeRenderNode = (
+  onRowInteract: (key: Key) => void,
+  layout?: RowLayout
+) => {
   const render = (node: TreeNode) => (
     <TreeItem
       key={node.id}
@@ -231,32 +401,36 @@ const makeRenderNode = (onRowInteract: (key: Key) => void) => {
       onPressStart={() => onRowInteract(node.id)}
     >
       <TreeItemContent>
-        {({ isExpanded, level, hasChildItems }) => (
-          <>
-            {/* content = main + extra; extra ignored for now */}
-            <div
-              className="row-content"
-              style={{
-                paddingLeft: `calc(${level - 1} * 1.25rem + var(--global-dimension-size-100))`,
-              }}
-            >
-              <div className="row-main">
-                {/* up to three lines; just the label line for now */}
-                <div className="row-line">{node.label}</div>
+        {({ isExpanded, level, hasChildItems }) => {
+          const indent = `calc(${level - 1} * 1.25rem + var(--global-dimension-size-100))`;
+          const chevron = hasChildItems ? (
+            <Chevron isExpanded={isExpanded} />
+          ) : (
+            <span className="chevron-placeholder" aria-hidden />
+          );
+          if (!layout) {
+            return (
+              <>
+                <div className="row-content" style={{ paddingLeft: indent }}>
+                  <div className="row-main">
+                    <div className="row-line">{node.label}</div>
+                  </div>
+                </div>
+                {chevron}
+              </>
+            );
+          }
+          return (
+            <>
+              <div className="row-content" style={{ paddingLeft: indent }}>
+                {layout.icon && <span className="lead-icon" aria-hidden />}
+                <RowMain layout={layout} />
+                {layout.timing && <span className="row-extra">Timing</span>}
               </div>
-            </div>
-            {hasChildItems ? (
-              <Button
-                slot="chevron"
-                aria-label={isExpanded ? "Collapse" : "Expand"}
-              >
-                {isExpanded ? "▾" : "▸"}
-              </Button>
-            ) : (
-              <span className="chevron-placeholder" aria-hidden />
-            )}
-          </>
-        )}
+              {layout.chevron && chevron}
+            </>
+          );
+        }}
       </TreeItemContent>
       {node.children?.map(render)}
     </TreeItem>
@@ -285,71 +459,101 @@ export const NestedTree: StoryFn = () => {
 const StandaloneTree = ({
   label,
   nodes,
+  layout,
+  width,
 }: {
   label: string;
   nodes: TreeNode[];
+  layout?: RowLayout;
+  width?: number;
 }) => {
   const allIds = (ns: TreeNode[]): Key[] =>
     ns.flatMap((n) => [n.id, ...(n.children ? allIds(n.children) : [])]);
   const { treeProps, onRowInteract } = useTreeState(allIds(nodes));
-  const renderNode = makeRenderNode(onRowInteract);
+  const renderNode = makeRenderNode(onRowInteract, layout);
 
   return (
-    <Tree aria-label={label} css={treeCSS} {...treeProps}>
+    <Tree
+      aria-label={label}
+      css={treeCSS}
+      style={width ? { width } : undefined}
+      {...treeProps}
+    >
       {nodes.map(renderNode)}
     </Tree>
   );
 };
 
-// "root span" → "mid span" (→ "end span") + "end span". Prefixed ids keep this
-// stack unique when it's reused inside other trees.
-const spanStack = (prefix: string): TreeNode => ({
-  id: `${prefix}/root`,
-  label: "root span",
-  children: [
-    {
-      id: `${prefix}/mid`,
-      label: "mid span",
-      children: [{ id: `${prefix}/mid/end`, label: "end span" }],
-    },
-    { id: `${prefix}/end`, label: "end span" },
-  ],
+// A parent node with `count` leaf children, id-prefixed so reused shapes stay
+// unique. Labels are ignored by the layout renderer (it draws placeholders).
+const parentWith = (prefix: string, count: number): TreeNode => ({
+  id: prefix,
+  label: prefix,
+  children: Array.from({ length: count }, (_, i) => ({
+    id: `${prefix}/${i}`,
+    label: `${prefix} child ${i}`,
+  })),
 });
 
-/** Several independent trees stacked: span, trace, session shapes. */
-export const ExampleTrees: StoryFn = () => (
+// A flat list of `count` rows (no parent) — for the chevron-less turn layouts.
+const flatRows = (prefix: string, count: number): TreeNode[] =>
+  Array.from({ length: count }, (_, i) => ({
+    id: `${prefix}/${i}`,
+    label: `${prefix} ${i}`,
+  }));
+
+const Column = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) => (
   <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-    <StandaloneTree label="Span" nodes={[spanStack("span")]} />
-    <StandaloneTree
-      label="Trace"
-      nodes={[{ id: "trace", label: "Trace", children: [spanStack("trace")] }]}
-    />
-    <StandaloneTree
-      label="Session turns"
-      nodes={[
-        {
-          id: "session",
-          label: "Session",
-          children: [1, 2, 3, 4].map((n) => ({
-            id: `session/turn-${n}`,
-            label: `turn ${n}`,
-          })),
-        },
-      ]}
-    />
-    <StandaloneTree
-      label="Session traces"
-      nodes={[
-        {
-          id: "session2",
-          label: "Session",
-          children: [1, 2, 3].map((n) => ({
-            id: `session2/trace-${n}`,
-            label: "Trace",
-            children: [spanStack(`session2/trace-${n}`)],
-          })),
-        },
-      ]}
-    />
+    <strong>{title}</strong>
+    {children}
+  </div>
+);
+
+/** The six row layouts, grouped Current track / Alternate like the spec. */
+export const ExampleTrees: StoryFn = () => (
+  <div style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}>
+    <Column title="Current track">
+      <StandaloneTree
+        label="General"
+        layout={LAYOUTS.general}
+        nodes={[parentWith("general", 2)]}
+      />
+      <StandaloneTree
+        label="Trace / Span"
+        layout={LAYOUTS.traceSpan}
+        nodes={[parentWith("trace-span", 2)]}
+      />
+      <StandaloneTree
+        label="Turn"
+        layout={LAYOUTS.turn}
+        nodes={flatRows("turn", 2)}
+      />
+    </Column>
+    <Column title="Alternate">
+      <StandaloneTree
+        label="Turn"
+        layout={LAYOUTS.turnAlt}
+        width={460}
+        nodes={flatRows("turn-alt", 2)}
+      />
+      <StandaloneTree
+        label="Trace"
+        layout={LAYOUTS.traceAlt}
+        width={460}
+        nodes={[parentWith("trace-alt", 2)]}
+      />
+      <StandaloneTree
+        label="Span"
+        layout={LAYOUTS.spanAlt}
+        width={460}
+        nodes={[parentWith("span-alt", 2)]}
+      />
+    </Column>
   </div>
 );
