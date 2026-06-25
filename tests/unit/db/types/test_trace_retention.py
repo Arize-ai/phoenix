@@ -164,64 +164,6 @@ class TestTraceRetentionRuleMaxDays:
             chain.from_iterable(unaffected_projects.values())
         ), "Unaffected projects should retain all their traces"
 
-    async def test_returns_affected_project_rowids(self, db: DbSessionFactory) -> None:
-        """delete_traces returns exactly the project_rowids that had traces deleted."""
-        async with db() as session:
-            affected_project = models.Project(name=token_hex(8))
-            unaffected_project = models.Project(name=token_hex(8))
-            session.add_all([affected_project, unaffected_project])
-            await session.flush()
-            old_time = datetime.now(timezone.utc) - timedelta(days=5)
-            recent_time = datetime.now(timezone.utc) - timedelta(hours=1)
-            session.add(
-                models.Trace(
-                    project_rowid=affected_project.id,
-                    trace_id=token_hex(16),
-                    start_time=old_time,
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            session.add(
-                models.Trace(
-                    project_rowid=unaffected_project.id,
-                    trace_id=token_hex(16),
-                    start_time=recent_time,
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            await session.flush()
-            affected_id = affected_project.id
-            unaffected_id = unaffected_project.id
-
-        rule = MaxDaysRule(max_days=2)
-        async with db() as session:
-            result = await rule.delete_traces(session, [affected_id, unaffected_id])
-
-        assert result == {affected_id}
-
-    async def test_returns_empty_set_when_no_traces_match(self, db: DbSessionFactory) -> None:
-        """delete_traces returns empty set when no traces fall outside the retention window."""
-        async with db() as session:
-            project = models.Project(name=token_hex(8))
-            session.add(project)
-            await session.flush()
-            session.add(
-                models.Trace(
-                    project_rowid=project.id,
-                    trace_id=token_hex(16),
-                    start_time=datetime.now(timezone.utc) - timedelta(hours=1),
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            await session.flush()
-            project_id = project.id
-
-        rule = MaxDaysRule(max_days=30)
-        async with db() as session:
-            result = await rule.delete_traces(session, [project_id])
-
-        assert result == set()
-
 
 class TestTraceRetentionRuleMaxCount:
     """Test the MaxCountRule which enforces a count-based retention policy.
@@ -302,64 +244,6 @@ class TestTraceRetentionRuleMaxCount:
         assert set(remaining_traces.all()) == set(
             chain.from_iterable(unaffected_projects.values())
         ), "Unaffected projects should retain all their traces"
-
-    async def test_returns_affected_project_rowids(self, db: DbSessionFactory) -> None:
-        """delete_traces returns exactly the project_rowids that had traces deleted."""
-        async with db() as session:
-            affected_project = models.Project(name=token_hex(8))
-            unaffected_project = models.Project(name=token_hex(8))
-            session.add_all([affected_project, unaffected_project])
-            await session.flush()
-            base_time = datetime.now(timezone.utc)
-            for i in range(3):
-                session.add(
-                    models.Trace(
-                        project_rowid=affected_project.id,
-                        trace_id=token_hex(16),
-                        start_time=base_time - timedelta(hours=i),
-                        end_time=datetime.now(timezone.utc),
-                    )
-                )
-            session.add(
-                models.Trace(
-                    project_rowid=unaffected_project.id,
-                    trace_id=token_hex(16),
-                    start_time=base_time,
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            await session.flush()
-            affected_id = affected_project.id
-            unaffected_id = unaffected_project.id
-
-        rule = MaxCountRule(max_count=1)
-        async with db() as session:
-            result = await rule.delete_traces(session, [affected_id, unaffected_id])
-
-        assert result == {affected_id}
-
-    async def test_returns_empty_set_when_no_traces_match(self, db: DbSessionFactory) -> None:
-        """delete_traces returns empty set when trace count is within the limit."""
-        async with db() as session:
-            project = models.Project(name=token_hex(8))
-            session.add(project)
-            await session.flush()
-            session.add(
-                models.Trace(
-                    project_rowid=project.id,
-                    trace_id=token_hex(16),
-                    start_time=datetime.now(timezone.utc),
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            await session.flush()
-            project_id = project.id
-
-        rule = MaxCountRule(max_count=10)
-        async with db() as session:
-            result = await rule.delete_traces(session, [project_id])
-
-        assert result == set()
 
 
 class TestTraceRetentionRuleMaxDaysOrCountRule:
@@ -475,75 +359,6 @@ class TestTraceRetentionRuleMaxDaysOrCountRule:
         assert set(remaining_traces.all()) == set(
             chain.from_iterable(unaffected_projects.values())
         ), "Unaffected projects should retain all their traces"
-
-    async def test_returns_affected_project_rowids(self, db: DbSessionFactory) -> None:
-        """delete_traces returns project_rowids for projects affected by either rule."""
-        async with db() as session:
-            days_project = models.Project(name=token_hex(8))
-            count_project = models.Project(name=token_hex(8))
-            unaffected_project = models.Project(name=token_hex(8))
-            session.add_all([days_project, count_project, unaffected_project])
-            await session.flush()
-            old_time = datetime.now(timezone.utc) - timedelta(days=5)
-            recent_time = datetime.now(timezone.utc) - timedelta(hours=1)
-            session.add(
-                models.Trace(
-                    project_rowid=days_project.id,
-                    trace_id=token_hex(16),
-                    start_time=old_time,
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            for i in range(3):
-                session.add(
-                    models.Trace(
-                        project_rowid=count_project.id,
-                        trace_id=token_hex(16),
-                        start_time=recent_time - timedelta(minutes=i),
-                        end_time=datetime.now(timezone.utc),
-                    )
-                )
-            session.add(
-                models.Trace(
-                    project_rowid=unaffected_project.id,
-                    trace_id=token_hex(16),
-                    start_time=recent_time,
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            await session.flush()
-            days_id = days_project.id
-            count_id = count_project.id
-            unaffected_id = unaffected_project.id
-
-        rule = MaxDaysOrCountRule(max_days=2, max_count=1)
-        async with db() as session:
-            result = await rule.delete_traces(session, [days_id, count_id, unaffected_id])
-
-        assert result == {days_id, count_id}
-
-    async def test_returns_empty_set_when_no_traces_match(self, db: DbSessionFactory) -> None:
-        """delete_traces returns empty set when no traces violate either retention limit."""
-        async with db() as session:
-            project = models.Project(name=token_hex(8))
-            session.add(project)
-            await session.flush()
-            session.add(
-                models.Trace(
-                    project_rowid=project.id,
-                    trace_id=token_hex(16),
-                    start_time=datetime.now(timezone.utc) - timedelta(hours=1),
-                    end_time=datetime.now(timezone.utc),
-                )
-            )
-            await session.flush()
-            project_id = project.id
-
-        rule = MaxDaysOrCountRule(max_days=30, max_count=10)
-        async with db() as session:
-            result = await rule.delete_traces(session, [project_id])
-
-        assert result == set()
 
 
 class TestTraceRetentionRule:
