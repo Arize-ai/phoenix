@@ -502,8 +502,8 @@ export function ChatView({
     const { mode, messageId } = rewindRequest;
     setRewindRequest(null);
     if (mode === "fork") {
-      // Forking switches the active session, which remounts this view; the new
-      // session restores any staged input via the lazy initializer above.
+      // Forking switches the active session, which remounts this view; the
+      // forked session receives restored text through draftInputBySessionId.
       forkFromMessage?.(messageId);
     } else {
       const restoredInput = rewindToMessage?.(messageId);
@@ -523,7 +523,14 @@ export function ChatView({
     ) {
       return;
     }
-    textareaRef.current?.focus();
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.focus();
+    const cursorPosition = textarea.value.length;
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
   }, [
     autoFocusInput,
     hasAcknowledgedConsent,
