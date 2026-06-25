@@ -7,7 +7,7 @@ import { getTextColor } from "@phoenix/components/core/content/textUtils";
 /**
  * Compact icon + count used in the tree view rows. Each kind shows its icon
  * followed by a value; `cost` is the exception — the `$` glyph stands in for
- * the icon. Text is XS / text-500 and the icon is tinted to match.
+ * the icon. Text is XS / text-400 and the icon is tinted to match.
  */
 export type MetricKind =
   | "token"
@@ -42,7 +42,7 @@ interface MetricProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 }
 
 export function Metric({ kind, children, ref, ...props }: MetricProps) {
-  const color = "text-500" as const;
+  const color = "text-400" as const;
   return (
     <div className="metric" css={metricCSS} ref={ref} {...props}>
       {kind === "cost" ? (

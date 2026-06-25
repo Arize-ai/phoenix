@@ -89,7 +89,13 @@ const treeCSS = css`
   & [slot="chevron"] {
     margin-left: auto;
     align-self: stretch;
-    padding: var(--global-dimension-size-100);
+    /* fixed width + centered glyph so the ▾/▸ swap doesn't shift layout */
+    box-sizing: border-box;
+    width: var(--global-dimension-size-400);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
     cursor: pointer;
     border: none;
     background: transparent;
@@ -102,9 +108,8 @@ const treeCSS = css`
   & .chevron-placeholder {
     margin-left: auto;
     align-self: stretch;
-    box-sizing: content-box;
-    width: 1ch;
-    padding: var(--global-dimension-size-100);
+    box-sizing: border-box;
+    width: var(--global-dimension-size-400);
     background: transparent;
   }
 
@@ -153,7 +158,7 @@ const treeCSS = css`
   }
   & .row-preview {
     font-size: 12px;
-    color: var(--global-text-color-500);
+    color: var(--global-text-color-400);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -330,8 +335,8 @@ const ATOM_LABEL: Record<string, string> = {
   prefix: "Prefix",
   badge: "Badge",
   title: "Title",
-  date: "Date",
-  time: "Time",
+  date: "Jun 6 11:24 PM",
+  time: "Jun 6 11:24 PM",
   dot: "Dot",
 };
 
@@ -357,7 +362,7 @@ const LAYOUTS: Record<string, RowLayout> = {
     icon: true,
     chevron: true,
     headline: ["prefix", "title", "date"],
-    chips: "packed",
+    chips: "spread",
   },
   turn: {
     headline: ["prefix", "title", "date"],
@@ -412,7 +417,7 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
           // date/time use the same small grey text as the metrics, sans mono
           if (atom === "date" || atom === "time") {
             return (
-              <Text key={atom} size="XS" color="text-500">
+              <Text key={atom} size="XS" color="text-400">
                 {ATOM_LABEL[atom]}
               </Text>
             );
@@ -420,7 +425,7 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
           // prefix: subdued monospace index, like the metric counts
           if (atom === "prefix") {
             return (
-              <Text key={atom} size="XS" color="text-500" fontFamily="mono">
+              <Text key={atom} size="XS" color="text-400" fontFamily="mono">
                 {data?.prefix ?? ATOM_LABEL.prefix}
               </Text>
             );
@@ -520,6 +525,22 @@ export const NestedTree: StoryFn = () => {
   );
 };
 
+// Number every row's prefix sequentially (depth-first, zero-padded). A node's
+// own data.prefix wins, so curated rows (the PXI turns) keep their numbers.
+const withPrefixNumbers = (nodes: TreeNode[]): TreeNode[] => {
+  let n = 0;
+  const walk = (list: TreeNode[]): TreeNode[] =>
+    list.map((node) => {
+      n += 1;
+      return {
+        ...node,
+        data: { prefix: String(n).padStart(2, "0"), ...node.data },
+        children: node.children ? walk(node.children) : undefined,
+      };
+    });
+  return walk(nodes);
+};
+
 // One self-contained tree with its own selection/expansion state, so several can
 // stack independently. Expands everything by default.
 const StandaloneTree = ({
@@ -531,14 +552,15 @@ const StandaloneTree = ({
   nodes: TreeNode[];
   layout?: RowLayout;
 }) => {
+  const numbered = withPrefixNumbers(nodes);
   const allIds = (ns: TreeNode[]): Key[] =>
     ns.flatMap((n) => [n.id, ...(n.children ? allIds(n.children) : [])]);
-  const { treeProps, onRowInteract } = useTreeState(allIds(nodes));
+  const { treeProps, onRowInteract } = useTreeState(allIds(numbered));
   const renderNode = makeRenderNode(onRowInteract, layout);
 
   return (
     <Tree aria-label={label} css={treeCSS} {...treeProps}>
-      {nodes.map(renderNode)}
+      {numbered.map(renderNode)}
     </Tree>
   );
 };
