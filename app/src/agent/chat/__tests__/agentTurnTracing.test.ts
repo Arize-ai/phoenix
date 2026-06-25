@@ -176,49 +176,30 @@ describe("createAgentTurnTracer", () => {
     });
   });
 
-  it("keeps one trace when automatic follow-up should continue", async () => {
-    const fetch = createMockFetch();
-    const tracer = createAgentTurnTracer({
-      sessionId: "session-1",
-      fetch,
-      getAgentsConfig: () => agentsConfig,
-      getObservability: () => observability,
-      forceFlushTimeoutMs: 0,
-    });
+  it("reports failed project exports even without an exporter error object", () => {
+    const exporter = new PxiRootSpanExporter(() => ({
+      export(_spans, resultCallback) {
+        resultCallback({ code: ExportResultCode.FAILED });
+      },
+      shutdown: async () => undefined,
+    }));
+    const resultCallback = vi.fn();
 
-    tracer.startTurn("submit-message");
-    await tracer.fetch("/agents/assistant/sessions/session-1/chat");
-    await tracer.resolveAutomaticSend(true);
-    tracer.startTurn("submit-message");
-    await tracer.fetch("/agents/assistant/sessions/session-1/chat");
-
-    const firstTraceparent = readTraceparent(fetch.mock.calls[0]?.[1]);
-    const secondTraceparent = readTraceparent(fetch.mock.calls[1]?.[1]);
-    expect(getTraceId(secondTraceparent ?? "")).toEqual(
-      getTraceId(firstTraceparent ?? "")
+    exporter.export(
+      [
+        {
+          attributes: {
+            "phoenix.agent.ingest_traces": true,
+            "phoenix.agent.project_name": "assistant_agent",
+          },
+        } as unknown as ReadableSpan,
+      ],
+      resultCallback
     );
-  });
 
-  it("ends the turn when automatic follow-up should not continue", async () => {
-    const fetch = createMockFetch();
-    const tracer = createAgentTurnTracer({
-      sessionId: "session-1",
-      fetch,
-      getAgentsConfig: () => agentsConfig,
-      getObservability: () => observability,
-      forceFlushTimeoutMs: 0,
+    expect(resultCallback).toHaveBeenCalledWith({
+      code: ExportResultCode.FAILED,
+      error: undefined,
     });
-
-    tracer.startTurn("submit-message");
-    await tracer.fetch("/agents/assistant/sessions/session-1/chat");
-    await tracer.resolveAutomaticSend(false);
-    tracer.startTurn("submit-message");
-    await tracer.fetch("/agents/assistant/sessions/session-1/chat");
-
-    const firstTraceparent = readTraceparent(fetch.mock.calls[0]?.[1]);
-    const secondTraceparent = readTraceparent(fetch.mock.calls[1]?.[1]);
-    expect(getTraceId(secondTraceparent ?? "")).not.toEqual(
-      getTraceId(firstTraceparent ?? "")
-    );
   });
 });

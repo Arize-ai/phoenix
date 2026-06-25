@@ -112,7 +112,7 @@ export function useAgentChat({
               getObservability: () => store.getState().observability,
             });
             let pendingFinish: PendingFinish | null = null;
-            let hasBackendTurnCompleted = false;
+            let hasReceivedBackendTurnComplete = false;
             let hasReachedTerminalSendDecision = false;
             const finalizePendingFinish = () => {
               if (pendingFinish == null) {
@@ -142,7 +142,7 @@ export function useAgentChat({
             const completePendingTurnIfReady = async () => {
               if (
                 pendingFinish == null ||
-                !hasBackendTurnCompleted ||
+                !hasReceivedBackendTurnComplete ||
                 !hasReachedTerminalSendDecision
               ) {
                 return;
@@ -178,7 +178,7 @@ export function useAgentChat({
                 }) => {
                   turnTracer.startTurn(trigger);
                   turnTracer.setTurnInput(getLastUserText(messages));
-                  hasBackendTurnCompleted = false;
+                  hasReceivedBackendTurnComplete = false;
                   hasReachedTerminalSendDecision = false;
                   return {
                     body: buildAgentChatRequestBody({
@@ -247,7 +247,7 @@ export function useAgentChat({
                 if (dataPart.type !== "data-pxi-turn-complete") {
                   return;
                 }
-                hasBackendTurnCompleted = dataPart.data.backendTraceFlushed;
+                hasReceivedBackendTurnComplete = true;
                 void completePendingTurnIfReady();
               },
               onFinish: ({ messages: finalMessages, message }) => {
@@ -320,30 +320,34 @@ export function useAgentChat({
       }
     });
 
+    const turnTracer = chatInstance
+      ? turnTracersByChat.get(chatInstance)
+      : undefined;
     await Promise.all(
-      unresolvedToolCalls.map((toolCall) =>
-        addToolOutput({
+      unresolvedToolCalls.map((toolCall) => {
+        const toolOutput = {
           tool: toolCall.tool,
           toolCallId: toolCall.toolCallId,
           errorText,
           state: "output-error",
-        })
-      )
+        } as const;
+        turnTracer?.recordToolOutput(toolOutput);
+        return addToolOutput(toolOutput);
+      })
     );
   };
 
   const handleStopWithToolCleanup = async () => {
     await stop();
-    if (chatInstance) {
-      await turnTracersByChat.get(chatInstance)?.endTurn(USER_INTERRUPT_ERROR);
-    }
-    setMessages(removeInterruptedToolInputParts);
-
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,
       errorText: USER_INTERRUPT_ERROR,
     });
+    if (chatInstance) {
+      await turnTracersByChat.get(chatInstance)?.endTurn(USER_INTERRUPT_ERROR);
+    }
+    setMessages(removeInterruptedToolInputParts);
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
@@ -351,13 +355,12 @@ export function useAgentChat({
       return;
     }
 
-    setMessages(removeInterruptedToolInputParts);
-
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,
       errorText: SYSTEM_INTERRUPT_ERROR,
     });
+    setMessages(removeInterruptedToolInputParts);
 
     await sendMessage(...args);
   };
@@ -382,6 +385,12 @@ export function useAgentChat({
     if (!pendingElicitation || !sessionId) {
       return;
     }
+    if (chatInstance) {
+      turnTracersByChat.get(chatInstance)?.recordToolOutput({
+        toolCallId: pendingElicitation.toolCallId,
+        output,
+      });
+    }
     void addToolOutput({
       tool: "ask_user",
       toolCallId: pendingElicitation.toolCallId,
@@ -393,6 +402,13 @@ export function useAgentChat({
   const handleElicitationCancel = () => {
     if (!pendingElicitation || !sessionId) {
       return;
+    }
+    if (chatInstance) {
+      turnTracersByChat.get(chatInstance)?.recordToolOutput({
+        toolCallId: pendingElicitation.toolCallId,
+        state: "output-error",
+        errorText: "User cancelled the question.",
+      });
     }
     void addToolOutput({
       state: "output-error",

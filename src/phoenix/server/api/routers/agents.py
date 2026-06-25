@@ -94,7 +94,12 @@ from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
-from phoenix.tracers import Tracer, detached_otel_context, extract_otel_context
+from phoenix.tracers import (
+    Tracer,
+    _get_cumulative_counts,
+    detached_otel_context,
+    extract_otel_context,
+)
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
@@ -425,6 +430,7 @@ async def _persist_db_traces(
     db_traces: list[models.Trace],
 ) -> tuple[int, ...]:
     project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
+    trace_ids = {db_trace.trace_id for db_trace in db_traces}
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
@@ -485,6 +491,7 @@ async def _persist_db_traces(
             spans_to_insert.append(db_span)
     session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
+    await _refresh_cumulative_span_counts(session=session, trace_ids=trace_ids)
     return project_ids
 
 
@@ -500,6 +507,25 @@ async def _persist_db_traces_and_emit_event(
         project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
     if project_ids:
         event_queue.put(SpanInsertEvent(project_ids))
+
+
+async def _refresh_cumulative_span_counts(
+    *,
+    session: AsyncSession,
+    trace_ids: set[str],
+) -> None:
+    if not trace_ids:
+        return
+    spans = list(
+        await session.scalars(
+            select(models.Span).join(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
+        )
+    )
+    counts = _get_cumulative_counts(spans)
+    for span, count in zip(spans, counts):
+        span.cumulative_error_count = count.errors
+        span.cumulative_llm_token_count_prompt = count.prompt_tokens
+        span.cumulative_llm_token_count_completion = count.completion_tokens
 
 
 async def _load_available_sandbox_backend_types(

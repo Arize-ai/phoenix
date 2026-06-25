@@ -377,8 +377,9 @@ def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount
     root_span_ids: list[str] = []
     parent_to_children_ids: dict[str, list[str]] = {}
     counts_by_span_id: dict[str, CumulativeCount] = {}
+    span_ids = {span.span_id for span in spans}
     for span in spans:
-        if span.parent_id is None:
+        if span.parent_id is None or span.parent_id not in span_ids:
             root_span_ids.append(span.span_id)
         else:
             if span.parent_id not in parent_to_children_ids:

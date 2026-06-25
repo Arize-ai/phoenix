@@ -22,7 +22,10 @@ from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashCapability,
 )
 from phoenix.server.agents.prompts import ServerAgentPrompts
-from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
+from phoenix.server.agents.pydantic_ai import (
+    OpenInferenceAgentWrapper,
+    OpenInferenceCapabilityWrapper,
+)
 from phoenix.server.agents.skills.phoenix_graphql import PHOENIX_GRAPHQL_SKILL
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
@@ -125,4 +128,4 @@ def build_server_agent(
         instructions=resolved_prompts.base.render(),
         capabilities=[traced_capability],
     )
-    return agent
+    return OpenInferenceAgentWrapper(agent, tracer=tracer)

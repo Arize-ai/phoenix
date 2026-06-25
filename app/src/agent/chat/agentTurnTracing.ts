@@ -46,6 +46,7 @@ type AgentToolCallTraceInput = {
 };
 
 type ToolOutputTraceInput = {
+  toolCallId?: string;
   state?: string;
   output?: unknown;
   errorText?: string;
@@ -131,6 +132,7 @@ export class PxiRootSpanExporter implements SpanExporter {
     }
 
     let pendingExports = spansByProjectName.size;
+    let hasExportError = false;
     let exportError: Error | undefined;
     const onExportComplete = (result: {
       code: ExportResultCode;
@@ -138,11 +140,12 @@ export class PxiRootSpanExporter implements SpanExporter {
     }) => {
       pendingExports -= 1;
       if (result.code !== ExportResultCode.SUCCESS) {
+        hasExportError = true;
         exportError = result.error ?? exportError;
       }
       if (pendingExports === 0) {
         resultCallback(
-          exportError
+          hasExportError
             ? { code: ExportResultCode.FAILED, error: exportError }
             : { code: ExportResultCode.SUCCESS }
         );
@@ -267,6 +270,7 @@ export function createAgentTurnTracer({
   forceFlushTimeoutMs = DEFAULT_FORCE_FLUSH_TIMEOUT_MS,
 }: AgentTurnTracingOptions) {
   let activeTurnTrace: AgentTurnTrace | null = null;
+  const activeToolSpansByToolCallId = new Map<string, Span>();
 
   function startTurn(trigger: "submit-message" | "regenerate-message") {
     if (activeTurnTrace) {
@@ -278,7 +282,7 @@ export function createAgentTurnTracer({
       agentsConfig,
       observability,
     });
-    if (!traceRecording.ingestTraces && !traceRecording.exportRemoteTraces) {
+    if (!traceRecording.ingestTraces) {
       return;
     }
 
@@ -318,6 +322,10 @@ export function createAgentTurnTracer({
         message: error,
       });
     }
+    for (const span of activeToolSpansByToolCallId.values()) {
+      span.end();
+    }
+    activeToolSpansByToolCallId.clear();
     activeTurnTrace.span.end();
     activeTurnTrace = null;
     await forceFlushBrowserSpans(forceFlushTimeoutMs);
@@ -343,11 +351,39 @@ export function createAgentTurnTracer({
     });
   }
 
-  async function resolveAutomaticSend(shouldSendAutomatically: boolean) {
-    if (!shouldSendAutomatically) {
-      await endTurn();
+  function recordToolOutputForActiveSpan(output: ToolOutputTraceInput) {
+    if (!output.toolCallId) {
+      return;
     }
-    return shouldSendAutomatically;
+    const span = activeToolSpansByToolCallId.get(output.toolCallId);
+    if (!span) {
+      return;
+    }
+    if (output.output !== undefined) {
+      span.setAttributes({
+        "output.value": stringifyAttributeValue(output.output),
+        "output.mime_type": "application/json",
+      });
+    }
+    if (output.errorText) {
+      span.setAttributes({
+        "output.value": output.errorText,
+        "output.mime_type": "text/plain",
+      });
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: output.errorText,
+      });
+    }
+    if (
+      output.state === "output-available" ||
+      output.state === "output-error" ||
+      output.output !== undefined ||
+      output.errorText
+    ) {
+      span.end();
+      activeToolSpansByToolCallId.delete(output.toolCallId);
+    }
   }
 
   async function traceToolCall<T>({
@@ -389,23 +425,12 @@ export function createAgentTurnTracer({
 
     const toolContext = trace.setSpan(turnTrace.context, span);
     const recordToolOutput = (output: ToolOutputTraceInput) => {
-      if (output.output !== undefined) {
-        span.setAttributes({
-          "output.value": stringifyAttributeValue(output.output),
-          "output.mime_type": "application/json",
-        });
-      }
-      if (output.errorText) {
-        span.setAttributes({
-          "output.value": output.errorText,
-          "output.mime_type": "text/plain",
-        });
-        span.setStatus({
-          code: SpanStatusCode.ERROR,
-          message: output.errorText,
-        });
-      }
+      recordToolOutputForActiveSpan({
+        ...output,
+        toolCallId: toolCall.toolCallId,
+      });
     };
+    activeToolSpansByToolCallId.set(toolCall.toolCallId, span);
 
     try {
       return await context.with(toolContext, () => execute(recordToolOutput));
@@ -414,9 +439,9 @@ export function createAgentTurnTracer({
         span.recordException(error);
         span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
       }
-      throw error;
-    } finally {
       span.end();
+      activeToolSpansByToolCallId.delete(toolCall.toolCallId);
+      throw error;
     }
   }
 
@@ -442,7 +467,7 @@ export function createAgentTurnTracer({
     endTurn,
     setTurnInput,
     setTurnOutput,
-    resolveAutomaticSend,
+    recordToolOutput: recordToolOutputForActiveSpan,
     traceToolCall,
     fetch: fetchWithTurnTrace,
   };

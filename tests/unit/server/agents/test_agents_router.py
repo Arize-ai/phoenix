@@ -66,6 +66,24 @@ async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFact
             start_time=now,
             end_time=now,
         )
+        browser_span = models.Span(
+            span_id="browser-root-span",
+            parent_id=None,
+            name="pxi.turn",
+            span_kind="AGENT",
+            start_time=now,
+            end_time=now,
+            attributes={},
+            events=[],
+            status_code="OK",
+            status_message="",
+            cumulative_error_count=0,
+            cumulative_llm_token_count_prompt=0,
+            cumulative_llm_token_count_completion=0,
+            llm_token_count_prompt=0,
+            llm_token_count_completion=0,
+        )
+        existing_trace.spans = [browser_span]
         session.add(existing_trace)
 
     backend_span = models.Span(
@@ -82,8 +100,8 @@ async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFact
         cumulative_error_count=0,
         cumulative_llm_token_count_prompt=0,
         cumulative_llm_token_count_completion=0,
-        llm_token_count_prompt=0,
-        llm_token_count_completion=0,
+        llm_token_count_prompt=3,
+        llm_token_count_completion=5,
     )
     backend_trace = models.Trace(
         project_rowid=project_id,
@@ -104,6 +122,12 @@ async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFact
         persisted_span = await session.scalar(
             select(models.Span).where(models.Span.span_id == "backend-span-1")
         )
+        persisted_browser_span = await session.scalar(
+            select(models.Span).where(models.Span.span_id == "browser-root-span")
+        )
 
     assert num_traces == 1
     assert persisted_span is not None
+    assert persisted_browser_span is not None
+    assert persisted_browser_span.cumulative_llm_token_count_prompt == 3
+    assert persisted_browser_span.cumulative_llm_token_count_completion == 5
