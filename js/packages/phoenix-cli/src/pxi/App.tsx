@@ -59,7 +59,13 @@ function PxiBanner() {
       {lines.map((line, lineIndex) => (
         <Text key={lineIndex}>
           {getBannerSegments(line).map((segment, index) => (
-            <Text key={index} color={segment.raised ? "blue" : "gray"}>
+            <Text
+              key={index}
+              // `blueBright` + bold reads clearly on both dark and light
+              // terminal backgrounds, where plain `blue` washes out.
+              color={segment.raised ? "blueBright" : "gray"}
+              bold={segment.raised}
+            >
               {segment.text}
             </Text>
           ))}
