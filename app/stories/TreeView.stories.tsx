@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import { type ReactNode, useState } from "react";
+
+import { Metric, type MetricKind, Text } from "@phoenix/components";
 import {
   Button,
   type Key,
@@ -26,7 +28,7 @@ const PARENTS = ["One", "Two", "Three"];
 // to collapse/expand) and the slot="chevron" button. No wrapper component yet —
 // extract one when the span, trace, or session views actually consume it.
 const treeCSS = css`
-  width: 350px;
+  width: 460px;
   border: 1px solid var(--global-border-color-default);
 
   & [role="row"] {
@@ -45,6 +47,8 @@ const treeCSS = css`
      Base padding here; the inline paddingLeft adds depth indentation. */
   & .row-content {
     flex: 1;
+    /* allow the body to shrink below its content so previews can truncate */
+    min-width: 0;
     display: flex;
     align-items: center;
     padding: var(--global-dimension-size-100);
@@ -52,6 +56,7 @@ const treeCSS = css`
   /* main content: a vertical stack of up to three lines */
   & .row-main {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
   }
@@ -123,6 +128,8 @@ const treeCSS = css`
     padding-left: var(--global-dimension-size-200);
     font-size: 12px;
     white-space: nowrap;
+    /* debug tint to make the extras region visible */
+    background: rgba(255, 0, 255, 0.1);
   }
   /* stack the body lines with a little breathing room */
   & .row-main {
@@ -136,8 +143,20 @@ const treeCSS = css`
   & .atom--title {
     flex: 1;
   }
+  /* dot: an 8x8 fully-rounded placeholder, like a status indicator */
+  & .atom--dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--global-border-color-default);
+    border-radius: var(--global-rounding-full);
+  }
   & .row-preview {
     font-size: 12px;
+    color: var(--global-text-color-500);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   /* chip row: groups packed left by default, or spread across full width */
   & .row-chips {
@@ -151,13 +170,8 @@ const treeCSS = css`
   }
   & .chip-group {
     display: flex;
-    gap: var(--global-dimension-size-50);
-  }
-  & .chip {
-    padding: 2px var(--global-dimension-size-50);
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-small);
-    font-size: 11px;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
   }
 `;
 
@@ -241,7 +255,15 @@ export const PrimitiveTree: StoryFn = () => {
   );
 };
 
-type TreeNode = { id: string; label: string; children?: TreeNode[] };
+// Optional per-row content overrides; atoms fall back to placeholders when a
+// field is absent, so most example trees stay as bare layout demos.
+type RowData = { prefix?: string; title?: string; previews?: string[] };
+type TreeNode = {
+  id: string;
+  label: string;
+  children?: TreeNode[];
+  data?: RowData;
+};
 
 // Arbitrary-depth tree. Mirrors the span-tree shape we'll eventually render:
 // a root with nested sub-trees of varying depth.
@@ -284,11 +306,25 @@ const NESTED: TreeNode[] = [
 // config-driven renderer covers all six; each `RowLayout` describes the outer
 // columns (icon / timing / chevron), the headline atoms, preview lines, and
 // chip arrangement.
-const CHIP_GROUPS = {
-  metrics: ["Tkn", "Lat", "Cst"],
-  annotations: ["Fbk", "Not"],
-  source: ["Tool", "LLM"],
-} as const;
+// sample metrics per chip group, in the order they appear in the wireframe
+const CHIP_GROUPS: Record<
+  string,
+  { kind: MetricKind; value: ReactNode }[]
+> = {
+  metrics: [
+    { kind: "token", value: "1.2k" },
+    { kind: "latency", value: "320ms" },
+    { kind: "cost", value: "0.04" },
+  ],
+  annotations: [
+    { kind: "feedback", value: 2 },
+    { kind: "note", value: 1 },
+  ],
+  source: [
+    { kind: "tool", value: 3 },
+    { kind: "llm", value: 5 },
+  ],
+};
 
 const ATOM_LABEL: Record<string, string> = {
   prefix: "Prefix",
@@ -349,35 +385,65 @@ const LAYOUTS: Record<string, RowLayout> = {
 
 const Chips = ({ spread }: { spread?: boolean }) => (
   <div className={`row-chips${spread ? " row-chips--spread" : ""}`}>
-    {(Object.keys(CHIP_GROUPS) as (keyof typeof CHIP_GROUPS)[]).map((group) => (
+    {Object.keys(CHIP_GROUPS).map((group) => (
       <div className="chip-group" key={group}>
-        {CHIP_GROUPS[group].map((chip) => (
-          <span className="chip" key={chip}>
-            {chip}
-          </span>
+        {CHIP_GROUPS[group].map((m) => (
+          <Metric kind={m.kind} key={m.kind}>
+            {m.value}
+          </Metric>
         ))}
       </div>
     ))}
   </div>
 );
 
-const RowMain = ({ layout }: { layout: RowLayout }) => (
-  <div className="row-main">
-    <div className="row-line">
-      {layout.headline.map((atom) => (
-        <span className={`atom atom--${atom}`} key={atom}>
-          {ATOM_LABEL[atom]}
-        </span>
-      ))}
-    </div>
-    {Array.from({ length: layout.previews ?? 0 }).map((_, i) => (
-      <div className="row-preview" key={i}>
-        Preview line
+const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
+  const previewCount = layout.previews ?? 0;
+  const previews =
+    data?.previews ?? Array.from({ length: previewCount }, () => "Preview line");
+  return (
+    <div className="row-main">
+      <div className="row-line">
+        {layout.headline.map((atom) => {
+          // dot renders as an empty rounded swatch (styled in CSS)
+          if (atom === "dot") {
+            return <span className="atom atom--dot" key={atom} aria-hidden />;
+          }
+          // date/time use the same small grey text as the metrics, sans mono
+          if (atom === "date" || atom === "time") {
+            return (
+              <Text key={atom} size="XS" color="text-500">
+                {ATOM_LABEL[atom]}
+              </Text>
+            );
+          }
+          // prefix: subdued monospace index, like the metric counts
+          if (atom === "prefix") {
+            return (
+              <Text key={atom} size="XS" color="text-500" fontFamily="mono">
+                {data?.prefix ?? ATOM_LABEL.prefix}
+              </Text>
+            );
+          }
+          const label =
+            atom === "title" ? (data?.title ?? ATOM_LABEL.title) : ATOM_LABEL[atom];
+          return (
+            <span className={`atom atom--${atom}`} key={atom}>
+              {label}
+            </span>
+          );
+        })}
       </div>
-    ))}
-    {layout.chips && <Chips spread={layout.chips === "spread"} />}
-  </div>
-);
+      {previewCount > 0 &&
+        previews.map((line, i) => (
+          <div className="row-preview" key={i}>
+            {line}
+          </div>
+        ))}
+      {layout.chips && <Chips spread={layout.chips === "spread"} />}
+    </div>
+  );
+};
 
 const Chevron = ({ isExpanded }: { isExpanded: boolean }) => (
   <Button slot="chevron" aria-label={isExpanded ? "Collapse" : "Expand"}>
@@ -424,7 +490,7 @@ const makeRenderNode = (
             <>
               <div className="row-content" style={{ paddingLeft: indent }}>
                 {layout.icon && <span className="lead-icon" aria-hidden />}
-                <RowMain layout={layout} />
+                <RowMain layout={layout} data={node.data} />
                 {layout.timing && <span className="row-extra">Timing</span>}
               </div>
               {layout.chevron && chevron}
@@ -460,12 +526,10 @@ const StandaloneTree = ({
   label,
   nodes,
   layout,
-  width,
 }: {
   label: string;
   nodes: TreeNode[];
   layout?: RowLayout;
-  width?: number;
 }) => {
   const allIds = (ns: TreeNode[]): Key[] =>
     ns.flatMap((n) => [n.id, ...(n.children ? allIds(n.children) : [])]);
@@ -473,12 +537,7 @@ const StandaloneTree = ({
   const renderNode = makeRenderNode(onRowInteract, layout);
 
   return (
-    <Tree
-      aria-label={label}
-      css={treeCSS}
-      style={width ? { width } : undefined}
-      {...treeProps}
-    >
+    <Tree aria-label={label} css={treeCSS} {...treeProps}>
       {nodes.map(renderNode)}
     </Tree>
   );
@@ -501,6 +560,35 @@ const flatRows = (prefix: string, count: number): TreeNode[] =>
     id: `${prefix}/${i}`,
     label: `${prefix} ${i}`,
   }));
+
+// Realistic content for the current-track Turn example: simulated PXI agent
+// turns, user input then model output, each truncated to one line.
+const PXI_TURNS: TreeNode[] = [
+  {
+    id: "turn/0",
+    label: "PXI Agent Turn",
+    data: {
+      prefix: "01",
+      title: "PXI Agent Turn",
+      previews: [
+        "How many spans errored in checkout-service over the last 24h, and which operation fails most?",
+        "Over 24h checkout-service logged 1,284 spans; 37 errored (2.9%), mostly from POST /charge hitting the payments gateway.",
+      ],
+    },
+  },
+  {
+    id: "turn/1",
+    label: "PXI Agent Turn",
+    data: {
+      prefix: "02",
+      title: "PXI Agent Turn",
+      previews: [
+        "Group those failing charge spans by error type and show p95 latency for each.",
+        "GatewayTimeout: 21 spans, p95 8.4s · CardDeclined: 11 spans, p95 1.2s · RateLimited: 5 spans, p95 3.0s.",
+      ],
+    },
+  },
+];
 
 const Column = ({
   title,
@@ -529,29 +617,22 @@ export const ExampleTrees: StoryFn = () => (
         layout={LAYOUTS.traceSpan}
         nodes={[parentWith("trace-span", 2)]}
       />
-      <StandaloneTree
-        label="Turn"
-        layout={LAYOUTS.turn}
-        nodes={flatRows("turn", 2)}
-      />
+      <StandaloneTree label="Turn" layout={LAYOUTS.turn} nodes={PXI_TURNS} />
     </Column>
     <Column title="Alternate">
       <StandaloneTree
         label="Turn"
         layout={LAYOUTS.turnAlt}
-        width={460}
         nodes={flatRows("turn-alt", 2)}
       />
       <StandaloneTree
         label="Trace"
         layout={LAYOUTS.traceAlt}
-        width={460}
         nodes={[parentWith("trace-alt", 2)]}
       />
       <StandaloneTree
         label="Span"
         layout={LAYOUTS.spanAlt}
-        width={460}
         nodes={[parentWith("span-alt", 2)]}
       />
     </Column>

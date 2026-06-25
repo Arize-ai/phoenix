@@ -30,6 +30,7 @@ export * from "./exception";
 export * from "./core/KeyboardToken";
 export * from "./color/ColorSwatch";
 export * from "./core/tooltip/ContextualHelp";
+export * from "./Metric";
 
 // design system based components
 export * from "./core";
