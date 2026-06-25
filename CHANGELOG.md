@@ -1,5 +1,31 @@
 # Changelog
 
+## [17.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.11.0...arize-phoenix-v17.12.0) (2026-06-25)
+
+
+### Features
+
+* add direct server agent endpoint ([#13896](https://github.com/Arize-ai/phoenix/issues/13896)) ([6e93f93](https://github.com/Arize-ai/phoenix/commit/6e93f93d0f1c608b2f3f612f9cf9f5abc792cf1e))
+* **agents:** attach opt-in user.id to pxi traces ([#13876](https://github.com/Arize-ai/phoenix/issues/13876)) ([a488b40](https://github.com/Arize-ai/phoenix/commit/a488b4046559a4c3ae9dc2849a59f292a1fa5d82))
+* **experiments:** show copyable trace ID in trace details dialog header ([#13887](https://github.com/Arize-ai/phoenix/issues/13887)) ([f5b33a5](https://github.com/Arize-ai/phoenix/commit/f5b33a571fd1335ef1da83ee37e168fa5d95f325))
+* **js:** add CI eval testing API to phoenix-client ([#13877](https://github.com/Arize-ai/phoenix/issues/13877)) ([5244718](https://github.com/Arize-ai/phoenix/commit/524471807233d4d1f50c08e2d594c4425350411d))
+* stream call_subagent progress ([#13885](https://github.com/Arize-ai/phoenix/issues/13885)) ([41b92c3](https://github.com/Arize-ai/phoenix/commit/41b92c3c095996ac8d03b64c3554ab451486f8be))
+
+
+### Bug Fixes
+
+* **agents:** add summaries to bashkit bash tool ([#13897](https://github.com/Arize-ai/phoenix/issues/13897)) ([64d914e](https://github.com/Arize-ai/phoenix/commit/64d914e4046295e66f338841fe6f49fe52370589))
+* **agents:** Prevent double bordered subagent tools and auto-open ([#13900](https://github.com/Arize-ai/phoenix/issues/13900)) ([52d8c17](https://github.com/Arize-ai/phoenix/commit/52d8c171a8bf8eb629c8029794ddbb85cb9defc8))
+* **agents:** Prevent pxi logo from shrinking ([#13899](https://github.com/Arize-ai/phoenix/issues/13899)) ([4de402a](https://github.com/Arize-ai/phoenix/commit/4de402a61baec6338fbd368668b801c7d185f004))
+* hide empty subagent message parts ([#13895](https://github.com/Arize-ai/phoenix/issues/13895)) ([bc55be9](https://github.com/Arize-ai/phoenix/commit/bc55be9d7cc18e8c3f18f1d3d37010b5b23a9325))
+* **pxi:** Preserve PXI draft input across panel remounts ([#13910](https://github.com/Arize-ai/phoenix/issues/13910)) ([71bec3c](https://github.com/Arize-ai/phoenix/commit/71bec3c070bc3716f299b81b4cc008f64796e9f7))
+* **retention:** remove unbatched RETURNING clause from delete_traces ([#13909](https://github.com/Arize-ai/phoenix/issues/13909)) ([0f8a65a](https://github.com/Arize-ai/phoenix/commit/0f8a65aacd64717a587695fe55ae948f46b2a852))
+
+
+### Documentation
+
+* add Phoenix release notes ([#13889](https://github.com/Arize-ai/phoenix/issues/13889)) ([1b28981](https://github.com/Arize-ai/phoenix/commit/1b28981b92bd118445e56c2912bca5ee0b4ea107))
+
 ## [17.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.10.0...arize-phoenix-v17.11.0) (2026-06-24)
 
 
