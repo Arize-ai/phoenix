@@ -405,6 +405,154 @@ def test_hoisted_marker_evaluators_record_annotations(pytester: pytest.Pytester)
     assert by_name.get("pass") == 1.0
 
 
+# A fake client that records each evaluation's name/score/label/error, so an errored evaluation
+# (error set, no result) can be distinguished from a scored one.
+_ERRORED_EVAL_CONFTEST = """
+import json, os
+import phoenix.client.pytest.plugin as plugin
+
+class _FakeDataset:
+    id = "Dataset:1"; version_id = "Version:1"
+    def __init__(self, ex): self._ex = ex
+    @property
+    def examples(self): return self._ex
+
+class _FakeDatasets:
+    def __init__(self): self._ex = []
+    def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                             example_ids, action, **kw):
+        self._ex = [{"id": example_ids[0], "node_id": "DatasetExampleGID:0",
+                     "input": inputs[0], "output": {}, "metadata": metadata[0]}]
+        return _FakeDataset(self._ex)
+    def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+class _FakeExperiments:
+    def __init__(self): self.evals = []
+    def create(self, **kw): return {"id": "Experiment:1"}
+    def log_run(self, **kw): return {"id": "ExperimentRun:0"}
+    def log_evaluation(self, *, name, score=None, label=None, error=None, annotator_kind="CODE",
+                       **kw):
+        self.evals.append({"name": name, "score": score, "label": label, "error": error,
+                           "annotator_kind": annotator_kind}); return {"id": "A:1"}
+
+class _FakeClient:
+    def __init__(self):
+        self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+_CLIENT = _FakeClient()
+def pytest_configure(config):
+    plugin._make_client = lambda: _CLIENT
+    config._c = _CLIENT
+def pytest_unconfigure(config):
+    c = config._c
+    with open(os.path.join(str(config.rootdir), "ev.json"), "w") as f:
+        json.dump({"evals": c.experiments.evals}, f)
+"""
+
+
+def _errored_evals(pytester: pytest.Pytester) -> list[dict[str, Any]]:
+    import json
+
+    data = json.loads((pytester.path / "ev.json").read_text())
+    return cast("list[dict[str, Any]]", data["evals"])
+
+
+def test_hoisted_evaluator_failure_recorded_as_errored_evaluation(
+    pytester: pytest.Pytester,
+) -> None:
+    """A hoisted evaluator that raises is persisted as an errored evaluation (``error`` set, no
+    result), matching run_experiment, instead of being dropped with only a warning. The failure
+    degrades to a warning, so the test itself still passes and its other annotations record."""
+    pytester.makeconftest(_ERRORED_EVAL_CONFTEST)
+    pytester.makepyfile(
+        test_hoist_err="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        def boom(output, **_):
+            raise RuntimeError("evaluator exploded")
+
+        @pytest.mark.phoenix(dataset="hoist-err", evaluators=[boom])
+        def test_thing():
+            px.log_output("ok")
+            assert True
+        """
+    )
+    pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(passed=1)
+
+    evals = _errored_evals(pytester)
+    boom_eval = next(e for e in evals if e["name"] == "boom")
+    assert boom_eval["error"] is not None
+    assert "evaluator exploded" in boom_eval["error"]
+    assert boom_eval["score"] is None and boom_eval["label"] is None
+    # The reserved pass annotation is still recorded for the (passing) run.
+    assert any(e["name"] == "pass" and e["label"] == "pass" for e in evals)
+
+
+def test_inline_evaluate_failure_recorded_and_gates_test(pytester: pytest.Pytester) -> None:
+    """An inline px.evaluate() whose evaluator raises persists an errored evaluation and re-raises,
+    so the failure gates the test (the run records pass=fail) rather than losing the signal."""
+    pytester.makeconftest(_ERRORED_EVAL_CONFTEST)
+    pytester.makepyfile(
+        test_inline_err="""
+        import pytest
+        import phoenix.client.pytest as px
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="LLM", name="judge")
+        def judge(output):
+            raise RuntimeError("inline boom")
+
+        @pytest.mark.phoenix(dataset="inline-err")
+        def test_thing():
+            px.log_output("ok")
+            px.evaluate(judge, output="ok")
+            assert True  # unreachable: the evaluator raises first
+        """
+    )
+    pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(failed=1)
+
+    evals = _errored_evals(pytester)
+    judge_eval = next(e for e in evals if e["name"] == "judge")
+    assert judge_eval["error"] is not None
+    assert "inline boom" in judge_eval["error"]
+    # annotator_kind is preserved from the evaluator even on the errored annotation.
+    assert judge_eval["annotator_kind"] == "LLM"
+    # The run is recorded as a failure (the inline evaluator failure gates the test).
+    pass_eval = next(e for e in evals if e["name"] == "pass")
+    assert pass_eval["label"] == "fail"
+
+
+def test_hoisted_evaluator_input_field_receives_param_mapping(
+    pytester: pytest.Pytester,
+) -> None:
+    """A hoisted evaluator declaring ``input`` receives the case's full parametrized-field mapping
+    (matching run_experiment), not ``None`` — so non-standard fields like ``question`` are reachable
+    via ``input`` even though they are not bound as top-level keyword arguments."""
+    pytester.makeconftest(_ERRORED_EVAL_CONFTEST)
+    pytester.makepyfile(
+        test_input_field="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        def uses_input(output, input, **_):
+            ok = input.get("question") == "q" and input.get("expected") == "e"
+            return {"name": "uses_input", "score": 1.0 if ok else 0.0}
+
+        @pytest.mark.phoenix(dataset="input-suite", evaluators=[uses_input])
+        @pytest.mark.parametrize("question,expected", [("q", "e")], ids=["c1"])
+        def test_thing(question, expected):
+            px.log_output("out")
+            assert True
+        """
+    )
+    pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(passed=1)
+
+    evals = _errored_evals(pytester)
+    ui = next(e for e in evals if e["name"] == "uses_input")
+    assert ui["score"] == 1.0
+
+
 # A fake client whose ``_client.base_url`` is empty so ``_get_tracer`` installs a no-op span
 # processor: real, non-empty trace_ids are produced with zero network. ``create`` returns a
 # project_name so the suite tracer is built.
@@ -488,9 +636,10 @@ def test_run_carries_chain_trace_id(pytester: pytest.Pytester) -> None:
     assert _is_trace_id(fx["runs"][0]["trace_id"])
 
 
-def test_bare_annotations_inherit_chain_trace_id(pytester: pytest.Pytester) -> None:
-    """Annotations with no span of their own — the reserved pass/fail annotation and a bare
-    px.log_evaluation — both link to the test's CHAIN trace."""
+def test_bare_annotations_get_own_evaluator_trace_id(pytester: pytest.Pytester) -> None:
+    """Every evaluation gets its own EVALUATOR-span trace_id — the reserved pass/fail annotation
+    and a bare px.log_evaluation included — each distinct from the test's CHAIN trace and from
+    each other, rather than reusing the CHAIN trace."""
     pytester.makeconftest(_TRACING_CONFTEST)
     pytester.makepyfile(
         test_bare="""
@@ -510,8 +659,12 @@ def test_bare_annotations_inherit_chain_trace_id(pytester: pytest.Pytester) -> N
     assert _is_trace_id(run_tid)
     pass_eval = next(e for e in fx["evals"] if e["name"] == "pass")
     manual = next(e for e in fx["evals"] if e["name"] == "manual")
-    assert pass_eval["trace_id"] == run_tid
-    assert manual["trace_id"] == run_tid
+    assert _is_trace_id(pass_eval["trace_id"])
+    assert _is_trace_id(manual["trace_id"])
+    # Each evaluation links to its own evaluator span, not the test's CHAIN trace.
+    assert pass_eval["trace_id"] != run_tid
+    assert manual["trace_id"] != run_tid
+    assert pass_eval["trace_id"] != manual["trace_id"]
 
 
 def test_inline_evaluate_carries_own_evaluator_trace_id(pytester: pytest.Pytester) -> None:
@@ -625,8 +778,11 @@ _tracing._get_tracer = _capturing_get_tracer
 _SPAN_CAPTURE_FOOTER = """
 def pytest_unconfigure(config):
     import json, os
+    from openinference.semconv.trace import SpanAttributes as _SA
     spans = [
         {"name": s.name, "status": s.status.status_code.name,
+         "kind": s.attributes.get(_SA.OPENINFERENCE_SPAN_KIND),
+         "trace_id": format(s.context.trace_id, "032x"),
          "events": [e.name for e in s.events]}
         for s in _SPAN_EXPORTER.get_finished_spans()
     ]
@@ -683,6 +839,37 @@ def test_passing_test_records_ok_chain_span(pytester: pytest.Pytester) -> None:
     chain = next(s for s in _spans(pytester) if s["name"].startswith("Test: "))
     assert chain["status"] == "OK"
     assert "exception" not in chain["events"]
+
+
+def test_every_evaluation_emits_an_evaluator_span(pytester: pytest.Pytester) -> None:
+    """The test body is the lone CHAIN span; every evaluation — the auto pass/fail annotation, a
+    bare px.log_evaluation, and a hoisted marker evaluator — emits its own EVALUATOR span on a
+    trace distinct from the CHAIN trace."""
+    pytester.makeconftest(_TRACING_CAPTURE_CONFTEST)
+    pytester.makepyfile(
+        test_kinds="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        def correctness(output, **_):
+            return {"name": "correctness", "score": 1.0}
+
+        @pytest.mark.phoenix(dataset="trace-suite", evaluators=[correctness])
+        def test_one():
+            px.log_output("stable")
+            px.log_evaluation(name="manual", score=1.0)
+            assert True
+        """
+    )
+    pytester.runpytest_subprocess("-p", "phoenix", "--no-header").assert_outcomes(passed=1)
+    spans = _spans(pytester)
+    by_name = {s["name"]: s for s in spans}
+    chain = next(s for s in spans if s["name"].startswith("Test: "))
+    assert chain["kind"] == "CHAIN"
+    for ev_name in ("Evaluation: pass", "Evaluation: manual", "Evaluation: correctness"):
+        ev = by_name[ev_name]
+        assert ev["kind"] == "EVALUATOR", ev_name
+        assert ev["trace_id"] != chain["trace_id"], ev_name
 
 
 def test_failing_test_output_carries_trace_id(pytester: pytest.Pytester) -> None:

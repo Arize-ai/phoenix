@@ -34,10 +34,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_STATE_ATTR = "_phoenix_suite_state"
-_SESSION_ATTR = "_phoenix_session"
-_CONTROLLER_COLLECTED_ATTR = "_phoenix_controller_collected"
 _PASS_ANNOTATION = "pass"
+
+# Plugin state lives on ``config.stash`` via typed ``StashKey``s rather than stringly-typed
+# private attributes: type-safe, collision-free, and the mechanism pytest provides for exactly
+# this (pytest >= 7). ``_STATE_KEY`` holds the per-suite ``SuiteState``; ``_SESSION_KEY`` hands
+# the controller's session to ``pytest_configure_node`` (xdist can't collect on the controller
+# during the normal collection phase); ``_CONTROLLER_COLLECTED_KEY`` bounds the forced
+# controller-side collection to a single attempt.
+_STATE_KEY: "pytest.StashKey[SuiteState]" = pytest.StashKey()
+_SESSION_KEY: "pytest.StashKey[pytest.Session]" = pytest.StashKey()
+_CONTROLLER_COLLECTED_KEY: "pytest.StashKey[bool]" = pytest.StashKey()
 
 
 @dataclass
@@ -116,7 +123,7 @@ def pytest_generate_tests(metafunc: Any) -> None:
 
 
 def _get_state(config: "Config") -> Optional[SuiteState]:
-    return getattr(config, _STATE_ATTR, None)
+    return config.stash.get(_STATE_KEY, None)
 
 
 def _is_xdist_worker(config: "Config") -> bool:
@@ -142,7 +149,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     ``pytest_configure_node`` every sessionstart hook has run, so collection is safe there.
     """
     if _is_xdist_controller(session.config):
-        setattr(session.config, _SESSION_ATTR, session)
+        session.config.stash[_SESSION_KEY] = session
 
 
 @pytest.hookimpl(trylast=True)
@@ -172,7 +179,7 @@ def pytest_collection_modifyitems(
             item, dataset_name=dataset_name, external_id=external_id, repetitions=reps
         )
 
-    setattr(config, _STATE_ATTR, state)
+    config.stash[_STATE_KEY] = state
 
     if cfg.offline:
         return
@@ -252,12 +259,12 @@ def _ensure_controller_collected(config: "Config") -> None:
     Uses ``perform_collect`` (not raw ``genitems``) so deselection (``-k``/``-m``) still applies.
     Set ``PHOENIX_TEST_TRACKING=false`` to skip it entirely.
     """
-    if getattr(config, _CONTROLLER_COLLECTED_ATTR, False):
+    if config.stash.get(_CONTROLLER_COLLECTED_KEY, False):
         return
-    setattr(config, _CONTROLLER_COLLECTED_ATTR, True)
+    config.stash[_CONTROLLER_COLLECTED_KEY] = True
     if _get_state(config) is not None:
         return
-    session = getattr(config, _SESSION_ATTR, None)
+    session = config.stash.get(_SESSION_KEY, None)
     if session is None:
         return
     try:
@@ -346,6 +353,14 @@ def pytest_runtest_makereport(item: "Item", call: Any) -> Any:
 
     In-body skips and expected-xfails are not recorded, matching marker-level skips that never
     reach the call phase.
+
+    Classification reads ``report.outcome`` (via ``report.skipped``/``passed``/``failed``), never
+    the raw call-phase ``excinfo``: ``_pytest.skipping`` resolves xfail/xpass at makereport time
+    by mutating ``rep.outcome`` (failing-xfail -> ``skipped``, non-strict xpass -> ``passed``,
+    strict xpass -> ``failed``), so the resolved outcome is already encoded there. ``call.excinfo``
+    is used only for the human-readable error string. ``report.wasxfail`` is intentionally not
+    consulted: the recording policy treats xfail-skip like any skip and xpass like any pass, so it
+    needs no xfail-vs-skip discrimination beyond ``report.outcome``.
     """
     outcome: Any = yield
     state = _get_state(item.config)

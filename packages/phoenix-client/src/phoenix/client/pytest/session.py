@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from .config import PhoenixTestConfig
 from .context import (
     _annotator_kind_for,  # pyright: ignore[reportPrivateUsage]
+    _as_evaluator,  # pyright: ignore[reportPrivateUsage]
     _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
     _iter_scores,  # pyright: ignore[reportPrivateUsage]
     _RunRecord,  # pyright: ignore[reportPrivateUsage]
@@ -288,13 +289,23 @@ class SuiteState:
             )
             return
 
+        tracer = self._tracers.get(binding.dataset_name)
+        # The pass/fail verdict is an evaluation of the run's output, so give it its own EVALUATOR
+        # span (parity with the other evaluators) instead of reusing the test's CHAIN trace_id.
+        pass_trace_id: Optional[str] = record.trace_id
+        if tracer is not None:
+            with tracer.evaluator_span(
+                f"Evaluation: {pass_annotation}", input_value=record.output
+            ) as handle:
+                pass
+            pass_trace_id = handle.trace_id
         self._safe_log_eval(
             experiment_run_id=run_id,
             name=pass_annotation,
             score=1.0 if passed else 0.0,
             label="pass" if passed else "fail",
             annotator_kind="CODE",
-            trace_id=record.trace_id,
+            trace_id=pass_trace_id,
         )
         for name, kwargs in record.evaluations.items():
             self._safe_log_eval(
@@ -306,6 +317,7 @@ class SuiteState:
                 annotator_kind=kwargs.get("annotator_kind", "CODE"),
                 metadata=kwargs.get("metadata"),
                 trace_id=kwargs.get("trace_id") or record.trace_id,
+                error=kwargs.get("error"),
             )
         if run_evaluators:
             # A setup-errored run has no output to evaluate, so the caller suppresses hoisted
@@ -314,7 +326,8 @@ class SuiteState:
                 binding,
                 run_id=run_id,
                 output=record.output,
-                tracer=self._tracers.get(binding.dataset_name),
+                tracer=tracer,
+                run_trace_id=record.trace_id,
             )
 
     def _run_marker_evaluators(
@@ -324,10 +337,14 @@ class SuiteState:
         run_id: str,
         output: Any,
         tracer: Optional[SuiteTracer],
+        run_trace_id: Optional[str] = None,
     ) -> None:
-        """Each evaluator gets the case's parametrized fields plus ``output``; a failure degrades
-        to a warning rather than sinking the run's other annotations. Each invocation is wrapped
-        in an EVALUATOR span whose trace_id links its annotation."""
+        """Each evaluator is bound (by parameter name) to the standard fields the case provides —
+        ``output``, the parametrized fields, the full ``input`` mapping, and the test's own
+        ``trace_id`` — matching ``run_experiment``. A failure degrades to a warning rather than
+        sinking the run's other annotations. Each invocation is wrapped in an EVALUATOR span whose
+        trace_id links its annotation (distinct from the test ``trace_id`` passed to the evaluator,
+        which correlates to the run being evaluated)."""
         item = self._items_by_nodeid.get(binding.nodeid)
         if item is None:
             return
@@ -335,29 +352,54 @@ class SuiteState:
         if not evaluators:
             return
         eval_input = _eval_input_for(item, output)
+        # The test run's CHAIN trace_id, so an evaluator declaring ``trace_id`` can correlate to
+        # the run's spans (run_experiment passes the task run's trace_id the same way). A field
+        # explicitly parametrized as ``trace_id`` takes precedence.
+        if run_trace_id is not None:
+            eval_input.setdefault("trace_id", run_trace_id)
         for evaluator in evaluators:
-            default_name = (
+            # A display name resolved before wrapping, so a wrap/parse failure can still be
+            # reported and recorded against a sensible annotation name.
+            raw_name = (
                 getattr(evaluator, "name", None)
                 or getattr(evaluator, "__name__", None)
                 or "evaluation"
             )
+            default_name = raw_name
             default_kind = _annotator_kind_for(evaluator)
             trace_id: Optional[str] = None
             try:
+                # Route through the experiment adapter so a hoisted evaluator behaves exactly as
+                # it would under run_experiment: arguments bound by parameter name and the
+                # evaluator's own name/kind preserved (P2/P4). Wrapping validates the signature,
+                # so a malformed evaluator surfaces here and is recorded as an errored eval below.
+                wrapped = _as_evaluator(evaluator)
+                default_name = wrapped.name
+                default_kind = wrapped.kind
                 if tracer is not None:
                     with tracer.evaluator_span(
                         f"Evaluation: {default_name}", input_value=eval_input
                     ) as handle:
-                        result = _invoke_evaluator(evaluator, eval_input)
+                        result = _invoke_evaluator(wrapped, eval_input)
                     trace_id = handle.trace_id
                 else:
-                    result = _invoke_evaluator(evaluator, eval_input)
+                    result = _invoke_evaluator(wrapped, eval_input)
             except Exception as e:  # noqa: BLE001
+                # Persist the failure as an errored evaluation (parity with run_experiment, which
+                # posts error=repr(e) with no result) before degrading to a warning — so Phoenix
+                # records that the evaluator ran and failed instead of dropping it silently.
                 logger.warning(
                     "Phoenix plugin: hoisted evaluator %s failed for %s: %s",
                     default_name,
                     binding.nodeid,
                     e,
+                )
+                self._safe_log_eval(
+                    experiment_run_id=run_id,
+                    name=default_name,
+                    annotator_kind=default_kind,
+                    error=repr(e),
+                    trace_id=trace_id,
                 )
                 continue
             for score in _iter_scores(result, default_name=default_name):
@@ -433,9 +475,20 @@ def _jsonable(value: Any) -> Any:
 
 
 def _eval_input_for(item: "Item", output: Any) -> dict[str, Any]:
-    eval_input: dict[str, Any] = {}
+    """Build the keyword arguments for a hoisted evaluator from the test case.
+
+    Each parametrized field is surfaced under its own name, so an evaluator binds any field named
+    after a standard parameter (``expected``/``reference``/``metadata``). The full set of fields is
+    also exposed as ``input`` — the dataset example's input, matching ``run_experiment`` — so an
+    evaluator declaring ``input`` receives the whole mapping rather than ``None``; a field
+    explicitly parametrized as ``input`` takes precedence over that default. The recorded value is
+    added under ``output``. The adapter then binds whichever of these the evaluator declares.
+    """
+    params: dict[str, Any] = {}
     callspec = getattr(item, "callspec", None)
     if callspec is not None and getattr(callspec, "params", None):
-        eval_input = {k: v for k, v in callspec.params.items() if k != REPETITION_PARAM}
+        params = {k: v for k, v in callspec.params.items() if k != REPETITION_PARAM}
+    eval_input: dict[str, Any] = dict(params)
     eval_input["output"] = output
+    eval_input.setdefault("input", params)
     return eval_input

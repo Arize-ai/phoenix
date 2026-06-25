@@ -311,3 +311,105 @@ class TestInvokeEvaluator:
         result = _invoke_evaluator(grader, {"output": "x"})
         (score,) = _iter_scores(result, default_name="grader")
         assert score["score"] == 0.5
+
+
+class TestAsEvaluatorAdapter:
+    """_as_evaluator routes hoisted evaluators through the experiment adapter (create_evaluator)
+    so they behave exactly as they would under run_experiment: bound by parameter name, with the
+    evaluator's own name/kind preserved (parity findings P2/P4)."""
+
+    def test_preserves_declared_kind_and_name(self) -> None:
+        from phoenix.client.pytest.context import (
+            _as_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+        from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+        @create_evaluator(kind="LLM", name="judge")
+        def judge(output: Any) -> float:
+            return 1.0
+
+        wrapped = _as_evaluator(judge)
+        # The runner records evaluator.kind verbatim; the plugin must too (a "LLM" evaluator
+        # must not be downgraded to the default "CODE").
+        assert wrapped.kind == "LLM"
+        assert wrapped.name == "judge"
+
+    def test_plain_callable_kind_defaults_to_code(self) -> None:
+        from phoenix.client.pytest.context import (
+            _as_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        def ev(output: Any) -> bool:
+            return True
+
+        assert _as_evaluator(ev).kind == "CODE"
+
+    def test_binds_by_name_and_ignores_nonstandard_fields(self) -> None:
+        # A plain callable declaring only standard names (no **kwargs) is bound by parameter name
+        # from whatever fields are present; non-standard pytest params (here "question") are
+        # ignored rather than passed through as an unexpected keyword (which raised TypeError
+        # before evaluators were routed through the adapter).
+        from phoenix.client.pytest.context import (
+            _as_evaluator,  # pyright: ignore[reportPrivateUsage]
+            _invoke_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        def exact(output: Any, expected: Any) -> bool:
+            return output == expected
+
+        wrapped = _as_evaluator(exact)
+        result = _invoke_evaluator(
+            wrapped, {"output": "hi", "expected": "hi", "question": "ignored"}
+        )
+        assert result["score"] == 1.0
+
+    def test_malformed_signature_surfaces_as_error(self) -> None:
+        # The adapter validates signatures; a multi-argument evaluator with non-standard required
+        # parameters raises at wrap time. The hoisted path catches this and records it as an
+        # errored evaluation rather than crashing the suite. (A single-arg function is always
+        # valid — its lone parameter binds to ``output`` regardless of name.)
+        from phoenix.client.pytest.context import (
+            _as_evaluator,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        def bad(prompt: Any, foo: Any) -> bool:  # neither is a standard evaluator field
+            return True
+
+        with pytest.raises(ValueError):
+            _as_evaluator(bad)
+
+
+class TestEvalInputFor:
+    """_eval_input_for assembles the keyword set a hoisted evaluator is bound against."""
+
+    def test_input_exposes_full_param_mapping(self) -> None:
+        from types import SimpleNamespace
+
+        from phoenix.client.pytest.marker import REPETITION_PARAM
+        from phoenix.client.pytest.session import (
+            _eval_input_for,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        item = SimpleNamespace(
+            callspec=SimpleNamespace(params={"question": "q", "expected": "e", REPETITION_PARAM: 0})
+        )
+        eval_input = _eval_input_for(cast("Item", item), output="out")
+        # output is added; the repetition param is stripped; `input` carries the full field mapping
+        # so an evaluator declaring `input` receives it (run_experiment parity) instead of None.
+        assert eval_input["output"] == "out"
+        assert eval_input["expected"] == "e"
+        assert eval_input["input"] == {"question": "q", "expected": "e"}
+        assert REPETITION_PARAM not in eval_input
+        assert REPETITION_PARAM not in eval_input["input"]
+
+    def test_explicit_input_param_takes_precedence(self) -> None:
+        from types import SimpleNamespace
+
+        from phoenix.client.pytest.session import (
+            _eval_input_for,  # pyright: ignore[reportPrivateUsage]
+        )
+
+        item = SimpleNamespace(callspec=SimpleNamespace(params={"input": "explicit"}))
+        eval_input = _eval_input_for(cast("Item", item), output="out")
+        # A field explicitly parametrized as `input` is not clobbered by the full-mapping default.
+        assert eval_input["input"] == "explicit"

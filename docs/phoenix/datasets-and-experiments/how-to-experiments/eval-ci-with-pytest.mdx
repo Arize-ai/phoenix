@@ -170,6 +170,31 @@ def test_answers(question, expected):
 </Tab>
 </Tabs>
 
+Hoisted evaluators are invoked through the same adapter as
+[`run_experiment`](/datasets-and-experiments/how-to-experiments/run-experiments), so an
+evaluator written for one behaves identically under the other. Arguments are bound **by
+parameter name** — declare any of the standard evaluator fields and each is supplied from the
+case:
+
+- `output` — what you passed to `log_output`.
+- `input` — the test's parametrized fields as a mapping (the dataset example's input).
+- `expected` / `reference` / `metadata` — sourced from a parametrized field of that name, if
+  present.
+- `trace_id` — the test run's trace id, for correlating to its spans.
+- `example` — not provided by the plugin; binds to `None`.
+
+The plugin does not invent its own call convention — a field your evaluator does not declare is
+simply not passed, and any field the case cannot supply binds to `None`. A parametrized field
+named after a standard field (e.g. `input` or `trace_id`) takes precedence over the plugin's
+default for it. Use `**kwargs` (as in `def correctness(output, expected, **_)`) to tolerate
+fields you do not consume. The evaluator's declared `kind` (`"CODE"`/`"LLM"`) is recorded as the
+annotation's annotator kind.
+
+If an evaluator raises, the plugin records an **errored evaluation** (the error is stored on
+the annotation, with no score) instead of dropping it — matching `run_experiment`. A hoisted
+evaluator failure degrades to a warning and does not fail the test; an inline `evaluate()`
+failure re-raises after recording, so it still gates the test.
+
 Annotations recorded by `log_evaluation` and `evaluate` do not fail a test on
 their own. Only a failed assertion fails the pytest item.
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+from contextlib import nullcontext
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Sequence
@@ -35,6 +36,7 @@ class _RunRecord:
         annotator_kind: str = "CODE",
         metadata: Optional[Mapping[str, Any]] = None,
         trace_id: Optional[str] = None,
+        error: Optional[str] = None,
     ) -> None:
         self.evaluations[name] = {
             "name": name,
@@ -44,6 +46,7 @@ class _RunRecord:
             "annotator_kind": annotator_kind,
             "metadata": dict(metadata) if metadata else None,
             "trace_id": trace_id,
+            "error": error,
         }
 
 
@@ -101,14 +104,25 @@ def log_evaluation(
 
     These annotations are independent of the assertion-derived ``pass`` annotation and gate
     only in aggregate; calling this does not by itself fail the pytest item.
+
+    The annotation is wrapped in its own EVALUATOR span so its recorded ``trace_id`` points at an
+    evaluator trace rather than the test's CHAIN trace — matching ``px.evaluate`` and hoisted
+    marker evaluators, so every evaluation links to an evaluator span.
     """
-    _require_run().add_evaluation(
+    run = _require_run()
+    trace_id: Optional[str] = None
+    if run.tracer is not None:
+        with run.tracer.evaluator_span(f"Evaluation: {name}", input_value=None) as handle:
+            pass
+        trace_id = handle.trace_id
+    run.add_evaluation(
         name=name,
         score=score,
         label=label,
         explanation=explanation,
         annotator_kind=annotator_kind,
         metadata=metadata,
+        trace_id=trace_id,
     )
 
 
@@ -122,15 +136,30 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
     run = _require_run()
     default_name = getattr(evaluator, "name", "evaluation")
     default_kind = _annotator_kind_for(evaluator)
-    trace_id: Optional[str] = None
-    if run.tracer is not None:
-        with run.tracer.evaluator_span(
-            f"Evaluation: {default_name}", input_value=dict(eval_input)
-        ) as handle:
+    handle: Any = None
+    span_cm: Any = (
+        run.tracer.evaluator_span(f"Evaluation: {default_name}", input_value=dict(eval_input))
+        if run.tracer is not None
+        else nullcontext(None)
+    )
+    try:
+        with span_cm as handle:
             result = _invoke_evaluator(evaluator, eval_input)
-        trace_id = handle.trace_id
-    else:
-        result = _invoke_evaluator(evaluator, eval_input)
+    except Exception as e:
+        # Mirror the experiment runner, which persists an evaluator that raises as an errored
+        # evaluation (``error=repr(e)``, no result) rather than losing the fact it ran. The
+        # annotation is buffered on the run and posted when the run is recorded; the exception
+        # is then re-raised so the failure still gates the test (an inline evaluate() is the
+        # one evaluator path that can fail an item). ``handle`` carries the EVALUATOR span's
+        # trace_id even on failure — the span context manager sets it during unwind.
+        run.add_evaluation(
+            name=default_name,
+            annotator_kind=default_kind,
+            error=repr(e),
+            trace_id=getattr(handle, "trace_id", None),
+        )
+        raise
+    trace_id: Optional[str] = getattr(handle, "trace_id", None)
     for score in _iter_scores(result, default_name=default_name):
         run.add_evaluation(
             name=score["name"],
@@ -228,6 +257,22 @@ def _call_evaluate(evaluate: Any, eval_input: Mapping[str, Any]) -> Any:
     if accepts_positional:
         return evaluate(dict(eval_input))
     return evaluate(**eval_input)
+
+
+def _as_evaluator(evaluator: Any) -> Any:
+    """Normalize an arbitrary evaluator into a canonical experiment ``Evaluator``.
+
+    This is the same adapter the experiment runner applies (``_evaluators_by_name`` ->
+    ``create_evaluator()``): a plain callable is signature-validated and wrapped so its declared
+    parameters bind to the standard fields (``input/output/expected/reference/metadata/example/
+    trace_id``); a ``phoenix.evals`` evaluator is adapted; an already-``Evaluator`` object passes
+    through. Routing hoisted evaluators through this means a function written for
+    ``run_experiment`` behaves identically here — bound by parameter name, with the evaluator's
+    own ``name``/``kind`` preserved — instead of the plugin inventing its own call convention.
+    """
+    from phoenix.client.resources.experiments.evaluators import create_evaluator
+
+    return create_evaluator()(evaluator)
 
 
 def _annotator_kind_for(evaluator: Any) -> str:
