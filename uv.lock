@@ -746,8 +746,8 @@ requires-dist = [
     { name = "sqlean-py", marker = "python_full_version < '3.14' and sys_platform != 'win32'", specifier = ">=3.45.1" },
     { name = "sqlean-py", marker = "python_full_version >= '3.14' and sys_platform != 'win32'", specifier = ">=3.50" },
     { name = "starlette", specifier = ">=0.37.0" },
-    { name = "strawberry-graphql", specifier = "==0.316.0" },
-    { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.316.0" },
+    { name = "strawberry-graphql", specifier = "==0.319.0" },
+    { name = "strawberry-graphql", extras = ["opentelemetry"], marker = "extra == 'container'", specifier = "==0.319.0" },
     { name = "tqdm" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'aws'", specifier = ">=3.6.0" },
     { name = "types-aiobotocore-bedrock-runtime", marker = "extra == 'container'", specifier = ">=3.6.0" },
@@ -836,7 +836,7 @@ dev = [
     { name = "responses" },
     { name = "respx", specifier = ">=0.22.0" },
     { name = "ruff", specifier = ">=0.15.2" },
-    { name = "strawberry-graphql", extras = ["opentelemetry"], specifier = "==0.316.0" },
+    { name = "strawberry-graphql", extras = ["opentelemetry"], specifier = "==0.319.0" },
     { name = "syrupy" },
     { name = "tenacity" },
     { name = "tiktoken" },
@@ -7444,7 +7444,7 @@ wheels = [
 
 [[package]]
 name = "strawberry-graphql"
-version = "0.316.0"
+version = "0.319.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cross-web" },
@@ -7453,9 +7453,9 @@ dependencies = [
     { name = "python-dateutil" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/09/f189fd3c70544322eeba0398ccaa980d17857894c0a66d447aa0b5704686/strawberry_graphql-0.316.0.tar.gz", hash = "sha256:bee5ce0e20d522325bd1ed2db186c812c03c2ea7db29f997b35e7d694649820c", size = 223985, upload-time = "2026-05-19T17:06:10.443Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/c4/5d7cf2f2459d9a553993217212acc911bfc63f3957a45980230105e1c92e/strawberry_graphql-0.319.0.tar.gz", hash = "sha256:e9afdfe2ca745b5337d3c4909ffd612e405105af6ffc21b1766a2b9848fcfd4f", size = 227709, upload-time = "2026-06-21T14:57:38.324Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/dd/b2cf54803cbd0d37e3ce73c7274bdb144ba83743bc83351b5790eb2a5fad/strawberry_graphql-0.316.0-py3-none-any.whl", hash = "sha256:222e16fbbf953f5a1fa75f62bf9a8e95f274180f928f70bec459b566053aa2cb", size = 326530, upload-time = "2026-05-19T17:06:07.844Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/b4/5005afc8369dbb3f5c03dd681ac8a13a5c0b9a8c6ae13f1c0643bb815cfa/strawberry_graphql-0.319.0-py3-none-any.whl", hash = "sha256:fcd5cbe43a5d7274d91bda2261f272f57c84d39532ff58b95fadd0749d225835", size = 330534, upload-time = "2026-06-21T14:57:36.36Z" },
 ]
 
 [package.optional-dependencies]
