@@ -31,6 +31,7 @@ from evals.pxi.harness.agent_task import (
     ENV_ASSISTANT_PROVIDER,
     build_shared_docs_mcp_server,
     make_task,
+    shutdown_experiment_tracer_providers,
 )
 from evals.pxi.harness.datasets import (
     EvalDataset,
@@ -58,6 +59,7 @@ class ExperimentConfig:
     fail_on_regression: bool
     splits: tuple[str, ...]
     evaluator_override: tuple[str, ...] | None
+    include_subagent: bool
     report_dir: Path | None = None
     print_report: bool = False
 
@@ -293,7 +295,10 @@ async def _run_async(config: ExperimentConfig) -> int:
             print(f"Running experiment: {name}")
             experiment = await client.experiments.run_experiment(
                 dataset=experiment_dataset,
-                task=make_task(docs_mcp_server=docs_mcp_server),
+                task=make_task(
+                    docs_mcp_server=docs_mcp_server,
+                    include_subagent=config.include_subagent,
+                ),
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
@@ -319,6 +324,9 @@ async def _run_async(config: ExperimentConfig) -> int:
             # false-green failure mode this ordering previously caused).
             _rewrite_stable_example_ids(experiment, experiment_dataset)
         finally:
+            # Flush and close the per-project agent tracer providers so the
+            # task spans are fully exported before the process exits.
+            shutdown_experiment_tracer_providers()
             # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
             # the underlying httpx client and tolerate it disappearing in a
             # future refactor so cleanup never shadows a real failure.
@@ -424,6 +432,15 @@ def build_parser() -> argparse.ArgumentParser:
             f"for permanent changes. Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
         ),
     )
+    parser.add_argument(
+        "--include-subagent",
+        action="store_true",
+        help=(
+            "Mount the call_subagent tool (backed by the GraphQL server "
+            "subagent with bash + phoenix-gql) on the main agent for every "
+            "example. Off by default."
+        ),
+    )
     return parser
 
 
@@ -440,6 +457,7 @@ def main(argv: list[str] | None = None) -> int:
         fail_on_regression=args.fail_on_regression,
         splits=tuple(args.splits),
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
+        include_subagent=args.include_subagent,
         report_dir=args.report_dir,
         print_report=args.print_report,
     )
