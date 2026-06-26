@@ -90,7 +90,7 @@ px.describe("my suite", () => { ... }, {
 | `client` | `PhoenixClient` | Pre-configured `@arizeai/phoenix-client` instance. |
 | `repetitions` | `number` | Run each test in the suite this many times (default `1`; `PHOENIX_TEST_REPETITIONS` overrides the default). Per-test `repetitions` wins. |
 | `acceptanceCriteria` | `AcceptanceCriterion[]` | Aggregate annotation thresholds that fail the suite after all tests run. |
-| `dryRun` | `boolean` | Run the whole suite locally — no dataset, experiment, runs, or annotations are created in Phoenix. Same effect as `PHOENIX_TEST_TRACING=false`, scoped to this suite. |
+| `dryRun` | `boolean` | Run the whole suite locally — no dataset, experiment, runs, or annotations are created in Phoenix. Same effect as `PHOENIX_TEST_TRACKING=false`, scoped to this suite. |
 
 ### `test(name, params, fn, timeout?)`
 

@@ -148,7 +148,7 @@ export function declareTest<Input extends KVMap, Expected extends KVMap>(
 
   // A per-test `dryRun` opts the case out of Phoenix entirely: no dataset
   // example, no experiment run, no annotations — it runs as an ordinary
-  // local test. Suite-level dryRun (or PHOENIX_TEST_TRACING=false) is
+  // local test. Suite-level dryRun (or PHOENIX_TEST_TRACKING=false) is
   // handled in `initializeSuite`, which never uploads anything anyway.
   const isDryRun = !!params.dryRun;
 

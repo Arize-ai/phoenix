@@ -37,14 +37,14 @@ function isFalsyFlag(value: string | undefined): boolean {
  * Decide whether tests should sync to Phoenix.
  *
  * Tracing is enabled by default. It can be disabled globally by setting
- * `PHOENIX_TEST_TRACING=false`, or per suite via `SuiteConfig.dryRun`.
+ * `PHOENIX_TEST_TRACKING=false`, or per suite via `SuiteConfig.dryRun`.
  */
 export function isTrackingEnabled(suite?: SuiteState): {
   enabled: boolean;
   reason?: string;
 } {
-  if (isFalsyFlag(process.env.PHOENIX_TEST_TRACING)) {
-    return { enabled: false, reason: "PHOENIX_TEST_TRACING is disabled" };
+  if (isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)) {
+    return { enabled: false, reason: "PHOENIX_TEST_TRACKING is disabled" };
   }
   if (suite?.config.dryRun) {
     return { enabled: false, reason: "suite configured dryRun" };
@@ -177,7 +177,7 @@ function buildLinks(
  * Initialize the suite: upload the dataset, create the experiment, and
  * register the OpenInference tracer.
  *
- * If tracing is disabled (no Phoenix env vars, or PHOENIX_TEST_TRACING=false),
+ * If tracing is disabled (no Phoenix env vars, or PHOENIX_TEST_TRACKING=false),
  * this populates a no-op tracer and exits without making any network calls.
  */
 export async function initializeSuite(suite: SuiteState): Promise<void> {

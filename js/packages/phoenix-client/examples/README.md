@@ -48,11 +48,11 @@ Then run the whole suite locally without syncing anything to Phoenix:
 
 ```sh
 cd js/packages/phoenix-client
-PHOENIX_TEST_TRACING=false pnpm exec vitest run \
+PHOENIX_TEST_TRACKING=false pnpm exec vitest run \
   --config examples/vitest/phoenix.vitest.config.ts
 ```
 
-To track results to a Phoenix server, drop `PHOENIX_TEST_TRACING=false` and set
+To track results to a Phoenix server, drop `PHOENIX_TEST_TRACKING=false` and set
 `PHOENIX_HOST` / `PHOENIX_API_KEY`. Run a single file by appending its path
 (e.g. `examples/vitest/01-basics.eval.ts`). Run from the package root so
 `pnpm exec` can resolve the workspace package and dependencies.
