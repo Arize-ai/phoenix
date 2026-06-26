@@ -183,7 +183,14 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const cursor = status === "streaming" ? "" : "█";
   return (
     <Box flexDirection="column" marginTop={1} gap={1}>
-      <Box borderStyle="single" borderLeft={false} borderRight={false} borderTop borderBottom borderColor="gray">
+      <Box
+        borderStyle="single"
+        borderLeft={false}
+        borderRight={false}
+        borderTop
+        borderBottom
+        borderColor="gray"
+      >
         <Text>
           <Text color="cyan">{"> "}</Text>
           {draft}
@@ -363,10 +370,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       interruptStream();
       return;
     }
-    if (
-      (key.ctrl && input === "c") ||
-      (key.ctrl && input === "d")
-    ) {
+    if ((key.ctrl && input === "c") || (key.ctrl && input === "d")) {
       handleExit();
       return;
     }
