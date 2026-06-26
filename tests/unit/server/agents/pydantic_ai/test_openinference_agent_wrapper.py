@@ -90,13 +90,13 @@ def wrapped_model(tracer: Tracer) -> OpenInferenceModelWrapper:
 def wrapped_agent(
     wrapped_model: OpenInferenceModelWrapper,
     tracer: Tracer,
-) -> OpenInferenceAgentWrapper:
+) -> OpenInferenceAgentWrapper[None, str]:
     inner: Agent[None, str] = Agent(
         wrapped_model,
         name="TestAgent",
         deps_type=type(None),
     )
-    return OpenInferenceAgentWrapper(inner, tracer=tracer)
+    return OpenInferenceAgentWrapper[None, str](inner, tracer=tracer)
 
 
 @pytest.fixture
@@ -128,7 +128,7 @@ def raising_model() -> WrapperModel:
 
 
 @pytest.fixture
-def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper:
+def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper[None, str]:
     class _NativeToolModel(WrapperModel):
         async def request(
             self,
@@ -176,30 +176,30 @@ def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper:
             OpenInferenceCapabilityWrapper[None](wrapped=_NoOpCapability(), tracer=tracer)
         ],
     )
-    return OpenInferenceAgentWrapper(inner, tracer=tracer)
+    return OpenInferenceAgentWrapper[None, str](inner, tracer=tracer)
 
 
 @pytest.fixture
 def raising_agent(
     raising_model: WrapperModel,
     tracer: Tracer,
-) -> OpenInferenceAgentWrapper:
+) -> OpenInferenceAgentWrapper[None, str]:
     """An OpenInferenceAgentWrapper whose underlying model always raises."""
     inner: Agent[None, str] = Agent(raising_model, deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer=tracer)
+    return OpenInferenceAgentWrapper[None, str](inner, tracer=tracer)
 
 
 @pytest.fixture
 def test_model_agent(
     tracer: Tracer,
-) -> OpenInferenceAgentWrapper:
+) -> OpenInferenceAgentWrapper[None, str]:
     """An OpenInferenceAgentWrapper backed by TestModel — no network, no VCR.
 
     Used by tests that exercise behavior triggered by the inbound history
     (e.g. external tool span backfill) and don't care about model output.
     """
     inner: Agent[None, str] = Agent(TestModel(), deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer=tracer)
+    return OpenInferenceAgentWrapper[None, str](inner, tracer=tracer)
 
 
 def _get_agent_span(spans: tuple[ReadableSpan, ...]) -> ReadableSpan:
@@ -221,8 +221,8 @@ def _get_tool_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
 @pytest.fixture
 def make_agent_with_response_parts(
     tracer: Tracer,
-) -> Callable[[list[Any]], OpenInferenceAgentWrapper]:
-    def _make_agent_with_response_parts(parts: list[Any]) -> OpenInferenceAgentWrapper:
+) -> Callable[[list[Any]], OpenInferenceAgentWrapper[None, str]]:
+    def _make_agent_with_response_parts(parts: list[Any]) -> OpenInferenceAgentWrapper[None, str]:
         class _StaticResponseModel(WrapperModel):
             async def request(
                 self,
@@ -237,7 +237,7 @@ def make_agent_with_response_parts(
             name="StaticResponseAgent",
             deps_type=type(None),
         )
-        return OpenInferenceAgentWrapper(inner, tracer=tracer)
+        return OpenInferenceAgentWrapper[None, str](inner, tracer=tracer)
 
     return _make_agent_with_response_parts
 

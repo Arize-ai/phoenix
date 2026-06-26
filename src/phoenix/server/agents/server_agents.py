@@ -8,7 +8,7 @@ from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
@@ -49,7 +49,7 @@ def build_server_agent(
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
     prompts: ServerAgentPrompts | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPToolset[None] | None = None,
     enable_web_access: bool = False,
     allow_mutations: bool = False,
     tracer_provider: TracerProvider | None = None,
@@ -83,7 +83,7 @@ def build_server_agent(
     )
     if docs_mcp_server is not None:
         capabilities.append(
-            MintlifyDocsMCPCapability(
+            MintlifyDocsMCPCapability[None](
                 mcp_server=docs_mcp_server,
                 instructions=resolved_prompts.docs_tool,
             )
@@ -119,6 +119,7 @@ def build_server_agent(
     agent: Agent[None, str] = Agent(
         model,
         name="ServerAgent",
+        deps_type=type(None),
         instructions=resolved_prompts.base.render(),
         capabilities=[traced_capability],
     )

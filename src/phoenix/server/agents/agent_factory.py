@@ -12,7 +12,7 @@ from pydantic_ai.capabilities import (
     CombinedCapability,
     DynamicCapability,
 )
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
@@ -63,7 +63,7 @@ def build_agent(
     *,
     model: Model,
     prompts: AgentPrompts | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPToolset[AgentDependencies] | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
     server_agent: AbstractAgent[None, str] | None = None,
@@ -109,7 +109,7 @@ def build_agent(
         capabilities.append(AnthropicPromptCacheCapability())
     if docs_mcp_server is not None:
         capabilities.append(
-            MintlifyDocsMCPCapability(
+            MintlifyDocsMCPCapability[AgentDependencies](
                 mcp_server=docs_mcp_server,
                 instructions=resolved_prompts.docs_tool,
             )

@@ -20,7 +20,7 @@ from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
-from pydantic_ai import AgentRunResult, RunUsage
+from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
@@ -35,6 +35,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ToolInputAvailableChunk,
     ToolOutputAvailableChunk,
 )
+from pydantic_ai.usage import RunUsage
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -769,7 +770,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             yield _build_message_metadata_chunk(
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 session_id=session_id,
-                usage=result.usage(),
+                usage=result.usage,
             )
             _log_run_complete(result)
 
@@ -965,7 +966,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             yield _build_message_metadata_chunk(
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 session_id=session_id,
-                usage=result.usage(),
+                usage=result.usage,
             )
             _log_run_complete(result)
 
