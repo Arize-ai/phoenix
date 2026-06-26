@@ -5,6 +5,7 @@ import json
 import logging
 import random
 import traceback
+import uuid
 from binascii import hexlify
 from collections.abc import Awaitable, Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
@@ -53,6 +54,7 @@ from phoenix.client.resources.experiments.types import (
     RateLimitErrors,
     TestCase,
 )
+from phoenix.client.utils.encode_path_param import encode_path_param
 from phoenix.client.utils.executors import AsyncExecutor, SyncExecutor
 from phoenix.client.utils.rate_limiters import RateLimiter
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
@@ -2103,6 +2105,141 @@ class Experiments:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
 
+    def log_run(
+        self,
+        *,
+        experiment_id: str,
+        dataset_example_id: str,
+        output: Any,
+        start_time: datetime,
+        end_time: datetime,
+        repetition_number: int = 1,
+        trace_id: Optional[str] = None,
+        error: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> ExperimentRun:
+        """Post a single experiment run and return the server record.
+
+        This is the public, single-run counterpart to ``run_experiment``'s batch loop. It
+        is the primitive the pytest plugin and any incremental-posting consumer build on.
+
+        Args:
+            experiment_id (str): The ID of the experiment the run belongs to.
+            dataset_example_id (str): The node ID (GlobalID) of the dataset example the run
+                executed on.
+            output: The JSON-serializable task output. Ignored by the server when ``error``
+                is set, but still recorded.
+            start_time (datetime): When the run started.
+            end_time (datetime): When the run finished.
+            repetition_number (int): 1-based repetition index for this example. Defaults to 1.
+            trace_id (Optional[str]): Trace ID correlating the run to its spans. Defaults to None.
+            error (Optional[str]): Error repr if the run failed. A run stored with an error is
+                re-runnable (the server upserts it); a successful run is immutable. Defaults to
+                None.
+            timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
+
+        Returns:
+            ExperimentRun: The run record, with ``id`` set to the server-assigned ID on success.
+
+        Raises:
+            httpx.HTTPStatusError: On API errors, including a 409 when a successful (immutable)
+                run already exists for this ``(experiment, example, repetition)``. Callers that
+                expect duplicates (e.g. concurrent runners) should catch the 409 and decide what
+                to do with the already-recorded run; there is no nothing-to-resolve placeholder.
+        """
+        exp_run: ExperimentRun = {
+            "dataset_example_id": dataset_example_id,
+            "output": jsonify(output),
+            "repetition_number": repetition_number,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            # Placeholder required by the ExperimentRun TypedDict before the server assigns the
+            # real id; always replaced on success. The 409 path raises, so it never escapes.
+            "id": f"temp-{uuid.uuid4().hex}",
+            "experiment_id": experiment_id,
+        }
+        if trace_id:
+            exp_run["trace_id"] = trace_id
+        if error:
+            exp_run["error"] = error
+        resp = self._client.post(
+            f"v1/experiments/{encode_path_param(experiment_id)}/runs",
+            json=exp_run,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return {**exp_run, "id": resp.json()["data"]["id"]}
+
+    def log_evaluation(
+        self,
+        *,
+        experiment_run_id: str,
+        name: str,
+        annotator_kind: str = "CODE",
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        score: Optional[float] = None,
+        label: Optional[str] = None,
+        explanation: Optional[str] = None,
+        error: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.UpsertExperimentEvaluationResponseBodyData:
+        """Post (upsert) a single evaluation for an experiment run.
+
+        The server upserts on ``(experiment_run_id, name)``, so re-posting the same name
+        replaces the prior annotation. At least one of ``score``/``label``/``explanation``
+        (i.e. a result) or ``error`` must be provided.
+
+        Args:
+            experiment_run_id (str): The ID of the run being evaluated.
+            name (str): The annotation name. One run carries many annotations keyed by name.
+            annotator_kind (str): One of "CODE", "LLM", "HUMAN". Defaults to "CODE".
+            start_time (Optional[datetime]): Evaluation start. Defaults to now.
+            end_time (Optional[datetime]): Evaluation end. Defaults to ``start_time``.
+            score (Optional[float]): Numeric score.
+            label (Optional[str]): Categorical label.
+            explanation (Optional[str]): Free-text explanation.
+            error (Optional[str]): Error repr if the evaluation failed.
+            metadata (Optional[Mapping[str, Any]]): Extra metadata for the annotation.
+            trace_id (Optional[str]): Trace ID correlating the evaluation to its spans.
+            timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
+
+        Returns:
+            UpsertExperimentEvaluationResponseBodyData: The server response, carrying the
+                ``id`` of the upserted evaluation (the only field the server returns).
+
+        Raises:
+            ValueError: If neither a result (score/label/explanation) nor an error is provided.
+            httpx.HTTPStatusError: On API errors.
+        """
+        result: dict[str, Any] = {}
+        if score is not None:
+            result["score"] = score
+        if label is not None:
+            result["label"] = label
+        if explanation is not None:
+            result["explanation"] = explanation
+        if not result and error is None:
+            raise ValueError("Must provide a result (score/label/explanation) or an error")
+        start = start_time or datetime.now(timezone.utc)
+        end = end_time or start
+        payload: dict[str, Any] = {
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+            "result": result or None,
+            "error": error,
+            "metadata": dict(metadata) if metadata else {},
+            "trace_id": trace_id,
+        }
+        resp = self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
+        resp.raise_for_status()
+        return {"id": resp.json()["data"]["id"]}
+
     def _paginate(
         self,
         *,
@@ -3859,6 +3996,93 @@ class AsyncExperiments:
             if e.response.status_code == 404:
                 raise ValueError(f"Experiment not found: {experiment_id}")
             raise
+
+    async def log_run(
+        self,
+        *,
+        experiment_id: str,
+        dataset_example_id: str,
+        output: Any,
+        start_time: datetime,
+        end_time: datetime,
+        repetition_number: int = 1,
+        trace_id: Optional[str] = None,
+        error: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> ExperimentRun:
+        """Post a single experiment run and return the server record.
+
+        Async counterpart to :meth:`Experiments.log_run`; see that method for full semantics.
+        """
+        exp_run: ExperimentRun = {
+            "dataset_example_id": dataset_example_id,
+            "output": jsonify(output),
+            "repetition_number": repetition_number,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            # Placeholder required by the ExperimentRun TypedDict before the server assigns the
+            # real id; always replaced on success. The 409 path raises, so it never escapes.
+            "id": f"temp-{uuid.uuid4().hex}",
+            "experiment_id": experiment_id,
+        }
+        if trace_id:
+            exp_run["trace_id"] = trace_id
+        if error:
+            exp_run["error"] = error
+        resp = await self._client.post(
+            f"v1/experiments/{encode_path_param(experiment_id)}/runs",
+            json=exp_run,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return {**exp_run, "id": resp.json()["data"]["id"]}
+
+    async def log_evaluation(
+        self,
+        *,
+        experiment_run_id: str,
+        name: str,
+        annotator_kind: str = "CODE",
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        score: Optional[float] = None,
+        label: Optional[str] = None,
+        explanation: Optional[str] = None,
+        error: Optional[str] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        trace_id: Optional[str] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
+    ) -> v1.UpsertExperimentEvaluationResponseBodyData:
+        """Post (upsert) a single evaluation for an experiment run.
+
+        Async counterpart to :meth:`Experiments.log_evaluation`; see that method for full
+        semantics.
+        """
+        result: dict[str, Any] = {}
+        if score is not None:
+            result["score"] = score
+        if label is not None:
+            result["label"] = label
+        if explanation is not None:
+            result["explanation"] = explanation
+        if not result and error is None:
+            raise ValueError("Must provide a result (score/label/explanation) or an error")
+        start = start_time or datetime.now(timezone.utc)
+        end = end_time or start
+        payload: dict[str, Any] = {
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+            "result": result or None,
+            "error": error,
+            "metadata": dict(metadata) if metadata else {},
+            "trace_id": trace_id,
+        }
+        resp = await self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
+        resp.raise_for_status()
+        return {"id": resp.json()["data"]["id"]}
 
     async def _paginate(
         self,

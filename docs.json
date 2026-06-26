@@ -312,7 +312,8 @@
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits"
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest"
                 ]
               }
             ]
