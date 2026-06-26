@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import {
   type CSSProperties,
+  type KeyboardEvent,
   type ReactNode,
   type RefObject,
   useLayoutEffect,
@@ -39,6 +40,12 @@ export default meta;
 
 const PARENTS = ["One", "Two", "Three"];
 
+const preventHorizontalArrowScroll = (event: KeyboardEvent) => {
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+  }
+};
+
 // ponytail: lean on react-aria-components Tree for the ARIA tree pattern +
 // keyboard (single tab stop / roving tabindex, Up/Down/Home/End, Left/Right
 // to collapse/expand) and the slot="chevron" button. No wrapper component yet —
@@ -75,7 +82,9 @@ const treeCSS = css`
     var(--global-card-header-background-color),
     var(--global-color-gray-900) var(--tree-row-selected-chevron-hover-mix)
   );
-  width: 460px;
+  width: min(460px, calc(100vw - var(--global-dimension-size-400)));
+  max-width: 100%;
+  overflow-x: clip;
   border: 1px solid var(--global-border-color-default);
 
   & [role="row"] {
@@ -209,6 +218,83 @@ const treeCSS = css`
     display: flex;
     align-items: center;
   }
+  & .row-content--with-lineage {
+    position: relative;
+    --span-lineage-dot-size: 8px;
+    --span-lineage-dot-radius: calc(var(--span-lineage-dot-size) / 2);
+    --span-lineage-line-width: var(--global-border-size-thin);
+    --span-lineage-color: color-mix(
+      in srgb,
+      var(--global-border-color-default),
+      var(--global-color-gray-900) 10%
+    );
+    --span-lineage-anchor-center-x: calc(
+      var(--tree-row-indent) + var(--span-lineage-anchor-offset)
+    );
+    --span-lineage-parent-anchor-center-x: calc(
+      var(--tree-row-parent-indent) + var(--span-lineage-parent-anchor-offset)
+    );
+  }
+  & .row-content--with-lineage .row-body,
+  & .row-content--with-lineage .row-extra {
+    position: relative;
+    z-index: 1;
+  }
+  & .span-lineage {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+  & .span-lineage__branch,
+  & .span-lineage__through,
+  & .span-lineage__outgoing,
+  & .span-lineage__ancestor {
+    position: absolute;
+  }
+  & .span-lineage__ancestor {
+    top: -1px;
+    bottom: -1px;
+    background: var(--span-lineage-color);
+    width: var(--span-lineage-line-width);
+    transform: translateX(calc(var(--span-lineage-line-width) / -2));
+  }
+  & .span-lineage__branch {
+    left: var(--span-lineage-parent-anchor-center-x);
+    top: -1px;
+    width: calc(
+      var(--span-lineage-anchor-center-x) - var(
+          --span-lineage-parent-anchor-center-x
+        )
+    );
+    height: calc(50% + 1px);
+    box-sizing: border-box;
+    border-left: var(--span-lineage-line-width) solid
+      var(--span-lineage-color);
+    border-bottom: var(--span-lineage-line-width) solid
+      var(--span-lineage-color);
+    background: transparent;
+    transform: translateX(calc(var(--span-lineage-line-width) / -2));
+  }
+  & .span-lineage__branch--terminal {
+    border-bottom-left-radius: 3px;
+  }
+  & .span-lineage__through {
+    left: var(--span-lineage-parent-anchor-center-x);
+    top: 50%;
+    bottom: -1px;
+    width: var(--span-lineage-line-width);
+    background: var(--span-lineage-color);
+    transform: translateX(calc(var(--span-lineage-line-width) / -2));
+  }
+  & .span-lineage__outgoing {
+    left: var(--span-lineage-anchor-center-x);
+    top: 50%;
+    bottom: -1px;
+    width: var(--span-lineage-line-width);
+    background: var(--span-lineage-color);
+    transform: translateX(calc(var(--span-lineage-line-width) / -2));
+  }
   & .row-extra {
     display: flex;
     align-items: center;
@@ -322,6 +408,7 @@ const useTreeState = (initialExpanded: Iterable<Key> = []) => {
     onSelectionChange: setSelected,
     expandedKeys: expanded,
     onExpandedChange: (keys: Selection) => setExpanded(new Set(keys)),
+    onKeyDownCapture: preventHorizontalArrowScroll,
   };
 
   return { treeProps, onRowInteract };
@@ -540,6 +627,7 @@ type RowLayout = {
   icon?: boolean; // outer leading "Icon" box
   timing?: boolean; // outer trailing "Timing" box
   chevron?: boolean; // outer trailing expand control
+  lineageAnchor?: "trace"; // non-span rows that parent compact span dots
   headline: (keyof typeof ATOM_LABEL)[]; // first line; "title" flexes
   previews?: number; // number of full-width preview lines
   chips?: "packed" | "spread" | false; // metric/annotation/source chip groups
@@ -571,6 +659,7 @@ const LAYOUTS: Record<string, RowLayout> = {
   traceSpan: {
     icon: true,
     chevron: true,
+    lineageAnchor: "trace",
     headline: ["prefix", "title", "date"],
     chips: "spread",
   },
@@ -588,6 +677,7 @@ const LAYOUTS: Record<string, RowLayout> = {
   traceAlt: {
     timing: true,
     chevron: true,
+    lineageAnchor: "trace",
     headline: ["prefix", "badge", "title", "time"],
     chips: "packed",
   },
@@ -596,6 +686,104 @@ const LAYOUTS: Record<string, RowLayout> = {
     chevron: true,
     headline: ["dot", "title"],
   },
+};
+
+const hasSpanLineageDot = (layout?: RowLayout): boolean =>
+  layout?.headline.includes("dot") ?? false;
+
+const getLineageAnchorOffset = (layout?: RowLayout): string | null => {
+  if (hasSpanLineageDot(layout)) {
+    return "var(--span-lineage-dot-radius)";
+  }
+  if (layout?.lineageAnchor === "trace") {
+    return "var(--global-dimension-size-100)";
+  }
+  return null;
+};
+
+type LineageAnchor = {
+  level: number;
+  offset: string;
+};
+
+const getLineageAnchorCenterX = ({ level, offset }: LineageAnchor): string =>
+  `calc(${level} * var(--global-dimension-size-150) + ${offset})`;
+
+type RowContentStyle = CSSProperties & {
+  "--tree-row-indent"?: string;
+  "--span-lineage-anchor-offset"?: string;
+  "--span-lineage-parent-anchor-offset"?: string;
+  "--tree-row-parent-indent"?: string;
+};
+
+type LineageAncestorStyle = CSSProperties & {
+  left: string;
+};
+
+const getRowContentStyle = ({
+  lineageAnchorOffset,
+  parentLineageAnchorOffset,
+  level,
+}: {
+  lineageAnchorOffset: string | null;
+  parentLineageAnchorOffset: string | null;
+  level: number;
+}): RowContentStyle => {
+  const indent = `calc(${level} * var(--global-dimension-size-150))`;
+  if (lineageAnchorOffset == null) {
+    return { paddingLeft: indent };
+  }
+  const parentLevel = Math.max(0, level - 1);
+  return {
+    paddingLeft: indent,
+    "--tree-row-indent": indent,
+    "--span-lineage-anchor-offset": lineageAnchorOffset,
+    "--span-lineage-parent-anchor-offset":
+      parentLineageAnchorOffset ?? lineageAnchorOffset,
+    "--tree-row-parent-indent": `calc(${parentLevel} * var(--global-dimension-size-150))`,
+  };
+};
+
+const SpanLineageConnectors = ({
+  ancestorAnchors,
+  hasIncoming,
+  hasOutgoing,
+  isLastSibling,
+}: {
+  ancestorAnchors: LineageAnchor[];
+  hasIncoming: boolean;
+  hasOutgoing: boolean;
+  isLastSibling: boolean;
+}) => {
+  if (ancestorAnchors.length === 0 && !hasIncoming && !hasOutgoing) {
+    return null;
+  }
+  return (
+    <span className="span-lineage" aria-hidden>
+      {ancestorAnchors.map((anchor) => (
+        <span
+          className="span-lineage__ancestor"
+          key={`${anchor.level}-${anchor.offset}`}
+          style={
+            {
+              left: getLineageAnchorCenterX(anchor),
+            } satisfies LineageAncestorStyle
+          }
+        />
+      ))}
+      {hasIncoming && (
+        <>
+          <span
+            className={classNames("span-lineage__branch", {
+              "span-lineage__branch--terminal": isLastSibling,
+            })}
+          />
+          {!isLastSibling && <span className="span-lineage__through" />}
+        </>
+      )}
+      {hasOutgoing && <span className="span-lineage__outgoing" />}
+    </span>
+  );
 };
 
 const Chips = ({
@@ -906,68 +1094,125 @@ const makeRenderNode = (
   onRowInteract: (key: Key) => void,
   layout?: RowLayoutResolver
 ) => {
-  const render = (node: TreeNode) => (
-    <TreeItem
-      key={node.id}
-      id={node.id}
-      textValue={node.label}
-      onPressStart={() => onRowInteract(node.id)}
-    >
-      <TreeItemContent>
-        {({ isExpanded, level, hasChildItems }) => {
-          const indent = `calc(${level} * var(--global-dimension-size-150))`;
-          const chevron = hasChildItems ? (
-            <Chevron isExpanded={isExpanded} />
-          ) : (
-            <span className="chevron-placeholder" aria-hidden />
-          );
-          if (!layout) {
+  const render = (
+    node: TreeNode,
+    index = 0,
+    siblings: TreeNode[] = [],
+    depth = 1,
+    parentLineageAnchor: LineageAnchor | null = null,
+    ancestorAnchors: LineageAnchor[] = []
+  ): ReactNode => {
+    const rowLayout =
+      layout == null
+        ? undefined
+        : typeof layout === "function"
+          ? layout(node, depth)
+          : layout;
+    const lineageAnchorOffset = getLineageAnchorOffset(rowLayout);
+    const lineageAnchor =
+      lineageAnchorOffset == null
+        ? null
+        : { level: depth, offset: lineageAnchorOffset };
+    const isLastSibling = index === siblings.length - 1;
+    return (
+      <TreeItem
+        key={node.id}
+        id={node.id}
+        textValue={node.label}
+        onPressStart={() => onRowInteract(node.id)}
+      >
+        <TreeItemContent>
+          {({ isExpanded, level, hasChildItems }) => {
+            const chevron = hasChildItems ? (
+              <Chevron isExpanded={isExpanded} />
+            ) : (
+              <span className="chevron-placeholder" aria-hidden />
+            );
+            if (!rowLayout) {
+              return (
+                <>
+                  <div
+                    className="row-content"
+                    style={getRowContentStyle({
+                      lineageAnchorOffset,
+                      parentLineageAnchorOffset:
+                        parentLineageAnchor?.offset ?? null,
+                      level,
+                    })}
+                  >
+                    <div className="row-main">
+                      <div className="row-line">{node.label}</div>
+                    </div>
+                  </div>
+                  {chevron}
+                </>
+              );
+            }
             return (
               <>
-                <div className="row-content" style={{ paddingLeft: indent }}>
-                  <div className="row-main">
-                    <div className="row-line">{node.label}</div>
+                <div
+                  className={classNames("row-content", {
+                    "row-content--with-timing": rowLayout.timing,
+                    "row-content--with-lineage": lineageAnchorOffset != null,
+                  })}
+                  style={getRowContentStyle({
+                    lineageAnchorOffset,
+                    parentLineageAnchorOffset:
+                      parentLineageAnchor?.offset ?? null,
+                    level,
+                  })}
+                >
+                  <SpanLineageConnectors
+                    ancestorAnchors={ancestorAnchors}
+                    hasIncoming={
+                      parentLineageAnchor != null && lineageAnchorOffset != null
+                    }
+                    hasOutgoing={
+                      hasSpanLineageDot(rowLayout) &&
+                      hasChildItems &&
+                      isExpanded
+                    }
+                    isLastSibling={isLastSibling}
+                  />
+                  <div className="row-body">
+                    {rowLayout.icon && (
+                      <TreeSpanKindIcon
+                        className="lead-icon"
+                        spanKind={node.data?.kind ?? ""}
+                        variant="block"
+                      />
+                    )}
+                    <RowMain layout={rowLayout} data={node.data} />
                   </div>
+                  {rowLayout.timing && (
+                    <span className="row-extra">
+                      <TimingMetric />
+                      <TimingGraph data={node.data} />
+                    </span>
+                  )}
                 </div>
-                {chevron}
+                {rowLayout.chevron && chevron}
               </>
             );
-          }
-          const rowLayout =
-            typeof layout === "function" ? layout(node, level) : layout;
-          return (
-            <>
-              <div
-                className={classNames("row-content", {
-                  "row-content--with-timing": rowLayout.timing,
-                })}
-                style={{ paddingLeft: indent }}
-              >
-                <div className="row-body">
-                  {rowLayout.icon && (
-                    <TreeSpanKindIcon
-                      className="lead-icon"
-                      spanKind={node.data?.kind ?? ""}
-                      variant="block"
-                    />
-                  )}
-                  <RowMain layout={rowLayout} data={node.data} />
-                </div>
-                {rowLayout.timing && (
-                  <span className="row-extra">
-                    <TimingMetric />
-                    <TimingGraph data={node.data} />
-                  </span>
-                )}
-              </div>
-              {rowLayout.chevron && chevron}
-            </>
+          }}
+        </TreeItemContent>
+        {node.children?.map((child, childIndex, children) => {
+          const nextAncestorAnchors =
+            parentLineageAnchor != null && !isLastSibling
+              ? [...ancestorAnchors, parentLineageAnchor]
+              : ancestorAnchors;
+          return render(
+            child,
+            childIndex,
+            children,
+            depth + 1,
+            lineageAnchor,
+            nextAncestorAnchors
           );
-        }}
-      </TreeItemContent>
-      {node.children?.map(render)}
-    </TreeItem>
-  );
+        })}
+      </TreeItem>
+    );
+  };
   return render;
 };
 
@@ -1528,7 +1773,14 @@ export const ExampleTrees: StoryFn = () => {
   return (
     <div
       ref={exampleTreesRef}
-      style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "3rem",
+        alignItems: "flex-start",
+        maxWidth: "calc(100vw - var(--global-dimension-size-400))",
+        overflowX: "clip",
+      }}
     >
       <Column title="Current track">
         <Example name="General">
