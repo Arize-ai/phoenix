@@ -181,13 +181,12 @@ function Transcript({
 /** Render the prompt row with helper text below it. */
 function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const cursor = status === "streaming" ? "" : "█";
-  const visibleDraft = draft.replace(/\n/g, "\\n");
   return (
     <Box flexDirection="column" marginTop={1} gap={1}>
       <Box borderStyle="single" borderLeft={false} borderRight={false} borderTop borderBottom borderColor="gray">
         <Text>
           <Text color="cyan">{"> "}</Text>
-          {visibleDraft}
+          {draft}
           {cursor}
         </Text>
       </Box>
