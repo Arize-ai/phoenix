@@ -87,11 +87,10 @@ function InlineToolProgress({ tool }: { tool: ToolProgress }) {
   return (
     <Box flexDirection="column" marginY={1} paddingLeft={2}>
       <Text>
-        <Text color="gray">tool: </Text>
+        <Text color="gray">[tool]</Text>{" "}
         <Text color={statusColor}>{tool.toolName}</Text>{" "}
         <Text color={statusColor}>{tool.statusText}</Text>
       </Text>
-      {tool.detailText ? <Text color="gray">{tool.detailText}</Text> : null}
       {tool.errorText ? <Text color="red">{tool.errorText}</Text> : null}
     </Box>
   );

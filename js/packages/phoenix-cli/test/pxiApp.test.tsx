@@ -67,13 +67,13 @@ describe("PXI app", () => {
 
     const frame = lastFrame() ?? "";
     expect(frame).toContain("I checked the project.");
-    expect(frame).toContain("tool: phoenix_graphql Complete");
-    expect(lastFrame()).toContain("result object (2 keys: data, errors)");
+    expect(frame).toContain("[tool] phoenix_graphql Complete");
+    expect(lastFrame()).not.toContain("result object (2 keys: data, errors)");
     expect(frame).toContain("Then I summarized it.");
     expect(frame.indexOf("I checked the project.")).toBeLessThan(
-      frame.indexOf("tool: phoenix_graphql Complete")
+      frame.indexOf("[tool] phoenix_graphql Complete")
     );
-    expect(frame.indexOf("tool: phoenix_graphql Complete")).toBeLessThan(
+    expect(frame.indexOf("[tool] phoenix_graphql Complete")).toBeLessThan(
       frame.indexOf("Then I summarized it.")
     );
     expect(lastFrame()).not.toContain('{"data"');
