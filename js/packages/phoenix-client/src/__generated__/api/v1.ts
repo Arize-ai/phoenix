@@ -1307,7 +1307,24 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Run Server Agent */
+        /**
+         * Run Server Agent
+         * @description Stream a chat turn from the GraphQL server agent.
+         *
+         *     This is the endpoint the PXI CLI talks to directly (no pre-configured
+         *     agent record): it builds a fresh server agent per request from the
+         *     caller-supplied model and contexts, then streams the reply back as
+         *     Vercel-AI chunks.
+         *
+         *     The request contexts gate capabilities — GraphQL mutations, web access,
+         *     and subagents — and mutations are refused for viewer users. When trace
+         *     recording is enabled (and permitted by system settings), the run is
+         *     traced; locally ingested traces are persisted to the agent's project
+         *     once the stream completes.
+         *
+         *     Returns ``403`` if agents or the server agent are disabled, or if a
+         *     viewer requests mutations.
+         */
         post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
         delete?: never;
         options?: never;
