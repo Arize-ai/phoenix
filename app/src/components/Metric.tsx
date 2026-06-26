@@ -55,6 +55,8 @@ export function Metric({ kind, children, ref, ...props }: MetricProps) {
           svg={METRIC_ICON[kind]}
           css={css`
             color: ${getTextColor(color)};
+            /* metric icons run smaller than the usual 18px */
+            font-size: 14px;
           `}
         />
       )}

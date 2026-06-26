@@ -602,14 +602,34 @@ const GENERAL_NODES: TreeNode[] = [
       "Assistant: 3 incidents in 24h — two gateway timeouts and a cert expiry…",
     ],
     [
-      node("gen/retrieve", "retrieve_context", [
-        "query: payments service incidents, window=24h",
-        "5 documents retrieved: incident-4821, incident-4822, incident-4830…",
-      ]),
-      node("gen/llm", "ChatOpenAI.generate", [
-        "system: you are an SRE assistant · user: summarize incidents…",
-        "There were 3 incidents: GatewayTimeout at 02:14 and 02:51, plus a…",
-      ]),
+      node(
+        "gen/retrieve",
+        "retrieve_context",
+        [
+          "query: payments service incidents, window=24h",
+          "5 documents retrieved: incident-4821, incident-4822, incident-4830…",
+        ],
+        [
+          node("gen/vs", "VectorStore.similarity_search", [
+            "embedding(query) · top_k=5",
+            "incident-4821 (0.91), incident-4822 (0.88), incident-4830 (0.86)…",
+          ]),
+        ]
+      ),
+      node(
+        "gen/llm",
+        "ChatOpenAI.generate",
+        [
+          "system: you are an SRE assistant · user: summarize incidents…",
+          "There were 3 incidents: GatewayTimeout at 02:14 and 02:51, plus a…",
+        ],
+        [
+          node("gen/parse", "OutputParser.parse", [
+            "raw: incidents=[GatewayTimeout, GatewayTimeout, CertExpiry]",
+            "parsed 3 incident objects",
+          ]),
+        ]
+      ),
     ]
   ),
 ];
@@ -617,8 +637,12 @@ const GENERAL_NODES: TreeNode[] = [
 // current-track Trace / Span: operation names only, no previews
 const TRACE_SPAN_NODES: TreeNode[] = [
   node("ts/run", "AgentExecutor.run", undefined, [
-    node("ts/llm", "ChatOpenAI.generate"),
-    node("ts/search", "tool: web_search"),
+    node("ts/llm", "ChatOpenAI.generate", undefined, [
+      node("ts/parse", "OutputParser.parse"),
+    ]),
+    node("ts/search", "tool: web_search", undefined, [
+      node("ts/http", "HTTP GET api.search"),
+    ]),
   ]),
 ];
 
@@ -649,8 +673,12 @@ const TURN_ALT_NODES: TreeNode[] = [
 // alternate Trace / Span: operation names only
 const TRACE_ALT_NODES: TreeNode[] = [
   node("trace-alt/run", "AgentExecutor.run", undefined, [
-    node("trace-alt/llm", "ChatOpenAI.generate"),
-    node("trace-alt/search", "tool: web_search"),
+    node("trace-alt/llm", "ChatOpenAI.generate", undefined, [
+      node("trace-alt/parse", "OutputParser.parse"),
+    ]),
+    node("trace-alt/search", "tool: web_search", undefined, [
+      node("trace-alt/http", "HTTP GET api.search"),
+    ]),
   ]),
 ];
 
@@ -660,8 +688,36 @@ const SPAN_ALT_NODES: TreeNode[] = [
     "AgentExecutor.run",
     undefined,
     [
-      node("span-alt/llm", "ChatOpenAI.generate", undefined, undefined, "llm"),
-      node("span-alt/parse", "OutputParser.parse", undefined, undefined, "chain"),
+      node(
+        "span-alt/llm",
+        "ChatOpenAI.generate",
+        undefined,
+        [
+          node(
+            "span-alt/parse",
+            "OutputParser.parse",
+            undefined,
+            undefined,
+            "chain"
+          ),
+        ],
+        "llm"
+      ),
+      node(
+        "span-alt/retrieve",
+        "retrieve_context",
+        undefined,
+        [
+          node(
+            "span-alt/vs",
+            "VectorStore.similarity_search",
+            undefined,
+            undefined,
+            "retriever"
+          ),
+        ],
+        "retriever"
+      ),
     ],
     "agent"
   ),
