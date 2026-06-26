@@ -505,6 +505,114 @@ class GetPromptVersionTagsResponseBody(PaginatedResponseBody[PromptVersionTag]):
     pass
 
 
+class CreatePromptVersionRequestBody(V1RoutesBaseModel):
+    version: PromptVersionData
+    tags: Optional[list[PromptVersionTagData]] = None
+
+
+class CreatePromptVersionResponseBody(ResponseBody[PromptVersion]):
+    pass
+
+
+@router.post(
+    "/prompts/{prompt_identifier}/versions",
+    dependencies=[Depends(is_not_locked)],
+    operation_id="createPromptVersion",
+    summary="Create prompt version",
+    description="Create a new version for an existing prompt by identifier.",
+    response_description="The created prompt version",
+    status_code=201,
+    responses=add_errors_to_responses([404, 422]),
+    response_model_by_alias=True,
+    response_model_exclude_defaults=True,
+    response_model_exclude_unset=True,
+)
+async def create_prompt_version(
+    request: Request,
+    request_body: CreatePromptVersionRequestBody,
+    prompt_identifier: str = Path(description="The identifier of the prompt, i.e. name or ID."),
+) -> CreatePromptVersionResponseBody:
+    """
+    Create a new version for an existing prompt.
+
+    Args:
+        request (Request): The FastAPI request object.
+        request_body (CreatePromptVersionRequestBody): The request body containing version data
+            and optional tags.
+        prompt_identifier (str): The identifier of the prompt (name or ID).
+
+    Returns:
+        CreatePromptVersionResponseBody: Response containing the created prompt version.
+
+    Raises:
+        HTTPException: If the prompt identifier is invalid, the prompt is not found, the template
+            type is unsupported, or any other validation error occurs.
+    """
+    version = request_body.version
+    if version.template.type.lower() != "chat" or version.template_type != PromptTemplateType.CHAT:
+        raise HTTPException(
+            422,
+            "Only CHAT template type is supported for prompts",
+        )
+
+    identifier = _parse_prompt_identifier(prompt_identifier)
+    if isinstance(identifier, _PromptId):
+        where_clause = models.Prompt.id == int(identifier)
+    elif isinstance(identifier, Identifier):
+        where_clause = models.Prompt.name == identifier
+    else:
+        assert_never(identifier)
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled:
+        assert isinstance(user := request.user, PhoenixUser)
+        user_id = int(user.identity)
+
+    async with request.app.state.db() as session:
+        prompt_id = await session.scalar(select(models.Prompt.id).where(where_clause))
+        if prompt_id is None:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+        version_orm = models.PromptVersion(
+            user_id=user_id,
+            prompt_id=prompt_id,
+            description=version.description,
+            model_provider=version.model_provider,
+            model_name=version.model_name,
+            template_type=version.template_type,
+            template_format=version.template_format,
+            template=version.template,
+            invocation_parameters=version.invocation_parameters,
+            tools=version.tools,
+            response_format=version.response_format,
+        )
+        session.add(version_orm)
+        await session.flush()
+
+        if request_body.tags:
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            for tag in request_body.tags:
+                values = dict(
+                    name=tag.name,
+                    description=tag.description,
+                    prompt_id=prompt_id,
+                    prompt_version_id=version_orm.id,
+                    user_id=user_id,
+                )
+                await session.execute(
+                    insert_on_conflict(
+                        values,
+                        dialect=dialect,
+                        table=models.PromptVersionTag,
+                        unique_by=("name", "prompt_id"),
+                        on_conflict=OnConflict.DO_UPDATE,
+                    )
+                )
+
+    data = _prompt_version_from_orm_version(version_orm)
+    return CreatePromptVersionResponseBody(data=data)
+
+
 @router.get(
     "/prompt_versions/{prompt_version_id}/tags",
     operation_id="getPromptVersionTags",
