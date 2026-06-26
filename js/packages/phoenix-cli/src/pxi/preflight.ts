@@ -3,6 +3,18 @@ import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
 import type { ModelSelection, PxiRuntimeOptions } from "./types";
 
+/**
+ * Pre-launch validation of the selected model.
+ *
+ * Before the chat UI opens, PXI asks the Phoenix server which providers and
+ * models are actually installed and credentialed, then checks the user's
+ * `--provider`/`--model` selection against that catalog. Catching a bad or
+ * unconfigured model here turns what would be a cryptic mid-stream failure into
+ * a clear, actionable startup error. The whole check can be skipped with
+ * `--skip-model-preflight`.
+ */
+
+/** GraphQL query fetching the server's provider catalog, credential state, and known models. */
 export const PXI_MODEL_PREFLIGHT_QUERY = /* GraphQL */ `
   query PxiModelPreflightQuery {
     modelProviders {
@@ -74,6 +86,11 @@ type GraphqlResponse<Data> = {
   errors?: GraphqlError[];
 };
 
+/**
+ * Render a list of values for an error message, capping it at `limit` and
+ * summarizing the overflow as "…, and N more" so messages stay readable when a
+ * provider exposes many models.
+ */
 function formatList({
   values,
   limit = 8,
@@ -103,6 +120,12 @@ function getModelLabel({
   return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
 
+/**
+ * Compose the "missing credentials" error for a provider, listing the required
+ * environment variables (falling back to all known ones if none are flagged
+ * required) and clarifying that these are server-side provider credentials, not
+ * the PXI CLI `--api-key`.
+ */
 function buildServerCredentialMessage({
   provider,
 }: {
@@ -147,6 +170,11 @@ async function readResponseText({
   }
 }
 
+/**
+ * Unwrap a GraphQL response into its `data`, throwing a descriptive error if the
+ * server returned GraphQL errors or no data at all. Error messages point at
+ * `--skip-model-preflight` as the escape hatch.
+ */
 function assertPreflightData({
   payload,
 }: {
@@ -170,6 +198,11 @@ function assertPreflightData({
   return payload.data;
 }
 
+/**
+ * Fetch the provider/model catalog from Phoenix via GraphQL. Requires a
+ * configured endpoint and turns non-2xx responses into errors that include the
+ * HTTP status and any response body. `fetchImpl` is injectable for testing.
+ */
 export async function fetchPxiModelPreflight({
   config,
   fetchImpl = globalThis.fetch,
@@ -203,6 +236,16 @@ export async function fetchPxiModelPreflight({
   return assertPreflightData({ payload });
 }
 
+/**
+ * Check a model selection against the fetched catalog, throwing
+ * {@link InvalidArgumentError} with a helpful message on the first problem.
+ *
+ * For custom providers: the provider id must exist, and the model must be one of
+ * its configured names (when it advertises any). For built-in providers: the
+ * provider must be available, have its dependencies installed and credentials
+ * set, and — if the server publishes a model catalog for it — the model must be
+ * in that catalog. A provider with no published catalog accepts any model name.
+ */
 export function validatePxiModelSelection({
   data,
   modelSelection,
@@ -271,6 +314,11 @@ export function validatePxiModelSelection({
   }
 }
 
+/**
+ * Run the full preflight for a session: fetch the catalog and validate the
+ * selected model, unless `--skip-model-preflight` was passed. This is the single
+ * call the entry point makes before rendering the UI.
+ */
 export async function runPxiModelPreflight({
   options,
   fetchImpl = globalThis.fetch,
@@ -291,6 +339,13 @@ export async function runPxiModelPreflight({
   });
 }
 
+/**
+ * Wrap an error thrown while talking to PXI into a single message that names the
+ * model and appends a tailored next step — pointing custom providers at their
+ * Phoenix settings and built-in providers at credential configuration or
+ * choosing a different model. Used for failures that surface after the preflight
+ * has already passed.
+ */
 export function formatPxiRuntimeError({
   error,
   modelSelection,

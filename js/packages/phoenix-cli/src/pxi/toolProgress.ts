@@ -2,6 +2,15 @@ import type { UIDataTypes, UIMessagePart, UITools } from "ai";
 
 import type { PxiMessage } from "./types";
 
+/**
+ * Distills the AI SDK's tool-call message parts into a small, display-ready
+ * {@link ToolProgress} shape the UI can render directly. The SDK models a tool
+ * call as a sequence of parts moving through lifecycle states; this module reads
+ * the current state and produces a human-readable status line plus an optional
+ * one-line summary of the tool's input or output.
+ */
+
+/** Lifecycle state of a single tool call, mirroring the AI SDK's part states. */
 export type ToolProgressState =
   | "input-streaming"
   | "input-available"
@@ -11,6 +20,7 @@ export type ToolProgressState =
   | "output-error"
   | "output-denied";
 
+/** A display-ready summary of one tool call's current progress. */
 export type ToolProgress = {
   toolCallId: string;
   toolName: string;
@@ -28,6 +38,11 @@ type PxiToolPart = UIMessagePart<UIDataTypes, UITools> & {
   errorText?: string;
 };
 
+/**
+ * Type guard recognizing the message parts that represent a tool call — both
+ * statically-typed (`tool-*`) and dynamic tools — so non-tool parts (like text)
+ * are skipped.
+ */
 function isPxiToolPart(
   part: UIMessagePart<UIDataTypes, UITools>
 ): part is PxiToolPart {
@@ -44,6 +59,7 @@ function getToolName(part: PxiToolPart): string {
     : part.type.replace(/^tool-/, "");
 }
 
+/** Map a lifecycle state to the short human-readable label shown to the user. */
 function getStatusText(state: ToolProgressState): string {
   switch (state) {
     case "input-streaming":
@@ -63,6 +79,10 @@ function getStatusText(state: ToolProgressState): string {
   }
 }
 
+/**
+ * Collect the progress of every tool call across a list of messages, in order,
+ * skipping non-tool parts.
+ */
 export function getToolProgressFromMessages(
   messages: readonly PxiMessage[]
 ): ToolProgress[] {
@@ -74,6 +94,11 @@ export function getToolProgressFromMessages(
   );
 }
 
+/**
+ * Convert a single message part into a {@link ToolProgress}, or `null` if the
+ * part isn't a tool call. This is the core mapping that derives the tool name,
+ * status label, detail summary, and any error text from the raw SDK part.
+ */
 export function getToolProgressFromPart({
   part,
 }: {
@@ -93,6 +118,7 @@ export function getToolProgressFromPart({
   };
 }
 
+/** Concatenate the text of all text parts in a message, ignoring tool parts. */
 export function getMessageText({ message }: { message: PxiMessage }): string {
   return message.parts
     .filter((part) => part.type === "text")

@@ -6,6 +6,16 @@ import { Markdown } from "./inkMarkdown";
 import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
 import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
+/**
+ * The PXI terminal chat UI.
+ *
+ * This module renders the full Ink interface: the ASCII banner, the running
+ * transcript of user/assistant turns (markdown and inline tool progress), a
+ * thinking indicator while a reply streams, and the input prompt. {@link PxiApp}
+ * owns the conversation state and drives the {@link PxiChatClient}.
+ */
+
+/** Whether the app is waiting on input (`idle`) or streaming a reply. */
 type PxiStatus = "idle" | "streaming";
 
 const PXI_BANNER = String.raw`
@@ -52,6 +62,7 @@ function getBannerSegments(line: string): BannerSegment[] {
   return segments;
 }
 
+/** The PXI wordmark, colored so the raised letter faces stand out. */
 function PxiBanner() {
   const lines = PXI_BANNER.replace(/^\n|\n$/g, "").split("\n");
   return (
@@ -75,6 +86,7 @@ function PxiBanner() {
   );
 }
 
+/** Format the active model for the status line (e.g. `ANTHROPIC/claude-opus-4-6`). */
 function getModelLabel(options: PxiRuntimeOptions): string {
   if (options.modelSelection.providerType === "custom") {
     return `custom:${options.modelSelection.providerId}/${options.modelSelection.modelName}`;
@@ -82,6 +94,7 @@ function getModelLabel(options: PxiRuntimeOptions): string {
   return `${options.modelSelection.provider}/${options.modelSelection.modelName}`;
 }
 
+/** Render a single tool call inline in the transcript, coloring errors red. */
 function InlineToolProgress({ tool }: { tool: ToolProgress }) {
   const statusColor = tool.state === "output-error" ? "red" : "yellow";
   return (
@@ -96,6 +109,10 @@ function InlineToolProgress({ tool }: { tool: ToolProgress }) {
   );
 }
 
+/**
+ * Render the ordered parts of one message: text parts as markdown, tool parts
+ * as inline progress, skipping anything unrecognized.
+ */
 function MessageParts({
   message,
   phoenixBaseUrl,
@@ -126,6 +143,10 @@ function MessageParts({
   );
 }
 
+/**
+ * Render the whole conversation as labeled, color-coded turns ("You" vs "PXI"),
+ * or a placeholder when the conversation hasn't started.
+ */
 function Transcript({
   messages,
   phoenixBaseUrl,
@@ -154,6 +175,10 @@ function Transcript({
   );
 }
 
+/**
+ * The bordered input box showing the current draft, key hints, and a block
+ * cursor (hidden while streaming, when typing is disabled).
+ */
 function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const cursor = status === "streaming" ? "" : "█";
   return (
@@ -170,6 +195,7 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   );
 }
 
+/** Animated "PXI is thinking…" indicator shown while a reply is streaming. */
 export function ThinkingIndicator() {
   const [frameIndex, setFrameIndex] = useState(0);
 
@@ -183,6 +209,17 @@ export function ThinkingIndicator() {
   return <Text color="yellow">{THINKING_FRAMES[frameIndex]}</Text>;
 }
 
+/**
+ * Root component for the PXI chat.
+ *
+ * Holds the conversation, draft input, streaming status, and any error, and
+ * wires keyboard handling: Enter submits, Ctrl+J inserts a newline, and Esc /
+ * Ctrl+C / Ctrl+D exit (aborting an in-flight request). On submit it appends the
+ * user message, streams the assistant reply into the transcript as it arrives,
+ * and ignores errors caused by the user aborting. The `client` and
+ * `initialMessages` props exist mainly so tests can drive the UI with a fake
+ * client and seeded history.
+ */
 export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const { exit } = useApp();
   const [messages, setMessages] = useState<PxiMessage[]>(initialMessages);

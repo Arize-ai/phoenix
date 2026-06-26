@@ -63,6 +63,16 @@ function normalizeBuiltInProvider({ provider }: { provider: string }): string {
   return provider.toUpperCase();
 }
 
+/**
+ * Turn the raw `--provider` / `--model` / `--custom-provider-id` flags into a
+ * normalized {@link ModelSelection}.
+ *
+ * Passing `--custom-provider-id` selects a custom provider and requires an
+ * explicit `--model`. Otherwise a built-in provider is used: its name is
+ * upper-cased and validated against {@link BUILT_IN_PROVIDERS}, and the model
+ * falls back to {@link DEFAULT_PXI_MODEL}. Throws {@link InvalidArgumentError}
+ * for an unknown provider or a custom provider missing its model.
+ */
 export function resolveModelSelection({
   provider,
   model,
@@ -105,6 +115,13 @@ export function resolveModelSelection({
   };
 }
 
+/**
+ * Build the fully-resolved {@link PxiRuntimeOptions} for a session from parsed
+ * CLI flags. This layers the endpoint/api-key/profile through
+ * {@link resolveConfig}, resolves the model selection, and coerces the boolean
+ * feature flags into their final shape. A fresh `sessionId` is generated unless
+ * one is supplied (tests pass a fixed id for determinism).
+ */
 export function resolvePxiRuntimeOptions({
   cliOptions,
   sessionId = crypto.randomUUID(),
@@ -140,6 +157,11 @@ export function resolvePxiRuntimeOptions({
   };
 }
 
+/**
+ * Define the `pxi` Commander program: its flags, defaults, and help text.
+ * Kept separate from parsing so tests can introspect the command definition
+ * without executing it.
+ */
 export function createPxiProgram(): Command {
   const program = new Command();
 
@@ -189,6 +211,11 @@ Examples:
   return program;
 }
 
+/**
+ * Parse `argv` with the `pxi` program and resolve it into runtime options. This
+ * is the one-call path used by the entry point; `createPxiProgram` and
+ * `resolvePxiRuntimeOptions` are exposed separately for finer-grained testing.
+ */
 export async function parsePxiRuntimeOptions({
   argv = process.argv,
 }: {
