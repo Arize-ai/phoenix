@@ -44,27 +44,6 @@ class ExperimentEvaluation(v1.ExperimentEvaluationResult, total=False):
     metadata: Mapping[str, Any]
 
 
-class LoggedExperimentEvaluation(TypedDict):
-    """The server record returned by ``Experiments.log_evaluation``: the upserted evaluation
-    plus its server-assigned ``id``.
-
-    The ``result`` envelope reuses the generated ``v1.ExperimentEvaluationResult`` shape and is
-    ``None`` when only an ``error`` was recorded. ``annotator_kind`` is the raw string the caller
-    supplied (the server validates it), mirroring the method's ``annotator_kind: str`` parameter.
-    """
-
-    id: str
-    experiment_run_id: str
-    name: str
-    annotator_kind: str
-    start_time: str
-    end_time: str
-    result: Optional[v1.ExperimentEvaluationResult]
-    error: Optional[str]
-    metadata: Mapping[str, Any]
-    trace_id: Optional[str]
-
-
 EvaluationResult = Union[ExperimentEvaluation, Sequence[ExperimentEvaluation]]
 
 

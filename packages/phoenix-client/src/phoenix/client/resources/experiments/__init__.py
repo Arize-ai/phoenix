@@ -50,7 +50,6 @@ from phoenix.client.resources.experiments.types import (
     ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
-    LoggedExperimentEvaluation,
     RanExperiment,
     RateLimitErrors,
     TestCase,
@@ -2186,7 +2185,7 @@ class Experiments:
         metadata: Optional[Mapping[str, Any]] = None,
         trace_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> LoggedExperimentEvaluation:
+    ) -> v1.UpsertExperimentEvaluationResponseBodyData:
         """Post (upsert) a single evaluation for an experiment run.
 
         The server upserts on ``(experiment_run_id, name)``, so re-posting the same name
@@ -2208,13 +2207,14 @@ class Experiments:
             timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
 
         Returns:
-            LoggedExperimentEvaluation: The posted evaluation with its server-assigned ``id``.
+            UpsertExperimentEvaluationResponseBodyData: The server response, carrying the
+                ``id`` of the upserted evaluation (the only field the server returns).
 
         Raises:
             ValueError: If neither a result (score/label/explanation) nor an error is provided.
             httpx.HTTPStatusError: On API errors.
         """
-        result: v1.ExperimentEvaluationResult = {}
+        result: dict[str, Any] = {}
         if score is not None:
             result["score"] = score
         if label is not None:
@@ -2225,34 +2225,20 @@ class Experiments:
             raise ValueError("Must provide a result (score/label/explanation) or an error")
         start = start_time or datetime.now(timezone.utc)
         end = end_time or start
-        result_payload: Optional[v1.ExperimentEvaluationResult] = result or None
-        metadata_payload: Mapping[str, Any] = dict(metadata) if metadata else {}
         payload: dict[str, Any] = {
             "experiment_run_id": experiment_run_id,
             "name": name,
             "annotator_kind": annotator_kind,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
-            "result": result_payload,
+            "result": result or None,
             "error": error,
-            "metadata": metadata_payload,
+            "metadata": dict(metadata) if metadata else {},
             "trace_id": trace_id,
         }
         resp = self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
         resp.raise_for_status()
-        evaluation: LoggedExperimentEvaluation = {
-            "id": str(resp.json()["data"]["id"]),
-            "experiment_run_id": experiment_run_id,
-            "name": name,
-            "annotator_kind": annotator_kind,
-            "start_time": payload["start_time"],
-            "end_time": payload["end_time"],
-            "result": result_payload,
-            "error": error,
-            "metadata": metadata_payload,
-            "trace_id": trace_id,
-        }
-        return evaluation
+        return {"id": resp.json()["data"]["id"]}
 
     def _paginate(
         self,
@@ -4066,13 +4052,13 @@ class AsyncExperiments:
         metadata: Optional[Mapping[str, Any]] = None,
         trace_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> LoggedExperimentEvaluation:
+    ) -> v1.UpsertExperimentEvaluationResponseBodyData:
         """Post (upsert) a single evaluation for an experiment run.
 
         Async counterpart to :meth:`Experiments.log_evaluation`; see that method for full
         semantics.
         """
-        result: v1.ExperimentEvaluationResult = {}
+        result: dict[str, Any] = {}
         if score is not None:
             result["score"] = score
         if label is not None:
@@ -4083,34 +4069,20 @@ class AsyncExperiments:
             raise ValueError("Must provide a result (score/label/explanation) or an error")
         start = start_time or datetime.now(timezone.utc)
         end = end_time or start
-        result_payload: Optional[v1.ExperimentEvaluationResult] = result or None
-        metadata_payload: Mapping[str, Any] = dict(metadata) if metadata else {}
         payload: dict[str, Any] = {
             "experiment_run_id": experiment_run_id,
             "name": name,
             "annotator_kind": annotator_kind,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
-            "result": result_payload,
+            "result": result or None,
             "error": error,
-            "metadata": metadata_payload,
+            "metadata": dict(metadata) if metadata else {},
             "trace_id": trace_id,
         }
         resp = await self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
         resp.raise_for_status()
-        evaluation: LoggedExperimentEvaluation = {
-            "id": str(resp.json()["data"]["id"]),
-            "experiment_run_id": experiment_run_id,
-            "name": name,
-            "annotator_kind": annotator_kind,
-            "start_time": payload["start_time"],
-            "end_time": payload["end_time"],
-            "result": result_payload,
-            "error": error,
-            "metadata": metadata_payload,
-            "trace_id": trace_id,
-        }
-        return evaluation
+        return {"id": resp.json()["data"]["id"]}
 
     async def _paginate(
         self,
