@@ -1,8 +1,9 @@
 import { css } from "@emotion/react";
 import type { HTMLAttributes, ReactNode, Ref } from "react";
 
-import { Icon, Icons, Text } from "@phoenix/components";
+import { Text } from "@phoenix/components/core/content";
 import { getTextColor } from "@phoenix/components/core/content/textUtils";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 
 /**
  * Compact icon + count used in the tree view rows. Each kind shows its icon
