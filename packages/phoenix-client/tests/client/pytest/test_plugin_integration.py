@@ -1286,3 +1286,185 @@ def test_existing_successful_run_409_skips_annotations(pytester: pytest.Pytester
 # create_evaluator keyword dispatch and annotator-kind derivation are covered by the unit tests
 # TestInvokeEvaluator / TestAnnotatorKind; the record -> log_evaluation path is exercised by the
 # outcome test above, so no separate hoisted-evaluator integration test is kept here.
+
+
+# --- malformed config surfaces as a pytest UsageError, not a traceback ----------------------
+
+
+def test_bad_repetitions_env_is_usage_error(
+    pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A malformed ``PHOENIX_TEST_REPETITIONS`` is reported as a clean pytest UsageError during
+    collection rather than crashing with an unhandled exception."""
+    monkeypatch.setenv("PHOENIX_TEST_TRACKING", "false")  # offline: no client needed
+    monkeypatch.setenv("PHOENIX_TEST_REPETITIONS", "not-an-int")
+    pytester.makepyfile(
+        test_badcfg="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="cfg")
+        def test_one():
+            px.log_output("ok"); assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    assert result.ret != 0
+    result.stderr.fnmatch_lines(["*PHOENIX_TEST_REPETITIONS*integer*"])
+
+
+def test_marker_repetitions_below_one_is_usage_error(pytester: pytest.Pytester) -> None:
+    """``@pytest.mark.phoenix(repetitions=0)`` is rejected at parametrization time as a
+    UsageError (it must be >= 1)."""
+    pytester.makepyfile(
+        test_badmarker="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="cfg", repetitions=0)
+        def test_one():
+            px.log_output("ok"); assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header", "-p", "no:cacheprovider")
+    assert result.ret != 0
+    # The marker is validated at parametrization time; the error surfaces in the collection
+    # ERRORS section on stdout.
+    result.stdout.fnmatch_lines(["*repetitions=0*>= 1*"])
+
+
+# --- a bootstrap failure must degrade to a warning, never break the suite -------------------
+
+
+def test_bootstrap_failure_degrades_to_warning(pytester: pytest.Pytester) -> None:
+    """If dataset/experiment bootstrap raises (e.g. the server is unreachable), the plugin records
+    the error and runs the suite anyway with recording disabled — it must not fail the tests."""
+    pytester.makeconftest(
+        """
+        import phoenix.client.pytest.plugin as plugin
+
+        class _FakeDatasets:
+            def _upload_json_dataset(self, **kw):
+                raise RuntimeError("server unreachable")
+
+        class _FakeExperiments:
+            def create(self, **kw): return {"id": "Experiment:1"}
+
+        class _FakeClient:
+            def __init__(self):
+                self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+        def pytest_configure(config):
+            plugin._make_client = lambda: _FakeClient()
+        """
+    )
+    pytester.makepyfile(
+        test_bootfail="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="bootfail")
+        def test_one():
+            px.log_output("ok"); assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    # The test still passes despite the bootstrap failure; recording silently degrades.
+    result.assert_outcomes(passed=1)
+
+
+# --- a filtered collection appends to (never prunes) the dataset ----------------------------
+
+
+def test_partial_collection_appends_instead_of_updating(pytester: pytest.Pytester) -> None:
+    """A filtered run (``-k``) is a partial collection, so the dataset upload uses
+    ``action="append"`` — it must never prune server examples absent from the partial upload."""
+    pytester.makeconftest(
+        """
+        import json, os
+        import phoenix.client.pytest.plugin as plugin
+
+        class _FakeDataset:
+            id = "Dataset:1"; version_id = "Version:1"
+            def __init__(self, ex): self._ex = ex
+            @property
+            def examples(self): return self._ex
+
+        class _FakeDatasets:
+            def __init__(self): self._ex = []; self.actions = []
+            def _upload_json_dataset(self, *, dataset_name, inputs, outputs, metadata,
+                                     example_ids, action, **kw):
+                self.actions.append(action)
+                self._ex = [{"id": example_ids[0], "node_id": "DatasetExampleGID:0",
+                             "input": inputs[0], "output": {}, "metadata": metadata[0]}]
+                return _FakeDataset(self._ex)
+            def get_dataset(self, *, dataset, **kw): return _FakeDataset(self._ex)
+
+        class _FakeExperiments:
+            def create(self, **kw): return {"id": "Experiment:1"}
+            def log_run(self, **kw): return {"id": "ExperimentRun:0"}
+            def log_evaluation(self, **kw): return {"id": "A:1"}
+
+        class _FakeClient:
+            def __init__(self):
+                self.datasets = _FakeDatasets(); self.experiments = _FakeExperiments()
+
+        _CLIENT = _FakeClient()
+        def pytest_configure(config):
+            plugin._make_client = lambda: _CLIENT
+            config._c = _CLIENT
+        def pytest_unconfigure(config):
+            with open(os.path.join(str(config.rootdir), "actions.json"), "w") as f:
+                json.dump({"actions": config._c.datasets.actions}, f)
+        """
+    )
+    pytester.makepyfile(
+        test_partial="""
+        import pytest
+        import phoenix.client.pytest as px
+
+        @pytest.mark.phoenix(dataset="partial")
+        def test_keep():
+            px.log_output("ok"); assert True
+
+        @pytest.mark.phoenix(dataset="partial")
+        def test_skipme():
+            px.log_output("ok"); assert True
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header", "-k", "keep")
+    result.assert_outcomes(passed=1)
+
+    import json
+
+    actions = json.loads((pytester.path / "actions.json").read_text())["actions"]
+    assert actions == ["append"]
+
+
+# --- a unittest TestCase method is recorded once, never expanded into repetitions ------------
+
+
+def test_unittest_testcase_method_is_not_repetition_expanded(
+    pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A ``unittest.TestCase`` method receives no fixtures, so the repetition param never resolves
+    and the test is recorded as a single run even when ``PHOENIX_TEST_REPETITIONS`` > 1 — rather
+    than being parametrized into N items."""
+    monkeypatch.setenv("PHOENIX_TEST_TRACKING", "false")  # offline: no client needed
+    monkeypatch.setenv("PHOENIX_TEST_REPETITIONS", "3")
+    pytester.makepyfile(
+        test_unittest="""
+        import unittest
+        import pytest
+        import phoenix.client.pytest as px
+
+        class MyCase(unittest.TestCase):
+            @pytest.mark.phoenix(dataset="ut-suite")
+            def test_method(self):
+                px.log_output("ok")
+                self.assertTrue(True)
+        """
+    )
+    result = pytester.runpytest_subprocess("-p", "phoenix", "--no-header")
+    # One item runs (the method is not expanded into 3 repetition items).
+    result.assert_outcomes(passed=1)
