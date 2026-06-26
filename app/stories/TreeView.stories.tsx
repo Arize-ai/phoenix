@@ -17,6 +17,7 @@ import {
   type MetricKind,
   Text,
 } from "@phoenix/components";
+import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 
 const meta: Meta = {
@@ -192,15 +193,13 @@ const treeCSS = css`
     border-radius: var(--global-rounding-small);
   }
   /* "extra" column inside the body: sits between the main content and the
-     chevron, holds the timing readout */
+     chevron, holds the timing graph */
   & .row-extra {
     display: flex;
     align-items: center;
     padding-left: var(--global-dimension-size-200);
-    font-size: 12px;
-    white-space: nowrap;
-    /* debug tint to make the extras region visible */
-    background: rgba(255, 0, 255, 0.1);
+    width: 110px;
+    flex: none;
   }
   /* stack the body lines with a little breathing room */
   & .row-main {
@@ -418,6 +417,30 @@ const ATOM_LABEL: Record<string, string> = {
   dot: "Dot",
 };
 
+const STORY_TIMELINE_START_MS = Date.UTC(2026, 5, 6, 23, 24, 0);
+const STORY_TIMELINE_DURATION_MS = 10_000;
+const STORY_TIMELINE_RANGE: TimeRange = {
+  start: new Date(STORY_TIMELINE_START_MS),
+  end: new Date(STORY_TIMELINE_START_MS + STORY_TIMELINE_DURATION_MS),
+};
+
+const getStorySpanTimeRange = ({ prefix }: { prefix?: string }): TimeRange => {
+  const rowIndex = Number(prefix) || 1;
+  const startPercentage = ((rowIndex - 1) % 8) * 8;
+  const durationPercentage = 16 + (rowIndex % 3) * 8;
+  const endPercentage = Math.min(100, startPercentage + durationPercentage);
+  return {
+    start: new Date(
+      STORY_TIMELINE_START_MS +
+        (STORY_TIMELINE_DURATION_MS * startPercentage) / 100
+    ),
+    end: new Date(
+      STORY_TIMELINE_START_MS +
+        (STORY_TIMELINE_DURATION_MS * endPercentage) / 100
+    ),
+  };
+};
+
 type RowLayout = {
   icon?: boolean; // outer leading "Icon" box
   timing?: boolean; // outer trailing "Timing" box
@@ -429,6 +452,17 @@ type RowLayout = {
 type RowLayoutResolver =
   | RowLayout
   | ((node: TreeNode, level: number) => RowLayout);
+
+const getLayoutWithTiming = ({
+  layout,
+  isTimingVisible,
+}: {
+  layout: RowLayout;
+  isTimingVisible: boolean;
+}): RowLayout => ({
+  ...layout,
+  timing: isTimingVisible,
+});
 
 const LAYOUTS: Record<string, RowLayout> = {
   // current track
@@ -482,6 +516,18 @@ const Chips = ({ spread }: { spread?: boolean }) => (
     ))}
   </div>
 );
+
+const TimingGraph = ({ data }: { data?: RowData }) => {
+  const color = useSpanKindColor({ spanKind: data?.kind ?? "" });
+  return (
+    <TimelineBar
+      aria-hidden
+      color={color}
+      overallTimeRange={STORY_TIMELINE_RANGE}
+      spanTimeRange={getStorySpanTimeRange({ prefix: data?.prefix })}
+    />
+  );
+};
 
 const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
   const previewCount = layout.previews ?? 0;
@@ -601,7 +647,11 @@ const makeRenderNode = (
               <div className="row-content" style={{ paddingLeft: indent }}>
                 {rowLayout.icon && <span className="lead-icon" aria-hidden />}
                 <RowMain layout={rowLayout} data={node.data} />
-                {rowLayout.timing && <span className="row-extra">Timing</span>}
+                {rowLayout.timing && (
+                  <span className="row-extra">
+                    <TimingGraph data={node.data} />
+                  </span>
+                )}
               </div>
               {rowLayout.chevron && chevron}
             </>
@@ -914,63 +964,148 @@ const Column = ({
   </div>
 );
 
-const Example = ({ name, children }: { name: string; children: ReactNode }) => (
+const Example = ({
+  name,
+  children,
+  action,
+}: {
+  name: string;
+  children: ReactNode;
+  action?: ReactNode;
+}) => (
   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-    <Text size="S" fontFamily="mono" color="text-700">
-      {name}
-    </Text>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "0.75rem",
+      }}
+    >
+      <Text size="S" fontFamily="mono" color="text-700">
+        {name}
+      </Text>
+      {action}
+    </div>
     {children}
   </div>
 );
 
-/** The six row layouts, grouped Current track / Alternate like the spec. */
-export const ExampleTrees: StoryFn = () => (
-  <div style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}>
-    <Column title="Current track">
-      <Example name="General">
-        <StandaloneTree
-          label="General"
-          layout={LAYOUTS.general}
-          nodes={GENERAL_NODES}
-        />
-      </Example>
-      <Example name="Trace / Span">
-        <StandaloneTree
-          label="Trace / Span"
-          layout={(_node, level) =>
-            level === 1 ? LAYOUTS.traceSpan : LAYOUTS.spanAlt
-          }
-          nodes={TRACE_SPAN_NODES}
-        />
-      </Example>
-      <Example name="Turn">
-        <StandaloneTree label="Turn" layout={LAYOUTS.turn} nodes={TURN_NODES} />
-      </Example>
-    </Column>
-    <Column title="Alternate">
-      <Example name="Turn">
-        <StandaloneTree
-          label="Turn"
-          layout={LAYOUTS.turnAlt}
-          nodes={TURN_ALT_NODES}
-        />
-      </Example>
-      <Example name="Trace">
-        <StandaloneTree
-          label="Trace"
-          layout={(_node, level) =>
-            level === 1 ? LAYOUTS.traceAlt : LAYOUTS.spanAlt
-          }
-          nodes={TRACE_ALT_NODES}
-        />
-      </Example>
-      <Example name="Span">
-        <StandaloneTree
-          label="Span"
-          layout={LAYOUTS.spanAlt}
-          nodes={SPAN_ALT_NODES}
-        />
-      </Example>
-    </Column>
-  </div>
+const TimingToggle = ({
+  isTimingVisible,
+  onToggleTiming,
+}: {
+  isTimingVisible: boolean;
+  onToggleTiming: () => void;
+}) => (
+  <Button
+    aria-label={isTimingVisible ? "Hide timing" : "Show timing"}
+    onPress={onToggleTiming}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "var(--global-text-color-500)",
+      cursor: "pointer",
+      font: "inherit",
+      fontSize: 12,
+      padding: 0,
+    }}
+  >
+    Timing
+  </Button>
 );
+
+/** The six row layouts, grouped Current track / Alternate like the spec. */
+export const ExampleTrees: StoryFn = () => {
+  const [isTimingVisible, setIsTimingVisible] = useState(true);
+  const onToggleTiming = () => setIsTimingVisible((isVisible) => !isVisible);
+  const getTraceSpanLayout = (_node: TreeNode, level: number) =>
+    getLayoutWithTiming({
+      layout: level === 1 ? LAYOUTS.traceSpan : LAYOUTS.spanAlt,
+      isTimingVisible,
+    });
+  const getTraceLayout = (_node: TreeNode, level: number) =>
+    getLayoutWithTiming({
+      layout: level === 1 ? LAYOUTS.traceAlt : LAYOUTS.spanAlt,
+      isTimingVisible,
+    });
+  const spanLayout = getLayoutWithTiming({
+    layout: LAYOUTS.spanAlt,
+    isTimingVisible,
+  });
+
+  return (
+    <div style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}>
+      <Column title="Current track">
+        <Example name="General">
+          <StandaloneTree
+            label="General"
+            layout={LAYOUTS.general}
+            nodes={GENERAL_NODES}
+          />
+        </Example>
+        <Example
+          name="Trace / Span"
+          action={
+            <TimingToggle
+              isTimingVisible={isTimingVisible}
+              onToggleTiming={onToggleTiming}
+            />
+          }
+        >
+          <StandaloneTree
+            label="Trace / Span"
+            layout={getTraceSpanLayout}
+            nodes={TRACE_SPAN_NODES}
+          />
+        </Example>
+        <Example name="Turn">
+          <StandaloneTree
+            label="Turn"
+            layout={LAYOUTS.turn}
+            nodes={TURN_NODES}
+          />
+        </Example>
+      </Column>
+      <Column title="Alternate">
+        <Example name="Turn">
+          <StandaloneTree
+            label="Turn"
+            layout={LAYOUTS.turnAlt}
+            nodes={TURN_ALT_NODES}
+          />
+        </Example>
+        <Example
+          name="Trace"
+          action={
+            <TimingToggle
+              isTimingVisible={isTimingVisible}
+              onToggleTiming={onToggleTiming}
+            />
+          }
+        >
+          <StandaloneTree
+            label="Trace"
+            layout={getTraceLayout}
+            nodes={TRACE_ALT_NODES}
+          />
+        </Example>
+        <Example
+          name="Span"
+          action={
+            <TimingToggle
+              isTimingVisible={isTimingVisible}
+              onToggleTiming={onToggleTiming}
+            />
+          }
+        >
+          <StandaloneTree
+            label="Span"
+            layout={spanLayout}
+            nodes={SPAN_ALT_NODES}
+          />
+        </Example>
+      </Column>
+    </div>
+  );
+};
