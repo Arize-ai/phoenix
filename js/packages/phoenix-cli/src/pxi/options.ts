@@ -10,7 +10,7 @@ import type {
 } from "./types";
 
 export const DEFAULT_PXI_PROVIDER: BuiltInProvider = "ANTHROPIC";
-export const DEFAULT_PXI_MODEL = "claude-opus-4-6";
+export const DEFAULT_PXI_MODEL = "claude-opus-4-8";
 
 export const BUILT_IN_PROVIDERS = [
   "ANTHROPIC",

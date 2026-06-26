@@ -87,7 +87,7 @@ function PxiBanner() {
   );
 }
 
-/** Format the active model for the status line (e.g. `ANTHROPIC/claude-opus-4-6`). */
+/** Format the active model for the status line (e.g. `ANTHROPIC/claude-opus-4-8`). */
 function getModelLabel(options: PxiRuntimeOptions): string {
   if (options.modelSelection.providerType === "custom") {
     return `custom:${options.modelSelection.providerId}/${options.modelSelection.modelName}`;

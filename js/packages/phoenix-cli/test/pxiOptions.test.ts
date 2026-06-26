@@ -23,7 +23,7 @@ describe("PXI options", () => {
     expect(selection).toEqual({
       providerType: "builtin",
       provider: "ANTHROPIC",
-      modelName: "claude-opus-4-6",
+      modelName: "claude-opus-4-8",
     });
   });
 
