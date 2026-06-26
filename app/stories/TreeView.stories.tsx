@@ -33,8 +33,12 @@ const treeCSS = css`
   border: 1px solid var(--global-border-color-default);
 
   & [role="row"] {
+    box-sizing: border-box;
     display: flex;
     align-items: center;
+    border-style: solid;
+    border-width: 1px 1px 1px 4px;
+    border-color: transparent;
     outline: none;
     background: var(--global-card-header-background-color);
   }
@@ -71,18 +75,18 @@ const treeCSS = css`
   & [role="row"][data-hovered] {
     background: var(--global-card-header-background-color-hover);
   }
-  /* darker selected */
+  /* darker selected, with a thick left-edge accent */
   & [role="row"][data-selected] {
     background: var(--global-list-item-selected-background-color);
+    border-left-color: var(--global-color-primary);
   }
   /* hovering a selected row still shows hover bg */
   & [role="row"][data-selected][data-hovered] {
     background: var(--global-card-header-background-color-hover);
   }
-  /* keyboard focus */
+  /* keyboard focus gets a full border; selection keeps the thick left edge */
   & [role="row"][data-focus-visible] {
-    outline: 1px solid var(--global-color-primary);
-    outline-offset: -1px;
+    border-color: var(--global-color-primary);
   }
   /* clickable expansion button, flush against the row's right edge. Background
      is transparent so it inherits the row's state (normal/hover/selected); it
@@ -644,6 +648,10 @@ const TRACE_SPAN_NODES: TreeNode[] = [
       node("ts/http", "HTTP GET api.search"),
     ]),
   ]),
+  node("ts/embed", "OpenAIEmbeddings.embed_query", undefined, [
+    node("ts/vs", "VectorStore.similarity_search"),
+  ]),
+  node("ts/rerank", "CohereRerank.rerank"),
 ];
 
 // current-track Turn: simulated PXI agent turns
@@ -736,38 +744,65 @@ const Column = ({
   </div>
 );
 
+const Example = ({
+  name,
+  children,
+}: {
+  name: string;
+  children: ReactNode;
+}) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+    <Text size="S" fontFamily="mono" color="text-700">
+      {name}
+    </Text>
+    {children}
+  </div>
+);
+
 /** The six row layouts, grouped Current track / Alternate like the spec. */
 export const ExampleTrees: StoryFn = () => (
   <div style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}>
     <Column title="Current track">
-      <StandaloneTree
-        label="General"
-        layout={LAYOUTS.general}
-        nodes={GENERAL_NODES}
-      />
-      <StandaloneTree
-        label="Trace / Span"
-        layout={LAYOUTS.traceSpan}
-        nodes={TRACE_SPAN_NODES}
-      />
-      <StandaloneTree label="Turn" layout={LAYOUTS.turn} nodes={TURN_NODES} />
+      <Example name="General">
+        <StandaloneTree
+          label="General"
+          layout={LAYOUTS.general}
+          nodes={GENERAL_NODES}
+        />
+      </Example>
+      <Example name="Trace / Span">
+        <StandaloneTree
+          label="Trace / Span"
+          layout={LAYOUTS.traceSpan}
+          nodes={TRACE_SPAN_NODES}
+        />
+      </Example>
+      <Example name="Turn">
+        <StandaloneTree label="Turn" layout={LAYOUTS.turn} nodes={TURN_NODES} />
+      </Example>
     </Column>
     <Column title="Alternate">
-      <StandaloneTree
-        label="Turn"
-        layout={LAYOUTS.turnAlt}
-        nodes={TURN_ALT_NODES}
-      />
-      <StandaloneTree
-        label="Trace"
-        layout={LAYOUTS.traceAlt}
-        nodes={TRACE_ALT_NODES}
-      />
-      <StandaloneTree
-        label="Span"
-        layout={LAYOUTS.spanAlt}
-        nodes={SPAN_ALT_NODES}
-      />
+      <Example name="Turn">
+        <StandaloneTree
+          label="Turn"
+          layout={LAYOUTS.turnAlt}
+          nodes={TURN_ALT_NODES}
+        />
+      </Example>
+      <Example name="Trace">
+        <StandaloneTree
+          label="Trace"
+          layout={LAYOUTS.traceAlt}
+          nodes={TRACE_ALT_NODES}
+        />
+      </Example>
+      <Example name="Span">
+        <StandaloneTree
+          label="Span"
+          layout={LAYOUTS.spanAlt}
+          nodes={SPAN_ALT_NODES}
+        />
+      </Example>
     </Column>
   </div>
 );
