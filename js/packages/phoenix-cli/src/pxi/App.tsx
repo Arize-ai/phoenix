@@ -17,6 +17,7 @@ import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
 /** Whether the app is waiting on input (`idle`) or streaming a reply. */
 type PxiStatus = "idle" | "streaming";
+type PxiMessagePart = PxiMessage["parts"][number];
 
 const PXI_BANNER = String.raw`
 __/\\\\\\\\\\\\\____/\\\_______/\\\__/\\\\\\\\\\\_
@@ -37,6 +38,7 @@ const THINKING_FRAMES = [
   "PXI is thinking...",
 ];
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
+const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -176,22 +178,22 @@ function Transcript({
   );
 }
 
-/**
- * The bordered input box showing the current draft, key hints, and a block
- * cursor (hidden while streaming, when typing is disabled).
- */
+/** Render the prompt row with helper text below it. */
 function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const cursor = status === "streaming" ? "" : "█";
+  const visibleDraft = draft.replace(/\n/g, "\\n");
   return (
-    <Box flexDirection="column" borderStyle="single" paddingX={1} marginTop={1}>
+    <Box flexDirection="column" marginTop={1} gap={1}>
+      <Box borderStyle="single" borderLeft={false} borderRight={false} borderTop borderBottom borderColor="gray">
+        <Text>
+          <Text color="cyan">{"> "}</Text>
+          {visibleDraft}
+          {cursor}
+        </Text>
+      </Box>
       <Text dimColor>
-        Enter sends. Shift+Enter inserts a newline. Esc, Ctrl+D, or Ctrl+C
-        exits.
-      </Text>
-      <Text>
-        <Text color="cyan">{"> "}</Text>
-        {draft}
-        {cursor}
+        Enter sends. Shift+Enter inserts a newline. Esc interrupts a reply.
+        Ctrl+D or Ctrl+C exits.
       </Text>
     </Box>
   );
@@ -199,6 +201,52 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
 
 function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
+}
+
+function getCompletedInterruptedPart({
+  part,
+}: {
+  part: PxiMessagePart;
+}): PxiMessagePart | null {
+  if (part.type === "text" || part.type === "reasoning") {
+    return { ...part, state: "done" };
+  }
+  if (part.type === "dynamic-tool") {
+    return part.state === "output-available" ||
+      part.state === "output-error" ||
+      part.state === "output-denied"
+      ? part
+      : null;
+  }
+  if (
+    "state" in part &&
+    typeof part.type === "string" &&
+    part.type.startsWith("tool-")
+  ) {
+    return part.state === "output-available" ||
+      part.state === "output-error" ||
+      part.state === "output-denied"
+      ? part
+      : null;
+  }
+  return part;
+}
+
+function markMessageInterrupted({
+  message,
+}: {
+  message: PxiMessage;
+}): PxiMessage {
+  return {
+    ...message,
+    parts: [
+      ...message.parts.flatMap((part) => {
+        const completedPart = getCompletedInterruptedPart({ part });
+        return completedPart ? [completedPart] : [];
+      }),
+      { type: "text", text: INTERRUPTED_MESSAGE_TEXT, state: "done" },
+    ],
+  };
 }
 
 /** Animated "PXI is thinking…" indicator shown while a reply is streaming. */
@@ -219,8 +267,8 @@ export function ThinkingIndicator() {
  * Root component for the PXI chat.
  *
  * Holds the conversation, draft input, streaming status, and any error, and
- * wires keyboard handling: Enter submits, Shift+Enter inserts a newline, and Esc /
- * Ctrl+C / Ctrl+D exit (aborting an in-flight request). On submit it appends the
+ * wires keyboard handling: Enter submits, Shift+Enter inserts a newline, Esc
+ * interrupts an in-flight request, and Ctrl+C / Ctrl+D exit. On submit it appends the
  * user message, streams the assistant reply into the transcript as it arrives,
  * and ignores errors caused by the user aborting. The `client` and
  * `initialMessages` props exist mainly so tests can drive the UI with a fake
@@ -233,6 +281,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
   const chatClient = useMemo(
     () => client ?? createPxiChatClient({ options }),
     [client, options]
@@ -241,6 +290,28 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const handleExit = () => {
     abortControllerRef.current?.abort();
     exit();
+  };
+
+  const interruptStream = () => {
+    if (status !== "streaming") {
+      return;
+    }
+    abortControllerRef.current?.abort();
+    const assistantMessage = streamingAssistantMessageRef.current;
+    if (assistantMessage) {
+      const interruptedMessage = markMessageInterrupted({
+        message: assistantMessage,
+      });
+      streamingAssistantMessageRef.current = interruptedMessage;
+      setMessages((currentMessages) => {
+        const lastMessage = currentMessages.at(-1);
+        if (lastMessage?.id === assistantMessage.id) {
+          return [...currentMessages.slice(0, -1), interruptedMessage];
+        }
+        return [...currentMessages, interruptedMessage];
+      });
+    }
+    setStatus("idle");
   };
 
   const submitDraft = () => {
@@ -252,6 +323,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     const nextMessages = [...messages, userMessage];
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+    streamingAssistantMessageRef.current = null;
     setDraft("");
     setError(null);
     setStatus("streaming");
@@ -261,10 +333,14 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         messages: nextMessages,
         abortSignal: abortController.signal,
         onAssistantMessage: (assistantMessage) => {
+          streamingAssistantMessageRef.current = assistantMessage;
           setMessages([...nextMessages, assistantMessage]);
         },
       })
       .then((assistantMessage) => {
+        if (abortController.signal.aborted) {
+          return;
+        }
         if (assistantMessage) {
           setMessages([...nextMessages, assistantMessage]);
         }
@@ -284,10 +360,13 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   };
 
   useInput((input, key) => {
+    if (key.escape) {
+      interruptStream();
+      return;
+    }
     if (
       (key.ctrl && input === "c") ||
-      (key.ctrl && input === "d") ||
-      key.escape
+      (key.ctrl && input === "d")
     ) {
       handleExit();
       return;

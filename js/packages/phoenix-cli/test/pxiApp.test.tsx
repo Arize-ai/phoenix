@@ -126,6 +126,83 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("interrupts an in-flight request on Esc and sends the partial transcript next", async () => {
+    const submittedMessages: PxiMessage[][] = [];
+    const abortSignals: AbortSignal[] = [];
+    const partialAssistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Partial answer", state: "streaming" },
+        {
+          type: "dynamic-tool",
+          toolCallId: "tool-1",
+          toolName: "phoenix_graphql",
+          state: "input-streaming",
+          input: { query: "{ projects" },
+        },
+      ],
+    };
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages, abortSignal, onAssistantMessage }) => {
+        submittedMessages.push(messages);
+        if (abortSignal) {
+          abortSignals.push(abortSignal);
+        }
+        if (submittedMessages.length === 1) {
+          onAssistantMessage(partialAssistantMessage);
+          return new Promise((resolve) => {
+            abortSignal?.addEventListener("abort", () => resolve(null), {
+              once: true,
+            });
+          });
+        }
+        return null;
+      },
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("hello");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+
+    expect(lastFrame()).toContain("Partial answer");
+
+    await act(async () => {
+      stdin.write(ESCAPE_CHARACTER);
+    });
+
+    expect(abortSignals[0]?.aborted).toBe(true);
+    expect(lastFrame()).toContain("Interrupted by user before completion.");
+    expect(lastFrame()).not.toContain("PXI is thinking");
+
+    await act(async () => {
+      stdin.write("continue");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+
+    expect(submittedMessages).toHaveLength(2);
+    const assistantMessage = submittedMessages[1]?.find(
+      (message) => message.role === "assistant"
+    );
+    expect(assistantMessage?.parts).toEqual([
+      { type: "text", text: "Partial answer", state: "done" },
+      {
+        type: "text",
+        text: "\n\n[Interrupted by user before completion.]",
+        state: "done",
+      },
+    ]);
+    unmount();
+  });
+
   it("renders tool progress without hiding transcript text", () => {
     const assistantMessage: PxiMessage = {
       id: "assistant-1",
