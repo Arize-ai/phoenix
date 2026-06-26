@@ -34,10 +34,11 @@ const treeCSS = css`
 
   & [role="row"] {
     box-sizing: border-box;
+    position: relative;
     display: flex;
     align-items: center;
     border-style: solid;
-    border-width: 1px 1px 1px 4px;
+    border-width: 1px;
     border-color: transparent;
     outline: none;
     background: var(--global-card-header-background-color);
@@ -75,18 +76,36 @@ const treeCSS = css`
   & [role="row"][data-hovered] {
     background: var(--global-card-header-background-color-hover);
   }
+  /* top-level siblings are large items; separate those stacks without dividing
+     their descendant rows */
+  & [role="row"][aria-level="1"]:not(:first-child) {
+    border-top-color: var(--global-border-color-default);
+  }
   /* darker selected, with a thick left-edge accent */
   & [role="row"][data-selected] {
     background: var(--global-list-item-selected-background-color);
-    border-left-color: var(--global-color-primary);
+  }
+  & [role="row"][data-selected]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--global-color-primary);
   }
   /* hovering a selected row still shows hover bg */
   & [role="row"][data-selected][data-hovered] {
     background: var(--global-card-header-background-color-hover);
   }
-  /* keyboard focus gets a full border; selection keeps the thick left edge */
-  & [role="row"][data-focus-visible] {
+  /* keyboard focus gets a full border and must override separators */
+  & [role="row"][aria-level][data-focus-visible] {
     border-color: var(--global-color-primary);
+  }
+  & [role="row"][data-selected][data-focus-visible]::before {
+    left: 1px;
+    top: 1px;
+    bottom: 1px;
   }
   /* clickable expansion button, flush against the row's right edge. Background
      is transparent so it inherits the row's state (normal/hover/selected); it
