@@ -1,9 +1,6 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import { type ReactNode, useState } from "react";
-
-import { Metric, type MetricKind, Text } from "@phoenix/components";
-import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import {
   Button,
   type Key,
@@ -12,6 +9,15 @@ import {
   TreeItem,
   TreeItemContent,
 } from "react-aria-components";
+
+import {
+  Icon,
+  Icons,
+  Metric,
+  type MetricKind,
+  Text,
+} from "@phoenix/components";
+import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 
 const meta: Meta = {
   title: "Tree View",
@@ -29,6 +35,37 @@ const PARENTS = ["One", "Two", "Three"];
 // to collapse/expand) and the slot="chevron" button. No wrapper component yet —
 // extract one when the span, trace, or session views actually consume it.
 const treeCSS = css`
+  --tree-row-hover-mix: 5%;
+  --tree-row-chevron-hover-mix: 8%;
+  --tree-row-selected-mix: 3%;
+  --tree-row-selected-hover-mix: 4%;
+  --tree-row-selected-chevron-hover-mix: 8%;
+
+  --tree-row-hover-background-color: color-mix(
+    in srgb,
+    var(--global-card-header-background-color),
+    var(--global-color-gray-900) var(--tree-row-hover-mix)
+  );
+  --tree-row-selected-background-color: color-mix(
+    in srgb,
+    var(--global-card-header-background-color),
+    var(--global-color-gray-900) var(--tree-row-selected-mix)
+  );
+  --tree-row-selected-hover-background-color: color-mix(
+    in srgb,
+    var(--global-card-header-background-color),
+    var(--global-color-gray-900) var(--tree-row-selected-hover-mix)
+  );
+  --tree-row-action-hover-background-color: color-mix(
+    in srgb,
+    var(--global-card-header-background-color),
+    var(--global-color-gray-900) var(--tree-row-chevron-hover-mix)
+  );
+  --tree-row-selected-action-hover-background-color: color-mix(
+    in srgb,
+    var(--global-card-header-background-color),
+    var(--global-color-gray-900) var(--tree-row-selected-chevron-hover-mix)
+  );
   width: 460px;
   border: 1px solid var(--global-border-color-default);
 
@@ -72,18 +109,18 @@ const treeCSS = css`
     align-items: center;
     gap: var(--global-dimension-size-100);
   }
-  /* pale hover */
+  /* subtle neutral hover */
   & [role="row"][data-hovered] {
-    background: var(--global-card-header-background-color-hover);
+    background: var(--tree-row-hover-background-color);
   }
   /* top-level siblings are large items; separate those stacks without dividing
      their descendant rows */
   & [role="row"][aria-level="1"]:not(:first-child) {
     border-top-color: var(--global-border-color-default);
   }
-  /* darker selected, with a thick left-edge accent */
+  /* subtle selected, with a thick left-edge accent */
   & [role="row"][data-selected] {
-    background: var(--global-list-item-selected-background-color);
+    background: var(--tree-row-selected-background-color);
   }
   & [role="row"][data-selected]::before {
     content: "";
@@ -91,12 +128,12 @@ const treeCSS = css`
     left: 0;
     top: 0;
     bottom: 0;
-    width: 4px;
+    width: 3px;
     background: var(--global-color-primary);
   }
   /* hovering a selected row still shows hover bg */
   & [role="row"][data-selected][data-hovered] {
-    background: var(--global-card-header-background-color-hover);
+    background: var(--tree-row-selected-hover-background-color);
   }
   /* keyboard focus gets a full border and must override separators */
   & [role="row"][aria-level][data-focus-visible] {
@@ -113,7 +150,7 @@ const treeCSS = css`
   & [slot="chevron"] {
     margin-left: auto;
     align-self: stretch;
-    /* fixed width + centered glyph so the ▾/▸ swap doesn't shift layout */
+    /* fixed width + centered icon so the expanded/collapsed swap doesn't shift layout */
     box-sizing: border-box;
     width: var(--global-dimension-size-400);
     display: flex;
@@ -122,10 +159,15 @@ const treeCSS = css`
     padding: 0;
     cursor: pointer;
     border: none;
+    color: var(--global-text-color-500);
     background: transparent;
   }
   & [slot="chevron"][data-hovered] {
-    background: var(--global-input-field-background-color-hover);
+    color: var(--global-text-color-700);
+    background: var(--tree-row-action-hover-background-color);
+  }
+  & [role="row"][data-selected] [slot="chevron"][data-hovered] {
+    background: var(--tree-row-selected-action-hover-background-color);
   }
   /* leaf-row filler: same footprint as the chevron, empty and non-interactive —
      transparent so it tracks the row background like the chevron does */
@@ -172,12 +214,15 @@ const treeCSS = css`
   & .atom--title {
     flex: 1;
   }
-  /* dot: a 6x6 filled status indicator, tinted by span kind */
+  & [role="row"][data-selected] .atom--prefix {
+    color: var(--global-text-color-900);
+  }
+  /* dot: an 8x8 rounded-square status indicator, tinted by span kind */
   & .atom--dot {
     flex: none;
-    width: 6px;
-    height: 6px;
-    border-radius: var(--global-rounding-full);
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
   }
   & .row-preview {
     font-size: 12px;
@@ -259,7 +304,15 @@ export const PrimitiveTree: StoryFn = () => {
                   slot="chevron"
                   aria-label={isExpanded ? "Collapse" : "Expand"}
                 >
-                  {isExpanded ? "▾" : "▸"}
+                  <Icon
+                    svg={
+                      isExpanded ? (
+                        <Icons.ChevronDownSmall />
+                      ) : (
+                        <Icons.ChevronRightSmall />
+                      )
+                    }
+                  />
                 </Button>
               </>
             )}
@@ -340,10 +393,7 @@ const NESTED: TreeNode[] = [
 // columns (icon / timing / chevron), the headline atoms, preview lines, and
 // chip arrangement.
 // sample metrics per chip group, in the order they appear in the wireframe
-const CHIP_GROUPS: Record<
-  string,
-  { kind: MetricKind; value: ReactNode }[]
-> = {
+const CHIP_GROUPS: Record<string, { kind: MetricKind; value: ReactNode }[]> = {
   metrics: [
     { kind: "token", value: "1.2k" },
     { kind: "latency", value: "320ms" },
@@ -376,6 +426,9 @@ type RowLayout = {
   previews?: number; // number of full-width preview lines
   chips?: "packed" | "spread" | false; // metric/annotation/source chip groups
 };
+type RowLayoutResolver =
+  | RowLayout
+  | ((node: TreeNode, level: number) => RowLayout);
 
 const LAYOUTS: Record<string, RowLayout> = {
   // current track
@@ -433,7 +486,8 @@ const Chips = ({ spread }: { spread?: boolean }) => (
 const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
   const previewCount = layout.previews ?? 0;
   const previews =
-    data?.previews ?? Array.from({ length: previewCount }, () => "Preview line");
+    data?.previews ??
+    Array.from({ length: previewCount }, () => "Preview line");
   // filled dot tinted by span kind (gray fallback for unknown/absent kinds)
   const dotColor = useSpanKindColor({ spanKind: data?.kind ?? "" });
   return (
@@ -462,13 +516,21 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
           // prefix: subdued monospace index, like the metric counts
           if (atom === "prefix") {
             return (
-              <Text key={atom} size="XS" color="text-400" fontFamily="mono">
+              <Text
+                className="atom atom--prefix"
+                key={atom}
+                size="XS"
+                color="text-400"
+                fontFamily="mono"
+              >
                 {data?.prefix ?? ATOM_LABEL.prefix}
               </Text>
             );
           }
           const label =
-            atom === "title" ? (data?.title ?? ATOM_LABEL.title) : ATOM_LABEL[atom];
+            atom === "title"
+              ? (data?.title ?? ATOM_LABEL.title)
+              : ATOM_LABEL[atom];
           return (
             <span className={`atom atom--${atom}`} key={atom}>
               {label}
@@ -489,7 +551,11 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
 
 const Chevron = ({ isExpanded }: { isExpanded: boolean }) => (
   <Button slot="chevron" aria-label={isExpanded ? "Collapse" : "Expand"}>
-    {isExpanded ? "▾" : "▸"}
+    <Icon
+      svg={
+        isExpanded ? <Icons.ChevronDownSmall /> : <Icons.ChevronRightSmall />
+      }
+    />
   </Button>
 );
 
@@ -499,7 +565,7 @@ const Chevron = ({ isExpanded }: { isExpanded: boolean }) => (
 // the plain single-line label (used by PrimitiveTree/NestedTree).
 const makeRenderNode = (
   onRowInteract: (key: Key) => void,
-  layout?: RowLayout
+  layout?: RowLayoutResolver
 ) => {
   const render = (node: TreeNode) => (
     <TreeItem
@@ -510,7 +576,7 @@ const makeRenderNode = (
     >
       <TreeItemContent>
         {({ isExpanded, level, hasChildItems }) => {
-          const indent = `calc(${level - 1} * 1.25rem + var(--global-dimension-size-100))`;
+          const indent = `calc(${level} * var(--global-dimension-size-150))`;
           const chevron = hasChildItems ? (
             <Chevron isExpanded={isExpanded} />
           ) : (
@@ -528,14 +594,16 @@ const makeRenderNode = (
               </>
             );
           }
+          const rowLayout =
+            typeof layout === "function" ? layout(node, level) : layout;
           return (
             <>
               <div className="row-content" style={{ paddingLeft: indent }}>
-                {layout.icon && <span className="lead-icon" aria-hidden />}
-                <RowMain layout={layout} data={node.data} />
-                {layout.timing && <span className="row-extra">Timing</span>}
+                {rowLayout.icon && <span className="lead-icon" aria-hidden />}
+                <RowMain layout={rowLayout} data={node.data} />
+                {rowLayout.timing && <span className="row-extra">Timing</span>}
               </div>
-              {layout.chevron && chevron}
+              {rowLayout.chevron && chevron}
             </>
           );
         }}
@@ -587,7 +655,7 @@ const StandaloneTree = ({
 }: {
   label: string;
   nodes: TreeNode[];
-  layout?: RowLayout;
+  layout?: RowLayoutResolver;
 }) => {
   const numbered = withPrefixNumbers(nodes);
   const allIds = (ns: TreeNode[]): Key[] =>
@@ -610,7 +678,12 @@ const node = (
   previews?: string[],
   children?: TreeNode[],
   kind?: string
-): TreeNode => ({ id, label: title, data: { title, previews, kind }, children });
+): TreeNode => ({
+  id,
+  label: title,
+  data: { title, previews, kind },
+  children,
+});
 
 // Realistic content per example. Span/trace rows use OpenInference-style
 // operation names; turn rows simulate a PXI agent Q&A, user then model.
@@ -660,17 +733,37 @@ const GENERAL_NODES: TreeNode[] = [
 // current-track Trace / Span: operation names only, no previews
 const TRACE_SPAN_NODES: TreeNode[] = [
   node("ts/run", "AgentExecutor.run", undefined, [
-    node("ts/llm", "ChatOpenAI.generate", undefined, [
-      node("ts/parse", "OutputParser.parse"),
-    ]),
-    node("ts/search", "tool: web_search", undefined, [
-      node("ts/http", "HTTP GET api.search"),
-    ]),
+    node(
+      "ts/llm",
+      "ChatOpenAI.generate",
+      undefined,
+      [node("ts/parse", "OutputParser.parse", undefined, undefined, "chain")],
+      "llm"
+    ),
+    node(
+      "ts/search",
+      "tool: web_search",
+      undefined,
+      [node("ts/http", "HTTP GET api.search", undefined, undefined, "tool")],
+      "tool"
+    ),
   ]),
-  node("ts/embed", "OpenAIEmbeddings.embed_query", undefined, [
-    node("ts/vs", "VectorStore.similarity_search"),
-  ]),
-  node("ts/rerank", "CohereRerank.rerank"),
+  node(
+    "ts/embed",
+    "OpenAIEmbeddings.embed_query",
+    undefined,
+    [
+      node(
+        "ts/vs",
+        "VectorStore.similarity_search",
+        undefined,
+        undefined,
+        "retriever"
+      ),
+    ],
+    "embedding"
+  ),
+  node("ts/rerank", "CohereRerank.rerank", undefined, undefined, "reranker"),
 ];
 
 // current-track Turn: simulated PXI agent turns
@@ -697,15 +790,73 @@ const TURN_ALT_NODES: TreeNode[] = [
   ]),
 ];
 
-// alternate Trace / Span: operation names only
+// alternate Trace: top-level traces with compact span children
 const TRACE_ALT_NODES: TreeNode[] = [
-  node("trace-alt/run", "AgentExecutor.run", undefined, [
-    node("trace-alt/llm", "ChatOpenAI.generate", undefined, [
-      node("trace-alt/parse", "OutputParser.parse"),
+  node("trace-alt/checkout", "trace 9f2a · checkout charge", undefined, [
+    node("trace-alt/checkout/root", "AgentExecutor.run", undefined, [
+      node(
+        "trace-alt/checkout/llm",
+        "ChatOpenAI.generate",
+        undefined,
+        undefined,
+        "llm"
+      ),
+      node(
+        "trace-alt/checkout/payments",
+        "POST /charge",
+        undefined,
+        undefined,
+        "tool"
+      ),
     ]),
-    node("trace-alt/search", "tool: web_search", undefined, [
-      node("trace-alt/http", "HTTP GET api.search"),
+    node(
+      "trace-alt/checkout/retrieve",
+      "retrieve_context",
+      undefined,
+      undefined,
+      "retriever"
+    ),
+  ]),
+  node("trace-alt/support", "trace 7c11 · support lookup", undefined, [
+    node("trace-alt/support/root", "AgentExecutor.run", undefined, [
+      node(
+        "trace-alt/support/search",
+        "tool: search_tickets",
+        undefined,
+        undefined,
+        "tool"
+      ),
+      node(
+        "trace-alt/support/llm",
+        "ChatOpenAI.generate",
+        undefined,
+        undefined,
+        "llm"
+      ),
     ]),
+  ]),
+  node("trace-alt/summary", "trace 5d80 · incident summary", undefined, [
+    node(
+      "trace-alt/summary/embed",
+      "OpenAIEmbeddings.embed_query",
+      undefined,
+      undefined,
+      "embedding"
+    ),
+    node(
+      "trace-alt/summary/rerank",
+      "CohereRerank.rerank",
+      undefined,
+      undefined,
+      "reranker"
+    ),
+    node(
+      "trace-alt/summary/llm",
+      "ChatOpenAI.generate",
+      undefined,
+      undefined,
+      "llm"
+    ),
   ]),
 ];
 
@@ -763,13 +914,7 @@ const Column = ({
   </div>
 );
 
-const Example = ({
-  name,
-  children,
-}: {
-  name: string;
-  children: ReactNode;
-}) => (
+const Example = ({ name, children }: { name: string; children: ReactNode }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
     <Text size="S" fontFamily="mono" color="text-700">
       {name}
@@ -792,7 +937,9 @@ export const ExampleTrees: StoryFn = () => (
       <Example name="Trace / Span">
         <StandaloneTree
           label="Trace / Span"
-          layout={LAYOUTS.traceSpan}
+          layout={(_node, level) =>
+            level === 1 ? LAYOUTS.traceSpan : LAYOUTS.spanAlt
+          }
           nodes={TRACE_SPAN_NODES}
         />
       </Example>
@@ -811,7 +958,9 @@ export const ExampleTrees: StoryFn = () => (
       <Example name="Trace">
         <StandaloneTree
           label="Trace"
-          layout={LAYOUTS.traceAlt}
+          layout={(_node, level) =>
+            level === 1 ? LAYOUTS.traceAlt : LAYOUTS.spanAlt
+          }
           nodes={TRACE_ALT_NODES}
         />
       </Example>
