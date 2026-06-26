@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
 import {
+  type CSSProperties,
   type ReactNode,
   type RefObject,
   useLayoutEffect,
@@ -188,16 +189,11 @@ const treeCSS = css`
   }
 
   /* ---- layout demo pieces (six example-tree row layouts) ---- */
-  /* leading icon slot: an 18x18 placeholder, top-aligned and indented inline
-     with the rest of the row content */
+  /* leading icon slot: top-aligned and indented inline with the rest of the row content */
   & .lead-icon {
     flex: none;
     align-self: flex-start;
-    width: 18px;
-    height: 18px;
     margin-right: var(--global-dimension-size-100);
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-small);
   }
   /* "extra" column inside the body: sits between the main content and the
      chevron, holds the timing graph */
@@ -255,13 +251,6 @@ const treeCSS = css`
   }
   & [role="row"][data-selected] .atom--prefix {
     color: var(--global-text-color-900);
-  }
-  /* dot: an 8x8 rounded-square status indicator, tinted by span kind */
-  & .atom--dot {
-    flex: none;
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
   }
   & .row-preview {
     font-size: 12px;
@@ -404,6 +393,40 @@ type TreeNode = {
   label: string;
   children?: TreeNode[];
   data?: RowData;
+};
+
+const getInferredSpanKind = ({
+  spanKind,
+  title,
+}: {
+  spanKind?: string;
+  title: string;
+}): string => {
+  if (spanKind) {
+    return spanKind;
+  }
+  if (/chatopenai|llm/i.test(title)) {
+    return "llm";
+  }
+  if (/tool|http|post \/charge/i.test(title)) {
+    return "tool";
+  }
+  if (/embedding/i.test(title)) {
+    return "embedding";
+  }
+  if (/retrieve|vectorstore|similarity_search|search/i.test(title)) {
+    return "retriever";
+  }
+  if (/rerank/i.test(title)) {
+    return "reranker";
+  }
+  if (/parser|parse/i.test(title)) {
+    return "chain";
+  }
+  if (/agent|pxi/i.test(title)) {
+    return "agent";
+  }
+  return "";
 };
 
 // Arbitrary-depth tree. Mirrors the span-tree shape we'll eventually render:
@@ -626,25 +649,177 @@ const TimingGraph = ({ data }: { data?: RowData }) => {
   );
 };
 
+type TreeSpanKindIconVariant = "compact" | "outline" | "block";
+const TREE_SPAN_KINDS = [
+  "llm",
+  "chain",
+  "retriever",
+  "embedding",
+  "agent",
+  "tool",
+  "reranker",
+  "evaluator",
+  "guardrail",
+  "prompt",
+  "unknown",
+] as const;
+
+const getSpanKindIconTitle = ({ spanKind }: { spanKind: string }): string => {
+  if (!spanKind) {
+    return "Unknown";
+  }
+  if (spanKind === "llm") {
+    return "LLM";
+  }
+  return spanKind.charAt(0).toUpperCase() + spanKind.slice(1);
+};
+
+const getSpanKindIconSvg = ({ spanKind }: { spanKind: string }): ReactNode => {
+  switch (spanKind) {
+    case "llm":
+      return <Icons.LLMOutput />;
+    case "chain":
+      return <Icons.Chain />;
+    case "retriever":
+      return <Icons.Retriever />;
+    case "embedding":
+      return <Icons.Embedding />;
+    case "tool":
+      return <Icons.Wrench />;
+    case "reranker":
+      return <Icons.Reranker />;
+    case "evaluator":
+      return <Icons.Scale />;
+    case "guardrail":
+      return <Icons.Guardrail />;
+    case "prompt":
+      return <Icons.MessageSquare />;
+    case "unknown":
+      return <Icons.Unknown />;
+    case "agent":
+      return <Icons.Sparkles />;
+    default:
+      return <Icons.Unknown />;
+  }
+};
+
+const TreeSpanKindIcon = ({
+  className,
+  spanKind,
+  variant,
+}: {
+  className?: string;
+  spanKind: string;
+  variant: TreeSpanKindIconVariant;
+}) => {
+  const color = useSpanKindColor({ spanKind });
+  const isCompact = variant === "compact";
+  const baseStyle: CSSProperties = {
+    alignItems: "center",
+    boxSizing: "border-box",
+    display: "inline-flex",
+    flex: "none",
+    justifyContent: "center",
+  };
+  const sizeStyle: CSSProperties = isCompact
+    ? {
+        width: 8,
+        height: 8,
+        borderRadius: 2,
+      }
+    : {
+        width: 16,
+        height: 16,
+        fontSize: 12,
+        ...(variant === "block"
+          ? { borderRadius: "var(--global-rounding-small)" }
+          : null),
+      };
+  const colorStyle: CSSProperties =
+    variant === "outline"
+      ? { color }
+      : variant === "block"
+        ? {
+            backgroundColor: color,
+            color: "var(--global-card-header-background-color)",
+          }
+        : { backgroundColor: color };
+  const iconStyle: CSSProperties = {
+    ...baseStyle,
+    ...sizeStyle,
+    ...colorStyle,
+  };
+  const title = getSpanKindIconTitle({ spanKind });
+  return (
+    <span
+      className={classNames(
+        "span-kind-icon",
+        `span-kind-icon--${variant}`,
+        className
+      )}
+      aria-hidden
+      style={iconStyle}
+      title={title}
+    >
+      {!isCompact && <Icon svg={getSpanKindIconSvg({ spanKind })} />}
+    </span>
+  );
+};
+
+function TreeSpanKindIconList() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        padding: "20px",
+      }}
+    >
+      {TREE_SPAN_KINDS.map((spanKind) => (
+        <div
+          key={spanKind}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <TreeSpanKindIcon spanKind={spanKind} variant="compact" />
+          <TreeSpanKindIcon spanKind={spanKind} variant="outline" />
+          <TreeSpanKindIcon spanKind={spanKind} variant="block" />
+          <span
+            style={{
+              fontSize: "13px",
+              color: "var(--global-text-color-900)",
+            }}
+          >
+            {getSpanKindIconTitle({ spanKind })}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export const TreeSpanKindIcons: StoryFn = () => <TreeSpanKindIconList />;
+
 const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
   const previewCount = layout.previews ?? 0;
   const previews =
     data?.previews ??
     Array.from({ length: previewCount }, () => "Preview line");
-  // filled dot tinted by span kind (gray fallback for unknown/absent kinds)
-  const dotColor = useSpanKindColor({ spanKind: data?.kind ?? "" });
   return (
     <div className="row-main">
       <div className="row-line">
         {layout.headline.map((atom) => {
-          // dot renders as a filled rounded swatch in the span-kind color
           if (atom === "dot") {
             return (
-              <span
-                className="atom atom--dot"
+              <TreeSpanKindIcon
+                className="atom"
                 key={atom}
-                aria-hidden
-                style={{ backgroundColor: dotColor }}
+                spanKind={data?.kind ?? ""}
+                variant="compact"
               />
             );
           }
@@ -769,7 +944,13 @@ const makeRenderNode = (
                 style={{ paddingLeft: indent }}
               >
                 <div className="row-body">
-                  {rowLayout.icon && <span className="lead-icon" aria-hidden />}
+                  {rowLayout.icon && (
+                    <TreeSpanKindIcon
+                      className="lead-icon"
+                      spanKind={node.data?.kind ?? ""}
+                      variant="block"
+                    />
+                  )}
                   <RowMain layout={rowLayout} data={node.data} />
                 </div>
                 {rowLayout.timing && (
@@ -857,7 +1038,11 @@ const node = (
 ): TreeNode => ({
   id,
   label: title,
-  data: { title, previews, kind },
+  data: {
+    title,
+    previews,
+    kind: getInferredSpanKind({ spanKind: kind, title }),
+  },
   children,
 });
 
