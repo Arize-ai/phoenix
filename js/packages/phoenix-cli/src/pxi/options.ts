@@ -36,6 +36,7 @@ type RawPxiOptions = {
   provider?: string;
   model?: string;
   customProviderId?: string;
+  skipModelPreflight?: boolean;
   enableWebAccess?: boolean;
   enableSubagents?: boolean;
   enableGraphqlMutations?: boolean;
@@ -56,6 +57,10 @@ function getExpectedProviderMessage(): string {
 
 function isBuiltInProvider(provider: string): provider is BuiltInProvider {
   return BUILT_IN_PROVIDERS.includes(provider as BuiltInProvider);
+}
+
+function normalizeBuiltInProvider({ provider }: { provider: string }): string {
+  return provider.toUpperCase();
 }
 
 export function resolveModelSelection({
@@ -83,10 +88,13 @@ export function resolveModelSelection({
     };
   }
 
-  const selectedProvider = (provider ?? DEFAULT_PXI_PROVIDER).trim();
+  const rawSelectedProvider = (provider ?? DEFAULT_PXI_PROVIDER).trim();
+  const selectedProvider = normalizeBuiltInProvider({
+    provider: rawSelectedProvider,
+  });
   if (!isBuiltInProvider(selectedProvider)) {
     throw new InvalidArgumentError(
-      `Invalid value for --provider: ${selectedProvider}. ${getExpectedProviderMessage()}`
+      `Invalid value for --provider: ${rawSelectedProvider}. ${getExpectedProviderMessage()}`
     );
   }
 
@@ -121,6 +129,7 @@ export function resolvePxiRuntimeOptions({
     sessionId,
     config,
     modelSelection,
+    skipModelPreflight: Boolean(cliOptions.skipModelPreflight),
     enableWebAccess: Boolean(cliOptions.enableWebAccess),
     enableSubagents: Boolean(cliOptions.enableSubagents),
     enableGraphqlMutations: Boolean(cliOptions.enableGraphqlMutations),
@@ -150,6 +159,10 @@ export function createPxiProgram(): Command {
       `Model name (defaults to ${DEFAULT_PXI_MODEL} for built-in providers)`
     )
     .option("--custom-provider-id <id>", "Custom provider ID")
+    .option(
+      "--skip-model-preflight",
+      "Skip Phoenix model catalog and credential checks before launch"
+    )
     .option("--enable-web-access", "Enable PXI web access context")
     .option("--enable-subagents", "Enable PXI subagent context")
     .option(

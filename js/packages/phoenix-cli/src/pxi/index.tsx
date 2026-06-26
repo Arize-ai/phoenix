@@ -7,6 +7,7 @@ import { getExitCodeForError } from "../exitCodes";
 import { writeError } from "../io";
 import { PxiApp } from "./App";
 import { parsePxiRuntimeOptions } from "./options";
+import { runPxiModelPreflight } from "./preflight";
 
 export async function main({
   argv = process.argv,
@@ -14,6 +15,7 @@ export async function main({
   argv?: string[];
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
+  await runPxiModelPreflight({ options });
   const instance = render(<PxiApp options={options} />);
   await instance.waitUntilExit();
 }

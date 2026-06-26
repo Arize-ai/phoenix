@@ -5,6 +5,7 @@ import {
 } from "ai";
 
 import type { PhoenixConfig } from "../config";
+import { formatPxiRuntimeError } from "./preflight";
 import type {
   PxiChatClient,
   PxiChatRequest,
@@ -164,14 +165,21 @@ export function createPxiChatClient({
 }): PxiChatClient {
   return {
     async sendMessage({ messages, abortSignal, onAssistantMessage }) {
-      const stream = await transport.sendMessages({
-        trigger: "submit-message",
-        chatId: options.sessionId,
-        messageId: undefined,
-        messages,
-        abortSignal,
-      });
-      return streamAssistantMessage({ stream, onAssistantMessage });
+      try {
+        const stream = await transport.sendMessages({
+          trigger: "submit-message",
+          chatId: options.sessionId,
+          messageId: undefined,
+          messages,
+          abortSignal,
+        });
+        return await streamAssistantMessage({ stream, onAssistantMessage });
+      } catch (error) {
+        throw formatPxiRuntimeError({
+          error,
+          modelSelection: options.modelSelection,
+        });
+      }
     },
   };
 }

@@ -207,4 +207,27 @@ describe("PXI client", () => {
       })
     );
   });
+
+  it("formats runtime provider errors with the selected model", async () => {
+    const options = createRuntimeOptions({
+      provider: "ANTHROPIC",
+      model: "claude-opus-4-6",
+    });
+    const transport: PxiTransport = {
+      sendMessages: async () => {
+        throw new Error("ProviderCredentialsError: missing ANTHROPIC_API_KEY");
+      },
+      reconnectToStream: async () => null,
+    };
+    const client = createPxiChatClient({ options, transport });
+
+    await expect(
+      client.sendMessage({
+        messages: [userMessage("hello")],
+        onAssistantMessage: () => undefined,
+      })
+    ).rejects.toThrow(
+      "PXI request failed for ANTHROPIC/claude-opus-4-6: ProviderCredentialsError: missing ANTHROPIC_API_KEY"
+    );
+  });
 });

@@ -88,6 +88,7 @@ export type PxiRuntimeOptions = {
   sessionId: string;
   config: PhoenixConfig;
   modelSelection: ModelSelection;
+  skipModelPreflight: boolean;
   enableWebAccess: boolean;
   enableSubagents: boolean;
   enableGraphqlMutations: boolean;

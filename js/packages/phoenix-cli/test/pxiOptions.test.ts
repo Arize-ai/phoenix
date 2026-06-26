@@ -14,10 +14,24 @@ describe("PXI options", () => {
     expect(help).toContain("Usage: pxi");
     expect(help).toContain("--enable-web-access");
     expect(help).toContain("--custom-provider-id");
+    expect(help).toContain("--skip-model-preflight");
   });
 
   it("defaults to the browser PXI model", () => {
     const selection = resolveModelSelection({});
+
+    expect(selection).toEqual({
+      providerType: "builtin",
+      provider: "ANTHROPIC",
+      modelName: "claude-opus-4-6",
+    });
+  });
+
+  it("accepts built-in providers case-insensitively", () => {
+    const selection = resolveModelSelection({
+      provider: "anthropic",
+      model: "claude-opus-4-6",
+    });
 
     expect(selection).toEqual({
       providerType: "builtin",
@@ -53,5 +67,26 @@ describe("PXI options", () => {
 
     expect(options.config.project).toBeUndefined();
     expect(options.sessionId).toBe("session-1");
+  });
+
+  it("defaults model preflight to enabled", () => {
+    const options = resolvePxiRuntimeOptions({
+      cliOptions: { endpoint: "http://localhost:6006" },
+      sessionId: "session-1",
+    });
+
+    expect(options.skipModelPreflight).toBe(false);
+  });
+
+  it("supports skipping model preflight", () => {
+    const options = resolvePxiRuntimeOptions({
+      cliOptions: {
+        endpoint: "http://localhost:6006",
+        skipModelPreflight: true,
+      },
+      sessionId: "session-1",
+    });
+
+    expect(options.skipModelPreflight).toBe(true);
   });
 });
