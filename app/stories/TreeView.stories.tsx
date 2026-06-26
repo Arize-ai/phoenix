@@ -214,6 +214,7 @@ const treeCSS = css`
     column-gap: var(--global-dimension-size-200);
   }
   & .row-body {
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
@@ -269,8 +270,7 @@ const treeCSS = css`
     );
     height: calc(50% + 1px);
     box-sizing: border-box;
-    border-left: var(--span-lineage-line-width) solid
-      var(--span-lineage-color);
+    border-left: var(--span-lineage-line-width) solid var(--span-lineage-color);
     border-bottom: var(--span-lineage-line-width) solid
       var(--span-lineage-color);
     background: transparent;
