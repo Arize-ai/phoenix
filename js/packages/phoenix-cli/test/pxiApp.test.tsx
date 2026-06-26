@@ -8,6 +8,8 @@ import type { PxiChatClient, PxiMessage } from "../src/pxi/types";
 
 const ESCAPE_CHARACTER = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
+const KITTY_SHIFT_ENTER = `${ESCAPE_CHARACTER}[13;2u`;
+const KITTY_PROTOCOL_RESPONSE = `${ESCAPE_CHARACTER}[?0u`;
 
 function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE_PATTERN, "");
@@ -41,6 +43,86 @@ describe("PXI app", () => {
     expect(lastFrame()).toContain("endpoint: http://localhost:6006");
     expect(lastFrame()).toContain("model: OPENAI/gpt-5.4");
     expect(lastFrame()).toContain("Enter sends.");
+    expect(lastFrame()).toContain("Shift+Enter inserts a newline.");
+    unmount();
+  });
+
+  it("uses Shift+Enter to insert a newline before submitting", async () => {
+    let submittedText: string | undefined;
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages }) => {
+        const userMessage = messages.at(-1);
+        const textPart = userMessage?.parts.find(
+          (part) => part.type === "text"
+        );
+        submittedText = textPart?.text;
+        return null;
+      },
+    };
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("first line");
+    });
+    await act(async () => {
+      stdin.write(KITTY_SHIFT_ENTER);
+    });
+    await act(async () => {
+      stdin.write("second line");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+
+    expect(submittedText).toBe("first line\nsecond line");
+    unmount();
+  });
+
+  it("ignores terminal keyboard protocol responses", async () => {
+    const client: PxiChatClient = {
+      sendMessage: async () => null,
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write(KITTY_PROTOCOL_RESPONSE);
+    });
+
+    expect(lastFrame()).not.toContain("[?0u");
+    unmount();
+  });
+
+  it("aborts an in-flight request on Ctrl+C", async () => {
+    let abortSignal: AbortSignal | undefined;
+    const client: PxiChatClient = {
+      sendMessage: async ({ abortSignal: signal }) => {
+        abortSignal = signal;
+        return new Promise((resolve) => {
+          signal?.addEventListener("abort", () => resolve(null), {
+            once: true,
+          });
+        });
+      },
+    };
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("hello");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+    await act(async () => {
+      stdin.write("\x03");
+    });
+
+    expect(abortSignal?.aborted).toBe(true);
     unmount();
   });
 

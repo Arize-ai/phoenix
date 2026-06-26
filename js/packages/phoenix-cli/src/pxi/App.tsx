@@ -36,6 +36,7 @@ const THINKING_FRAMES = [
   "PXI is thinking.. ",
   "PXI is thinking...",
 ];
+const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -184,7 +185,8 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   return (
     <Box flexDirection="column" borderStyle="single" paddingX={1} marginTop={1}>
       <Text color="gray">
-        Enter sends. Ctrl+J inserts a newline. Esc, Ctrl+D, or Ctrl+C exits.
+        Enter sends. Shift+Enter inserts a newline. Esc, Ctrl+D, or Ctrl+C
+        exits.
       </Text>
       <Text>
         <Text color="cyan">{"> "}</Text>
@@ -193,6 +195,10 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
       </Text>
     </Box>
   );
+}
+
+function isKeyboardProtocolResponseInput({ input }: { input: string }) {
+  return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
 }
 
 /** Animated "PXI is thinking…" indicator shown while a reply is streaming. */
@@ -213,7 +219,7 @@ export function ThinkingIndicator() {
  * Root component for the PXI chat.
  *
  * Holds the conversation, draft input, streaming status, and any error, and
- * wires keyboard handling: Enter submits, Ctrl+J inserts a newline, and Esc /
+ * wires keyboard handling: Enter submits, Shift+Enter inserts a newline, and Esc /
  * Ctrl+C / Ctrl+D exit (aborting an in-flight request). On submit it appends the
  * user message, streams the assistant reply into the transcript as it arrives,
  * and ignores errors caused by the user aborting. The `client` and
@@ -289,12 +295,15 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     if (status === "streaming") {
       return;
     }
-    if (key.return) {
-      submitDraft();
+    if (isKeyboardProtocolResponseInput({ input })) {
       return;
     }
-    if (key.ctrl && input === "j") {
+    if (key.return && key.shift) {
       setDraft((value) => `${value}\n`);
+      return;
+    }
+    if (key.return) {
+      submitDraft();
       return;
     }
     if (key.backspace || key.delete) {

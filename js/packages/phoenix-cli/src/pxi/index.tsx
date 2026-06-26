@@ -25,7 +25,13 @@ export async function main({
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
   await runPxiModelPreflight({ options });
-  const instance = render(<PxiApp options={options} />);
+  const instance = render(<PxiApp options={options} />, {
+    exitOnCtrlC: false,
+    kittyKeyboard: {
+      mode: "auto",
+      flags: ["disambiguateEscapeCodes"],
+    },
+  });
   await instance.waitUntilExit();
 }
 
