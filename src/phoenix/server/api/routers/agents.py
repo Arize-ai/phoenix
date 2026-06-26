@@ -358,6 +358,8 @@ def _build_message_metadata_chunk(
 
 
 def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
+    """Convert a run's token usage into the metadata payload, including cache
+    read/write details only when the run actually used the prompt cache."""
     usage_payload = AssistantMessageMetadataUsage(
         tokens=AssistantMessageMetadataUsageTokens(
             prompt=usage.input_tokens,
@@ -678,6 +680,22 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         request_body: ChatRequest,
     ) -> Response:
+        """Stream a chat turn from the GraphQL server agent.
+
+        This is the endpoint the PXI CLI talks to directly (no pre-configured
+        agent record): it builds a fresh server agent per request from the
+        caller-supplied model and contexts, then streams the reply back as
+        Vercel-AI chunks.
+
+        The request contexts gate capabilities — GraphQL mutations, web access,
+        and subagents — and mutations are refused for viewer users. When trace
+        recording is enabled (and permitted by system settings), the run is
+        traced; locally ingested traces are persisted to the agent's project
+        once the stream completes.
+
+        Returns ``403`` if agents or the server agent are disabled, or if a
+        viewer requests mutations.
+        """
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         if get_env_phoenix_agents_disable_bash():
