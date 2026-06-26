@@ -101,7 +101,7 @@ function InlineToolProgress({ tool }: { tool: ToolProgress }) {
   return (
     <Box flexDirection="column" marginY={1} paddingLeft={2}>
       <Text>
-        <Text color="gray">[tool]</Text>{" "}
+        <Text dimColor>[tool]</Text>{" "}
         <Text color={statusColor}>{tool.toolName}</Text>{" "}
         <Text color={statusColor}>{tool.statusText}</Text>
       </Text>
@@ -156,7 +156,7 @@ function Transcript({
   phoenixBaseUrl?: string;
 }) {
   if (messages.length === 0) {
-    return <Text color="gray">Phoenix Intelligence.</Text>;
+    return <Text dimColor>Phoenix Intelligence.</Text>;
   }
   return (
     <Box flexDirection="column">
@@ -184,7 +184,7 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const cursor = status === "streaming" ? "" : "█";
   return (
     <Box flexDirection="column" borderStyle="single" paddingX={1} marginTop={1}>
-      <Text color="gray">
+      <Text dimColor>
         Enter sends. Shift+Enter inserts a newline. Esc, Ctrl+D, or Ctrl+C
         exits.
       </Text>
@@ -318,7 +318,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   return (
     <Box flexDirection="column" paddingX={1}>
       <PxiBanner />
-      <Text color="gray">
+      <Text dimColor>
         endpoint: {options.config.endpoint} | model: {getModelLabel(options)} |
         session: {options.sessionId}
       </Text>
