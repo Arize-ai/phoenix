@@ -3,6 +3,7 @@ import type { Meta, StoryFn } from "@storybook/react";
 import { type ReactNode, useState } from "react";
 
 import { Metric, type MetricKind, Text } from "@phoenix/components";
+import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
 import {
   Button,
   type Key,
@@ -148,12 +149,11 @@ const treeCSS = css`
   & .atom--title {
     flex: 1;
   }
-  /* dot: an 8x8 fully-rounded placeholder, like a status indicator */
+  /* dot: a 6x6 filled status indicator, tinted by span kind */
   & .atom--dot {
     flex: none;
-    width: 8px;
-    height: 8px;
-    border: 1px solid var(--global-border-color-default);
+    width: 6px;
+    height: 6px;
     border-radius: var(--global-rounding-full);
   }
   & .row-preview {
@@ -262,7 +262,12 @@ export const PrimitiveTree: StoryFn = () => {
 
 // Optional per-row content overrides; atoms fall back to placeholders when a
 // field is absent, so most example trees stay as bare layout demos.
-type RowData = { prefix?: string; title?: string; previews?: string[] };
+type RowData = {
+  prefix?: string;
+  title?: string;
+  previews?: string[];
+  kind?: string; // openinference span kind, drives the dot color
+};
 type TreeNode = {
   id: string;
   label: string;
@@ -356,7 +361,7 @@ const LAYOUTS: Record<string, RowLayout> = {
     chevron: true,
     headline: ["prefix", "title", "date"],
     previews: 2,
-    chips: "packed",
+    chips: "spread",
   },
   traceSpan: {
     icon: true,
@@ -406,13 +411,22 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
   const previewCount = layout.previews ?? 0;
   const previews =
     data?.previews ?? Array.from({ length: previewCount }, () => "Preview line");
+  // filled dot tinted by span kind (gray fallback for unknown/absent kinds)
+  const dotColor = useSpanKindColor({ spanKind: data?.kind ?? "" });
   return (
     <div className="row-main">
       <div className="row-line">
         {layout.headline.map((atom) => {
-          // dot renders as an empty rounded swatch (styled in CSS)
+          // dot renders as a filled rounded swatch in the span-kind color
           if (atom === "dot") {
-            return <span className="atom atom--dot" key={atom} aria-hidden />;
+            return (
+              <span
+                className="atom atom--dot"
+                key={atom}
+                aria-hidden
+                style={{ backgroundColor: dotColor }}
+              />
+            );
           }
           // date/time use the same small grey text as the metrics, sans mono
           if (atom === "date" || atom === "time") {
@@ -565,51 +579,92 @@ const StandaloneTree = ({
   );
 };
 
-// A parent node with `count` leaf children, id-prefixed so reused shapes stay
-// unique. Labels are ignored by the layout renderer (it draws placeholders).
-const parentWith = (prefix: string, count: number): TreeNode => ({
-  id: prefix,
-  label: prefix,
-  children: Array.from({ length: count }, (_, i) => ({
-    id: `${prefix}/${i}`,
-    label: `${prefix} child ${i}`,
-  })),
-});
+// Compact node builder: title becomes both the label and the row title; optional
+// input/output preview lines and children. Prefixes are auto-numbered downstream.
+const node = (
+  id: string,
+  title: string,
+  previews?: string[],
+  children?: TreeNode[],
+  kind?: string
+): TreeNode => ({ id, label: title, data: { title, previews, kind }, children });
 
-// A flat list of `count` rows (no parent) — for the chevron-less turn layouts.
-const flatRows = (prefix: string, count: number): TreeNode[] =>
-  Array.from({ length: count }, (_, i) => ({
-    id: `${prefix}/${i}`,
-    label: `${prefix} ${i}`,
-  }));
+// Realistic content per example. Span/trace rows use OpenInference-style
+// operation names; turn rows simulate a PXI agent Q&A, user then model.
 
-// Realistic content for the current-track Turn example: simulated PXI agent
-// turns, user input then model output, each truncated to one line.
-const PXI_TURNS: TreeNode[] = [
-  {
-    id: "turn/0",
-    label: "PXI Agent Turn",
-    data: {
-      prefix: "01",
-      title: "PXI Agent Turn",
-      previews: [
-        "How many spans errored in checkout-service over the last 24h, and which operation fails most?",
-        "Over 24h checkout-service logged 1,284 spans; 37 errored (2.9%), mostly from POST /charge hitting the payments gateway.",
-      ],
-    },
-  },
-  {
-    id: "turn/1",
-    label: "PXI Agent Turn",
-    data: {
-      prefix: "02",
-      title: "PXI Agent Turn",
-      previews: [
-        "Group those failing charge spans by error type and show p95 latency for each.",
-        "GatewayTimeout: 21 spans, p95 8.4s · CardDeclined: 11 spans, p95 1.2s · RateLimited: 5 spans, p95 3.0s.",
-      ],
-    },
-  },
+// current-track General: a span tree with input/output previews
+const GENERAL_NODES: TreeNode[] = [
+  node(
+    "gen/run",
+    "AgentExecutor.run",
+    [
+      "User: summarize the last 3 incidents in the payments service",
+      "Assistant: 3 incidents in 24h — two gateway timeouts and a cert expiry…",
+    ],
+    [
+      node("gen/retrieve", "retrieve_context", [
+        "query: payments service incidents, window=24h",
+        "5 documents retrieved: incident-4821, incident-4822, incident-4830…",
+      ]),
+      node("gen/llm", "ChatOpenAI.generate", [
+        "system: you are an SRE assistant · user: summarize incidents…",
+        "There were 3 incidents: GatewayTimeout at 02:14 and 02:51, plus a…",
+      ]),
+    ]
+  ),
+];
+
+// current-track Trace / Span: operation names only, no previews
+const TRACE_SPAN_NODES: TreeNode[] = [
+  node("ts/run", "AgentExecutor.run", undefined, [
+    node("ts/llm", "ChatOpenAI.generate"),
+    node("ts/search", "tool: web_search"),
+  ]),
+];
+
+// current-track Turn: simulated PXI agent turns
+const TURN_NODES: TreeNode[] = [
+  node("turn/0", "PXI Agent Turn", [
+    "How many spans errored in checkout-service over the last 24h, and which operation fails most?",
+    "Over 24h checkout-service logged 1,284 spans; 37 errored (2.9%), mostly from POST /charge hitting the payments gateway.",
+  ]),
+  node("turn/1", "PXI Agent Turn", [
+    "Group those failing charge spans by error type and show p95 latency for each.",
+    "GatewayTimeout: 21 spans, p95 8.4s · CardDeclined: 11 spans, p95 1.2s · RateLimited: 5 spans, p95 3.0s.",
+  ]),
+];
+
+// alternate Turn: a different simulated PXI agent exchange
+const TURN_ALT_NODES: TreeNode[] = [
+  node("turn-alt/0", "PXI Agent Turn", [
+    "Which traces have the highest token cost today?",
+    "Top 3 by cost: trace 9f2a ($0.42), trace 7c11 ($0.31), trace 5d80 ($0.28).",
+  ]),
+  node("turn-alt/1", "PXI Agent Turn", [
+    "Show the span breakdown for trace 9f2a.",
+    "trace 9f2a: 6 spans — AgentExecutor.run → 2× ChatOpenAI.generate, retrieve_context, 2× tool calls.",
+  ]),
+];
+
+// alternate Trace / Span: operation names only
+const TRACE_ALT_NODES: TreeNode[] = [
+  node("trace-alt/run", "AgentExecutor.run", undefined, [
+    node("trace-alt/llm", "ChatOpenAI.generate"),
+    node("trace-alt/search", "tool: web_search"),
+  ]),
+];
+
+const SPAN_ALT_NODES: TreeNode[] = [
+  node(
+    "span-alt/run",
+    "AgentExecutor.run",
+    undefined,
+    [
+      node("span-alt/llm", "ChatOpenAI.generate", undefined, undefined, "llm"),
+      node("span-alt/parse", "OutputParser.parse", undefined, undefined, "chain"),
+    ],
+    "agent"
+  ),
 ];
 
 const Column = ({
@@ -632,30 +687,30 @@ export const ExampleTrees: StoryFn = () => (
       <StandaloneTree
         label="General"
         layout={LAYOUTS.general}
-        nodes={[parentWith("general", 2)]}
+        nodes={GENERAL_NODES}
       />
       <StandaloneTree
         label="Trace / Span"
         layout={LAYOUTS.traceSpan}
-        nodes={[parentWith("trace-span", 2)]}
+        nodes={TRACE_SPAN_NODES}
       />
-      <StandaloneTree label="Turn" layout={LAYOUTS.turn} nodes={PXI_TURNS} />
+      <StandaloneTree label="Turn" layout={LAYOUTS.turn} nodes={TURN_NODES} />
     </Column>
     <Column title="Alternate">
       <StandaloneTree
         label="Turn"
         layout={LAYOUTS.turnAlt}
-        nodes={flatRows("turn-alt", 2)}
+        nodes={TURN_ALT_NODES}
       />
       <StandaloneTree
         label="Trace"
         layout={LAYOUTS.traceAlt}
-        nodes={[parentWith("trace-alt", 2)]}
+        nodes={TRACE_ALT_NODES}
       />
       <StandaloneTree
         label="Span"
         layout={LAYOUTS.spanAlt}
-        nodes={[parentWith("span-alt", 2)]}
+        nodes={SPAN_ALT_NODES}
       />
     </Column>
   </div>
