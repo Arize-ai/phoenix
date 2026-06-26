@@ -277,6 +277,13 @@
                     ]
                   }
                 ]
+              },
+              {
+                "group": "Integrations",
+                "pages": [
+                  "docs/phoenix/evaluation/integrations/pytest",
+                  "docs/phoenix/evaluation/integrations/vitest-jest"
+                ]
               }
             ]
           },
