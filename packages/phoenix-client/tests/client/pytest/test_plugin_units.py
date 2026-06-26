@@ -123,7 +123,7 @@ class TestBroadcastTracing:
 class TestIterScores:
     """_iter_scores must accept the same return shapes as a run_experiment evaluator.
 
-    Regression guard: bool / float / str / (score, explanation) returns used to normalize to
+    Regression guard: bool / float / str / (score, label) returns used to normalize to
     an all-None annotation (silently rejected by the server). They must now carry a value.
     """
 
@@ -149,15 +149,15 @@ class TestIterScores:
         assert score["score"] is None
         assert score["label"] == "positive"
 
-    def test_tuple_is_score_and_explanation_as_one_score(self) -> None:
+    def test_tuple_is_one_score_not_two(self) -> None:
         # The old _iter_scores iterated a tuple element-wise, producing two all-None
-        # annotations. Delegation to _default_eval_scorer makes a 2-tuple one score whose
-        # second element is the explanation, per the documented evaluator contract.
+        # annotations. Delegation to _default_eval_scorer collapses a 2-tuple to one score,
+        # mapped (score, label) to match run_experiment's shared scorer.
         scores = _iter_scores((0.9, "close enough"), default_name="grade")
         assert len(scores) == 1
         assert scores[0]["score"] == 0.9
-        assert scores[0]["explanation"] == "close enough"
-        assert scores[0]["label"] is None
+        assert scores[0]["label"] == "close enough"
+        assert scores[0]["explanation"] is None
 
     def test_dict_return_keeps_its_own_name(self) -> None:
         (score,) = _iter_scores({"name": "correctness", "score": 1.0}, default_name="ignored")
@@ -253,7 +253,7 @@ class TestInvokeEvaluator:
 
         @create_evaluator(kind="CODE", name="exact")
         def exact(output: Any, expected: Any = None) -> bool:
-            return output == "hi"
+            return bool(output == "hi")
 
         # create_evaluator objects expose evaluate(self, **kwargs); a positional dict used to
         # raise TypeError. The result is a normalized EvaluationResult dict.
@@ -281,7 +281,7 @@ class TestInvokeEvaluator:
 
         @create_evaluator(kind="CODE", name="async_exact")
         async def exact(output: Any, expected: Any = None) -> bool:
-            return output == "hi"
+            return bool(output == "hi")
 
         result = _invoke_evaluator(exact, {"output": "hi"})
         assert result["score"] == 1.0
@@ -355,7 +355,7 @@ class TestAsEvaluatorAdapter:
         )
 
         def exact(output: Any, expected: Any) -> bool:
-            return output == expected
+            return bool(output == expected)
 
         wrapped = _as_evaluator(exact)
         result = _invoke_evaluator(

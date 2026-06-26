@@ -45,13 +45,17 @@ def test_log_run_posts_and_returns_server_id() -> None:
     assert captured["body"]["output"] == {"answer": "42"}
 
 
-def test_log_run_raises_on_409_by_default() -> None:
+def test_log_run_raises_on_409() -> None:
+    """A successful run is immutable server-side, so a duplicate post 409s. ``log_run`` surfaces
+    that as an ``HTTPStatusError`` (no placeholder run is returned); callers that expect
+    duplicates catch it and decide what to do with the already-recorded run."""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(409, json={"detail": "already exists"})
 
     exp = Experiments(client=_client(handler))
     now = datetime.now(timezone.utc)
-    with pytest.raises(httpx.HTTPStatusError):
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
         exp.log_run(
             experiment_id="Experiment:1",
             dataset_example_id="DatasetExample:9",
@@ -59,23 +63,7 @@ def test_log_run_raises_on_409_by_default() -> None:
             start_time=now,
             end_time=now,
         )
-
-
-def test_log_run_tolerate_existing_swallows_409() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(409, json={"detail": "already exists"})
-
-    exp = Experiments(client=_client(handler))
-    now = datetime.now(timezone.utc)
-    run = exp.log_run(
-        experiment_id="Experiment:1",
-        dataset_example_id="DatasetExample:9",
-        output=None,
-        start_time=now,
-        end_time=now,
-        tolerate_existing=True,
-    )
-    assert run["id"].startswith("temp-")
+    assert exc_info.value.response.status_code == 409
 
 
 def test_log_evaluation_requires_result_or_error() -> None:

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import inspect
 import logging
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+
+if TYPE_CHECKING:
+    from .tracing import SpanHandle, SuiteTracer
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +23,7 @@ class _RunRecord:
     # Test CHAIN trace_id (set by the hookwrapper) carried onto bare annotations.
     trace_id: Optional[str] = None
     # Suite tracer for the test's dataset; lets inline evaluate() open EVALUATOR spans.
-    tracer: Any = None
+    tracer: Optional["SuiteTracer"] = None
 
     def set_output(self, value: Any) -> None:
         self.output = value
@@ -136,8 +139,8 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
     run = _require_run()
     default_name = getattr(evaluator, "name", "evaluation")
     default_kind = _annotator_kind_for(evaluator)
-    handle: Any = None
-    span_cm: Any = (
+    handle: Optional[SpanHandle] = None
+    span_cm: AbstractContextManager[Optional[SpanHandle]] = (
         run.tracer.evaluator_span(f"Evaluation: {default_name}", input_value=dict(eval_input))
         if run.tracer is not None
         else nullcontext(None)
@@ -156,10 +159,10 @@ def evaluate(evaluator: Any, /, **eval_input: Any) -> Any:
             name=default_name,
             annotator_kind=default_kind,
             error=repr(e),
-            trace_id=getattr(handle, "trace_id", None),
+            trace_id=handle.trace_id if handle is not None else None,
         )
         raise
-    trace_id: Optional[str] = getattr(handle, "trace_id", None)
+    trace_id: Optional[str] = handle.trace_id if handle is not None else None
     for score in _iter_scores(result, default_name=default_name):
         run.add_evaluation(
             name=score["name"],

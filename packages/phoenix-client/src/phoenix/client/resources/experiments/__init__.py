@@ -50,6 +50,7 @@ from phoenix.client.resources.experiments.types import (
     ExperimentEvaluators,
     ExperimentRun,
     ExperimentTask,
+    LoggedExperimentEvaluation,
     RanExperiment,
     RateLimitErrors,
     TestCase,
@@ -2116,7 +2117,6 @@ class Experiments:
         repetition_number: int = 1,
         trace_id: Optional[str] = None,
         error: Optional[str] = None,
-        tolerate_existing: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> ExperimentRun:
         """Post a single experiment run and return the server record.
@@ -2135,18 +2135,18 @@ class Experiments:
             repetition_number (int): 1-based repetition index for this example. Defaults to 1.
             trace_id (Optional[str]): Trace ID correlating the run to its spans. Defaults to None.
             error (Optional[str]): Error repr if the run failed. A run stored with an error is
-                re-runnable; a successful run is not. Defaults to None.
-            tolerate_existing (bool): When False (default), a 409 (a successful run already
-                exists for this ``(experiment, example, repetition)``) is raised. When True, the
-                409 is swallowed and the locally-built run is returned with its temp id.
+                re-runnable (the server upserts it); a successful run is immutable. Defaults to
+                None.
             timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
 
         Returns:
             ExperimentRun: The run record, with ``id`` set to the server-assigned ID on success.
 
         Raises:
-            httpx.HTTPStatusError: On API errors, including a 409 when ``tolerate_existing`` is
-                False and a successful run already exists.
+            httpx.HTTPStatusError: On API errors, including a 409 when a successful (immutable)
+                run already exists for this ``(experiment, example, repetition)``. Callers that
+                expect duplicates (e.g. concurrent runners) should catch the 409 and decide what
+                to do with the already-recorded run; there is no nothing-to-resolve placeholder.
         """
         exp_run: ExperimentRun = {
             "dataset_example_id": dataset_example_id,
@@ -2154,8 +2154,8 @@ class Experiments:
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
-            # Collision-resistant placeholder; replaced by the server id on success. The
-            # "temp-" prefix is load-bearing: consumers detect a tolerated-409 run by it.
+            # Placeholder required by the ExperimentRun TypedDict before the server assigns the
+            # real id; always replaced on success. The 409 path raises, so it never escapes.
             "id": f"temp-{uuid.uuid4().hex}",
             "experiment_id": experiment_id,
         }
@@ -2163,18 +2163,13 @@ class Experiments:
             exp_run["trace_id"] = trace_id
         if error:
             exp_run["error"] = error
-        try:
-            resp = self._client.post(
-                f"v1/experiments/{encode_path_param(experiment_id)}/runs",
-                json=exp_run,
-                timeout=timeout,
-            )
-            resp.raise_for_status()
-            return {**exp_run, "id": resp.json()["data"]["id"]}
-        except HTTPStatusError as e:
-            if e.response.status_code == 409 and tolerate_existing:
-                return exp_run
-            raise
+        resp = self._client.post(
+            f"v1/experiments/{encode_path_param(experiment_id)}/runs",
+            json=exp_run,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return {**exp_run, "id": resp.json()["data"]["id"]}
 
     def log_evaluation(
         self,
@@ -2191,7 +2186,7 @@ class Experiments:
         metadata: Optional[Mapping[str, Any]] = None,
         trace_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> LoggedExperimentEvaluation:
         """Post (upsert) a single evaluation for an experiment run.
 
         The server upserts on ``(experiment_run_id, name)``, so re-posting the same name
@@ -2213,13 +2208,13 @@ class Experiments:
             timeout (Optional[int]): Request timeout in seconds. Defaults to 60.
 
         Returns:
-            dict[str, Any]: The posted evaluation payload with its server-assigned ``id``.
+            LoggedExperimentEvaluation: The posted evaluation with its server-assigned ``id``.
 
         Raises:
             ValueError: If neither a result (score/label/explanation) nor an error is provided.
             httpx.HTTPStatusError: On API errors.
         """
-        result: dict[str, Any] = {}
+        result: v1.ExperimentEvaluationResult = {}
         if score is not None:
             result["score"] = score
         if label is not None:
@@ -2230,20 +2225,34 @@ class Experiments:
             raise ValueError("Must provide a result (score/label/explanation) or an error")
         start = start_time or datetime.now(timezone.utc)
         end = end_time or start
+        result_payload: Optional[v1.ExperimentEvaluationResult] = result or None
+        metadata_payload: Mapping[str, Any] = dict(metadata) if metadata else {}
         payload: dict[str, Any] = {
             "experiment_run_id": experiment_run_id,
             "name": name,
             "annotator_kind": annotator_kind,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
-            "result": result or None,
+            "result": result_payload,
             "error": error,
-            "metadata": dict(metadata) if metadata else {},
+            "metadata": metadata_payload,
             "trace_id": trace_id,
         }
         resp = self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
         resp.raise_for_status()
-        return {**payload, "id": resp.json()["data"]["id"]}
+        evaluation: LoggedExperimentEvaluation = {
+            "id": str(resp.json()["data"]["id"]),
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": payload["start_time"],
+            "end_time": payload["end_time"],
+            "result": result_payload,
+            "error": error,
+            "metadata": metadata_payload,
+            "trace_id": trace_id,
+        }
+        return evaluation
 
     def _paginate(
         self,
@@ -4013,7 +4022,6 @@ class AsyncExperiments:
         repetition_number: int = 1,
         trace_id: Optional[str] = None,
         error: Optional[str] = None,
-        tolerate_existing: bool = False,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
     ) -> ExperimentRun:
         """Post a single experiment run and return the server record.
@@ -4026,8 +4034,8 @@ class AsyncExperiments:
             "repetition_number": repetition_number,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
-            # Collision-resistant placeholder; replaced by the server id on success. The
-            # "temp-" prefix is load-bearing: consumers detect a tolerated-409 run by it.
+            # Placeholder required by the ExperimentRun TypedDict before the server assigns the
+            # real id; always replaced on success. The 409 path raises, so it never escapes.
             "id": f"temp-{uuid.uuid4().hex}",
             "experiment_id": experiment_id,
         }
@@ -4035,18 +4043,13 @@ class AsyncExperiments:
             exp_run["trace_id"] = trace_id
         if error:
             exp_run["error"] = error
-        try:
-            resp = await self._client.post(
-                f"v1/experiments/{encode_path_param(experiment_id)}/runs",
-                json=exp_run,
-                timeout=timeout,
-            )
-            resp.raise_for_status()
-            return {**exp_run, "id": resp.json()["data"]["id"]}
-        except HTTPStatusError as e:
-            if e.response.status_code == 409 and tolerate_existing:
-                return exp_run
-            raise
+        resp = await self._client.post(
+            f"v1/experiments/{encode_path_param(experiment_id)}/runs",
+            json=exp_run,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        return {**exp_run, "id": resp.json()["data"]["id"]}
 
     async def log_evaluation(
         self,
@@ -4063,13 +4066,13 @@ class AsyncExperiments:
         metadata: Optional[Mapping[str, Any]] = None,
         trace_id: Optional[str] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT_IN_SECONDS,
-    ) -> dict[str, Any]:
+    ) -> LoggedExperimentEvaluation:
         """Post (upsert) a single evaluation for an experiment run.
 
         Async counterpart to :meth:`Experiments.log_evaluation`; see that method for full
         semantics.
         """
-        result: dict[str, Any] = {}
+        result: v1.ExperimentEvaluationResult = {}
         if score is not None:
             result["score"] = score
         if label is not None:
@@ -4080,20 +4083,34 @@ class AsyncExperiments:
             raise ValueError("Must provide a result (score/label/explanation) or an error")
         start = start_time or datetime.now(timezone.utc)
         end = end_time or start
+        result_payload: Optional[v1.ExperimentEvaluationResult] = result or None
+        metadata_payload: Mapping[str, Any] = dict(metadata) if metadata else {}
         payload: dict[str, Any] = {
             "experiment_run_id": experiment_run_id,
             "name": name,
             "annotator_kind": annotator_kind,
             "start_time": start.isoformat(),
             "end_time": end.isoformat(),
-            "result": result or None,
+            "result": result_payload,
             "error": error,
-            "metadata": dict(metadata) if metadata else {},
+            "metadata": metadata_payload,
             "trace_id": trace_id,
         }
         resp = await self._client.post("v1/experiment_evaluations", json=payload, timeout=timeout)
         resp.raise_for_status()
-        return {**payload, "id": resp.json()["data"]["id"]}
+        evaluation: LoggedExperimentEvaluation = {
+            "id": str(resp.json()["data"]["id"]),
+            "experiment_run_id": experiment_run_id,
+            "name": name,
+            "annotator_kind": annotator_kind,
+            "start_time": payload["start_time"],
+            "end_time": payload["end_time"],
+            "result": result_payload,
+            "error": error,
+            "metadata": metadata_payload,
+            "trace_id": trace_id,
+        }
+        return evaluation
 
     async def _paginate(
         self,

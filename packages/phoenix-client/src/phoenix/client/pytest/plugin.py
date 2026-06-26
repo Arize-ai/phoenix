@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from contextlib import nullcontext
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Optional, cast
@@ -31,6 +31,8 @@ if TYPE_CHECKING:
     from _pytest.config import Config
     from _pytest.config.argparsing import Parser
     from _pytest.nodes import Item
+
+    from .tracing import SpanHandle
 
 logger = logging.getLogger(__name__)
 
@@ -297,8 +299,8 @@ def pytest_runtest_call(item: "Item") -> Any:
     record = _RunRecord(nodeid=item.nodeid, external_id=binding.external_id, tracer=tracer)
     token = set_current_run(record)
     start_time = datetime.now(timezone.utc)
-    handle: Any = None
-    span_cm: Any = (
+    handle: Optional[SpanHandle] = None
+    span_cm: AbstractContextManager[Optional[SpanHandle]] = (
         tracer.chain_span(
             f"Test: {item.nodeid}",
             input_value=_chain_input(item),
@@ -314,7 +316,7 @@ def pytest_runtest_call(item: "Item") -> Any:
         with span_cm as handle:
             outcome = yield
     finally:
-        record.trace_id = getattr(handle, "trace_id", None)
+        record.trace_id = handle.trace_id if handle is not None else None
         reset_current_run(token)
         end_time = datetime.now(timezone.utc)
         excinfo: Any = outcome.excinfo  # (type, value, tb) or None

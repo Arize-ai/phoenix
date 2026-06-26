@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
+from httpx import HTTPStatusError
+
 from .config import PhoenixTestConfig
 from .context import (
     _annotator_kind_for,  # pyright: ignore[reportPrivateUsage]
@@ -14,17 +16,12 @@ from .context import (
     _RunRecord,  # pyright: ignore[reportPrivateUsage]
 )
 from .marker import REPETITION_PARAM, resolve_evaluators
-from .tracing import SuiteTracer, build_suite_tracer
+from .tracing import SpanHandle, SuiteTracer, build_suite_tracer
 
 if TYPE_CHECKING:
     from _pytest.nodes import Item
 
 logger = logging.getLogger(__name__)
-
-# experiments.log_run(tolerate_existing=True) returns a locally-built run carrying an id with
-# this prefix when the server already has the run (a tolerated 409). Such an id resolves to
-# nothing server-side, so it must not be used as the target of annotation posts.
-_TEMP_RUN_ID_PREFIX = "temp-"
 
 
 @dataclass
@@ -175,7 +172,12 @@ class SuiteState:
             _example_global_id,  # pyright: ignore[reportPrivateUsage]
         )
 
-        dataset = self._client.datasets.get_dataset(dataset=group.dataset_id)
+        # Pin to the version the experiment was created against (group.dataset_version_id), not
+        # the latest: a concurrent writer to the same dataset name between upload and resolve
+        # would otherwise hand back example IDs from a version the experiment isn't pinned to.
+        dataset = self._client.datasets.get_dataset(
+            dataset=group.dataset_id, version_id=group.dataset_version_id
+        )
         # Use the node GlobalID, never "id": custom-id uploads put external_id in "id" and the
         # GlobalID in "node_id" (guards the PR #13702 zero-runs bug).
         by_nodeid: dict[str, str] = {}
@@ -270,24 +272,29 @@ class SuiteState:
                 repetition_number=repetition_number,
                 trace_id=record.trace_id,
                 error=error,
-                tolerate_existing=True,
             )
         except Exception as e:  # noqa: BLE001
-            logger.warning("Phoenix plugin: failed to log run for %s: %s", binding.nodeid, e)
+            # A 409 means the server already has a *successful* run for this
+            # (experiment, example, repetition) and treats it as immutable, so it refuses to
+            # overwrite it. That run already carries the annotations from the execution that
+            # created it; re-posting this attempt's annotations would duplicate them and describe
+            # a different output, so skip them. (A run stored with an *error* is not immutable —
+            # the server upserts it — so ordinary fail->pass reruns never reach this branch; the
+            # duplicate-success case comes from concurrent execution, e.g. xdist collection
+            # divergence, or a rerun plugin that reruns already-passing tests.) Any other failure
+            # is also non-fatal: logging is best-effort and must not sink the test outcome.
+            if isinstance(e, HTTPStatusError) and e.response.status_code == 409:
+                logger.warning(
+                    "Phoenix plugin: a successful run already exists for %s (repetition %d); "
+                    "skipping its annotations.",
+                    binding.nodeid,
+                    repetition_number,
+                )
+            else:
+                logger.warning("Phoenix plugin: failed to log run for %s: %s", binding.nodeid, e)
             return
         run_id = run["id"]
         recorded.experiment_run_id = run_id
-        if isinstance(run_id, str) and run_id.startswith(_TEMP_RUN_ID_PREFIX):
-            # The server already had this run (a tolerated 409) and returned a temp id that
-            # resolves to nothing. Posting annotations against it would silently fail each one,
-            # so skip them with a single clear warning rather than dropping data quietly.
-            logger.warning(
-                "Phoenix plugin: a run already exists for %s (repetition %d); skipping its "
-                "annotations to avoid posting against an unresolved run id.",
-                binding.nodeid,
-                repetition_number,
-            )
-            return
 
         tracer = self._tracers.get(binding.dataset_name)
         # The pass/fail verdict is an evaluation of the run's output, so give it its own EVALUATOR
@@ -367,7 +374,10 @@ class SuiteState:
             )
             default_name = raw_name
             default_kind = _annotator_kind_for(evaluator)
-            trace_id: Optional[str] = None
+            # Pre-init so the EVALUATOR span's trace_id is recoverable even when the evaluator
+            # raises inside the span: the span context manager populates handle.trace_id during
+            # unwind, so the errored eval below still links to its span (parity with evaluate()).
+            handle: Optional[SpanHandle] = None
             try:
                 # Route through the experiment adapter so a hoisted evaluator behaves exactly as
                 # it would under run_experiment: arguments bound by parameter name and the
@@ -381,7 +391,6 @@ class SuiteState:
                         f"Evaluation: {default_name}", input_value=eval_input
                     ) as handle:
                         result = _invoke_evaluator(wrapped, eval_input)
-                    trace_id = handle.trace_id
                 else:
                     result = _invoke_evaluator(wrapped, eval_input)
             except Exception as e:  # noqa: BLE001
@@ -399,9 +408,10 @@ class SuiteState:
                     name=default_name,
                     annotator_kind=default_kind,
                     error=repr(e),
-                    trace_id=trace_id,
+                    trace_id=handle.trace_id if handle is not None else None,
                 )
                 continue
+            trace_id = handle.trace_id if handle is not None else None
             for score in _iter_scores(result, default_name=default_name):
                 self._safe_log_eval(
                     experiment_run_id=run_id,

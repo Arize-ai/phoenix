@@ -1,8 +1,9 @@
 """Unit tests for _default_eval_scorer: the canonical evaluator-result normalizer.
 
-These lock in the documented return-shape contract for ``create_evaluator``-wrapped
-functions. The 2-tuple case is a regression guard: it must be (score, explanation),
-matching every docstring and the levenshtein example, not (score, label).
+These lock in the return-shape contract for ``create_evaluator``-wrapped functions, the
+shared scorer also used by ``run_experiment``. A 2-tuple is (score, label) and a 3-tuple is
+(score, label, explanation) — changing the 2-tuple mapping is a breaking change for existing
+``run_experiment`` evaluators, so it stays put.
 """
 
 from __future__ import annotations
@@ -27,11 +28,12 @@ class TestDefaultEvalScorer:
     def test_str_is_label(self) -> None:
         assert _default_eval_scorer("positive") == {"label": "positive"}
 
-    def test_two_tuple_is_score_and_explanation(self) -> None:
-        # Regression guard for the (score, explanation) contract.
+    def test_two_tuple_is_score_and_label(self) -> None:
+        # Regression guard: a 2-tuple is (score, label). This is shared with run_experiment;
+        # remapping the second element to "explanation" silently breaks existing evaluators.
         assert _default_eval_scorer((0.9, "close enough")) == {
             "score": 0.9,
-            "explanation": "close enough",
+            "label": "close enough",
         }
 
     def test_three_tuple_is_score_label_explanation(self) -> None:

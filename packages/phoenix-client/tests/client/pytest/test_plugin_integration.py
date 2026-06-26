@@ -110,7 +110,7 @@ def test_end_to_end_records_runs_and_pass_annotation(pytester: pytest.Pytester) 
                 self.metadata = experiment_metadata
                 return {"id": "Experiment:1"}
             def log_run(self, *, experiment_id, dataset_example_id, output, start_time,
-                        end_time, repetition_number=1, error=None, tolerate_existing=False, **kw):
+                        end_time, repetition_number=1, error=None, **kw):
                 rid = f"ExperimentRun:{len(self.runs)}"
                 self.runs.append({"id": rid, "error": error, "output": output,
                                   "example": dataset_example_id})
@@ -924,7 +924,7 @@ class _FakeExperiments:
         self.creates += 1
         return {"id": "Experiment:1", "project_name": None}
     def log_run(self, *, experiment_id, dataset_example_id, repetition_number=1,
-                error=None, tolerate_existing=False, **kw):
+                error=None, **kw):
         rid = f"ExperimentRun:{len(self.runs)}"
         self.runs.append({"id": rid, "example": dataset_example_id})
         return {"id": rid}
@@ -1200,10 +1200,11 @@ def test_teardown_failure_downgrades_run_to_fail(pytester: pytest.Pytester) -> N
     assert fx["run_errors"][0] is not None and "teardown boom" in fx["run_errors"][0]
 
 
-# --- a tolerated 409 (temp run id) must not post annotations against an unresolved id --------
+# --- a 409 for an existing successful run must not post annotations against an unresolved id --
 
 _DUP_CONFTEST = """
 import json, os
+import httpx
 import phoenix.client.pytest.plugin as plugin
 
 class _FakeDataset:
@@ -1226,9 +1227,12 @@ class _FakeExperiments:
     def create(self, **kw): return {"id": "Experiment:1"}
     def log_run(self, **kw):
         self.runs += 1
-        # Simulate experiments.log_run(tolerate_existing=True) swallowing a 409: a locally-built
-        # run carrying a temp id that resolves to nothing server-side.
-        return {"id": "temp-deadbeefcafe"}
+        # The server treats an existing *successful* run as immutable and 409s instead of
+        # overwriting it. experiments.log_run surfaces that as an HTTPStatusError; the plugin
+        # must catch it and skip annotations rather than post them against an unresolved run.
+        request = httpx.Request("POST", "http://test/runs")
+        response = httpx.Response(409, json={"detail": "already exists"}, request=request)
+        raise httpx.HTTPStatusError("409", request=request, response=response)
     def log_evaluation(self, *, name, **kw):
         self.evals.append(name); return {"id": "A:1"}
 
@@ -1247,14 +1251,15 @@ def pytest_unconfigure(config):
 """
 
 
-def test_tolerated_409_temp_id_skips_annotations(pytester: pytest.Pytester) -> None:
-    """When ``log_run`` returns a temp id (a tolerated 409), the plugin skips the pass annotation
-    and evaluations instead of silently posting them against an id the server can't resolve.
+def test_existing_successful_run_409_skips_annotations(pytester: pytest.Pytester) -> None:
+    """When ``log_run`` raises a 409 (a successful run already exists and the server refuses to
+    overwrite it), the plugin skips the pass annotation and evaluations instead of posting them
+    against a run it can't resolve.
 
-    This is the exact branch a rerun plugin (e.g. ``pytest-rerunfailures``) would trigger: re-
-    executing the same ``(experiment, example, repetition)`` makes ``log_run(tolerate_existing=
-    True)`` swallow the server's 409 and return a temp id. Injecting that temp id directly covers
-    the plugin-side behaviour without depending on a rerun plugin being installed."""
+    The duplicate-success case comes from concurrent duplicate execution (e.g. xdist collection
+    divergence) or a rerun plugin that reruns an already-passing test. (Ordinary fail->pass
+    reruns never reach here: the server upserts a run stored with an error.) Raising the 409
+    directly from the stub covers the plugin-side behaviour without orchestrating a real race."""
     pytester.makeconftest(_DUP_CONFTEST)
     pytester.makepyfile(
         test_dup="""
@@ -1275,7 +1280,7 @@ def test_tolerated_409_temp_id_skips_annotations(pytester: pytest.Pytester) -> N
 
     fx = json.loads((pytester.path / "dup.json").read_text())
     assert fx["n_runs"] == 1  # the run was attempted
-    assert fx["eval_names"] == []  # but nothing was posted against the temp id
+    assert fx["eval_names"] == []  # but nothing was posted after the 409
 
 
 # create_evaluator keyword dispatch and annotator-kind derivation are covered by the unit tests
