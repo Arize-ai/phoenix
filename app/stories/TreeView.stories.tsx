@@ -1199,7 +1199,7 @@ const measureTreeTimingColumns = ({ tree }: { tree: HTMLElement }): boolean => {
     if (!(metricRow instanceof HTMLElement)) {
       return [];
     }
-    return [{ metricRow, rowBody }];
+    return [{ metricRow, rowBody, rowContent }];
   });
   if (rowsWithDetails.length === 0) {
     tree.style.removeProperty("--tree-row-content-width");
@@ -1218,7 +1218,7 @@ const measureTreeTimingColumns = ({ tree }: { tree: HTMLElement }): boolean => {
       })
     )
   );
-  const availableTimingWidths = rowContents.map((rowContent) => {
+  const availableTimingWidths = rowsWithDetails.map(({ rowContent }) => {
     const rowContentStyle = getComputedStyle(rowContent);
     const horizontalPadding =
       getPixelValue(rowContentStyle.paddingLeft) +
