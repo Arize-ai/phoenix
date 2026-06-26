@@ -15,6 +15,7 @@ const barCSS = css`
   position: absolute;
   top: 0;
   bottom: 0;
+  border-radius: var(--global-rounding-xsmall);
 `;
 
 export interface TimelineBarProps extends HTMLProps<HTMLDivElement> {

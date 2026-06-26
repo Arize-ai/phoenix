@@ -1,6 +1,12 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryFn } from "@storybook/react";
-import { type ReactNode, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Button,
   type Key,
@@ -19,6 +25,7 @@ import {
 } from "@phoenix/components";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { useSpanKindColor } from "@phoenix/components/trace/useSpanKindColor";
+import { classNames } from "@phoenix/utils/classNames";
 
 const meta: Meta = {
   title: "Tree View",
@@ -194,12 +201,31 @@ const treeCSS = css`
   }
   /* "extra" column inside the body: sits between the main content and the
      chevron, holds the timing graph */
+  & .row-content--with-timing {
+    display: grid;
+    grid-template-columns:
+      minmax(0, var(--tree-row-content-width, 1fr))
+      minmax(0, var(--tree-row-timing-width, 110px));
+    column-gap: var(--global-dimension-size-200);
+  }
+  & .row-body {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
   & .row-extra {
     display: flex;
     align-items: center;
-    padding-left: var(--global-dimension-size-200);
-    width: 110px;
+    gap: var(--global-dimension-size-100);
+    min-width: 0;
+  }
+  & .row-extra-metric {
     flex: none;
+  }
+  & .row-extra .timeline-bar {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
   }
   /* stack the body lines with a little breathing room */
   & .row-main {
@@ -207,11 +233,25 @@ const treeCSS = css`
   }
   /* inline atom text; title grows to push date/time to the right edge */
   & .atom {
+    flex: none;
     font-size: 12px;
     white-space: nowrap;
   }
   & .atom--title {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    overflow: hidden;
+  }
+  & .atom-title-start {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  & .atom-title-end {
+    flex: none;
+    white-space: nowrap;
   }
   & [role="row"][data-selected] .atom--prefix {
     color: var(--global-text-color-900);
@@ -234,8 +274,9 @@ const treeCSS = css`
   & .row-chips {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: var(--global-dimension-size-200);
+    overflow: hidden;
   }
   & .row-chips--spread {
     justify-content: space-between;
@@ -243,7 +284,22 @@ const treeCSS = css`
   & .chip-group {
     display: flex;
     align-items: center;
+    flex: none;
     gap: var(--global-dimension-size-100);
+  }
+  &[data-hide-latency-icons="true"] .metric {
+    gap: 2px;
+  }
+  &[data-hide-latency-icons="true"] .metric .icon-wrap {
+    font-size: 11px;
+  }
+  &[data-hide-latency-icons="true"] .metric .text {
+    font-size: 11px;
+  }
+  &[data-hide-latency-icons="true"]
+    .metric[data-metric-kind="latency"]
+    .icon-wrap {
+    display: none;
   }
 `;
 
@@ -407,6 +463,10 @@ const CHIP_GROUPS: Record<string, { kind: MetricKind; value: ReactNode }[]> = {
     { kind: "llm", value: 5 },
   ],
 };
+const TIMING_METRIC_KIND: MetricKind = "latency";
+const TIMING_METRIC = CHIP_GROUPS.metrics.find(
+  (metric) => metric.kind === TIMING_METRIC_KIND
+) ?? { kind: TIMING_METRIC_KIND, value: "320ms" };
 
 const ATOM_LABEL: Record<string, string> = {
   prefix: "Prefix",
@@ -415,6 +475,18 @@ const ATOM_LABEL: Record<string, string> = {
   date: "Jun 6 11:24 PM",
   time: "Jun 6 11:24 PM",
   dot: "Dot",
+};
+
+const getMiddleTruncatedTitleParts = ({
+  title,
+}: {
+  title: string;
+}): { start: string; end: string } => {
+  const splitIndex = Math.ceil(title.length * 0.6);
+  return {
+    start: title.slice(0, splitIndex),
+    end: title.slice(splitIndex),
+  };
 };
 
 const STORY_TIMELINE_START_MS = Date.UTC(2026, 5, 6, 23, 24, 0);
@@ -503,18 +575,43 @@ const LAYOUTS: Record<string, RowLayout> = {
   },
 };
 
-const Chips = ({ spread }: { spread?: boolean }) => (
+const Chips = ({
+  spread,
+  omitTimingMetric = false,
+}: {
+  spread?: boolean;
+  omitTimingMetric?: boolean;
+}) => (
   <div className={`row-chips${spread ? " row-chips--spread" : ""}`}>
-    {Object.keys(CHIP_GROUPS).map((group) => (
-      <div className="chip-group" key={group}>
-        {CHIP_GROUPS[group].map((m) => (
-          <Metric kind={m.kind} key={m.kind}>
-            {m.value}
-          </Metric>
-        ))}
-      </div>
-    ))}
+    {Object.entries(CHIP_GROUPS).map(([group, metrics]) => {
+      const visibleMetrics = metrics.filter(
+        (metric) => !(omitTimingMetric && metric.kind === TIMING_METRIC_KIND)
+      );
+      if (visibleMetrics.length === 0) {
+        return null;
+      }
+      return (
+        <div className="chip-group" key={group}>
+          {visibleMetrics.map((metric) => (
+            <Metric kind={metric.kind} key={metric.kind}>
+              {metric.value}
+            </Metric>
+          ))}
+        </div>
+      );
+    })}
   </div>
+);
+
+const TimingMetric = () => (
+  <Text
+    className="row-extra-metric"
+    color="text-400"
+    fontFamily="mono"
+    size="XS"
+  >
+    {TIMING_METRIC.value}
+  </Text>
 );
 
 const TimingGraph = ({ data }: { data?: RowData }) => {
@@ -554,7 +651,12 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
           // date/time use the same small grey text as the metrics, sans mono
           if (atom === "date" || atom === "time") {
             return (
-              <Text key={atom} size="XS" color="text-400">
+              <Text
+                className={`atom atom--${atom}`}
+                key={atom}
+                size="XS"
+                color="text-400"
+              >
                 {ATOM_LABEL[atom]}
               </Text>
             );
@@ -577,6 +679,17 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
             atom === "title"
               ? (data?.title ?? ATOM_LABEL.title)
               : ATOM_LABEL[atom];
+          if (atom === "title") {
+            const { start, end } = getMiddleTruncatedTitleParts({
+              title: label,
+            });
+            return (
+              <span className="atom atom--title" key={atom} title={label}>
+                <span className="atom-title-start">{start}</span>
+                <span className="atom-title-end">{end}</span>
+              </span>
+            );
+          }
           return (
             <span className={`atom atom--${atom}`} key={atom}>
               {label}
@@ -590,7 +703,12 @@ const RowMain = ({ layout, data }: { layout: RowLayout; data?: RowData }) => {
             {line}
           </div>
         ))}
-      {layout.chips && <Chips spread={layout.chips === "spread"} />}
+      {layout.chips && (
+        <Chips
+          omitTimingMetric={layout.timing}
+          spread={layout.chips === "spread"}
+        />
+      )}
     </div>
   );
 };
@@ -644,11 +762,19 @@ const makeRenderNode = (
             typeof layout === "function" ? layout(node, level) : layout;
           return (
             <>
-              <div className="row-content" style={{ paddingLeft: indent }}>
-                {rowLayout.icon && <span className="lead-icon" aria-hidden />}
-                <RowMain layout={rowLayout} data={node.data} />
+              <div
+                className={classNames("row-content", {
+                  "row-content--with-timing": rowLayout.timing,
+                })}
+                style={{ paddingLeft: indent }}
+              >
+                <div className="row-body">
+                  {rowLayout.icon && <span className="lead-icon" aria-hidden />}
+                  <RowMain layout={rowLayout} data={node.data} />
+                </div>
                 {rowLayout.timing && (
                   <span className="row-extra">
+                    <TimingMetric />
                     <TimingGraph data={node.data} />
                   </span>
                 )}
@@ -1015,10 +1141,190 @@ const TimingToggle = ({
   </Button>
 );
 
+const hasOverflowingMetricRow = (row: Element): boolean => {
+  if (!(row instanceof HTMLElement)) {
+    return false;
+  }
+  return row.scrollWidth > row.clientWidth + 1;
+};
+
+const getPixelValue = (value: string): number => {
+  const parsedValue = parseFloat(value);
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+};
+
+const getMetricRowNaturalWidth = (metricRow: HTMLElement): number => {
+  const previousWidth = metricRow.style.width;
+  metricRow.style.width = "max-content";
+  const width = metricRow.getBoundingClientRect().width;
+  metricRow.style.width = previousWidth;
+  return width;
+};
+
+const getRowLeadingContentWidth = ({
+  rowBody,
+}: {
+  rowBody: HTMLElement;
+}): number => {
+  const leadIcon = rowBody.querySelector(":scope > .lead-icon");
+  if (!(leadIcon instanceof HTMLElement)) {
+    return 0;
+  }
+  const leadIconStyle = getComputedStyle(leadIcon);
+  return (
+    leadIcon.getBoundingClientRect().width +
+    getPixelValue(leadIconStyle.marginLeft) +
+    getPixelValue(leadIconStyle.marginRight)
+  );
+};
+
+const measureTreeTimingColumns = ({ tree }: { tree: HTMLElement }): boolean => {
+  const rowContents = Array.from(
+    tree.querySelectorAll(".row-content--with-timing")
+  ).filter((rowContent): rowContent is HTMLElement => {
+    return rowContent instanceof HTMLElement;
+  });
+  if (rowContents.length === 0) {
+    tree.style.removeProperty("--tree-row-content-width");
+    tree.style.removeProperty("--tree-row-timing-width");
+    return false;
+  }
+
+  const rowsWithDetails = rowContents.flatMap((rowContent) => {
+    const rowBody = rowContent.querySelector(":scope > .row-body");
+    if (!(rowBody instanceof HTMLElement)) {
+      return [];
+    }
+    const metricRow = rowBody.querySelector(".row-chips");
+    if (!(metricRow instanceof HTMLElement)) {
+      return [];
+    }
+    return [{ metricRow, rowBody }];
+  });
+  if (rowsWithDetails.length === 0) {
+    tree.style.removeProperty("--tree-row-content-width");
+    tree.style.removeProperty("--tree-row-timing-width");
+    return false;
+  }
+
+  const contentColumnWidth = Math.ceil(
+    Math.max(
+      0,
+      ...rowsWithDetails.map(({ metricRow, rowBody }) => {
+        return (
+          getRowLeadingContentWidth({ rowBody }) +
+          getMetricRowNaturalWidth(metricRow)
+        );
+      })
+    )
+  );
+  const availableTimingWidths = rowContents.map((rowContent) => {
+    const rowContentStyle = getComputedStyle(rowContent);
+    const horizontalPadding =
+      getPixelValue(rowContentStyle.paddingLeft) +
+      getPixelValue(rowContentStyle.paddingRight);
+    const columnGap = getPixelValue(rowContentStyle.columnGap);
+    return (
+      rowContent.clientWidth -
+      horizontalPadding -
+      columnGap -
+      contentColumnWidth
+    );
+  });
+  const timingColumnWidth = Math.floor(
+    Math.max(0, Math.min(...availableTimingWidths))
+  );
+
+  tree.style.setProperty("--tree-row-content-width", `${contentColumnWidth}px`);
+  tree.style.setProperty("--tree-row-timing-width", `${timingColumnWidth}px`);
+  return availableTimingWidths.some((availableWidth) => availableWidth < 0);
+};
+
+const hasOverflowingTimingMetricRow = ({
+  tree,
+}: {
+  tree: HTMLElement;
+}): boolean => {
+  return Array.from(
+    tree.querySelectorAll(".row-content--with-timing .row-chips")
+  ).some(hasOverflowingMetricRow);
+};
+
+const measureTreeMetricRows = ({ tree }: { tree: HTMLElement }) => {
+  delete tree.dataset.hideLatencyIcons;
+  const hasConstrainedTimingColumns = measureTreeTimingColumns({ tree });
+  const hasOverflowingMetrics = hasOverflowingTimingMetricRow({ tree });
+  const shouldHideLatencyIcons =
+    hasConstrainedTimingColumns || hasOverflowingMetrics;
+  if (shouldHideLatencyIcons) {
+    tree.dataset.hideLatencyIcons = "true";
+    measureTreeTimingColumns({ tree });
+  }
+};
+
+const measureMetricRows = ({ root }: { root: HTMLElement }) => {
+  root.querySelectorAll('[role="tree"]').forEach((tree) => {
+    if (!(tree instanceof HTMLElement)) {
+      return;
+    }
+    measureTreeMetricRows({ tree });
+  });
+};
+
+const useMeasuredMetricRows = ({
+  isTimingVisible,
+  ref,
+}: {
+  isTimingVisible: boolean;
+  ref: RefObject<HTMLDivElement | null>;
+}) => {
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) {
+      return;
+    }
+    let animationFrameId: number | null = null;
+    const scheduleMeasurement = () => {
+      if (animationFrameId != null) {
+        return;
+      }
+      animationFrameId = requestAnimationFrame(() => {
+        animationFrameId = null;
+        measureMetricRows({ root });
+      });
+    };
+    scheduleMeasurement();
+    if (typeof ResizeObserver === "undefined") {
+      return () => {
+        if (animationFrameId != null) {
+          cancelAnimationFrame(animationFrameId);
+        }
+      };
+    }
+    const resizeObserver = new ResizeObserver(scheduleMeasurement);
+    resizeObserver.observe(root);
+    root.querySelectorAll(".row-chips").forEach((row) => {
+      resizeObserver.observe(row);
+    });
+    return () => {
+      resizeObserver.disconnect();
+      if (animationFrameId != null) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isTimingVisible, ref]);
+};
+
 /** The six row layouts, grouped Current track / Alternate like the spec. */
 export const ExampleTrees: StoryFn = () => {
+  const exampleTreesRef = useRef<HTMLDivElement>(null);
   const [isTimingVisible, setIsTimingVisible] = useState(true);
   const onToggleTiming = () => setIsTimingVisible((isVisible) => !isVisible);
+  useMeasuredMetricRows({
+    isTimingVisible,
+    ref: exampleTreesRef,
+  });
+
   const getTraceSpanLayout = (_node: TreeNode, level: number) =>
     getLayoutWithTiming({
       layout: level === 1 ? LAYOUTS.traceSpan : LAYOUTS.spanAlt,
@@ -1035,7 +1341,10 @@ export const ExampleTrees: StoryFn = () => {
   });
 
   return (
-    <div style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}>
+    <div
+      ref={exampleTreesRef}
+      style={{ display: "flex", gap: "3rem", alignItems: "flex-start" }}
+    >
       <Column title="Current track">
         <Example name="General">
           <StandaloneTree

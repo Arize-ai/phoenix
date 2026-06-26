@@ -44,7 +44,13 @@ interface MetricProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
 export function Metric({ kind, children, ref, ...props }: MetricProps) {
   const color = "text-400" as const;
   return (
-    <div className="metric" css={metricCSS} ref={ref} {...props}>
+    <div
+      className="metric"
+      css={metricCSS}
+      ref={ref}
+      {...props}
+      data-metric-kind={kind}
+    >
       {kind === "cost" ? (
         // ponytail: the $ is the icon; render it as XS text in the icon slot
         <Text size="XS" color={color}>
