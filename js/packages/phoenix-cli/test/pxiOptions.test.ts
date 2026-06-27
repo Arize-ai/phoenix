@@ -193,7 +193,13 @@ describe("parsePxiRuntimeOptions model persistence", () => {
 
   it("saves the model to settings when --model is passed explicitly", async () => {
     await parsePxiRuntimeOptions({
-      argv: ["node", "pxi", "--model", "openai/gpt-5.5", "--skip-model-preflight"],
+      argv: [
+        "node",
+        "pxi",
+        "--model",
+        "openai/gpt-5.5",
+        "--skip-model-preflight",
+      ],
       settingsPath,
     });
 
@@ -203,7 +209,15 @@ describe("parsePxiRuntimeOptions model persistence", () => {
 
   it("saves the model to settings when --provider and --model are passed", async () => {
     await parsePxiRuntimeOptions({
-      argv: ["node", "pxi", "--provider", "OPENAI", "--model", "gpt-5.5", "--skip-model-preflight"],
+      argv: [
+        "node",
+        "pxi",
+        "--provider",
+        "OPENAI",
+        "--model",
+        "gpt-5.5",
+        "--skip-model-preflight",
+      ],
       settingsPath,
     });
 
