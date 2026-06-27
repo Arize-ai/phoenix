@@ -185,7 +185,11 @@ px.describe(
       px.logOutput({ response });
 
       // Structural metric — always deterministic.
-      px.logAnnotation({ name: "latency_ms", score: latencyMs, annotatorKind: "CODE" });
+      px.logAnnotation({
+        name: "latency_ms",
+        score: latencyMs,
+        annotatorKind: "CODE",
+      });
 
       // LLM judge — recorded under its own evaluator span in Phoenix.
       // We don't hard-assert on every run; aggregate quality is gated by
