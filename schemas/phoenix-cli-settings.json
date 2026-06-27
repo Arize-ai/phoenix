@@ -52,6 +52,17 @@
         "additionalProperties": false
       },
       "description": "Map of profile name to profile entry. Keys are the profile names referenced by `activeProfile` and the --profile flag."
+    },
+    "pxi": {
+      "description": "Persisted PXI session settings restored on next launch.",
+      "type": "object",
+      "properties": {
+        "model": {
+          "description": "Last-used model in 'provider/model' format (e.g. openai/gpt-5.5 or anthropic/claude-opus-4-8). Restored automatically when starting pxi without explicit --model or --provider flags.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["activeProfile", "profiles"],
