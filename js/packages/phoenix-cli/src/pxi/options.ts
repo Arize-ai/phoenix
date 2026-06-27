@@ -2,6 +2,7 @@ import { Command } from "commander";
 
 import { resolveConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
+import { loadSettings, saveSettings } from "../settings";
 import type {
   BuiltInProvider,
   ModelSelection,
@@ -55,6 +56,34 @@ function getExpectedProviderMessage(): string {
   return `Expected one of: ${BUILT_IN_PROVIDERS.join(", ")}.`;
 }
 
+/**
+ * Serialize a {@link ModelSelection} to the canonical `"provider/model"` string
+ * used for storage. Built-in providers are lower-cased; custom providers use
+ * their server-side id as the prefix.
+ */
+export function formatModelSelection(selection: ModelSelection): string {
+  if (selection.providerType === "builtin") {
+    return `${selection.provider.toLowerCase()}/${selection.modelName}`;
+  }
+  return `${selection.providerId}/${selection.modelName}`;
+}
+
+/**
+ * Parse a `"provider/model"` string back into the raw option pair consumed by
+ * {@link resolveModelSelection}. Returns `undefined` for `provider` when the
+ * string contains no slash (treated as a bare model name only).
+ */
+export function parseModelString(s: string): {
+  provider: string | undefined;
+  model: string;
+} {
+  const slashIdx = s.indexOf("/");
+  if (slashIdx === -1) {
+    return { provider: undefined, model: s };
+  }
+  return { provider: s.slice(0, slashIdx), model: s.slice(slashIdx + 1) };
+}
+
 function isBuiltInProvider(provider: string): provider is BuiltInProvider {
   return BUILT_IN_PROVIDERS.includes(provider as BuiltInProvider);
 }
@@ -84,6 +113,19 @@ export function resolveModelSelection({
 }): ModelSelection {
   const trimmedModel = model?.trim();
   const trimmedCustomProviderId = customProviderId?.trim();
+
+  // Support "provider/model" combined format in the --model flag value.
+  // When the model string contains a slash and no custom provider is set,
+  // split it and recurse so all the normal validation still applies.
+  if (trimmedModel?.includes("/") && !trimmedCustomProviderId) {
+    const { provider: embeddedProvider, model: embeddedModel } =
+      parseModelString(trimmedModel);
+    return resolveModelSelection({
+      provider: embeddedProvider ?? provider,
+      model: embeddedModel,
+      customProviderId,
+    });
+  }
 
   if (trimmedCustomProviderId) {
     if (!trimmedModel) {
@@ -218,12 +260,41 @@ Examples:
  */
 export async function parsePxiRuntimeOptions({
   argv = process.argv,
+  settingsPath,
 }: {
   argv?: string[];
+  settingsPath?: string;
 } = {}): Promise<PxiRuntimeOptions> {
   const program = createPxiProgram();
   await program.parseAsync(argv);
-  return resolvePxiRuntimeOptions({
-    cliOptions: program.opts<RawPxiOptions>(),
-  });
+  const rawOpts = program.opts<RawPxiOptions>();
+
+  const providerExplicit = program.getOptionValueSource("provider") === "cli";
+  const modelExplicit = program.getOptionValueSource("model") === "cli";
+  const userSetModel = providerExplicit || modelExplicit;
+
+  if (!userSetModel) {
+    // Restore the last-used model from settings when no explicit flags were passed.
+    const settings = loadSettings({ settingsPath });
+    const storedModel = settings.pxi?.model;
+    if (storedModel) {
+      const parsed = parseModelString(storedModel);
+      rawOpts.provider = parsed.provider;
+      rawOpts.model = parsed.model;
+    }
+  }
+
+  const options = resolvePxiRuntimeOptions({ cliOptions: rawOpts });
+
+  if (userSetModel) {
+    // Persist the newly-chosen model so the next `pxi` launch restores it.
+    const settings = loadSettings({ settingsPath });
+    const modelStr = formatModelSelection(options.modelSelection);
+    saveSettings(
+      { ...settings, pxi: { ...settings.pxi, model: modelStr } },
+      { settingsPath }
+    );
+  }
+
+  return options;
 }

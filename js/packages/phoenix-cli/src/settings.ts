@@ -44,6 +44,17 @@ export const ProfileEntrySchema = z.object({
     ),
 });
 
+export const PxiSettingsSchema = z.object({
+  model: z
+    .string()
+    .optional()
+    .describe(
+      "Last-used model in 'provider/model' format (e.g. openai/gpt-5.5 or anthropic/claude-opus-4-8). Restored automatically when starting pxi without explicit --model or --provider flags."
+    ),
+});
+
+export type PxiSettings = z.infer<typeof PxiSettingsSchema>;
+
 export const SettingsFileSchema = z.object({
   $schema: z
     .string()
@@ -61,6 +72,9 @@ export const SettingsFileSchema = z.object({
     .describe(
       "Map of profile name to profile entry. Keys are the profile names referenced by `activeProfile` and the --profile flag."
     ),
+  pxi: PxiSettingsSchema.optional().describe(
+    "Persisted PXI session settings restored on next launch."
+  ),
 });
 
 /**
