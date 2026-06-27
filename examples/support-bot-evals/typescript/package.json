@@ -1,0 +1,19 @@
+{
+  "name": "support-bot-evals",
+  "private": true,
+  "type": "module",
+  "description": "Vitest eval suite for an Acme Analytics support bot, recorded to Phoenix.",
+  "scripts": {
+    "eval": "vitest run --config vitest.config.ts",
+    "eval:offline": "PHOENIX_TEST_TRACKING=false vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.35.0",
+    "@arizeai/phoenix-client": "^6.11.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "typescript": "^5.4.0",
+    "vitest": "^4.0.0"
+  }
+}

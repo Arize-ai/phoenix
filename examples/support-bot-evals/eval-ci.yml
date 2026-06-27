@@ -1,0 +1,58 @@
+# Phoenix eval CI recipe for the support-bot example (Python + TypeScript).
+#
+# Copy this file to .github/workflows/eval-ci.yml in your repository and keep
+# only the job for the language you use. Each job installs the Phoenix test
+# plugin, runs the marked eval suite, and gates the job on the runner's exit
+# code. Phoenix records each case as a run in an experiment and prints a
+# per-experiment summary at the end.
+#
+# The only contracts these recipes rely on are the test runner's exit code and
+# the printed summary. Both are stable across plugin versions.
+
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/support-bot-evals/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The `pytest` extra activates the pytest11 plugin entry point.
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Where the plugin sends experiment runs.
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+        # The job fails when any marked test fails (pytest's nonzero exit).
+        run: pytest -v
+
+  evals-typescript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/support-bot-evals/typescript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install dependencies
+        run: npm install
+      - name: Run eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+        # Acceptance criteria in the suite fail the run on a nonzero exit.
+        run: npm run eval

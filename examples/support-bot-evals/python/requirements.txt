@@ -1,0 +1,5 @@
+# Phoenix pytest plugin (activates automatically once the `pytest` extra is installed)
+arize-phoenix-client[pytest]>=2.10.0
+pytest
+# System under test + LLM judge
+anthropic

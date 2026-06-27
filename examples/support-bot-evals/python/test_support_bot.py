@@ -1,27 +1,35 @@
 """
-Eval suite for an Acme Analytics customer-support FAQ bot.
+Eval suite for an Acme Analytics customer-support FAQ bot (pytest).
 
 The bot receives a user question alongside a short excerpt from the knowledge
-base and returns a concise grounded answer.  When the excerpt is empty (or
-the question is off-topic) it should decline politely.
+base and returns a concise, grounded answer.  When the excerpt is empty (or the
+question is off-topic) it should decline politely.
 
-We test five real interactions and track two metrics per run:
+Each test marked with ``@pytest.mark.phoenix`` becomes one run in a Phoenix
+experiment: the module maps to a dataset, each parametrized case maps to a
+dataset example, and the assertion outcome is recorded as the reserved ``pass``
+annotation.  We attach two extra metrics per run:
 
   latency_ms   — wall-clock response time recorded as a CODE annotation
   helpfulness  — LLM-as-judge score (1 = helpful/accurate, 0 = not)
 
-Because LLM quality is non-deterministic we do *not* hard-fail on a single
-bad score; the assertion only fires for a structural check (the off-topic
-refusal case).  Helpfulness trends over time in Phoenix and you can tighten
-the threshold once you're confident in your baseline.
+Because LLM quality is non-deterministic we do *not* hard-fail on a single bad
+score; the assertion only fires for a structural check (the off-topic refusal
+case).  Helpfulness trends over time in Phoenix and you can tighten the gate
+once you're confident in your baseline.
 
-Run offline (nothing recorded):
-    PHOENIX_TEST_TRACKING=0 pytest test_support_bot.py -v
+See ../README.md for the full walkthrough and run instructions.
 
-Run against Phoenix:
-    export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host
+    pip install -r requirements.txt
     export ANTHROPIC_API_KEY=sk-ant-...
-    pytest test_support_bot.py -v
+
+    # Iterate locally without recording anything to Phoenix:
+    PHOENIX_TEST_TRACKING=0 pytest -v
+
+    # Record runs to Phoenix:
+    export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host
+    export PHOENIX_API_KEY=...   # if your deployment requires auth
+    pytest -v
 """
 
 import time
@@ -29,7 +37,6 @@ from typing import Any
 
 import anthropic
 import pytest
-
 from phoenix.client.pytest import evaluate, log_evaluation, log_output
 
 # ---------------------------------------------------------------------------
@@ -92,30 +99,40 @@ def answer_question(question: str, kb_context: str) -> str:
 # LLM-as-judge
 # ---------------------------------------------------------------------------
 
+# The judge sees the same knowledge-base excerpt the bot did, so it can tell
+# whether an answer was grounded — and whether declining was the right call when
+# the excerpt doesn't contain the answer.
 JUDGE_SYSTEM = """\
-You are a strict quality reviewer for a B2B software support bot.
-Reply with exactly "1" if the response is accurate and directly answers the
-question (or correctly declines an off-topic one), or "0" if it is wrong,
-vague, or ignores the question. No other output.\
+You are a strict quality reviewer for a B2B software support bot. You are given
+the knowledge-base excerpt the bot was working from, the user question, and the
+bot's response.
+Reply with exactly "1" if the response is accurate and grounded in the excerpt
+(or correctly declines when the excerpt does not contain the answer), or "0" if
+it is wrong, unsupported, vague, or ignores the question. No other output.\
 """
 
 
-def judge_helpfulness(output: str, input: str, **_: Any) -> dict[str, Any]:
+def judge_helpfulness(output: str, input: str, context: str = "", **_: Any) -> dict[str, Any]:
     """LLM judge: 1 = helpful and accurate, 0 = not.
 
-    Called via px.evaluate(judge_helpfulness, output=..., input=...).
+    Called via ``evaluate(judge_helpfulness, output=..., input=..., context=...)``.
     The result dict is normalised by the plugin and recorded as the
     "helpfulness" annotation on the experiment run.
     """
     verdict = (
         _client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            # A stronger model than the bot (Sonnet judging Haiku) keeps verdicts
+            # stable — a noisy judge makes the whole suite flaky.
+            model="claude-sonnet-4-6",
             max_tokens=4,
             system=JUDGE_SYSTEM,
             messages=[
                 {
                     "role": "user",
-                    "content": f"Question: {input}\n\nBot response: {output}",
+                    "content": (
+                        f"Knowledge base:\n{context or '(empty)'}\n\n"
+                        f"Question: {input}\n\nBot response: {output}"
+                    ),
                 }
             ],
         )
@@ -157,12 +174,12 @@ def test_support_response(question: str, kb_key: str, expect_refusal: bool) -> N
 
     log_output({"response": response})
 
-    # Structural metric — always 0/1, logged as a CODE annotation.
+    # Structural metric — logged as a CODE annotation.
     log_evaluation(name="latency_ms", score=latency_ms)
 
     # LLM judge — logged as an LLM evaluator span so its trace is separate
     # from the task trace, then surfaced as the "helpfulness" annotation.
-    evaluate(judge_helpfulness, output=response, input=question)
+    evaluate(judge_helpfulness, output=response, input=question, context=kb_context)
 
     # Hard assertion only for the structural refusal check.
     # For on-topic quality we rely on aggregate trends in Phoenix rather than
