@@ -5,7 +5,7 @@ description: "Write LLM evaluations as ordinary pytest tests that run in CI and 
 
 The Phoenix pytest plugin bridges the gap between your test suite and your evaluation pipeline. You write evaluations as normal `pytest` tests — parametrized, marked, and run just like any other test — and Phoenix records each case as an experiment run so you can track quality over time.
 
-When a test passes, Phoenix records `pass=True`. When it fails, `pass=False`. Because the plugin hooks into pytest's own exit code, your existing CI gate works without any extra configuration: a regression in LLM quality fails the job the same way a broken import would.
+When a test passes, Phoenix records `pass=True`. When it fails, `pass=False`. Because the plugin hooks into pytest's own exit code, your existing CI gate works without any extra configuration.
 
 ## When to use the pytest plugin
 
@@ -171,25 +171,26 @@ Evaluators from `arize-phoenix-evals` work directly with `evaluate()` and as hoi
 ```python
 import pytest
 from phoenix.client.pytest import evaluate, log_output
-from phoenix.evals import HallucinationEvaluator, OpenAIModel
+from phoenix.evals import LLM
+from phoenix.evals.metrics import FaithfulnessEvaluator
 
-hallucination = HallucinationEvaluator(model=OpenAIModel(model="gpt-4o"))
+faithfulness = FaithfulnessEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
 
 @pytest.mark.phoenix(
     dataset="rag-quality",
-    evaluators=[hallucination],
+    evaluators=[faithfulness],
 )
 @pytest.mark.parametrize(
-    "context,question,answer",
+    "input,context,answer",
     [
-        ("The Eiffel Tower is in Paris.", "Where is the Eiffel Tower?", "It is in Paris."),
-        ("The Amazon is the longest river.", "What is the longest river?", "The Nile."),
+        ("Where is the Eiffel Tower?", "The Eiffel Tower is in Paris.", "It is in Paris."),
+        ("What is the longest river?", "The Amazon is the longest river.", "The Nile."),
     ],
-    ids=["correct", "hallucination"],
+    ids=["faithful", "unfaithful"],
 )
-def test_rag_answers(context, question, answer):
-    log_output({"answer": answer, "context": context})
-    # The hallucination evaluator runs automatically after every case
+def test_rag_answers(input, context, answer):
+    log_output(answer)
+    # The faithfulness evaluator runs automatically after every case
 ```
 
 Hoisted evaluators are invoked using the same adapter as `run_experiment`, so an evaluator you wrote for one works identically under the other. Arguments are bound **by parameter name**:
@@ -203,7 +204,7 @@ Hoisted evaluators are invoked using the same adapter as `run_experiment`, so an
 | `trace_id` | The test run's trace id |
 
 <Tip>
-Any evaluator from [`arize-phoenix-evals`](/phoenix/evaluation/pre-built-metrics) works here — `HallucinationEvaluator`, `RelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
+Any evaluator from [`arize-phoenix-evals`](/phoenix/evaluation/pre-built-metrics) works here — `FaithfulnessEvaluator`, `DocumentRelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
 </Tip>
 
 ## Repetitions
