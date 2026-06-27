@@ -56,10 +56,9 @@ export function runSlashCommand(
 ): SlashCommandResult {
   const withoutSlash = input.slice(1).trimStart();
   const spaceIndex = withoutSlash.indexOf(" ");
-  const name =
-    spaceIndex === -1
-      ? withoutSlash
-      : withoutSlash.slice(0, spaceIndex).toLowerCase();
+  const name = (
+    spaceIndex === -1 ? withoutSlash : withoutSlash.slice(0, spaceIndex)
+  ).toLowerCase();
   const args =
     spaceIndex === -1 ? "" : withoutSlash.slice(spaceIndex + 1).trim();
 
