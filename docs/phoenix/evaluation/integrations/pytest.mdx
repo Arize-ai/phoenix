@@ -367,17 +367,17 @@ def token_f1(output, expected, **_):
 CASES = [
     {
         "input": "Show all users",
-        "expected_sql": "SELECT * FROM users;",
+        "expected": {"sql": "SELECT * FROM users;"},
         "id": "select-all",
     },
     {
         "input": "Count active subscriptions",
-        "expected_sql": "SELECT COUNT(*) FROM subscriptions WHERE status = 'active';",
+        "expected": {"sql": "SELECT COUNT(*) FROM subscriptions WHERE status = 'active';"},
         "id": "count-active",
     },
     {
         "input": "Top 5 customers by revenue",
-        "expected_sql": "SELECT customer_id, SUM(amount) AS revenue FROM orders GROUP BY customer_id ORDER BY revenue DESC LIMIT 5;",
+        "expected": {"sql": "SELECT customer_id, SUM(amount) AS revenue FROM orders GROUP BY customer_id ORDER BY revenue DESC LIMIT 5;"},
         "id": "top-customers",
     },
 ]
@@ -388,11 +388,11 @@ CASES = [
     evaluators=[valid_sql, token_f1],
 )
 @pytest.mark.parametrize(
-    "input,expected_sql",
-    [(c["input"], c["expected_sql"]) for c in CASES],
+    "input,expected",
+    [(c["input"], c["expected"]) for c in CASES],
     ids=[c["id"] for c in CASES],
 )
-def test_text_to_sql(input, expected_sql):
+def test_text_to_sql(input, expected):
     sql = my_sql_generator(input)
     log_output({"sql": sql})
     assert sql.strip().endswith(";"), "SQL must end with a semicolon"
