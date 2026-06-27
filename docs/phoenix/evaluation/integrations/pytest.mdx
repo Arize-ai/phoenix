@@ -7,6 +7,16 @@ The Phoenix pytest plugin bridges the gap between your test suite and your evalu
 
 When a test passes, Phoenix records `pass=True`. When it fails, `pass=False`. Because the plugin hooks into pytest's own exit code, your existing CI gate works without any extra configuration: a regression in LLM quality fails the job the same way a broken import would.
 
+## When to use the pytest plugin
+
+Phoenix also offers [`run_experiment`](/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) for evaluating a whole dataset with a single task and a shared set of evaluators. Reach for the pytest plugin instead when:
+
+- **Each case needs different logic.** `run_experiment` runs one task and the same evaluators across every example. When subsets of your system need different inputs, setup, or metrics, separate test functions are easier to express than one branching task.
+- **You want to assert hard expectations.** Tests turn an eval into a binary gate: a failed `assert` fails the pytest item, fails the run, and fails CI — exactly like any other broken test.
+- **You already use pytest.** Add Phoenix tracking to an existing suite without changing how you run it, and keep `pytest` features like fixtures, `parametrize`, `-k` filtering, `pytest-xdist`, and `pytest-asyncio`.
+
+For large, homogeneous datasets where every example is scored the same way, prefer `run_experiment` — it parallelizes the work and keeps each experiment and its dataset easy to manage.
+
 ## How it works
 
 Each marked test suite maps to a **Phoenix dataset**. Each parametrized test case maps to a **dataset example**. Each run of the suite creates a new **experiment** on that dataset. The assertion outcome — did the test pass or fail? — becomes a `pass` annotation on the experiment run. Any additional scores you log become their own named annotations.
@@ -23,16 +33,20 @@ This means the same suite that gates your pull requests also builds a versioned 
 
 ## Installation
 
+<Info>
+Requires **`arize-phoenix-client>=2.10.0`** — the version that introduced the `@pytest.mark.phoenix` plugin.
+</Info>
+
 The plugin ships with `arize-phoenix-client`. Install it with the `pytest` extra:
 
 ```bash
-pip install "arize-phoenix-client[pytest]" pytest
+pip install "arize-phoenix-client[pytest]>=2.10.0" pytest
 ```
 
 If your evaluators use `arize-phoenix-evals`, add that extra too:
 
 ```bash
-pip install "arize-phoenix-client[pytest,evals]" pytest
+pip install "arize-phoenix-client[pytest,evals]>=2.10.0" pytest
 ```
 
 pytest discovers the plugin automatically through its entry point — no `conftest.py` setup required.
@@ -146,6 +160,10 @@ def test_answers(question, expected):
 
 A failed assertion after `evaluate()` records `pass=False` and fails the pytest item — making the evaluator score a CI gate.
 
+<Note>
+Every score from `log_evaluation()`, `evaluate()`, and hoisted marker evaluators is wrapped in its own **evaluator span**, so an LLM-as-judge call is traced separately from the test's task and the annotation links straight to the trace that produced it. You don't need a separate "trace feedback" context — the separation is automatic. Click any annotation in the Phoenix UI to open its evaluator trace.
+</Note>
+
 ## Using pre-built Phoenix evaluators
 
 Evaluators from `arize-phoenix-evals` work directly with `evaluate()` and as hoisted evaluators on the marker:
@@ -183,6 +201,10 @@ Hoisted evaluators are invoked using the same adapter as `run_experiment`, so an
 | `expected` / `reference` | Parametrized field of the same name, if present |
 | `metadata` | Parametrized field of the same name, if present |
 | `trace_id` | The test run's trace id |
+
+<Tip>
+Any evaluator from [`arize-phoenix-evals`](/phoenix/evaluation/pre-built-metrics) works here — `HallucinationEvaluator`, `RelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
+</Tip>
 
 ## Repetitions
 
@@ -230,6 +252,40 @@ The plugin supports `pytest -n auto`. The controller creates the dataset and exp
 pip install pytest-xdist
 pytest -n auto tests/evals/
 ```
+
+## Works with the rest of pytest
+
+The marker is designed to stay out of your way — the tools you already use keep working:
+
+- **Async tests.** `async def` tests run unchanged under `pytest-asyncio` (or `anyio`). Inline `evaluate()` works inside an async test, including with async evaluators — the result is recorded the same way as a sync one.
+- **Fixtures and `parametrize`.** Use them as normal. Each `parametrize` case becomes its own dataset example; give cases stable `ids` so reruns map back to the same example.
+- **Focusing and skipping.** Filter with `-k`, select markers with `-m`, or skip a case with `@pytest.mark.skip` / `pytest.skip()`. Skipped cases are simply not recorded; a filtered run only *appends* to the dataset (see [How the dataset stays in sync](#how-the-dataset-stays-in-sync)).
+- **Watch mode.** `pytest-watch` (`ptw`) re-runs on save. Pair it with `PHOENIX_TEST_TRACKING=0` while iterating so you don't create an experiment on every keystroke.
+
+```python
+import pytest
+from phoenix.client.pytest import evaluate, log_output
+
+@pytest.mark.phoenix(dataset="qa-suite")
+@pytest.mark.parametrize("question,expected", [("Capital of France?", "Paris")])
+async def test_async_answers(question, expected):
+    answer = await my_async_app(question)   # async task
+    log_output(answer)
+    result = evaluate(my_async_evaluator, output=answer, expected=expected)  # async evaluator
+    assert result["score"] == 1.0
+```
+
+### Configuring the dataset name in `pytest.ini`
+
+To pin a dataset name for a whole project without editing tests or exporting an env var, set the `phoenix_dataset` ini option:
+
+```ini
+# pytest.ini
+[pytest]
+phoenix_dataset = sql-app-evals
+```
+
+`PHOENIX_TEST_DATASET` still takes precedence over the ini option, which in turn takes precedence over the marker's `dataset=` (see [Dataset naming](#dataset-naming)).
 
 ## How the dataset stays in sync
 
