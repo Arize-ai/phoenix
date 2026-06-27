@@ -1,0 +1,706 @@
+---
+title: "Vitest / Jest"
+description: "Write LLM evaluations as Vitest or Jest tests that record results to Phoenix and gate CI."
+---
+
+`@arizeai/phoenix-client/vitest` and `@arizeai/phoenix-client/jest` let you write evaluations as ordinary test suites — using the `describe` / `test` API you already know — while automatically recording every run to Phoenix as a versioned experiment. LLM calls instrumented with OpenInference appear as child spans of each test's task span, giving you full trace visibility alongside your eval results.
+
+Each `describe()` block becomes a **Phoenix dataset** and a new **experiment**. Each `test()` becomes a **dataset example** plus a recorded **experiment run**. The assertion outcome is captured as a `pass` boolean annotation. Anything you log via `logOutput()`, `logAnnotation()`, `evaluate()`, or `traceEvaluator()` lands on the run and shows up in the Phoenix UI.
+
+## When to use Vitest / Jest
+
+Phoenix also offers [`runExperiment`](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments) for evaluating a whole dataset with one task and a shared set of evaluators. Reach for the test-runner integration instead when:
+
+- **Each case needs different logic.** `runExperiment` runs one task and the same evaluators across every example. When subsets of your system need different inputs, setup, or metrics, separate `test()` cases are easier to express than one branching task.
+- **You want to assert hard expectations.** A failed `expect()` fails the test, fails the run, and fails CI — and [acceptance criteria](#acceptance-criteria--ci-gates-on-aggregate-scores) let you gate the whole suite on aggregate scores.
+- **You already use Vitest or Jest.** Add Phoenix tracking to a suite you already run, keeping `test.each`, `.only` / `.skip`, mocks, and watch mode.
+
+For large, homogeneous datasets where every example is scored the same way, prefer `runExperiment` — it parallelizes the work and keeps each experiment and its dataset easy to manage.
+
+## How it works
+
+```
+describe()         →  Phoenix dataset + experiment
+test()             →  dataset example + experiment run
+assert outcome     →  "pass" annotation
+logOutput()        →  ExperimentRun.output
+logAnnotation()    →  named annotation on the run
+evaluate()         →  annotation + linked evaluator trace
+traceEvaluator()   →  annotation + linked evaluator trace (wraps a plain fn)
+acceptanceCriteria →  CI gate on aggregate scores
+```
+
+Suite-level `acceptanceCriteria` can fail CI when aggregate metrics drop below a threshold — for example, when average correctness falls below `0.8` or more than 10% of runs produce invalid SQL.
+
+## Installation
+
+<Info>
+Requires **`@arizeai/phoenix-client>=6.11.1`**. The testing API is in **beta** and may change in a future release.
+</Info>
+
+<CodeGroup>
+```bash npm
+npm install -D @arizeai/phoenix-client@^6.11.1 @arizeai/phoenix-evals dotenv
+```
+
+```bash pnpm
+pnpm add -D @arizeai/phoenix-client@^6.11.1 @arizeai/phoenix-evals dotenv
+```
+</CodeGroup>
+
+The Vitest and Jest entrypoints are bundled in `@arizeai/phoenix-client`. No separate package is needed.
+
+## Vitest setup
+
+Create a dedicated config file so eval suites don't get swept into your normal unit-test run:
+
+```ts
+// phoenix.vitest.config.ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: ["**/*.eval.?(c|m)[jt]s"],
+    reporters: ["default", "@arizeai/phoenix-client/vitest/reporter"],
+    setupFiles: ["dotenv/config"],
+    testTimeout: 30_000,
+  },
+});
+```
+
+- **`include`** keeps eval suites in `*.eval.ts` files separate from unit tests.
+- **`reporters`** keeps Vitest's default output and adds the Phoenix summary block.
+- **`setupFiles`** loads `PHOENIX_HOST`, `PHOENIX_API_KEY`, and other env vars from `.env`.
+- **`testTimeout`** is bumped because LLM calls can be slow.
+
+<Note>
+The `jsdom` test environment is not supported. Either omit `environment` or set it to `"node"`.
+</Note>
+
+Add a script to `package.json`:
+
+```json
+{
+  "scripts": {
+    "eval": "vitest run --config phoenix.vitest.config.ts"
+  }
+}
+```
+
+`vitest run` (not watch mode) is intentional — evaluations run once per CI job.
+
+## Jest setup
+
+Create a separate config file for eval suites:
+
+```js
+// phoenix.jest.config.cjs
+module.exports = {
+  testMatch: ["**/*.eval.?(c|m)[jt]s"],
+  reporters: ["default", "@arizeai/phoenix-client/jest/reporter"],
+  setupFiles: ["dotenv/config"],
+  testTimeout: 30_000,
+};
+```
+
+<Note>
+The `jsdom` test environment is not supported. Either omit `testEnvironment` or set it to `"node"`. For TypeScript or ESM projects, use `ts-jest` or `@swc/jest` per Jest's docs.
+</Note>
+
+Add a script to `package.json`:
+
+```json
+{
+  "scripts": {
+    "eval": "jest --config phoenix.jest.config.cjs"
+  }
+}
+```
+
+## Your first eval suite
+
+<CodeGroup>
+```ts Vitest
+// answer-quality.eval.ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+px.describe("answer quality", () => {
+  px.test(
+    "capital city lookup",
+    {
+      input: { question: "What is the capital of France?" },
+      expected: { answer: "Paris" },
+    },
+    async ({ input, expected }) => {
+      const result = await myApp(input.question);
+      px.logOutput({ answer: result });
+      expect(result).toContain(expected?.answer ?? "");
+    },
+  );
+
+  px.test(
+    "arithmetic",
+    {
+      input: { question: "What is 12 × 8?" },
+      expected: { answer: "96" },
+    },
+    async ({ input, expected }) => {
+      const result = await myApp(input.question);
+      px.logOutput({ answer: result });
+      expect(result).toContain(expected?.answer ?? "");
+    },
+  );
+});
+```
+
+```ts Jest
+// answer-quality.eval.ts
+import * as px from "@arizeai/phoenix-client/jest";
+
+px.describe("answer quality", () => {
+  px.test(
+    "capital city lookup",
+    {
+      input: { question: "What is the capital of France?" },
+      expected: { answer: "Paris" },
+    },
+    async ({ input, expected }) => {
+      const result = await myApp(input.question);
+      px.logOutput({ answer: result });
+      expect(result).toContain(expected?.answer ?? "");
+    },
+  );
+});
+```
+</CodeGroup>
+
+Run it:
+
+```bash
+# Vitest
+npm run eval
+
+# Jest
+npm run eval
+```
+
+On first run, Phoenix creates the dataset and experiment. Subsequent runs add new experiments to the same dataset so you can compare quality over time.
+
+<Note>
+The reference output can be given under any one of three interchangeable keys — `expected`, `reference`, or `output` (at most one). All three become the dataset example's reference output and arrive as `expected` in the test body, so you can match whichever vocabulary your team or migration source uses:
+
+```ts
+px.test("via reference", { input: { ... }, reference: { sql: "..." } }, async ({ expected }) => {
+  // `reference` arrives here as `expected`
+});
+```
+
+`it` is the canonical alias for `test`; the two are identical.
+</Note>
+
+## Testing many examples with `test.each`
+
+For larger datasets, `test.each` keeps the suite concise:
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+const DATASET = [
+  { input: { query: "Get all users" }, expected: { sql: "SELECT * FROM users;" } },
+  { input: { query: "Count active subscribers" }, expected: { sql: "SELECT COUNT(*) FROM subscriptions WHERE status = 'active';" } },
+  { input: { query: "Top 5 customers by revenue" }, expected: { sql: "SELECT customer_id, SUM(amount) revenue FROM orders GROUP BY customer_id ORDER BY revenue DESC LIMIT 5;" } },
+];
+
+px.describe("text-to-sql", () => {
+  px.test.each(DATASET)("generates valid SQL %i", async ({ input, expected }) => {
+    const sql = await myApp(input.query);
+    px.logOutput({ sql });
+    expect(sql.trim()).toMatch(/;$/);
+  });
+});
+```
+
+The name template supports `%i` (index), `%s` (stringified), and `%j` (JSON). Without a placeholder the row index is appended automatically.
+
+## Running against an existing Phoenix dataset
+
+Instead of defining examples inline, you can pull them from a dataset that already lives in Phoenix — curated in the UI, captured from production traces, or built by a previous run — and fan out over them with `test.each`. Because `test.each` accepts any array, this works with **both Vitest and Jest**.
+
+Fetch the examples at module load with `getDatasetExamples`, map each to a row (`expected` carries the example's reference output), and pass the rows to `test.each`. Preserving each example's `id` upserts runs back onto the same examples so experiments line up across runs.
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { getDatasetExamples } from "@arizeai/phoenix-client/datasets";
+import { expect } from "vitest";
+
+// Top-level await loads the dataset before the suite is declared.
+const { examples } = await getDatasetExamples({ dataset: { datasetName: "text-to-sql" } });
+
+const ROWS = examples.map((e) => ({
+  id: e.id, // keep the example id so runs upsert onto the same example
+  input: e.input,
+  expected: e.output,
+  metadata: e.metadata,
+}));
+
+px.describe("text-to-sql", () => {
+  px.test.each(ROWS)("generates valid SQL %i", async ({ input, expected }) => {
+    const sql = await myApp(input.query as string);
+    px.logOutput({ sql });
+    expect(sql.trim()).toMatch(/;$/);
+  });
+});
+```
+
+<Tip>
+Pass `splits: ["regression"]` (or a `versionId`) to `getDatasetExamples` to evaluate only a slice or a pinned version of the dataset.
+</Tip>
+
+<Note>
+The example loads the dataset with top-level `await`, which requires ESM — native in Vitest, and in Jest when configured for ESM. On CommonJS Jest, fetch the examples in an async bootstrap and reference them once resolved instead.
+</Note>
+
+## Logging outputs and annotations
+
+### `logOutput(value)`
+
+Records the system-under-test's output for the run. Everything you pass here shows up as `ExperimentRun.output` in Phoenix.
+
+```ts
+const result = await myApp(input.query);
+px.logOutput({ sql: result, latencyMs: Date.now() - start });
+```
+
+### `logAnnotation(annotation)`
+
+Records a named score, label, or explanation on the run. Use this for metrics you compute inline.
+
+```ts
+px.logAnnotation({
+  name: "valid_sql",
+  score: isValidSQL(result) ? 1 : 0,
+  label: isValidSQL(result) ? "valid" : "invalid",
+  annotatorKind: "CODE",
+});
+```
+
+The full `Annotation` shape:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Evaluation name. Required. |
+| `score` | `number \| boolean \| null` | Numeric or boolean score. Booleans are stored as 0 / 1. |
+| `label` | `string \| null` | Categorical label. |
+| `explanation` | `string \| null` | Free-form explanation, shown in the Phoenix UI. |
+| `metadata` | `Record<string, unknown>` | Custom metadata. |
+| `annotatorKind` | `"LLM" \| "CODE" \| "HUMAN"` | Source of the annotation. Defaults to `"CODE"`. |
+
+### `evaluate(evaluator, params?)`
+
+Runs an evaluator object and records its result as an annotation linked to an evaluator trace. This is the recommended approach when you want full trace visibility into the evaluator's LLM calls.
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
+
+const correctness = createEvaluator(
+  async ({ output, expected }: { output: { answer: string }; expected: { answer: string } }) => {
+    const grade = await llmAsJudge(output.answer, expected.answer);
+    return {
+      score: grade.score,
+      label: grade.passed ? "correct" : "incorrect",
+      explanation: grade.rationale,
+    };
+  },
+  { name: "correctness", kind: "LLM" },
+);
+
+px.describe("qa eval", () => {
+  px.test(
+    "paris capital",
+    {
+      input: { question: "Capital of France?" },
+      expected: { answer: "Paris" },
+    },
+    async ({ input, expected }) => {
+      const answer = await myApp(input.question);
+      px.logOutput({ answer });
+      await px.evaluate(correctness, {
+        output: { answer },
+        expected: expected ?? { answer: "" },
+      });
+    },
+  );
+});
+```
+
+If `params` is omitted, Phoenix supplies the current test's `input`, recorded `output`, `expected`, `metadata`, and task `traceId` automatically.
+
+### `traceEvaluator(fn, options?)`
+
+When you'd rather grade with a plain inline function than build an `Evaluator` object, wrap it with `traceEvaluator`. The wrapped function runs inside its own **evaluator span** — so an LLM-as-judge call is traced separately from the test's task — and if it returns an `{ name, score }`-shaped value, that result is captured as an annotation automatically.
+
+```ts
+const checkRelevance = px.traceEvaluator(
+  async ({ output }: { output: { answer: string } }) => {
+    const verdict = await llmAsJudge(output.answer);
+    return { name: "relevance", score: verdict.score, label: verdict.label };
+  },
+);
+
+px.test(
+  "stays on topic",
+  { input: { question: "Capital of France?" } },
+  async ({ input }) => {
+    const answer = await myApp(input.question);
+    px.logOutput({ answer });
+    await checkRelevance({ output: { answer } }); // "relevance" annotation + evaluator trace
+  },
+);
+```
+
+The annotation name defaults to the function's name, falling back to `"evaluator"`; override it with `{ name }`. Unlike `evaluate()`, `traceEvaluator()` passes through whatever arguments you give it rather than auto-supplying the test's `input` / `output` / `expected`.
+
+<Note>
+`evaluate()`, `traceEvaluator()`, and any annotation logged through them are recorded under a dedicated evaluator span, so the judge's LLM calls never clutter the task trace and each annotation links straight to the trace that produced it. Click an annotation in the Phoenix UI to open its evaluator trace.
+</Note>
+
+## Acceptance criteria — CI gates on aggregate scores
+
+Acceptance criteria let you fail CI when a quality metric drops across the full suite. They run _after_ all tests, so every case still executes and the reporter prints the full scorecard before failing — you see every regression in one run, not just the first.
+
+```ts
+px.describe("text-to-sql scorecard", () => {
+  // each test logs token_f1 (0–1), valid_sql (boolean), and latency_ms
+}, {
+  acceptanceCriteria: [
+    // overall quality: mean token_f1 must be ≥ 0.8
+    { annotationName: "token_f1", metric: "average", threshold: 0.8 },
+
+    // consistency: at least 90% of runs must score ≥ 0.7
+    {
+      annotationName: "token_f1",
+      metric: "passRate",
+      passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
+      minPassRate: 0.9,
+    },
+
+    // hard floor: every run must produce valid SQL
+    {
+      annotationName: "valid_sql",
+      metric: "passRate",
+      passFn: (a) => a.score === true,
+      minPassRate: 1,
+    },
+
+    // budget: lower is better — mean latency must stay ≤ 800 ms
+    {
+      annotationName: "latency_ms",
+      metric: "average",
+      threshold: 800,
+      direction: "minimize",
+    },
+  ],
+});
+```
+
+### Criterion fields
+
+| Field | Description |
+|---|---|
+| `annotationName` | Annotation to aggregate. If a run logs the same annotation more than once, the last one counts. |
+| `metric` | `"average"` checks the mean of all numeric/boolean scores against `threshold`; `"passRate"` counts runs whose `passFn` returns `true` and requires that fraction to reach `minPassRate`. |
+| `threshold` | **`average` only.** The bar the mean must clear. |
+| `direction` | **`average` only.** `"maximize"` (default — higher is better, clears when `>=`) or `"minimize"` (lower is better, clears when `<=`). Use `"minimize"` for latency, cost, and error rates. |
+| `passFn` | **`passRate` only.** `(annotation) => boolean` predicate deciding whether a single run passes. |
+| `minPassRate` | **`passRate` only.** Minimum fraction of runs (`0`–`1`) that must pass (`1` = all). |
+
+<Tip>
+`passFn` receives the full annotation object — `score`, `label`, `explanation`, `metadata` — so you can gate on any combination. For example, `a.label === "correct" && a.score >= 0.8` or `a.score >= 0.5 && a.score <= 0.9`.
+</Tip>
+
+## Repetitions
+
+Run a test (or a whole suite) multiple times to measure non-determinism. Each repetition is a separate experiment run against the same dataset example, and the Phoenix compare view lines them up side by side.
+
+```ts
+px.describe("creative writing", () => {
+  px.test(
+    "haiku generation",
+    { input: { topic: "autumn" }, repetitions: 5 },
+    async ({ input }) => {
+      const poem = await myLLM(`Write a haiku about ${input.topic}.`);
+      px.logOutput({ poem });
+      px.logAnnotation({ name: "has_5_7_5", score: checkHaiku(poem) });
+    },
+  );
+});
+```
+
+Resolution order: per-test `repetitions` → suite `repetitions` → `PHOENIX_TEST_REPETITIONS` env var → `1`.
+
+## Focusing and skipping tests
+
+`px.test` and `px.describe` carry the same `.only` and `.skip` modifiers as your runner, so you can iterate on one case without running the whole suite:
+
+```ts
+px.describe("text-to-sql", () => {
+  px.test.only("the case I'm debugging", { input: { ... } }, async ({ input }) => { ... });
+  px.test.skip("not ready yet", { input: { ... } }, async ({ input }) => { ... });
+});
+
+// Focus or skip an entire suite:
+px.describe.only("just this suite", () => { ... });
+px.describe.skip("park this suite", () => { ... });
+```
+
+Focused (`.only`) tests run while their siblings in the same file are skipped — focus is file-scoped, so suites in other files still run. Skipped tests are never recorded: no dataset example and no experiment run are created for them. To track a case locally without recording it, use [dry-run mode](#dry-run-mode) instead of `.skip`.
+
+## Dry-run mode
+
+Execute test bodies locally without creating anything in Phoenix — useful for iterating on prompts and evaluators:
+
+```bash
+# Whole run
+PHOENIX_TEST_TRACKING=false npm run eval
+
+# One suite in code
+px.describe("my suite", () => { ... }, { dryRun: true });
+
+# One test in code
+px.test("draft case", { input: { q: "..." }, dryRun: true }, async ({ input }) => { ... });
+```
+
+The reporter still prints a local summary even in dry-run mode.
+
+## Suite and test configuration
+
+Pass a config object as the third argument to `describe()` to control how the whole suite syncs to Phoenix:
+
+```ts
+px.describe("text-to-sql", () => { ... }, {
+  datasetName: "sql-evals-prod",        // override the dataset / experiment name
+  description: "Nightly SQL quality run",
+  metadata: { model: "gpt-4o", promptVersion: "v3" }, // recorded on every run
+  client: createClient({ options: { baseUrl: "https://my-phoenix" } }), // custom client
+  repetitions: 3,
+  dryRun: false,
+  acceptanceCriteria: [ ... ],
+});
+```
+
+| Field | Description |
+|---|---|
+| `datasetName` | Override the dataset / experiment name (defaults to the `describe` title). |
+| `description` | Description stored on the dataset and experiment. |
+| `metadata` | Metadata applied to every run in the experiment — filter experiments by it in the Phoenix UI. |
+| `client` | A custom client (from `createClient` in `@arizeai/phoenix-client`) used to sync this suite — set its base URL, headers, and auth. |
+| `repetitions` | Default repetitions for every test in the suite. |
+| `dryRun` | Run the whole suite locally without uploading anything. |
+| `acceptanceCriteria` | Aggregate score gates evaluated after all tests — see [Acceptance criteria](#acceptance-criteria--ci-gates-on-aggregate-scores). |
+
+Individual cases (and `test.each` rows) take their own fields alongside `input` and the reference output:
+
+| Field | Description |
+|---|---|
+| `id` | Stable example id. Reuse it across runs to upsert onto the same dataset example rather than creating a new one. |
+| `metadata` | Metadata stored on the example and its run. |
+| `splits` | Slice label(s) for the example (e.g. `["regression", "edge-case"]`), used to filter the dataset and experiment in the UI. |
+| `repetitions` | Per-test repetition count; overrides the suite value. |
+| `dryRun` | Run just this case locally without recording it. |
+| `config` | `{ tags?: string[]; metadata?: KVMap }` recorded on the experiment run — tag runs for filtering in the Phoenix UI. |
+
+```ts
+px.test(
+  "edge case: empty result set",
+  {
+    input: { query: "users created tomorrow" },
+    expected: { sql: "SELECT * FROM users WHERE created_at > NOW();" },
+    splits: ["regression", "edge-case"],
+    config: { tags: ["sql", "temporal"], metadata: { ticket: "ENG-1234" } },
+  },
+  async ({ input, expected }) => { ... },
+);
+```
+
+## Environment variables
+
+| Variable | Description |
+|---|---|
+| `PHOENIX_HOST` | Phoenix base URL |
+| `PHOENIX_API_KEY` | Bearer token for Phoenix |
+| `PHOENIX_CLIENT_HEADERS` | Optional JSON headers forwarded to the Phoenix client and tracer |
+| `PHOENIX_TEST_TRACKING` | Set to `false` to disable sync to Phoenix for the current run |
+| `PHOENIX_TEST_REPETITIONS` | Default number of times to run each test |
+| `PHOENIX_TEST_REPORTER` | Set to `verbose` to show every test row plus per-test output detail |
+| `PHOENIX_TEST_REPORTER_MAX_ROWS` | Max test rows shown per suite in compact mode (default `10`; failures are never hidden) |
+| `PHOENIX_TEST_COLOR` | Force ANSI color on/off (auto: on for a TTY, off in CI / `NO_COLOR`) |
+
+## Gating CI with GitHub Actions
+
+<CodeGroup>
+```yaml Vitest
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - name: Run eval suite
+        env:
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npm run eval
+```
+
+```yaml Jest
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - name: Run eval suite
+        env:
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: npm run eval
+```
+</CodeGroup>
+
+The test runner's exit code is your CI gate. A failed assertion — or a failed acceptance criterion — exits with a non-zero code and fails the job.
+
+## Complete example
+
+A full text-to-SQL eval suite with inline evaluators, hoisted annotations, and acceptance criteria:
+
+```ts
+// sql-quality.eval.ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
+import { expect } from "vitest";
+
+// LLM-as-judge evaluator
+const sqlCorrectness = createEvaluator(
+  async ({
+    output,
+    expected,
+  }: {
+    output: { sql: string };
+    expected: { sql: string };
+  }) => {
+    const grade = await llmAsJudge(output.sql, expected.sql);
+    return {
+      score: grade.score,
+      label: grade.passed ? "correct" : "incorrect",
+      explanation: grade.rationale,
+    };
+  },
+  { name: "sql_correctness", kind: "LLM" },
+);
+
+const CASES = [
+  {
+    input: { query: "Get all users" },
+    expected: { sql: "SELECT * FROM users;" },
+  },
+  {
+    input: { query: "Count active subscribers" },
+    expected: { sql: "SELECT COUNT(*) FROM subscriptions WHERE status = 'active';" },
+  },
+  {
+    input: { query: "Top 5 customers by revenue" },
+    expected: {
+      sql: "SELECT customer_id, SUM(amount) AS revenue FROM orders GROUP BY customer_id ORDER BY revenue DESC LIMIT 5;",
+    },
+  },
+];
+
+px.describe(
+  "text-to-sql",
+  () => {
+    px.test.each(CASES)("generates SQL %i", async ({ input, expected }) => {
+      const start = performance.now();
+      const sql = await myApp(input.query);
+      const latency = performance.now() - start;
+
+      px.logOutput({ sql });
+      px.logAnnotation({
+        name: "latency_ms",
+        score: latency,
+        annotatorKind: "CODE",
+      });
+      px.logAnnotation({
+        name: "ends_with_semicolon",
+        score: sql.trim().endsWith(";"),
+        annotatorKind: "CODE",
+      });
+      await px.evaluate(sqlCorrectness, {
+        output: { sql },
+        expected: expected ?? { sql: "" },
+      });
+
+      expect(sql.trim()).toMatch(/;$/);
+    });
+  },
+  {
+    acceptanceCriteria: [
+      { annotationName: "sql_correctness", metric: "average", threshold: 0.8 },
+      {
+        annotationName: "ends_with_semicolon",
+        metric: "passRate",
+        passFn: (a) => a.score === true,
+        minPassRate: 1,
+      },
+      {
+        annotationName: "latency_ms",
+        metric: "average",
+        threshold: 2000,
+        direction: "minimize",
+      },
+    ],
+  },
+);
+```
+
+Run it locally without recording:
+
+```bash
+PHOENIX_TEST_TRACKING=false npm run eval
+```
+
+Then in CI, enable Phoenix and watch scores accumulate across experiments:
+
+```bash
+npm run eval
+```
+
+## Module map
+
+| Import | Purpose |
+|---|---|
+| `@arizeai/phoenix-client/vitest` | Vitest entrypoint — `describe`, `test`, `it`, `logOutput`, `logAnnotation`, `evaluate`, `traceEvaluator` |
+| `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter — Phoenix-flavored summary at end of run |
+| `@arizeai/phoenix-client/jest` | Same API surface, wired to Jest globals |
+| `@arizeai/phoenix-client/jest/reporter` | Jest reporter |
+| `@arizeai/phoenix-client/datasets` | Dataset helpers — e.g. `getDatasetExamples` for [running against an existing dataset](#running-against-an-existing-phoenix-dataset) |

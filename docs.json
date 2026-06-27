@@ -277,6 +277,13 @@
                     ]
                   }
                 ]
+              },
+              {
+                "group": "Integrations",
+                "pages": [
+                  "docs/phoenix/evaluation/integrations/pytest",
+                  "docs/phoenix/evaluation/integrations/vitest-jest"
+                ]
               }
             ]
           },
@@ -1260,6 +1267,7 @@
               {
                 "group": "06.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest",
                   "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
                   "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
                   "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",

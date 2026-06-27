@@ -1,0 +1,411 @@
+---
+title: "pytest"
+description: "Write LLM evaluations as ordinary pytest tests that run in CI and record results to Phoenix."
+---
+
+The Phoenix pytest plugin bridges the gap between your test suite and your evaluation pipeline. You write evaluations as normal `pytest` tests — parametrized, marked, and run just like any other test — and Phoenix records each case as an experiment run so you can track quality over time.
+
+When a test passes, Phoenix records `pass=True`. When it fails, `pass=False`. Because the plugin hooks into pytest's own exit code, your existing CI gate works without any extra configuration.
+
+## When to use the pytest plugin
+
+Phoenix also offers [`run_experiment`](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) for evaluating a whole dataset with a single task and a shared set of evaluators. Reach for the pytest plugin instead when:
+
+- **Each case needs different logic.** `run_experiment` runs one task and the same evaluators across every example. When subsets of your system need different inputs, setup, or metrics, separate test functions are easier to express than one branching task.
+- **You want to assert hard expectations.** Tests turn an eval into a binary gate: a failed `assert` fails the pytest item, fails the run, and fails CI — exactly like any other broken test.
+- **You already use pytest.** Add Phoenix tracking to an existing suite without changing how you run it, and keep `pytest` features like fixtures, `parametrize`, `-k` filtering, `pytest-xdist`, and `pytest-asyncio`.
+
+For large, homogeneous datasets where every example is scored the same way, prefer `run_experiment` — it parallelizes the work and keeps each experiment and its dataset easy to manage.
+
+## How it works
+
+Each marked test suite maps to a **Phoenix dataset**. Each parametrized test case maps to a **dataset example**. Each run of the suite creates a new **experiment** on that dataset. The assertion outcome — did the test pass or fail? — becomes a `pass` annotation on the experiment run. Any additional scores you log become their own named annotations.
+
+```
+pytest test file   →  Phoenix dataset
+parametrize case   →  dataset example
+test run           →  experiment run
+assert outcome     →  "pass" annotation
+log_evaluation()   →  named annotation
+```
+
+This means the same suite that gates your pull requests also builds a versioned history of results you can compare in Phoenix over time.
+
+## Installation
+
+<Info>
+Requires **`arize-phoenix-client>=2.10.0`** — the version that introduced the `@pytest.mark.phoenix` plugin.
+</Info>
+
+The plugin ships with `arize-phoenix-client`. Install it with the `pytest` extra:
+
+```bash
+pip install "arize-phoenix-client[pytest]>=2.10.0" pytest
+```
+
+If your evaluators use `arize-phoenix-evals`, add that extra too:
+
+```bash
+pip install "arize-phoenix-client[pytest,evals]>=2.10.0" pytest
+```
+
+pytest discovers the plugin automatically through its entry point — no `conftest.py` setup required.
+
+## Your first eval suite
+
+Here is a minimal example that evaluates a question-answering function:
+
+```python
+import pytest
+from phoenix.client.pytest import log_output, log_evaluation
+
+@pytest.mark.phoenix(dataset="qa-suite")
+@pytest.mark.parametrize(
+    "question,expected",
+    [
+        ("What is the capital of France?", "Paris"),
+        ("What is 12 multiplied by 8?", "96"),
+        ("Who wrote Hamlet?", "Shakespeare"),
+    ],
+    ids=["geography", "arithmetic", "literature"],
+)
+def test_answers(question, expected):
+    result = my_app(question)
+    log_output(result)
+    assert result == expected
+```
+
+Run it with your Phoenix connection set:
+
+```bash
+export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host
+export PHOENIX_API_KEY=your-api-key        # if required
+pytest tests/evals/test_qa.py
+```
+
+The `ids` you supply to `parametrize` are important: they give each case a **stable identity**. Re-running the suite maps each case back to the same dataset example, so runs accumulate as experiments over a fixed set of examples rather than creating duplicates.
+
+## The `@pytest.mark.phoenix` marker
+
+The marker is what tells the plugin which tests to record. Tests without it run normally and are invisible to Phoenix.
+
+```python
+@pytest.mark.phoenix(
+    dataset="my-eval-suite",
+    evaluators=[correctness_evaluator],
+    repetitions=3,
+)
+def test_my_feature(input, expected): ...
+```
+
+| Argument | Description |
+|---|---|
+| `dataset` | Name of the Phoenix dataset and experiment. Defaults to the test file's relative path when omitted. |
+| `evaluators` | List of evaluators that run automatically against every case. |
+| `repetitions` | Run each case this many times to measure non-determinism. |
+
+### Dataset naming
+
+When you omit `dataset=`, the plugin uses the test file's path relative to your project root — for example `tests/evals/test_sql` — so tests in different files become separate datasets and two files that share a basename never collide.
+
+The full precedence order for dataset names is:
+
+1. `PHOENIX_TEST_DATASET` environment variable (highest — overrides everything)
+2. `phoenix_dataset` in `pytest.ini`
+3. The marker's `dataset=` keyword argument
+4. The file path (default)
+
+## Logging outputs and evaluations
+
+### `log_output(value)`
+
+Records the system-under-test's output for the current run. Pass anything JSON-serializable — a string, dict, or list. Because pytest warns when a test returns a non-`None` value, you pass the output to this helper rather than returning it.
+
+```python
+def test_summarize(document, expected_summary):
+    summary = summarizer(document)
+    log_output({"summary": summary})
+    assert len(summary) < len(document)
+```
+
+### `log_evaluation(name, score, label?, explanation?)`
+
+Records a named score on the current run. Use this to attach any metric you compute inline:
+
+```python
+def test_answers(question, expected):
+    result = my_app(question)
+    log_output(result)
+
+    exact = float(result.strip().lower() == expected.strip().lower())
+    log_evaluation(name="exact_match", score=exact, label="correct" if exact else "wrong")
+
+    assert result == expected
+```
+
+### `evaluate(evaluator, **kwargs)`
+
+Runs an evaluator callable and records its result as an annotation. The function returns the evaluator's result, so you can assert on it to gate the individual test:
+
+```python
+def correctness(output, expected, **_):
+    return {"name": "correctness", "score": float(output == expected)}
+
+def test_answers(question, expected):
+    answer = my_app(question)
+    log_output(answer)
+    result = evaluate(correctness, output=answer, expected=expected)
+    assert result["score"] == 1.0
+```
+
+A failed assertion after `evaluate()` records `pass=False` and fails the pytest item — making the evaluator score a CI gate.
+
+<Note>
+Every score from `log_evaluation()`, `evaluate()`, and hoisted marker evaluators is wrapped in its own **evaluator span**, so an LLM-as-judge call is traced separately from the test's task and the annotation links straight to the trace that produced it. You don't need a separate "trace feedback" context — the separation is automatic. Click any annotation in the Phoenix UI to open its evaluator trace.
+</Note>
+
+## Using pre-built Phoenix evaluators
+
+Evaluators from `arize-phoenix-evals` work directly with `evaluate()` and as hoisted evaluators on the marker:
+
+```python
+import pytest
+from phoenix.client.pytest import evaluate, log_output
+from phoenix.evals import LLM
+from phoenix.evals.metrics import FaithfulnessEvaluator
+
+faithfulness = FaithfulnessEvaluator(llm=LLM(provider="openai", model="gpt-4o"))
+
+@pytest.mark.phoenix(
+    dataset="rag-quality",
+    evaluators=[faithfulness],
+)
+@pytest.mark.parametrize(
+    "input,context,answer",
+    [
+        ("Where is the Eiffel Tower?", "The Eiffel Tower is in Paris.", "It is in Paris."),
+        ("What is the longest river?", "The Amazon is the longest river.", "The Nile."),
+    ],
+    ids=["faithful", "unfaithful"],
+)
+def test_rag_answers(input, context, answer):
+    log_output(answer)
+    # The faithfulness evaluator runs automatically after every case
+```
+
+Hoisted evaluators are invoked using the same adapter as `run_experiment`, so an evaluator you wrote for one works identically under the other. Arguments are bound **by parameter name**:
+
+| Evaluator parameter | Source |
+|---|---|
+| `output` | What you passed to `log_output` |
+| `input` | The test's parametrized fields as a mapping |
+| `expected` / `reference` | Parametrized field of the same name, if present |
+| `metadata` | Parametrized field of the same name, if present |
+| `trace_id` | The test run's trace id |
+
+<Tip>
+Any evaluator from [`arize-phoenix-evals`](/docs/phoenix/evaluation/pre-built-metrics) works here — `FaithfulnessEvaluator`, `DocumentRelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
+</Tip>
+
+## Repetitions
+
+Run each case more than once to measure non-determinism in LLM outputs. Each repetition is a separate pytest item — visible to `-k`, `pytest-xdist`, and your IDE — and a separate experiment run in Phoenix. The Phoenix compare view lines them up for you.
+
+```python
+@pytest.mark.phoenix(dataset="creative-writing", repetitions=5)
+@pytest.mark.parametrize("prompt", ["Write a haiku about autumn."])
+def test_haiku_quality(prompt):
+    poem = my_llm(prompt)
+    log_output(poem)
+    score = evaluate_poem_quality(poem)
+    log_evaluation(name="quality", score=score)
+    assert score >= 0.6
+```
+
+Resolution order for `repetitions`: per-test marker argument → `PHOENIX_TEST_REPETITIONS` env var → `1`.
+
+## Environment variables
+
+The plugin is configured entirely through environment variables, so the same suite can behave differently in local development and in CI without code changes.
+
+| Variable | Default | Description |
+|---|---|---|
+| `PHOENIX_TEST_TRACKING` | `true` | Master switch. Set to `0` or `false` to run offline — tests execute but nothing is sent to Phoenix. |
+| `PHOENIX_TEST_REPETITIONS` | `1` | Default repetitions per marked test. |
+| `PHOENIX_TEST_DATASET` | _(file path)_ | Override the dataset name for all collected tests. |
+| `PHOENIX_COLLECTOR_ENDPOINT` | — | Your Phoenix server URL. |
+| `PHOENIX_API_KEY` | — | Bearer token for Phoenix. |
+| `PHOENIX_CLIENT_HEADERS` | — | Optional JSON headers forwarded to the Phoenix client. |
+
+To iterate locally without recording anything:
+
+```bash
+PHOENIX_TEST_TRACKING=0 pytest tests/evals/
+```
+
+Repetitions still expand when tracking is off — useful for surfacing flaky failures locally.
+
+## Running in parallel with pytest-xdist
+
+The plugin supports `pytest -n auto`. The controller creates the dataset and experiment once and distributes their IDs to workers, which record runs concurrently. Exactly one experiment is created regardless of worker count.
+
+```bash
+pip install pytest-xdist
+pytest -n auto tests/evals/
+```
+
+## Works with the rest of pytest
+
+The marker is designed to stay out of your way — the tools you already use keep working:
+
+- **Async tests.** `async def` tests run unchanged under `pytest-asyncio` (or `anyio`). Inline `evaluate()` works inside an async test, including with async evaluators — the result is recorded the same way as a sync one.
+- **Fixtures and `parametrize`.** Use them as normal. Each `parametrize` case becomes its own dataset example; give cases stable `ids` so reruns map back to the same example.
+- **Focusing and skipping.** Filter with `-k`, select markers with `-m`, or skip a case with `@pytest.mark.skip` / `pytest.skip()`. Skipped cases are simply not recorded; a filtered run only *appends* to the dataset (see [How the dataset stays in sync](#how-the-dataset-stays-in-sync)).
+- **Watch mode.** `pytest-watch` (`ptw`) re-runs on save. Pair it with `PHOENIX_TEST_TRACKING=0` while iterating so you don't create an experiment on every keystroke.
+
+```python
+import pytest
+from phoenix.client.pytest import evaluate, log_output
+
+@pytest.mark.phoenix(dataset="qa-suite")
+@pytest.mark.parametrize("question,expected", [("Capital of France?", "Paris")])
+async def test_async_answers(question, expected):
+    answer = await my_async_app(question)   # async task
+    log_output(answer)
+    result = evaluate(my_async_evaluator, output=answer, expected=expected)  # async evaluator
+    assert result["score"] == 1.0
+```
+
+### Configuring the dataset name in `pytest.ini`
+
+To pin a dataset name for a whole project without editing tests or exporting an env var, set the `phoenix_dataset` ini option:
+
+```ini
+# pytest.ini
+[pytest]
+phoenix_dataset = sql-app-evals
+```
+
+`PHOENIX_TEST_DATASET` still takes precedence over the ini option, which in turn takes precedence over the marker's `dataset=` (see [Dataset naming](#dataset-naming)).
+
+## How the dataset stays in sync
+
+On a **full run** (no path filter), the plugin _updates_ the dataset to match exactly the collected cases, pruning examples for tests that no longer exist.
+
+On a **partial run** (with `-k`, `-m`, a file, or a `::node` filter), the plugin only _appends_, leaving unselected examples in place. This prevents `pytest tests/evals/test_sql.py` from deleting the rest of your dataset.
+
+<Warning>
+Two full runs writing the **same dataset name at the same time** — for example, parallel CI jobs that don't set `PHOENIX_TEST_DATASET` — can prune each other's examples. For genuinely concurrent jobs, give each its own name:
+
+```bash
+PHOENIX_TEST_DATASET=evals-${GIT_BRANCH} pytest tests/evals/
+```
+</Warning>
+
+## Gating CI with GitHub Actions
+
+No additional configuration is needed to use pytest as a CI gate: the pytest exit code is `1` when any test fails, and `0` when all pass. A regression in LLM quality fails the job exactly like a broken import.
+
+```yaml
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "arize-phoenix-client[pytest,evals]" pytest
+      - name: Run eval suite
+        env:
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+        run: pytest tests/evals/
+```
+
+<Tip>
+Uploads to Phoenix are best-effort and never fail a test. A network problem is reported as a warning rather than failing the build, so a transient Phoenix outage won't block your deploys.
+</Tip>
+
+## Complete example
+
+A full text-to-SQL eval suite with inline evaluation, hoisted evaluators, and a CI-ready structure:
+
+```python
+import pytest
+from phoenix.client.pytest import evaluate, log_evaluation, log_output
+
+# --- evaluators ---
+
+def valid_sql(output, **_):
+    import sqlparse
+    try:
+        sqlparse.parse(output["sql"])
+        return {"name": "valid_sql", "score": 1.0, "label": "valid"}
+    except Exception:
+        return {"name": "valid_sql", "score": 0.0, "label": "invalid"}
+
+
+def token_f1(output, expected, **_):
+    pred_tokens = set(output["sql"].lower().split())
+    ref_tokens = set((expected or {}).get("sql", "").lower().split())
+    if not ref_tokens:
+        return {"name": "token_f1", "score": 0.0}
+    precision = len(pred_tokens & ref_tokens) / len(pred_tokens) if pred_tokens else 0
+    recall = len(pred_tokens & ref_tokens) / len(ref_tokens)
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
+    return {"name": "token_f1", "score": f1}
+
+
+# --- test suite ---
+
+CASES = [
+    {
+        "input": "Show all users",
+        "expected": {"sql": "SELECT * FROM users;"},
+        "id": "select-all",
+    },
+    {
+        "input": "Count active subscriptions",
+        "expected": {"sql": "SELECT COUNT(*) FROM subscriptions WHERE status = 'active';"},
+        "id": "count-active",
+    },
+    {
+        "input": "Top 5 customers by revenue",
+        "expected": {"sql": "SELECT customer_id, SUM(amount) AS revenue FROM orders GROUP BY customer_id ORDER BY revenue DESC LIMIT 5;"},
+        "id": "top-customers",
+    },
+]
+
+
+@pytest.mark.phoenix(
+    dataset="text-to-sql",
+    evaluators=[valid_sql, token_f1],
+)
+@pytest.mark.parametrize(
+    "input,expected",
+    [(c["input"], c["expected"]) for c in CASES],
+    ids=[c["id"] for c in CASES],
+)
+def test_text_to_sql(input, expected):
+    sql = my_sql_generator(input)
+    log_output({"sql": sql})
+    assert sql.strip().endswith(";"), "SQL must end with a semicolon"
+```
+
+Run it locally to verify everything before pushing:
+
+```bash
+PHOENIX_TEST_TRACKING=0 pytest tests/evals/test_sql.py -v
+```
+
+Then in CI, enable Phoenix and let the scores accumulate:
+
+```bash
+pytest tests/evals/test_sql.py
+```
