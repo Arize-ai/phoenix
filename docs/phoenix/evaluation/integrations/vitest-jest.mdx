@@ -9,7 +9,7 @@ Each `describe()` block becomes a **Phoenix dataset** and a new **experiment**. 
 
 ## When to use Vitest / Jest
 
-Phoenix also offers [`runExperiment`](/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments) for evaluating a whole dataset with one task and a shared set of evaluators. Reach for the test-runner integration instead when:
+Phoenix also offers [`runExperiment`](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments) for evaluating a whole dataset with one task and a shared set of evaluators. Reach for the test-runner integration instead when:
 
 - **Each case needs different logic.** `runExperiment` runs one task and the same evaluators across every example. When subsets of your system need different inputs, setup, or metrics, separate `test()` cases are easier to express than one branching task.
 - **You want to assert hard expectations.** A failed `expect()` fails the test, fails the run, and fails CI — and [acceptance criteria](#acceptance-criteria--ci-gates-on-aggregate-scores) let you gate the whole suite on aggregate scores.

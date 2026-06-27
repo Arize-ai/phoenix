@@ -9,7 +9,7 @@ When a test passes, Phoenix records `pass=True`. When it fails, `pass=False`. Be
 
 ## When to use the pytest plugin
 
-Phoenix also offers [`run_experiment`](/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) for evaluating a whole dataset with a single task and a shared set of evaluators. Reach for the pytest plugin instead when:
+Phoenix also offers [`run_experiment`](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments) for evaluating a whole dataset with a single task and a shared set of evaluators. Reach for the pytest plugin instead when:
 
 - **Each case needs different logic.** `run_experiment` runs one task and the same evaluators across every example. When subsets of your system need different inputs, setup, or metrics, separate test functions are easier to express than one branching task.
 - **You want to assert hard expectations.** Tests turn an eval into a binary gate: a failed `assert` fails the pytest item, fails the run, and fails CI — exactly like any other broken test.
@@ -204,7 +204,7 @@ Hoisted evaluators are invoked using the same adapter as `run_experiment`, so an
 | `trace_id` | The test run's trace id |
 
 <Tip>
-Any evaluator from [`arize-phoenix-evals`](/phoenix/evaluation/pre-built-metrics) works here — `FaithfulnessEvaluator`, `DocumentRelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
+Any evaluator from [`arize-phoenix-evals`](/docs/phoenix/evaluation/pre-built-metrics) works here — `FaithfulnessEvaluator`, `DocumentRelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
 </Tip>
 
 ## Repetitions
