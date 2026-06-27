@@ -254,7 +254,10 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
               <Text color="yellow" bold>
                 {cmd.name}
               </Text>
-              <Text dimColor>{"  "}{cmd.description}</Text>
+              <Text dimColor>
+                {"  "}
+                {cmd.description}
+              </Text>
             </Text>
           ))}
         </Box>
@@ -410,11 +413,19 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         const helpReply: PxiMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
-          parts: [{ type: "text", text: `Available commands:\n${helpLines}`, state: "done" }],
+          parts: [
+            {
+              type: "text",
+              text: `Available commands:\n${helpLines}`,
+              state: "done",
+            },
+          ],
         };
         setMessages((m) => [...m, helpMessage, helpReply]);
       } else if (result.type === "unknown") {
-        setError(`Unknown command: /${result.name}. Type /help to see available commands.`);
+        setError(
+          `Unknown command: /${result.name}. Type /help to see available commands.`
+        );
       }
       return;
     }
