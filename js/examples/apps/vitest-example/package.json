@@ -1,5 +1,5 @@
 {
-  "name": "support-bot-evals",
+  "name": "vitest-example",
   "private": true,
   "type": "module",
   "description": "Vitest eval suite for an Acme Analytics support bot, recorded to Phoenix.",
@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
-    "@arizeai/phoenix-client": "^6.11.1"
+    "@arizeai/phoenix-client": "workspace:*"
   },
   "devDependencies": {
     "dotenv": "^16.4.5",

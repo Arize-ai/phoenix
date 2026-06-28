@@ -69,17 +69,24 @@ pytest -v
 
 ### TypeScript (Vitest)
 
+The TypeScript suite lives in the `js/` pnpm workspace at
+`js/examples/apps/vitest-example` and uses the workspace copy of
+`@arizeai/phoenix-client`.
+
 ```bash
-cd typescript
-npm install
+# From the repo root, install the workspace once:
+cd js
+pnpm install
+
+cd examples/apps/vitest-example
 export ANTHROPIC_API_KEY=sk-ant-...
 
 # Iterate locally without recording anything to Phoenix:
-npm run eval:offline
+pnpm eval:offline
 
 # Record runs to Phoenix:
 export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host
-npm run eval
+pnpm eval
 ```
 
 ## In CI
@@ -96,14 +103,15 @@ The job fails on the test runner's exit code, so a missed acceptance criterion
 support-bot-evals/
 ├── README.md
 ├── eval-ci.yml                  # GitHub Actions recipe (both languages)
-├── python/
-│   ├── test_support_bot.py      # the pytest eval suite
-│   └── requirements.txt
-└── typescript/
-    ├── support-bot.eval.ts      # the Vitest eval suite
-    ├── vitest.config.ts
-    ├── package.json
-    └── tsconfig.json
+└── python/
+    ├── test_support_bot.py      # the pytest eval suite
+    └── requirements.txt
+
+js/examples/apps/vitest-example/   # the TypeScript suite (js/ pnpm workspace member)
+├── support-bot.eval.ts            # the Vitest eval suite
+├── vitest.config.ts
+├── package.json
+└── tsconfig.json
 ```
 
 ## Learn more
