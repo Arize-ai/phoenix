@@ -86,11 +86,7 @@ export function isTrackingEnabled(suite?: SuiteState): {
   enabled: boolean;
   reason?: string;
 } {
-  if (
-    trackingLatchedOff ||
-    trackingDisabledAtLoad ||
-    isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)
-  ) {
+  if (trackingLatchedOff || isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)) {
     trackingLatchedOff = true;
     return { enabled: false, reason: "PHOENIX_TEST_TRACKING is disabled" };
   }
