@@ -1,8 +1,8 @@
 {
   "name": "vitest-example",
   "private": true,
-  "type": "module",
   "description": "Vitest eval suite for an Acme Analytics support bot, recorded to Phoenix.",
+  "type": "module",
   "scripts": {
     "eval": "vitest run --config vitest.config.ts",
     "eval:offline": "PHOENIX_TEST_TRACKING=false vitest run --config vitest.config.ts"
