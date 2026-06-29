@@ -120,6 +120,47 @@ function getModelLabel({
   return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
 
+function getErrorMessage({ error }: { error: unknown }): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorCauseMessage({ error }: { error: unknown }): string | null {
+  if (!(error instanceof Error) || !("cause" in error)) {
+    return null;
+  }
+  const cause = error.cause;
+  if (!cause) {
+    return null;
+  }
+  return getErrorMessage({ error: cause });
+}
+
+function formatEndpointPreflightFailure({
+  error,
+  endpoint,
+  requestUrl,
+}: {
+  error: unknown;
+  endpoint: string;
+  requestUrl: string;
+}): string {
+  const causeMessage = getErrorCauseMessage({ error });
+  const causeLine = causeMessage ? `\nCause: ${causeMessage}` : "";
+  return [
+    "Could not reach Phoenix during PXI startup preflight.",
+    "",
+    `Endpoint: ${endpoint}`,
+    `Request: ${requestUrl}`,
+    `Network error: ${getErrorMessage({ error })}${causeLine}`,
+    "",
+    "How to fix:",
+    "  1. Start Phoenix and confirm the server is listening.",
+    "  2. If Phoenix is running at a different URL, pass --endpoint <url> or set PHOENIX_HOST.",
+    "  3. For remote endpoints, check VPN, proxy, firewall, and DNS settings.",
+    "  4. To skip only model validation, pass --skip-model-preflight.",
+  ].join("\n");
+}
+
 /**
  * Compose the "missing credentials" error for a provider, listing the required
  * environment variables (falling back to all known ones if none are flagged
@@ -219,11 +260,23 @@ export async function fetchPxiModelPreflight({
     query: PXI_MODEL_PREFLIGHT_QUERY,
     config,
   });
-  const response = await fetchImpl(request.url, {
-    method: request.method,
-    headers: request.headers,
-    body: request.body,
-  });
+  let response: Response;
+  try {
+    response = await fetchImpl(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+    });
+  } catch (error) {
+    throw new TypeError(
+      formatEndpointPreflightFailure({
+        error,
+        endpoint: config.endpoint,
+        requestUrl: request.url,
+      }),
+      { cause: error }
+    );
+  }
   if (!response.ok) {
     const detail = await readResponseText({ response });
     const detailText = detail ? `: ${detail}` : "";

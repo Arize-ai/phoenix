@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import nullcontext
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from jinja2 import Template
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, ToolOutputAvailableChunk
+from sqlalchemy import func, select
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
@@ -20,10 +22,113 @@ from phoenix.server.api.routers.agents import (
     _load_phoenix_user_email,
     _load_sandbox_availability,
     _maybe_using_user,
+    _persist_db_traces_and_emit_event,
     _SubagentMessageChunksClosed,
 )
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory, UserId
+
+
+class _EventQueue:
+    def __init__(self) -> None:
+        self.events: list[DmlEvent] = []
+
+    def put(self, item: DmlEvent) -> None:
+        self.events.append(item)
+
+
+class TestPersistDbTracesAndEmitEvent:
+    @staticmethod
+    def _trace(
+        *,
+        project_id: int,
+        session_id: str,
+        trace_id: str,
+        span_id: str,
+        start_time: datetime,
+    ) -> models.Trace:
+        end_time = start_time + timedelta(seconds=1)
+        trace = models.Trace(
+            project_rowid=project_id,
+            trace_id=trace_id,
+            start_time=start_time,
+            end_time=end_time,
+            project_session=models.ProjectSession(
+                project_id=project_id,
+                session_id=session_id,
+                start_time=start_time,
+                end_time=end_time,
+            ),
+        )
+        trace.spans = [
+            models.Span(
+                name="agent",
+                span_id=span_id,
+                parent_id=None,
+                span_kind="AGENT",
+                start_time=start_time,
+                end_time=end_time,
+                attributes={},
+                events=[],
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+                llm_token_count_prompt=None,
+                llm_token_count_completion=None,
+            )
+        ]
+        return trace
+
+    async def test_persists_local_traces_and_emits_span_insert_event(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            project = models.Project(name="pxi-dev-test")
+            session.add(project)
+            await session.flush()
+            project_id = project.id
+
+        start_time = datetime(2026, 6, 29, 15, 0, tzinfo=timezone.utc)
+        db_traces = [
+            self._trace(
+                project_id=project_id,
+                session_id="session-1",
+                trace_id="trace-1",
+                span_id="span-1",
+                start_time=start_time,
+            ),
+            self._trace(
+                project_id=project_id,
+                session_id="session-1",
+                trace_id="trace-2",
+                span_id="span-2",
+                start_time=start_time + timedelta(seconds=2),
+            ),
+        ]
+        event_queue = _EventQueue()
+
+        await _persist_db_traces_and_emit_event(
+            db=db,
+            event_queue=event_queue,
+            db_traces=db_traces,
+        )
+
+        assert event_queue.events == [SpanInsertEvent((project_id,))]
+        async with db.read() as session:
+            trace_count = await session.scalar(
+                select(func.count(models.Trace.id)).where(models.Trace.project_rowid == project_id)
+            )
+            assert trace_count == 2
+            project_session = await session.scalar(
+                select(models.ProjectSession).where(models.ProjectSession.session_id == "session-1")
+            )
+            assert project_session is not None
+            assert project_session.start_time == start_time
+            assert project_session.end_time == start_time + timedelta(seconds=3)
 
 
 class TestLoadSandboxAvailability:

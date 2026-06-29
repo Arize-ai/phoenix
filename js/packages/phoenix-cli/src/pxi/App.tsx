@@ -2,6 +2,12 @@ import { Box, Text, useApp, useInput } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { createPxiChatClient, createUserMessage } from "./client";
+import {
+  getSlashCommandName,
+  matchingCommands,
+  runSlashCommand,
+  SLASH_COMMANDS,
+} from "./commands";
 import { Markdown } from "./inkMarkdown";
 import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
 import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
@@ -178,9 +184,52 @@ function Transcript({
   );
 }
 
+/**
+ * Render the draft text with slash-command syntax highlighting.
+ *
+ * When the draft starts with `/`, the command name is colored yellow and the
+ * arguments follow in default color. Everything else renders as plain text.
+ */
+function HighlightedDraft({ draft }: { draft: string }) {
+  if (!draft.startsWith("/")) {
+    return <Text>{draft}</Text>;
+  }
+  const rest = draft.slice(1);
+  const spaceIndex = rest.indexOf(" ");
+  if (spaceIndex === -1) {
+    // Still typing the command name — color the whole token
+    return (
+      <Text>
+        <Text color="yellow">/</Text>
+        <Text color="yellow" bold>
+          {rest}
+        </Text>
+      </Text>
+    );
+  }
+  const cmdName = rest.slice(0, spaceIndex);
+  const args = rest.slice(spaceIndex);
+  return (
+    <Text>
+      <Text color="yellow">/</Text>
+      <Text color="yellow" bold>
+        {cmdName}
+      </Text>
+      <Text>{args}</Text>
+    </Text>
+  );
+}
+
 /** Render the prompt row with helper text below it. */
 function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const cursor = status === "streaming" ? "" : "█";
+  const cmdName = getSlashCommandName(draft);
+  // Show matching commands while the user is still typing the command token
+  // (no space yet means they haven't moved on to arguments).
+  const showHints =
+    cmdName !== null && !draft.includes(" ") && draft.length > 1;
+  const hints = showHints ? matchingCommands(cmdName) : [];
+
   return (
     <Box flexDirection="column" marginTop={1} gap={1}>
       <Box
@@ -193,14 +242,31 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
       >
         <Text>
           <Text color="cyan">{"> "}</Text>
-          {draft}
+          <HighlightedDraft draft={draft} />
           {cursor}
         </Text>
       </Box>
-      <Text dimColor>
-        Enter sends. Shift+Enter inserts a newline. Esc interrupts a reply.
-        Ctrl+D or Ctrl+C exits.
-      </Text>
+      {hints.length > 0 ? (
+        <Box flexDirection="column">
+          {hints.map((cmd) => (
+            <Text key={cmd.name}>
+              <Text color="yellow">{"  /"}</Text>
+              <Text color="yellow" bold>
+                {cmd.name}
+              </Text>
+              <Text dimColor>
+                {"  "}
+                {cmd.description}
+              </Text>
+            </Text>
+          ))}
+        </Box>
+      ) : (
+        <Text dimColor>
+          Enter sends. Shift+Enter inserts a newline. Esc interrupts. Type /help
+          for commands. Ctrl+D or Ctrl+C exits.
+        </Text>
+      )}
     </Box>
   );
 }
@@ -320,11 +386,50 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     setStatus("idle");
   };
 
+  const clearMessages = () => {
+    setMessages([]);
+    setError(null);
+    setDraft("");
+  };
+
   const submitDraft = () => {
     const text = draft.trim();
     if (!text || status === "streaming") {
       return;
     }
+
+    // Intercept slash commands before sending to the server.
+    if (text.startsWith("/")) {
+      setDraft("");
+      const result = runSlashCommand(text, {
+        clearMessages,
+        exit: handleExit,
+      });
+      if (result.type === "help") {
+        const helpLines = SLASH_COMMANDS.map(
+          (c) => `  \`/${c.name}\` — ${c.description}`
+        ).join("\n");
+        const helpMessage = createUserMessage({ text });
+        const helpReply: PxiMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          parts: [
+            {
+              type: "text",
+              text: `Available commands:\n${helpLines}`,
+              state: "done",
+            },
+          ],
+        };
+        setMessages((m) => [...m, helpMessage, helpReply]);
+      } else if (result.type === "unknown") {
+        setError(
+          `Unknown command: /${result.name}. Type /help to see available commands.`
+        );
+      }
+      return;
+    }
+
     const userMessage = createUserMessage({ text });
     const nextMessages = [...messages, userMessage];
     const abortController = new AbortController();
