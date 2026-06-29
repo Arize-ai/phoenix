@@ -1,6 +1,6 @@
 export {
   computeConfusionMatrix,
-  computeExperimentStats,
   printConfusionMatrix,
-  printExperimentSummary,
-} from "./experimentStats.js";
+  type ConfusionMatrix,
+  type LabelPair,
+} from "./confusionMatrix.js";

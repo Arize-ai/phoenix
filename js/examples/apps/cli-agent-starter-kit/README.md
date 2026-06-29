@@ -85,19 +85,28 @@ pnpm dev              # Run in development
 pnpm build            # Compile TypeScript
 pnpm start            # Run production build
 pnpm phoenix:logs     # View Phoenix logs
-pnpm eval             # Run all evaluations
+pnpm eval             # Run all eval suites (Vitest)
 ```
 
 ## Evaluations
 
-Built-in evaluation harness for testing agent quality. Create evaluators, datasets, and experiments in `evals/`:
+Evaluation suites for testing agent quality, written as [Vitest](https://vitest.dev)
+tests and recorded to Phoenix via the `@arizeai/phoenix-client/vitest` reporter.
+Evaluators, datasets, and suites live in `evals/`.
+
+**New to the evals?** Read `evals/README.md`, then open
+`evals/experiments/terminal-format.eval.ts` — that file is the entrypoint (there's
+no runner script; `pnpm eval` lets Vitest discover every `*.eval.ts` suite).
 
 ```bash
-pnpm eval                      # Run all evaluations
-pnpm eval:terminal-format      # Run specific eval
+pnpm eval             # Run all eval suites (records to Phoenix)
+pnpm eval:offline     # Run without recording
+pnpm eval:watch       # Re-run on change while iterating
+pnpm eval:task        # Just the agent task eval
+pnpm eval:benchmark   # Just the evaluator benchmark
 ```
 
-See `evals/README.md` for creating custom evaluators and experiments.
+Start Phoenix first (`pnpm phoenix:start`) or run `pnpm eval:offline`.
 
 ## Troubleshooting
 
