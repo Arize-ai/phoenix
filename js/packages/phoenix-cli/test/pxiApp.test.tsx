@@ -10,6 +10,14 @@ const ESCAPE_CHARACTER = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
 const KITTY_SHIFT_ENTER = `${ESCAPE_CHARACTER}[13;2u`;
 const KITTY_PROTOCOL_RESPONSE = `${ESCAPE_CHARACTER}[?0u`;
+const LEFT_ARROW = `${ESCAPE_CHARACTER}[D`;
+const RIGHT_ARROW = `${ESCAPE_CHARACTER}[C`;
+const HOME_KEY = `${ESCAPE_CHARACTER}[H`;
+const END_KEY = `${ESCAPE_CHARACTER}[F`;
+const DELETE_KEY = `${ESCAPE_CHARACTER}[3~`;
+const CTRL_A = "\x01";
+const CTRL_E = "\x05";
+const BACKSPACE = "\b";
 
 function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE_PATTERN, "");
@@ -30,6 +38,47 @@ function createOptions({
   });
 }
 
+function createCapturingClient({
+  onSubmit,
+}: {
+  onSubmit: (text: string | undefined) => void;
+}): PxiChatClient {
+  return {
+    sendMessage: async ({ messages }) => {
+      const userMessage = messages.at(-1);
+      const textPart = userMessage?.parts.find((part) => part.type === "text");
+      onSubmit(textPart?.text);
+      return null;
+    },
+  };
+}
+
+async function writeInput({
+  stdin,
+  input,
+}: {
+  stdin: { write: (input: string) => unknown };
+  input: string;
+}) {
+  await act(async () => {
+    stdin.write(input);
+  });
+}
+
+async function writeInputRepeatedly({
+  stdin,
+  input,
+  count,
+}: {
+  stdin: { write: (input: string) => unknown };
+  input: string;
+  count: number;
+}) {
+  for (let index = 0; index < count; index++) {
+    await writeInput({ stdin, input });
+  }
+}
+
 describe("PXI app", () => {
   it("renders the initial terminal UI", () => {
     const client: PxiChatClient = {
@@ -47,36 +96,130 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("uses Shift+Enter to insert a newline before submitting", async () => {
+  it("uses Shift+Enter to insert a newline at the cursor before submitting", async () => {
     let submittedText: string | undefined;
-    const client: PxiChatClient = {
-      sendMessage: async ({ messages }) => {
-        const userMessage = messages.at(-1);
-        const textPart = userMessage?.parts.find(
-          (part) => part.type === "text"
-        );
-        submittedText = textPart?.text;
-        return null;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
       },
-    };
+    });
     const { stdin, unmount } = render(
       <PxiApp options={createOptions()} client={client} />
     );
 
-    await act(async () => {
-      stdin.write("first line");
-    });
-    await act(async () => {
-      stdin.write(KITTY_SHIFT_ENTER);
-    });
-    await act(async () => {
-      stdin.write("second line");
-    });
-    await act(async () => {
-      stdin.write("\r");
-    });
+    await writeInput({ stdin, input: "first linesecond line" });
+    await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 11 });
+    await writeInput({ stdin, input: KITTY_SHIFT_ENTER });
+    await writeInput({ stdin, input: "\r" });
 
     expect(submittedText).toBe("first line\nsecond line");
+    unmount();
+  });
+
+  it("uses Left and Right arrows to insert typed text at the cursor", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "helo" });
+    await writeInput({ stdin, input: LEFT_ARROW });
+    await writeInput({ stdin, input: "l" });
+    await writeInput({ stdin, input: RIGHT_ARROW });
+    await writeInput({ stdin, input: "!" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("hello!");
+    unmount();
+  });
+
+  it("uses Backspace before the cursor and Delete at the cursor", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "abXYcd" });
+    await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 3 });
+    await writeInput({ stdin, input: BACKSPACE });
+    await writeInput({ stdin, input: DELETE_KEY });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("abcd");
+    unmount();
+  });
+
+  it("uses Home and End to move the cursor", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "middle" });
+    await writeInput({ stdin, input: HOME_KEY });
+    await writeInput({ stdin, input: "start-" });
+    await writeInput({ stdin, input: END_KEY });
+    await writeInput({ stdin, input: "-end" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("start-middle-end");
+    unmount();
+  });
+
+  it("uses Ctrl+A and Ctrl+E to move the cursor", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "middle" });
+    await writeInput({ stdin, input: CTRL_A });
+    await writeInput({ stdin, input: "start-" });
+    await writeInput({ stdin, input: CTRL_E });
+    await writeInput({ stdin, input: "-end" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("start-middle-end");
+    unmount();
+  });
+
+  it("inserts pasted text at the cursor", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "hello world" });
+    await writeInput({ stdin, input: HOME_KEY });
+    await writeInput({ stdin, input: "say " });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("say hello world");
     unmount();
   });
 
