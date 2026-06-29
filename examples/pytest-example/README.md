@@ -91,23 +91,25 @@ pnpm eval
 
 ## In CI
 
-`eval-ci.yml` is a copy-paste GitHub Actions workflow with one job per language —
-keep the one you need, drop it into `.github/workflows/`, and set the
-`ANTHROPIC_API_KEY`, `PHOENIX_COLLECTOR_ENDPOINT`, and `PHOENIX_API_KEY` secrets.
-The job fails on the test runner's exit code, so a missed acceptance criterion
-(or refusal regression) fails the PR.
+`eval-ci.yml` is a copy-paste GitHub Actions workflow for the Python suite — drop
+it into `.github/workflows/` and set the `ANTHROPIC_API_KEY`,
+`PHOENIX_COLLECTOR_ENDPOINT`, and `PHOENIX_API_KEY` secrets. The job fails on the
+test runner's exit code, so a missed acceptance criterion (or refusal regression)
+fails the PR. The TypeScript equivalent ships alongside the Vitest suite at
+`js/examples/apps/vitest-example/eval-ci.yml`.
 
 ## Files
 
 ```
 examples/pytest-example/           # the Python suite (this folder)
 ├── README.md
-├── eval-ci.yml                    # GitHub Actions recipe (both languages)
+├── eval-ci.yml                    # GitHub Actions recipe (Python)
 ├── test_support_bot.py            # the pytest eval suite
 └── requirements.txt
 
 js/examples/apps/vitest-example/   # the TypeScript suite (js/ pnpm workspace member)
 ├── support-bot.eval.ts            # the Vitest eval suite
+├── eval-ci.yml                    # GitHub Actions recipe (TypeScript)
 ├── vitest.config.ts
 ├── package.json
 └── tsconfig.json

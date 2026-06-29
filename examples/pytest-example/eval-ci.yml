@@ -1,13 +1,15 @@
-# Phoenix eval CI recipe for the support-bot example (Python + TypeScript).
+# Phoenix eval CI recipe for the pytest support-bot example.
 #
-# Copy this file to .github/workflows/eval-ci.yml in your repository and keep
-# only the job for the language you use. Each job installs the Phoenix test
-# plugin, runs the marked eval suite, and gates the job on the runner's exit
-# code. Phoenix records each case as a run in an experiment and prints a
-# per-experiment summary at the end.
+# Copy this file to .github/workflows/eval-ci.yml in your repository. The job
+# installs the Phoenix test plugin, runs the marked eval suite, and gates on the
+# runner's exit code. Phoenix records each case as a run in an experiment and
+# prints a per-experiment summary at the end.
 #
-# The only contracts these recipes rely on are the test runner's exit code and
+# The only contracts this recipe relies on are the test runner's exit code and
 # the printed summary. Both are stable across plugin versions.
+#
+# The TypeScript (Vitest) equivalent lives at
+# js/examples/apps/vitest-example/eval-ci.yml.
 
 name: eval-ci
 
@@ -36,27 +38,3 @@ jobs:
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         # The job fails when any marked test fails (pytest's nonzero exit).
         run: pytest -v
-
-  # The TypeScript suite is a member of the `js/` pnpm workspace, so deps are
-  # installed once at the workspace root and the suite runs from its package dir.
-  evals-typescript:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: pnpm
-          cache-dependency-path: js/pnpm-lock.yaml
-      - name: Install dependencies
-        working-directory: js
-        run: pnpm install --frozen-lockfile
-      - name: Run eval suite
-        working-directory: js/examples/apps/vitest-example
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
-          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
-        # Acceptance criteria in the suite fail the run on a nonzero exit.
-        run: pnpm eval
