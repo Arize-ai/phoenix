@@ -18,7 +18,7 @@ pnpm eval:task         # run just that suite; open the printed Experiment link
 ```
 
 When that makes sense, read `benchmarks/terminal-format.benchmark.ts` — same
-machinery, but it grades the *judge* instead of the agent.
+machinery, but it grades the _judge_ instead of the agent.
 
 ### How a run actually starts
 
@@ -93,7 +93,9 @@ const judge = createTerminalSafeFormatEvaluator();
 px.describe(
   "cli-agent terminal format",
   () => {
-    px.test.each([{ id: "install", input: { prompt: "How do I install Phoenix?" } }])(
+    px.test.each([
+      { id: "install", input: { prompt: "How do I install Phoenix?" } },
+    ])(
       (row) => row.id ?? "case",
       async ({ input }) => {
         const { text } = await runInteraction({ input: input.prompt, agent });
@@ -152,11 +154,11 @@ should reach **> 80% TPR and > 80% TNR**.
 
 In a benchmark the roles invert:
 
-| Task eval                          | Benchmark                                    |
-| ---------------------------------- | -------------------------------------------- |
-| Task = agent logic                 | Task = run the evaluator under test          |
-| Evaluator = judge agent output     | Score = exact-match against ground truth     |
-| Dataset = agent input/output pairs | Dataset = golden hand-labeled examples       |
+| Task eval                          | Benchmark                                |
+| ---------------------------------- | ---------------------------------------- |
+| Task = agent logic                 | Task = run the evaluator under test      |
+| Evaluator = judge agent output     | Score = exact-match against ground truth |
+| Dataset = agent input/output pairs | Dataset = golden hand-labeled examples   |
 
 Each golden example carries its ground-truth label in `metadata` (here,
 `expectedSafe`). The benchmark suite runs the judge on the pre-labeled response,

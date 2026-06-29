@@ -30,7 +30,10 @@ import { afterAll } from "vitest";
 
 import { terminalFormatDataset } from "../datasets/index.js";
 import { createTerminalSafeFormatEvaluator } from "../evaluators/index.js";
-import { computeConfusionMatrix, printConfusionMatrix } from "../utils/index.js";
+import {
+  computeConfusionMatrix,
+  printConfusionMatrix,
+} from "../utils/index.js";
 import type { LabelPair } from "../utils/index.js";
 
 const COMPLIANT = "compliant";
@@ -69,11 +72,15 @@ px.describe(
     px.test.each(cases)(
       (row) => row.id ?? "case",
       async ({ expected, metadata }) => {
-        const expectedLabel = metadata?.expectedSafe ? COMPLIANT : NON_COMPLIANT;
+        const expectedLabel = metadata?.expectedSafe
+          ? COMPLIANT
+          : NON_COMPLIANT;
         const { response } = expected as { response: string };
 
         // Task under test: run the judge on the pre-labeled response.
-        const { label: predicted = null } = await (await judge).evaluate({
+        const { label: predicted = null } = await (
+          await judge
+        ).evaluate({
           output: response,
         });
 

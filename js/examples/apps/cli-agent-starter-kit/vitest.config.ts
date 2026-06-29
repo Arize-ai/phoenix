@@ -1,7 +1,8 @@
+import { defineConfig } from "vitest/config";
+
 // Load .env into the main process so the Phoenix reporter (which runs here)
 // picks up PHOENIX_COLLECTOR_ENDPOINT / PHOENIX_API_KEY; workers inherit it.
 import "dotenv/config";
-import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
