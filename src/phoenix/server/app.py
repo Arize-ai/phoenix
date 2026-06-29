@@ -75,6 +75,7 @@ from phoenix.config import (
     get_env_max_spans_queue_size,
     get_env_phoenix_agents_disable_bash,
     get_env_port,
+    get_env_pxi_inference_evals_enabled,
     get_env_support_email,
     server_instrumentation_is_enabled,
     verify_server_environment_variables,
@@ -85,6 +86,7 @@ from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.agents.inference_evals import InferenceEvalDispatcher
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, build_context
 from phoenix.server.api.dataloaders import CacheForDataLoaders
@@ -630,6 +632,15 @@ def _lifespan(
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
+            pxi_inference_eval_dispatcher: InferenceEvalDispatcher | None = None
+            if get_env_pxi_inference_evals_enabled():
+                pxi_inference_eval_dispatcher = await stack.enter_async_context(
+                    InferenceEvalDispatcher(
+                        db=db,
+                        enqueue_annotations=enqueue_annotations,
+                        span_cost_calculator=span_cost_calculator,
+                    )
+                )
             # ``sandbox_session_manager`` must enter before ``experiment_runner``
             # so ``AsyncExitStack`` tears them down in reverse and the runner
             # (which consumes the manager) stops first. If the runner outlived
@@ -667,6 +678,7 @@ def _lifespan(
                 "enqueue_span": enqueue_span,
                 "enqueue_operation": enqueue_operation,
                 "experiment_runner": experiment_runner,
+                "pxi_inference_eval_dispatcher": pxi_inference_eval_dispatcher,
             }
         for callback in shutdown_callbacks:
             if isinstance((res := callback()), Awaitable):

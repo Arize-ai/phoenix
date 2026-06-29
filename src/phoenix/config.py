@@ -90,6 +90,14 @@ ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
 Disables the server-side bash tool by preventing subagents from being attached to
 the assistant. When true, the option to enable subagents is also hidden from the UI settings.
 """
+ENV_PHOENIX_PXI_INFERENCE_EVALS_ENABLED = "PHOENIX_PXI_INFERENCE_EVALS_ENABLED"
+"""
+Whether to run PXI inference evals asynchronously when a traced PXI turn finishes.
+"""
+ENV_PHOENIX_PXI_INFERENCE_EVALS_SAMPLE_RATE = "PHOENIX_PXI_INFERENCE_EVALS_SAMPLE_RATE"
+"""
+Global deterministic trace sampling rate for PXI inference evals.
+"""
 ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
 """
 Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
@@ -1364,6 +1372,23 @@ def get_env_phoenix_agents_web_access_enabled() -> bool:
 
 def get_env_phoenix_agents_disable_bash() -> bool:
     return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
+
+
+def get_env_pxi_inference_evals_enabled() -> bool:
+    return _bool_val(
+        ENV_PHOENIX_PXI_INFERENCE_EVALS_ENABLED,
+        bool(get_env_phoenix_agents_collector_endpoint()),
+    )
+
+
+def get_env_pxi_inference_evals_sample_rate() -> float:
+    sample_rate = _float_val(ENV_PHOENIX_PXI_INFERENCE_EVALS_SAMPLE_RATE, 1.0)
+    if not 0 <= sample_rate <= 1:
+        raise ValueError(
+            f"{ENV_PHOENIX_PXI_INFERENCE_EVALS_SAMPLE_RATE} must be between 0 and 1. "
+            f"Got: {sample_rate}"
+        )
+    return sample_rate
 
 
 class AuthSettings(NamedTuple):

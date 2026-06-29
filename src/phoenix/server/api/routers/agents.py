@@ -49,6 +49,7 @@ from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_web_access_enabled,
+    get_env_pxi_inference_evals_enabled,
 )
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
@@ -62,6 +63,10 @@ from phoenix.server.agents.context import (
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
+from phoenix.server.agents.inference_evals import (
+    InferenceEvalDispatcher,
+    build_inference_eval_processor,
+)
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
@@ -333,6 +338,31 @@ class _AgentSpanContextRecorder(SpanProcessor):
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
         return True
+
+
+def _add_pxi_inference_eval_processor(
+    *,
+    request: Request,
+    tracer: Tracer | None,
+    project_name: str,
+    ingest_traces: bool,
+    export_remote_traces: bool,
+) -> None:
+    if tracer is None or not get_env_pxi_inference_evals_enabled():
+        return
+    dispatcher = getattr(request.state, "pxi_inference_eval_dispatcher", None)
+    if dispatcher is None:
+        dispatcher = getattr(request.app.state, "pxi_inference_eval_dispatcher", None)
+    if not isinstance(dispatcher, InferenceEvalDispatcher):
+        return
+    tracer.tracer_provider.add_span_processor(
+        build_inference_eval_processor(
+            dispatcher=dispatcher,
+            enable_local_ingest=ingest_traces,
+            enable_remote_export=export_remote_traces,
+            project_name=project_name,
+        )
+    )
 
 
 def _build_message_metadata_chunk(
@@ -852,6 +882,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         if tracer is not None:
             agent_span_recorder = _AgentSpanContextRecorder()
             tracer.tracer_provider.add_span_processor(agent_span_recorder)
+            _add_pxi_inference_eval_processor(
+                request=request,
+                tracer=tracer,
+                project_name=project_name,
+                ingest_traces=ingest_traces,
+                export_remote_traces=export_remote_traces,
+            )
 
         resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None

@@ -13,6 +13,35 @@ live-model PXI server-side evals as Phoenix experiments.
 Fast unit coverage for the harness and evaluators lives under
 `tests/unit/pxi/evals/`.
 
+## In-Process Inference Evals
+
+PXI also has a server-side live runner in
+`src/phoenix/server/agents/inference_evals.py`. It is intentionally PXI-specific:
+when a traced PXI turn finishes, a span processor hands the completed trace to
+an app-level dispatcher, which scores the turn off the request path and writes
+span annotations plus evaluator spans back to the same destinations as the PXI
+traces. Evaluator spans are appended to the evaluated PXI trace under a
+`PXI inference evals` `EVALUATOR` grouping span when local or remote trace export
+is enabled.
+
+The live runner currently emits:
+
+- `tool_count_per_turn` (`CODE`) -- counts child `TOOL` spans under the
+  `PXIAgent.iter` root span.
+
+Configuration:
+
+```bash
+export PHOENIX_PXI_INFERENCE_EVALS_ENABLED=true        # default true only when PHOENIX_AGENTS_COLLECTOR_ENDPOINT is set
+export PHOENIX_PXI_INFERENCE_EVALS_SAMPLE_RATE=1.0     # deterministic by trace_id
+```
+
+Local annotations and evaluator spans are written only when the PXI request
+locally ingests traces. Remote annotations and evaluator spans are mirrored only
+when the PXI request enables remote trace export. The dispatcher is bounded and
+drops work on overload; scorer failures and timeouts are logged and do not
+affect the agent response.
+
 ## Run Locally
 
 The canonical entrypoint is `evals/pxi/harness/run_experiment.py`. Start

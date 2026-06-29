@@ -26,13 +26,18 @@ async def insert_span(
     session: AsyncSession,
     span: Span,
     project_name: str,
+    *,
+    create_trace_if_missing: bool = True,
 ) -> Optional[SpanInsertionEvent]:
     dialect = SupportedSQLDialect(session.bind.dialect.name)
 
     trace_id = span.context.trace_id
-    trace: models.Trace = await session.scalar(
+    trace: models.Trace | None = await session.scalar(
         select(models.Trace).filter_by(trace_id=trace_id)
-    ) or models.Trace(trace_id=trace_id)
+    )
+    if trace is None and not create_trace_if_missing:
+        return None
+    trace = trace or models.Trace(trace_id=trace_id)
 
     if trace.id is not None:
         # We use the existing project_rowid on the trace because we allow users to transfer traces
