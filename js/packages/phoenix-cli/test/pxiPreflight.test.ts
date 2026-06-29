@@ -260,4 +260,30 @@ describe("PXI model preflight", () => {
       "Could not validate PXI model selection: HTTP 401 Unauthorized"
     );
   });
+
+  it("formats endpoint connection failures as actionable startup errors", async () => {
+    const options = createRuntimeOptions();
+    const fetchImpl: typeof globalThis.fetch = async () => {
+      throw new TypeError("fetch failed", {
+        cause: new Error("connect ECONNREFUSED 127.0.0.1:6006"),
+      });
+    };
+
+    let message = "";
+    try {
+      await runPxiModelPreflight({ options, fetchImpl });
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(message).toContain(
+      "Could not reach Phoenix during PXI startup preflight."
+    );
+    expect(message).toContain("Endpoint: http://localhost:6006");
+    expect(message).toContain("Request: http://localhost:6006/graphql");
+    expect(message).toContain("Network error: fetch failed");
+    expect(message).toContain("Cause: connect ECONNREFUSED 127.0.0.1:6006");
+    expect(message).toContain("pass --endpoint <url> or set PHOENIX_HOST");
+    expect(message).toContain("pass --skip-model-preflight");
+  });
 });
