@@ -28,9 +28,47 @@ import {
 import { currentRun, type RunState, type SuiteState } from "./state";
 import type { Annotation, KVMap } from "./types";
 
-function isFalsyFlag(value: string | undefined): boolean {
-  const v = (value ?? "").toLowerCase();
+export function isFalsyFlag(value: string | undefined): boolean {
+  // Tolerate surrounding whitespace and matching quotes that survive some
+  // shells and `.env` loaders (e.g. `PHOENIX_TEST_TRACKING="false"` or a value
+  // with a trailing newline). Without this, such a value reads as truthy and
+  // silently re-enables recording even though the user asked to disable it.
+  const v = (value ?? "")
+    .trim()
+    .replace(/^(['"])(.*)\1$/, "$2")
+    .trim()
+    .toLowerCase();
   return v === "false" || v === "0" || v === "off" || v === "no";
+}
+
+/**
+ * Snapshot of `PHOENIX_TEST_TRACKING` as it was when this module first loaded.
+ *
+ * When the flag is exported on the command line (the documented `eval:offline`
+ * workflow), this captures the user's intent at process start and is immune to
+ * any later in-process mutation of `process.env` by a sibling suite or setup
+ * file. That mutation is what made tracking leak across suites in #13930: one
+ * suite flipped the env var and re-enabled recording for the others.
+ */
+const trackingDisabledAtLoad = isFalsyFlag(process.env.PHOENIX_TEST_TRACKING);
+
+/**
+ * Latches to `true` the first time tracking is observed disabled in this
+ * process. Recording is opt-out and shared process-wide, so a single falsy
+ * reading turns the whole run off and keeps it off — later suites cannot
+ * re-enable recording regardless of declaration or execution order.
+ */
+let trackingLatchedOff = trackingDisabledAtLoad;
+
+/**
+ * Reset the process-level tracking latch. Test-only seam so unit tests can
+ * exercise the enable/disable transitions in isolation; not part of the
+ * public API.
+ *
+ * @internal
+ */
+export function __resetTrackingLatchForTests(): void {
+  trackingLatchedOff = isFalsyFlag(process.env.PHOENIX_TEST_TRACKING);
 }
 
 /**
@@ -38,12 +76,18 @@ function isFalsyFlag(value: string | undefined): boolean {
  *
  * Tracing is enabled by default. It can be disabled globally by setting
  * `PHOENIX_TEST_TRACKING=false`, or per suite via `SuiteConfig.dryRun`.
+ *
+ * The global disable is sticky for the lifetime of the process: once the flag
+ * is seen falsy — at load time or on any later call — tracking stays off for
+ * every suite. This keeps offline mode deterministic regardless of which
+ * suites are included in a run, or the order they execute in.
  */
 export function isTrackingEnabled(suite?: SuiteState): {
   enabled: boolean;
   reason?: string;
 } {
-  if (isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)) {
+  if (trackingLatchedOff || isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)) {
+    trackingLatchedOff = true;
     return { enabled: false, reason: "PHOENIX_TEST_TRACKING is disabled" };
   }
   if (suite?.config.dryRun) {
@@ -478,6 +522,7 @@ export async function postExperimentRun(
   if (
     run.dryRun ||
     suite.trackingDisabled ||
+    !isTrackingEnabled(suite).enabled ||
     !suite.client ||
     !suite.experimentId
   ) {
@@ -524,7 +569,13 @@ export async function postAnnotation(
   runId: string | undefined,
   annotation: Annotation
 ): Promise<void> {
-  if (suite.trackingDisabled || !suite.client || !runId) return;
+  if (
+    suite.trackingDisabled ||
+    !isTrackingEnabled(suite).enabled ||
+    !suite.client ||
+    !runId
+  )
+    return;
   const start = new Date();
   const end = new Date();
   try {
