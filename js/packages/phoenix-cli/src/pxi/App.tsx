@@ -8,6 +8,16 @@ import {
   runSlashCommand,
   SLASH_COMMANDS,
 } from "./commands";
+import {
+  deleteDraftTextBeforeCursor,
+  EMPTY_DRAFT_EDITOR_STATE,
+  insertDraftText,
+  moveDraftCursor,
+  moveDraftCursorToEnd,
+  moveDraftCursorToStart,
+  moveDraftCursorVertically,
+  type DraftEditorState,
+} from "./draftEditor";
 import { Markdown } from "./inkMarkdown";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
@@ -25,10 +35,6 @@ import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 /** Whether the app is waiting on input (`idle`) or streaming a reply. */
 type PxiStatus = "idle" | "streaming";
 type PxiMessagePart = PxiMessage["parts"][number];
-type DraftEditorState = {
-  value: string;
-  cursorIndex: number;
-};
 type DraftSegment = {
   text: string;
   isCommandSegment: boolean;
@@ -55,10 +61,6 @@ const THINKING_FRAMES = [
 ];
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
-const EMPTY_DRAFT_EDITOR_STATE: DraftEditorState = {
-  value: "",
-  cursorIndex: 0,
-};
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
@@ -372,89 +374,6 @@ function InputPrompt({
   );
 }
 
-function clampCursorIndex({ draft }: { draft: DraftEditorState }): number {
-  return Math.min(Math.max(draft.cursorIndex, 0), draft.value.length);
-}
-
-function insertDraftText({
-  draft,
-  text,
-}: {
-  draft: DraftEditorState;
-  text: string;
-}): DraftEditorState {
-  const cursorIndex = clampCursorIndex({ draft });
-  return {
-    value:
-      draft.value.slice(0, cursorIndex) + text + draft.value.slice(cursorIndex),
-    cursorIndex: cursorIndex + text.length,
-  };
-}
-
-function moveDraftCursor({
-  draft,
-  offset,
-}: {
-  draft: DraftEditorState;
-  offset: number;
-}): DraftEditorState {
-  return {
-    value: draft.value,
-    cursorIndex: Math.min(
-      Math.max(clampCursorIndex({ draft }) + offset, 0),
-      draft.value.length
-    ),
-  };
-}
-
-function moveDraftCursorToStart({
-  draft,
-}: {
-  draft: DraftEditorState;
-}): DraftEditorState {
-  return { value: draft.value, cursorIndex: 0 };
-}
-
-function moveDraftCursorToEnd({
-  draft,
-}: {
-  draft: DraftEditorState;
-}): DraftEditorState {
-  return { value: draft.value, cursorIndex: draft.value.length };
-}
-
-function deleteDraftTextBeforeCursor({
-  draft,
-}: {
-  draft: DraftEditorState;
-}): DraftEditorState {
-  const cursorIndex = clampCursorIndex({ draft });
-  if (cursorIndex === 0) {
-    return draft;
-  }
-  return {
-    value:
-      draft.value.slice(0, cursorIndex - 1) + draft.value.slice(cursorIndex),
-    cursorIndex: cursorIndex - 1,
-  };
-}
-
-function deleteDraftTextAtCursor({
-  draft,
-}: {
-  draft: DraftEditorState;
-}): DraftEditorState {
-  const cursorIndex = clampCursorIndex({ draft });
-  if (cursorIndex >= draft.value.length) {
-    return draft;
-  }
-  return {
-    value:
-      draft.value.slice(0, cursorIndex) + draft.value.slice(cursorIndex + 1),
-    cursorIndex,
-  };
-}
-
 function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
 }
@@ -695,6 +614,18 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       setDraft((value) => moveDraftCursor({ draft: value, offset: 1 }));
       return;
     }
+    if (key.upArrow) {
+      setDraft((value) =>
+        moveDraftCursorVertically({ draft: value, direction: -1 })
+      );
+      return;
+    }
+    if (key.downArrow) {
+      setDraft((value) =>
+        moveDraftCursorVertically({ draft: value, direction: 1 })
+      );
+      return;
+    }
     if (key.home) {
       setDraft((value) => moveDraftCursorToStart({ draft: value }));
       return;
@@ -703,12 +634,8 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       setDraft((value) => moveDraftCursorToEnd({ draft: value }));
       return;
     }
-    if (key.backspace) {
+    if (key.backspace || key.delete) {
       setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
-      return;
-    }
-    if (key.delete) {
-      setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
       return;
     }
     if (input) {
