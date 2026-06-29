@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: examples/support-bot-evals/python
+        working-directory: examples/support-bot-evals/pytest-example
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -54,7 +54,7 @@ Both versions read `ANTHROPIC_API_KEY` for the bot and judge. You can iterate
 ### Python (pytest)
 
 ```bash
-cd python
+cd pytest-example
 pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
 
@@ -103,7 +103,7 @@ The job fails on the test runner's exit code, so a missed acceptance criterion
 support-bot-evals/
 ├── README.md
 ├── eval-ci.yml                  # GitHub Actions recipe (both languages)
-└── python/
+└── pytest-example/
     ├── test_support_bot.py      # the pytest eval suite
     └── requirements.txt
 
