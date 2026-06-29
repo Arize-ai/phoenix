@@ -291,6 +291,111 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("shows command completions while typing a slash command name", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("/cl");
+    });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("/clear");
+    expect(frame).toContain("Clear the conversation history");
+    unmount();
+  });
+
+  it("hides completions once the user types a space after the command name", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("/clear ");
+    });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("Enter sends.");
+    unmount();
+  });
+
+  it("/clear resets the conversation history", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const initialMessages: PxiMessage[] = [
+      {
+        id: "user-1",
+        role: "user",
+        parts: [{ type: "text", text: "hello" }],
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hi there", state: "done" }],
+      },
+    ];
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp
+        options={createOptions()}
+        client={client}
+        initialMessages={initialMessages}
+      />
+    );
+
+    expect(lastFrame()).toContain("hi there");
+
+    await act(async () => {
+      stdin.write("/clear");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+
+    expect(stripAnsi(lastFrame() ?? "")).toContain("Phoenix Intelligence.");
+    expect(lastFrame()).not.toContain("hi there");
+    unmount();
+  });
+
+  it("/help prints the command list in the transcript", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("/help");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("/clear");
+    expect(frame).toContain("/help");
+    expect(frame).toContain("/exit");
+    unmount();
+  });
+
+  it("shows an error for unknown slash commands", async () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await act(async () => {
+      stdin.write("/notacommand");
+    });
+    await act(async () => {
+      stdin.write("\r");
+    });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("Unknown command: /notacommand");
+    unmount();
+  });
+
   it("renders assistant Phoenix-relative links with the configured endpoint", () => {
     const assistantMessage: PxiMessage = {
       id: "assistant-1",
