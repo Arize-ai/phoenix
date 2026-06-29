@@ -21,6 +21,11 @@ const phoenixMCPTools = await phoenixMCPClient.tools();
 
 /**
  * Phoenix documentation search tool
- * Searches Phoenix documentation and returns relevant results
+ * Searches Phoenix documentation and returns relevant results.
+ *
+ * The Mintlify MCP server exposes this as `search_phoenix`; fall back to the
+ * first available tool so a server-side rename degrades gracefully instead of
+ * handing the agent an `undefined` tool.
  */
-export const phoenixDocsTool: Tool = phoenixMCPTools.SearchPhoenix;
+export const phoenixDocsTool: Tool =
+  phoenixMCPTools.search_phoenix ?? Object.values(phoenixMCPTools)[0];
