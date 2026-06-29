@@ -332,6 +332,40 @@ jobs:
 Uploads to Phoenix are best-effort and never fail a test. A network problem is reported as a warning rather than failing the build, so a transient Phoenix outage won't block your deploys.
 </Tip>
 
+### Ready-to-copy workflow
+
+A complete, runnable version of this workflow ships with the [pytest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/examples/pytest-example) as `eval-ci.yml`. Copy it to `.github/workflows/` and adjust `working-directory` to where your suite lives:
+
+```yaml eval-ci.yml
+name: eval-ci
+
+on:
+  pull_request:
+
+jobs:
+  evals-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/pytest-example
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # The `pytest` extra activates the pytest11 plugin entry point.
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run eval suite
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Where the plugin sends experiment runs.
+          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
+        # The job fails when any marked test fails (pytest's nonzero exit).
+        run: pytest -v
+```
+
 ## Complete example
 
 A full text-to-SQL eval suite with inline evaluation, hoisted evaluators, and a CI-ready structure:
