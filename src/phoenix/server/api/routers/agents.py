@@ -90,8 +90,9 @@ from phoenix.server.api.types.SandboxConfig import (
     get_sandbox_backend_info,
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
+from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
@@ -380,7 +381,8 @@ async def _persist_db_traces(
     *,
     session: AsyncSession,
     db_traces: list[models.Trace],
-) -> None:
+) -> tuple[int, ...]:
+    project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
@@ -394,6 +396,22 @@ async def _persist_db_traces(
         # from the relationship and doesn't try to cascade-insert a duplicate.
         db_trace.project_session = persistent_by_session_id[project_session.session_id]
     session.add_all(db_traces)
+    await session.flush()
+    return project_ids
+
+
+async def _persist_db_traces_and_emit_event(
+    *,
+    db: DbSessionFactory,
+    event_queue: CanPutItem[DmlEvent],
+    db_traces: list[models.Trace],
+) -> None:
+    if not db_traces:
+        return
+    async with db() as session:
+        project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
+    if project_ids:
+        event_queue.put(SpanInsertEvent(project_ids))
 
 
 async def _load_available_sandbox_backend_types(
@@ -795,10 +813,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             request.app.state.db, project_name
                         )
                         db_traces = tracer.get_db_traces(project_id=project_id)
-                        if db_traces:
-                            async with request.app.state.db() as session:
-                                await _persist_db_traces(session=session, db_traces=db_traces)
-                                await session.flush()
+                        await _persist_db_traces_and_emit_event(
+                            db=request.app.state.db,
+                            event_queue=request.state.event_queue,
+                            db_traces=db_traces,
+                        )
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -1036,10 +1055,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             request.app.state.db, project_name
                         )
                         db_traces = tracer.get_db_traces(project_id=project_id)
-                        if db_traces:
-                            async with request.app.state.db() as session:
-                                await _persist_db_traces(session=session, db_traces=db_traces)
-                                await session.flush()
+                        await _persist_db_traces_and_emit_event(
+                            db=request.app.state.db,
+                            event_queue=request.state.event_queue,
+                            db_traces=db_traces,
+                        )
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -1106,10 +1126,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if ingest_traces:
                     project_id = await _ensure_project_exists(request.app.state.db, project_name)
                     db_traces = tracer.get_db_traces(project_id=project_id)
-                    if db_traces:
-                        async with request.app.state.db() as session:
-                            await _persist_db_traces(session=session, db_traces=db_traces)
-                            await session.flush()
+                    await _persist_db_traces_and_emit_event(
+                        db=request.app.state.db,
+                        event_queue=request.state.event_queue,
+                        db_traces=db_traces,
+                    )
                 tracer.tracer_provider.shutdown()
         return _SummarizeResponse(summary=result.summary.strip())
 
