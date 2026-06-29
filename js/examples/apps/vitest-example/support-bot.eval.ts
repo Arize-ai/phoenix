@@ -16,7 +16,8 @@
  *   • ≥ 70 % of answers judged helpful across the suite
  *   • mean latency ≤ 5 000 ms across the suite
  *
- * See ../README.md for the full walkthrough and run instructions.
+ * See examples/pytest-example/README.md (in the repo root) for the full
+ * walkthrough and run instructions.
  *
  * Run offline (nothing recorded):
  *   PHOENIX_TEST_TRACKING=false pnpm exec vitest run

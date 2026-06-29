@@ -54,7 +54,7 @@ Both versions read `ANTHROPIC_API_KEY` for the bot and judge. You can iterate
 ### Python (pytest)
 
 ```bash
-cd pytest-example
+cd examples/pytest-example
 pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
 
@@ -100,12 +100,11 @@ The job fails on the test runner's exit code, so a missed acceptance criterion
 ## Files
 
 ```
-support-bot-evals/
+examples/pytest-example/           # the Python suite (this folder)
 ├── README.md
-├── eval-ci.yml                  # GitHub Actions recipe (both languages)
-└── pytest-example/
-    ├── test_support_bot.py      # the pytest eval suite
-    └── requirements.txt
+├── eval-ci.yml                    # GitHub Actions recipe (both languages)
+├── test_support_bot.py            # the pytest eval suite
+└── requirements.txt
 
 js/examples/apps/vitest-example/   # the TypeScript suite (js/ pnpm workspace member)
 ├── support-bot.eval.ts            # the Vitest eval suite
