@@ -1276,7 +1276,7 @@ export function PlaygroundDatasetExamplesTable({
   // This is subject to a race condition where a new dataset version is created after the playground experiments were run.
   // We ignore this edge case for now.
   const datasetVersionId = useMemo(() => {
-    return dataset.latestVersions?.edges[0].version.id ?? "";
+    return dataset.latestVersions?.edges[0]?.version.id ?? "";
   }, [dataset.latestVersions?.edges]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {
