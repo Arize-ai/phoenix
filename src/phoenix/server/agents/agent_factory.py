@@ -40,6 +40,8 @@ from phoenix.server.agents.web_access import (
     build_web_search_capability,
 )
 
+PXI_AGENT_NAME = "PXIAgent"
+
 
 def get_skills_capability_function(
     *,
@@ -138,7 +140,7 @@ def build_agent(
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
         model,
-        name="PXIAgent",
+        name=PXI_AGENT_NAME,
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_prompts.base.render(),

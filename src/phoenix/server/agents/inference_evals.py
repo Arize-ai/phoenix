@@ -7,7 +7,6 @@ import logging
 import time
 from collections import OrderedDict
 from collections.abc import Awaitable, Callable, Sequence
-from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal, cast
@@ -41,6 +40,7 @@ from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.db.insertion.span import insert_span
 from phoenix.db.insertion.types import Precursors
+from phoenix.server.agents.agent_factory import PXI_AGENT_NAME
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.server.types import DbSessionFactory
@@ -61,12 +61,11 @@ logger = logging.getLogger(__name__)
 
 _QUEUE_MAX_SIZE = 200
 _WORKER_COUNT = 2
-_EVAL_TIMEOUT_SECONDS = 20
 _REMOTE_RETRY_DELAYS_SECONDS = (2.0, 4.0, 8.0, 16.0, 32.0)
 _LOCAL_TRACE_APPEND_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2, 0.5, 1.0)
 _TRACE_BUFFER_TTL_SECONDS = 300
 _TRACE_BUFFER_MAX_SIZE = 500
-_PXI_ROOT_SPAN_NAME = "PXIAgent.iter"
+_PXI_ROOT_SPAN_NAME = f"{PXI_AGENT_NAME}.iter"
 _ANNOTATION_IDENTIFIER = "pxi-inference-evals"
 _INFERENCE_EVAL_TRIGGER = "inference"
 
@@ -86,7 +85,6 @@ class FinishedTrace:
     trace_id: str
     root: FinishedSpan
     spans: tuple[FinishedSpan, ...]
-    session_id: str | None
     project_name: str
     enable_local_ingest: bool
     enable_remote_export: bool
@@ -143,7 +141,6 @@ class InferenceEvalAnnotation:
 class _TraceBuffer:
     created_at: float
     spans: dict[str, FinishedSpan] = field(default_factory=dict)
-    root: FinishedSpan | None = None
 
 
 class EvalTriggerSpanProcessor(SpanProcessor):
@@ -178,12 +175,10 @@ class EvalTriggerSpanProcessor(SpanProcessor):
             and finished_span.name == _PXI_ROOT_SPAN_NAME
             and finished_span.span_kind == OpenInferenceSpanKindValues.AGENT.value
         ):
-            buffer.root = finished_span
             trace = FinishedTrace(
                 trace_id=finished_span.trace_id,
                 root=finished_span,
                 spans=tuple(buffer.spans.values()),
-                session_id=_string_attr(finished_span.attributes.get(SpanAttributes.SESSION_ID)),
                 project_name=self._project_name,
                 enable_local_ingest=self._enable_local_ingest,
                 enable_remote_export=self._enable_remote_export,
@@ -205,8 +200,6 @@ class EvalTriggerSpanProcessor(SpanProcessor):
             self._buffers[span.trace_id] = buffer
         self._buffers.move_to_end(span.trace_id)
         buffer.spans[span.span_id] = span
-        if span.parent_id is None:
-            buffer.root = span
         while len(self._buffers) > self._max_traces:
             trace_id, _ = self._buffers.popitem(last=False)
             logger.warning(
@@ -226,7 +219,7 @@ class EvalTriggerSpanProcessor(SpanProcessor):
             logger.warning("Evicted stale PXI inference eval trace buffer %s", trace_id)
 
 
-class InferenceEvalDispatcher(AbstractAsyncContextManager["InferenceEvalDispatcher"]):
+class InferenceEvalDispatcher:
     """Runs PXI inference evals off the request path and writes span annotations."""
 
     def __init__(
@@ -319,14 +312,20 @@ class InferenceEvalDispatcher(AbstractAsyncContextManager["InferenceEvalDispatch
             with detached_otel_context():
                 annotations.extend(await _score_trace(trace, eval_tracer=eval_tracer))
         finally:
-            eval_tracer.tracer_provider.force_flush()
-            if trace.enable_local_ingest:
-                await self._persist_eval_traces(
-                    eval_tracer=eval_tracer,
-                    project_name=trace.project_name,
-                    target_trace_id=trace.trace_id,
+            try:
+                eval_tracer.tracer_provider.force_flush()
+                if trace.enable_local_ingest:
+                    await self._persist_eval_traces(
+                        eval_tracer=eval_tracer,
+                        project_name=trace.project_name,
+                        target_trace_id=trace.trace_id,
+                    )
+            except Exception:
+                logger.exception(
+                    "PXI inference eval span persistence failed for trace %s", trace.trace_id
                 )
-            eval_tracer.tracer_provider.shutdown()
+            finally:
+                eval_tracer.tracer_provider.shutdown()
 
         if annotations:
             await self._write_annotations(trace=trace, annotations=annotations)
@@ -412,14 +411,7 @@ async def _score_trace(
         context=_target_parent_context(trace=trace, parent_span_id=trace.root.span_id),
     ) as span:
         _set_inference_eval_span_attributes(span, trace)
-        tasks: list[tuple[str, Awaitable[list[InferenceEvalAnnotation]]]] = [
-            ("tool_count_per_turn", _score_tool_count_per_turn_async(trace, tracer=tracer)),
-        ]
-        results = await asyncio.gather(
-            *(_run_eval_task(name, awaitable, trace=trace) for name, awaitable in tasks)
-        )
-        for result in results:
-            annotations.extend(result)
+        annotations.extend(_run_eval("tool_count_per_turn", trace, tracer=tracer))
         span.set_attribute(
             SpanAttributes.OUTPUT_VALUE,
             json.dumps(
@@ -437,27 +429,17 @@ async def _score_trace(
     return annotations
 
 
-async def _run_eval_task(
+def _run_eval(
     name: str,
-    awaitable: Awaitable[list[InferenceEvalAnnotation]],
-    *,
-    trace: FinishedTrace,
-) -> list[InferenceEvalAnnotation]:
-    try:
-        return await asyncio.wait_for(awaitable, timeout=_EVAL_TIMEOUT_SECONDS)
-    except asyncio.TimeoutError:
-        logger.warning("PXI inference eval %s timed out for trace %s", name, trace.trace_id)
-    except Exception:
-        logger.exception("PXI inference eval %s failed for trace %s", name, trace.trace_id)
-    return []
-
-
-async def _score_tool_count_per_turn_async(
     trace: FinishedTrace,
     *,
     tracer: Any,
 ) -> list[InferenceEvalAnnotation]:
-    return _score_tool_count_per_turn(trace, tracer=tracer)
+    try:
+        return _score_tool_count_per_turn(trace, tracer=tracer)
+    except Exception:
+        logger.exception("PXI inference eval %s failed for trace %s", name, trace.trace_id)
+    return []
 
 
 def _score_tool_count_per_turn(

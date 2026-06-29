@@ -11,6 +11,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.server.agents.agent_factory import PXI_AGENT_NAME
 from phoenix.server.agents.inference_evals import (
     EvalTriggerSpanProcessor,
     FinishedSpan,
@@ -26,6 +27,8 @@ from phoenix.server.api.routers import agents as agents_router
 from phoenix.server.api.routers.agents import _add_pxi_inference_eval_processor
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
+
+_PXI_ROOT_SPAN_NAME = f"{PXI_AGENT_NAME}.iter"
 
 
 class _Dispatcher:
@@ -122,7 +125,7 @@ def test_eval_trigger_span_processor_assembles_trace_on_agent_root_end() -> None
         trace_id=1,
         span_id=1,
         parent_id=None,
-        name="PXIAgent.iter",
+        name=_PXI_ROOT_SPAN_NAME,
         attributes={
             SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.AGENT.value,
             SpanAttributes.SESSION_ID: "session-1",
@@ -136,11 +139,10 @@ def test_eval_trigger_span_processor_assembles_trace_on_agent_root_end() -> None
 
     assert len(dispatcher.traces) == 1
     trace = dispatcher.traces[0]
-    assert trace.root.name == "PXIAgent.iter"
-    assert trace.session_id == "session-1"
+    assert trace.root.name == _PXI_ROOT_SPAN_NAME
     assert trace.enable_local_ingest is True
     assert trace.enable_remote_export is True
-    assert {span.name for span in trace.spans} == {"tool", "PXIAgent.iter"}
+    assert {span.name for span in trace.spans} == {"tool", _PXI_ROOT_SPAN_NAME}
 
 
 def test_eval_trigger_span_processor_treats_zero_parent_id_as_root() -> None:
@@ -155,7 +157,7 @@ def test_eval_trigger_span_processor_treats_zero_parent_id_as_root() -> None:
         trace_id=1,
         span_id=1,
         parent_id=0,
-        name="PXIAgent.iter",
+        name=_PXI_ROOT_SPAN_NAME,
         attributes={
             SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.AGENT.value,
         },
@@ -209,7 +211,7 @@ def test_tool_count_per_turn_counts_tool_spans() -> None:
             span_id="root",
             trace_id="trace",
             parent_id=None,
-            name="PXIAgent.iter",
+            name=_PXI_ROOT_SPAN_NAME,
             span_kind=OpenInferenceSpanKindValues.AGENT.value,
             attributes={},
         ),
@@ -218,7 +220,6 @@ def test_tool_count_per_turn_counts_tool_spans() -> None:
             _finished_span("tool-2", OpenInferenceSpanKindValues.TOOL.value),
             _finished_span("llm", OpenInferenceSpanKindValues.LLM.value),
         ),
-        session_id="session",
         project_name="assistant_agent",
         enable_local_ingest=True,
         enable_remote_export=False,
@@ -337,7 +338,7 @@ async def test_append_eval_spans_requires_existing_trace(db: DbSessionFactory) -
         }
 
     assert set(span_rows) == {
-        "PXIAgent.iter",
+        _PXI_ROOT_SPAN_NAME,
         "PXI inference evals",
         "tool_count_per_turn.evaluate",
     }
@@ -365,7 +366,7 @@ def _trace_with_root_input(input_value: str) -> FinishedTrace:
         span_id="0000000000000001",
         trace_id="00000000000000000000000000000001",
         parent_id=None,
-        name="PXIAgent.iter",
+        name=_PXI_ROOT_SPAN_NAME,
         span_kind=OpenInferenceSpanKindValues.AGENT.value,
         attributes={SpanAttributes.INPUT_VALUE: input_value},
     )
@@ -373,7 +374,6 @@ def _trace_with_root_input(input_value: str) -> FinishedTrace:
         trace_id="00000000000000000000000000000001",
         root=root,
         spans=(root,),
-        session_id="session",
         project_name="assistant_agent",
         enable_local_ingest=True,
         enable_remote_export=False,
