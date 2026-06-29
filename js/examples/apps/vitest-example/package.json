@@ -8,8 +8,10 @@
     "eval:offline": "PHOENIX_TEST_TRACKING=false vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.35.0",
-    "@arizeai/phoenix-client": "workspace:*"
+    "@ai-sdk/anthropic": "^3.0.81",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-evals": "workspace:*",
+    "ai": "^6.0.211"
   },
   "devDependencies": {
     "dotenv": "^16.4.5",

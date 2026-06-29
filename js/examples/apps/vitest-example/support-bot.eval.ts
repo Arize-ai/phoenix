@@ -28,15 +28,11 @@
  *   pnpm exec vitest run
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { anthropic } from "@ai-sdk/anthropic";
 import * as px from "@arizeai/phoenix-client/vitest";
-import type {
-  Evaluator,
-  EvaluationParams,
-} from "@arizeai/phoenix-client/vitest";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { generateText } from "ai";
 import { expect } from "vitest";
-
-const anthropic = new Anthropic();
 
 // ---------------------------------------------------------------------------
 // Knowledge base (simplified FAQ excerpts)
@@ -79,66 +75,61 @@ async function answerQuestion(
     ? `Knowledge base:\n${kbContext}\n\nQuestion: ${question}`
     : `Question: ${question}`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 256,
+  const { text } = await generateText({
+    model: anthropic("claude-haiku-4-5-20251001"),
+    maxOutputTokens: 256,
     system: BOT_SYSTEM,
     messages: [{ role: "user", content: userMessage }],
   });
 
-  const block = response.content[0];
-  if (block.type !== "text") throw new Error("Unexpected content block type");
-  return block.text;
+  return text;
 }
 
 // ---------------------------------------------------------------------------
 // LLM-as-judge evaluator
 // ---------------------------------------------------------------------------
 
-// The judge sees the same knowledge-base excerpt the bot did, so it can tell
-// whether an answer was grounded — and whether declining was the right call
-// when the excerpt doesn't contain the answer.
-const JUDGE_SYSTEM = `\
+type BotInput = { question: string; kbKey: string; expectRefusal: boolean };
+type BotOutput = { response: string };
+
+// The judge is a classification evaluator from `@arizeai/phoenix-evals`. It
+// uses structured generation to emit a `helpful` / `unhelpful` label (mapped to
+// 1 / 0) plus a short explanation, recorded as a Phoenix annotation.
+//
+// It sees the same knowledge-base excerpt the bot did, so it can tell whether an
+// answer was grounded — and whether declining was the right call when the
+// excerpt doesn't contain the answer. It runs on a stronger model than the bot
+// (Sonnet judging Haiku) so its verdicts are stable.
+//
+// `inputMapping` projects the run's auto-supplied `{ input, output }` (set by
+// px.logOutput) onto the template variables the prompt expects.
+type JudgeRecord = { input: BotInput; output?: BotOutput };
+
+const helpfulness = createClassificationEvaluator<JudgeRecord>({
+  name: "helpfulness",
+  model: anthropic("claude-sonnet-4-6"),
+  choices: { helpful: 1, unhelpful: 0 },
+  promptTemplate: `\
 You are a strict quality reviewer for a B2B software support bot. You are given
 the knowledge-base excerpt the bot was working from, the user question, and the
 bot's response.
-Reply with exactly "1" if the response is accurate and grounded in the excerpt
-(or correctly declines when the excerpt does not contain the answer), or "0" if
-it is wrong, unsupported, vague, or ignores the question. No other output.`;
 
-type BotInput = { question: string; kbKey: string; expectRefusal: boolean };
-type BotOutput = { response: string };
-type HelpfulnessResult = { score: number; label: string };
+Knowledge base:
+{{knowledge_base}}
 
-// The evaluator receives `input` and `output` auto-supplied from the run
-// (set by px.logOutput) when called without explicit params.
-const helpfulness: Evaluator<EvaluationParams, HelpfulnessResult> = {
-  name: "helpfulness",
-  kind: "LLM",
-  evaluate: async ({ input, output }) => {
-    const { question, kbKey } = input as BotInput;
-    const kbContext = KB[kbKey] ?? "";
-    const response = (output as BotOutput | undefined)?.response ?? "";
+Question: {{question}}
 
-    const verdict = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4,
-      system: JUDGE_SYSTEM,
-      messages: [
-        {
-          role: "user",
-          content:
-            `Knowledge base:\n${kbContext || "(empty)"}\n\n` +
-            `Question: ${question}\n\nBot response: ${response}`,
-        },
-      ],
-    });
+Bot response: {{response}}
 
-    const block = verdict.content[0];
-    const score = block.type === "text" && block.text.trim() === "1" ? 1 : 0;
-    return { score, label: score === 1 ? "helpful" : "unhelpful" };
+Label the response "helpful" if it is accurate and grounded in the excerpt (or
+correctly declines when the excerpt does not contain the answer). Label it
+"unhelpful" if it is wrong, unsupported, vague, or ignores the question.`,
+  inputMapping: {
+    knowledge_base: (record) => KB[record.input.kbKey] || "(empty)",
+    question: "input.question",
+    response: (record) => record.output?.response ?? "",
   },
-};
+});
 
 // ---------------------------------------------------------------------------
 // Eval suite
