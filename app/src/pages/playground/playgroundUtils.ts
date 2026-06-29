@@ -863,13 +863,50 @@ export function getResponseFormatFromAttributes(
 }
 
 /**
+ * Bedrock's Converse API wraps each tool in a `{ toolSpec: ... }` tagged union,
+ * but the OpenInference Bedrock instrumentor has historically recorded only the
+ * inner body (`{ name, description, inputSchema: { json } }`) on the span. When
+ * such a tool can't be canonicalized and would fall through to a raw passthrough,
+ * re-add the envelope at import time so the replayed tool is valid against the
+ * Converse API. This is scoped to span import on purpose — tools authored in the
+ * editor go through a separate path and are left verbatim.
+ *
+ * The span's provider gates the wrap, but as an additional signal rather than a
+ * strict requirement: provider detection on a span can fall back to a default,
+ * so we also accept the structural `inputSchema.json` marker, which is unique to
+ * Bedrock tool definitions (OpenAI uses `parameters`, Anthropic `input_schema`).
+ * Either signal is enough; together they avoid both missed AWS spans and
+ * touching other providers' raw tools.
+ */
+function wrapUnwrappedBedrockToolSpec(
+  raw: Record<string, unknown>,
+  provider?: ModelProvider
+): Record<string, unknown> {
+  if ("toolSpec" in raw || "systemTool" in raw || "cachePoint" in raw) {
+    return raw;
+  }
+  const { inputSchema } = raw;
+  const looksLikeBedrock =
+    provider === "AWS" ||
+    (isStringKeyedObject(inputSchema) && "json" in inputSchema);
+  const isBedrockToolSpecBody =
+    typeof raw.name === "string" &&
+    isStringKeyedObject(inputSchema) &&
+    looksLikeBedrock;
+  return isBedrockToolSpecBody ? { toolSpec: raw } : raw;
+}
+
+/**
  * Decide which {@link Tool} branch a provider-formatted tool definition lands
  * on. See `Tool`'s docstring for why the union exists. Function tools that
  * parse against any provider's known function-tool schema get normalized;
  * everything else (vendor builtins, unrecognized shapes) becomes a raw
  * passthrough. Returns null only for non-objects.
  */
-function createToolFromRawDefinition(rawDefinition: unknown): Tool | null {
+function createToolFromRawDefinition(
+  rawDefinition: unknown,
+  provider?: ModelProvider
+): Tool | null {
   const normalizedFunctionDefinition = toCanonicalToolDefinition(rawDefinition);
   if (normalizedFunctionDefinition != null) {
     return {
@@ -884,7 +921,7 @@ function createToolFromRawDefinition(rawDefinition: unknown): Tool | null {
       kind: "raw",
       id: generateToolId(),
       editorType: "json",
-      raw: rawDefinition,
+      raw: wrapUnwrappedBedrockToolSpec(rawDefinition, provider),
     };
   }
   return null;
@@ -898,14 +935,17 @@ function createToolFromRawDefinition(rawDefinition: unknown): Tool | null {
  * @param tools tools from the span attributes
  * @returns playground tools
  */
-function processAttributeTools(tools: LlmToolSchema): Tool[] {
+function processAttributeTools(
+  tools: LlmToolSchema,
+  provider?: ModelProvider
+): Tool[] {
   return (tools?.llm?.tools ?? [])
     .map((tool) => {
       if (tool?.tool == null) {
         return null;
       }
       const rawDefinition = tool.tool.json_schema;
-      return createToolFromRawDefinition(rawDefinition);
+      return createToolFromRawDefinition(rawDefinition, provider);
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 }
@@ -918,7 +958,8 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
  * NB: Only exported for testing
  */
 export function getToolsFromAttributes(
-  parsedAttributes: unknown
+  parsedAttributes: unknown,
+  provider?: ModelProvider
 ):
   | { tools: Tool[]; parsingErrors: never[] }
   | { tools: null; parsingErrors: string[] } {
@@ -931,7 +972,7 @@ export function getToolsFromAttributes(
   if (data?.llm?.tools == null) {
     return { tools: null, parsingErrors: [] };
   }
-  return { tools: processAttributeTools(data), parsingErrors: [] };
+  return { tools: processAttributeTools(data, provider), parsingErrors: [] };
 }
 
 export function getPromptTemplateVariablesFromAttributes(
@@ -1080,8 +1121,10 @@ export function transformSpanAttributesToPlaygroundInstance(
         }
       : null;
 
-  const { tools, parsingErrors: toolsParsingErrors } =
-    getToolsFromAttributes(parsedAttributes);
+  const { tools, parsingErrors: toolsParsingErrors } = getToolsFromAttributes(
+    parsedAttributes,
+    spanProvider
+  );
 
   const messages = rawMessages?.map((message) => {
     return {

@@ -1581,6 +1581,109 @@ describe("getToolsFromAttributes", () => {
     });
   });
 
+  it("should re-wrap an unwrapped Bedrock toolSpec body that falls through to raw", () => {
+    // An unwrapped Bedrock tool body (as recorded by the OpenInference Bedrock
+    // instrumentor) that fails strict canonicalization — here an empty
+    // description — falls through to a raw passthrough. On import we re-add the
+    // Converse `toolSpec` envelope so the replayed tool is valid against the API.
+    const unwrappedBody = {
+      name: "get_weather",
+      description: "",
+      inputSchema: {
+        json: {
+          type: "object",
+          properties: { city: { type: "string" } },
+          required: ["city"],
+        },
+      },
+    };
+    const parsedAttributes = {
+      llm: {
+        tools: [{ tool: { json_schema: JSON.stringify(unwrappedBody) } }],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: [
+        {
+          kind: "raw",
+          id: expect.any(Number),
+          editorType: "json",
+          raw: { toolSpec: unwrappedBody },
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
+
+  it("should not re-wrap a raw tool when neither the AWS provider nor inputSchema.json is present", () => {
+    // With no AWS provider and no inputSchema.json marker, a raw passthrough tool
+    // is left verbatim.
+    const rawTool = {
+      name: "web_search",
+      type: "web_search_20250305",
+    };
+    const parsedAttributes = {
+      llm: {
+        tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes);
+    expect(result).toEqual({
+      tools: [
+        {
+          kind: "raw",
+          id: expect.any(Number),
+          editorType: "json",
+          raw: rawTool,
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
+
+  it("should re-wrap an unwrapped AWS toolSpec body via the provider signal when the inputSchema.json marker is absent", () => {
+    // inputSchema without the `json` sub-key fails the structural marker, but an
+    // AWS span provider is enough to recognize it as an unwrapped toolSpec body.
+    const unwrappedBody = {
+      name: "get_weather",
+      inputSchema: {
+        type: "object",
+        properties: { city: { type: "string" } },
+      },
+    };
+    const parsedAttributes = {
+      llm: {
+        tools: [{ tool: { json_schema: JSON.stringify(unwrappedBody) } }],
+      },
+    };
+    const result = getToolsFromAttributes(parsedAttributes, "AWS");
+    expect(result).toEqual({
+      tools: [
+        {
+          kind: "raw",
+          id: expect.any(Number),
+          editorType: "json",
+          raw: { toolSpec: unwrappedBody },
+        },
+      ],
+      parsingErrors: [],
+    });
+    // Same tool without the AWS provider is left verbatim.
+    const withoutProvider = getToolsFromAttributes(parsedAttributes);
+    expect(withoutProvider).toEqual({
+      tools: [
+        {
+          kind: "raw",
+          id: expect.any(Number),
+          editorType: "json",
+          raw: unwrappedBody,
+        },
+      ],
+      parsingErrors: [],
+    });
+  });
+
   it("should load flat OpenAI Responses function tools as function tools", () => {
     const responsesFunctionTool = {
       type: "function",
