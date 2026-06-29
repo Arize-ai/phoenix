@@ -44,11 +44,11 @@ pip install "arize-phoenix-client[pytest,evals]" anthropic pytest
 
 ```python
 import time
-from typing import Any
 
 import anthropic
 import pytest
 from phoenix.client.pytest import evaluate, log_evaluation, log_output
+from phoenix.evals import LLM, create_classifier
 
 # Knowledge base (simplified FAQ excerpts)
 KB: dict[str, str] = {
@@ -97,40 +97,36 @@ def answer_question(question: str, kb_context: str) -> str:
     )
     return response.content[0].text
 
-# The judge sees the same excerpt the bot did, so it can tell whether an answer
-# was grounded — and whether declining was the right call when the excerpt is empty.
-JUDGE_SYSTEM = """\
+# The judge is a `create_classifier` evaluator from `phoenix.evals`: it emits a
+# helpful/unhelpful label (mapped to 1.0/0.0) plus an explanation, recorded as
+# the "helpfulness" annotation. It sees the same excerpt the bot did, so it can
+# tell whether an answer was grounded — and whether declining was the right call
+# when the excerpt is empty.
+JUDGE_PROMPT = """\
 You are a strict quality reviewer for a B2B software support bot. You are given
 the knowledge-base excerpt the bot was working from, the user question, and the
 bot's response.
-Reply with exactly "1" if the response is accurate and grounded in the excerpt
-(or correctly declines when the excerpt does not contain the answer), or "0" if
-it is wrong, unsupported, vague, or ignores the question. No other output.\
+
+Knowledge base:
+{{knowledge_base}}
+
+Question: {{question}}
+
+Bot response: {{response}}
+
+Label the response "helpful" if it is accurate and grounded in the excerpt (or
+correctly declines when the excerpt does not contain the answer). Label it
+"unhelpful" if it is wrong, unsupported, vague, or ignores the question.\
 """
 
-def judge_helpfulness(output: str, input: str, context: str = "", **_: Any) -> dict[str, Any]:
-    """LLM judge: 1 = helpful and accurate, 0 = not. Recorded as the "helpfulness" annotation."""
-    verdict = (
-        _client.messages.create(
-            # A stronger model than the bot (Sonnet judging Haiku) keeps verdicts
-            # stable — a noisy judge makes the whole suite flaky.
-            model="claude-sonnet-4-6",
-            max_tokens=4,
-            system=JUDGE_SYSTEM,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Knowledge base:\n{context or '(empty)'}\n\n"
-                        f"Question: {input}\n\nBot response: {output}"
-                    ),
-                }
-            ],
-        )
-        .content[0]
-        .text.strip()
-    )
-    return {"name": "helpfulness", "score": 1.0 if verdict == "1" else 0.0}
+# A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable —
+# a noisy judge makes the whole suite flaky. The LLM reads ANTHROPIC_API_KEY.
+helpfulness = create_classifier(
+    name="helpfulness",
+    llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
+    prompt_template=JUDGE_PROMPT,
+    choices={"helpful": 1.0, "unhelpful": 0.0},
+)
 
 CASES: list[tuple[str, str, bool]] = [
     ("How do I download my invoices?", "billing", False),
@@ -159,7 +155,13 @@ def test_support_response(question: str, kb_key: str, expect_refusal: bool) -> N
     log_evaluation(name="latency_ms", score=latency_ms)
 
     # LLM judge — logged under its own evaluator span, surfaced as "helpfulness".
-    evaluate(judge_helpfulness, output=response, input=question, context=kb_context)
+    # The kwargs fill the classifier's prompt-template variables.
+    evaluate(
+        helpfulness,
+        knowledge_base=kb_context or "(empty)",
+        question=question,
+        response=response,
+    )
 
     # Hard assertion only for the structural refusal check. On-topic quality
     # rides on aggregate trends in Phoenix rather than failing CI on every miss.

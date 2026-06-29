@@ -33,11 +33,11 @@ See ../README.md for the full walkthrough and run instructions.
 """
 
 import time
-from typing import Any
 
 import anthropic
 import pytest
 from phoenix.client.pytest import evaluate, log_evaluation, log_output
+from phoenix.evals import LLM, create_classifier
 
 # ---------------------------------------------------------------------------
 # Knowledge base (simplified FAQ excerpts)
@@ -96,50 +96,39 @@ def answer_question(question: str, kb_context: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# LLM-as-judge
+# LLM-as-judge (arize-phoenix-evals classification evaluator)
 # ---------------------------------------------------------------------------
 
-# The judge sees the same knowledge-base excerpt the bot did, so it can tell
-# whether an answer was grounded — and whether declining was the right call when
-# the excerpt doesn't contain the answer.
-JUDGE_SYSTEM = """\
+# The judge is a `create_classifier` evaluator from `phoenix.evals`: it emits a
+# helpful/unhelpful label (mapped to 1.0/0.0) plus an explanation, recorded as
+# the "helpfulness" annotation on the experiment run. It sees the same
+# knowledge-base excerpt the bot did, so it can tell whether an answer was
+# grounded — and whether declining was the right call when the excerpt is empty.
+JUDGE_PROMPT = """\
 You are a strict quality reviewer for a B2B software support bot. You are given
 the knowledge-base excerpt the bot was working from, the user question, and the
 bot's response.
-Reply with exactly "1" if the response is accurate and grounded in the excerpt
-(or correctly declines when the excerpt does not contain the answer), or "0" if
-it is wrong, unsupported, vague, or ignores the question. No other output.\
+
+Knowledge base:
+{{knowledge_base}}
+
+Question: {{question}}
+
+Bot response: {{response}}
+
+Label the response "helpful" if it is accurate and grounded in the excerpt (or
+correctly declines when the excerpt does not contain the answer). Label it
+"unhelpful" if it is wrong, unsupported, vague, or ignores the question.\
 """
 
-
-def judge_helpfulness(output: str, input: str, context: str = "", **_: Any) -> dict[str, Any]:
-    """LLM judge: 1 = helpful and accurate, 0 = not.
-
-    Called via ``evaluate(judge_helpfulness, output=..., input=..., context=...)``.
-    The result dict is normalised by the plugin and recorded as the
-    "helpfulness" annotation on the experiment run.
-    """
-    verdict = (
-        _client.messages.create(
-            # A stronger model than the bot (Sonnet judging Haiku) keeps verdicts
-            # stable — a noisy judge makes the whole suite flaky.
-            model="claude-sonnet-4-6",
-            max_tokens=4,
-            system=JUDGE_SYSTEM,
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Knowledge base:\n{context or '(empty)'}\n\n"
-                        f"Question: {input}\n\nBot response: {output}"
-                    ),
-                }
-            ],
-        )
-        .content[0]
-        .text.strip()
-    )
-    return {"name": "helpfulness", "score": 1.0 if verdict == "1" else 0.0}
+# A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable —
+# a noisy judge makes the whole suite flaky. The LLM reads ANTHROPIC_API_KEY.
+helpfulness = create_classifier(
+    name="helpfulness",
+    llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
+    prompt_template=JUDGE_PROMPT,
+    choices={"helpful": 1.0, "unhelpful": 0.0},
+)
 
 
 # ---------------------------------------------------------------------------
@@ -178,8 +167,14 @@ def test_support_response(question: str, kb_key: str, expect_refusal: bool) -> N
     log_evaluation(name="latency_ms", score=latency_ms)
 
     # LLM judge — logged as an LLM evaluator span so its trace is separate
-    # from the task trace, then surfaced as the "helpfulness" annotation.
-    evaluate(judge_helpfulness, output=response, input=question, context=kb_context)
+    # from the task trace, then surfaced as the "helpfulness" annotation. The
+    # kwargs fill the classifier's prompt-template variables.
+    evaluate(
+        helpfulness,
+        knowledge_base=kb_context or "(empty)",
+        question=question,
+        response=response,
+    )
 
     # Hard assertion only for the structural refusal check.
     # For on-topic quality we rely on aggregate trends in Phoenix rather than

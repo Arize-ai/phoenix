@@ -1,5 +1,6 @@
-# Phoenix pytest plugin (activates automatically once the `pytest` extra is installed)
-arize-phoenix-client[pytest]>=2.10.0
+# Phoenix pytest plugin (`pytest` extra) + the phoenix.evals adapter (`evals` extra,
+# pulls in arize-phoenix-evals for the LLM-as-judge classifier)
+arize-phoenix-client[pytest,evals]>=2.10.0
 pytest
-# System under test + LLM judge
+# System under test (the bot) + the LLM provider SDK used by the phoenix.evals judge
 anthropic
