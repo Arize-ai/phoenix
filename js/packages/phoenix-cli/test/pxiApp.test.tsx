@@ -396,6 +396,39 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("shows the latest assistant token usage on the bottom-right status line", () => {
+    const assistantMessage: PxiMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "Done.", state: "done" }],
+      metadata: {
+        sessionId: "session-1",
+        usage: {
+          tokens: { prompt: 12000, completion: 345, total: 12345 },
+          promptDetails: { cacheRead: 8000, cacheWrite: 200 },
+        },
+      },
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp options={createOptions()} initialMessages={[assistantMessage]} />
+    );
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).toContain("12,345 tokens");
+    expect(frame).toContain("cache read 8,000 / cache write 200");
+    unmount();
+  });
+
+  it("omits the token usage status line until usage is reported", () => {
+    const client: PxiChatClient = { sendMessage: async () => null };
+    const { lastFrame, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    expect(stripAnsi(lastFrame() ?? "")).not.toContain("tokens");
+    unmount();
+  });
+
   it("renders assistant Phoenix-relative links with the configured endpoint", () => {
     const assistantMessage: PxiMessage = {
       id: "assistant-1",
