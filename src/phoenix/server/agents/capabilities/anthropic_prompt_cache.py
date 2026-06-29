@@ -4,8 +4,7 @@ from dataclasses import dataclass
 
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.models import Model
-from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
-from pydantic_ai.models.wrapper import WrapperModel
+from pydantic_ai.models.anthropic import AnthropicModelSettings
 from pydantic_ai.tools import AgentDepsT
 
 
@@ -37,18 +36,15 @@ class AnthropicPromptCacheCapability(AbstractCapability[AgentDepsT]):
         )
 
 
-def _unwrap_model(model: Model) -> Model:
-    """Peel ``WrapperModel`` layers (``build_model`` always wraps) to reach the
-    provider model; ``isinstance`` does not see through ``__getattr__``."""
-    while isinstance(model, WrapperModel):
-        model = model.wrapped
-    return model
-
-
 def build_anthropic_prompt_cache_capability(
     model: Model,
 ) -> AnthropicPromptCacheCapability[object] | None:
-    """Return the Anthropic prompt-cache capability if ``model`` is Anthropic."""
-    if not isinstance(_unwrap_model(model), AnthropicModel):
+    """Return the Anthropic prompt-cache capability if ``model`` is Anthropic.
+
+    Discriminates on ``model.system`` (the provider's self-reported identity),
+    which model wrappers proxy via ``__getattr__`` — unlike ``isinstance``,
+    which would be opaque to the tracing wrapper ``build_model`` always returns.
+    """
+    if model.system != "anthropic":
         return None
     return AnthropicPromptCacheCapability[object]()
