@@ -9,7 +9,7 @@ from strawberry import Info
 from phoenix.db import models
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.input_types.DeleteProjectAnnotationsInput import (
     AnnotationTimeRangeField,
     DeleteProjectAnnotationsInput,
@@ -94,6 +94,11 @@ async def _delete_project_annotations_by_name(
     )
     stmt = delete(model).where(model.id.in_(id_select)).returning(model.id)
     async with info.context.db() as session:
+        project_exists = await session.scalar(
+            select(models.Project.id).where(models.Project.id == project_rowid)
+        )
+        if project_exists is None:
+            raise NotFound(f"Could not find project with ID: {input.project_id}")
         deleted_ids = tuple(await session.scalars(stmt))
 
     if deleted_ids:

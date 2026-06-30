@@ -6,6 +6,7 @@ import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
 import type { DateValue } from "@phoenix/components";
 import {
+  Alert,
   Button,
   Card,
   ContentSkeleton,
@@ -32,13 +33,13 @@ import { AnnotationLabel } from "@phoenix/components/annotation";
 import {
   DialogCloseButton,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { tableCSS } from "@phoenix/components/table/styles";
 import {
-  useNotifyError,
   useNotifySuccess,
   useViewerCanDeleteProjectAnnotations,
 } from "@phoenix/contexts";
@@ -358,15 +359,19 @@ const AnnotationCountsCard = (props: AnnotationCountsCardProps) => {
       ) : (
         <div
           css={css`
-            overflow: auto;
+            overflow-x: auto;
           `}
         >
-          <table css={tableCSS}>
+          <table css={tableCSS} aria-label={`${title} by name`}>
             <thead>
               <tr>
-                <th>Name</th>
-                <th css={countCellCSS}>Count</th>
-                {canDelete ? <th css={actionCellCSS} /> : null}
+                <th scope="col">Name</th>
+                <th scope="col" css={countCellCSS}>
+                  Count
+                </th>
+                {canDelete ? (
+                  <th scope="col" css={actionCellCSS} aria-label="Actions" />
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -417,8 +422,9 @@ const DeleteAnnotationsButton = (props: DeleteAnnotationsButtonProps) => {
       <Button
         size="S"
         variant="quiet"
-        aria-label={`Delete all "${props.annotationName}" annotations`}
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        aria-label={`Delete all ${props.sourceNoun} annotations named "${props.annotationName}"`}
+        isDisabled={props.isDeleting}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
       />
       <ModalOverlay>
         <Modal size="S">
@@ -456,7 +462,6 @@ interface DeleteAnnotationsDialogProps {
 const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
   const { annotationName, sourceNoun, isDeleting, onDelete, close } = props;
   const notifySuccess = useNotifySuccess();
-  const notifyError = useNotifyError();
 
   const [limitToTimeRange, setLimitToTimeRange] = useState(false);
   // Pre-fill a concrete, valid range (the last 7 days) so the date segments are
@@ -470,12 +475,20 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
   const [timeRangeField, setTimeRangeField] =
     useState<AnnotationTimeRangeField>("ANNOTATION_CREATED_AT");
   const [endError, setEndError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleDelete = () => {
     setEndError(null);
+    setDeleteError(null);
     const timeZone = getLocalTimeZone();
     let timeRange: { start: string | null; end: string | null } | null = null;
-    if (limitToTimeRange && (startDate || endDate)) {
+    if (limitToTimeRange) {
+      if (!startDate && !endDate) {
+        setDeleteError(
+          "Select a start date, an end date, or turn off the time range limit."
+        );
+        return;
+      }
       const start = startDate ? startDate.toDate(timeZone) : null;
       const end = endDate ? endDate.toDate(timeZone) : null;
       if (start && end && end <= start) {
@@ -503,10 +516,7 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
         close();
       },
       onError: (message) => {
-        notifyError({
-          title: "Failed to delete annotations",
-          message,
-        });
+        setDeleteError(message);
       },
     });
   };
@@ -519,6 +529,13 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
           <DialogCloseButton slot="close" />
         </DialogTitleExtra>
       </DialogHeader>
+      {deleteError ? (
+        <View paddingX="size-200" paddingTop="size-100">
+          <Alert variant="danger" banner>
+            {deleteError}
+          </Alert>
+        </View>
+      ) : null}
       <Form
         onSubmit={(event) => {
           event.preventDefault();
@@ -534,7 +551,11 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
             </Text>
             <Switch
               isSelected={limitToTimeRange}
-              onChange={setLimitToTimeRange}
+              onChange={(isSelected) => {
+                setLimitToTimeRange(isSelected);
+                setDeleteError(null);
+                setEndError(null);
+              }}
               labelPlacement="end"
             >
               Only delete within a time range
@@ -543,7 +564,11 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
               <Flex direction="column" gap="size-200">
                 <DateField
                   value={startDate}
-                  onChange={setStartDate}
+                  onChange={(value) => {
+                    setStartDate(value);
+                    setDeleteError(null);
+                    setEndError(null);
+                  }}
                   granularity="minute"
                   hideTimeZone
                   css={dateFieldCSS}
@@ -560,6 +585,7 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
                   value={endDate}
                   onChange={(value) => {
                     setEndDate(value);
+                    setDeleteError(null);
                     setEndError(null);
                   }}
                   isInvalid={endError != null}
@@ -581,9 +607,10 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
                 </DateField>
                 <RadioGroup
                   value={timeRangeField}
-                  onChange={(value) =>
-                    setTimeRangeField(value as AnnotationTimeRangeField)
-                  }
+                  onChange={(value) => {
+                    setTimeRangeField(value as AnnotationTimeRangeField);
+                    setDeleteError(null);
+                  }}
                   direction="column"
                 >
                   <Label>Filter on</Label>
@@ -598,28 +625,24 @@ const DeleteAnnotationsDialog = (props: DeleteAnnotationsDialogProps) => {
             ) : null}
           </Flex>
         </View>
-        <View
-          paddingStart="size-200"
-          paddingEnd="size-200"
-          paddingTop="size-100"
-          paddingBottom="size-100"
-          borderColor="default"
-          borderTopWidth="thin"
-        >
-          <Flex direction="row" gap="size-100" justifyContent="end">
-            <Button size="S" onPress={close} isDisabled={isDeleting}>
-              Cancel
-            </Button>
-            <Button
-              size="S"
-              variant="danger"
-              type="submit"
-              isDisabled={isDeleting}
-            >
-              {isDeleting ? "Deleting…" : "Delete annotations"}
-            </Button>
-          </Flex>
-        </View>
+        <DialogFooter>
+          <Button
+            size="S"
+            onPress={close}
+            isDisabled={isDeleting}
+            type="button"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="S"
+            variant="danger"
+            type="submit"
+            isDisabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Delete annotations"}
+          </Button>
+        </DialogFooter>
       </Form>
     </DialogContent>
   );

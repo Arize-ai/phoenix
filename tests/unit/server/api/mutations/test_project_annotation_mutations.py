@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from secrets import token_hex
 
@@ -12,8 +13,6 @@ from tests.unit.graphql import AsyncGraphQLClient
 OLD = datetime(2020, 1, 1, tzinfo=timezone.utc)
 MID = datetime(2020, 6, 1, tzinfo=timezone.utc)
 NEW = datetime(2020, 12, 1, tzinfo=timezone.utc)
-
-PROJECT_ID = str(GlobalID("Project", "1"))
 
 DELETE_SPAN = """
 mutation ($input: DeleteProjectAnnotationsInput!) {
@@ -40,8 +39,15 @@ mutation ($input: DeleteProjectAnnotationsInput!) {
 """
 
 
+@dataclass(frozen=True)
+class AnnotationData:
+    project_rowid: int
+    project_id: str
+    other_project_rowid: int
+
+
 @pytest.fixture(autouse=True)
-async def annotation_data(db: DbSessionFactory) -> None:
+async def annotation_data(db: DbSessionFactory) -> AnnotationData:
     """A project with span/trace/session annotations at two distinct timestamps.
 
     For span annotations, the annotation ``created_at`` is deliberately set to the
@@ -53,7 +59,8 @@ async def annotation_data(db: DbSessionFactory) -> None:
     """
     async with db() as session:
         project = models.Project(name="default")
-        session.add(project)
+        other_project = models.Project(name="other")
+        session.add_all([project, other_project])
         await session.flush()
 
         trace_old = models.Trace(
@@ -68,7 +75,13 @@ async def annotation_data(db: DbSessionFactory) -> None:
             start_time=NEW,
             end_time=NEW,
         )
-        session.add_all([trace_old, trace_new])
+        other_trace = models.Trace(
+            project_rowid=other_project.id,
+            trace_id="trace-other",
+            start_time=NEW,
+            end_time=NEW,
+        )
+        session.add_all([trace_old, trace_new, other_trace])
         await session.flush()
 
         def _span(trace_rowid: int, span_id: str, start_time: datetime) -> models.Span:
@@ -90,7 +103,8 @@ async def annotation_data(db: DbSessionFactory) -> None:
 
         span_old = _span(trace_old.id, "span-old", OLD)
         span_new = _span(trace_new.id, "span-new", NEW)
-        session.add_all([span_old, span_new])
+        other_span = _span(other_trace.id, "span-other", NEW)
+        session.add_all([span_old, span_new, other_span])
 
         session_old = models.ProjectSession(
             project_id=project.id, session_id="sess-old", start_time=OLD, end_time=OLD
@@ -98,7 +112,13 @@ async def annotation_data(db: DbSessionFactory) -> None:
         session_new = models.ProjectSession(
             project_id=project.id, session_id="sess-new", start_time=NEW, end_time=NEW
         )
-        session.add_all([session_old, session_new])
+        other_session = models.ProjectSession(
+            project_id=other_project.id,
+            session_id="sess-other",
+            start_time=NEW,
+            end_time=NEW,
+        )
+        session.add_all([session_old, session_new, other_session])
         await session.flush()
 
         def _span_anno(span_rowid: int, name: str, created_at: datetime) -> models.SpanAnnotation:
@@ -118,10 +138,15 @@ async def annotation_data(db: DbSessionFactory) -> None:
                 _span_anno(span_old.id, "quality", NEW),
                 _span_anno(span_new.id, "quality", OLD),
                 _span_anno(span_old.id, "relevance", NEW),
+                _span_anno(other_span.id, "quality", NEW),
             ]
         )
 
-        for trace_rowid, created_at in ((trace_old.id, OLD), (trace_new.id, NEW)):
+        for trace_rowid, created_at in (
+            (trace_old.id, OLD),
+            (trace_new.id, NEW),
+            (other_trace.id, NEW),
+        ):
             session.add(
                 models.TraceAnnotation(
                     trace_rowid=trace_rowid,
@@ -134,7 +159,11 @@ async def annotation_data(db: DbSessionFactory) -> None:
                 )
             )
 
-        for sess_rowid, created_at in ((session_old.id, OLD), (session_new.id, NEW)):
+        for sess_rowid, created_at in (
+            (session_old.id, OLD),
+            (session_new.id, NEW),
+            (other_session.id, NEW),
+        ):
             session.add(
                 models.ProjectSessionAnnotation(
                     project_session_id=sess_rowid,
@@ -148,41 +177,81 @@ async def annotation_data(db: DbSessionFactory) -> None:
             )
 
         await session.commit()
+        return AnnotationData(
+            project_rowid=project.id,
+            project_id=str(GlobalID("Project", str(project.id))),
+            other_project_rowid=other_project.id,
+        )
 
 
-async def _span_count(db: DbSessionFactory, name: str) -> int:
+async def _span_count(db: DbSessionFactory, project_rowid: int, name: str) -> int:
     async with db() as session:
         return await session.scalar(  # type: ignore[return-value]
             select(func.count())
             .select_from(models.SpanAnnotation)
+            .join(models.Span, models.SpanAnnotation.span_rowid == models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == project_rowid)
             .where(models.SpanAnnotation.name == name)
+        )
+
+
+async def _trace_count(db: DbSessionFactory, project_rowid: int, name: str) -> int:
+    async with db() as session:
+        return await session.scalar(  # type: ignore[return-value]
+            select(func.count())
+            .select_from(models.TraceAnnotation)
+            .join(models.Trace, models.TraceAnnotation.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == project_rowid)
+            .where(models.TraceAnnotation.name == name)
+        )
+
+
+async def _session_count(db: DbSessionFactory, project_rowid: int, name: str) -> int:
+    async with db() as session:
+        return await session.scalar(  # type: ignore[return-value]
+            select(func.count())
+            .select_from(models.ProjectSessionAnnotation)
+            .join(
+                models.ProjectSession,
+                models.ProjectSessionAnnotation.project_session_id == models.ProjectSession.id,
+            )
+            .where(models.ProjectSession.project_id == project_rowid)
+            .where(models.ProjectSessionAnnotation.name == name)
         )
 
 
 class TestProjectAnnotationMutations:
     async def test_delete_all_span_annotations_by_name(
-        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        annotation_data: AnnotationData,
     ) -> None:
         result = await gql_client.execute(
             DELETE_SPAN,
-            {"input": {"projectId": PROJECT_ID, "annotationName": "quality"}},
+            {"input": {"projectId": annotation_data.project_id, "annotationName": "quality"}},
         )
         assert not result.errors
         assert result.data is not None
         assert result.data["deleteProjectSpanAnnotations"]["deletedAnnotationCount"] == 2
         # The matching annotations are gone; other names are untouched.
-        assert await _span_count(db, "quality") == 0
-        assert await _span_count(db, "relevance") == 1
+        assert await _span_count(db, annotation_data.project_rowid, "quality") == 0
+        assert await _span_count(db, annotation_data.project_rowid, "relevance") == 1
+        assert await _span_count(db, annotation_data.other_project_rowid, "quality") == 1
 
     async def test_delete_span_annotations_filters_by_created_at(
-        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        annotation_data: AnnotationData,
     ) -> None:
         # Range [MID, inf) over created_at selects span_old's annotation (created NEW).
         result = await gql_client.execute(
             DELETE_SPAN,
             {
                 "input": {
-                    "projectId": PROJECT_ID,
+                    "projectId": annotation_data.project_id,
                     "annotationName": "quality",
                     "timeRange": {"start": MID.isoformat()},
                     "timeRangeField": "ANNOTATION_CREATED_AT",
@@ -193,17 +262,21 @@ class TestProjectAnnotationMutations:
         assert result.data is not None
         assert result.data["deleteProjectSpanAnnotations"]["deletedAnnotationCount"] == 1
         # Only one "quality" remains (the one created OLD on span_new).
-        assert await _span_count(db, "quality") == 1
+        assert await _span_count(db, annotation_data.project_rowid, "quality") == 1
+        assert await _span_count(db, annotation_data.other_project_rowid, "quality") == 1
 
     async def test_delete_span_annotations_filters_by_source_start_time(
-        self, db: DbSessionFactory, gql_client: AsyncGraphQLClient
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        annotation_data: AnnotationData,
     ) -> None:
         # Range [MID, inf) over source start_time selects span_new's annotation.
         result = await gql_client.execute(
             DELETE_SPAN,
             {
                 "input": {
-                    "projectId": PROJECT_ID,
+                    "projectId": annotation_data.project_id,
                     "annotationName": "quality",
                     "timeRange": {"start": MID.isoformat()},
                     "timeRangeField": "SOURCE_START_TIME",
@@ -213,45 +286,65 @@ class TestProjectAnnotationMutations:
         assert not result.errors
         assert result.data is not None
         assert result.data["deleteProjectSpanAnnotations"]["deletedAnnotationCount"] == 1
-        assert await _span_count(db, "quality") == 1
+        assert await _span_count(db, annotation_data.project_rowid, "quality") == 1
+        assert await _span_count(db, annotation_data.other_project_rowid, "quality") == 1
 
-    async def test_delete_trace_annotations_by_name(self, gql_client: AsyncGraphQLClient) -> None:
+    async def test_delete_trace_annotations_by_name(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        annotation_data: AnnotationData,
+    ) -> None:
         result = await gql_client.execute(
             DELETE_TRACE,
-            {"input": {"projectId": PROJECT_ID, "annotationName": "quality"}},
+            {"input": {"projectId": annotation_data.project_id, "annotationName": "quality"}},
         )
         assert not result.errors
         assert result.data is not None
         assert result.data["deleteProjectTraceAnnotations"]["deletedAnnotationCount"] == 2
+        assert await _trace_count(db, annotation_data.project_rowid, "quality") == 0
+        assert await _trace_count(db, annotation_data.other_project_rowid, "quality") == 1
 
-    async def test_delete_session_annotations_by_name(self, gql_client: AsyncGraphQLClient) -> None:
+    async def test_delete_session_annotations_by_name(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        annotation_data: AnnotationData,
+    ) -> None:
         result = await gql_client.execute(
             DELETE_SESSION,
-            {"input": {"projectId": PROJECT_ID, "annotationName": "quality"}},
+            {"input": {"projectId": annotation_data.project_id, "annotationName": "quality"}},
         )
         assert not result.errors
         assert result.data is not None
         assert result.data["deleteProjectSessionAnnotations"]["deletedAnnotationCount"] == 2
+        assert await _session_count(db, annotation_data.project_rowid, "quality") == 0
+        assert await _session_count(db, annotation_data.other_project_rowid, "quality") == 1
 
     async def test_delete_with_no_matches_returns_zero(
-        self, gql_client: AsyncGraphQLClient
+        self, gql_client: AsyncGraphQLClient, annotation_data: AnnotationData
     ) -> None:
         result = await gql_client.execute(
             DELETE_SPAN,
-            {"input": {"projectId": PROJECT_ID, "annotationName": "does-not-exist"}},
+            {
+                "input": {
+                    "projectId": annotation_data.project_id,
+                    "annotationName": "does-not-exist",
+                }
+            },
         )
         assert not result.errors
         assert result.data is not None
         assert result.data["deleteProjectSpanAnnotations"]["deletedAnnotationCount"] == 0
 
     async def test_delete_with_invalid_time_range_errors(
-        self, gql_client: AsyncGraphQLClient
+        self, gql_client: AsyncGraphQLClient, annotation_data: AnnotationData
     ) -> None:
         result = await gql_client.execute(
             DELETE_SPAN,
             {
                 "input": {
-                    "projectId": PROJECT_ID,
+                    "projectId": annotation_data.project_id,
                     "annotationName": "quality",
                     "timeRange": {"start": NEW.isoformat(), "end": OLD.isoformat()},
                 }
@@ -259,6 +352,24 @@ class TestProjectAnnotationMutations:
         )
         assert result.errors
         assert "Invalid time range" in result.errors[0].message
+
+    async def test_delete_with_unknown_project_id_errors(
+        self, gql_client: AsyncGraphQLClient, annotation_data: AnnotationData
+    ) -> None:
+        unknown_project_id = str(
+            GlobalID("Project", str(annotation_data.other_project_rowid + 1000))
+        )
+        result = await gql_client.execute(
+            DELETE_SPAN,
+            {
+                "input": {
+                    "projectId": unknown_project_id,
+                    "annotationName": "quality",
+                }
+            },
+        )
+        assert result.errors
+        assert "Could not find project" in result.errors[0].message
 
     async def test_delete_with_invalid_project_id_errors(
         self, gql_client: AsyncGraphQLClient
