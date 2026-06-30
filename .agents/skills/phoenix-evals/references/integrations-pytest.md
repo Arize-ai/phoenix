@@ -104,6 +104,4 @@ jobs:
         run: pytest tests/evals/
 ```
 
-A runnable [pytest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/examples/pytest-example) ships an `eval-ci.yml`.
-
 Full reference: `docs/phoenix/evaluation/integrations/pytest.mdx`.

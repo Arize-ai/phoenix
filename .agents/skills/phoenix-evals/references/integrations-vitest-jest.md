@@ -124,6 +124,4 @@ jobs:
         run: npm run eval
 ```
 
-A runnable [Vitest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/vitest-example) ships an `eval-ci.yml` (pnpm-workspace pattern: install once at the workspace root, run from the package dir).
-
 Full reference: `docs/phoenix/evaluation/integrations/vitest-jest.mdx`.
