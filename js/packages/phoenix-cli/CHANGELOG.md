@@ -1,5 +1,14 @@
 # @arizeai/phoenix-cli
 
+## 1.6.1
+
+### Patch Changes
+
+- 6240c13: fix(cli): improve pxi preflight network errors
+- f3809ed: **PXI:** Add slash command support to the `pxi` terminal client. Type `/clear` to reset the conversation history, `/exit` to quit, or `/help` to list available commands. The input prompt now syntax-highlights command tokens in yellow and shows a live completion list while you type.
+- Updated dependencies [7afa183]
+  - @arizeai/phoenix-client@6.11.2
+
 ## 1.6.0
 
 ### Minor Changes
