@@ -333,10 +333,12 @@ function InputPrompt({
   draft,
   status,
   usageLine,
+  modelLabel,
 }: {
   draft: DraftEditorState;
   status: PxiStatus;
   usageLine: string | null;
+  modelLabel: string;
 }) {
   const draftValue = draft.value;
   const cmdName = getSlashCommandName(draftValue);
@@ -365,9 +367,10 @@ function InputPrompt({
           />
         </Text>
       </Box>
-      {/* Footer: helper text / command hints on the left, and the running token
-          usage pinned to the bottom-right so the user can gauge how much of the
-          context window is in play (mirrors the web UI's session usage line). */}
+      {/* Footer: helper text / command hints on the left, and the active model
+          plus running token usage pinned to the bottom-right so the user can see
+          which model is answering and how much of the context window is in play
+          (mirrors the web UI's session usage line). */}
       <Box flexDirection="row" justifyContent="space-between">
         {hints.length > 0 ? (
           <Box flexDirection="column">
@@ -390,11 +393,13 @@ function InputPrompt({
             /help for commands. Ctrl+D or Ctrl+C exits.
           </Text>
         )}
-        {usageLine ? (
-          <Box flexShrink={0} marginLeft={2}>
-            <Text color="green">{usageLine}</Text>
-          </Box>
-        ) : null}
+        <Box flexShrink={0} marginLeft={2}>
+          <Text>
+            {usageLine ? <Text color="green">{usageLine}</Text> : null}
+            {usageLine ? <Text dimColor>{" | "}</Text> : null}
+            <Text dimColor>{modelLabel}</Text>
+          </Text>
+        </Box>
       </Box>
     </Box>
   );
@@ -757,6 +762,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         draft={draft}
         status={status}
         usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
+        modelLabel={getModelLabel(options)}
       />
     </Box>
   );
