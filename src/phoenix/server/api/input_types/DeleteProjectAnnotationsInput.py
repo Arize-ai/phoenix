@@ -21,9 +21,9 @@ class AnnotationTimeRangeField(Enum):
 
 @strawberry.input
 class DeleteProjectAnnotationsInput:
-    """Input for bulk-deleting every annotation with a given name at a single
-    level (span, trace, or session) within a project, optionally restricted to a
-    time range."""
+    """Input for bulk-deleting every annotation with a given name for a single
+    target type (span, trace, or session) within a project, optionally restricted
+    to a time range."""
 
     project_id: GlobalID
     annotation_name: str
