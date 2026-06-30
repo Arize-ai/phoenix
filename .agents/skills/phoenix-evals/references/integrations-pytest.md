@@ -103,5 +103,3 @@ jobs:
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         run: pytest tests/evals/
 ```
-
-Full reference: `docs/phoenix/evaluation/integrations/pytest.mdx`.

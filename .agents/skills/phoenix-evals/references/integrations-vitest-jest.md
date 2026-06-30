@@ -123,5 +123,3 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run eval
 ```
-
-Full reference: `docs/phoenix/evaluation/integrations/vitest-jest.mdx`.
