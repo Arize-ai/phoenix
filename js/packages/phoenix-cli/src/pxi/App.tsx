@@ -71,7 +71,6 @@ const KITTY_BACKSPACE_INPUT_PATTERN =
   /^\x1B\[(?:8|127)(?:;\d+(?::[12])?(?:;[\d:]+)?)?u$/;
 const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
-const BRACKETED_PASTE_MARKER_PATTERN = /(?:\x1B)?\[(?:200|201)~/g;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 
 export type PxiAppProps = {
@@ -405,6 +404,14 @@ function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
 }
 
+function isBracketedPasteMarkerInput({ input }: { input: string }) {
+  return input === `${ESCAPE_INPUT}[200~` || input === `${ESCAPE_INPUT}[201~`;
+}
+
+function isStrippedBracketedPasteMarkerInput({ input }: { input: string }) {
+  return input === "[200~" || input === "[201~";
+}
+
 function isBackspaceInput({ input }: { input: string }) {
   return (
     BACKSPACE_INPUTS.has(input) || KITTY_BACKSPACE_INPUT_PATTERN.test(input)
@@ -419,10 +426,7 @@ function isForwardDeleteInput({ input }: { input: string }) {
 }
 
 function getDraftInputText({ input }: { input: string }) {
-  return input
-    .replace(BRACKETED_PASTE_MARKER_PATTERN, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n");
+  return input.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
 function getCompletedInterruptedPart({
@@ -623,6 +627,36 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       });
   };
 
+  const bracketedPasteMarkerCountRef = useRef(0);
+  const handleRawInput = (input: string) => {
+    if (status === "streaming") {
+      return;
+    }
+    if (isBracketedPasteMarkerInput({ input })) {
+      bracketedPasteMarkerCountRef.current += 1;
+      return;
+    }
+    if (isBackspaceInput({ input })) {
+      setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
+      return;
+    }
+    if (isForwardDeleteInput({ input })) {
+      setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
+    }
+  };
+  const rawInputHandlerRef = useRef(handleRawInput);
+  rawInputHandlerRef.current = handleRawInput;
+
+  useEffect(() => {
+    const handleInputEvent = (input: string) => {
+      rawInputHandlerRef.current(input);
+    };
+    inputEventEmitter.on("input", handleInputEvent);
+    return () => {
+      inputEventEmitter.removeListener("input", handleInputEvent);
+    };
+  }, [inputEventEmitter]);
+
   useInput((input, key) => {
     if (key.escape) {
       interruptStream();
@@ -685,6 +719,13 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     if (key.backspace || key.delete) {
       return;
     }
+    if (
+      isStrippedBracketedPasteMarkerInput({ input }) &&
+      bracketedPasteMarkerCountRef.current > 0
+    ) {
+      bracketedPasteMarkerCountRef.current -= 1;
+      return;
+    }
     if (input) {
       const text = getDraftInputText({ input });
       if (text) {
@@ -692,31 +733,6 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       }
     }
   });
-
-  const handleDeleteInput = (input: string) => {
-    if (status === "streaming") {
-      return;
-    }
-    if (isBackspaceInput({ input })) {
-      setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
-      return;
-    }
-    if (isForwardDeleteInput({ input })) {
-      setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
-    }
-  };
-  const deleteInputHandlerRef = useRef(handleDeleteInput);
-  deleteInputHandlerRef.current = handleDeleteInput;
-
-  useEffect(() => {
-    const handleInputEvent = (input: string) => {
-      deleteInputHandlerRef.current(input);
-    };
-    inputEventEmitter.on("input", handleInputEvent);
-    return () => {
-      inputEventEmitter.removeListener("input", handleInputEvent);
-    };
-  }, [inputEventEmitter]);
 
   return (
     <Box flexDirection="column" paddingX={1}>

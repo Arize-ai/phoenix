@@ -227,6 +227,28 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("uses Down arrow from a blank first prompt line", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: KITTY_SHIFT_ENTER });
+    await writeInput({ stdin, input: "world" });
+    await writeInput({ stdin, input: CTRL_A });
+    await writeInput({ stdin, input: DOWN_ARROW });
+    await writeInput({ stdin, input: "!" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("!world");
+    unmount();
+  });
+
   it("preserves the preferred cursor column across vertical cursor movement", async () => {
     let submittedText: string | undefined;
     const client = createCapturingClient({
@@ -558,6 +580,25 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("preserves literal bracketed paste marker text", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+    const prompt = "literal [200~ marker [201~ text";
+
+    await writeInput({ stdin, input: prompt });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe(prompt);
+    unmount();
+  });
+
   it("ignores terminal keyboard protocol responses", async () => {
     const client: PxiChatClient = {
       sendMessage: async () => null,
@@ -631,6 +672,8 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "ignored" });
     await writeInput({ stdin, input: MAC_DELETE });
     await writeInput({ stdin, input: DELETE_KEY });
+    await writeInput({ stdin, input: BRACKETED_PASTE_START });
+    await writeInput({ stdin, input: BRACKETED_PASTE_END });
     await writeInput({ stdin, input: "\r" });
 
     expect(submittedTexts).toEqual(["hello"]);
@@ -638,10 +681,10 @@ describe("PXI app", () => {
     await act(async () => {
       resolveResponse?.(null);
     });
-    await writeInput({ stdin, input: "next" });
+    await writeInput({ stdin, input: "next [200~ [201~" });
     await writeInput({ stdin, input: "\r" });
 
-    expect(submittedTexts).toEqual(["hello", "next"]);
+    expect(submittedTexts).toEqual(["hello", "next [200~ [201~"]);
     unmount();
   });
 

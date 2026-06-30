@@ -98,9 +98,8 @@ function getDraftLineInfo({ draft }: { draft: DraftEditorState }): {
   column: number;
 } {
   const cursorIndex = clampCursorIndex({ draft });
-  const lineStartSearchIndex = Math.max(0, cursorIndex - 1);
   const lineStartIndex =
-    draft.value.lastIndexOf("\n", lineStartSearchIndex) + 1;
+    cursorIndex === 0 ? 0 : draft.value.lastIndexOf("\n", cursorIndex - 1) + 1;
   const nextNewlineIndex = draft.value.indexOf("\n", cursorIndex);
   const lineEndIndex =
     nextNewlineIndex === -1 ? draft.value.length : nextNewlineIndex;
