@@ -1,5 +1,17 @@
 # Changelog
 
+## [17.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.13.0...arize-phoenix-v17.14.0) (2026-06-30)
+
+
+### Features
+
+* **ui:** add annotation summary to project settings ([#13850](https://github.com/Arize-ai/phoenix/issues/13850)) ([05582a1](https://github.com/Arize-ai/phoenix/commit/05582a132f5400bdaf7451c0e954df286ee09a81))
+
+
+### Bug Fixes
+
+* **agents:** engage Anthropic prompt caching in PXI ([#13941](https://github.com/Arize-ai/phoenix/issues/13941)) ([9bacd33](https://github.com/Arize-ai/phoenix/commit/9bacd33987c50789bc079da706b2f0c2344ec870))
+
 ## [17.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.12.0...arize-phoenix-v17.13.0) (2026-06-30)
 
 
