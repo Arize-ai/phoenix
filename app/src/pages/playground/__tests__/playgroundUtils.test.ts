@@ -1542,7 +1542,7 @@ describe("getToolsFromAttributes", () => {
           tools: [spanTool],
         },
       };
-      const result = getToolsFromAttributes(parsedAttributes);
+      const result = getToolsFromAttributes({ parsedAttributes });
       expect(result).toEqual({
         tools: [
           {
@@ -1567,7 +1567,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
       },
     };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: [
         {
@@ -1602,7 +1602,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(unwrappedBody) } }],
       },
     };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: [
         {
@@ -1628,7 +1628,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
       },
     };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: [
         {
@@ -1657,7 +1657,10 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(unwrappedBody) } }],
       },
     };
-    const result = getToolsFromAttributes(parsedAttributes, "AWS");
+    const result = getToolsFromAttributes({
+      parsedAttributes,
+      provider: "AWS",
+    });
     expect(result).toEqual({
       tools: [
         {
@@ -1670,7 +1673,7 @@ describe("getToolsFromAttributes", () => {
       parsingErrors: [],
     });
     // Same tool without the AWS provider is left verbatim.
-    const withoutProvider = getToolsFromAttributes(parsedAttributes);
+    const withoutProvider = getToolsFromAttributes({ parsedAttributes });
     expect(withoutProvider).toEqual({
       tools: [
         {
@@ -1710,7 +1713,7 @@ describe("getToolsFromAttributes", () => {
         ],
       },
     };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: [
         {
@@ -1739,7 +1742,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
       },
     };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: [
         {
@@ -1755,7 +1758,7 @@ describe("getToolsFromAttributes", () => {
 
   it("should return null tools and parsing errors if tools are invalid", () => {
     const parsedAttributes = { llm: { tools: "invalid" } };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: null,
       parsingErrors: [TOOLS_PARSING_ERROR],
@@ -1764,7 +1767,7 @@ describe("getToolsFromAttributes", () => {
 
   it("should return null tools and no parsing errors if tools are not present", () => {
     const parsedAttributes = { llm: {} };
-    const result = getToolsFromAttributes(parsedAttributes);
+    const result = getToolsFromAttributes({ parsedAttributes });
     expect(result).toEqual({
       tools: null,
       parsingErrors: [],

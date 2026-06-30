@@ -878,10 +878,13 @@ export function getResponseFormatFromAttributes(
  * Either signal is enough; together they avoid both missed AWS spans and
  * touching other providers' raw tools.
  */
-function wrapUnwrappedBedrockToolSpec(
-  raw: Record<string, unknown>,
-  provider?: ModelProvider
-): Record<string, unknown> {
+function wrapUnwrappedBedrockToolSpec({
+  raw,
+  provider,
+}: {
+  raw: Record<string, unknown>;
+  provider?: ModelProvider;
+}): Record<string, unknown> {
   if ("toolSpec" in raw || "systemTool" in raw || "cachePoint" in raw) {
     return raw;
   }
@@ -903,10 +906,13 @@ function wrapUnwrappedBedrockToolSpec(
  * everything else (vendor builtins, unrecognized shapes) becomes a raw
  * passthrough. Returns null only for non-objects.
  */
-function createToolFromRawDefinition(
-  rawDefinition: unknown,
-  provider?: ModelProvider
-): Tool | null {
+function createToolFromRawDefinition({
+  rawDefinition,
+  provider,
+}: {
+  rawDefinition: unknown;
+  provider?: ModelProvider;
+}): Tool | null {
   const normalizedFunctionDefinition = toCanonicalToolDefinition(rawDefinition);
   if (normalizedFunctionDefinition != null) {
     return {
@@ -921,7 +927,7 @@ function createToolFromRawDefinition(
       kind: "raw",
       id: generateToolId(),
       editorType: "json",
-      raw: wrapUnwrappedBedrockToolSpec(rawDefinition, provider),
+      raw: wrapUnwrappedBedrockToolSpec({ raw: rawDefinition, provider }),
     };
   }
   return null;
@@ -935,17 +941,20 @@ function createToolFromRawDefinition(
  * @param tools tools from the span attributes
  * @returns playground tools
  */
-function processAttributeTools(
-  tools: LlmToolSchema,
-  provider?: ModelProvider
-): Tool[] {
+function processAttributeTools({
+  tools,
+  provider,
+}: {
+  tools: LlmToolSchema;
+  provider?: ModelProvider;
+}): Tool[] {
   return (tools?.llm?.tools ?? [])
     .map((tool) => {
       if (tool?.tool == null) {
         return null;
       }
       const rawDefinition = tool.tool.json_schema;
-      return createToolFromRawDefinition(rawDefinition, provider);
+      return createToolFromRawDefinition({ rawDefinition, provider });
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 }
@@ -957,10 +966,13 @@ function processAttributeTools(
  *
  * NB: Only exported for testing
  */
-export function getToolsFromAttributes(
-  parsedAttributes: unknown,
-  provider?: ModelProvider
-):
+export function getToolsFromAttributes({
+  parsedAttributes,
+  provider,
+}: {
+  parsedAttributes: unknown;
+  provider?: ModelProvider;
+}):
   | { tools: Tool[]; parsingErrors: never[] }
   | { tools: null; parsingErrors: string[] } {
   const { data, success } = llmToolSchema.safeParse(parsedAttributes);
@@ -972,7 +984,10 @@ export function getToolsFromAttributes(
   if (data?.llm?.tools == null) {
     return { tools: null, parsingErrors: [] };
   }
-  return { tools: processAttributeTools(data, provider), parsingErrors: [] };
+  return {
+    tools: processAttributeTools({ tools: data, provider }),
+    parsingErrors: [],
+  };
 }
 
 export function getPromptTemplateVariablesFromAttributes(
@@ -1121,10 +1136,10 @@ export function transformSpanAttributesToPlaygroundInstance(
         }
       : null;
 
-  const { tools, parsingErrors: toolsParsingErrors } = getToolsFromAttributes(
+  const { tools, parsingErrors: toolsParsingErrors } = getToolsFromAttributes({
     parsedAttributes,
-    spanProvider
-  );
+    provider: spanProvider,
+  });
 
   const messages = rawMessages?.map((message) => {
     return {
