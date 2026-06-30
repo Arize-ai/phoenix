@@ -1,5 +1,27 @@
 # Changelog
 
+## [17.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.12.0...arize-phoenix-v17.13.0) (2026-06-30)
+
+
+### Features
+
+* **cli:** add pxi tui ([#13905](https://github.com/Arize-ai/phoenix/issues/13905)) ([70246e9](https://github.com/Arize-ai/phoenix/commit/70246e989a84134203d630a2b9aaf9714bd8492c))
+* **phoenix-client:** add pytest plugin for eval CI ([#13874](https://github.com/Arize-ai/phoenix/issues/13874)) ([6ebe82c](https://github.com/Arize-ai/phoenix/commit/6ebe82cb900d90fdd1fd6d6afc82bf8e76ec82ea))
+* **pydantic-ai:** simplify turn output instrumentation ([#13904](https://github.com/Arize-ai/phoenix/issues/13904)) ([0ab1b71](https://github.com/Arize-ai/phoenix/commit/0ab1b71ac0004d01631cd9e732851fc1a58d5010))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#13935](https://github.com/Arize-ai/phoenix/issues/13935)) ([f37e8dc](https://github.com/Arize-ai/phoenix/commit/f37e8dc578c0e4cb14cab0b1f811b09d9b0aa764))
+* **deps:** update arize-phoenix-client to 2.10.0 ([fc1a3df](https://github.com/Arize-ai/phoenix/commit/fc1a3df765db10b7eae9395c5c02e4d6332afcda))
+* emit dml event for PXI local traces ([#13936](https://github.com/Arize-ai/phoenix/issues/13936)) ([d261c8f](https://github.com/Arize-ai/phoenix/commit/d261c8f8d817d274a485ce5e2d8c8500f3bc67e1))
+* **playground:** guard against empty dataset versions array ([#13908](https://github.com/Arize-ai/phoenix/issues/13908)) ([cacbbd4](https://github.com/Arize-ai/phoenix/commit/cacbbd41c6062b1729e600e000e236a2640ab937))
+
+
+### Documentation
+
+* **skill:** add pytest/vitest/jest integration references to phoenix-evals ([#13942](https://github.com/Arize-ai/phoenix/issues/13942)) ([071aa66](https://github.com/Arize-ai/phoenix/commit/071aa66d701d890f1e2a1aa46fc5227a4a629a36))
+
 ## [17.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.11.0...arize-phoenix-v17.12.0) (2026-06-25)
 
 
