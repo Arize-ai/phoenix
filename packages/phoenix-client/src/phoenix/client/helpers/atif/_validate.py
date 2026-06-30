@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime
 from typing import Any, List, Mapping, Optional, Set
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,19 @@ _AGENT_ONLY_FIELDS = {
     "reasoning_effort",
 }
 _SCHEMA_VERSION_PATTERN = re.compile(r"^ATIF-v\d+\.\d+$")
+_STEP_NUMERIC_METRIC_FIELDS = {
+    "prompt_tokens",
+    "completion_tokens",
+    "cached_tokens",
+    "cost_usd",
+}
+_FINAL_NUMERIC_METRIC_FIELDS = {
+    "total_prompt_tokens",
+    "total_completion_tokens",
+    "total_cached_tokens",
+    "total_cost_usd",
+    "total_steps",
+}
 
 
 def _parse_schema_version(schema_version: object) -> Optional[tuple[int, int]]:
@@ -28,6 +42,18 @@ def _parse_schema_version(schema_version: object) -> Optional[tuple[int, int]]:
     version_part = schema_version.split("-v")[1]
     major_str, minor_str = version_part.split(".")
     return int(major_str), int(minor_str)
+
+
+def _is_numeric(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_iso_8601_timestamp(value: str) -> bool:
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return True
 
 
 def _validate_atif_trajectory(
@@ -119,6 +145,18 @@ def _validate_atif_trajectory(
         # model_name is optional but if present must be a string
         if "model_name" in agent and not isinstance(agent["model_name"], str):
             errors.append("agent.model_name must be a string if provided")
+        if "extra" in agent and agent["extra"] is not None and not isinstance(agent["extra"], dict):
+            errors.append("agent.extra must be a dict if provided")
+
+    final_metrics = trajectory.get("final_metrics")
+    if final_metrics is not None:
+        if not isinstance(final_metrics, dict):
+            errors.append("final_metrics must be a dict if provided")
+        else:
+            for field in _FINAL_NUMERIC_METRIC_FIELDS:
+                value = final_metrics.get(field)
+                if value is not None and not _is_numeric(value):
+                    errors.append(f"final_metrics.{field} must be numeric if provided")
 
     # Steps validation
     raw_steps: object = trajectory["steps"]
@@ -181,6 +219,11 @@ def _validate_atif_trajectory(
         if source not in _VALID_SOURCES:
             errors.append(f"{prefix}: source '{source}' must be one of {_VALID_SOURCES}")
 
+        timestamp: object = step_dict.get("timestamp")
+        if timestamp is not None:
+            if not isinstance(timestamp, str) or not _is_iso_8601_timestamp(timestamp):
+                errors.append(f"{prefix}: timestamp must be ISO 8601 if provided")
+
         # Message required for user/system steps. ATIF v1.7 requires it for
         # all steps, including agent steps with an intentionally empty string.
         if source in ("user", "system") or (minor is not None and minor >= 7):
@@ -210,6 +253,16 @@ def _validate_atif_trajectory(
                 llm_zero_tool_calls = step_dict.get("tool_calls")
                 if not isinstance(llm_zero_tool_calls, list) or not llm_zero_tool_calls:
                     errors.append(f"{prefix}: tool_calls are required when llm_call_count is 0")
+
+        metrics = step_dict.get("metrics")
+        if metrics is not None:
+            if not isinstance(metrics, dict):
+                errors.append(f"{prefix}: metrics must be a dict if provided")
+            else:
+                for field in _STEP_NUMERIC_METRIC_FIELDS:
+                    value = metrics.get(field)
+                    if value is not None and not _is_numeric(value):
+                        errors.append(f"{prefix}: metrics.{field} must be numeric if provided")
 
         # Tool call validation
         tool_call_ids: Set[str] = set()
