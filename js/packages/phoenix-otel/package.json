@@ -50,7 +50,7 @@
     "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-otel",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p examples/tsconfig.examples.json"
   },
   "dependencies": {
     "@arizeai/openinference-core": "^2.4.0",
