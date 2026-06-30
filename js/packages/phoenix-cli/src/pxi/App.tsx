@@ -231,18 +231,24 @@ function getHighlightedDraftSegments({
   ];
 }
 
-function HighlightedDraftSegment({ segment }: { segment: DraftSegment }) {
+function HighlightedDraftSegment({
+  segment,
+  isInverse = false,
+}: {
+  segment: DraftSegment;
+  isInverse?: boolean;
+}) {
   if (!segment.text) {
     return null;
   }
   if (segment.isCommandSegment) {
     return (
-      <Text color="yellow" bold={segment.isBold}>
+      <Text color="yellow" bold={segment.isBold} inverse={isInverse}>
         {segment.text}
       </Text>
     );
   }
-  return <Text>{segment.text}</Text>;
+  return <Text inverse={isInverse}>{segment.text}</Text>;
 }
 
 function HighlightedDraft({
@@ -267,22 +273,32 @@ function HighlightedDraft({
         nextSegmentStartIndex = segmentEndIndex;
 
         if (
+          isCursorVisible &&
           !hasRenderedCursor &&
           boundedCursorIndex >= segmentStartIndex &&
-          boundedCursorIndex <= segmentEndIndex
+          boundedCursorIndex < segmentEndIndex
         ) {
           hasRenderedCursor = true;
           const cursorOffset = boundedCursorIndex - segmentStartIndex;
           const beforeCursor = segment.text.slice(0, cursorOffset);
-          const afterCursor = segment.text.slice(cursorOffset);
+          const cursorText = segment.text.slice(cursorOffset, cursorOffset + 1);
+          const isCursorOnNewline = cursorText === "\n";
+          const afterCursor = segment.text.slice(
+            cursorOffset + (isCursorOnNewline ? 0 : 1)
+          );
           return [
             <HighlightedDraftSegment
               key={`${segmentIndex}-before`}
               segment={{ ...segment, text: beforeCursor }}
             />,
-            isCursorVisible ? (
-              <Text key={`${segmentIndex}-cursor`}>█</Text>
-            ) : null,
+            <HighlightedDraftSegment
+              key={`${segmentIndex}-cursor`}
+              segment={{
+                ...segment,
+                text: isCursorOnNewline ? "█" : cursorText,
+              }}
+              isInverse
+            />,
             <HighlightedDraftSegment
               key={`${segmentIndex}-after`}
               segment={{ ...segment, text: afterCursor }}

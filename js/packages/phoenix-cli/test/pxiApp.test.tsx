@@ -140,6 +140,42 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("renders the cursor over the selected character without shifting draft text", async () => {
+    const client: PxiChatClient = {
+      sendMessage: async () => null,
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "hello" });
+    await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 2 });
+
+    const frame = lastFrame() ?? "";
+    expect(frame).not.toContain("█");
+    expect(stripAnsi(frame)).toContain("> hello");
+    unmount();
+  });
+
+  it("renders the cursor on an empty prompt line", async () => {
+    const client: PxiChatClient = {
+      sendMessage: async () => null,
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "top" });
+    await writeInput({ stdin, input: KITTY_SHIFT_ENTER });
+    await writeInput({ stdin, input: KITTY_SHIFT_ENTER });
+    await writeInput({ stdin, input: "bottom" });
+    await writeInput({ stdin, input: UP_ARROW });
+
+    const frame = lastFrame() ?? "";
+    expect(stripAnsi(frame)).toMatch(/> top\n\s*█\n\s*bottom/);
+    unmount();
+  });
+
   it("uses Up arrow to move to the previous prompt line", async () => {
     let submittedText: string | undefined;
     const client = createCapturingClient({
