@@ -438,7 +438,9 @@ def build_report(
     return Report(
         dataset_name=dataset.dataset_name,
         dataset_stem=dataset_stem,
-        dataset_file=str(_DATASETS_DIR_RELATIVE / f"{dataset_stem}.yaml"),
+        # ``as_posix`` keeps forward slashes so the repo-relative path renders
+        # and compares identically on Windows (avoids backslash separators).
+        dataset_file=(_DATASETS_DIR_RELATIVE / f"{dataset_stem}.yaml").as_posix(),
         experiment_name=experiment_name,
         experiment_url=_experiment_url(experiment, base_url),
         git_sha=str(metadata.get("git_sha", "unknown")),
