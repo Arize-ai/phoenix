@@ -9,6 +9,7 @@ import {
   SLASH_COMMANDS,
 } from "./commands";
 import { Markdown } from "./inkMarkdown";
+import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
 import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
@@ -221,7 +222,15 @@ function HighlightedDraft({ draft }: { draft: string }) {
 }
 
 /** Render the prompt row with helper text below it. */
-function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
+function InputPrompt({
+  draft,
+  status,
+  usageLine,
+}: {
+  draft: string;
+  status: PxiStatus;
+  usageLine: string | null;
+}) {
   const cursor = status === "streaming" ? "" : "█";
   const cmdName = getSlashCommandName(draft);
   // Show matching commands while the user is still typing the command token
@@ -231,7 +240,7 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
   const hints = showHints ? matchingCommands(cmdName) : [];
 
   return (
-    <Box flexDirection="column" marginTop={1} gap={1}>
+    <Box flexDirection="column" marginTop={1}>
       <Box
         borderStyle="single"
         borderLeft={false}
@@ -246,27 +255,37 @@ function InputPrompt({ draft, status }: { draft: string; status: PxiStatus }) {
           {cursor}
         </Text>
       </Box>
-      {hints.length > 0 ? (
-        <Box flexDirection="column">
-          {hints.map((cmd) => (
-            <Text key={cmd.name}>
-              <Text color="yellow">{"  /"}</Text>
-              <Text color="yellow" bold>
-                {cmd.name}
+      {/* Footer: helper text / command hints on the left, and the running token
+          usage pinned to the bottom-right so the user can gauge how much of the
+          context window is in play (mirrors the web UI's session usage line). */}
+      <Box flexDirection="row" justifyContent="space-between">
+        {hints.length > 0 ? (
+          <Box flexDirection="column">
+            {hints.map((cmd) => (
+              <Text key={cmd.name}>
+                <Text color="yellow">{"  /"}</Text>
+                <Text color="yellow" bold>
+                  {cmd.name}
+                </Text>
+                <Text dimColor>
+                  {"  "}
+                  {cmd.description}
+                </Text>
               </Text>
-              <Text dimColor>
-                {"  "}
-                {cmd.description}
-              </Text>
-            </Text>
-          ))}
-        </Box>
-      ) : (
-        <Text dimColor>
-          Enter sends. Shift+Enter inserts a newline. Esc interrupts. Type /help
-          for commands. Ctrl+D or Ctrl+C exits.
-        </Text>
-      )}
+            ))}
+          </Box>
+        ) : (
+          <Text dimColor>
+            Enter sends. Shift+Enter inserts a newline. Esc interrupts. Type
+            /help for commands. Ctrl+D or Ctrl+C exits.
+          </Text>
+        )}
+        {usageLine ? (
+          <Box flexShrink={0} marginLeft={2}>
+            <Text color="green">{usageLine}</Text>
+          </Box>
+        ) : null}
+      </Box>
     </Box>
   );
 }
@@ -521,7 +540,11 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         </Box>
       ) : null}
       {status === "streaming" ? <ThinkingIndicator /> : null}
-      <InputPrompt draft={draft} status={status} />
+      <InputPrompt
+        draft={draft}
+        status={status}
+        usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
+      />
     </Box>
   );
 }
