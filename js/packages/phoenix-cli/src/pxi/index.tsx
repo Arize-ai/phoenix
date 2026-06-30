@@ -25,6 +25,15 @@ export async function main({
 } = {}): Promise<void> {
   const options = await parsePxiRuntimeOptions({ argv });
   await runPxiModelPreflight({ options });
+  // Ink's kitty-keyboard "auto" detection writes a `CSI ? u` capability query to
+  // stdout from its constructor, before it switches the terminal into raw mode.
+  // On a TTY still in canonical mode the terminal echoes its reply (`ESC[?0u`)
+  // back to the screen, leaving a stray `^[[?0u` line above the banner. Putting
+  // stdin into raw mode here disables that echo so Ink consumes the reply
+  // silently; Ink keeps raw mode on for the rest of the session.
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
   const instance = render(<PxiApp options={options} />, {
     exitOnCtrlC: false,
     kittyKeyboard: {
