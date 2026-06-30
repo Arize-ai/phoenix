@@ -590,9 +590,9 @@ jobs:
 
 The test runner's exit code is your CI gate. A failed assertion — or a failed acceptance criterion — exits with a non-zero code and fails the job.
 
-### Ready-to-copy workflow
+### Example workflow
 
-A complete, runnable version ships with the [Vitest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/vitest-example) as `eval-ci.yml`. Because that example is a member of a pnpm workspace, dependencies are installed once at the workspace root and the suite runs from its package directory. Copy it to `.github/workflows/` and adjust the `working-directory` paths to match your repo:
+The [Vitest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/vitest-example) includes this `eval-ci.yml`. It's a pnpm-workspace member, so dependencies install once at the workspace root and the suite runs from its package directory. Copy it to `.github/workflows/` and adjust the `working-directory` paths for your repo:
 
 ```yaml eval-ci.yml
 name: eval-ci
@@ -618,7 +618,7 @@ jobs:
         working-directory: js/examples/apps/vitest-example
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
+          PHOENIX_HOST: ${{ secrets.PHOENIX_HOST }}
           PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
         # Acceptance criteria in the suite fail the run on a nonzero exit.
         run: pnpm eval

@@ -332,9 +332,9 @@ jobs:
 Uploads to Phoenix are best-effort and never fail a test. A network problem is reported as a warning rather than failing the build, so a transient Phoenix outage won't block your deploys.
 </Tip>
 
-### Ready-to-copy workflow
+### Example workflow
 
-A complete, runnable version of this workflow ships with the [pytest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/examples/pytest-example) as `eval-ci.yml`. Copy it to `.github/workflows/` and adjust `working-directory` to where your suite lives:
+The [pytest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/examples/pytest-example) includes this `eval-ci.yml`. Copy it to `.github/workflows/` and set `working-directory` to where your suite lives:
 
 ```yaml eval-ci.yml
 name: eval-ci
