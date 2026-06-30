@@ -104,6 +104,22 @@ describe("PXI app", () => {
     unmount();
   });
 
+  it("shows the active model name in the prompt footer", () => {
+    const client: PxiChatClient = {
+      sendMessage: async () => null,
+    };
+    const { lastFrame, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    // The model label is pinned to the bottom-right of the prompt, below the
+    // help text rather than in the header status line.
+    const frame = stripAnsi(lastFrame() ?? "");
+    const footer = frame.slice(frame.indexOf("Enter sends."));
+    expect(footer).toContain("OPENAI/gpt-5.4");
+    unmount();
+  });
+
   it("uses Shift+Enter to insert a newline at the cursor before submitting", async () => {
     let submittedText: string | undefined;
     const client = createCapturingClient({
