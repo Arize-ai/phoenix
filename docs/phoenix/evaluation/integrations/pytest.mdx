@@ -31,6 +31,27 @@ log_evaluation()   →  named annotation
 
 This means the same suite that gates your pull requests also builds a versioned history of results you can compare in Phoenix over time.
 
+## Two kinds of checks: invariants vs. signals
+
+Before reaching for a single helper, decide what each check *is*. Evals differ from ordinary tests because an LLM is in the loop: outputs are non-deterministic, some can't be graded by code at all, and pass/fail is often too blunt — quality lives on a spectrum. That pushes every check into one of two buckets, and you treat them differently.
+
+- **Hard invariants.** There is exactly one acceptable behavior, and ordinary code can verify it — a required refusal, valid JSON, a tool that must be called. These belong in `assert`. A failed assertion records `pass=False` and turns CI red, exactly like any unit test. If the invariant breaks, the build breaks.
+- **Quality signals.** There's no single correct string, only better and worse answers — helpfulness, groundedness, tone. You *score* these (often with an LLM judge) instead of asserting on them, then watch the trend in Phoenix. A single weak result shouldn't fail the build, because some variance is the nature of the model. Log them with `log_evaluation()` / `evaluate()` and let them accumulate as annotations; gate on the aggregate trend separately rather than on every case.
+
+Deciding which checks are invariants and which are signals is the real first move — everything after it is plumbing. A good rule of thumb: `assert` the smallest behavior you'd be embarrassed to ship broken, and score the fuzzier stuff as a signal.
+
+```python
+@pytest.mark.phoenix(dataset="my-first-eval")
+def test_first_eval():
+    output = run_system(scenario)        # scenario through the system under test
+    log_output({"response": output})
+
+    score = judge(output)                # quality signal → record and trend
+    log_evaluation(name="quality", score=score)
+
+    assert invariant_holds(output)       # hard invariant → gate CI
+```
+
 ## Installation
 
 <Info>
@@ -205,6 +226,96 @@ Hoisted evaluators are invoked using the same adapter as `run_experiment`, so an
 
 <Tip>
 Any evaluator from [`arize-phoenix-evals`](/docs/phoenix/evaluation/pre-built-metrics) works here — `FaithfulnessEvaluator`, `DocumentRelevanceEvaluator`, QA correctness, toxicity, and more — as does any plain function you'd pass to `run_experiment`. Write a custom evaluator once and use it from both.
+</Tip>
+
+## LLM-as-a-judge: scoring quality signals
+
+When a check is a [quality signal](#two-kinds-of-checks-invariants-vs-signals) — accuracy, groundedness, tone — there's no single correct string to assert against. Hand the judging to another model with [`create_classifier`](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators), which emits a label mapped to a numeric score plus an explanation. Pass it to `evaluate()` and the verdict is recorded as its own annotation under a linked evaluator span — **without** asserting on it, so a single weak answer trends in Phoenix instead of breaking the build.
+
+Consider a grounded support bot. It has two jobs that map cleanly onto the two kinds of checks. When a question is covered by a knowledge-base excerpt, it should answer accurately from that excerpt — a *quality signal*, since the bot can phrase a correct answer a dozen ways. When nothing covers the question, it should decline with a fixed line — a *hard invariant*, since exactly one output is acceptable. So we judge helpfulness as a trend and hard-assert only the refusal.
+
+```python
+import time
+
+import pytest
+from phoenix.client.pytest import evaluate, log_evaluation, log_output
+from phoenix.evals import LLM, create_classifier
+
+# Knowledge-base excerpts; "offtopic" is empty, so the bot must decline.
+KB = {
+    "billing": "Refunds are available within 14 days of a charge. ...",
+    "offtopic": "",
+}
+
+JUDGE_PROMPT = """\
+You are a strict reviewer for a support bot. You see the knowledge-base excerpt
+the bot worked from, the user question, and the bot's response.
+
+Knowledge base:
+{{knowledge_base}}
+
+Question: {{question}}
+
+Bot response: {{response}}
+
+Label the response "helpful" if it is accurate and grounded in the excerpt (or
+correctly declines when the excerpt does not contain the answer). Label it
+"unhelpful" if it is wrong, unsupported, vague, or ignores the question.\
+"""
+
+# A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable —
+# a noisy judge makes the whole suite flaky. The kwargs to evaluate() below fill
+# these template variables. The judge sees the same excerpt the bot did, so it
+# can tell whether an answer was grounded, and whether declining was the right call.
+helpfulness = create_classifier(
+    name="helpfulness",
+    llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
+    prompt_template=JUDGE_PROMPT,
+    choices={"helpful": 1.0, "unhelpful": 0.0},
+)
+
+CASES = [
+    ("How do I get a refund?", "billing", False),
+    ("What's the capital of France?", "offtopic", True),
+]
+
+@pytest.mark.phoenix(dataset="support-bot")
+@pytest.mark.parametrize(
+    "question,kb_key,expect_refusal", CASES, ids=["refund", "offtopic"]
+)
+def test_support_response(question, kb_key, expect_refusal):
+    kb_context = KB[kb_key]
+
+    t0 = time.perf_counter()
+    response = answer_question(question, kb_context)
+    latency_ms = (time.perf_counter() - t0) * 1000
+
+    log_output({"response": response})
+
+    # Structural metric, logged as a CODE annotation — a signal, not a gate.
+    log_evaluation(name="latency_ms", score=latency_ms)
+
+    # LLM judge, recorded under its own evaluator span and surfaced as "helpfulness".
+    # Note: NOT asserted — on-topic quality rides on the aggregate trend in Phoenix.
+    evaluate(
+        helpfulness,
+        knowledge_base=kb_context or "(empty)",
+        question=question,
+        response=response,
+    )
+
+    # Hard assertion only for the structural refusal check — the one eval we
+    # don't want to ship broken.
+    if expect_refusal:
+        assert "I don't have information on that" in response, (
+            f"Expected refusal for off-topic question, got:\n{response}"
+        )
+```
+
+This is the whole pattern: log the judge's score so it accumulates as a trend, and reserve `assert` for the invariant. To gate CI on a judge anyway — when an invariant genuinely needs an LLM to verify it — capture the result and assert on it: `result = evaluate(judge, ...); assert result["score"] == 1.0`. Use that sparingly, since it makes a non-deterministic score a hard gate.
+
+<Tip>
+Pick the judge model deliberately. Judging a weaker model with a stronger one (here, Sonnet grading Haiku) keeps verdicts stable across runs; a judge that's no better than the system under test adds noise rather than signal. See [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
 </Tip>
 
 ## Repetitions

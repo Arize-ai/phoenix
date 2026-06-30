@@ -75,3 +75,4 @@ evaluators-{code|llm}-{python|typescript} → integrations-{pytest|vitest-jest} 
 | Code first | Deterministic before LLM |
 | Validate judges | >80% TPR/TNR |
 | Binary > Likert | Pass/fail, not 1-5 |
+| Invariants gate, signals trend | `assert`/`expect` hard invariants (CI red); log LLM-judge quality signals and gate the aggregate (acceptance criteria), not every case |

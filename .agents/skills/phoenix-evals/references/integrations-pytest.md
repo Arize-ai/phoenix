@@ -56,6 +56,72 @@ Dataset-name precedence: `PHOENIX_TEST_DATASET` env > `phoenix_dataset` in `pyte
 
 Hoisted evaluators bind arguments **by parameter name**: `output` (from `log_output`), `input` (parametrized fields), `expected`/`reference`/`metadata` (parametrized fields of that name), `trace_id`. Any `arize-phoenix-evals` evaluator (`FaithfulnessEvaluator`, etc.) or any `run_experiment` function works unchanged. Every score is wrapped in its own evaluator span linked to the trace.
 
+## Two kinds of checks: invariants vs. signals
+
+The decision that shapes every eval suite is which checks gate CI and which only trend. Get this split right and the rest is plumbing.
+
+- **Hard invariants** — exactly one acceptable behavior, verifiable in code (a required refusal, valid JSON, a tool that must fire). `assert` these. A failure records `pass=False` and turns CI red, like any unit test.
+- **Quality signals** — answers that live on a spectrum with no single correct string (helpfulness, groundedness, tone). Score with an LLM judge and **`log_evaluation`/`evaluate` only** — do *not* `assert` per case. LLM output is non-deterministic, so one weak answer shouldn't break the build; watch the aggregate trend in Phoenix instead. Gate on the trend separately (e.g. a nightly threshold or `run_experiment`), not on every case.
+
+Rule of thumb: assert the behavior you'd be embarrassed to ship broken; log everything else as a signal.
+
+## LLM-as-a-judge inside a test
+
+A judge is just an evaluator passed to `evaluate()` (or hoisted on the marker). The cleanest judge is a `create_classifier` from `arize-phoenix-evals`: it emits a label mapped to a numeric score plus an explanation, recorded as its own annotation under a linked evaluator span. `evaluate(judge, **kwargs)` fills the prompt-template variables from `kwargs`. Use a **stronger model to judge a weaker one** (e.g. Sonnet judging Haiku) so verdicts stay stable — a noisy judge makes the suite flaky.
+
+```python
+import time
+
+import pytest
+from phoenix.client.pytest import evaluate, log_evaluation, log_output
+from phoenix.evals import LLM, create_classifier
+
+# The judge sees the same KB excerpt the bot did, so it can tell whether the
+# answer was grounded — and whether declining was correct when the excerpt is empty.
+helpfulness = create_classifier(
+    name="helpfulness",
+    llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
+    prompt_template=(
+        "Knowledge base:\n{{knowledge_base}}\n\n"
+        "Question: {{question}}\n\nBot response: {{response}}\n\n"
+        'Label "helpful" if the response is accurate and grounded in the excerpt '
+        '(or correctly declines when the excerpt lacks the answer); otherwise "unhelpful".'
+    ),
+    choices={"helpful": 1.0, "unhelpful": 0.0},
+)
+
+CASES = [
+    ("How do I download invoices?", "billing", False),
+    ("What's the capital of France?", "", True),  # off-topic → must refuse
+]
+
+@pytest.mark.phoenix(dataset="support-bot")
+@pytest.mark.parametrize("question,kb_key,expect_refusal", CASES, ids=["invoices", "offtopic"])
+def test_support_response(question, kb_key, expect_refusal):
+    kb_context = KB.get(kb_key, "")
+
+    t0 = time.perf_counter()
+    response = answer_question(question, kb_context)
+    log_output({"response": response})
+
+    # Structural metric — a CODE signal, tracked not asserted.
+    log_evaluation(name="latency_ms", score=(time.perf_counter() - t0) * 1000)
+
+    # LLM-judge quality signal — recorded under its own evaluator span, NOT asserted.
+    evaluate(
+        helpfulness,
+        knowledge_base=kb_context or "(empty)",
+        question=question,
+        response=response,
+    )
+
+    # Hard invariant — the one eval we refuse to ship broken.
+    if expect_refusal:
+        assert "I don't have information on that" in response
+```
+
+Here the refusal is the invariant (asserted → gates CI); helpfulness and latency are signals (logged → trended). To make a judge gate the case anyway, capture its score and assert: `result = evaluate(judge, ...); assert result["score"] == 1.0` — reserve this for invariants a code check can't express.
+
 ## Environment variables
 
 | Variable | Default | Purpose |

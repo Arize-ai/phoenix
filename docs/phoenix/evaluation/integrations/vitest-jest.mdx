@@ -32,6 +32,15 @@ acceptanceCriteria →  CI gate on aggregate scores
 
 Suite-level `acceptanceCriteria` can fail CI when aggregate metrics drop below a threshold — for example, when average correctness falls below `0.8` or more than 10% of runs produce invalid SQL.
 
+## Two kinds of checks: invariants vs. signals
+
+Before reaching for a helper, decide what each check *is*. Evals differ from ordinary tests because an LLM is in the loop: outputs are non-deterministic, some can't be graded by code at all, and pass/fail is often too blunt — quality lives on a spectrum. That pushes every check into one of two buckets, and this runner gives each its own home.
+
+- **Hard invariants.** There is exactly one acceptable behavior, and ordinary code can verify it — a required refusal, valid JSON, a tool that must be called. These belong in a per-case `expect()`. A failed assertion fails the test, fails the run, and turns CI red.
+- **Quality signals.** There's no single correct string, only better and worse answers — helpfulness, groundedness, tone. You *score* these (often with an LLM judge) and record them with `logAnnotation()` / `evaluate()`, then gate them at the **suite** level with [`acceptanceCriteria`](#acceptance-criteria--ci-gates-on-aggregate-scores). A single weak result shouldn't fail the build, so the gate runs on the aggregate (e.g. ≥70% helpful), not on every case.
+
+The split is the real first move: per-case `expect()` for invariants, `acceptanceCriteria` for signals. `assert` the smallest behavior you'd be embarrassed to ship broken, and let everything fuzzier ride along as a tracked signal.
+
 ## Installation
 
 <Info>
@@ -366,6 +375,102 @@ The annotation name defaults to the function's name, falling back to `"evaluator
 <Note>
 `evaluate()`, `traceEvaluator()`, and any annotation logged through them are recorded under a dedicated evaluator span, so the judge's LLM calls never clutter the task trace and each annotation links straight to the trace that produced it. Click an annotation in the Phoenix UI to open its evaluator trace.
 </Note>
+
+## LLM-as-a-judge: scoring quality signals
+
+When a check is a [quality signal](#two-kinds-of-checks-invariants-vs-signals) — accuracy, groundedness, tone — there's no single correct string to assert against. Hand the judging to another model with [`createClassificationEvaluator`](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators), which emits a label mapped to a numeric score plus an explanation. Its `inputMapping` projects the run's auto-supplied `{ input, output }` onto the prompt-template variables, so `await px.evaluate(judge)` needs no params. The verdict is recorded as an annotation under a linked evaluator span — **without** an `expect()`, so it trends in Phoenix and a single weak answer doesn't break the build.
+
+Consider a grounded support bot. It has two jobs that map cleanly onto the two kinds of checks. When a question is covered by a knowledge-base excerpt, it should answer accurately from that excerpt — a *quality signal*, since a correct answer can be phrased many ways. When nothing covers the question, it should decline with a fixed line — a *hard invariant*, since exactly one output is acceptable. So we judge helpfulness as a trend (gated by `acceptanceCriteria`) and hard-assert only the refusal.
+
+```ts
+// support-bot.eval.ts
+import { anthropic } from "@ai-sdk/anthropic";
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { expect } from "vitest";
+
+// Knowledge-base excerpts; "offtopic" is empty, so the bot must decline.
+const KB: Record<string, string> = {
+  billing: "Refunds are available within 14 days of a charge. ...",
+  offtopic: "",
+};
+
+type BotInput = { question: string; kbKey: string; expectRefusal: boolean };
+type JudgeRecord = { input: BotInput; output?: { response: string } };
+
+// A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable.
+// The judge sees the same excerpt the bot did, so it can tell whether the answer
+// was grounded — and whether declining was the right call when the excerpt is empty.
+const helpfulness = createClassificationEvaluator<JudgeRecord>({
+  name: "helpfulness",
+  model: anthropic("claude-sonnet-4-6"),
+  choices: { helpful: 1, unhelpful: 0 },
+  promptTemplate: `You are a strict reviewer for a support bot.
+
+Knowledge base:
+{{knowledge_base}}
+
+Question: {{question}}
+
+Bot response: {{response}}
+
+Label "helpful" if the response is accurate and grounded in the excerpt (or
+correctly declines when the excerpt does not contain the answer). Label
+"unhelpful" if it is wrong, unsupported, vague, or ignores the question.`,
+  // Project the run's { input, output } onto the template variables.
+  inputMapping: {
+    knowledge_base: (record) => KB[record.input.kbKey] || "(empty)",
+    question: "input.question",
+    response: (record) => record.output?.response ?? "",
+  },
+});
+
+const CASES = [
+  { id: "refund", input: { question: "How do I get a refund?", kbKey: "billing", expectRefusal: false } },
+  { id: "offtopic", input: { question: "What's the capital of France?", kbKey: "offtopic", expectRefusal: true } },
+];
+
+px.describe(
+  "support bot",
+  () => {
+    px.test.each(CASES)(
+      (row) => row.id ?? "case",
+      async ({ input }) => {
+        const start = performance.now();
+        const response = await answerQuestion(input.question, KB[input.kbKey] ?? "");
+
+        px.logOutput({ response });
+
+        // Structural metric — a CODE signal, tracked not asserted.
+        px.logAnnotation({ name: "latency_ms", score: performance.now() - start, annotatorKind: "CODE" });
+
+        // LLM judge, recorded under its own evaluator span. NOT asserted —
+        // on-topic quality is gated by acceptanceCriteria, below.
+        await px.evaluate(helpfulness);
+
+        // Hard assertion only for the structural refusal check.
+        if (input.expectRefusal) {
+          expect(response).toContain("I don't have information on that");
+        }
+      },
+    );
+  },
+  {
+    acceptanceCriteria: [
+      // signal gate: at least 70% of runs must score helpful
+      { annotationName: "helpfulness", metric: "passRate", passFn: (a) => a.score === 1, minPassRate: 0.7 },
+      // budget gate: mean response time under 5 seconds
+      { annotationName: "latency_ms", metric: "average", threshold: 5000, direction: "minimize" },
+    ],
+  },
+);
+```
+
+This is the whole pattern: the refusal stays a per-case `expect()` (invariant), while helpfulness and latency become `acceptanceCriteria` (signals). The suite still fails CI if quality drops across the board — just not on a single unlucky generation.
+
+<Tip>
+Pick the judge model deliberately. Judging a weaker model with a stronger one (here, Sonnet grading Haiku) keeps verdicts stable across runs; a judge that's no better than the system under test adds noise rather than signal. See [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+</Tip>
 
 ## Acceptance criteria — CI gates on aggregate scores
 
