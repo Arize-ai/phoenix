@@ -19,9 +19,13 @@ const RIGHT_ARROW = `${ESCAPE_CHARACTER}[C`;
 const HOME_KEY = `${ESCAPE_CHARACTER}[H`;
 const END_KEY = `${ESCAPE_CHARACTER}[F`;
 const DELETE_KEY = `${ESCAPE_CHARACTER}[3~`;
+const MODIFIED_DELETE_KEY = `${ESCAPE_CHARACTER}[3$`;
+const KITTY_MAC_DELETE = `${ESCAPE_CHARACTER}[127;1:1u`;
+const KITTY_FORWARD_DELETE_KEY = `${ESCAPE_CHARACTER}[3;1:1~`;
 const CTRL_A = "\x01";
 const CTRL_E = "\x05";
 const BACKSPACE = "\b";
+const MAC_DELETE = "\x7F";
 
 function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE_PATTERN, "");
@@ -268,7 +272,10 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("uses Delete before the cursor", async () => {
+  it.each([
+    ["Mac Delete", MAC_DELETE],
+    ["Kitty-enhanced Mac Delete", KITTY_MAC_DELETE],
+  ])("uses %s before the cursor", async (_name, deleteInput) => {
     let submittedText: string | undefined;
     const client = createCapturingClient({
       onSubmit: (text) => {
@@ -281,6 +288,45 @@ describe("PXI app", () => {
 
     await writeInput({ stdin, input: "abXcd" });
     await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 2 });
+    await writeInput({ stdin, input: deleteInput });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("abcd");
+    unmount();
+  });
+
+  it("uses Mac Delete before the cursor at the end of the prompt", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "abc" });
+    await writeInput({ stdin, input: MAC_DELETE });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("ab");
+    unmount();
+  });
+
+  it("uses forward Delete after the cursor", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "abXcd" });
+    await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 3 });
     await writeInput({ stdin, input: DELETE_KEY });
     await writeInput({ stdin, input: "\r" });
 
@@ -288,7 +334,30 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("uses Delete before the cursor at the end of the prompt", async () => {
+  it.each([
+    ["modified terminal forward Delete", MODIFIED_DELETE_KEY],
+    ["Kitty-enhanced forward Delete", KITTY_FORWARD_DELETE_KEY],
+  ])("uses %s after the cursor", async (_name, deleteInput) => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "abXcd" });
+    await writeInputRepeatedly({ stdin, input: LEFT_ARROW, count: 3 });
+    await writeInput({ stdin, input: deleteInput });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe("abcd");
+    unmount();
+  });
+
+  it("leaves the prompt unchanged when forward Delete is pressed at the end", async () => {
     let submittedText: string | undefined;
     const client = createCapturingClient({
       onSubmit: (text) => {
@@ -303,7 +372,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: DELETE_KEY });
     await writeInput({ stdin, input: "\r" });
 
-    expect(submittedText).toBe("ab");
+    expect(submittedText).toBe("abc");
     unmount();
   });
 
@@ -435,7 +504,7 @@ describe("PXI app", () => {
     unmount();
   });
 
-  it("deletes predictably after multiline pasted text", async () => {
+  it("uses Mac Delete predictably after multiline pasted text", async () => {
     let submittedText: string | undefined;
     const client = createCapturingClient({
       onSubmit: (text) => {
@@ -458,7 +527,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: prompt.replace(/\n/g, "\r\n") });
     await writeInputRepeatedly({
       stdin,
-      input: DELETE_KEY,
+      input: MAC_DELETE,
       count: deletedText.length,
     });
     await writeInput({ stdin, input: "\r" });
@@ -532,6 +601,47 @@ describe("PXI app", () => {
     });
 
     expect(abortSignal?.aborted).toBe(true);
+    unmount();
+  });
+
+  it("ignores prompt editing while streaming", async () => {
+    const submittedTexts: string[] = [];
+    let resolveResponse: ((message: PxiMessage | null) => void) | undefined;
+    const client: PxiChatClient = {
+      sendMessage: async ({ messages }) => {
+        const userMessage = messages.at(-1);
+        const textPart = userMessage?.parts.find(
+          (part) => part.type === "text"
+        );
+        submittedTexts.push(textPart?.text ?? "");
+        if (submittedTexts.length === 1) {
+          return new Promise((resolve) => {
+            resolveResponse = resolve;
+          });
+        }
+        return null;
+      },
+    };
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({ stdin, input: "hello" });
+    await writeInput({ stdin, input: "\r" });
+    await writeInput({ stdin, input: "ignored" });
+    await writeInput({ stdin, input: MAC_DELETE });
+    await writeInput({ stdin, input: DELETE_KEY });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedTexts).toEqual(["hello"]);
+
+    await act(async () => {
+      resolveResponse?.(null);
+    });
+    await writeInput({ stdin, input: "next" });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedTexts).toEqual(["hello", "next"]);
     unmount();
   });
 

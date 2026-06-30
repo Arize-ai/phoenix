@@ -1,4 +1,4 @@
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { createPxiChatClient, createUserMessage } from "./client";
@@ -9,6 +9,7 @@ import {
   SLASH_COMMANDS,
 } from "./commands";
 import {
+  deleteDraftTextAtCursor,
   deleteDraftTextBeforeCursor,
   EMPTY_DRAFT_EDITOR_STATE,
   insertDraftText,
@@ -59,6 +60,16 @@ const THINKING_FRAMES = [
   "PXI is thinking.. ",
   "PXI is thinking...",
 ];
+const ESCAPE_INPUT = "\x1B";
+const BACKSPACE_INPUTS = new Set(["\b", "\x7F"]);
+const FORWARD_DELETE_INPUTS = new Set([
+  `${ESCAPE_INPUT}[3~`,
+  `${ESCAPE_INPUT}[3$`,
+  `${ESCAPE_INPUT}[3^`,
+]);
+const KITTY_BACKSPACE_INPUT_PATTERN =
+  /^\x1B\[(?:8|127)(?:;\d+(?::[12])?(?:;[\d:]+)?)?u$/;
+const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const BRACKETED_PASTE_MARKER_PATTERN = /(?:\x1B)?\[(?:200|201)~/g;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
@@ -394,6 +405,19 @@ function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
 }
 
+function isBackspaceInput({ input }: { input: string }) {
+  return (
+    BACKSPACE_INPUTS.has(input) || KITTY_BACKSPACE_INPUT_PATTERN.test(input)
+  );
+}
+
+function isForwardDeleteInput({ input }: { input: string }) {
+  return (
+    FORWARD_DELETE_INPUTS.has(input) ||
+    KITTY_FORWARD_DELETE_INPUT_PATTERN.test(input)
+  );
+}
+
 function getDraftInputText({ input }: { input: string }) {
   return input
     .replace(BRACKETED_PASTE_MARKER_PATTERN, "")
@@ -474,6 +498,7 @@ export function ThinkingIndicator() {
  */
 export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const { exit } = useApp();
+  const { internal_eventEmitter: inputEventEmitter } = useStdin();
   const [messages, setMessages] = useState<PxiMessage[]>(initialMessages);
   const [draft, setDraft] = useState<DraftEditorState>(
     EMPTY_DRAFT_EDITOR_STATE
@@ -658,7 +683,6 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       return;
     }
     if (key.backspace || key.delete) {
-      setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
       return;
     }
     if (input) {
@@ -668,6 +692,31 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       }
     }
   });
+
+  const handleDeleteInput = (input: string) => {
+    if (status === "streaming") {
+      return;
+    }
+    if (isBackspaceInput({ input })) {
+      setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
+      return;
+    }
+    if (isForwardDeleteInput({ input })) {
+      setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
+    }
+  };
+  const deleteInputHandlerRef = useRef(handleDeleteInput);
+  deleteInputHandlerRef.current = handleDeleteInput;
+
+  useEffect(() => {
+    const handleInputEvent = (input: string) => {
+      deleteInputHandlerRef.current(input);
+    };
+    inputEventEmitter.on("input", handleInputEvent);
+    return () => {
+      inputEventEmitter.removeListener("input", handleInputEvent);
+    };
+  }, [inputEventEmitter]);
 
   return (
     <Box flexDirection="column" paddingX={1}>

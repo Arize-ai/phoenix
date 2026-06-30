@@ -76,6 +76,22 @@ export function deleteDraftTextBeforeCursor({
   };
 }
 
+export function deleteDraftTextAtCursor({
+  draft,
+}: {
+  draft: DraftEditorState;
+}): DraftEditorState {
+  const cursorIndex = clampCursorIndex({ draft });
+  if (cursorIndex >= draft.value.length) {
+    return draft;
+  }
+  return {
+    value:
+      draft.value.slice(0, cursorIndex) + draft.value.slice(cursorIndex + 1),
+    cursorIndex,
+  };
+}
+
 function getDraftLineInfo({ draft }: { draft: DraftEditorState }): {
   lineStartIndex: number;
   lineEndIndex: number;
