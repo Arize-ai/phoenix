@@ -411,7 +411,12 @@ async def _score_trace(
         context=_target_parent_context(trace=trace, parent_span_id=trace.root.span_id),
     ) as span:
         _set_inference_eval_span_attributes(span, trace)
-        annotations.extend(_run_eval("tool_count_per_turn", trace, tracer=tracer))
+        try:
+            annotations.extend(_score_tool_count_per_turn(trace, tracer=tracer))
+        except Exception:
+            logger.exception(
+                "PXI inference eval tool_count_per_turn failed for trace %s", trace.trace_id
+            )
         span.set_attribute(
             SpanAttributes.OUTPUT_VALUE,
             json.dumps(
@@ -427,19 +432,6 @@ async def _score_trace(
             ),
         )
     return annotations
-
-
-def _run_eval(
-    name: str,
-    trace: FinishedTrace,
-    *,
-    tracer: Any,
-) -> list[InferenceEvalAnnotation]:
-    try:
-        return _score_tool_count_per_turn(trace, tracer=tracer)
-    except Exception:
-        logger.exception("PXI inference eval %s failed for trace %s", name, trace.trace_id)
-    return []
 
 
 def _score_tool_count_per_turn(
@@ -566,18 +558,19 @@ def _snapshot_span(span: SDKSpan | ReadableSpan) -> FinishedSpan:
     parent_id = format_span_id(parent.span_id) if parent is not None else None
     if parent_id == "0000000000000000":
         parent_id = None
+    span_kind = (span.attributes or {}).get(SpanAttributes.OPENINFERENCE_SPAN_KIND)
     return FinishedSpan(
         span_id=format_span_id(context.span_id),
         trace_id=format_trace_id(context.trace_id),
         parent_id=parent_id,
         name=span.name,
-        span_kind=_string_attr((span.attributes or {}).get(SpanAttributes.OPENINFERENCE_SPAN_KIND)),
+        span_kind=span_kind if isinstance(span_kind, str) else None,
         attributes=dict(span.attributes or {}),
     )
 
 
 def _is_root_span(span: FinishedSpan) -> bool:
-    return span.parent_id is None or span.parent_id == "0000000000000000"
+    return span.parent_id is None
 
 
 def _is_turn_start(trace: FinishedTrace) -> bool:
@@ -601,10 +594,6 @@ def _sample(trace_id: str, sample_rate: float) -> bool:
     digest = hashlib.sha256(trace_id.encode("utf-8")).digest()
     value = int.from_bytes(digest[:8], "big") / 2**64
     return value < sample_rate
-
-
-def _string_attr(value: Any) -> str | None:
-    return value if isinstance(value, str) else None
 
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
