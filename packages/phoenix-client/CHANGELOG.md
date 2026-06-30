@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.10.0...arize-phoenix-client-v2.11.0) (2026-06-30)
+
+
+### Features
+
+* **ui:** add annotation summary to project settings ([#13850](https://github.com/Arize-ai/phoenix/issues/13850)) ([05582a1](https://github.com/Arize-ai/phoenix/commit/05582a132f5400bdaf7451c0e954df286ee09a81))
+
+
+### Bug Fixes
+
+* preserve generator inputs in create_dataset and add_examples_to_dataset ([#13791](https://github.com/Arize-ai/phoenix/issues/13791)) ([c629b70](https://github.com/Arize-ai/phoenix/commit/c629b70cd4771918f0b185261793683b16739419))
+
+
+### Documentation
+
+* **phoenix-client:** correct create_evaluator 2-tuple scorer docs ([#13939](https://github.com/Arize-ai/phoenix/issues/13939)) ([f123759](https://github.com/Arize-ai/phoenix/commit/f123759e80d729102a584759d6f7c2d07fa7b044))
+
 ## [2.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.9.0...arize-phoenix-client-v2.10.0) (2026-06-26)
 
 
