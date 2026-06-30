@@ -1,5 +1,5 @@
 """
-Eval suite for an Acme Analytics customer-support FAQ bot (pytest).
+Eval suite for a customer-support FAQ bot (pytest).
 
 The bot receives a user question alongside a short excerpt from the knowledge
 base and returns a concise, grounded answer.  When the excerpt is empty (or the
@@ -69,10 +69,10 @@ KB: dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 BOT_SYSTEM = """\
-You are a concise support agent for Acme Analytics. Answer the user's question
-using ONLY the provided knowledge-base excerpt. If the excerpt is empty or does
-not contain the answer, reply with exactly:
-  "I don't have information on that — please contact support@acme.io."
+You are a concise customer-support agent. Answer the user's question using ONLY
+the provided knowledge-base excerpt. If the excerpt is empty or does not contain
+the answer, reply with exactly:
+  "I don't have information on that — please contact support@example.com."
 Keep answers under three sentences.\
 """
 
@@ -148,7 +148,7 @@ CASES: list[tuple[str, str, bool]] = [
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.phoenix(dataset="acme-support-bot")
+@pytest.mark.phoenix(dataset="support-bot")
 @pytest.mark.parametrize(
     "question,kb_key,expect_refusal",
     CASES,

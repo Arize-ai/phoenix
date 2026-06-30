@@ -73,10 +73,10 @@ KB: dict[str, str] = {
 }
 
 BOT_SYSTEM = """\
-You are a concise support agent for Acme Analytics. Answer the user's question
-using ONLY the provided knowledge-base excerpt. If the excerpt is empty or does
-not contain the answer, reply with exactly:
-  "I don't have information on that — please contact support@acme.io."
+You are a concise customer-support agent. Answer the user's question using ONLY
+the provided knowledge-base excerpt. If the excerpt is empty or does not contain
+the answer, reply with exactly:
+  "I don't have information on that — please contact support@example.com."
 Keep answers under three sentences.\
 """
 
@@ -136,7 +136,7 @@ CASES: list[tuple[str, str, bool]] = [
     ("What's the capital of France?", "offtopic", True),
 ]
 
-@pytest.mark.phoenix(dataset="acme-support-bot")
+@pytest.mark.phoenix(dataset="support-bot")
 @pytest.mark.parametrize(
     "question,kb_key,expect_refusal",
     CASES,
@@ -214,10 +214,10 @@ const KB: Record<string, string> = {
 };
 
 const BOT_SYSTEM = `\
-You are a concise support agent for Acme Analytics. Answer the user's question
-using ONLY the provided knowledge-base excerpt. If the excerpt is empty or does
-not contain the answer, reply with exactly:
-  "I don't have information on that — please contact support@acme.io."
+You are a concise customer-support agent. Answer the user's question using ONLY
+the provided knowledge-base excerpt. If the excerpt is empty or does not contain
+the answer, reply with exactly:
+  "I don't have information on that — please contact support@example.com."
 Keep answers under three sentences.`;
 
 async function answerQuestion(
@@ -273,7 +273,7 @@ correctly declines when the excerpt does not contain the answer). Label it
 });
 
 px.describe(
-  "acme support bot",
+  "support bot",
   () => {
     px.test.each([
       {

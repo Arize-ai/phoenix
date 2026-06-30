@@ -1,7 +1,7 @@
 {
   "name": "vitest-example",
   "private": true,
-  "description": "Vitest eval suite for an Acme Analytics support bot, recorded to Phoenix.",
+  "description": "Vitest eval suite for a customer-support bot, recorded to Phoenix.",
   "type": "module",
   "scripts": {
     "eval": "vitest run --config vitest.config.ts",

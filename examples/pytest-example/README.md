@@ -10,11 +10,11 @@ This is the companion code for the "getting started with evals" blog post.
 
 ## The scenario
 
-**Acme Analytics** ships a support bot. It receives a user question plus a short
-excerpt from the knowledge base and must answer **using only that excerpt**. When
-the excerpt is empty or the question is off-topic, it should decline politely:
+A **customer-support bot** receives a user question plus a short excerpt from the
+knowledge base and must answer **using only that excerpt**. When the excerpt is
+empty or the question is off-topic, it should decline politely:
 
-> "I don't have information on that — please contact support@acme.io."
+> "I don't have information on that — please contact support@example.com."
 
 We test five interactions — four grounded questions (billing, password reset,
 data export) and one off-topic question that should be refused.
