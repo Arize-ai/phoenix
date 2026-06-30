@@ -63,6 +63,67 @@ Use `px.test.each(rows)` for larger datasets. To run against an existing Phoenix
 - `px.evaluate(evaluator, params?)` — runs an `@arizeai/phoenix-evals` evaluator, records an annotation + linked evaluator trace. Omit `params` to auto-supply the test's `input`/`output`/`expected`/`metadata`/`traceId`.
 - `px.traceEvaluator(fn, options?)` — wrap a plain grading fn; runs in its own evaluator span and captures a returned `{ name, score }` as an annotation. Passes through your args (no auto-supply).
 
+## Two kinds of checks: invariants vs. signals
+
+The decision that shapes every eval suite is which checks gate CI and which only trend.
+
+- **Hard invariants** — exactly one acceptable behavior, verifiable in code (a required refusal, valid JSON, a tool that must fire). Use a per-case `expect()`. A failure fails the run and turns CI red.
+- **Quality signals** — answers on a spectrum with no single correct string (helpfulness, groundedness, tone). Score with an LLM judge and record via `evaluate()`/`logAnnotation()` — do *not* `expect()` per case. Gate them at the **suite** level with `acceptanceCriteria` so aggregate quality (e.g. ≥70% helpful) holds the line while a single weak answer doesn't break the build.
+
+This is the natural division of labor in this runner: invariants → per-case `expect()`; signals → `acceptanceCriteria`.
+
+## LLM-as-a-judge inside a suite
+
+The cleanest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`: it emits a label mapped to a numeric score (recorded as an annotation under a linked evaluator span). `inputMapping` projects the run's auto-supplied `{ input, output }` onto the template variables, so `await px.evaluate(judge)` needs no params. Judge with a **stronger model than the system under test** (e.g. Sonnet judging Haiku) to keep verdicts stable.
+
+```ts
+import { anthropic } from "@ai-sdk/anthropic";
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
+import { expect } from "vitest";
+
+const helpfulness = createClassificationEvaluator<{ input: any; output?: { response: string } }>({
+  name: "helpfulness",
+  model: anthropic("claude-sonnet-4-6"),
+  choices: { helpful: 1, unhelpful: 0 },
+  promptTemplate: `Knowledge base:\n{{knowledge_base}}\n\nQuestion: {{question}}\n\nBot response: {{response}}\n\nLabel "helpful" if accurate and grounded in the excerpt (or a correct decline when the excerpt lacks the answer); otherwise "unhelpful".`,
+  inputMapping: {
+    knowledge_base: (r) => KB[r.input.kbKey] || "(empty)",
+    question: "input.question",
+    response: (r) => r.output?.response ?? "",
+  },
+});
+
+px.describe(
+  "support bot",
+  () => {
+    px.test.each(CASES)((row) => row.id, async ({ input }) => {
+      const start = performance.now();
+      const response = await answerQuestion(input.question, KB[input.kbKey] ?? "");
+
+      px.logOutput({ response });
+      px.logAnnotation({ name: "latency_ms", score: performance.now() - start, annotatorKind: "CODE" });
+
+      // LLM-judge quality signal — NOT asserted; gated by acceptanceCriteria below.
+      await px.evaluate(helpfulness);
+
+      // Hard invariant — the one behavior we refuse to ship broken.
+      if (input.expectRefusal) expect(response).toContain("I don't have information on that");
+    });
+  },
+  {
+    acceptanceCriteria: [
+      // signal gate: ≥70% of runs must score helpful
+      { annotationName: "helpfulness", metric: "passRate", passFn: (a) => a.score === 1, minPassRate: 0.7 },
+      // budget gate: mean latency under 5s
+      { annotationName: "latency_ms", metric: "average", threshold: 5000, direction: "minimize" },
+    ],
+  },
+);
+```
+
+The refusal stays a per-case `expect()` (invariant); helpfulness and latency move into `acceptanceCriteria` (signals). `passFn` receives the full annotation, so you can gate on `score`, `label`, or `explanation`.
+
 ## Acceptance criteria
 
 Suite-level gates evaluated **after** all tests (every case runs first, full scorecard prints before failing). Pass as `describe`'s third arg:
