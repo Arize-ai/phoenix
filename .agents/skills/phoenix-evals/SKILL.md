@@ -25,6 +25,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | Build LLM evaluator | [evaluators-llm-python](references/evaluators-llm-python.md), [evaluators-llm-typescript](references/evaluators-llm-typescript.md), [evaluators-custom-templates](references/evaluators-custom-templates.md) |
 | Batch evaluate DataFrame | [evaluate-dataframe-python](references/evaluate-dataframe-python.md) |
 | Run experiment | [experiments-running-python](references/experiments-running-python.md), [experiments-running-typescript](references/experiments-running-typescript.md) |
+| Run evals in a test runner (CI gate) | [integrations-pytest](references/integrations-pytest.md), [integrations-vitest-jest](references/integrations-vitest-jest.md) |
 | Create dataset | [experiments-datasets-python](references/experiments-datasets-python.md), [experiments-datasets-typescript](references/experiments-datasets-typescript.md) |
 | Generate synthetic data | [experiments-synthetic-python](references/experiments-synthetic-python.md), [experiments-synthetic-typescript](references/experiments-synthetic-typescript.md) |
 | Validate evaluator accuracy | [validation](references/validation.md), [validation-evaluators-python](references/validation-evaluators-python.md), [validation-evaluators-typescript](references/validation-evaluators-typescript.md) |
@@ -45,6 +46,9 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 **RAG Systems:**
 [evaluators-rag](references/evaluators-rag.md) → evaluators-code-* (retrieval) → evaluators-llm-* (faithfulness)
 
+**Gating CI:**
+evaluators-{code|llm}-{python|typescript} → integrations-{pytest|vitest-jest} → [production-continuous](references/production-continuous.md)
+
 **Production:**
 [production-overview](references/production-overview.md) → [production-guardrails](references/production-guardrails.md) → [production-continuous](references/production-continuous.md)
 
@@ -58,6 +62,7 @@ Build evaluators for AI/LLM applications. Code first, LLM for nuance, validate a
 | `axial-coding-*` | Categorizing failures |
 | `evaluators-*` | Code, LLM, RAG evaluators |
 | `experiments-*` | Datasets, running experiments |
+| `integrations-*` | Run evals from test runners (pytest, Vitest, Jest) as a CI gate |
 | `validation-*` | Validating evaluator accuracy against human labels |
 | `production-*` | CI/CD, monitoring |
 
