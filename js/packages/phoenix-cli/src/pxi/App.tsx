@@ -1,4 +1,4 @@
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { createPxiChatClient, createUserMessage } from "./client";
@@ -8,6 +8,17 @@ import {
   runSlashCommand,
   SLASH_COMMANDS,
 } from "./commands";
+import {
+  deleteDraftTextAtCursor,
+  deleteDraftTextBeforeCursor,
+  EMPTY_DRAFT_EDITOR_STATE,
+  insertDraftText,
+  moveDraftCursor,
+  moveDraftCursorToEnd,
+  moveDraftCursorToStart,
+  moveDraftCursorVertically,
+  type DraftEditorState,
+} from "./draftEditor";
 import { Markdown } from "./inkMarkdown";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import { getToolProgressFromPart, type ToolProgress } from "./toolProgress";
@@ -25,6 +36,11 @@ import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 /** Whether the app is waiting on input (`idle`) or streaming a reply. */
 type PxiStatus = "idle" | "streaming";
 type PxiMessagePart = PxiMessage["parts"][number];
+type DraftSegment = {
+  text: string;
+  isCommandSegment: boolean;
+  isBold?: boolean;
+};
 
 const PXI_BANNER = String.raw`
 __/\\\\\\\\\\\\\____/\\\_______/\\\__/\\\\\\\\\\\_
@@ -44,6 +60,16 @@ const THINKING_FRAMES = [
   "PXI is thinking.. ",
   "PXI is thinking...",
 ];
+const ESCAPE_INPUT = "\x1B";
+const BACKSPACE_INPUTS = new Set(["\b", "\x7F"]);
+const FORWARD_DELETE_INPUTS = new Set([
+  `${ESCAPE_INPUT}[3~`,
+  `${ESCAPE_INPUT}[3$`,
+  `${ESCAPE_INPUT}[3^`,
+]);
+const KITTY_BACKSPACE_INPUT_PATTERN =
+  /^\x1B\[(?:8|127)(?:;\d+(?::[12])?(?:;[\d:]+)?)?u$/;
+const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 
@@ -191,32 +217,113 @@ function Transcript({
  * When the draft starts with `/`, the command name is colored yellow and the
  * arguments follow in default color. Everything else renders as plain text.
  */
-function HighlightedDraft({ draft }: { draft: string }) {
+function getHighlightedDraftSegments({
+  draft,
+}: {
+  draft: string;
+}): DraftSegment[] {
   if (!draft.startsWith("/")) {
-    return <Text>{draft}</Text>;
+    return [{ text: draft, isCommandSegment: false }];
   }
   const rest = draft.slice(1);
   const spaceIndex = rest.indexOf(" ");
   if (spaceIndex === -1) {
-    // Still typing the command name — color the whole token
-    return (
-      <Text>
-        <Text color="yellow">/</Text>
-        <Text color="yellow" bold>
-          {rest}
-        </Text>
-      </Text>
-    );
+    return [
+      { text: "/", isCommandSegment: true, isBold: false },
+      { text: rest, isCommandSegment: true, isBold: true },
+    ];
   }
   const cmdName = rest.slice(0, spaceIndex);
   const args = rest.slice(spaceIndex);
+  return [
+    { text: "/", isCommandSegment: true, isBold: false },
+    { text: cmdName, isCommandSegment: true, isBold: true },
+    { text: args, isCommandSegment: false },
+  ];
+}
+
+function HighlightedDraftSegment({
+  segment,
+  isInverse = false,
+}: {
+  segment: DraftSegment;
+  isInverse?: boolean;
+}) {
+  if (!segment.text) {
+    return null;
+  }
+  if (segment.isCommandSegment) {
+    return (
+      <Text color="yellow" bold={segment.isBold} inverse={isInverse}>
+        {segment.text}
+      </Text>
+    );
+  }
+  return <Text inverse={isInverse}>{segment.text}</Text>;
+}
+
+function HighlightedDraft({
+  draft,
+  cursorIndex,
+  isCursorVisible,
+}: {
+  draft: string;
+  cursorIndex: number;
+  isCursorVisible: boolean;
+}) {
+  const segments = getHighlightedDraftSegments({ draft });
+  const boundedCursorIndex = Math.min(Math.max(cursorIndex, 0), draft.length);
+  let nextSegmentStartIndex = 0;
+  let hasRenderedCursor = false;
+
   return (
     <Text>
-      <Text color="yellow">/</Text>
-      <Text color="yellow" bold>
-        {cmdName}
-      </Text>
-      <Text>{args}</Text>
+      {segments.flatMap((segment, segmentIndex) => {
+        const segmentStartIndex = nextSegmentStartIndex;
+        const segmentEndIndex = segmentStartIndex + segment.text.length;
+        nextSegmentStartIndex = segmentEndIndex;
+
+        if (
+          isCursorVisible &&
+          !hasRenderedCursor &&
+          boundedCursorIndex >= segmentStartIndex &&
+          boundedCursorIndex < segmentEndIndex
+        ) {
+          hasRenderedCursor = true;
+          const cursorOffset = boundedCursorIndex - segmentStartIndex;
+          const beforeCursor = segment.text.slice(0, cursorOffset);
+          const cursorText = segment.text.slice(cursorOffset, cursorOffset + 1);
+          const isCursorOnNewline = cursorText === "\n";
+          const afterCursor = segment.text.slice(cursorOffset + 1);
+          return [
+            <HighlightedDraftSegment
+              key={`${segmentIndex}-before`}
+              segment={{ ...segment, text: beforeCursor }}
+            />,
+            isCursorOnNewline ? (
+              <Text key={`${segmentIndex}-cursor`}>{"█\n"}</Text>
+            ) : (
+              <HighlightedDraftSegment
+                key={`${segmentIndex}-cursor`}
+                segment={{ ...segment, text: cursorText }}
+                isInverse
+              />
+            ),
+            <HighlightedDraftSegment
+              key={`${segmentIndex}-after`}
+              segment={{ ...segment, text: afterCursor }}
+            />,
+          ];
+        }
+
+        return [
+          <HighlightedDraftSegment
+            key={`${segmentIndex}-whole`}
+            segment={segment}
+          />,
+        ];
+      })}
+      {!hasRenderedCursor && isCursorVisible ? <Text>█</Text> : null}
     </Text>
   );
 }
@@ -227,16 +334,16 @@ function InputPrompt({
   status,
   usageLine,
 }: {
-  draft: string;
+  draft: DraftEditorState;
   status: PxiStatus;
   usageLine: string | null;
 }) {
-  const cursor = status === "streaming" ? "" : "█";
-  const cmdName = getSlashCommandName(draft);
+  const draftValue = draft.value;
+  const cmdName = getSlashCommandName(draftValue);
   // Show matching commands while the user is still typing the command token
   // (no space yet means they haven't moved on to arguments).
   const showHints =
-    cmdName !== null && !draft.includes(" ") && draft.length > 1;
+    cmdName !== null && !draftValue.includes(" ") && draftValue.length > 1;
   const hints = showHints ? matchingCommands(cmdName) : [];
 
   return (
@@ -251,8 +358,11 @@ function InputPrompt({
       >
         <Text>
           <Text color="cyan">{"> "}</Text>
-          <HighlightedDraft draft={draft} />
-          {cursor}
+          <HighlightedDraft
+            draft={draftValue}
+            cursorIndex={draft.cursorIndex}
+            isCursorVisible={status !== "streaming"}
+          />
         </Text>
       </Box>
       {/* Footer: helper text / command hints on the left, and the running token
@@ -292,6 +402,31 @@ function InputPrompt({
 
 function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
+}
+
+function isBracketedPasteMarkerInput({ input }: { input: string }) {
+  return input === `${ESCAPE_INPUT}[200~` || input === `${ESCAPE_INPUT}[201~`;
+}
+
+function isStrippedBracketedPasteMarkerInput({ input }: { input: string }) {
+  return input === "[200~" || input === "[201~";
+}
+
+function isBackspaceInput({ input }: { input: string }) {
+  return (
+    BACKSPACE_INPUTS.has(input) || KITTY_BACKSPACE_INPUT_PATTERN.test(input)
+  );
+}
+
+function isForwardDeleteInput({ input }: { input: string }) {
+  return (
+    FORWARD_DELETE_INPUTS.has(input) ||
+    KITTY_FORWARD_DELETE_INPUT_PATTERN.test(input)
+  );
+}
+
+function getDraftInputText({ input }: { input: string }) {
+  return input.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
 function getCompletedInterruptedPart({
@@ -367,8 +502,11 @@ export function ThinkingIndicator() {
  */
 export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const { exit } = useApp();
+  const { internal_eventEmitter: inputEventEmitter } = useStdin();
   const [messages, setMessages] = useState<PxiMessage[]>(initialMessages);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState<DraftEditorState>(
+    EMPTY_DRAFT_EDITOR_STATE
+  );
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -408,18 +546,18 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   const clearMessages = () => {
     setMessages([]);
     setError(null);
-    setDraft("");
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
   };
 
   const submitDraft = () => {
-    const text = draft.trim();
+    const text = draft.value.trim();
     if (!text || status === "streaming") {
       return;
     }
 
     // Intercept slash commands before sending to the server.
     if (text.startsWith("/")) {
-      setDraft("");
+      setDraft(EMPTY_DRAFT_EDITOR_STATE);
       const result = runSlashCommand(text, {
         clearMessages,
         exit: handleExit,
@@ -454,7 +592,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     streamingAssistantMessageRef.current = null;
-    setDraft("");
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
     setStatus("streaming");
     setMessages(nextMessages);
@@ -489,6 +627,36 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       });
   };
 
+  const bracketedPasteMarkerCountRef = useRef(0);
+  const handleRawInput = (input: string) => {
+    if (status === "streaming") {
+      return;
+    }
+    if (isBracketedPasteMarkerInput({ input })) {
+      bracketedPasteMarkerCountRef.current += 1;
+      return;
+    }
+    if (isBackspaceInput({ input })) {
+      setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
+      return;
+    }
+    if (isForwardDeleteInput({ input })) {
+      setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
+    }
+  };
+  const rawInputHandlerRef = useRef(handleRawInput);
+  rawInputHandlerRef.current = handleRawInput;
+
+  useEffect(() => {
+    const handleInputEvent = (input: string) => {
+      rawInputHandlerRef.current(input);
+    };
+    inputEventEmitter.on("input", handleInputEvent);
+    return () => {
+      inputEventEmitter.removeListener("input", handleInputEvent);
+    };
+  }, [inputEventEmitter]);
+
   useInput((input, key) => {
     if (key.escape) {
       interruptStream();
@@ -504,20 +672,65 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     if (isKeyboardProtocolResponseInput({ input })) {
       return;
     }
+    if (key.ctrl && input === "a") {
+      setDraft((value) => moveDraftCursorToStart({ draft: value }));
+      return;
+    }
+    if (key.ctrl && input === "e") {
+      setDraft((value) => moveDraftCursorToEnd({ draft: value }));
+      return;
+    }
     if (key.return && key.shift) {
-      setDraft((value) => `${value}\n`);
+      setDraft((value) => insertDraftText({ draft: value, text: "\n" }));
       return;
     }
     if (key.return) {
       submitDraft();
       return;
     }
+    if (key.leftArrow) {
+      setDraft((value) => moveDraftCursor({ draft: value, offset: -1 }));
+      return;
+    }
+    if (key.rightArrow) {
+      setDraft((value) => moveDraftCursor({ draft: value, offset: 1 }));
+      return;
+    }
+    if (key.upArrow) {
+      setDraft((value) =>
+        moveDraftCursorVertically({ draft: value, direction: -1 })
+      );
+      return;
+    }
+    if (key.downArrow) {
+      setDraft((value) =>
+        moveDraftCursorVertically({ draft: value, direction: 1 })
+      );
+      return;
+    }
+    if (key.home) {
+      setDraft((value) => moveDraftCursorToStart({ draft: value }));
+      return;
+    }
+    if (key.end) {
+      setDraft((value) => moveDraftCursorToEnd({ draft: value }));
+      return;
+    }
     if (key.backspace || key.delete) {
-      setDraft((value) => value.slice(0, -1));
+      return;
+    }
+    if (
+      isStrippedBracketedPasteMarkerInput({ input }) &&
+      bracketedPasteMarkerCountRef.current > 0
+    ) {
+      bracketedPasteMarkerCountRef.current -= 1;
       return;
     }
     if (input) {
-      setDraft((value) => `${value}${input}`);
+      const text = getDraftInputText({ input });
+      if (text) {
+        setDraft((value) => insertDraftText({ draft: value, text }));
+      }
     }
   });
 
