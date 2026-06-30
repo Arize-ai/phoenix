@@ -1542,7 +1542,7 @@ describe("getToolsFromAttributes", () => {
           tools: [spanTool],
         },
       };
-      const result = getToolsFromAttributes({ parsedAttributes });
+      const result = getToolsFromAttributes(parsedAttributes);
       expect(result).toEqual({
         tools: [
           {
@@ -1567,7 +1567,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
       },
     };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: [
         {
@@ -1602,7 +1602,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(unwrappedBody) } }],
       },
     };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: [
         {
@@ -1616,9 +1616,8 @@ describe("getToolsFromAttributes", () => {
     });
   });
 
-  it("should not re-wrap a raw tool when neither the AWS provider nor inputSchema.json is present", () => {
-    // With no AWS provider and no inputSchema.json marker, a raw passthrough tool
-    // is left verbatim.
+  it("should not re-wrap a raw tool when the inputSchema.json marker is absent", () => {
+    // With no inputSchema.json marker, a raw passthrough tool is left verbatim.
     const rawTool = {
       name: "web_search",
       type: "web_search_20250305",
@@ -1628,7 +1627,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
       },
     };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: [
         {
@@ -1642,9 +1641,9 @@ describe("getToolsFromAttributes", () => {
     });
   });
 
-  it("should re-wrap an unwrapped AWS toolSpec body via the provider signal when the inputSchema.json marker is absent", () => {
-    // inputSchema without the `json` sub-key fails the structural marker, but an
-    // AWS span provider is enough to recognize it as an unwrapped toolSpec body.
+  it("should leave an unwrapped body without the inputSchema.json marker verbatim", () => {
+    // inputSchema without the `json` sub-key fails the Bedrock structural marker,
+    // so it is not recognized as an unwrapped toolSpec body and is left as-is.
     const unwrappedBody = {
       name: "get_weather",
       inputSchema: {
@@ -1657,24 +1656,8 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(unwrappedBody) } }],
       },
     };
-    const result = getToolsFromAttributes({
-      parsedAttributes,
-      provider: "AWS",
-    });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
-      tools: [
-        {
-          kind: "raw",
-          id: expect.any(Number),
-          editorType: "json",
-          raw: { toolSpec: unwrappedBody },
-        },
-      ],
-      parsingErrors: [],
-    });
-    // Same tool without the AWS provider is left verbatim.
-    const withoutProvider = getToolsFromAttributes({ parsedAttributes });
-    expect(withoutProvider).toEqual({
       tools: [
         {
           kind: "raw",
@@ -1713,7 +1696,7 @@ describe("getToolsFromAttributes", () => {
         ],
       },
     };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: [
         {
@@ -1742,7 +1725,7 @@ describe("getToolsFromAttributes", () => {
         tools: [{ tool: { json_schema: JSON.stringify(rawTool) } }],
       },
     };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: [
         {
@@ -1758,7 +1741,7 @@ describe("getToolsFromAttributes", () => {
 
   it("should return null tools and parsing errors if tools are invalid", () => {
     const parsedAttributes = { llm: { tools: "invalid" } };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: null,
       parsingErrors: [TOOLS_PARSING_ERROR],
@@ -1767,7 +1750,7 @@ describe("getToolsFromAttributes", () => {
 
   it("should return null tools and no parsing errors if tools are not present", () => {
     const parsedAttributes = { llm: {} };
-    const result = getToolsFromAttributes({ parsedAttributes });
+    const result = getToolsFromAttributes(parsedAttributes);
     expect(result).toEqual({
       tools: null,
       parsingErrors: [],
