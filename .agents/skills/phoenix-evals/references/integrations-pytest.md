@@ -67,7 +67,7 @@ Rule of thumb: assert the behavior you'd be embarrassed to ship broken; log ever
 
 ## LLM-as-a-judge inside a test
 
-A judge is just an evaluator passed to `evaluate()` (or hoisted on the marker). The cleanest judge is a `create_classifier` from `arize-phoenix-evals`: it emits a label mapped to a numeric score plus an explanation, recorded as its own annotation under a linked evaluator span. `evaluate(judge, **kwargs)` fills the prompt-template variables from `kwargs` — pass the judge only what it needs to grade. Use a **stronger model to judge a weaker one** (e.g. Sonnet judging Haiku) so verdicts stay stable — a noisy judge makes the suite flaky.
+A judge is just an evaluator passed to `evaluate()` (or hoisted on the marker). The cleanest judge is a `create_classifier` from `arize-phoenix-evals`: it emits a label mapped to a numeric score plus an explanation, recorded as its own annotation under a linked evaluator span. `evaluate(judge, **kwargs)` fills the prompt-template variables from `kwargs` — pass the judge only what it needs to grade. The judge runs on its own model, configured independently of the system under test (see configuring the judge LLM).
 
 ```python
 import time

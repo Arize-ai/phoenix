@@ -241,9 +241,9 @@ import pytest
 from phoenix.client.pytest import evaluate, log_evaluation, log_output
 from phoenix.evals import LLM, create_classifier
 
-# A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable —
-# a noisy judge makes the whole suite flaky. The judge reads just the question
-# and response; the kwargs to evaluate() below fill these template variables.
+# The judge runs on its own model, configured independently of the bot under
+# test. It reads just the question and response; the kwargs to evaluate() below
+# fill these template variables.
 helpfulness = create_classifier(
     name="helpfulness",
     llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
@@ -286,7 +286,7 @@ To grade whether an answer is *grounded* in retrieved context (rather than just 
 </Tip>
 
 <Tip>
-Pick the judge model deliberately. Judging a weaker model with a stronger one (here, Sonnet grading Haiku) keeps verdicts stable across runs; a judge that's no better than the system under test adds noise rather than signal. See [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+The judge runs on its own model, configured independently of the system under test. See [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm) for how to choose and tune it.
 </Tip>
 
 ## Repetitions

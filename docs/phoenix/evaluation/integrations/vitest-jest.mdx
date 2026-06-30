@@ -389,8 +389,8 @@ import * as px from "@arizeai/phoenix-client/vitest";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { expect } from "vitest";
 
-// A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable.
-// The judge reads just the question and response; the params passed to
+// The judge runs on its own model, configured independently of the bot under
+// test. It reads just the question and response; the params passed to
 // px.evaluate() below fill these template variables — no inputMapping needed.
 const helpfulness = createClassificationEvaluator({
   name: "helpfulness",
@@ -447,7 +447,7 @@ px.describe(
 This is the whole pattern: the refusal stays a per-case `expect()` (invariant), while helpfulness and latency become `acceptanceCriteria` (signals). The suite still fails CI if quality drops across the board — just not on a single unlucky generation.
 
 <Tip>
-To grade whether an answer is *grounded* in retrieved context (rather than just on-topic), give the judge that context too — add a `{{context}}` variable to the template and pass `context` alongside `question` and `response`, or reach for a pre-built evaluator like `createFaithfulnessEvaluator` (which can supply its own `inputMapping`). Judge with a model stronger than the system under test (here, Sonnet grading Haiku) to keep verdicts stable; see [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).
+To grade whether an answer is *grounded* in retrieved context (rather than just on-topic), give the judge that context too — add a `{{context}}` variable to the template and pass `context` alongside `question` and `response`, or reach for a pre-built evaluator like `createFaithfulnessEvaluator` (which can supply its own `inputMapping`). The judge runs on its own model, configured independently of the system under test; see [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm) for how to choose and tune it.
 </Tip>
 
 ## Acceptance criteria — CI gates on aggregate scores
