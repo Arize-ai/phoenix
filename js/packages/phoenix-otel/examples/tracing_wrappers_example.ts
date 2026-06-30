@@ -9,13 +9,12 @@
 // traceChain orchestrating the steps.
 
 /* eslint-disable no-console */
-import { context } from "@opentelemetry/api";
-
 import {
   type Document,
   type Embedding,
   type Message,
   type TokenCount,
+  context,
   getEmbeddingAttributes,
   getLLMAttributes,
   getRetrieverAttributes,
