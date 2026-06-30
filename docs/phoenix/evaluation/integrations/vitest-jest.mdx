@@ -590,40 +590,6 @@ jobs:
 
 The test runner's exit code is your CI gate. A failed assertion — or a failed acceptance criterion — exits with a non-zero code and fails the job.
 
-### Ready-to-copy workflow
-
-A complete, runnable version ships with the [Vitest support-bot example](https://github.com/Arize-ai/phoenix/tree/main/js/examples/apps/vitest-example) as `eval-ci.yml`. Because that example is a member of a pnpm workspace, dependencies are installed once at the workspace root and the suite runs from its package directory. Copy it to `.github/workflows/` and adjust the `working-directory` paths to match your repo:
-
-```yaml eval-ci.yml
-name: eval-ci
-
-on:
-  pull_request:
-
-jobs:
-  evals-typescript:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: pnpm
-          cache-dependency-path: js/pnpm-lock.yaml
-      - name: Install dependencies
-        working-directory: js
-        run: pnpm install --frozen-lockfile
-      - name: Run eval suite
-        working-directory: js/examples/apps/vitest-example
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_COLLECTOR_ENDPOINT }}
-          PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
-        # Acceptance criteria in the suite fail the run on a nonzero exit.
-        run: pnpm eval
-```
-
 ## Complete example
 
 A full text-to-SQL eval suite with inline evaluators, hoisted annotations, and acceptance criteria:
