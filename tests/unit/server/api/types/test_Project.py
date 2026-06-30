@@ -1849,6 +1849,88 @@ class TestProject:
     ) -> Any:
         return await _node(field, Project.__name__, project.id, httpx_client)
 
+    async def test_annotation_name_counts(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Span/trace/session annotation name counts reflect the number of annotations per name."""
+        async with db() as session:
+            project = await _add_project(session, name="annotation-name-counts-test")
+            project_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, project_session)
+            span = await _add_span(session, trace)
+
+            # 2 span annotations named "correctness", 1 named "relevance"
+            for name in ("correctness", "correctness", "relevance"):
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name=name,
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        metadata_={},
+                        identifier=token_hex(4),
+                    )
+                )
+            # 3 trace annotations named "quality"
+            for _ in range(3):
+                session.add(
+                    models.TraceAnnotation(
+                        trace_rowid=trace.id,
+                        name="quality",
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        metadata_={},
+                        identifier=token_hex(4),
+                    )
+                )
+            # 1 session annotation named "helpfulness"
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="helpfulness",
+                    annotator_kind="HUMAN",
+                    source="APP",
+                    metadata_={},
+                    identifier=token_hex(4),
+                )
+            )
+
+        span_counts = await self._node(
+            "spanAnnotationNameCounts{name count}", project, httpx_client
+        )
+        assert span_counts == [
+            {"name": "correctness", "count": 2},
+            {"name": "relevance", "count": 1},
+        ]
+
+        trace_counts = await self._node(
+            "traceAnnotationNameCounts{name count}", project, httpx_client
+        )
+        assert trace_counts == [{"name": "quality", "count": 3}]
+
+        session_counts = await self._node(
+            "sessionAnnotationNameCounts{name count}", project, httpx_client
+        )
+        assert session_counts == [{"name": "helpfulness", "count": 1}]
+
+    async def test_annotation_name_counts_empty(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Projects without annotations return empty lists for each level."""
+        async with db() as session:
+            project = await _add_project(session, name="annotation-name-counts-empty")
+        assert await self._node("spanAnnotationNameCounts{name count}", project, httpx_client) == []
+        assert (
+            await self._node("traceAnnotationNameCounts{name count}", project, httpx_client) == []
+        )
+        assert (
+            await self._node("sessionAnnotationNameCounts{name count}", project, httpx_client) == []
+        )
+
     @pytest.fixture
     async def _data(
         self,

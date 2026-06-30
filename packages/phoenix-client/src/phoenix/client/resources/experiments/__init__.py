@@ -92,11 +92,9 @@ _original_span_init: Optional[Callable[..., None]] = None
 
 def _patched_span_init(self: ReadableSpan, *args: Any, **kwargs: Any) -> None:
     """Patched version of ReadableSpan.__init__ that applies resource modifications."""
-    # Call the original __init__ method
     if _original_span_init is not None:
         _original_span_init(self, *args, **kwargs)
 
-    # Apply span modifications if an active modifier exists
     if isinstance(span_modifier := _ACTIVE_MODIFIER.get(None), SpanModifier):
         span_modifier.modify_resource(self)
 
@@ -109,7 +107,7 @@ def _monkey_patch_span_init() -> Iterator[None]:
     with _SPAN_INIT_MONKEY_PATCH_LOCK:
         _span_init_monkey_patch_count += 1
         if _span_init_monkey_patch_count == 1:
-            # First caller - apply the patch
+            # first caller installs the patch
             _original_span_init = ReadableSpan.__init__
             setattr(ReadableSpan, "__init__", _patched_span_init)
 
@@ -119,7 +117,7 @@ def _monkey_patch_span_init() -> Iterator[None]:
         with _SPAN_INIT_MONKEY_PATCH_LOCK:
             _span_init_monkey_patch_count -= 1
             if _span_init_monkey_patch_count == 0:
-                # Last caller - restore the original
+                # last caller restores the original
                 if _original_span_init is not None:
                     setattr(ReadableSpan, "__init__", _original_span_init)
                     _original_span_init = None
@@ -393,7 +391,6 @@ def _build_tasks_for_named_evaluators(
 
         incomplete_names = set(incomplete["evaluation_names"])
 
-        # Match evaluator keys with incomplete evaluation names
         for evaluator_name in incomplete_names & evaluators_by_name.keys():
             evaluator = evaluators_by_name[evaluator_name]
             evaluation_tasks.append((example, run, evaluator))
@@ -441,7 +438,6 @@ def _build_incomplete_evaluation_tasks(
     Returns:
         List of tuples: (example, run, evaluator)
     """
-    # Standard case: match evaluator keys with evaluation names
     return _build_tasks_for_named_evaluators(incomplete_evals, evaluators_by_name)
 
 
@@ -599,7 +595,6 @@ class Experiments:
             )
             print(f"Created experiment with ID: {experiment['id']}")
 
-            # Later, run the experiment
             client.experiments.resume_experiment(
                 experiment_id=experiment["id"],
                 task=my_task,
@@ -801,7 +796,6 @@ class Experiments:
 
         task_result_cache: dict[tuple[str, int], Any] = {}
 
-        # Setup rate limiting
         errors: tuple[type[BaseException], ...]
         if not isinstance(rate_limit_errors, Sequence):
             errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
@@ -838,11 +832,10 @@ class Experiments:
         task_runs, _execution_details = executor.run(test_cases)
         print("✅ Task runs completed.")
 
-        # Get the final state of runs from the database if not dry run
+        # re-fetch from the server so task_runs reflects the authoritative, persisted state
         if not dry_run:
             task_runs = self._get_all_experiment_runs(experiment_id=experiment["id"])
 
-            # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
             actual_runs = len(task_runs)
             if actual_runs < expected_runs:
@@ -851,7 +844,6 @@ class Experiments:
                     "completed successfully."
                 )
 
-        # Create RanExperiment object
         task_runs_list = [r for r in task_runs if r is not None]
         evaluation_runs_list: list[ExperimentEvaluationRun] = []
 
@@ -939,14 +931,13 @@ class Experiments:
                 body = cast(v1.ListExperimentRunsResponseBody, response.json())
                 all_runs.extend(body["data"])
 
-                # Check if there are more pages
                 cursor = body.get("next_cursor")
                 if not cursor:
                     break
 
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    # Experiment doesn't exist - treat as empty result
+                    # experiment doesn't exist; treat as an empty result
                     break
                 else:
                     raise
@@ -984,7 +975,6 @@ class Experiments:
                 print_summary=True,
             )
         """
-        # Get experiment metadata using existing endpoint
         try:
             experiment_response = self._client.get(f"v1/experiments/{experiment_id}")
             experiment_response.raise_for_status()
@@ -1033,7 +1023,6 @@ class Experiments:
             if not json_record:
                 continue
 
-            # Create evaluation runs from annotations if present
             for annotation in json_record.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
                 eval_result = None
                 if (
@@ -1050,10 +1039,9 @@ class Experiments:
                         },
                     )
 
-                # Only create evaluation runs for annotations that have evaluation data
                 if eval_result is not None:
                     eval_run = ExperimentEvaluationRun(
-                        id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # Generate temp ID
+                        id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # temporary id
                         experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
                         start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
@@ -1142,17 +1130,14 @@ class Experiments:
         task_signature = inspect.signature(task)
         _validate_task_signature(task_signature)
 
-        # Get the experiment metadata
         experiment = self.get(experiment_id=experiment_id)
 
-        # Setup for task execution
         tracer, resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
         )
         root_span_name = f"Task: {get_func_name(task)}"
         task_result_cache: dict[tuple[str, int], Any] = {}
 
-        # Setup rate limiting
         errors: tuple[type[BaseException], ...]
         if not isinstance(rate_limit_errors, Sequence):
             errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
@@ -1178,7 +1163,7 @@ class Experiments:
             lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_run_task
         )
 
-        # Check experiment status using counts from the experiment response
+        # use the run counts from the experiment record rather than fetching every run
         print("🔍 Checking for incomplete runs...")
         total_expected = experiment["example_count"] * experiment["repetitions"]
         incomplete_count = total_expected - experiment["successful_run_count"]
@@ -1206,7 +1191,6 @@ class Experiments:
         total_completed = 0
 
         while True:
-            # Fetch next batch of incomplete runs
             params: dict[str, Any] = {"limit": page_size}
             if cursor:
                 params["cursor"] = cursor
@@ -1224,7 +1208,6 @@ class Experiments:
                 if not batch_incomplete:
                     break
 
-                # Build test cases from this batch
                 batch_test_cases: list[TestCase] = []
                 for incomplete in batch_incomplete:
                     example_data = incomplete["dataset_example"]
@@ -1235,7 +1218,6 @@ class Experiments:
 
                 print(f"Processing batch of {len(batch_test_cases)} incomplete runs...")
 
-                # Execute tasks for this batch
                 executor = SyncExecutor(
                     generation_fn=rate_limited_sync_run_task,
                     tqdm_bar_format=get_tqdm_progress_bar_formatter("resuming tasks"),
@@ -1286,9 +1268,8 @@ class Experiments:
                 "were completed successfully."
             )
 
-        # Run evaluators if provided
         if evaluators:
-            print()  # Add spacing before evaluation output
+            print()  # blank line before evaluation output
             self.resume_evaluation(
                 experiment_id=experiment_id,
                 evaluators=evaluators,
@@ -1298,7 +1279,6 @@ class Experiments:
                 retries=retries,
             )
 
-        # Print summary if requested
         if print_summary:
             print("\n" + "=" * 70)
             print("📊 Experiment Resume Summary")
@@ -1374,17 +1354,14 @@ class Experiments:
         if not evaluators_by_name:
             raise ValueError("Must specify at least one evaluator")
 
-        # Get the experiment metadata
         experiment = self.get(experiment_id=experiment_id)
 
-        # Setup for evaluator execution
         eval_tracer, eval_resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
         )
 
         print("🔍 Checking for incomplete evaluations...")
 
-        # Build evaluation names list for query - derive from evaluator keys
         evaluation_names_list = list(evaluators_by_name.keys())
 
         # Process incomplete evaluations in streaming batches
@@ -1394,7 +1371,6 @@ class Experiments:
         total_completed = 0
 
         while True:
-            # Fetch next batch of incomplete evaluations
             params: dict[str, Any] = {"limit": page_size, "evaluation_name": evaluation_names_list}
             if cursor:
                 params["cursor"] = cursor
@@ -1418,7 +1394,6 @@ class Experiments:
                 if total_processed == 0:
                     print("🧠 Resuming evaluations...")
 
-                # Build evaluation tasks from incomplete evaluations
                 evaluation_tasks = _build_incomplete_evaluation_tasks(
                     batch_incomplete,
                     evaluators_by_name,
@@ -1435,7 +1410,6 @@ class Experiments:
 
                 print(f"Processing batch of {len(evaluation_tasks)} evaluation tasks...")
 
-                # Execute evaluations using refactored method
                 batch_eval_runs = self._run_evaluations(
                     evaluation_tasks,
                     eval_tracer,
@@ -1448,7 +1422,6 @@ class Experiments:
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
 
-                # Check for next page
                 cursor = body.get("next_cursor")
                 if not cursor:
                     break
@@ -1486,7 +1459,6 @@ class Experiments:
                 "were completed successfully."
             )
 
-        # Print summary if requested
         if print_summary:
             print("\n" + "=" * 70)
             print("📊 Evaluation Resume Summary")
@@ -1618,7 +1590,6 @@ class Experiments:
         if dry_run:
             print("🌵️ This is a dry-run evaluation.")
 
-        # Build evaluation tasks
         examples_by_id = {_example_global_id(ex): ex for ex in dataset.examples}
         evaluation_tasks = _build_evaluation_tasks(
             task_runs,
@@ -1626,7 +1597,6 @@ class Experiments:
             examples_by_id,
         )
 
-        # Run evaluations
         eval_runs = self._run_evaluations(
             evaluation_tasks,
             eval_tracer,
@@ -1700,11 +1670,9 @@ class Experiments:
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example["id"], repetition_number)
 
-        # Check if we have a cached result
         if cache_key in task_result_cache:
             cached_value = cast(ExperimentRun, task_result_cache[cache_key])
-            # we only get to this point if the previous post to the sever was cancelled, so we
-            # re-try the post
+            # we only reach here when a previous post to the server was cancelled, so retry it
             if not dry_run:
                 try:
                     resp = self._client.post(
@@ -1771,7 +1739,6 @@ class Experiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, CHAIN)
             span.set_status(status)
 
-        # Handle potential None values in span timing
         if span.start_time is not None:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
@@ -1790,13 +1757,12 @@ class Experiments:
             "experiment_id": experiment["id"],
         }
 
-        # Add optional fields if they exist
         if trace_id:
             exp_run["trace_id"] = trace_id
         if error:
             exp_run["error"] = repr(error)
 
-        # here we cache the result because the post to the server may be cancelled
+        # cache the result first, since the post to the server may be cancelled
         task_result_cache[cache_key] = exp_run
 
         if not dry_run:
@@ -1816,11 +1782,9 @@ class Experiments:
                     task_result_cache.pop(cache_key, None)
                     raise
 
-        # Re-raise exception if task failed
         if error is not None:
-            # we can delete the task result from the cache because the result has been
-            # successfully submitted to the server, however we will leave the error check in place
-            # just in case our assumption is wrong
+            # safe to drop from the cache now that the result is persisted on the server; the
+            # error check is left in place in case that assumption is ever wrong
             task_result_cache.pop(cache_key, None)
             raise error
 
@@ -1851,7 +1815,6 @@ class Experiments:
             List of evaluation run results
         """
 
-        # Setup rate limiting
         errors: tuple[type[BaseException], ...]
         if not isinstance(rate_limit_errors, Sequence):
             errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
@@ -1877,7 +1840,6 @@ class Experiments:
             lambda fn, limiter: limiter.limit(fn), rate_limiters, sync_evaluate_run
         )
 
-        # Use sync executor for sync operation
         executor = SyncExecutor(
             generation_fn=rate_limited_sync_evaluate_run,
             max_retries=retries,
@@ -1966,7 +1928,6 @@ class Experiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
-        # Handle potential None values in span timing
         if span.start_time is not None:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
@@ -2477,7 +2438,6 @@ class AsyncExperiments:
             )
             print(f"Created experiment with ID: {experiment['id']}")
 
-            # Later, run the experiment
             await async_client.experiments.resume_experiment(
                 experiment_id=experiment["id"],
                 task=my_task,
@@ -2680,7 +2640,6 @@ class AsyncExperiments:
 
         task_result_cache: dict[tuple[str, int], Any] = {}
 
-        # Setup rate limiting
         errors: tuple[type[BaseException], ...]
         if not isinstance(rate_limit_errors, Sequence):
             errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
@@ -2719,11 +2678,10 @@ class AsyncExperiments:
         task_runs, _execution_details = await executor.execute(test_cases)
         print("✅ Task runs completed.")
 
-        # Get the final state of runs from the database if not dry run
+        # re-fetch from the server so task_runs reflects the authoritative, persisted state
         if not dry_run:
             task_runs = await self._get_all_experiment_runs(experiment_id=experiment["id"])
 
-            # Check if we got all expected runs
             expected_runs = len(examples_to_process) * repetitions
             actual_runs = len(task_runs)
             if actual_runs < expected_runs:
@@ -2732,7 +2690,6 @@ class AsyncExperiments:
                     "completed successfully."
                 )
 
-        # Create RanExperiment object
         task_runs_list = [r for r in task_runs if r is not None]
         evaluation_runs_list: list[ExperimentEvaluationRun] = []
 
@@ -2820,14 +2777,13 @@ class AsyncExperiments:
                 body = cast(v1.ListExperimentRunsResponseBody, response.json())
                 all_runs.extend(body["data"])
 
-                # Check if there are more pages
                 cursor = body.get("next_cursor")
                 if not cursor:
                     break
 
             except HTTPStatusError as e:
                 if e.response.status_code == 404:
-                    # Experiment doesn't exist - treat as empty result for robustness
+                    # experiment doesn't exist; treat as an empty result
                     break
                 else:
                     raise
@@ -2865,7 +2821,6 @@ class AsyncExperiments:
                 print_summary=True,
             )
         """
-        # Get experiment metadata using existing endpoint
         try:
             experiment_response = await self._client.get(f"v1/experiments/{experiment_id}")
             experiment_response.raise_for_status()
@@ -2914,7 +2869,6 @@ class AsyncExperiments:
             if not json_record:
                 continue
 
-            # Create evaluation runs from annotations if present
             for annotation in json_record.get("annotations", []):  # pyright: ignore [reportUnknownMemberType, reportUnknownVariableType]
                 eval_result = None
                 if (
@@ -2933,7 +2887,7 @@ class AsyncExperiments:
 
                 if eval_result is not None:
                     eval_run = ExperimentEvaluationRun(
-                        id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # Generate temp ID
+                        id=f"ExperimentEvaluation:{len(evaluation_runs) + 1}",  # temporary id
                         experiment_run_id=run_data["id"],  # pyright: ignore [reportUnknownArgumentType]
                         start_time=datetime.fromisoformat(annotation["start_time"]),  # pyright: ignore [reportUnknownArgumentType]
                         end_time=datetime.fromisoformat(annotation["end_time"]),  # pyright: ignore [reportUnknownArgumentType]
@@ -3024,17 +2978,14 @@ class AsyncExperiments:
         task_signature = inspect.signature(task)
         _validate_task_signature(task_signature)
 
-        # Get the experiment metadata
         experiment = await self.get(experiment_id=experiment_id)
 
-        # Setup for task execution
         tracer, resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
         )
         root_span_name = f"Task: {get_func_name(task)}"
         task_result_cache: dict[tuple[str, int], Any] = {}
 
-        # Setup rate limiting
         errors: tuple[type[BaseException], ...]
         if not isinstance(rate_limit_errors, Sequence):
             errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
@@ -3060,7 +3011,7 @@ class AsyncExperiments:
             lambda fn, limiter: limiter.alimit(fn), rate_limiters, async_run_task
         )
 
-        # Check experiment status using counts from the experiment response
+        # use the run counts from the experiment record rather than fetching every run
         print("🔍 Checking for incomplete runs...")
         total_expected = experiment["example_count"] * experiment["repetitions"]
         incomplete_count = total_expected - experiment["successful_run_count"]
@@ -3088,7 +3039,6 @@ class AsyncExperiments:
         total_completed = 0
 
         while True:
-            # Fetch next batch of incomplete runs
             params: dict[str, Any] = {"limit": page_size}
             if cursor:
                 params["cursor"] = cursor
@@ -3106,7 +3056,6 @@ class AsyncExperiments:
                 if not batch_incomplete:
                     break
 
-                # Build test cases from this batch
                 batch_test_cases: list[TestCase] = []
                 for incomplete in batch_incomplete:
                     example_data = incomplete["dataset_example"]
@@ -3117,7 +3066,6 @@ class AsyncExperiments:
 
                 print(f"Processing batch of {len(batch_test_cases)} incomplete runs...")
 
-                # Execute tasks for this batch
                 executor = AsyncExecutor(
                     generation_fn=rate_limited_async_run_task,
                     concurrency=concurrency,
@@ -3170,9 +3118,8 @@ class AsyncExperiments:
                 "were completed successfully."
             )
 
-        # Run evaluators if provided
         if evaluators:
-            print()  # Add spacing before evaluation output
+            print()  # blank line before evaluation output
             await self.resume_evaluation(
                 experiment_id=experiment_id,
                 evaluators=evaluators,
@@ -3183,7 +3130,6 @@ class AsyncExperiments:
                 retries=retries,
             )
 
-        # Print summary if requested
         if print_summary:
             print("\n" + "=" * 70)
             print("📊 Experiment Resume Summary")
@@ -3261,17 +3207,14 @@ class AsyncExperiments:
         if not evaluators_by_name:
             raise ValueError("Must specify at least one evaluator")
 
-        # Get the experiment metadata
         experiment = await self.get(experiment_id=experiment_id)
 
-        # Setup for evaluator execution
         eval_tracer, eval_resource = _get_tracer(
             experiment["project_name"], str(self._client.base_url), dict(self._client.headers)
         )
 
         print("🔍 Checking for incomplete evaluations...")
 
-        # Build evaluation names list for query - derive from evaluator keys
         evaluation_names_list = list(evaluators_by_name.keys())
 
         # Process incomplete evaluations in streaming batches
@@ -3281,7 +3224,6 @@ class AsyncExperiments:
         total_completed = 0
 
         while True:
-            # Fetch next batch of incomplete evaluations
             params: dict[str, Any] = {"limit": page_size, "evaluation_name": evaluation_names_list}
             if cursor:
                 params["cursor"] = cursor
@@ -3305,7 +3247,6 @@ class AsyncExperiments:
                 if total_processed == 0:
                     print("🧠 Resuming evaluations...")
 
-                # Build evaluation tasks from incomplete evaluations
                 evaluation_tasks = _build_incomplete_evaluation_tasks(
                     batch_incomplete,
                     evaluators_by_name,
@@ -3322,7 +3263,6 @@ class AsyncExperiments:
 
                 print(f"Processing batch of {len(evaluation_tasks)} evaluation tasks...")
 
-                # Execute evaluations using refactored method
                 batch_eval_runs = await self._run_evaluations(
                     evaluation_tasks,
                     eval_tracer,
@@ -3336,7 +3276,6 @@ class AsyncExperiments:
 
                 total_completed += len([r for r in batch_eval_runs if r.error is None])
 
-                # Check for next page
                 cursor = body.get("next_cursor")
                 if not cursor:
                     break
@@ -3374,7 +3313,6 @@ class AsyncExperiments:
                 "were completed successfully."
             )
 
-        # Print summary if requested
         if print_summary:
             print("\n" + "=" * 70)
             print("📊 Evaluation Resume Summary")
@@ -3508,7 +3446,6 @@ class AsyncExperiments:
         if dry_run:
             print("🌵️ This is a dry-run evaluation.")
 
-        # Build evaluation tasks
         examples_by_id = {_example_global_id(ex): ex for ex in dataset.examples}
         evaluation_tasks = _build_evaluation_tasks(
             task_runs,
@@ -3516,7 +3453,6 @@ class AsyncExperiments:
             examples_by_id,
         )
 
-        # Run evaluations
         eval_runs = await self._run_evaluations(
             evaluation_tasks,
             eval_tracer,
@@ -3591,11 +3527,9 @@ class AsyncExperiments:
         example, repetition_number = test_case.example, test_case.repetition_number
         cache_key = (example["id"], repetition_number)
 
-        # Check if we have a cached result
         if cache_key in task_result_cache:
             cached_value = cast(ExperimentRun, task_result_cache[cache_key])
-            # we only get to this point if the previous post to the sever was cancelled, so we
-            # re-try the post
+            # we only reach here when a previous post to the server was cancelled, so retry it
             if not dry_run:
                 try:
                     resp = await self._client.post(
@@ -3659,7 +3593,6 @@ class AsyncExperiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, CHAIN)
             span.set_status(status)
 
-        # Handle potential None values in span timing
         if span.start_time is not None:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
@@ -3678,13 +3611,12 @@ class AsyncExperiments:
             "experiment_id": experiment["id"],
         }
 
-        # Add optional fields if they exist
         if trace_id:
             exp_run["trace_id"] = trace_id
         if error:
             exp_run["error"] = repr(error)
 
-        # here we cache the result because the post to the server may be cancelled
+        # cache the result first, since the post to the server may be cancelled
         task_result_cache[cache_key] = exp_run
 
         if not dry_run:
@@ -3704,11 +3636,9 @@ class AsyncExperiments:
                     task_result_cache.pop(cache_key, None)
                     raise
 
-        # Re-raise exception if task failed
         if error is not None:
-            # we can delete the task result from the cache because the result has been
-            # successfully submitted to the server, however we will leave the error check in place
-            # just in case our assumption is wrong
+            # safe to drop from the cache now that the result is persisted on the server; the
+            # error check is left in place in case that assumption is ever wrong
             task_result_cache.pop(cache_key, None)
             raise error
 
@@ -3742,7 +3672,6 @@ class AsyncExperiments:
             List of evaluation run results
         """
 
-        # Setup rate limiting
         errors: tuple[type[BaseException], ...]
         if not isinstance(rate_limit_errors, Sequence):
             errors = (rate_limit_errors,) if rate_limit_errors is not None else ()
@@ -3858,7 +3787,6 @@ class AsyncExperiments:
             span.set_attribute(OPENINFERENCE_SPAN_KIND, EVALUATOR)
             span.set_status(status)
 
-        # Handle potential None values in span timing
         if span.start_time is not None:
             start_time = _decode_unix_nano(span.start_time)
         if span.end_time is not None:
