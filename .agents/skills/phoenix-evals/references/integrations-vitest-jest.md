@@ -74,7 +74,7 @@ This is the natural division of labor in this runner: invariants → per-case `e
 
 ## LLM-as-a-judge inside a suite
 
-The cleanest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`: it emits a label mapped to a numeric score (recorded as an annotation under a linked evaluator span). Pass the judge only what it needs to grade as the second arg to `px.evaluate()`, matching the template vars — no `inputMapping` needed. (For structured records or pre-built evaluators, `inputMapping` projects fields onto template vars instead.) Judge with a **stronger model than the system under test** (e.g. Sonnet judging Haiku) to keep verdicts stable.
+The cleanest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`: it emits a label mapped to a numeric score (recorded as an annotation under a linked evaluator span). Pass the judge only what it needs to grade as the second arg to `px.evaluate()`, matching the template vars — no `inputMapping` needed. (For structured records or pre-built evaluators, `inputMapping` projects fields onto template vars instead.) The judge runs on its own model, configured independently of the system under test (see configuring the judge LLM).
 
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
