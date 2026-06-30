@@ -99,8 +99,8 @@ describe("PXI app", () => {
     expect(lastFrame()).toContain("Phoenix Intelligence.");
     expect(lastFrame()).toContain("endpoint: http://localhost:6006");
     expect(lastFrame()).toContain("model: OPENAI/gpt-5.4");
-    expect(lastFrame()).toContain("Enter sends.");
-    expect(lastFrame()).toContain("Shift+Enter inserts a newline.");
+    expect(lastFrame()).toContain("↵ send");
+    expect(lastFrame()).toContain("⇧↵ newline");
     unmount();
   });
 
@@ -112,11 +112,12 @@ describe("PXI app", () => {
       <PxiApp options={createOptions()} client={client} />
     );
 
-    // The model label is pinned to the bottom-right of the prompt, below the
+    // The model name is pinned to the bottom-right of the prompt, below the
     // help text rather than in the header status line.
     const frame = stripAnsi(lastFrame() ?? "");
-    const footer = frame.slice(frame.indexOf("Enter sends."));
-    expect(footer).toContain("OPENAI/gpt-5.4");
+    const footer = frame.slice(frame.indexOf("↵ send"));
+    expect(footer).toContain("gpt-5.4");
+    expect(footer).not.toContain("OPENAI/gpt-5.4");
     unmount();
   });
 
@@ -175,7 +176,7 @@ describe("PXI app", () => {
 
     const frame = lastFrame() ?? "";
     expect(frame).not.toContain("█");
-    expect(stripAnsi(frame)).toContain("> hello");
+    expect(stripAnsi(frame)).toContain("❯ hello");
     unmount();
   });
 
@@ -194,7 +195,7 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: UP_ARROW });
 
     const frame = lastFrame() ?? "";
-    expect(stripAnsi(frame)).toMatch(/> top\n\s*█\n\s*bottom/);
+    expect(stripAnsi(frame)).toMatch(/❯ top\n\s*█\n\s*bottom/);
     unmount();
   });
 
@@ -896,7 +897,7 @@ describe("PXI app", () => {
     });
 
     const frame = stripAnsi(lastFrame() ?? "");
-    expect(frame).toContain("Enter sends.");
+    expect(frame).toContain("↵ send");
     unmount();
   });
 

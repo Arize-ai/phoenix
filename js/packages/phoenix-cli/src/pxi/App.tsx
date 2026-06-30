@@ -359,7 +359,7 @@ function InputPrompt({
         borderColor="gray"
       >
         <Text>
-          <Text color="cyan">{"> "}</Text>
+          <Text color="cyan">{"❯ "}</Text>
           <HighlightedDraft
             draft={draftValue}
             cursorIndex={draft.cursorIndex}
@@ -389,8 +389,7 @@ function InputPrompt({
           </Box>
         ) : (
           <Text dimColor>
-            Enter sends. Shift+Enter inserts a newline. Esc interrupts. Type
-            /help for commands. Ctrl+D or Ctrl+C exits.
+            ↵ send · ⇧↵ newline · esc interrupt · /help · ctrl+c exit
           </Text>
         )}
         <Box flexShrink={0} marginLeft={2}>
@@ -762,7 +761,7 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
         draft={draft}
         status={status}
         usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
-        modelLabel={getModelLabel(options)}
+        modelLabel={options.modelSelection.modelName}
       />
     </Box>
   );
