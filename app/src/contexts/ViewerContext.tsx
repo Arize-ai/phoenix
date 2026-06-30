@@ -77,7 +77,7 @@ export function useViewerCanManageSecrets() {
  */
 export function useViewerCanDeleteProjectAnnotations() {
   const { viewer } = useViewer();
-  if (viewer && viewer?.role?.name !== "ADMIN") {
+  if (viewer && viewer.role?.name !== "ADMIN") {
     return false;
   }
   return true;

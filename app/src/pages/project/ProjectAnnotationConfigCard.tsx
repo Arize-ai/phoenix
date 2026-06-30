@@ -48,7 +48,7 @@ export const ProjectAnnotationConfigCard = (
   props: ProjectAnnotationConfigCardProps
 ) => {
   return (
-    <Card title="Project Annotations">
+    <Card title="Annotation Configs">
       <Alert variant="info" banner>
         Annotation Configs are configured globally and can be associated with
         multiple projects. Select the annotation configs you want to use for

@@ -10,12 +10,16 @@ import {
   Button,
   Card,
   ContentSkeleton,
+  Counter,
   DateField,
   DateInput,
   DateSegment,
   Dialog,
   DialogTrigger,
-  Empty,
+  Disclosure,
+  DisclosureGroup,
+  DisclosurePanel,
+  DisclosureTrigger,
   FieldError,
   Flex,
   Icon,
@@ -61,9 +65,12 @@ interface AnnotationNameCount {
   readonly count: number;
 }
 
+const sumCounts = (annotations: readonly AnnotationNameCount[]) =>
+  annotations.reduce((total, annotation) => total + annotation.count, 0);
+
 /**
- * Performs the bulk delete for a single annotation level (span, trace, or
- * session). The level-specific Relay mutation is bound by the parent.
+ * Performs the bulk delete for a single annotation target type (span, trace,
+ * or session). The target-type-specific Relay mutation is bound by the parent.
  */
 type DeleteAnnotationsFn = (args: {
   annotationName: string;
@@ -73,30 +80,31 @@ type DeleteAnnotationsFn = (args: {
   onError: (message: string) => void;
 }) => void;
 
-const LEVELS = [
+// The annotation target type is what an annotation is attached to: a span,
+// trace, or session.
+const TARGET_TYPES = [
   {
     title: "Span Annotations",
     // The noun used when describing the source's activity time in the UI.
     sourceNoun: "span",
-    emptyMessage: "No span annotations have been added to this project.",
   },
   {
     title: "Trace Annotations",
     sourceNoun: "trace",
-    emptyMessage: "No trace annotations have been added to this project.",
   },
   {
     title: "Session Annotations",
     sourceNoun: "session",
-    emptyMessage: "No session annotations have been added to this project.",
   },
 ] as const;
 
 /**
- * A set of cards summarizing which annotations have been added to a project at
- * the span, trace, and session levels, along with the number of annotations
- * recorded for each annotation name. Admins can bulk-delete all annotations of a
- * given name, optionally restricted to a time range.
+ * A single card summarizing which annotations have been added to a project,
+ * with a collapsible section per target type (span, trace, and session) listing
+ * the number of annotations recorded for each annotation name. Sections are
+ * collapsed by default to keep the configuration page dense. Admins can
+ * bulk-delete all annotations of a given name, optionally restricted to a time
+ * range.
  */
 export const ProjectAnnotationCountsCards = (
   props: ProjectAnnotationCountsCardsProps
@@ -110,13 +118,9 @@ export const ProjectAnnotationCountsCards = (
 
 const ProjectAnnotationCountsCardsFallback = () => {
   return (
-    <>
-      {LEVELS.map((level) => (
-        <Card key={level.title} title={level.title}>
-          <ContentSkeleton />
-        </Card>
-      ))}
-    </>
+    <Card title="Annotations">
+      <ContentSkeleton />
+    </Card>
   );
 };
 
@@ -218,7 +222,7 @@ const ProjectAnnotationCountsCardsContent = (
       }
     `);
 
-  // The level-specific mutations share an identical variables shape; only the
+  // The target-type-specific mutations share an identical variables shape; only the
   // bound commit fn and the response field they read the count from differ.
   const toVariables = (args: Parameters<DeleteAnnotationsFn>[0]) => ({
     projectId,
@@ -260,42 +264,57 @@ const ProjectAnnotationCountsCardsContent = (
       onError: (error) => args.onError(error.message),
     });
 
-  const levels = [
+  const [spanTargetType, traceTargetType, sessionTargetType] = TARGET_TYPES;
+  const targetTypes = [
     {
-      ...LEVELS[0],
+      ...spanTargetType,
       annotations: data.project.spanAnnotationNameCounts ?? [],
       onDelete: deleteSpan,
       isDeleting: isDeletingSpan,
     },
     {
-      ...LEVELS[1],
+      ...traceTargetType,
       annotations: data.project.traceAnnotationNameCounts ?? [],
       onDelete: deleteTrace,
       isDeleting: isDeletingTrace,
     },
     {
-      ...LEVELS[2],
+      ...sessionTargetType,
       annotations: data.project.sessionAnnotationNameCounts ?? [],
       onDelete: deleteSession,
       isDeleting: isDeletingSession,
     },
   ];
 
+  const grandTotal = targetTypes.reduce(
+    (total, targetType) => total + sumCounts(targetType.annotations),
+    0
+  );
+
   return (
-    <>
-      {levels.map((level) => (
-        <AnnotationCountsCard
-          key={level.title}
-          title={level.title}
-          sourceNoun={level.sourceNoun}
-          emptyMessage={level.emptyMessage}
-          annotations={level.annotations}
-          canDelete={canDelete}
-          isDeleting={level.isDeleting}
-          onDelete={level.onDelete}
-        />
-      ))}
-    </>
+    <Card
+      title="Annotations"
+      extra={
+        <Text css={totalCountCSS} size="S">
+          {grandTotal.toLocaleString()} total
+        </Text>
+      }
+    >
+      <DisclosureGroup>
+        {targetTypes.map((targetType) => (
+          <AnnotationCountsSection
+            key={targetType.title}
+            id={targetType.title}
+            title={targetType.title}
+            sourceNoun={targetType.sourceNoun}
+            annotations={targetType.annotations}
+            canDelete={canDelete}
+            isDeleting={targetType.isDeleting}
+            onDelete={targetType.onDelete}
+          />
+        ))}
+      </DisclosureGroup>
+    </Card>
   );
 };
 
@@ -313,21 +332,21 @@ const actionCellCSS = css`
   width: 48px;
 `;
 
-interface AnnotationCountsCardProps {
+interface AnnotationCountsSectionProps {
+  id: string;
   title: string;
   sourceNoun: string;
-  emptyMessage: string;
   annotations: readonly AnnotationNameCount[];
   canDelete: boolean;
   isDeleting: boolean;
   onDelete: DeleteAnnotationsFn;
 }
 
-const AnnotationCountsCard = (props: AnnotationCountsCardProps) => {
+const AnnotationCountsSection = (props: AnnotationCountsSectionProps) => {
   const {
+    id,
     title,
     sourceNoun,
-    emptyMessage,
     annotations,
     canDelete,
     isDeleting,
@@ -338,25 +357,25 @@ const AnnotationCountsCard = (props: AnnotationCountsCardProps) => {
   const sortedAnnotations = [...annotations].sort(
     (a, b) => b.count - a.count || a.name.localeCompare(b.name)
   );
-  const totalCount = annotations.reduce(
-    (total, annotation) => total + annotation.count,
-    0
-  );
+  const totalCount = sumCounts(annotations);
+  const isEmpty = sortedAnnotations.length === 0;
 
   return (
-    <Card
-      title={title}
-      extra={
+    // Collapse every section by default, and disable the ones with no
+    // annotations so the trigger reads as "nothing to expand".
+    <Disclosure id={id} defaultExpanded={false} isDisabled={isEmpty}>
+      <DisclosureTrigger arrowPosition="start" justifyContent="space-between">
+        <Flex direction="row" gap="size-100" alignItems="center">
+          <Text>{title}</Text>
+          <Counter variant={isEmpty ? "quiet" : "default"}>
+            {sortedAnnotations.length}
+          </Counter>
+        </Flex>
         <Text css={totalCountCSS} size="S">
           {totalCount.toLocaleString()} total
         </Text>
-      }
-    >
-      {sortedAnnotations.length === 0 ? (
-        <View paddingY="size-400">
-          <Empty message={emptyMessage} />
-        </View>
-      ) : (
+      </DisclosureTrigger>
+      <DisclosurePanel>
         <div
           css={css`
             overflow-x: auto;
@@ -404,8 +423,8 @@ const AnnotationCountsCard = (props: AnnotationCountsCardProps) => {
             </tbody>
           </table>
         </div>
-      )}
-    </Card>
+      </DisclosurePanel>
+    </Disclosure>
   );
 };
 
