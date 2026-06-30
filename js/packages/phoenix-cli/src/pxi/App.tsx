@@ -240,7 +240,7 @@ function InputPrompt({
   const hints = showHints ? matchingCommands(cmdName) : [];
 
   return (
-    <Box flexDirection="column" marginTop={1} gap={1}>
+    <Box flexDirection="column" marginTop={1}>
       <Box
         borderStyle="single"
         borderLeft={false}
@@ -282,7 +282,7 @@ function InputPrompt({
         )}
         {usageLine ? (
           <Box flexShrink={0} marginLeft={2}>
-            <Text dimColor>{usageLine}</Text>
+            <Text color="green">{usageLine}</Text>
           </Box>
         ) : null}
       </Box>
