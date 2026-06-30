@@ -26,8 +26,15 @@ Three patterns that make an eval suite useful in CI, not just a demo:
 | Pattern | How | Why |
 | --- | --- | --- |
 | **Deterministic metric** | `latency_ms` recorded as a `CODE` annotation | Always trustworthy; cheap to track. |
-| **LLM-as-judge** | a `helpfulness` score (1/0) judged on the same KB excerpt the bot saw | Captures grounded quality a string match can't. |
+| **LLM-as-judge** | a `helpfulness` classifier judged on the same KB excerpt the bot saw | Captures grounded quality a string match can't. |
 | **Hard vs. aggregate gating** | assert only the structural refusal; gate quality on suite-level acceptance criteria | LLMs make occasional mistakes — fail CI on *trends*, not on a single imperfect response. |
+
+The judge is a **classification evaluator from Phoenix's evals library** —
+`create_classifier` in Python (`phoenix.evals`) and `createClassificationEvaluator`
+in TypeScript (`@arizeai/phoenix-evals`). You hand it a prompt template and a set
+of labels (`helpful` / `unhelpful`) mapped to scores (`1` / `0`); it uses the
+model's structured-output support to return a label, the mapped score, and an
+explanation — so there's no brittle string parsing of the judge's reply.
 
 A detail worth copying: the judge runs on a **stronger model than the bot**
 (Sonnet judging Haiku) and is shown the same knowledge-base excerpt the bot had.
@@ -70,8 +77,10 @@ pytest -v
 ### TypeScript (Vitest)
 
 The TypeScript suite lives in the `js/` pnpm workspace at
-`js/examples/apps/vitest-example` and uses the workspace copy of
-`@arizeai/phoenix-client`.
+`js/examples/apps/vitest-example`. It uses the workspace copies of
+`@arizeai/phoenix-client` (the Vitest test API) and `@arizeai/phoenix-evals` (the
+judge), with the [Vercel AI SDK](https://sdk.vercel.ai) (`ai` + `@ai-sdk/anthropic`)
+for the model calls.
 
 ```bash
 # From the repo root, install the workspace once:

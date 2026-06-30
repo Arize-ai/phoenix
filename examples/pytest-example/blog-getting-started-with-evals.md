@@ -36,7 +36,7 @@ The payoff is that your test data stops being a black box. Datasets are *suppose
 
 ## Getting started with pytest
 
-Mark a test with `@pytest.mark.phoenix` and log inputs, outputs, and scores with the helpers from `phoenix.client.pytest`. Here a support bot answers a customer question from a knowledge-base excerpt. We record latency and an LLM-as-judge helpfulness score, and hard-assert only the off-topic refusal — on-topic quality is tracked as a trend rather than gated on every run.
+Mark a test with `@pytest.mark.phoenix` and log inputs, outputs, and scores with the helpers from `phoenix.client.pytest`. Here a support bot answers a customer question from a knowledge-base excerpt. We record latency and an LLM-as-judge helpfulness score — built with `create_classifier` from [`arize-phoenix-evals`](https://pypi.org/project/arize-phoenix-evals/) so the judge returns a structured label, score, and explanation instead of a string we have to parse — and hard-assert only the off-topic refusal, tracking on-topic quality as a trend rather than gating on every run.
 
 ```bash
 pip install "arize-phoenix-client[pytest,evals]" anthropic pytest
@@ -181,7 +181,7 @@ This is a normal pytest invocation that also logs every case, trace, and score t
 
 ## Getting started with Vitest / Jest
 
-Here's the same support bot as a Vitest suite. Import `describe`/`test` from the `@arizeai/phoenix-client/vitest` (or `/jest`) entrypoint and add the Phoenix reporter, then let suite-level acceptance criteria turn aggregate quality into a CI gate.
+Here's the same support bot as a Vitest suite. Import `describe`/`test` from the `@arizeai/phoenix-client/vitest` (or `/jest`) entrypoint and add the Phoenix reporter, build the judge with `createClassificationEvaluator` from `@arizeai/phoenix-evals`, then let suite-level acceptance criteria turn aggregate quality into a CI gate.
 
 ```bash
 npm install -D @arizeai/phoenix-client @arizeai/phoenix-evals @ai-sdk/anthropic ai
