@@ -67,7 +67,7 @@ Rule of thumb: assert the behavior you'd be embarrassed to ship broken; log ever
 
 ## LLM-as-a-judge inside a test
 
-A judge is just an evaluator passed to `evaluate()` (or hoisted on the marker). The cleanest judge is a `create_classifier` from `arize-phoenix-evals`: it emits a label mapped to a numeric score plus an explanation, recorded as its own annotation under a linked evaluator span. `evaluate(judge, **kwargs)` fills the prompt-template variables from `kwargs`. Use a **stronger model to judge a weaker one** (e.g. Sonnet judging Haiku) so verdicts stay stable — a noisy judge makes the suite flaky.
+A judge is just an evaluator passed to `evaluate()` (or hoisted on the marker). The cleanest judge is a `create_classifier` from `arize-phoenix-evals`: it emits a label mapped to a numeric score plus an explanation, recorded as its own annotation under a linked evaluator span. `evaluate(judge, **kwargs)` fills the prompt-template variables from `kwargs` — pass the judge only what it needs to grade. Use a **stronger model to judge a weaker one** (e.g. Sonnet judging Haiku) so verdicts stay stable — a noisy judge makes the suite flaky.
 
 ```python
 import time
@@ -76,51 +76,40 @@ import pytest
 from phoenix.client.pytest import evaluate, log_evaluation, log_output
 from phoenix.evals import LLM, create_classifier
 
-# The judge sees the same KB excerpt the bot did, so it can tell whether the
-# answer was grounded — and whether declining was correct when the excerpt is empty.
+# Judge reads just the question + response; the evaluate() kwargs fill these vars.
 helpfulness = create_classifier(
     name="helpfulness",
     llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
     prompt_template=(
-        "Knowledge base:\n{{knowledge_base}}\n\n"
-        "Question: {{question}}\n\nBot response: {{response}}\n\n"
-        'Label "helpful" if the response is accurate and grounded in the excerpt '
-        '(or correctly declines when the excerpt lacks the answer); otherwise "unhelpful".'
+        "Question: {{question}}\n\nResponse: {{response}}\n\n"
+        'Label "helpful" if it accurately answers the question, else "unhelpful".'
     ),
     choices={"helpful": 1.0, "unhelpful": 0.0},
 )
 
 CASES = [
-    ("How do I download invoices?", "billing", False),
-    ("What's the capital of France?", "", True),  # off-topic → must refuse
+    ("How do I get a refund?", False),
+    ("What's the capital of France?", True),  # off-topic → must refuse
 ]
 
 @pytest.mark.phoenix(dataset="support-bot")
-@pytest.mark.parametrize("question,kb_key,expect_refusal", CASES, ids=["invoices", "offtopic"])
-def test_support_response(question, kb_key, expect_refusal):
-    kb_context = KB.get(kb_key, "")
-
+@pytest.mark.parametrize("question,expect_refusal", CASES, ids=["refund", "offtopic"])
+def test_support_response(question, expect_refusal):
     t0 = time.perf_counter()
-    response = answer_question(question, kb_context)
+    response = answer_question(question)
     log_output({"response": response})
 
-    # Structural metric — a CODE signal, tracked not asserted.
-    log_evaluation(name="latency_ms", score=(time.perf_counter() - t0) * 1000)
+    log_evaluation(name="latency_ms", score=(time.perf_counter() - t0) * 1000)  # CODE signal
 
-    # LLM-judge quality signal — recorded under its own evaluator span, NOT asserted.
-    evaluate(
-        helpfulness,
-        knowledge_base=kb_context or "(empty)",
-        question=question,
-        response=response,
-    )
-
-    # Hard invariant — the one eval we refuse to ship broken.
     if expect_refusal:
-        assert "I don't have information on that" in response
+        assert "I don't have information on that" in response  # hard invariant → gates CI
+    else:
+        # Quality signal — judged, NOT asserted. Helpfulness only means something
+        # for answerable questions, so judge here; it trends in Phoenix.
+        evaluate(helpfulness, question=question, response=response)
 ```
 
-Here the refusal is the invariant (asserted → gates CI); helpfulness and latency are signals (logged → trended). To make a judge gate the case anyway, capture its score and assert: `result = evaluate(judge, ...); assert result["score"] == 1.0` — reserve this for invariants a code check can't express.
+Refusal = invariant (asserted → gates CI); helpfulness + latency = signals (logged → trended). Judge only the cases where quality is meaningful. To gate CI on a judge anyway, capture its score and assert: `result = evaluate(judge, ...); assert result["score"] == 1.0` — reserve for invariants a code check can't express. For *groundedness*, add a `{{context}}` var and pass `context=...`, or use the pre-built `FaithfulnessEvaluator`.
 
 ## Environment variables
 

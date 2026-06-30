@@ -230,9 +230,9 @@ Any evaluator from [`arize-phoenix-evals`](/docs/phoenix/evaluation/pre-built-me
 
 ## LLM-as-a-judge: scoring quality signals
 
-When a check is a [quality signal](#two-kinds-of-checks-invariants-vs-signals) — accuracy, groundedness, tone — there's no single correct string to assert against. Hand the judging to another model with [`create_classifier`](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators), which emits a label mapped to a numeric score plus an explanation. Pass it to `evaluate()` and the verdict is recorded as its own annotation under a linked evaluator span — **without** asserting on it, so a single weak answer trends in Phoenix instead of breaking the build.
+When a check is a [quality signal](#two-kinds-of-checks-invariants-vs-signals) — accuracy, helpfulness, tone — there's no single correct string to assert against. Hand the judging to another model with [`create_classifier`](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators), which emits a label mapped to a numeric score plus an explanation. Pass it to `evaluate()` and the verdict is recorded as its own annotation under a linked evaluator span — **without** asserting on it, so a single weak answer trends in Phoenix instead of breaking the build. The judge reads only what it needs to grade — here the question and the bot's response — so the `kwargs` you pass to `evaluate()` are exactly the template variables.
 
-Consider a grounded support bot. It has two jobs that map cleanly onto the two kinds of checks. When a question is covered by a knowledge-base excerpt, it should answer accurately from that excerpt — a *quality signal*, since the bot can phrase a correct answer a dozen ways. When nothing covers the question, it should decline with a fixed line — a *hard invariant*, since exactly one output is acceptable. So we judge helpfulness as a trend and hard-assert only the refusal.
+Consider a support bot with two jobs that map cleanly onto the two kinds of checks. For a question it can answer, the reply should be helpful — a *quality signal*, since a good answer can be phrased a dozen ways. For an off-topic question, it should decline with a fixed line — a *hard invariant*, since exactly one output is acceptable. So we judge helpfulness on the answerable cases and hard-assert the refusal:
 
 ```python
 import time
@@ -241,78 +241,49 @@ import pytest
 from phoenix.client.pytest import evaluate, log_evaluation, log_output
 from phoenix.evals import LLM, create_classifier
 
-# Knowledge-base excerpts; "offtopic" is empty, so the bot must decline.
-KB = {
-    "billing": "Refunds are available within 14 days of a charge. ...",
-    "offtopic": "",
-}
-
-JUDGE_PROMPT = """\
-You are a strict reviewer for a support bot. You see the knowledge-base excerpt
-the bot worked from, the user question, and the bot's response.
-
-Knowledge base:
-{{knowledge_base}}
-
-Question: {{question}}
-
-Bot response: {{response}}
-
-Label the response "helpful" if it is accurate and grounded in the excerpt (or
-correctly declines when the excerpt does not contain the answer). Label it
-"unhelpful" if it is wrong, unsupported, vague, or ignores the question.\
-"""
-
 # A stronger model than the bot (Sonnet judging Haiku) keeps verdicts stable —
-# a noisy judge makes the whole suite flaky. The kwargs to evaluate() below fill
-# these template variables. The judge sees the same excerpt the bot did, so it
-# can tell whether an answer was grounded, and whether declining was the right call.
+# a noisy judge makes the whole suite flaky. The judge reads just the question
+# and response; the kwargs to evaluate() below fill these template variables.
 helpfulness = create_classifier(
     name="helpfulness",
     llm=LLM(provider="anthropic", model="claude-sonnet-4-6"),
-    prompt_template=JUDGE_PROMPT,
+    prompt_template=(
+        "Question: {{question}}\n\nResponse: {{response}}\n\n"
+        'Label the response "helpful" if it accurately and directly answers the '
+        'question, or "unhelpful" if it is wrong, vague, or off-topic.'
+    ),
     choices={"helpful": 1.0, "unhelpful": 0.0},
 )
 
 CASES = [
-    ("How do I get a refund?", "billing", False),
-    ("What's the capital of France?", "offtopic", True),
+    ("How do I get a refund?", False),
+    ("What's the capital of France?", True),  # off-topic → must refuse
 ]
 
 @pytest.mark.phoenix(dataset="support-bot")
-@pytest.mark.parametrize(
-    "question,kb_key,expect_refusal", CASES, ids=["refund", "offtopic"]
-)
-def test_support_response(question, kb_key, expect_refusal):
-    kb_context = KB[kb_key]
-
+@pytest.mark.parametrize("question,expect_refusal", CASES, ids=["refund", "offtopic"])
+def test_support_response(question, expect_refusal):
     t0 = time.perf_counter()
-    response = answer_question(question, kb_context)
-    latency_ms = (time.perf_counter() - t0) * 1000
-
+    response = answer_question(question)
     log_output({"response": response})
 
     # Structural metric, logged as a CODE annotation — a signal, not a gate.
-    log_evaluation(name="latency_ms", score=latency_ms)
+    log_evaluation(name="latency_ms", score=(time.perf_counter() - t0) * 1000)
 
-    # LLM judge, recorded under its own evaluator span and surfaced as "helpfulness".
-    # Note: NOT asserted — on-topic quality rides on the aggregate trend in Phoenix.
-    evaluate(
-        helpfulness,
-        knowledge_base=kb_context or "(empty)",
-        question=question,
-        response=response,
-    )
-
-    # Hard assertion only for the structural refusal check — the one eval we
-    # don't want to ship broken.
     if expect_refusal:
-        assert "I don't have information on that" in response, (
-            f"Expected refusal for off-topic question, got:\n{response}"
-        )
+        # Hard invariant — the one behavior we refuse to ship broken.
+        assert "I don't have information on that" in response
+    else:
+        # Quality signal — judged, NOT asserted. Helpfulness only means something
+        # for answerable questions, so the judge runs here and trends in Phoenix.
+        evaluate(helpfulness, question=question, response=response)
 ```
 
-This is the whole pattern: log the judge's score so it accumulates as a trend, and reserve `assert` for the invariant. To gate CI on a judge anyway — when an invariant genuinely needs an LLM to verify it — capture the result and assert on it: `result = evaluate(judge, ...); assert result["score"] == 1.0`. Use that sparingly, since it makes a non-deterministic score a hard gate.
+This is the whole pattern: judge the cases where quality is meaningful and let the score accumulate as a trend, while `assert` pins the invariant. To gate CI on a judge anyway — when an invariant genuinely needs an LLM to verify it — capture the result and assert on it: `result = evaluate(judge, ...); assert result["score"] == 1.0`. Use that sparingly, since it makes a non-deterministic score a hard gate.
+
+<Tip>
+To grade whether an answer is *grounded* in retrieved context (rather than just on-topic), give the judge that context too — add a `{{context}}` variable to the template and pass `context=...` to `evaluate()`, or reach for the pre-built [`FaithfulnessEvaluator`](/docs/phoenix/evaluation/pre-built-metrics). See [RAG evaluation](/docs/phoenix/evaluation/how-to-evals/custom-llm-evaluators) for the full pattern.
+</Tip>
 
 <Tip>
 Pick the judge model deliberately. Judging a weaker model with a stronger one (here, Sonnet grading Haiku) keeps verdicts stable across runs; a judge that's no better than the system under test adds noise rather than signal. See [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm).

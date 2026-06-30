@@ -74,7 +74,7 @@ This is the natural division of labor in this runner: invariants → per-case `e
 
 ## LLM-as-a-judge inside a suite
 
-The cleanest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`: it emits a label mapped to a numeric score (recorded as an annotation under a linked evaluator span). `inputMapping` projects the run's auto-supplied `{ input, output }` onto the template variables, so `await px.evaluate(judge)` needs no params. Judge with a **stronger model than the system under test** (e.g. Sonnet judging Haiku) to keep verdicts stable.
+The cleanest judge is a `createClassificationEvaluator` from `@arizeai/phoenix-evals`: it emits a label mapped to a numeric score (recorded as an annotation under a linked evaluator span). Pass the judge only what it needs to grade as the second arg to `px.evaluate()`, matching the template vars — no `inputMapping` needed. (For structured records or pre-built evaluators, `inputMapping` projects fields onto template vars instead.) Judge with a **stronger model than the system under test** (e.g. Sonnet judging Haiku) to keep verdicts stable.
 
 ```ts
 import { anthropic } from "@ai-sdk/anthropic";
@@ -82,16 +82,11 @@ import * as px from "@arizeai/phoenix-client/vitest";
 import { createClassificationEvaluator } from "@arizeai/phoenix-evals";
 import { expect } from "vitest";
 
-const helpfulness = createClassificationEvaluator<{ input: any; output?: { response: string } }>({
+const helpfulness = createClassificationEvaluator({
   name: "helpfulness",
   model: anthropic("claude-sonnet-4-6"),
   choices: { helpful: 1, unhelpful: 0 },
-  promptTemplate: `Knowledge base:\n{{knowledge_base}}\n\nQuestion: {{question}}\n\nBot response: {{response}}\n\nLabel "helpful" if accurate and grounded in the excerpt (or a correct decline when the excerpt lacks the answer); otherwise "unhelpful".`,
-  inputMapping: {
-    knowledge_base: (r) => KB[r.input.kbKey] || "(empty)",
-    question: "input.question",
-    response: (r) => r.output?.response ?? "",
-  },
+  promptTemplate: `Question: {{question}}\n\nResponse: {{response}}\n\nLabel "helpful" if it accurately answers the question, else "unhelpful".`,
 });
 
 px.describe(
@@ -99,21 +94,22 @@ px.describe(
   () => {
     px.test.each(CASES)((row) => row.id, async ({ input }) => {
       const start = performance.now();
-      const response = await answerQuestion(input.question, KB[input.kbKey] ?? "");
+      const response = await answerQuestion(input.question);
 
       px.logOutput({ response });
       px.logAnnotation({ name: "latency_ms", score: performance.now() - start, annotatorKind: "CODE" });
 
-      // LLM-judge quality signal — NOT asserted; gated by acceptanceCriteria below.
-      await px.evaluate(helpfulness);
-
-      // Hard invariant — the one behavior we refuse to ship broken.
-      if (input.expectRefusal) expect(response).toContain("I don't have information on that");
+      if (input.expectRefusal) {
+        expect(response).toContain("I don't have information on that");  // hard invariant
+      } else {
+        // Quality signal — NOT asserted; gated by acceptanceCriteria below.
+        await px.evaluate(helpfulness, { question: input.question, response });
+      }
     });
   },
   {
     acceptanceCriteria: [
-      // signal gate: ≥70% of runs must score helpful
+      // signal gate: ≥70% of judged answers must score helpful
       { annotationName: "helpfulness", metric: "passRate", passFn: (a) => a.score === 1, minPassRate: 0.7 },
       // budget gate: mean latency under 5s
       { annotationName: "latency_ms", metric: "average", threshold: 5000, direction: "minimize" },
@@ -122,7 +118,7 @@ px.describe(
 );
 ```
 
-The refusal stays a per-case `expect()` (invariant); helpfulness and latency move into `acceptanceCriteria` (signals). `passFn` receives the full annotation, so you can gate on `score`, `label`, or `explanation`.
+The refusal stays a per-case `expect()` (invariant); helpfulness and latency move into `acceptanceCriteria` (signals). `passFn` receives the full annotation, so you can gate on `score`, `label`, or `explanation`. For *groundedness*, add a `{{context}}` var and pass it too, or use `createFaithfulnessEvaluator`.
 
 ## Acceptance criteria
 
