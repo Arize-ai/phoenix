@@ -10,6 +10,8 @@ const ESCAPE_CHARACTER = String.fromCharCode(27);
 const ANSI_ESCAPE_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
 const KITTY_SHIFT_ENTER = `${ESCAPE_CHARACTER}[13;2u`;
 const KITTY_PROTOCOL_RESPONSE = `${ESCAPE_CHARACTER}[?0u`;
+const BRACKETED_PASTE_START = `${ESCAPE_CHARACTER}[200~`;
+const BRACKETED_PASTE_END = `${ESCAPE_CHARACTER}[201~`;
 const UP_ARROW = `${ESCAPE_CHARACTER}[A`;
 const DOWN_ARROW = `${ESCAPE_CHARACTER}[B`;
 const LEFT_ARROW = `${ESCAPE_CHARACTER}[D`;
@@ -366,6 +368,124 @@ describe("PXI app", () => {
     await writeInput({ stdin, input: "\r" });
 
     expect(submittedText).toBe("say hello world");
+    unmount();
+  });
+
+  it("normalizes multiline pasted text before inserting it into the prompt", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+    const prompt = [
+      "Summarize the trace behavior below.",
+      "",
+      "First, identify the main failure mode.",
+      "",
+      "Then list the affected spans:",
+      "",
+      "- root span",
+      "- retrieval span",
+      "- generation span",
+      "",
+      "Now explain why the middle blank line matters:",
+      "",
+      "",
+      "After that, propose a fix.",
+      "",
+      "Finally, give me a concise next step.",
+    ].join("\n");
+
+    await writeInput({ stdin, input: prompt.replace(/\n/g, "\r\n") });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe(prompt);
+    unmount();
+  });
+
+  it("renders multiline pasted text without carriage-return compression", async () => {
+    const client: PxiChatClient = {
+      sendMessage: async () => null,
+    };
+    const { lastFrame, stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+
+    await writeInput({
+      stdin,
+      input: [
+        "Now explain why the middle blank line matters:",
+        "",
+        "",
+        "After that, propose a fix.",
+        "",
+        "Finally, give me a concise next step.",
+      ].join("\r\n"),
+    });
+
+    const frame = stripAnsi(lastFrame() ?? "");
+    expect(frame).not.toContain("\r");
+    expect(frame).toMatch(
+      /Now explain why the middle blank line matters:\n\s*\n\s*\n\s*After that, propose a fix\.\n\s*\n\s*Finally, give me a concise next step\.█/
+    );
+    unmount();
+  });
+
+  it("deletes predictably after multiline pasted text", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+    const prompt = [
+      "Now explain why the middle blank line matters:",
+      "",
+      "",
+      "After that, propose a fix.",
+      "",
+      "Finally, give me a concise next step.",
+    ].join("\n");
+    const deletedText = "\nFinally, give me a concise next step.";
+
+    await writeInput({ stdin, input: prompt.replace(/\n/g, "\r\n") });
+    await writeInputRepeatedly({
+      stdin,
+      input: DELETE_KEY,
+      count: deletedText.length,
+    });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe(prompt.slice(0, -deletedText.length).trim());
+    unmount();
+  });
+
+  it("ignores bracketed paste markers around multiline pasted text", async () => {
+    let submittedText: string | undefined;
+    const client = createCapturingClient({
+      onSubmit: (text) => {
+        submittedText = text;
+      },
+    });
+    const { stdin, unmount } = render(
+      <PxiApp options={createOptions()} client={client} />
+    );
+    const prompt = "top\n\nbottom";
+
+    await writeInput({
+      stdin,
+      input: `${BRACKETED_PASTE_START}${prompt}${BRACKETED_PASTE_END}`,
+    });
+    await writeInput({ stdin, input: "\r" });
+
+    expect(submittedText).toBe(prompt);
     unmount();
   });
 

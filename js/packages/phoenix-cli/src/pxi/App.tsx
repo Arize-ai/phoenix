@@ -60,6 +60,7 @@ const THINKING_FRAMES = [
   "PXI is thinking...",
 ];
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
+const BRACKETED_PASTE_MARKER_PATTERN = /(?:\x1B)?\[(?:200|201)~/g;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
 
 export type PxiAppProps = {
@@ -283,22 +284,21 @@ function HighlightedDraft({
           const beforeCursor = segment.text.slice(0, cursorOffset);
           const cursorText = segment.text.slice(cursorOffset, cursorOffset + 1);
           const isCursorOnNewline = cursorText === "\n";
-          const afterCursor = segment.text.slice(
-            cursorOffset + (isCursorOnNewline ? 0 : 1)
-          );
+          const afterCursor = segment.text.slice(cursorOffset + 1);
           return [
             <HighlightedDraftSegment
               key={`${segmentIndex}-before`}
               segment={{ ...segment, text: beforeCursor }}
             />,
-            <HighlightedDraftSegment
-              key={`${segmentIndex}-cursor`}
-              segment={{
-                ...segment,
-                text: isCursorOnNewline ? "█" : cursorText,
-              }}
-              isInverse
-            />,
+            isCursorOnNewline ? (
+              <Text key={`${segmentIndex}-cursor`}>{"█\n"}</Text>
+            ) : (
+              <HighlightedDraftSegment
+                key={`${segmentIndex}-cursor`}
+                segment={{ ...segment, text: cursorText }}
+                isInverse
+              />
+            ),
             <HighlightedDraftSegment
               key={`${segmentIndex}-after`}
               segment={{ ...segment, text: afterCursor }}
@@ -392,6 +392,13 @@ function InputPrompt({
 
 function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
+}
+
+function getDraftInputText({ input }: { input: string }) {
+  return input
+    .replace(BRACKETED_PASTE_MARKER_PATTERN, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
 }
 
 function getCompletedInterruptedPart({
@@ -655,7 +662,10 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       return;
     }
     if (input) {
-      setDraft((value) => insertDraftText({ draft: value, text: input }));
+      const text = getDraftInputText({ input });
+      if (text) {
+        setDraft((value) => insertDraftText({ draft: value, text }));
+      }
     }
   });
 
