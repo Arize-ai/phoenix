@@ -506,17 +506,17 @@ px annotation-config update quality --values '[{"label":"good","score":1},{"labe
 px annotation-config update cfg-123 --description "Updated" --format raw --no-progress | jq -r '.id'
 ```
 
-| Option                              | Description                                                | Default  |
-| ----------------------------------- | ---------------------------------------------------------- | -------- |
-| `--name <name>`                     | New name                                                   | —        |
-| `--description <description>`       | New description                                            | —        |
-| `--optimization-direction <dir>`    | `MINIMIZE`, `MAXIMIZE`, or `NONE`                          | —        |
-| `--values <json>`                   | Categorical label objects as JSON (CATEGORICAL configs)    | —        |
-| `--lower-bound <number>`            | Lower bound (CONTINUOUS/FREEFORM configs)                  | —        |
-| `--upper-bound <number>`            | Upper bound (CONTINUOUS/FREEFORM configs)                  | —        |
-| `--threshold <number>`              | Threshold (FREEFORM configs)                               | —        |
-| `--format <format>`                 | `pretty`, `json`, or `raw`                                 | `pretty` |
-| `--no-progress`                     | Suppress progress output                                   | —        |
+| Option                           | Description                                             | Default  |
+| -------------------------------- | ------------------------------------------------------- | -------- |
+| `--name <name>`                  | New name                                                | —        |
+| `--description <description>`    | New description                                         | —        |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE`                       | —        |
+| `--values <json>`                | Categorical label objects as JSON (CATEGORICAL configs) | —        |
+| `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)               | —        |
+| `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)               | —        |
+| `--threshold <number>`           | Threshold (FREEFORM configs)                            | —        |
+| `--format <format>`              | `pretty`, `json`, or `raw`                              | `pretty` |
+| `--no-progress`                  | Suppress progress output                                | —        |
 
 At least one field flag is required; an invocation with none exits with `INVALID_ARGUMENT`. Flags that don't apply to the config's type (e.g. `--values` on a continuous config) are rejected.
 
