@@ -87,7 +87,7 @@
 ### Overview
 
 - [LLM Evals](https://arize.com/docs/phoenix/evaluation/llm-evals): LLM-as-judge evaluation with pre-built and custom evaluators
-- [Evals Quickstart](https://arize.com/docs/phoenix/evaluation/evals): Evaluate a dataframe with FaithfulnessEvaluator and CorrectnessEvaluator using arize-phoenix-evals 3.0
+- [Evals Quickstart](https://arize.com/docs/phoenix/evaluation/evals): Evaluate a dataframe with FaithfulnessEvaluator and CorrectnessEvaluator using arize-phoenix-evals 
 
 ### How-to
 
