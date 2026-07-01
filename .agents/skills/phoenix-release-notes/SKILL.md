@@ -437,6 +437,46 @@ grep -nP 'ReleaseUpdate label="[\d.]+' docs/phoenix/release-notes.mdx \
   | awk 'NR>1 && $2>prev { print "OUT OF ORDER at release-notes.mdx:" $1 " — " $2 " appears above " prev; bad=1 } { prev=$2 } END { if (!bad) print "OK: reverse-chronological order intact" }'
 ```
 
+## Step 9: Slack-Friendly Overview
+
+After the docs are written, produce a short overview of the release that can be **copy-pasted
+directly into Slack**. Print it in the final response inside a single fenced code block so the
+user can grab the whole thing in one click. This is a summary for a team channel, not a
+replacement for the release notes — link back to the published notes for detail.
+
+### Slack formatting rules (mrkdwn, not Markdown)
+
+Slack does **not** render standard Markdown. Use its `mrkdwn` syntax or the message will look wrong:
+
+- **Bold** is single asterisks: `*bold*` — not `**bold**`
+- _Italic_ is underscores: `_italic_`
+- **No `#` headings** — Slack ignores them. Use a bold line instead.
+- Links are `<https://url|label>` — not `[label](url)`
+- Bullets use a literal `•` character (not `-` or `*`, which don't render as bullets)
+- Inline code uses single backticks; code blocks use triple backticks with **no language tag**
+- Keep it tight — a few bullets. Slack readers skim; link out for the rest.
+
+### Template
+
+```
+*🚀 Phoenix release — <MONTH DD, YYYY>*
+
+<One-sentence framing of the highlight(s).>
+
+• *<Feature One>* (`<package X.Y.Z+>`) — one-line user-facing description.
+• *<Feature Two>* (`<package X.Y.Z+>`) — one-line user-facing description.
+
+📝 Release notes: <https://docs.arize.com/phoenix/release-notes/MM-YYYY/MM-DD-YYYY-slug|Full notes>
+```
+
+Rules:
+- Carry the same **version lines** and **minimum-version requirements** through from the docs —
+  if a feature requires a minimum server version, surface it here too (e.g. `requires server 17.12.0+`).
+- Include a link to the published release note page (extensionless path under
+  `https://docs.arize.com/phoenix/...`).
+- No PR numbers, commit hashes, or internal module paths — same exclusions as the notes.
+- One code block only, so the whole message copy-pastes in a single selection.
+
 ## Decision Quick Reference
 
 | Question | Answer |
@@ -462,6 +502,7 @@ Before opening a PR or considering the work done, walk through every item below.
 - [ ] **Step 6**: Updated `docs.json` navigation with all new page paths
 - [ ] **Step 7**: (Only if requested) Updated GitHub release descriptions, preserving existing body
 - [ ] **Step 8**: Ran verification — all links resolve, order is correct, no dangling references
+- [ ] **Step 9**: Printed a Slack-friendly overview in one fenced code block, using `mrkdwn` (not Markdown), carrying version/minimum-version requirements and a link to the published notes
 
 ### Technical writing review
 
