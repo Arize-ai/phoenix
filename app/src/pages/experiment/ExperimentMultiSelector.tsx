@@ -22,7 +22,7 @@ import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { selectCSS } from "@phoenix/components/core/select/styles";
 import {
-  BaselineExperimentToken,
+  BaselineExperimentBadge,
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
@@ -140,7 +140,7 @@ export function ExperimentMultiSelector(props: {
                   {data.baseExperiment.name}
                 </Text>
                 {data.baseExperiment.isBaseline ? (
-                  <BaselineExperimentToken />
+                  <BaselineExperimentBadge />
                 ) : null}
               </Flex>
             ) : (
@@ -199,7 +199,7 @@ export function ExperimentMultiSelector(props: {
                               {experiment.name}
                             </Text>
                             {experiment.isBaseline ? (
-                              <BaselineExperimentToken />
+                              <BaselineExperimentBadge />
                             ) : null}
                           </Flex>
                           <Text size="XS" color="text-700">
@@ -259,7 +259,7 @@ export function ExperimentMultiSelector(props: {
                                 {experiment.name}
                               </Text>
                               {experiment.isBaseline ? (
-                                <BaselineExperimentToken />
+                                <BaselineExperimentBadge />
                               ) : null}
                             </Flex>
                             <Text size="XS" color="text-700">

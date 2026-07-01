@@ -1,7 +1,7 @@
 import { css } from "@emotion/react";
 
 import { ColorSwatch, Flex, Text } from "@phoenix/components";
-import { BaselineExperimentToken } from "@phoenix/components/experiment/BaselineExperimentToken";
+import { BaselineExperimentBadge } from "@phoenix/components/experiment/BaselineExperimentBadge";
 
 export function ExperimentNameWithColorSwatch({
   name,
@@ -28,7 +28,7 @@ export function ExperimentNameWithColorSwatch({
       >
         {name}
       </Text>
-      {isBaseline ? <BaselineExperimentToken /> : null}
+      {isBaseline ? <BaselineExperimentBadge /> : null}
     </Flex>
   );
 }

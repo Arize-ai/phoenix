@@ -238,7 +238,11 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
           justifyContent="start"
           alignItems="center"
         >
-          <Icon svg={<Icons.PriceTags />} />
+          <Icon
+            svg={
+              props.isBaseline ? <Icons.BookmarkX /> : <Icons.BookmarkCheck />
+            }
+          />
           <Text>
             {isSettingExperimentBaseline
               ? "Updating baseline..."

@@ -43,7 +43,7 @@ import {
 } from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
-  BaselineExperimentToken,
+  BaselineExperimentBadge,
   ExperimentStatus,
   ExperimentTokenCount,
   SequenceNumberToken,
@@ -364,12 +364,16 @@ export function ExperimentsTable({
             >
               {getValue() as string}
             </Link>
-            {isBaseline ? <BaselineExperimentToken /> : null}
             <ExperimentJobStatusIcon
               status={jobStatus}
               experimentId={experimentId}
               datasetId={data.id}
             />
+            {isBaseline ? (
+              <View marginStart="auto">
+                <BaselineExperimentBadge size="M" />
+              </View>
+            ) : null}
           </Flex>
         );
       },
