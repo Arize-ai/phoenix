@@ -361,6 +361,38 @@ class TestSetExperimentBaselineMutation:
                 )
             ) is None
 
+    async def test_removing_non_baseline_experiment_leaves_existing_baseline(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        baseline_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        non_baseline_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(2)))
+        await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": baseline_experiment_id, "baseline": True},
+        )
+
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": non_baseline_experiment_id, "baseline": False},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "setExperimentBaseline": {
+                "experiment": {"id": non_baseline_experiment_id, "isBaseline": False},
+                "previousBaselineExperiment": None,
+            }
+        }
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.ExperimentTag).where(models.ExperimentTag.name == "baseline")
+            )
+            assert tag is not None
+            assert tag.experiment_id == 1
+
     async def test_allows_one_baseline_per_dataset(
         self,
         db: DbSessionFactory,

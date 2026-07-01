@@ -181,6 +181,7 @@ export function ExperimentMultiSelector(props: {
                         direction="row"
                         justifyContent="space-between"
                         alignItems="center"
+                        gap="size-100"
                       >
                         <Flex direction="column" gap="size-50">
                           <Flex direction="row" gap="size-100">

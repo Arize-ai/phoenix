@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 
 import strawberry
 from sqlalchemy import delete, or_, select, update
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -12,7 +14,7 @@ from phoenix.db import models
 from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_names_for_experiments
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError
+from phoenix.server.api.exceptions import BadRequest, Conflict, CustomGraphQLError
 from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
@@ -296,6 +298,10 @@ class ExperimentMutationMixin:
                     )
             elif existing_baseline_tag and existing_baseline_tag.experiment_id == experiment.id:
                 await session.delete(existing_baseline_tag)
+            try:
+                await session.commit()
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                raise Conflict("Failed to update experiment baseline.")
         return SetExperimentBaselinePayload(
             experiment=to_gql_experiment(experiment),
             previous_baseline_experiment=(
