@@ -544,6 +544,32 @@ const rootSpans = await getSpans({
 | `spanKind`   | `SpanKindFilter \| SpanKindFilter[]` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, etc.) |
 | `statusCode` | `SpanStatusCode \| SpanStatusCode[]` | Filter by status code (`OK`, `ERROR`, `UNSET`)                  |
 
+### Logging Spans
+
+Use `logSpans` to submit spans directly to a project using Phoenix's simplified span structure — the same shape returned by `getSpans`. This is useful for backfilling or migrating spans without going through OpenTelemetry. If your application is already instrumented with OpenTelemetry, export spans via `@arizeai/phoenix-otel` instead.
+
+```ts
+import { logSpans } from "@arizeai/phoenix-client/spans";
+
+const result = await logSpans({
+  project: { projectName: "my-project" },
+  spans: [
+    {
+      name: "chat_completion",
+      context: { trace_id: "abc123", span_id: "def456" },
+      span_kind: "LLM",
+      start_time: "2024-01-01T00:00:00Z",
+      end_time: "2024-01-01T00:00:01Z",
+      status_code: "OK",
+      attributes: { "llm.model_name": "gpt-4" },
+    },
+  ],
+});
+console.log(`Queued ${result.totalQueued} of ${result.totalReceived} spans`);
+```
+
+If any span in the request is invalid or a duplicate of a span that already exists, none of the spans are queued and `logSpans` throws a `SpanCreationError` with `invalidSpans` and `duplicateSpans` details.
+
 ## Span Annotations
 
 The `spans` export also provides functions for managing span annotations — adding evaluations, feedback, and labels to spans.
