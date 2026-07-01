@@ -15,7 +15,6 @@ import {
   Loading,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
@@ -24,6 +23,7 @@ import {
   Token,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { NewDatasetSplitForm } from "@phoenix/components/datasetSplit/NewDatasetSplitForm";
 import { useDatasetSplitMutations } from "@phoenix/components/datasetSplit/useDatasetSplitMutations";
@@ -290,7 +290,12 @@ const SplitMenuApplyContent = ({
   return (
     <Menu
       items={splits}
-      renderEmptyState={() => <MenuEmpty>No splits found</MenuEmpty>}
+      renderEmptyState={() => (
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Split />} />}
+          description="No splits"
+        />
+      )}
       // NOTE: Menu is no longer multi-select, so we track the menu open state manually
       selectionMode="none"
       // ensure that menu items are re-rendered when splitStates changes

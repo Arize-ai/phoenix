@@ -1,5 +1,3 @@
-import { css } from "@emotion/react";
-
 import {
   Button,
   Dialog,
@@ -9,14 +7,13 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
-  Flex,
-  Icon,
-  Icons,
   Modal,
   ModalOverlay,
   View,
 } from "@phoenix/components";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { usePreferencesContext } from "@phoenix/contexts";
 
 import { PythonSessionsGuide } from "./PythonSessionsGuide";
@@ -33,7 +30,7 @@ function SetupSessionsDialog() {
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Setup Sessions for this Project</DialogTitle>
+          <DialogTitle>Set up Sessions for this Project</DialogTitle>
           <DialogTitleExtra>
             <DialogCloseButton slot="close" />
           </DialogTitleExtra>
@@ -58,31 +55,29 @@ function SetupSessionsDialog() {
 
 export function SessionsTableEmpty() {
   return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={css`
-            text-align: center;
-            padding: var(--global-dimension-size-300)
-              var(--global-dimension-size-300) !important;
-          `}
-        >
-          <Flex direction="column" gap="size-200" alignItems="center">
-            No sessions found for this project
-            <DialogTrigger>
-              <Button leadingVisual={<Icon svg={<Icons.PlayCircle />} />}>
-                Setup Sessions
-              </Button>
-              <ModalOverlay>
-                <Modal variant="slideover" size="L">
-                  <SetupSessionsDialog />
-                </Modal>
-              </ModalOverlay>
-            </DialogTrigger>
-          </Flex>
-        </td>
-      </tr>
-    </tbody>
+    <TableEmptyWrap>
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="session" />}
+        description="No sessions found for this project"
+        action={{
+          type: "strip",
+          items: [
+            {
+              kind: "node",
+              node: (
+                <DialogTrigger>
+                  <Button size="S">Set up Sessions</Button>
+                  <ModalOverlay>
+                    <Modal variant="slideover" size="L">
+                      <SetupSessionsDialog />
+                    </Modal>
+                  </ModalOverlay>
+                </DialogTrigger>
+              ),
+            },
+          ],
+        }}
+      />
+    </TableEmptyWrap>
   );
 }

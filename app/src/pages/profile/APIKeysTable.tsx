@@ -9,9 +9,10 @@ import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
 import { DeleteAPIKeyButton } from "@phoenix/components/auth";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifySuccess } from "@phoenix/contexts";
 
@@ -184,7 +185,12 @@ export function APIKeysTable({ query }: { query: APIKeysTableFragment$key }) {
         ))}
       </thead>
       {isEmpty ? (
-        <TableEmpty message="No Keys" />
+        <TableEmptyWrap>
+          <EmptyState
+            graphic={<EmptyStateGraphic variant="credential" />}
+            description="No API keys"
+          />
+        </TableEmptyWrap>
       ) : (
         <tbody>
           {rows.map((row) => {

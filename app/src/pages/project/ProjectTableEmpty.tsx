@@ -1,24 +1,21 @@
-import { css } from "@emotion/react";
+import { useState } from "react";
 
 import {
-  Button,
   Dialog,
   DialogCloseButton,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTitleExtra,
-  DialogTrigger,
-  Flex,
-  Icon,
-  Icons,
   Modal,
   ModalOverlay,
   View,
 } from "@phoenix/components";
 import { CodeLanguageRadioGroup } from "@phoenix/components/code";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { PythonProjectGuide } from "@phoenix/components/project/PythonProjectGuide";
 import { TypeScriptProjectGuide } from "@phoenix/components/project/TypeScriptProjectGuide";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { usePreferencesContext } from "@phoenix/contexts";
 
 function SetupProjectDialog({ projectName }: { projectName: string }) {
@@ -56,37 +53,28 @@ function SetupProjectDialog({ projectName }: { projectName: string }) {
 }
 
 export function ProjectTableEmpty({ projectName }: { projectName: string }) {
+  const [isOpen, setIsOpen] = useState(false);
   return (
-    <>
-      <tbody className="is-empty">
-        <tr>
-          <td
-            colSpan={100}
-            css={css`
-              text-align: center;
-              padding: var(--global-dimension-size-300)
-                var(--global-dimension-size-300) !important;
-            `}
-          >
-            <Flex direction="column" gap="size-200" alignItems="center">
-              No traces found that match the selected filters
-              <DialogTrigger>
-                <Button
-                  variant="default"
-                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
-                >
-                  Get Started
-                </Button>
-                <ModalOverlay>
-                  <Modal variant="slideover" size="L">
-                    <SetupProjectDialog projectName={projectName} />
-                  </Modal>
-                </ModalOverlay>
-              </DialogTrigger>
-            </Flex>
-          </td>
-        </tr>
-      </tbody>
-    </>
+    <TableEmptyWrap>
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="trace" />}
+        description="No traces found that match the selected filters"
+        action={{
+          type: "strip",
+          items: [
+            {
+              kind: "button",
+              children: "Get Started",
+              onPress: () => setIsOpen(true),
+            },
+          ],
+        }}
+      />
+      <ModalOverlay isOpen={isOpen} onOpenChange={setIsOpen}>
+        <Modal variant="slideover" size="L">
+          <SetupProjectDialog projectName={projectName} />
+        </Modal>
+      </ModalOverlay>
+    </TableEmptyWrap>
   );
 }

@@ -11,7 +11,6 @@ import {
   MenuButton,
   MenuButtonValue,
   MenuContainer,
-  MenuEmpty,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -20,6 +19,7 @@ import {
   useFilter,
 } from "@phoenix/components";
 import type { MenuButtonProps } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { StylableProps } from "@phoenix/components/core/types";
 
@@ -207,7 +207,12 @@ export function ProjectMenu({
           <Menu
             aria-label="Projects"
             items={projects}
-            renderEmptyState={() => <MenuEmpty>No projects found</MenuEmpty>}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.Folder />} />}
+                description="No projects"
+              />
+            )}
             selectedKeys={selectedProjectId ? [selectedProjectId] : []}
             selectionMode="single"
             onAction={(key) => {
