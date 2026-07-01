@@ -21,7 +21,7 @@
 - [TS: Playground Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-prompt-playground): Test prompt variations in TypeScript
 - [TS: Experiments Quickstart](https://arize.com/docs/phoenix/get-started/ts-get-started-datasets-and-experiments): Create datasets and run experiments in TypeScript
 - [Get Started Overview](https://arize.com/docs/phoenix/get-started): How tracing, evals, prompts, and experiments fit into one iterative workflow
-- [Quickstarts Hub](https://arize.com/docs/phoenix/quickstart): Jump into tracing, playground, datasets, or evaluation quickstart guides
+- [Quickstarts](https://arize.com/docs/phoenix/quickstart): Jump into tracing, playground, datasets, or evaluation quickstart guides
 
 ## Tracing
 
