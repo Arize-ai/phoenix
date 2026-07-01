@@ -21,7 +21,10 @@ import {
 import { ColorSwatch } from "@phoenix/components/color/ColorSwatch";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { selectCSS } from "@phoenix/components/core/select/styles";
-import { useExperimentColors } from "@phoenix/components/experiment";
+import {
+  BaselineExperimentToken,
+  useExperimentColors,
+} from "@phoenix/components/experiment";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
 import type { ExperimentComparePageQueriesMultiSelectorQuery as ExperimentComparePageQueriesMultiSelectorQueryType } from "@phoenix/pages/experiment/__generated__/ExperimentComparePageQueriesMultiSelectorQuery.graphql";
 import { ExperimentComparePageQueriesMultiSelectorQuery } from "@phoenix/pages/experiment/ExperimentComparePageQueries";
@@ -77,6 +80,7 @@ export function ExperimentMultiSelector(props: {
                   id
                   name
                   sequenceNumber
+                  isBaseline
                   createdAt
                 }
               }
@@ -88,6 +92,7 @@ export function ExperimentMultiSelector(props: {
           ... on Experiment {
             id
             name
+            isBaseline
           }
         }
       }
@@ -134,6 +139,9 @@ export function ExperimentMultiSelector(props: {
                 >
                   {data.baseExperiment.name}
                 </Text>
+                {data.baseExperiment.isBaseline ? (
+                  <BaselineExperimentToken />
+                ) : null}
               </Flex>
             ) : (
               "No experiment selected"
@@ -189,6 +197,9 @@ export function ExperimentMultiSelector(props: {
                             >
                               {experiment.name}
                             </Text>
+                            {experiment.isBaseline ? (
+                              <BaselineExperimentToken />
+                            ) : null}
                           </Flex>
                           <Text size="XS" color="text-700">
                             {new Date(experiment.createdAt).toLocaleString()}
@@ -246,6 +257,9 @@ export function ExperimentMultiSelector(props: {
                               >
                                 {experiment.name}
                               </Text>
+                              {experiment.isBaseline ? (
+                                <BaselineExperimentToken />
+                              ) : null}
                             </Flex>
                             <Text size="XS" color="text-700">
                               {new Date(experiment.createdAt).toLocaleString()}

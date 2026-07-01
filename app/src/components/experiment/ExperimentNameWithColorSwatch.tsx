@@ -1,13 +1,16 @@
 import { css } from "@emotion/react";
 
 import { ColorSwatch, Flex, Text } from "@phoenix/components";
+import { BaselineExperimentToken } from "@phoenix/components/experiment/BaselineExperimentToken";
 
 export function ExperimentNameWithColorSwatch({
   name,
   color,
+  isBaseline = false,
 }: {
   name: string;
   color: string;
+  isBaseline?: boolean;
 }) {
   return (
     <Flex direction="row" gap="size-100" wrap alignItems="center">
@@ -25,6 +28,7 @@ export function ExperimentNameWithColorSwatch({
       >
         {name}
       </Text>
+      {isBaseline ? <BaselineExperimentToken /> : null}
     </Flex>
   );
 }

@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime, timezone
 
 import strawberry
-from sqlalchemy import delete, or_, update
+from sqlalchemy import delete, or_, select, update
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.types import Info
@@ -13,6 +13,7 @@ from phoenix.db.helpers import get_eval_trace_ids_for_experiments, get_project_n
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, CustomGraphQLError
+from phoenix.server.api.experiment_tags import BASELINE_EXPERIMENT_TAG_NAME
 from phoenix.server.api.input_types.DeleteExperimentsInput import DeleteExperimentsInput
 from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.PatchExperimentInput import PatchExperimentInput
@@ -51,6 +52,12 @@ class ReinstateExperimentPayload:
 @strawberry.type
 class PatchExperimentPayload:
     experiment: Experiment
+
+
+@strawberry.type
+class SetExperimentBaselinePayload:
+    experiment: Experiment
+    previous_baseline_experiment: Experiment | None = None
 
 
 @strawberry.type
@@ -250,6 +257,53 @@ class ExperimentMutationMixin:
             if experiment is None:
                 raise BadRequest(f"Experiment {input.experiment_id} not found")
         return PatchExperimentPayload(experiment=to_gql_experiment(experiment))
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def set_experiment_baseline(
+        self,
+        info: Info[Context, None],
+        experiment_id: GlobalID,
+        baseline: bool,
+    ) -> SetExperimentBaselinePayload:
+        experiment_rowid = from_global_id_with_expected_type(experiment_id, Experiment.__name__)
+        async with info.context.db() as session:
+            experiment = await session.get(models.Experiment, experiment_rowid)
+            if experiment is None:
+                raise BadRequest(f"Experiment {experiment_id} not found")
+            existing_baseline_tag = await session.scalar(
+                select(models.ExperimentTag)
+                .where(models.ExperimentTag.dataset_id == experiment.dataset_id)
+                .where(models.ExperimentTag.name == BASELINE_EXPERIMENT_TAG_NAME)
+            )
+            previous_baseline_experiment = None
+            if baseline:
+                if existing_baseline_tag:
+                    if existing_baseline_tag.experiment_id != experiment.id:
+                        previous_baseline_experiment = await session.get(
+                            models.Experiment, existing_baseline_tag.experiment_id
+                        )
+                    existing_baseline_tag.experiment_id = experiment.id
+                    existing_baseline_tag.user_id = info.context.user_id
+                else:
+                    session.add(
+                        models.ExperimentTag(
+                            experiment_id=experiment.id,
+                            dataset_id=experiment.dataset_id,
+                            user_id=info.context.user_id,
+                            name=BASELINE_EXPERIMENT_TAG_NAME,
+                            description=None,
+                        )
+                    )
+            elif existing_baseline_tag and existing_baseline_tag.experiment_id == experiment.id:
+                await session.delete(existing_baseline_tag)
+        return SetExperimentBaselinePayload(
+            experiment=to_gql_experiment(experiment),
+            previous_baseline_experiment=(
+                to_gql_experiment(previous_baseline_experiment)
+                if previous_baseline_experiment is not None
+                else None
+            ),
+        )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
     async def delete_experiments(

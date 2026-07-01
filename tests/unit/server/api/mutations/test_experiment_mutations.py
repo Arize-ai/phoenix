@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from sqlalchemy import func, insert
+from sqlalchemy import func, insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -249,6 +249,191 @@ class TestPatchExperimentMutation:
                 "experimentId": str(experiment_id),
                 "name": "patched-experiment-name",
             },
+        )
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == f"Experiment {experiment_id} not found"
+
+
+class TestSetExperimentBaselineMutation:
+    MUTATION = """
+      mutation ($experimentId: ID!, $baseline: Boolean!) {
+        setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {
+          experiment {
+            id
+            isBaseline
+          }
+          previousBaselineExperiment {
+            id
+            isBaseline
+          }
+        }
+      }
+    """
+
+    async def test_marks_experiment_as_baseline(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": experiment_id, "baseline": True},
+        )
+        assert not response.errors
+        assert response.data == {
+            "setExperimentBaseline": {
+                "experiment": {"id": experiment_id, "isBaseline": True},
+                "previousBaselineExperiment": None,
+            }
+        }
+        async with db() as session:
+            tag = await session.scalar(
+                select(models.ExperimentTag).where(models.ExperimentTag.name == "baseline")
+            )
+            assert tag is not None
+            assert tag.experiment_id == 1
+
+    async def test_moves_baseline_within_dataset(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        first_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        second_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(2)))
+        await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": first_experiment_id, "baseline": True},
+        )
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": second_experiment_id, "baseline": True},
+        )
+        assert not response.errors
+        assert response.data == {
+            "setExperimentBaseline": {
+                "experiment": {"id": second_experiment_id, "isBaseline": True},
+                "previousBaselineExperiment": {
+                    "id": first_experiment_id,
+                    "isBaseline": False,
+                },
+            }
+        }
+        async with db() as session:
+            tags = list(
+                await session.scalars(
+                    select(models.ExperimentTag).where(models.ExperimentTag.name == "baseline")
+                )
+            )
+            assert len(tags) == 1
+            assert tags[0].experiment_id == 2
+
+    async def test_removes_baseline_idempotently(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": experiment_id, "baseline": True},
+        )
+        for _ in range(2):
+            response = await gql_client.execute(
+                query=self.MUTATION,
+                variables={"experimentId": experiment_id, "baseline": False},
+            )
+            assert not response.errors
+            assert response.data == {
+                "setExperimentBaseline": {
+                    "experiment": {"id": experiment_id, "isBaseline": False},
+                    "previousBaselineExperiment": None,
+                }
+            }
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.ExperimentTag.id).where(models.ExperimentTag.name == "baseline")
+                )
+            ) is None
+
+    async def test_allows_one_baseline_per_dataset(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        first_dataset_experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+        async with db() as session:
+            second_dataset_id = await session.scalar(
+                insert(models.Dataset)
+                .returning(models.Dataset.id)
+                .values(name="dataset-2-name", description=None, metadata_={})
+            )
+            second_version_id = await session.scalar(
+                insert(models.DatasetVersion)
+                .returning(models.DatasetVersion.id)
+                .values(
+                    dataset_id=second_dataset_id,
+                    description="dataset-2-version",
+                    metadata_={},
+                )
+            )
+            second_dataset_experiment_rowid = await session.scalar(
+                insert(models.Experiment)
+                .returning(models.Experiment.id)
+                .values(
+                    dataset_id=second_dataset_id,
+                    dataset_version_id=second_version_id,
+                    name="dataset-2-experiment",
+                    description=None,
+                    metadata_={},
+                    repetitions=1,
+                )
+            )
+        assert second_dataset_experiment_rowid is not None
+        second_dataset_experiment_id = str(
+            GlobalID(type_name="Experiment", node_id=str(second_dataset_experiment_rowid))
+        )
+
+        first_response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": first_dataset_experiment_id, "baseline": True},
+        )
+        second_response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": second_dataset_experiment_id, "baseline": True},
+        )
+
+        assert not first_response.errors
+        assert not second_response.errors
+        assert second_response.data == {
+            "setExperimentBaseline": {
+                "experiment": {"id": second_dataset_experiment_id, "isBaseline": True},
+                "previousBaselineExperiment": None,
+            }
+        }
+        async with db() as session:
+            tags = list(
+                await session.scalars(
+                    select(models.ExperimentTag).where(models.ExperimentTag.name == "baseline")
+                )
+            )
+            assert len(tags) == 2
+
+    async def test_nonexistent_experiment_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        experiment_id = GlobalID(type_name="Experiment", node_id=str(3))
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": str(experiment_id), "baseline": True},
         )
         assert (errors := response.errors)
         assert len(errors) == 1

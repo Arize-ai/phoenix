@@ -165,6 +165,13 @@ class Experiment(Node):
         return JSON(val)
 
     @strawberry.field
+    async def is_baseline(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        return await info.context.data_loaders.experiment_baseline_flags.load(self.id)
+
+    @strawberry.field
     async def created_at(
         self,
         info: Info[Context, None],

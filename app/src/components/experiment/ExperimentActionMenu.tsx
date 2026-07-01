@@ -40,6 +40,7 @@ export enum ExperimentAction {
   VIEW_EXPERIMENT_DETAILS = "VIEW_EXPERIMENT_DETAILS",
   COPY_EXPERIMENT_ID = "COPY_EXPERIMENT_ID",
   OPEN_IN_PLAYGROUND = "OPEN_IN_PLAYGROUND",
+  TOGGLE_BASELINE = "TOGGLE_BASELINE",
   STOP_EXPERIMENT = "STOP_EXPERIMENT",
   RESUME_EXPERIMENT = "RESUME_EXPERIMENT",
   DELETE_EXPERIMENT = "DELETE_EXPERIMENT",
@@ -52,18 +53,22 @@ type ExperimentActionMenuProps =
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
+      isBaseline?: boolean;
       jobStatus?: ExperimentJobStatus | null;
       canDeleteExperiment: true;
       size?: ButtonProps["size"];
+      onBaselineChange?: () => void;
       onExperimentDeleted: () => void;
     }
   | {
       projectId?: string | null;
       experimentId: string;
       metadata: unknown;
+      isBaseline?: boolean;
       jobStatus?: ExperimentJobStatus | null;
       canDeleteExperiment: false;
       size?: ButtonProps["size"];
+      onBaselineChange?: () => void;
       onExperimentDeleted?: undefined;
     };
 
@@ -100,6 +105,27 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       }
     }
   `);
+  const [commitSetExperimentBaseline, isSettingExperimentBaseline] =
+    useMutation(graphql`
+      mutation ExperimentActionMenuSetBaselineMutation(
+        $experimentId: ID!
+        $baseline: Boolean!
+      ) {
+        setExperimentBaseline(
+          experimentId: $experimentId
+          baseline: $baseline
+        ) {
+          experiment {
+            id
+            isBaseline
+          }
+          previousBaselineExperiment {
+            id
+            isBaseline
+          }
+        }
+      }
+    `);
   const { projectId, jobStatus } = props;
   const { datasetId } = useParams();
   const credentials = useCredentialsContext((state) => state);
@@ -200,6 +226,30 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </MenuItem>
     );
   }
+  if (typeof props.isBaseline === "boolean") {
+    menuItems.push(
+      <MenuItem
+        key={ExperimentAction.TOGGLE_BASELINE}
+        id={ExperimentAction.TOGGLE_BASELINE}
+      >
+        <Flex
+          direction="row"
+          gap="size-75"
+          justifyContent="start"
+          alignItems="center"
+        >
+          <Icon svg={<Icons.PriceTags />} />
+          <Text>
+            {isSettingExperimentBaseline
+              ? "Updating baseline..."
+              : props.isBaseline
+                ? "Remove baseline"
+                : "Mark as baseline"}
+          </Text>
+        </Flex>
+      </MenuItem>
+    );
+  }
   if (jobStatus === "RUNNING") {
     menuItems.push(
       <MenuItem
@@ -294,6 +344,34 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   navigate(
                     `/playground?experimentId=${encodeURIComponent(props.experimentId)}`
                   );
+                  break;
+                }
+                case ExperimentAction.TOGGLE_BASELINE: {
+                  const nextBaseline = !props.isBaseline;
+                  commitSetExperimentBaseline({
+                    variables: {
+                      experimentId: props.experimentId,
+                      baseline: nextBaseline,
+                    },
+                    onCompleted: () => {
+                      notifySuccess({
+                        title: nextBaseline
+                          ? "Baseline set"
+                          : "Baseline removed",
+                        message: nextBaseline
+                          ? "The experiment has been marked as the baseline."
+                          : "The experiment is no longer marked as the baseline.",
+                      });
+                      props.onBaselineChange?.();
+                    },
+                    onError: (error) => {
+                      const msgs =
+                        getErrorMessagesFromRelayMutationError(error);
+                      setError(
+                        `Failed to update baseline: ${msgs?.[0] ?? error.message}`
+                      );
+                    },
+                  });
                   break;
                 }
                 case ExperimentAction.STOP_EXPERIMENT: {

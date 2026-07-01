@@ -330,6 +330,7 @@ export function SelectedCompareExperiments({
                     id
                     sequenceNumber
                     name
+                    isBaseline
                   }
                 }
               }
@@ -361,6 +362,7 @@ export function SelectedCompareExperiments({
           key={experiment.id}
           color={getExperimentColor(experimentIndex)}
           name={experiment.name}
+          isBaseline={experiment.isBaseline}
         />
       ))}
     </Flex>

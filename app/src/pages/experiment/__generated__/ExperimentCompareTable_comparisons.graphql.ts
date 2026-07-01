@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<634f4d6768003a793c1077fb8f3d8f7e>>
+ * @generated SignedSource<<7659497beec30766a9839b5ce0d0160e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -105,6 +105,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly id: string;
           };
           readonly id: string;
+          readonly isBaseline: boolean;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
@@ -657,6 +658,13 @@ return {
                           "name": "sequenceNumber",
                           "storageKey": null
                         },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isBaseline",
+                          "storageKey": null
+                        },
                         (v9/*: any*/),
                         {
                           "alias": null,
@@ -857,6 +865,6 @@ return {
 };
 })();
 
-(node as any).hash = "e39cde7e29d3e6099f6e5bbea3a0d875";
+(node as any).hash = "745418ab79989eb3632547af3c8ec4bc";
 
 export default node;

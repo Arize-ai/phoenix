@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0a69ecf964a4e550468fcc08221692a0>>
+ * @generated SignedSource<<7f6156ed2f42e190af717e4299b8b9b5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -148,6 +148,13 @@ return {
                             "kind": "ScalarField",
                             "name": "name",
                             "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "isBaseline",
+                            "storageKey": null
                           }
                         ],
                         "storageKey": null
@@ -169,12 +176,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7c15fa41768e4a97fd4af03e110f1d65",
+    "cacheID": "dc3d9c1ce6d47fca9075572550ccf512",
     "id": null,
     "metadata": {},
     "name": "ExperimentComparePageQueriesSelectedCompareExperimentsQuery",
     "operationKind": "query",
-    "text": "query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n) {\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentComparePageQueriesSelectedCompareExperimentsQuery(\n  $datasetId: ID!\n  $experimentIds: [ID!]!\n) {\n  ...ExperimentComparePage_selectedCompareExperiments_3xL6z4\n}\n\nfragment ExperimentComparePage_selectedCompareExperiments_3xL6z4 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            sequenceNumber\n            name\n            isBaseline\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
