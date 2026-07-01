@@ -1,0 +1,27 @@
+# Per-(evaluator, split) pass-rate gate policy for the PXI eval harness.
+#
+# gate.py resolves a policy for every (dataset, evaluator, split) datapoint in
+# pxi-eval-results.json. A datapoint whose split has no policy here -- and no
+# explicit `gating: false` -- is a breach, not a silent pass, so every split a
+# dataset can carry must be enumerated below.
+#
+# A policy is either `min_pass_rate: <float>` (gating; breach when the observed
+# pass-rate falls below it) or `gating: false` (the split is recorded but never
+# gates).
+
+# Default policy per split, applied to every (evaluator, split) unless an
+# override matches first.
+splits:
+  regression:
+    min_pass_rate: 1.0
+  dev:
+    min_pass_rate: 0.8
+  holdout:
+    min_pass_rate: 0.8
+  val:
+    gating: false
+
+# Optional narrower policies, keyed dataset -> evaluator -> split. An entry here
+# wins over the split default above; each value mirrors a `splits` entry
+# (`min_pass_rate: <float>` or `gating: false`).
+overrides: {}
