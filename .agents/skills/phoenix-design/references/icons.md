@@ -21,6 +21,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Undo / rewind | `Icons.RotateCcw` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `History` (clock = history/session list). |
 | Resume / play | `Icons.Play` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircle` (used for video attachments). |
 | Pause | `Icons.Pause` | Pause an in-progress activity (e.g. pause live streaming). |
+| Mark / bookmark a selection | `Icons.BookmarkCheck` | Mark an item as a designated selection (e.g. mark an experiment as the baseline). Use `Icons.BookmarkX` for the corresponding remove/unset action. Prefer these over `PriceTags`, which reads as free-form tagging. |
 
 ## When you need an icon
 
