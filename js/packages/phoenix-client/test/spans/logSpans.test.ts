@@ -113,12 +113,14 @@ describe("logSpans", () => {
   });
 
   it("throws a SpanCreationError parsed from a 422 validation error array", async () => {
+    // Only the span at index 1 is flagged, but a FastAPI 422 rejects the
+    // entire request body, so totalQueued must be 0 (all-or-nothing contract).
     mockPost.mockResolvedValue({
       data: null,
       error: {
         detail: [
           {
-            loc: ["body", "data", 0],
+            loc: ["body", "data", 1],
             msg: "field required",
             type: "value_error.missing",
           },
@@ -126,11 +128,17 @@ describe("logSpans", () => {
       },
     });
 
+    const spans: Span[] = [
+      { ...testSpan, context: { trace_id: "trace-1", span_id: "span-1" } },
+      { ...testSpan, context: { trace_id: "trace-2", span_id: "span-2" } },
+      { ...testSpan, context: { trace_id: "trace-3", span_id: "span-3" } },
+    ];
+
     let thrown: unknown;
     try {
       await logSpans({
         project: { projectName: "my-project" },
-        spans: [testSpan],
+        spans,
       });
     } catch (e) {
       thrown = e;
@@ -138,10 +146,10 @@ describe("logSpans", () => {
 
     expect(thrown).toBeInstanceOf(SpanCreationError);
     const err = thrown as SpanCreationError;
-    expect(err.totalReceived).toBe(1);
+    expect(err.totalReceived).toBe(3);
     expect(err.totalQueued).toBe(0);
     expect(err.invalidSpans).toEqual([
-      { spanId: "span-456", traceId: "trace-123", error: "field required" },
+      { spanId: "span-2", traceId: "trace-2", error: "field required" },
     ]);
   });
 

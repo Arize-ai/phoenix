@@ -251,7 +251,9 @@ function parseLogSpansError(error: unknown, spans: Span[]): Error {
           invalidSpans,
           duplicateSpans: [],
           totalReceived: spans.length,
-          totalQueued: spans.length - invalidSpans.length,
+          // A FastAPI 422 rejects the entire request body, so no spans are
+          // queued — matching the all-or-nothing contract and the 400 path.
+          totalQueued: 0,
         });
       }
     } else if (isSpanCreationErrorPayload(error)) {
