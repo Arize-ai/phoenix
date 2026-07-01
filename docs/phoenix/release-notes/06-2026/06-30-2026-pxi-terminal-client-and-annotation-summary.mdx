@@ -7,11 +7,17 @@ description: "Run PXI as an interactive terminal chat from the Phoenix CLI, revi
 
 June 26, 2026
 
-**Available in @arizeai/phoenix-cli 1.6.0+ (beta)**
+**Available in @arizeai/phoenix-cli 1.6.0+ (beta). Requires a Phoenix server running arize-phoenix 17.12.0+.**
 
 PXI now runs as an interactive chat right in your shell. It is the same server-side
 agent that powers the in-browser experience — the CLI connects to a running Phoenix
 instance, so model credentials, skills, and permissions stay configured on the server.
+Because the agent runs on the server, the CLI requires a Phoenix instance on
+**arize-phoenix 17.12.0** or newer.
+
+<video controls autoPlay={false} loop={false} width="100%">
+  <source src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/pxi/pxi_terminal.mp4" type="video/mp4" />
+</video>
 
 Run it without installing anything:
 
