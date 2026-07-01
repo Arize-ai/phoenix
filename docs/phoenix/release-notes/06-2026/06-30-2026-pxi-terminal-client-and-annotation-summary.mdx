@@ -1,0 +1,77 @@
+---
+title: "06.30.2026: PXI Terminal Client and Annotation Summary"
+description: "Run PXI as an interactive terminal chat from the Phoenix CLI, review and bulk-delete annotations from project settings, and copy trace IDs from experiment trace details."
+---
+
+# PXI in the Terminal
+
+June 26, 2026
+
+**Available in @arizeai/phoenix-cli 1.6.0+ (beta)**
+
+PXI now runs as an interactive chat right in your shell. It is the same server-side
+agent that powers the in-browser experience — the CLI connects to a running Phoenix
+instance, so model credentials, skills, and permissions stay configured on the server.
+
+Run it without installing anything:
+
+```bash
+npx -y @arizeai/phoenix-cli pxi
+```
+
+Or install the CLI globally and use the `pxi` command directly:
+
+```bash
+npm install -g @arizeai/phoenix-cli
+pxi
+```
+
+Point it at your Phoenix instance with environment variables, or pass `--endpoint` and
+`--api-key` flags:
+
+```bash
+export PHOENIX_HOST=http://localhost:6006
+pxi
+```
+
+- **Pick the model** — `--provider` and `--model` select the model (defaults to Anthropic `claude-opus-4-8`); `--custom-provider-id` targets a custom provider configured under **Settings → Models**
+
+```bash
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+```
+
+- **Launch preflight** — on startup the client checks the server's model catalog and credentials, surfacing configuration problems as a clean error before the chat opens (skip with `--skip-model-preflight`)
+- **Stay in control** — edits are proposed as accept/reject diffs by default; pass `--bypass-edits` to apply them automatically, or `--enable-web-access` to let PXI consult the web for grounding
+- **Saved profiles** — reuse a stored Phoenix CLI connection with `--profile <name>`
+
+**Slash commands** are available in **@arizeai/phoenix-cli 1.6.1+**: type `/clear` to reset
+the conversation, `/exit` to quit, or `/help` to list available commands. The input prompt
+syntax-highlights command tokens and shows a live completion list as you type.
+
+<CardGroup cols={2}>
+  <Card title="PXI Agent" icon="robot" href="/docs/phoenix/pxi">
+    Enable PXI on your deployment and learn what it can do.
+  </Card>
+</CardGroup>
+
+# Annotation Summary in Project Settings
+
+June 30, 2026
+
+**Available in arize-phoenix 17.14.0+**
+
+Project settings now include an annotations summary showing every annotation name applied
+in the project, grouped by what it is attached to.
+
+- **Counts by name** — separate cards for **Span Annotations**, **Trace Annotations**, and **Session Annotations** list each annotation name alongside how many annotations use it
+- **Bulk delete by name** — remove every annotation of a given name in one action, optionally restricted to a time range; deletion is gated by project permissions
+
+# Copyable Trace ID in Experiment Trace Details
+
+June 25, 2026
+
+**Available in arize-phoenix 17.12.0+**
+
+The trace details dialog opened from experiment views (compare, list, and table) now shows
+the trace ID as a badge with a copy-to-clipboard button, so you can grab the ID for
+debugging without leaving the dialog.
