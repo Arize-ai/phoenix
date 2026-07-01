@@ -20,12 +20,22 @@ register({ projectName: "my-app" });
 | CHAIN | `traceChain` | Workflows, pipelines, orchestration |
 | AGENT | `traceAgent` | Multi-step reasoning, planning |
 | TOOL | `traceTool` | External APIs, function calls |
-| RETRIEVER | `withSpan` | Vector search, document retrieval |
-| LLM | `withSpan` | LLM API calls (prefer auto-instrumentation) |
-| EMBEDDING | `withSpan` | Embedding generation |
-| RERANKER | `withSpan` | Document re-ranking |
-| GUARDRAIL | `withSpan` | Safety checks, content moderation |
-| EVALUATOR | `withSpan` | LLM evaluation |
+| LLM | `traceLLM` | LLM API calls (prefer auto-instrumentation) |
+| RETRIEVER | `traceRetriever` | Vector search, document retrieval |
+| RERANKER | `traceReranker` | Document re-ranking |
+| EMBEDDING | `traceEmbedding` | Embedding generation |
+| GUARDRAIL | `traceGuardrail` | Safety checks, content moderation |
+| EVALUATOR | `traceEvaluator` | LLM evaluation |
+| PROMPT | `tracePrompt` | Prompt construction, rendering, templating |
+
+Every OpenInference span kind has a matching wrapper. Each `trace*` wrapper is a
+shorthand for `withSpan(fn, { ...options, kind })` with `kind` pre-set, so it takes
+the same options *except* `kind`. Reach for `withSpan` directly only when you want
+`processInput`/`processOutput` to build richer attributes than the default
+JSON-serialized `input.value`/`output.value`. All wrappers are re-exported from
+`@arizeai/phoenix-otel` as well as `@arizeai/openinference-core`. The kind-specific
+wrappers beyond `traceChain`/`traceAgent`/`traceTool` are marked `@experimental` in
+`@arizeai/openinference-core`.
 
 ## Convenience Wrappers
 
@@ -57,7 +67,37 @@ const getWeather = traceTool(
 );
 ```
 
-## withSpan for Other Kinds
+The remaining span kinds have dedicated wrappers too — same call shape, `kind`
+pre-set:
+
+```typescript
+import {
+  traceLLM,
+  traceRetriever,
+  traceReranker,
+  traceEmbedding,
+  traceGuardrail,
+  traceEvaluator,
+  tracePrompt,
+} from "@arizeai/openinference-core"; // also re-exported from @arizeai/phoenix-otel
+
+// RETRIEVER - fetch documents (RAG)
+const retrieveDocuments = traceRetriever(
+  async (query: string) => vectorStore.similaritySearch(query, 5),
+  { name: "vector-search" }
+);
+
+// EVALUATOR - score output quality (LLM-as-a-judge)
+const evaluateAnswer = traceEvaluator(
+  async (question: string, answer: string) => judge.score({ question, answer }),
+  { name: "answer-evaluation" }
+);
+```
+
+## withSpan for Custom Attributes
+
+When the default JSON-serialized I/O isn't enough, drop to `withSpan` (or pass
+`processInput`/`processOutput` to any `trace*` wrapper) to build richer attributes:
 
 ```typescript
 import { withSpan, getInputAttributes, getRetrieverAttributes } from "@arizeai/openinference-core";
