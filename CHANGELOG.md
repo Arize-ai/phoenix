@@ -1,5 +1,31 @@
 # Changelog
 
+## [17.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.14.0...arize-phoenix-v17.15.0) (2026-07-01)
+
+
+### Features
+
+* **playground:** add Claude Sonnet 5 to Anthropic and AWS providers ([7525402](https://github.com/Arize-ai/phoenix/commit/75254027a3f8e7e87e4523de9dee4dc4ade142d1))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([afcc867](https://github.com/Arize-ai/phoenix/commit/afcc867b375c8a292e602fd5c216c1cd89d272f3))
+* **deps:** update arize-phoenix-client to 2.11.0 ([209d065](https://github.com/Arize-ai/phoenix/commit/209d065b5bf132034646c73d8dba1337fd919828))
+* **playground:** re-wrap unwrapped Bedrock tools at span import ([#13940](https://github.com/Arize-ai/phoenix/issues/13940)) ([feacaa6](https://github.com/Arize-ai/phoenix/commit/feacaa67044d4e2d2d3801a69469e30589fa5999))
+* preserve empty JSON object attributes in load_json_strings ([#13847](https://github.com/Arize-ai/phoenix/issues/13847)) ([74ffd66](https://github.com/Arize-ai/phoenix/commit/74ffd6680d48c0861abf0c51617b6501cb7bd7b3))
+* **pxi:** render dataset_file with forward slashes on Windows ([#13963](https://github.com/Arize-ai/phoenix/issues/13963)) ([d094a14](https://github.com/Arize-ai/phoenix/commit/d094a14171444addfd2d30d6fbfbd2269cb57c17))
+
+
+### Documentation
+
+* add Phoenix release notes ([7a1585c](https://github.com/Arize-ai/phoenix/commit/7a1585c9b72013d2f837abd4a8a039f7aac1df25))
+* **evals:** document LLM-as-a-judge in pytest and Vitest/Jest test integrations ([d225793](https://github.com/Arize-ai/phoenix/commit/d225793330af1097e30d09e7cf00cb5c33a9649c))
+* **evals:** drop unsubstantiated judge-model reliability claim ([5965566](https://github.com/Arize-ai/phoenix/commit/5965566b649a85069a9f1caf829c60dc71debb5a))
+* **evals:** simplify LLM-as-judge examples — drop knowledge base from the judge ([f9b5abc](https://github.com/Arize-ai/phoenix/commit/f9b5abcd5c8560d151f3dce6cdd903ecb0ad58f7))
+* **skill:** add Slack-friendly overview step to release-notes skill ([21419cb](https://github.com/Arize-ai/phoenix/commit/21419cb2788d06739b133cc82d6486f98e7c759c))
+* **skills:** weekly audit — 2026-07-01 ([8aea845](https://github.com/Arize-ai/phoenix/commit/8aea845a87a5e94d769ce628d09f7449912b0a28))
+
 ## [17.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.13.0...arize-phoenix-v17.14.0) (2026-06-30)
 
 
