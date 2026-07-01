@@ -275,7 +275,14 @@ px prompt get <name> --format text --no-progress   # plain text, ideal for pipin
 ```bash
 px annotation-config list                                           # list all configs (table view)
 px annotation-config list --format raw --no-progress | jq '.[].name' # config names as JSON
+
+# update by name or ID — only the fields you pass change; type is immutable
+px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE
+px annotation-config update quality --values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+px annotation-config update cfg-123 --description "Updated" --format raw --no-progress | jq -r '.id'
 ```
+
+`update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`. At least one field flag is required. Type-specific flags: `--values` (CATEGORICAL), `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Output is the updated config object (single object in `raw`/`json`, not an array).
 
 ## GraphQL
 

@@ -491,6 +491,37 @@ px annotation-config list --format raw --no-progress | jq '.[].name'
 
 ---
 
+### `px annotation-config update <config-identifier>`
+
+Update an annotation configuration by name or ID. Only the fields you pass are changed — the command fetches the existing config, merges your flags, and writes the result back via `PUT /v1/annotation_configs/{id}`. The config `type` is immutable; to change it, delete and recreate the config. The updated config is written to stdout in the selected `--format`.
+
+```bash
+# Human: rename and change optimization direction
+px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE
+
+# Update the label set of a categorical config
+px annotation-config update quality --values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+
+# Agent: capture the updated ID
+px annotation-config update cfg-123 --description "Updated" --format raw --no-progress | jq -r '.id'
+```
+
+| Option                              | Description                                                | Default  |
+| ----------------------------------- | ---------------------------------------------------------- | -------- |
+| `--name <name>`                     | New name                                                   | —        |
+| `--description <description>`       | New description                                            | —        |
+| `--optimization-direction <dir>`    | `MINIMIZE`, `MAXIMIZE`, or `NONE`                          | —        |
+| `--values <json>`                   | Categorical label objects as JSON (CATEGORICAL configs)    | —        |
+| `--lower-bound <number>`            | Lower bound (CONTINUOUS/FREEFORM configs)                  | —        |
+| `--upper-bound <number>`            | Upper bound (CONTINUOUS/FREEFORM configs)                  | —        |
+| `--threshold <number>`              | Threshold (FREEFORM configs)                               | —        |
+| `--format <format>`                 | `pretty`, `json`, or `raw`                                 | `pretty` |
+| `--no-progress`                     | Suppress progress output                                   | —        |
+
+At least one field flag is required; an invocation with none exits with `INVALID_ARGUMENT`. Flags that don't apply to the config's type (e.g. `--values` on a continuous config) are rejected.
+
+---
+
 ### `px auth status`
 
 Show current Phoenix authentication status, including the configured endpoint, whether you are authenticated or anonymous, and an obscured API key.
