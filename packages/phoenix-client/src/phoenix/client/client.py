@@ -14,6 +14,8 @@ from phoenix.client.resources.traces import AsyncTraces, Traces
 from phoenix.client.utils.config import get_base_url, get_env_client_headers
 from phoenix.client.utils.server_requirements import AsyncServerVersionGuard, ServerVersionGuard
 
+_DEFAULT_CLIENT_TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0)
+
 
 class Client:
     def __init__(
@@ -45,7 +47,7 @@ class Client:
             http_client = _WrappedClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
-                timeout=httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=10.0),
+                timeout=_DEFAULT_CLIENT_TIMEOUT,
             )
         self._client = http_client
 
@@ -159,6 +161,7 @@ class AsyncClient:
             http_client = httpx.AsyncClient(
                 base_url=base_url,
                 headers=_update_headers(headers, api_key),
+                timeout=_DEFAULT_CLIENT_TIMEOUT,
             )
         self._client = http_client
 

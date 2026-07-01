@@ -1,5 +1,89 @@
 # Changelog
 
+## [17.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.13.0...arize-phoenix-v17.14.0) (2026-06-30)
+
+
+### Features
+
+* **ui:** add annotation summary to project settings ([#13850](https://github.com/Arize-ai/phoenix/issues/13850)) ([05582a1](https://github.com/Arize-ai/phoenix/commit/05582a132f5400bdaf7451c0e954df286ee09a81))
+
+
+### Bug Fixes
+
+* **agents:** engage Anthropic prompt caching in PXI ([#13941](https://github.com/Arize-ai/phoenix/issues/13941)) ([9bacd33](https://github.com/Arize-ai/phoenix/commit/9bacd33987c50789bc079da706b2f0c2344ec870))
+
+## [17.13.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.12.0...arize-phoenix-v17.13.0) (2026-06-30)
+
+
+### Features
+
+* **cli:** add pxi tui ([#13905](https://github.com/Arize-ai/phoenix/issues/13905)) ([70246e9](https://github.com/Arize-ai/phoenix/commit/70246e989a84134203d630a2b9aaf9714bd8492c))
+* **phoenix-client:** add pytest plugin for eval CI ([#13874](https://github.com/Arize-ai/phoenix/issues/13874)) ([6ebe82c](https://github.com/Arize-ai/phoenix/commit/6ebe82cb900d90fdd1fd6d6afc82bf8e76ec82ea))
+* **pydantic-ai:** simplify turn output instrumentation ([#13904](https://github.com/Arize-ai/phoenix/issues/13904)) ([0ab1b71](https://github.com/Arize-ai/phoenix/commit/0ab1b71ac0004d01631cd9e732851fc1a58d5010))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#13935](https://github.com/Arize-ai/phoenix/issues/13935)) ([f37e8dc](https://github.com/Arize-ai/phoenix/commit/f37e8dc578c0e4cb14cab0b1f811b09d9b0aa764))
+* **deps:** update arize-phoenix-client to 2.10.0 ([fc1a3df](https://github.com/Arize-ai/phoenix/commit/fc1a3df765db10b7eae9395c5c02e4d6332afcda))
+* emit dml event for PXI local traces ([#13936](https://github.com/Arize-ai/phoenix/issues/13936)) ([d261c8f](https://github.com/Arize-ai/phoenix/commit/d261c8f8d817d274a485ce5e2d8c8500f3bc67e1))
+* **playground:** guard against empty dataset versions array ([#13908](https://github.com/Arize-ai/phoenix/issues/13908)) ([cacbbd4](https://github.com/Arize-ai/phoenix/commit/cacbbd41c6062b1729e600e000e236a2640ab937))
+
+
+### Documentation
+
+* **skill:** add pytest/vitest/jest integration references to phoenix-evals ([#13942](https://github.com/Arize-ai/phoenix/issues/13942)) ([071aa66](https://github.com/Arize-ai/phoenix/commit/071aa66d701d890f1e2a1aa46fc5227a4a629a36))
+
+## [17.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.11.0...arize-phoenix-v17.12.0) (2026-06-25)
+
+
+### Features
+
+* add direct server agent endpoint ([#13896](https://github.com/Arize-ai/phoenix/issues/13896)) ([6e93f93](https://github.com/Arize-ai/phoenix/commit/6e93f93d0f1c608b2f3f612f9cf9f5abc792cf1e))
+* **agents:** attach opt-in user.id to pxi traces ([#13876](https://github.com/Arize-ai/phoenix/issues/13876)) ([a488b40](https://github.com/Arize-ai/phoenix/commit/a488b4046559a4c3ae9dc2849a59f292a1fa5d82))
+* **experiments:** show copyable trace ID in trace details dialog header ([#13887](https://github.com/Arize-ai/phoenix/issues/13887)) ([f5b33a5](https://github.com/Arize-ai/phoenix/commit/f5b33a571fd1335ef1da83ee37e168fa5d95f325))
+* **js:** add CI eval testing API to phoenix-client ([#13877](https://github.com/Arize-ai/phoenix/issues/13877)) ([5244718](https://github.com/Arize-ai/phoenix/commit/524471807233d4d1f50c08e2d594c4425350411d))
+* stream call_subagent progress ([#13885](https://github.com/Arize-ai/phoenix/issues/13885)) ([41b92c3](https://github.com/Arize-ai/phoenix/commit/41b92c3c095996ac8d03b64c3554ab451486f8be))
+
+
+### Bug Fixes
+
+* **agents:** add summaries to bashkit bash tool ([#13897](https://github.com/Arize-ai/phoenix/issues/13897)) ([64d914e](https://github.com/Arize-ai/phoenix/commit/64d914e4046295e66f338841fe6f49fe52370589))
+* **agents:** Prevent double bordered subagent tools and auto-open ([#13900](https://github.com/Arize-ai/phoenix/issues/13900)) ([52d8c17](https://github.com/Arize-ai/phoenix/commit/52d8c171a8bf8eb629c8029794ddbb85cb9defc8))
+* **agents:** Prevent pxi logo from shrinking ([#13899](https://github.com/Arize-ai/phoenix/issues/13899)) ([4de402a](https://github.com/Arize-ai/phoenix/commit/4de402a61baec6338fbd368668b801c7d185f004))
+* hide empty subagent message parts ([#13895](https://github.com/Arize-ai/phoenix/issues/13895)) ([bc55be9](https://github.com/Arize-ai/phoenix/commit/bc55be9d7cc18e8c3f18f1d3d37010b5b23a9325))
+* **pxi:** Preserve PXI draft input across panel remounts ([#13910](https://github.com/Arize-ai/phoenix/issues/13910)) ([71bec3c](https://github.com/Arize-ai/phoenix/commit/71bec3c070bc3716f299b81b4cc008f64796e9f7))
+* **retention:** remove unbatched RETURNING clause from delete_traces ([#13909](https://github.com/Arize-ai/phoenix/issues/13909)) ([0f8a65a](https://github.com/Arize-ai/phoenix/commit/0f8a65aacd64717a587695fe55ae948f46b2a852))
+
+
+### Documentation
+
+* add Phoenix release notes ([#13889](https://github.com/Arize-ai/phoenix/issues/13889)) ([1b28981](https://github.com/Arize-ai/phoenix/commit/1b28981b92bd118445e56c2912bca5ee0b4ea107))
+
+## [17.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.10.0...arize-phoenix-v17.11.0) (2026-06-24)
+
+
+### Features
+
+* **agent:** submit highlighted command on Enter in skill prompt ([#13868](https://github.com/Arize-ai/phoenix/issues/13868)) ([ea02242](https://github.com/Arize-ai/phoenix/commit/ea0224278315ca2734072e97f44e6760dd5e4ef5))
+* **annotations:** show trace annotation summaries in project stats panel ([#13855](https://github.com/Arize-ai/phoenix/issues/13855)) ([604a087](https://github.com/Arize-ai/phoenix/commit/604a087256a161e99a82c6b00e5d419b92626d91))
+* **evals:** agent-readable failure reports for PXI eval harness (closes [#13668](https://github.com/Arize-ai/phoenix/issues/13668)) ([#13737](https://github.com/Arize-ai/phoenix/issues/13737)) ([c59fb82](https://github.com/Arize-ai/phoenix/commit/c59fb82d220201fee4188445a4a1ff8a8b2e02e1))
+* **server:** expose agent endpoints in Swagger UI when running with --dev ([#13873](https://github.com/Arize-ai/phoenix/issues/13873)) ([25cb3de](https://github.com/Arize-ai/phoenix/commit/25cb3de333a07284acd5638a2e2317a933f3b07d))
+
+
+### Bug Fixes
+
+* **server:** cap pydantic-ai-slim below 2.0 to unbreak PyPI installs ([#13881](https://github.com/Arize-ai/phoenix/issues/13881)) ([379e231](https://github.com/Arize-ai/phoenix/commit/379e231ec7a7ce6108c61a2649419d5781f2b459))
+* **trace:** add bounded HTTP timeouts to dataset/trace fixtures ([#13747](https://github.com/Arize-ai/phoenix/issues/13747)) ([6438a80](https://github.com/Arize-ai/phoenix/commit/6438a80c0174e472453ef3c5f3e4aec6f5ee474d))
+* **ui:** restore outline shape for thumbs up/down feedback icons ([#13871](https://github.com/Arize-ai/phoenix/issues/13871)) ([e3bc988](https://github.com/Arize-ai/phoenix/commit/e3bc98801defd52ded4b3cb7f4bdb6cb7fb6137b))
+
+
+### Documentation
+
+* **tutorials:** level up email model-comparison into eval-harness cookbook (DEV-357) ([#13718](https://github.com/Arize-ai/phoenix/issues/13718)) ([537b7e6](https://github.com/Arize-ai/phoenix/commit/537b7e6494615a06ba052eb60477b563c5c3a904))
+* **tutorials:** level up session-level evaluation cookbook ([#13728](https://github.com/Arize-ai/phoenix/issues/13728)) ([d411ea0](https://github.com/Arize-ai/phoenix/commit/d411ea0ce5aefe7aa0dbd2ffcf94a08b06369635))
+* **tutorials:** level up the realtime guardrails cookbook (concept-first) ([#13721](https://github.com/Arize-ai/phoenix/issues/13721)) ([ef2be08](https://github.com/Arize-ai/phoenix/commit/ef2be08634ffc33fddd912da30a366a15ebdc4cb))
+
 ## [17.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.9.0...arize-phoenix-v17.10.0) (2026-06-20)
 
 

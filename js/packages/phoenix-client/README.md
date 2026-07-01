@@ -298,6 +298,68 @@ const experiment = await runExperiment({
 
 > **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
 
+## Eval Tests
+
+The package also exposes Vitest and Jest submodules for writing
+dataset-backed evaluations as normal test suites.
+
+```bash
+npm install -D @arizeai/phoenix-client vitest dotenv
+```
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+px.describe(
+  "text-to-sql",
+  () => {
+    px.test(
+      "select all",
+      {
+        input: { userQuery: "Get all users" },
+        expected: { sql: "SELECT * FROM users;" },
+      },
+      async ({ input, expected }) => {
+        const sql = await generateSql(input.userQuery);
+        px.logOutput({ sql });
+        expect(sql).toEqual(expected?.sql);
+      }
+    );
+  },
+  {
+    acceptanceCriteria: [
+      // every test must pass (100% of the auto-logged `pass` boolean is true)
+      {
+        annotationName: "pass",
+        metric: "passRate",
+        passFn: (a) => a.score === true,
+        minPassRate: 1,
+      },
+    ],
+  }
+);
+```
+
+The reference output can be supplied under any one of three interchangeable
+keys — `expected`, `reference`, or `output` — so you can match whichever name
+your evaluators expect. They all resolve to the same slot: the dataset
+example's `output`, exposed to evaluators and the test body as `expected`.
+Supplying more than one at a time is a type error.
+
+Use `@arizeai/phoenix-client/vitest/reporter` or
+`@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
+experiment links, annotation aggregates, and acceptance criteria at the end
+of a run. Acceptance criteria gate the suite after it finishes — `average`
+checks an aggregate bar (so CI can allow a mean of 80% while still running
+every case), and `passRate` requires a minimum fraction of runs to satisfy a
+per-run `passFn` predicate.
+
+See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
+`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+`describe` / `test` / `test.each` API, acceptance criteria, repetitions,
+dry-run mode, and annotation details.
+
 ## Traces
 
 The `@arizeai/phoenix-client` package provides a `traces` export for retrieving trace data from Phoenix projects.

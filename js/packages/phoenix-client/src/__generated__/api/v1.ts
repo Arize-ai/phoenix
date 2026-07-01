@@ -1298,6 +1298,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/server/sessions/{session_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Server Agent
+         * @description Stream a chat turn from the GraphQL server agent.
+         *
+         *     This is the endpoint the PXI CLI talks to directly (no pre-configured
+         *     agent record): it builds a fresh server agent per request from the
+         *     caller-supplied model and contexts, then streams the reply back as
+         *     Vercel-AI chunks.
+         *
+         *     The request contexts gate capabilities — GraphQL mutations, web access,
+         *     and subagents — and mutations are refused for viewer users. When trace
+         *     recording is enabled (and permitted by system settings), the run is
+         *     traced; locally ingested traces are persisted to the agent's project
+         *     once the stream completes.
+         *
+         *     Returns ``403`` if agents or the server agent are disabled, or if a
+         *     viewer requests mutations.
+         */
+        post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1641,6 +1675,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -1688,6 +1728,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             /**
@@ -5385,6 +5431,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
             /** Model */
@@ -9249,6 +9301,41 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_server_agent_agents_server_sessions__session_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

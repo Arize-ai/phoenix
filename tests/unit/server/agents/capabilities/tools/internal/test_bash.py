@@ -53,7 +53,7 @@ def _build_run_bash(*, allow_mutations: bool) -> RunBash:
     async def run(command: str) -> dict[str, Any]:
         tools = await toolset.get_tools(ctx)
         result: dict[str, Any] = await toolset.call_tool(
-            "bash", {"command": command}, ctx, tools["bash"]
+            "bash", {"summary": "Run shell command", "command": command}, ctx, tools["bash"]
         )
         return result
 

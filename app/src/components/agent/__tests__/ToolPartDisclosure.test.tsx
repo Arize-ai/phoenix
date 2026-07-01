@@ -1,12 +1,28 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
+
+vi.mock("@phoenix/components/code", () => ({
+  CodeBlock: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  CodeWrap: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/code/JSONEditor", () => ({
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/markdown", () => ({
+  MarkdownBlock: ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
 
 import { getToolPartPreview, ToolPart } from "../ToolPart";
 import type { ToolInvocationPart } from "../toolPartTypes";
@@ -198,5 +214,51 @@ describe("tool disclosure controls", () => {
     expect(
       container.querySelector("details.tool-part")?.hasAttribute("open")
     ).toBe(true);
+  });
+
+  it("does not render empty subagent message parts under nested tools", () => {
+    renderToolPart(
+      createToolPart({
+        type: "tool-call_subagent",
+        toolCallId: "tool-call-subagent",
+        input: { name: "Phoenix data", task: "Summarize latency" },
+        output: {
+          summary: "Done",
+          message: {
+            id: "subagent-message",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-bash",
+                toolCallId: "tool-call-bash",
+                state: "output-available",
+                input: { command: "echo hi" },
+                output: "hi",
+              },
+              {
+                type: "reasoning",
+                text: "",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "   ",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "Visible answer",
+                state: "done",
+              },
+            ],
+          },
+        },
+      })
+    );
+
+    click(container.querySelector("summary"));
+
+    expect(container.textContent).toContain("Visible answer");
+    expect(container.textContent).not.toContain("(empty)");
   });
 });

@@ -35,13 +35,16 @@ import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
 import type { ProjectConfigPage_projectConfigCard$key } from "./__generated__/ProjectConfigPage_projectConfigCard.graphql";
 import type { ProjectConfigPagePatchProjectMutation } from "./__generated__/ProjectConfigPagePatchProjectMutation.graphql";
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
+import type { ProjectRetentionPolicyCard_policy$key } from "./__generated__/ProjectRetentionPolicyCard_policy.graphql";
+import type { ProjectRetentionPolicyCard_query$key } from "./__generated__/ProjectRetentionPolicyCard_query.graphql";
 import { isProjectTab } from "./constants";
 import { ProjectAnnotationConfigCard } from "./ProjectAnnotationConfigCard";
+import { ProjectAnnotationCountsCards } from "./ProjectAnnotationCountsCards";
 import {
   ProjectPageQueriesProjectConfigQuery,
   useProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import { ProjectRetentionPolicyCard } from "./ProjectRetentionPolicyCard";
+import { ProjectRetentionPolicySection } from "./ProjectRetentionPolicyCard";
 
 const projectConfigPageCSS = css`
   overflow-y: auto;
@@ -89,9 +92,13 @@ const ProjectConfigContent = ({
   const data = usePreloadedQuery(ProjectPageQueriesProjectConfigQuery, project);
   return (
     <Flex direction="column" gap="size-200">
-      <ProjectConfigCard project={data.project} />
+      <ProjectConfigCard
+        project={data.project}
+        retentionPolicy={data.project}
+        query={data}
+      />
       <ProjectAnnotationConfigCard projectId={data.project.id} />
-      <ProjectRetentionPolicyCard project={data.project} query={data} />
+      <ProjectAnnotationCountsCards projectId={data.project.id} />
     </Flex>
   );
 };
@@ -124,8 +131,12 @@ const ReadOnlyNameField = ({ name }: { name: string }) => (
 
 const ProjectConfigCard = ({
   project,
+  retentionPolicy,
+  query,
 }: {
   project: ProjectConfigPage_projectConfigCard$key;
+  retentionPolicy: ProjectRetentionPolicyCard_policy$key;
+  query: ProjectRetentionPolicyCard_query$key;
 }) => {
   const [data] = useRefetchableFragment(
     graphql`
@@ -193,116 +204,117 @@ const ProjectConfigCard = ({
     [commit, data.id, notifySuccess]
   );
 
-  if (isEditing) {
-    return (
-      <Card title="Project Settings">
-        {error && (
-          <View padding="size-200" paddingBottom="size-0">
-            <Alert variant="danger" banner>
-              {error}
-            </Alert>
-          </View>
-        )}
-        <View padding="size-200">
-          <ReadOnlyNameField name={data.name} />
-        </View>
-        <ProjectForm
-          onSubmit={handleSubmit}
-          isSubmitting={isCommitting}
-          submitButtonText={isCommitting ? "Saving..." : "Save"}
-          hideNameField
-          onCancel={() => {
-            setIsEditing(false);
-            setError(null);
-          }}
-          defaultValues={{
-            description: data.description ?? "",
-            gradientPreset: findGradientPreset(
-              data.gradientStartColor,
-              data.gradientEndColor
-            ),
-          }}
-        />
-      </Card>
-    );
-  }
-
   return (
     <Card
       title="Project Settings"
       extra={
-        <Button
-          variant="default"
-          size="S"
-          leadingVisual={<Icon svg={<Icons.Edit />} />}
-          onPress={() => setIsEditing(true)}
-        >
-          Edit
-        </Button>
+        isEditing ? undefined : (
+          <Button
+            variant="default"
+            size="S"
+            leadingVisual={<Icon svg={<Icons.Edit />} />}
+            onPress={() => setIsEditing(true)}
+          >
+            Edit
+          </Button>
+        )
       }
     >
-      <View padding="size-200">
-        <Flex direction="row" gap="size-200">
-          <div
-            css={[
-              gradientPreviewCSS,
-              {
-                background: `linear-gradient(136.27deg, ${data.gradientStartColor} 14.03%, ${data.gradientEndColor} 84.38%)`,
-              },
-            ]}
+      {isEditing ? (
+        <>
+          {error && (
+            <View padding="size-200" paddingBottom="size-0">
+              <Alert variant="danger" banner>
+                {error}
+              </Alert>
+            </View>
+          )}
+          <View padding="size-200">
+            <ReadOnlyNameField name={data.name} />
+          </View>
+          <ProjectForm
+            onSubmit={handleSubmit}
+            isSubmitting={isCommitting}
+            submitButtonText={isCommitting ? "Saving..." : "Save"}
+            hideNameField
+            onCancel={() => {
+              setIsEditing(false);
+              setError(null);
+            }}
+            defaultValues={{
+              description: data.description ?? "",
+              gradientPreset: findGradientPreset(
+                data.gradientStartColor,
+                data.gradientEndColor
+              ),
+            }}
           />
-          <div
-            css={css`
-              width: 100%;
-              .dropdown,
-              .dropdown__button {
+        </>
+      ) : (
+        <View padding="size-200">
+          <Flex direction="row" gap="size-200">
+            <div
+              css={[
+                gradientPreviewCSS,
+                {
+                  background: `linear-gradient(136.27deg, ${data.gradientStartColor} 14.03%, ${data.gradientEndColor} 84.38%)`,
+                },
+              ]}
+            />
+            <div
+              css={css`
                 width: 100%;
-              }
-            `}
-          >
-            <Flex direction="column" gap="size-100" width="100%">
-              <ReadOnlyNameField name={data.name} />
-              {data.description && (
-                <TextField value={data.description} isReadOnly>
-                  <Label>Description</Label>
-                  <Input />
-                </TextField>
-              )}
-              <Select
-                value={defaultTab}
-                onChange={(key) => {
-                  if (typeof key === "string" && isProjectTab(key)) {
-                    setDefaultTab(key);
-                  }
-                }}
-                placeholder="Select a default tab"
-              >
-                <Label>Default Project Tab</Label>
-                <Button>
-                  <SelectValue />
-                  <SelectChevronUpDownIcon />
-                </Button>
-                <Popover>
-                  <ListBox>
-                    <SelectItem key="spans" id="spans">
-                      Spans
-                    </SelectItem>
-                    <SelectItem key="traces" id="traces">
-                      Traces
-                    </SelectItem>
-                    <SelectItem key="sessions" id="sessions">
-                      Sessions
-                    </SelectItem>
-                    <SelectItem key="metrics" id="metrics">
-                      Metrics
-                    </SelectItem>
-                  </ListBox>
-                </Popover>
-              </Select>
-            </Flex>
-          </div>
-        </Flex>
-      </View>
+                .dropdown,
+                .dropdown__button {
+                  width: 100%;
+                }
+              `}
+            >
+              <Flex direction="column" gap="size-100" width="100%">
+                <ReadOnlyNameField name={data.name} />
+                {data.description && (
+                  <TextField value={data.description} isReadOnly>
+                    <Label>Description</Label>
+                    <Input />
+                  </TextField>
+                )}
+                <Select
+                  value={defaultTab}
+                  onChange={(key) => {
+                    if (typeof key === "string" && isProjectTab(key)) {
+                      setDefaultTab(key);
+                    }
+                  }}
+                  placeholder="Select a default tab"
+                >
+                  <Label>Default Project Tab</Label>
+                  <Button>
+                    <SelectValue />
+                    <SelectChevronUpDownIcon />
+                  </Button>
+                  <Popover>
+                    <ListBox>
+                      <SelectItem key="spans" id="spans">
+                        Spans
+                      </SelectItem>
+                      <SelectItem key="traces" id="traces">
+                        Traces
+                      </SelectItem>
+                      <SelectItem key="sessions" id="sessions">
+                        Sessions
+                      </SelectItem>
+                      <SelectItem key="metrics" id="metrics">
+                        Metrics
+                      </SelectItem>
+                    </ListBox>
+                  </Popover>
+                </Select>
+              </Flex>
+            </div>
+          </Flex>
+        </View>
+      )}
+      <ProjectRetentionPolicySection project={retentionPolicy} query={query} />
     </Card>
   );
 };

@@ -381,14 +381,10 @@ export function ChatView({
   );
   const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Seed the input from any prompt staged for this session (e.g. forked from a
-  // user message). The controller remounts this view per session, so the lazy
-  // initializer runs once per session and the store entry is consumed exactly
-  // once. Reading it here (rather than in an effect) avoids a cascading render.
-  const [inputValue, setInputValue] = useState(
-    () =>
-      (sessionId ? store.getState().consumePendingInput(sessionId) : null) ?? ""
+  const draftInput = useAgentContext((state) =>
+    sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
   );
+  const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext((state) =>
@@ -402,6 +398,13 @@ export function ChatView({
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
   const createSession = useAgentContext((state) => state.createSession);
+
+  const setSessionDraftInput = (input: string | null) => {
+    if (!sessionId) {
+      return;
+    }
+    setDraftInput(sessionId, input);
+  };
 
   // Send any message staged for this session (e.g. carried past `/clear` from
   // the previous session) as soon as the view mounts. Consuming is atomic, so
@@ -469,7 +472,7 @@ export function ChatView({
   const quickActions = emptyStateQuickActions ?? contextualQuickActions;
 
   const handleQuickAction = (prompt: string) => {
-    setInputValue(prompt);
+    setSessionDraftInput(prompt);
     textareaRef.current?.focus();
   };
 
@@ -499,13 +502,13 @@ export function ChatView({
     const { mode, messageId } = rewindRequest;
     setRewindRequest(null);
     if (mode === "fork") {
-      // Forking switches the active session, which remounts this view; the new
-      // session restores any staged input via the lazy initializer above.
+      // Forking switches the active session, which remounts this view; the
+      // forked session receives restored text through draftInputBySessionId.
       forkFromMessage?.(messageId);
     } else {
       const restoredInput = rewindToMessage?.(messageId);
       if (restoredInput != null) {
-        setInputValue(restoredInput);
+        setSessionDraftInput(restoredInput);
         textareaRef.current?.focus();
       }
     }
@@ -520,7 +523,14 @@ export function ChatView({
     ) {
       return;
     }
-    textareaRef.current?.focus();
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.focus();
+    const cursorPosition = textarea.value.length;
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
   }, [
     autoFocusInput,
     hasAcknowledgedConsent,
@@ -645,8 +655,8 @@ export function ChatView({
           ) : (
             <AgentChatInput
               status={status}
-              value={inputValue}
-              onValueChange={setInputValue}
+              value={draftInput}
+              onValueChange={setSessionDraftInput}
               onSubmit={({ text, requestedSkills, commandNames }) => {
                 if (commandNames.length > 0) {
                   runPromptCommands(

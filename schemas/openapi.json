@@ -6561,6 +6561,57 @@
         }
       }
     },
+    "/agents/server/sessions/{session_id}/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Run Server Agent",
+        "description": "Stream a chat turn from the GraphQL server agent.\n\nThis is the endpoint the PXI CLI talks to directly (no pre-configured\nagent record): it builds a fresh server agent per request from the\ncaller-supplied model and contexts, then streams the reply back as\nVercel-AI chunks.\n\nThe request contexts gate capabilities \u2014 GraphQL mutations, web access,\nand subagents \u2014 and mutations are refused for viewer users. When trace\nrecording is enabled (and permitted by system settings), the run is\ntraced; locally ingested traces are persisted to the agent's project\nonce the stream completes.\n\nReturns ``403`` if agents or the server agent are disabled, or if a\nviewer requests mutations.",
+        "operationId": "run_server_agent_agents_server_sessions__session_id__chat_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
@@ -7464,6 +7515,12 @@
             "title": "Exportremotetraces",
             "default": false
           },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
+            "default": false
+          },
           "contexts": {
             "items": {
               "$ref": "#/components/schemas/ChatContext"
@@ -7564,6 +7621,12 @@
           "exportRemoteTraces": {
             "type": "boolean",
             "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
             "default": false
           },
           "contexts": {
@@ -16319,6 +16382,12 @@
           "exportRemoteTraces": {
             "type": "boolean",
             "title": "Exportremotetraces",
+            "default": false
+          },
+          "attachUserId": {
+            "type": "boolean",
+            "title": "Attachuserid",
+            "description": "When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.",
             "default": false
           },
           "messages": {

@@ -39,6 +39,8 @@ other host binaries exist.
 Run `phoenix-gql --help` for usage and current permissions.
 
 Args:
+    summary: Short, user-facing description of what this command does. Shown as the
+        collapsed preview in the UI.
     command: The shell command to execute.
 
 Returns a dict with the command's `stdout`, `stderr`, and `exit_code`.
@@ -346,7 +348,7 @@ class BashToolset(FunctionToolset[None]):
         )
         shell.execute_sync_or_throw(f"mkdir -p {WORKSPACE_ROOT} {TMP_ROOT} && cd {WORKSPACE_ROOT}")
 
-        async def bash(command: str) -> BashToolResult:
+        async def bash(summary: str, command: str) -> BashToolResult:
             result = await shell.execute(command)
             result_dict = result.to_dict()
             return {

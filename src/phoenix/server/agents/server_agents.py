@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
@@ -8,11 +8,16 @@ from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.models import Model
+from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 
-from phoenix.server.agents.capabilities import MintlifyDocsMCPCapability
+from phoenix.server.agents.capabilities import (
+    MintlifyDocsMCPCapability,
+    build_anthropic_prompt_cache_capability,
+)
 from phoenix.server.agents.capabilities.skills import SkillsCapability, SkillsToolset
+from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.capabilities.tools.internal.bash import (
     BashCapability,
 )
@@ -29,16 +34,29 @@ from phoenix.server.agents.web_access import (
 from phoenix.server.api.context import Context
 
 
+async def _discard_subagent_message_chunk(_: ToolOutputAvailableChunk) -> None:
+    # TODO: Wire this to the direct server-agent route so preliminary
+    # `call_subagent` output chunks stream to the client instead of being dropped.
+    return None
+
+
+def _discard_subagent_final_tool_output(_: ToolOutputAvailableChunk) -> None:
+    # TODO: Store final `call_subagent` output chunks for the direct server-agent
+    # stream so the renderer can replace preliminary sub-agent output.
+    return None
+
+
 def build_server_agent(
     *,
     model: Model,
     schema: strawberry.Schema,
     build_graphql_context: Callable[[], Context],
     prompts: ServerAgentPrompts | None = None,
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPToolset[None] | None = None,
     enable_web_access: bool = False,
     allow_mutations: bool = False,
     tracer_provider: TracerProvider | None = None,
+    enable_subagents: bool = False,
 ) -> AbstractAgent[None, str]:
     """Construct server agent."""
     resolved_prompts = prompts or ServerAgentPrompts()
@@ -68,7 +86,7 @@ def build_server_agent(
     )
     if docs_mcp_server is not None:
         capabilities.append(
-            MintlifyDocsMCPCapability(
+            MintlifyDocsMCPCapability[None](
                 mcp_server=docs_mcp_server,
                 instructions=resolved_prompts.docs_tool,
             )
@@ -78,6 +96,27 @@ def build_server_agent(
             capabilities.append(web_search)
         if (web_fetch := build_web_fetch_capability(model)) is not None:
             capabilities.append(web_fetch)
+    if (prompt_cache := build_anthropic_prompt_cache_capability(model)) is not None:
+        capabilities.append(prompt_cache)
+    if enable_subagents:
+        server_agent = build_server_agent(
+            model=model,
+            schema=schema,
+            build_graphql_context=build_graphql_context,
+            docs_mcp_server=docs_mcp_server,
+            enable_web_access=enable_web_access,
+            allow_mutations=allow_mutations,
+            tracer_provider=tracer_provider,
+            enable_subagents=False,
+        )
+        capabilities.append(
+            CallSubAgentCapability[None](
+                server_agent=server_agent,
+                instructions=resolved_prompts.call_subagent_tool.render(),
+                publish_subagent_message_chunk=_discard_subagent_message_chunk,
+                set_subagent_final_tool_output=_discard_subagent_final_tool_output,
+            )
+        )
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
         tracer=tracer,
@@ -85,6 +124,7 @@ def build_server_agent(
     agent: Agent[None, str] = Agent(
         model,
         name="ServerAgent",
+        deps_type=type(None),
         instructions=resolved_prompts.base.render(),
         capabilities=[traced_capability],
     )

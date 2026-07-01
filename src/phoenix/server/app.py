@@ -37,7 +37,7 @@ from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
 from pydantic import SecretStr
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.authentication import UnauthenticatedUser
@@ -589,7 +589,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
-    docs_mcp_server: Optional[MCPServerStreamableHTTP] = None,
+    docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:

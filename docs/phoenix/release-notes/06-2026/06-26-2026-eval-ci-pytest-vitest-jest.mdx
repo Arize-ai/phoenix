@@ -1,0 +1,128 @@
+---
+title: "06.26.2026: Evals as Tests — pytest and Vitest/Jest Integrations"
+description: "Write LLM evaluations as ordinary pytest, Vitest, or Jest tests that record every run to Phoenix and gate CI."
+---
+
+Evaluations are how you keep an LLM application reliable as it changes. If you come from software engineering, you already have a tool for that job: tests. Phoenix now lets you write evals as ordinary **pytest**, **Vitest**, or **Jest** tests — the same `describe`/`test`/`assert` workflow you already use — while every run is recorded to Phoenix as a versioned experiment you can debug, compare, and share.
+
+**Available in arize-phoenix-client 2.10.0+ (Python pytest plugin) and @arizeai/phoenix-client 6.11.1+ (TypeScript Vitest/Jest, beta)**
+
+## Why run evals as tests
+
+If your team already lives in pytest or Vitest/Jest, these integrations give you that exact developer experience — fixtures, parametrization, watch mode, `.only`/`.skip`, mocks — backed by Phoenix's observability and collaboration. The mapping is direct: each suite becomes a **dataset**, each case becomes a **dataset example**, and each run of the suite becomes an **experiment**.
+
+- **Debug failures in Phoenix.** LLM apps are nondeterministic, which makes failures hard to chase down from a terminal alone. Every test case is traced — inputs, outputs, and the full span tree — so a failing assertion links straight to the trace that produced it. Evaluator (LLM-as-judge) calls are captured under their own evaluator span, so judge logic never clutters the task trace.
+- **Track metrics beyond pass/fail.** Tests usually only tell you green or red. LLM quality is rarely that binary. Log any score, label, or explanation per case with `log_evaluation` / `logAnnotation`, and Phoenix tracks it across experiments so you can watch quality trend over time instead of just blocking on a hard threshold.
+- **Gate CI on aggregate quality.** Beyond per-case asserts, define **acceptance criteria** that fail the suite when an aggregate metric slips — mean correctness below `0.8`, fewer than 90% of runs passing, or mean latency above a budget. They run after every case, so one CI run surfaces every regression, not just the first.
+- **Share results with your team.** Building with LLMs is a team sport — subject-matter experts weigh in on prompts and rubrics. Experiments live in Phoenix, so anyone can open a run, inspect a trace, and compare against history without rerunning anything locally.
+- **Reuse pre-built evaluators.** Hallucination, relevance, QA correctness, toxicity, and more from `arize-phoenix-evals` (and `@arizeai/phoenix-evals`) plug directly into a test case — the same evaluator you'd pass to `run_experiment` works unchanged here.
+
+## Get started with pytest
+
+Mark a test with `@pytest.mark.phoenix` and log inputs, outputs, and scores with the helpers from `phoenix.client.pytest`. Here a text-to-SQL app is checked for both an inline LLM-as-judge score and a hard assertion.
+
+```bash
+pip install "arize-phoenix-client[pytest,evals]" pytest
+```
+
+```python
+import pytest
+from phoenix.client.pytest import evaluate, log_evaluation, log_output
+
+def llm_judge(output, expected, **_):
+    # Your LLM-as-judge call; returns 1.0 when semantically equivalent.
+    return {"name": "correctness", "score": grade(output, expected)}
+
+@pytest.mark.phoenix(dataset="text-to-sql")
+@pytest.mark.parametrize(
+    "user_query,expected_sql",
+    [
+        ("Get all users from the customers table", "SELECT * FROM customers;"),
+        ("what's up", "Sorry, that is not a valid query."),
+    ],
+    ids=["select-all", "offtopic"],
+)
+def test_generate_sql(user_query, expected_sql):
+    sql = generate_sql(user_query)
+    log_output({"sql": sql})
+
+    # Inline score, traced as its own evaluator span and tracked over time.
+    result = evaluate(llm_judge, output=sql, expected=expected_sql)
+    log_evaluation(name="ends_with_semicolon", score=float(sql.strip().endswith(";")))
+
+    assert result["score"] == 1.0
+```
+
+Run it like any other test suite:
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix-host pytest tests/evals/
+```
+
+This runs as a normal pytest invocation while logging every case, trace, and score to Phoenix. The plugin works with `pytest-asyncio`, `pytest-xdist` (`-n auto` still creates exactly one experiment), fixtures, and `parametrize`. Set `PHOENIX_TEST_TRACKING=0` to iterate locally without recording.
+
+## Get started with Vitest / Jest
+
+Import `describe`/`test` from the `@arizeai/phoenix-client/vitest` (or `/jest`) entrypoint and add the Phoenix reporter. Suite-level acceptance criteria turn aggregate quality into a CI gate.
+
+```bash
+npm install -D @arizeai/phoenix-client @arizeai/phoenix-evals
+```
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { createEvaluator } from "@arizeai/phoenix-evals";
+import { expect } from "vitest";
+
+const correctness = createEvaluator(
+  async ({ output, expected }: { output: { sql: string }; expected: { sql: string } }) => {
+    const grade = await llmAsJudge(output.sql, expected.sql);
+    return { score: grade.score, label: grade.passed ? "correct" : "incorrect" };
+  },
+  { name: "correctness", kind: "LLM" },
+);
+
+px.describe(
+  "generate sql demo",
+  () => {
+    px.test(
+      "offtopic input",
+      {
+        input: { userQuery: "what's up" },
+        expected: { sql: "Sorry, that is not a valid query." },
+      },
+      async ({ input, expected }) => {
+        const sql = await generateSql(input.userQuery);
+        px.logOutput({ sql });
+        // Automatically logs "correctness" as an annotation with its own evaluator trace.
+        await px.evaluate(correctness, { output: { sql }, expected });
+        expect(sql.trim()).toMatch(/;$/);
+      },
+    );
+  },
+  { acceptanceCriteria: [{ annotationName: "correctness", metric: "average", threshold: 0.8 }] },
+);
+```
+
+The Phoenix reporter prints a scoreboard and results table locally, and the runner's exit code is your CI gate — a failed assertion or a missed acceptance criterion fails the job. The TypeScript testing API is in **beta**; we'd love your feedback.
+
+## Testing frameworks vs. `run_experiment`
+
+Phoenix already offers `run_experiment` (and `runExperiment` in TypeScript): define a dataset up front, then run one task and a shared set of evaluators across every example. That's the right tool for large, homogeneous datasets — black-box testing where every case is scored the same way, parallelized automatically.
+
+The test-runner integrations shine where that uniform shape gets in the way:
+
+- **Per-case evaluation logic.** When you're testing an agent with several tools, how you grade a search call and a code-execution call can be completely different. Separate test cases with their own evaluators are far more natural than one branching global evaluator.
+- **Real-time local feedback.** Watch mode, `.only`, and mocks give you a tight iteration loop while you're developing — fix issues as you spot them, before anything syncs.
+- **Native CI integration.** Pass/fail criteria, assertion errors, and exit codes are what test runners already do. Dropping evals into an existing CI pipeline catches regressions with no new machinery.
+
+You don't have to choose globally — use `run_experiment` for broad dataset sweeps and tests for targeted, heterogeneous checks, all recording to the same Phoenix experiments.
+
+<CardGroup cols={2}>
+  <Card title="Evals with pytest" icon="python" href="/docs/phoenix/evaluation/integrations/pytest">
+    Full how-to: markers, logging, repetitions, xdist, and CI setup.
+  </Card>
+  <Card title="Evals with Vitest / Jest" icon="js" href="/docs/phoenix/evaluation/integrations/vitest-jest">
+    Full how-to: setup, evaluators, acceptance criteria, and CI setup.
+  </Card>
+</CardGroup>
