@@ -4,6 +4,8 @@ import type { ClientFn } from "../types/core";
 import type { ProjectIdentifier } from "../types/projects";
 import { resolveProjectIdentifier } from "../types/projects";
 import { formatApiError } from "../utils/apiErrorUtils";
+import { isObject } from "../utils/isObject";
+import { safelyParseJSON } from "../utils/safelyParseJSON";
 
 type CreateSpansRequestData =
   paths["/v1/projects/{project_identifier}/spans"]["post"]["requestBody"]["content"]["application/json"]["data"];
@@ -38,8 +40,6 @@ export class SpanCreationError extends Error {
   readonly duplicateSpans: DuplicateSpanInfo[];
   readonly totalReceived: number;
   readonly totalQueued: number;
-  readonly totalInvalid: number;
-  readonly totalDuplicates: number;
 
   constructor(params: {
     message: string;
@@ -47,8 +47,6 @@ export class SpanCreationError extends Error {
     duplicateSpans?: DuplicateSpanInfo[];
     totalReceived?: number;
     totalQueued?: number;
-    totalInvalid?: number;
-    totalDuplicates?: number;
   }) {
     super(params.message);
     this.name = "SpanCreationError";
@@ -56,8 +54,16 @@ export class SpanCreationError extends Error {
     this.duplicateSpans = params.duplicateSpans ?? [];
     this.totalReceived = params.totalReceived ?? 0;
     this.totalQueued = params.totalQueued ?? 0;
-    this.totalInvalid = params.totalInvalid ?? this.invalidSpans.length;
-    this.totalDuplicates = params.totalDuplicates ?? this.duplicateSpans.length;
+  }
+
+  /** Number of spans rejected as invalid. */
+  get totalInvalid(): number {
+    return this.invalidSpans.length;
+  }
+
+  /** Number of spans rejected as duplicates. */
+  get totalDuplicates(): number {
+    return this.duplicateSpans.length;
   }
 }
 
@@ -119,14 +125,23 @@ function formatLogSpansErrorMessage({
   return parts.join("\n");
 }
 
+function toSpanIdAndTraceId(item: unknown): {
+  spanId: string;
+  traceId: string;
+} {
+  const record = isObject(item) ? (item as Record<string, unknown>) : {};
+  return {
+    spanId: typeof record.span_id === "string" ? record.span_id : "unknown",
+    traceId: typeof record.trace_id === "string" ? record.trace_id : "unknown",
+  };
+}
+
 function toInvalidSpanInfoList(value: unknown): InvalidSpanInfo[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => {
-    const record = (item ?? {}) as Record<string, unknown>;
+    const record = isObject(item) ? (item as Record<string, unknown>) : {};
     return {
-      spanId: typeof record.span_id === "string" ? record.span_id : "unknown",
-      traceId:
-        typeof record.trace_id === "string" ? record.trace_id : "unknown",
+      ...toSpanIdAndTraceId(item),
       error:
         typeof record.error === "string" ? record.error : "Validation error",
     };
@@ -135,13 +150,22 @@ function toInvalidSpanInfoList(value: unknown): InvalidSpanInfo[] {
 
 function toDuplicateSpanInfoList(value: unknown): DuplicateSpanInfo[] {
   if (!Array.isArray(value)) return [];
-  return value.map((item) => {
-    const record = (item ?? {}) as Record<string, unknown>;
-    return {
-      spanId: typeof record.span_id === "string" ? record.span_id : "unknown",
-      traceId:
-        typeof record.trace_id === "string" ? record.trace_id : "unknown",
-    };
+  return value.map(toSpanIdAndTraceId);
+}
+
+/**
+ * Builds a {@link SpanCreationError} from already-normalized invalid/duplicate
+ * span lists, computing the shared message once.
+ */
+function makeSpanCreationError(params: {
+  invalidSpans: InvalidSpanInfo[];
+  duplicateSpans: DuplicateSpanInfo[];
+  totalReceived: number;
+  totalQueued: number;
+}): SpanCreationError {
+  return new SpanCreationError({
+    message: formatLogSpansErrorMessage(params),
+    ...params,
   });
 }
 
@@ -153,13 +177,9 @@ function toDuplicateSpanInfoList(value: unknown): DuplicateSpanInfo[] {
 function buildSpanCreationError(
   payload: Record<string, unknown>
 ): SpanCreationError {
-  const invalidSpans = toInvalidSpanInfoList(payload.invalid_spans);
-  const duplicateSpans = toDuplicateSpanInfoList(payload.duplicate_spans);
-
-  return new SpanCreationError({
-    message: formatLogSpansErrorMessage({ invalidSpans, duplicateSpans }),
-    invalidSpans,
-    duplicateSpans,
+  return makeSpanCreationError({
+    invalidSpans: toInvalidSpanInfoList(payload.invalid_spans),
+    duplicateSpans: toDuplicateSpanInfoList(payload.duplicate_spans),
     totalReceived:
       typeof payload.total_received === "number" ? payload.total_received : 0,
     totalQueued:
@@ -171,9 +191,7 @@ function isSpanCreationErrorPayload(
   value: unknown
 ): value is Record<string, unknown> {
   return (
-    !!value &&
-    typeof value === "object" &&
-    ("invalid_spans" in value || "duplicate_spans" in value)
+    isObject(value) && ("invalid_spans" in value || "duplicate_spans" in value)
   );
 }
 
@@ -188,7 +206,7 @@ function extractInvalidSpansFromValidationErrors(
   const invalidSpans: InvalidSpanInfo[] = [];
 
   for (const rawError of errors) {
-    if (!rawError || typeof rawError !== "object") continue;
+    if (!isObject(rawError)) continue;
     const loc = (rawError as { loc?: unknown }).loc;
     if (
       !Array.isArray(loc) ||
@@ -215,17 +233,13 @@ function extractInvalidSpansFromValidationErrors(
 }
 
 function parseLogSpansError(error: unknown, spans: Span[]): Error {
-  if (error && typeof error === "object") {
+  if (isObject(error)) {
     const detail = (error as { detail?: unknown }).detail;
 
     if (typeof detail === "string") {
-      try {
-        const parsed = JSON.parse(detail);
-        if (isSpanCreationErrorPayload(parsed)) {
-          return buildSpanCreationError(parsed);
-        }
-      } catch {
-        // detail wasn't JSON-encoded; fall through to the generic error below
+      const { json: parsed } = safelyParseJSON(detail);
+      if (isSpanCreationErrorPayload(parsed)) {
+        return buildSpanCreationError(parsed);
       }
     } else if (Array.isArray(detail)) {
       const invalidSpans = extractInvalidSpansFromValidationErrors(
@@ -233,18 +247,15 @@ function parseLogSpansError(error: unknown, spans: Span[]): Error {
         spans
       );
       if (invalidSpans.length > 0) {
-        return new SpanCreationError({
-          message: formatLogSpansErrorMessage({
-            invalidSpans,
-            duplicateSpans: [],
-          }),
+        return makeSpanCreationError({
           invalidSpans,
+          duplicateSpans: [],
           totalReceived: spans.length,
           totalQueued: spans.length - invalidSpans.length,
         });
       }
     } else if (isSpanCreationErrorPayload(error)) {
-      return buildSpanCreationError(error as Record<string, unknown>);
+      return buildSpanCreationError(error);
     }
   }
 
