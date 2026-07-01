@@ -7,3 +7,4 @@ export * from "./getSpans";
 export type { SpanKindFilter, SpanStatusCode } from "../types/spans";
 export * from "./getSpanAnnotations";
 export * from "./deleteSpan";
+export * from "./logSpans";
