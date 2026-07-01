@@ -616,6 +616,8 @@ const savePromptErrorPart = makePart({
 const toolPartMeta = {
   title: "Agent/ToolPart",
   component: ToolPart,
+  // Rolldown can emit one-character helper exports in this large story module.
+  excludeStories: /^[A-Za-z_$]$/,
   // Open by default so the expanded body is visible; individual stories can
   // override with `defaultOpen: false`.
   args: { defaultOpen: true },

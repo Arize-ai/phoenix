@@ -32,6 +32,22 @@ const config: StorybookConfig = {
           "@phoenix": resolve(import.meta.dirname, "../src"),
         },
       },
+      build: {
+        rolldownOptions: {
+          output: {
+            manualChunks(id) {
+              if (
+                id.includes("/node_modules/.pnpm/shiki@") ||
+                id.includes("/node_modules/.pnpm/@shikijs+") ||
+                id.includes("/node_modules/.pnpm/@streamdown+code@") ||
+                id.includes("/node_modules/.pnpm/streamdown@")
+              ) {
+                return "streamdown-shiki";
+              }
+            },
+          },
+        },
+      },
     });
   },
 };

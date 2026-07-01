@@ -9,7 +9,7 @@ import {
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { DiffAcceptRejectToolDetails } from "./DiffAcceptRejectToolDetails";
+import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
@@ -52,7 +52,7 @@ export function WritePromptToolsToolDetails({
   const input = parseWritePromptToolsInput(part.input);
 
   return (
-    <DiffAcceptRejectToolDetails<
+    <LazyDiffAcceptRejectToolDetails<
       PromptToolsDisplaySnapshot,
       PendingPromptToolWrite
     >

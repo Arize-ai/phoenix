@@ -8,7 +8,7 @@ import {
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-import { DiffAcceptRejectToolDetails } from "./DiffAcceptRejectToolDetails";
+import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
@@ -39,7 +39,7 @@ export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
   const input = parseEditPromptInput(part.input);
 
   return (
-    <DiffAcceptRejectToolDetails<PromptSnapshot, PendingPromptEdit>
+    <LazyDiffAcceptRejectToolDetails<PromptSnapshot, PendingPromptEdit>
       part={part}
       pending={pending}
       snapshotToText={promptSnapshotToText}

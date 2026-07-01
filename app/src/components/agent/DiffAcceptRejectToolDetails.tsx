@@ -43,14 +43,17 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 `;
 
-type PendingDiffEdit<T> = {
+export type PendingDiffEdit<T> = {
   before: T;
   after: T;
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
 };
 
-type DiffAcceptRejectToolDetailsProps<T, P extends PendingDiffEdit<T>> = {
+export type DiffAcceptRejectToolDetailsProps<
+  T,
+  P extends PendingDiffEdit<T>,
+> = {
   part: ToolInvocationPart;
   pending: P | null;
   snapshotToText: (snapshot: T) => string;

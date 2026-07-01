@@ -8,4 +8,41 @@
   window.Config = {
     basename: "",
   };
+
+  // Vite 8/Rolldown can reference these helpers from generated Storybook
+  // chunks without binding them. Keep the workaround scoped to Storybook.
+  window.__exportAll =
+    window.__exportAll ||
+    ((all, noSymbols) => {
+      const target = {};
+      for (const name in all) {
+        Object.defineProperty(target, name, {
+          get: all[name],
+          enumerable: true,
+        });
+      }
+      if (!noSymbols) {
+        Object.defineProperty(target, Symbol.toStringTag, { value: "Module" });
+      }
+      return target;
+    });
+  window.__reExport =
+    window.__reExport ||
+    ((target, mod, except) => {
+      if (mod && (typeof mod === "object" || typeof mod === "function")) {
+        for (const key of Object.getOwnPropertyNames(mod)) {
+          if (
+            !Object.prototype.hasOwnProperty.call(target, key) &&
+            key !== except
+          ) {
+            const descriptor = Object.getOwnPropertyDescriptor(mod, key);
+            Object.defineProperty(target, key, {
+              get: () => mod[key],
+              enumerable: !descriptor || descriptor.enumerable,
+            });
+          }
+        }
+      }
+      return target;
+    });
 </script>
