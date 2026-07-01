@@ -446,10 +446,6 @@ px.describe(
 
 This is the whole pattern: the refusal stays a per-case `expect()` (invariant), while helpfulness and latency become `acceptanceCriteria` (signals). The suite still fails CI if quality drops across the board — just not on a single unlucky generation.
 
-<Tip>
-To grade whether an answer is *grounded* in retrieved context (rather than just on-topic), give the judge that context too — add a `{{context}}` variable to the template and pass `context` alongside `question` and `response`, or reach for a pre-built evaluator like `createFaithfulnessEvaluator` (which can supply its own `inputMapping`). The judge runs on its own model, configured independently of the system under test; see [configuring the judge LLM](/docs/phoenix/evaluation/how-to-evals/configuring-the-llm) for how to choose and tune it.
-</Tip>
-
 ## Acceptance criteria — CI gates on aggregate scores
 
 Acceptance criteria let you fail CI when a quality metric drops across the full suite. They run _after_ all tests, so every case still executes and the reporter prints the full scorecard before failing — you see every regression in one run, not just the first.
