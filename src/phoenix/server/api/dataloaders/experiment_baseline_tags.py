@@ -11,7 +11,7 @@ Key: TypeAlias = ExperimentID
 Result: TypeAlias = bool
 
 
-class ExperimentBaselineFlagsDataLoader(DataLoader[Key, Result]):
+class ExperimentBaselineTagsDataLoader(DataLoader[Key, Result]):
     def __init__(
         self,
         db: DbSessionFactory,
