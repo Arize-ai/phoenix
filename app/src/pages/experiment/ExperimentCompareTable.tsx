@@ -224,6 +224,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     id
                     name
                     sequenceNumber
+                    isBaseline
+                    isEphemeral
                     metadata
                     datasetVersion {
                       id
@@ -424,10 +426,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <ExperimentNameWithColorSwatch
                   name={name}
                   color={experimentColor}
+                  isBaseline={experiment?.isBaseline}
                 />
                 <div css={actionMenuContainerCSS}>
                   <ExperimentActionMenu
                     experimentId={experimentId}
+                    {...(experiment && !experiment.isEphemeral
+                      ? {
+                          canSetBaseline: true as const,
+                          isBaseline: experiment.isBaseline,
+                        }
+                      : { canSetBaseline: false as const })}
                     metadata={metadata}
                     projectId={projectId}
                     size="S"

@@ -1697,6 +1697,7 @@ type Experiment implements Node {
   datasetVersion: DatasetVersion!
   dataset: Dataset!
   metadata: JSON!
+  isBaseline: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 
@@ -2424,6 +2425,7 @@ type Mutation {
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
   reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
   patchExperiment(input: PatchExperimentInput!): PatchExperimentPayload!
+  setExperimentBaseline(experimentId: ID!, baseline: Boolean!): SetExperimentBaselinePayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -3761,6 +3763,11 @@ input SetDatasetLabelsInput {
 type SetDatasetLabelsMutationPayload {
   query: Query!
   dataset: Dataset!
+}
+
+type SetExperimentBaselinePayload {
+  experiment: Experiment!
+  previousBaselineExperiment: Experiment
 }
 
 input SetPromptLabelsInput {

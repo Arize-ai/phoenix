@@ -38,6 +38,7 @@ from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
 from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
+from .experiment_baseline_tags import ExperimentBaselineTagsDataLoader
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
 from .experiment_expected_run_counts import ExperimentExpectedRunCountsDataLoader
@@ -179,6 +180,7 @@ class DataLoaders:
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
     evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
+    experiment_baseline_tags: ExperimentBaselineTagsDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
     experiment_job_fields: TableFieldsDataLoader
@@ -324,6 +326,7 @@ def build_data_loaders(
             cache_map=(cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None),
         ),
         experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
+        experiment_baseline_tags=ExperimentBaselineTagsDataLoader(db),
         experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
         experiment_error_rates=ExperimentErrorRatesDataLoader(db),
         experiment_job_fields=TableFieldsDataLoader(db, models.ExperimentJob),

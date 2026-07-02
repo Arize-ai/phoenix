@@ -43,6 +43,7 @@ import {
 } from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
+  BaselineExperimentBadge,
   ExperimentStatus,
   ExperimentTokenCount,
   SequenceNumberToken,
@@ -190,6 +191,7 @@ export function ExperimentsTable({
                 name
                 sequenceNumber
                 description
+                isBaseline
                 createdAt
                 metadata
                 errorRate
@@ -353,6 +355,7 @@ export function ExperimentsTable({
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
         const jobStatus = row.original.job?.status;
+        const isBaseline = row.original.isBaseline;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
@@ -366,6 +369,11 @@ export function ExperimentsTable({
               experimentId={experimentId}
               datasetId={data.id}
             />
+            {isBaseline ? (
+              <span style={{ marginInlineStart: "auto" }}>
+                <BaselineExperimentBadge size="M" />
+              </span>
+            ) : null}
           </Flex>
         );
       },
@@ -613,6 +621,8 @@ export function ExperimentsTable({
               <ExperimentActionMenu
                 projectId={project?.id || null}
                 experimentId={row.original.id}
+                canSetBaseline
+                isBaseline={row.original.isBaseline}
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"

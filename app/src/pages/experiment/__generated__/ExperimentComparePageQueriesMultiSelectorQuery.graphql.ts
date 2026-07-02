@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5f5f0a487c95c541f8a03618ec2fa945>>
+ * @generated SignedSource<<171a7b649c375086b82d8404c3e3fec6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -58,6 +58,13 @@ v5 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "isBaseline",
   "storageKey": null
 };
 return {
@@ -159,6 +166,7 @@ return {
                             "name": "sequenceNumber",
                             "storageKey": null
                           },
+                          (v6/*: any*/),
                           {
                             "alias": null,
                             "args": null,
@@ -206,7 +214,8 @@ return {
               {
                 "kind": "InlineFragment",
                 "selections": [
-                  (v5/*: any*/)
+                  (v5/*: any*/),
+                  (v6/*: any*/)
                 ],
                 "type": "Experiment",
                 "abstractKey": null
@@ -219,12 +228,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "027b1dfb0abf8b0bb9ccf3d3e87bbd39",
+    "cacheID": "2d8f542ec6234b42b2f4b3b59784777e",
     "id": null,
     "metadata": {},
     "name": "ExperimentComparePageQueriesMultiSelectorQuery",
     "operationKind": "query",
-    "text": "query ExperimentComparePageQueriesMultiSelectorQuery(\n  $datasetId: ID!\n  $hasBaseExperiment: Boolean!\n  $baseExperimentId: ID!\n) {\n  ...ExperimentMultiSelector__data_Lig34\n}\n\nfragment ExperimentMultiSelector__data_Lig34 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      allExperiments: experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            createdAt\n          }\n        }\n      }\n    }\n  }\n  baseExperiment: node(id: $baseExperimentId) @include(if: $hasBaseExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      name\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentComparePageQueriesMultiSelectorQuery(\n  $datasetId: ID!\n  $hasBaseExperiment: Boolean!\n  $baseExperimentId: ID!\n) {\n  ...ExperimentMultiSelector__data_Lig34\n}\n\nfragment ExperimentMultiSelector__data_Lig34 on Query {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      name\n      allExperiments: experiments {\n        edges {\n          experiment: node {\n            id\n            name\n            sequenceNumber\n            isBaseline\n            createdAt\n          }\n        }\n      }\n    }\n  }\n  baseExperiment: node(id: $baseExperimentId) @include(if: $hasBaseExperiment) {\n    __typename\n    ... on Experiment {\n      id\n      name\n      isBaseline\n    }\n    id\n  }\n}\n"
   }
 };
 })();
