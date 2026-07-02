@@ -17,7 +17,7 @@ from phoenix.server.session_filters import get_filtered_session_rowids_subquery
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.dsl import SpanFilter
 
-Kind: TypeAlias = Literal["span", "trace"]
+Kind: TypeAlias = Literal["span", "trace", "session"]
 ProjectRowId: TypeAlias = int
 TimeInterval: TypeAlias = tuple[Optional[datetime], Optional[datetime]]
 FilterCondition: TypeAlias = Optional[str]
@@ -134,21 +134,36 @@ def _get_stmt(
         segment
     )
 
-    annotation_model: Union[Type[models.SpanAnnotation], Type[models.TraceAnnotation]]
-    entity_model: Union[Type[models.Span], Type[models.Trace]]
+    annotation_model: Union[
+        Type[models.SpanAnnotation],
+        Type[models.TraceAnnotation],
+        Type[models.ProjectSessionAnnotation],
+    ]
+    entity_model: Union[Type[models.Span], Type[models.Trace], Type[models.ProjectSession]]
     entity_join_model: Optional[Type[models.Base]]
     entity_id_column: Any
+    # The column holding the session rowid, used when a session filter narrows
+    # the summary to sessions whose root span input/output matches a substring.
+    session_rowid_column: Any
 
     if kind == "span":
         annotation_model = models.SpanAnnotation
         entity_model = models.Span
         entity_join_model = models.Trace
         entity_id_column = models.Span.id.label("entity_id")
+        session_rowid_column = models.Trace.project_session_rowid
     elif kind == "trace":
         annotation_model = models.TraceAnnotation
         entity_model = models.Trace
         entity_join_model = None
         entity_id_column = models.Trace.id.label("entity_id")
+        session_rowid_column = models.Trace.project_session_rowid
+    elif kind == "session":
+        annotation_model = models.ProjectSessionAnnotation
+        entity_model = models.ProjectSession
+        entity_join_model = None
+        entity_id_column = models.ProjectSession.id.label("entity_id")
+        session_rowid_column = models.ProjectSession.id
     else:
         assert_never(kind)
 
@@ -174,6 +189,13 @@ def _get_stmt(
         entity_count_query = entity_count_query.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
+    elif kind == "session":
+        entity_count_query = entity_count_query.join(
+            cast(Type[models.ProjectSession], entity_model)
+        )
+        entity_count_query = entity_count_query.where(
+            cast(Type[models.ProjectSession], entity_model).project_id == project_rowid
+        )
     else:
         assert_never(kind)
 
@@ -185,7 +207,7 @@ def _get_stmt(
             end_time=end_time,
         )
         entity_count_query = entity_count_query.where(
-            models.Trace.project_session_rowid.in_(filtered_session_rowids)
+            session_rowid_column.in_(filtered_session_rowids)
         )
 
     entity_count_query = entity_count_query.where(
@@ -226,6 +248,11 @@ def _get_stmt(
         base_stmt = base_stmt.where(
             cast(Type[models.Trace], entity_model).project_rowid == project_rowid
         )
+    elif kind == "session":
+        base_stmt = base_stmt.join(cast(Type[models.ProjectSession], entity_model))
+        base_stmt = base_stmt.where(
+            cast(Type[models.ProjectSession], entity_model).project_id == project_rowid
+        )
     else:
         assert_never(kind)
 
@@ -236,7 +263,7 @@ def _get_stmt(
             start_time=start_time,
             end_time=end_time,
         )
-        base_stmt = base_stmt.where(models.Trace.project_session_rowid.in_(filtered_session_rowids))
+        base_stmt = base_stmt.where(session_rowid_column.in_(filtered_session_rowids))
 
     base_stmt = base_stmt.where(or_(score_column.is_not(None), label_column.is_not(None)))
     base_stmt = base_stmt.where(name_column.in_(annotation_names))

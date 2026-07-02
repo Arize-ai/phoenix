@@ -2737,6 +2737,26 @@ type Project implements Node {
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
+  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output.
+  """
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String): Int!
+
+  """
+  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output.
+  """
+  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String): Float
+
+  """
+  Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range and a substring of the session input/output.
+  """
+  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String): Float
+
+  """
+  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range and a substring of the session input/output.
+  """
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String): Float
+
+  """
   Names of all available annotations for traces. (The list contains no duplicates.)
   """
   traceAnnotationsNames: [String!]!
@@ -2770,6 +2790,7 @@ type Project implements Node {
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
+  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterIoSubstring: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!

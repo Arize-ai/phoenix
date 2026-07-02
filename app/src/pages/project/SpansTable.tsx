@@ -16,18 +16,12 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import {
-  Group,
-  Panel,
-  type PanelImperativeHandle,
-  Separator,
-} from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
-  Button,
   CopyToClipboardButton,
   ErrorBoundary,
   Flex,
@@ -35,7 +29,6 @@ import {
   Icon,
   Icons,
   Link,
-  Skeleton,
   Text,
   TextErrorBoundaryFallback,
   ToggleButton,
@@ -72,7 +65,6 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
@@ -99,6 +91,14 @@ import { SpansTableAside } from "./SpansTableAside";
 import { spansTableCSS } from "./styles";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
+import {
+  ASIDE_PANEL_DEFAULT_SIZE_PIXELS,
+  ASIDE_PANEL_MAX_SIZE_PIXELS,
+  ASIDE_PANEL_MIN_SIZE_PIXELS,
+  TableAsideSkeleton,
+  TableAsideToggleButton,
+  useTableAsidePanel,
+} from "./TableAside";
 import {
   DEFAULT_SORT,
   getGqlSort,
@@ -203,23 +203,6 @@ export const MemoizedTableBody = React.memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
-function SpansTableAsideSkeleton() {
-  return (
-    <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
-      <Flex direction="column" gap="size-200" minWidth="size-3400">
-        <Skeleton width={96} height={20} animation="wave" />
-        <Skeleton width="100%" height={32} animation="wave" />
-        <Skeleton width={72} height={20} animation="wave" />
-        <Skeleton width={96} height={24} animation="wave" />
-        <Skeleton width={84} height={20} animation="wave" />
-        <Skeleton width={72} height={24} animation="wave" />
-        <Skeleton width={84} height={20} animation="wave" />
-        <Skeleton width={80} height={24} animation="wave" />
-      </Flex>
-    </View>
-  );
-}
-
 export function SpansTable(props: SpansTableProps) {
   const [searchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
@@ -247,22 +230,8 @@ export function SpansTable(props: SpansTableProps) {
   useAdvertiseAgentContext(advertisedRootSpansOnlyContext);
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
-  const showTableAside = useProjectContext((state) => state.showTableAside);
-  const setShowTableAside = useProjectContext(
-    (state) => state.setShowTableAside
-  );
-  const asidePanelRef = useRef<PanelImperativeHandle>(null);
-  const didSyncAsideFromStoreRef = useRef(false);
-  useEffect(() => {
-    const panel = asidePanelRef.current;
-    if (!panel) return;
-    if (showTableAside && panel.isCollapsed()) {
-      panel.expand();
-    } else if (!showTableAside && !panel.isCollapsed()) {
-      panel.collapse();
-    }
-    didSyncAsideFromStoreRef.current = true;
-  }, [showTableAside]);
+  const { showTableAside, asidePanelRef, onAsidePanelResize } =
+    useTableAsidePanel();
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SpansTableSpansQuery, SpansTable_spans$key>(
       graphql`
@@ -959,20 +928,7 @@ export function SpansTable(props: SpansTableProps) {
                 <TableMetricsChartSelector view="spans" />
                 <SpanColumnSelector columns={computedColumns} query={data} />
                 <ProjectFilterConfigButton />
-                <Button
-                  size="M"
-                  aria-label={
-                    showTableAside ? "Hide aside panel" : "Show aside panel"
-                  }
-                  leadingVisual={
-                    <Icon
-                      svg={
-                        showTableAside ? <Icons.SlideIn /> : <Icons.SlideOut />
-                      }
-                    />
-                  }
-                  onPress={() => setShowTableAside(!showTableAside)}
-                />
+                <TableAsideToggleButton />
               </Flex>
             </View>
             <div
@@ -1101,17 +1057,11 @@ export function SpansTable(props: SpansTableProps) {
         minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
         maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
         collapsible
-        onResize={(panelSize) => {
-          if (!didSyncAsideFromStoreRef.current) return;
-          const shouldBeVisible = panelSize.asPercentage > 0;
-          if (shouldBeVisible !== showTableAside) {
-            setShowTableAside(shouldBeVisible);
-          }
-        }}
+        onResize={onAsidePanelResize}
       >
         {showTableAside ? (
           <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-            <Suspense fallback={<SpansTableAsideSkeleton />}>
+            <Suspense fallback={<TableAsideSkeleton />}>
               <SpansTableAside filterCondition={filterCondition} />
             </Suspense>
           </ErrorBoundary>
@@ -1120,7 +1070,3 @@ export function SpansTable(props: SpansTableProps) {
     </Group>
   );
 }
-
-const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 360;
-const ASIDE_PANEL_MIN_SIZE_PIXELS = 320;
-const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
