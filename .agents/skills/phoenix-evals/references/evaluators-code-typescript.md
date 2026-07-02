@@ -52,7 +52,7 @@ interface EvaluatorParams {
 
 ## Built-In Classification Metrics (precision/recall/F-score)
 
-Don't hand-roll these — `@arizeai/phoenix-evals/code` ships precision, recall, and F-beta (including F1) as dataset-level evaluators, mirroring Python's `PrecisionRecallFScore`. `expected`/`output` are the full label sequence across a batch, not a single row.
+`@arizeai/phoenix-evals/code` provides precision, recall, and F-beta (including F1) as built-in dataset-level evaluators, mirroring Python's `PrecisionRecallFScore`. `expected`/`output` are the full label sequence across a batch, not a single row.
 
 ```typescript
 import {
