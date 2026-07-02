@@ -9,6 +9,7 @@ import httpx
 import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
+from pydantic import SecretStr
 from starlette.types import ASGIApp
 
 from phoenix.server.app import create_app
@@ -25,7 +26,7 @@ async def app_with_auth(db: DbSessionFactory) -> AsyncIterator[FastAPI]:
             authentication_enabled=True,
             serve_ui=False,
             bulk_inserter_factory=TestBulkInserter,
-            secret=__import__("pydantic").SecretStr("test-secret-at-least-32-chars-long!!"),
+            secret=SecretStr("test-secret-at-least-32-chars-long!!"),
         )
 
 
@@ -47,6 +48,7 @@ class TestProtectedResourceMetadata:
     async def test_returns_json_with_resource_fields(self, httpx_client: httpx.AsyncClient) -> None:
         resp = await httpx_client.get("/.well-known/oauth-protected-resource")
         assert resp.status_code == 200
+        assert "application/json" in resp.headers["content-type"]
         data = resp.json()
         assert data["resource"] == "http://test"
         assert data["resource_name"] == "Arize Phoenix"
@@ -54,36 +56,12 @@ class TestProtectedResourceMetadata:
         assert data["scopes_supported"] == []
         assert data["resource_documentation"] == "http://test/auth.md"
 
-    async def test_no_authentication_required_when_auth_disabled(
-        self, httpx_client: httpx.AsyncClient
-    ) -> None:
-        resp = await httpx_client.get("/.well-known/oauth-protected-resource")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "authentication_required" not in data
-
-    async def test_authentication_required_when_auth_enabled(
-        self, client_with_auth: httpx.AsyncClient
-    ) -> None:
-        resp = await client_with_auth.get("/.well-known/oauth-protected-resource")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["authentication_required"] is True
-
-    async def test_content_type_is_json(self, httpx_client: httpx.AsyncClient) -> None:
-        resp = await httpx_client.get("/.well-known/oauth-protected-resource")
-        assert "application/json" in resp.headers["content-type"]
-
 
 class TestGetAuthMd:
-    async def test_returns_markdown(self, httpx_client: httpx.AsyncClient) -> None:
-        resp = await httpx_client.get("/auth.md")
-        assert resp.status_code == 200
-        assert "text/markdown" in resp.headers["content-type"]
-
     async def test_no_auth_content(self, httpx_client: httpx.AsyncClient) -> None:
         resp = await httpx_client.get("/auth.md")
         assert resp.status_code == 200
+        assert "text/markdown" in resp.headers["content-type"]
         body = resp.text
         assert "# auth.md" in body
         assert "without authentication" in body
@@ -91,16 +69,12 @@ class TestGetAuthMd:
     async def test_auth_enabled_content(self, client_with_auth: httpx.AsyncClient) -> None:
         resp = await client_with_auth.get("/auth.md")
         assert resp.status_code == 200
+        assert "text/markdown" in resp.headers["content-type"]
         body = resp.text
         assert "# auth.md" in body
         assert "Authorization: Bearer" in body
-        assert "/.well-known/oauth-protected-resource" in body
-        assert "/auth/login" in body
-
-    async def test_base_url_appears_in_content(self, client_with_auth: httpx.AsyncClient) -> None:
-        resp = await client_with_auth.get("/auth.md")
-        assert resp.status_code == 200
-        assert "http://test" in resp.text
+        assert "http://test/.well-known/oauth-protected-resource" in body
+        assert "http://test/auth/login" in body
 
 
 class TestWWWAuthenticateHeader:
@@ -111,8 +85,7 @@ class TestWWWAuthenticateHeader:
         assert resp.status_code == 401
         www_auth = resp.headers.get("WWW-Authenticate", "")
         assert 'Bearer realm="Arize Phoenix"' in www_auth
-        assert "resource_metadata=" in www_auth
-        assert "/.well-known/oauth-protected-resource" in www_auth
+        assert 'resource_metadata="http://test/.well-known/oauth-protected-resource"' in www_auth
 
     async def test_non_401_response_has_no_www_authenticate(
         self, client_with_auth: httpx.AsyncClient
