@@ -4,7 +4,6 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
@@ -34,6 +33,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
+import { CopyToClipboardButton } from "@phoenix/components/core/copy";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -131,17 +131,12 @@ const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
 
 type RootSpanMessageProps = {
-  /**
-   * Optional content rendered opposite the message label in the header,
-   * typically a small action like the trace link.
-   */
-  extra?: ReactNode;
   label?: string;
   role: RootSpanMessageRole;
   value: unknown;
 };
 
-function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
+function RootSpanMessage({ label, role, value }: RootSpanMessageProps) {
   const isInput = role === "INPUT";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
@@ -162,7 +157,6 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
         width="100%"
       >
         <Text color="text-700">{label ?? defaultLabel}</Text>
-        {extra}
       </Flex>
       <View
         borderRadius={"medium"}
@@ -216,29 +210,6 @@ function RootSpanEndTime({ rootSpan }: RootSpanProps) {
     <Text color="text-700" size="XS">
       {fullTimeFormatter(endDate)}
     </Text>
-  );
-}
-
-function RootSpanTraceLink({
-  traceId,
-  rootSpan,
-}: RootSpanProps & { traceId: string }) {
-  const location = useLocation();
-
-  return (
-    <LinkButton
-      size="S"
-      variant="quiet"
-      leadingVisual={<Icon svg={<Icons.Trace />} />}
-      to={getSessionTraceUrl({
-        pathname: location.pathname,
-        search: location.search,
-        traceId,
-        spanNodeId: rootSpan.id,
-      })}
-    >
-      Trace
-    </LinkButton>
   );
 }
 
@@ -317,15 +288,71 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
   );
 }
 
-function SessionTurnDetail({
+const sessionTurnDividerCSS = css`
+  .session-turn-divider__rule {
+    flex: 1;
+    height: 0;
+    border-top: 1px solid var(--global-color-gray-300);
+  }
+`;
+
+/**
+ * A divider that labels a turn ("Turn 01") and exposes the turn-level actions:
+ * copy the trace ID and view the trace. The whole turn is one trace, so these
+ * controls belong here rather than inside the OUTPUT bubble.
+ */
+function SessionTurnDivider({
+  index,
   traceId,
   rootSpan,
-}: RootSpanProps & { traceId: string }) {
+}: RootSpanProps & { traceId: string; index: number }) {
+  const location = useLocation();
+  const paddedIndex = String(index + 1).padStart(2, "0");
+  return (
+    <Flex
+      direction="row"
+      alignItems="center"
+      gap="size-100"
+      css={sessionTurnDividerCSS}
+    >
+      <Text fontFamily="mono" color="text-500">
+        {paddedIndex}
+      </Text>
+      <div className="session-turn-divider__rule" />
+      <CopyToClipboardButton
+        text={traceId}
+        size="S"
+        variant="quiet"
+        tooltipText="Copy trace ID"
+        aria-label="Copy trace ID"
+      />
+      <LinkButton
+        size="S"
+        variant="quiet"
+        aria-label="View trace"
+        leadingVisual={<Icon svg={<Icons.Trace />} />}
+        to={getSessionTraceUrl({
+          pathname: location.pathname,
+          search: location.search,
+          traceId,
+          spanNodeId: rootSpan.id,
+        })}
+      />
+    </Flex>
+  );
+}
+
+function SessionTurnDetail({
+  index,
+  traceId,
+  rootSpan,
+}: RootSpanProps & { traceId: string; index: number }) {
   const user = getUserFromRootSpanAttributes(rootSpan.attributes);
   const inputLabel = user != null ? `USER: ${user}` : "INPUT";
 
   return (
     <Flex direction="column" gap="size-200">
+      <SessionTurnDivider index={index} traceId={traceId} rootSpan={rootSpan} />
       <Flex
         direction="column"
         gap="size-100"
@@ -347,11 +374,7 @@ function SessionTurnDetail({
         alignItems="end"
         css={messageWrapCSS}
       >
-        <RootSpanMessage
-          extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
-          role="OUTPUT"
-          value={rootSpan.output?.value}
-        />
+        <RootSpanMessage role="OUTPUT" value={rootSpan.output?.value} />
         <RootSpanOutputMetadata rootSpan={rootSpan} />
       </Flex>
     </Flex>
@@ -522,6 +545,8 @@ function SessionTurnList({
 const turnDetailRowCSS = css`
   &[data-selected] {
     background-color: var(--global-list-detail-selected-background-color);
+    border-bottom: var(--global-border-size-thin) solid
+      var(--global-border-color-default);
   }
 `;
 
@@ -727,7 +752,7 @@ export function SessionDetailsTraceList({
             debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
           }
         >
-          {sessionRootSpans.map(({ traceId, rootSpan }) => (
+          {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
             <div
               key={rootSpan.spanId}
               css={turnDetailRowCSS}
@@ -741,12 +766,16 @@ export function SessionDetailsTraceList({
               }}
             >
               <View
-                borderBottomColor="default"
-                borderBottomWidth="thin"
-                padding="size-200"
+                paddingTop="size-100"
+                paddingBottom="size-200"
+                paddingX="size-200"
               >
                 <View width="100%" maxWidth="size-8500" marginX="auto">
-                  <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
+                  <SessionTurnDetail
+                    index={index}
+                    traceId={traceId}
+                    rootSpan={rootSpan}
+                  />
                 </View>
               </View>
             </div>
