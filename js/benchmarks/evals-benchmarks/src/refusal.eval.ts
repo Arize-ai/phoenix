@@ -4,14 +4,14 @@
  * Runs the refusal evaluator across refusal / answer categories and gates the
  * suite on how accurately it labels each response as refused vs answered.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createRefusalEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const refusalEvaluator = createRefusalEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 const examplesByCategory = {
@@ -339,7 +339,7 @@ px.describe(
   {
     description:
       "Refusal evaluator across categories: explicit refusals, scope disclaimers, lack of information, safety refusals, redirections, partial refusals, clear answers, incorrect answers, hedged answers, answers with caveats, and edge cases.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],

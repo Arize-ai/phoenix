@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --config phoenix.vitest.config.ts",
-    "test:watch": "vitest watch --config phoenix.vitest.config.ts",
-    "test:local": "PHOENIX_TEST_TRACING=false vitest run --config phoenix.vitest.config.ts"
+    "evals": "vitest run --config phoenix.vitest.config.ts",
+    "evals:local": "PHOENIX_TEST_TRACING=false vitest run --config phoenix.vitest.config.ts",
+    "evals:watch": "vitest watch --config phoenix.vitest.config.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.75",

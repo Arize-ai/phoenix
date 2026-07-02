@@ -4,14 +4,14 @@
  * Runs the document-relevance evaluator over query/document pairs and gates the
  * suite on how accurately it labels each document as relevant vs unrelated.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const relevanceEvaluator = createDocumentRelevanceEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 const examples = [
@@ -235,7 +235,7 @@ px.describe(
   {
     description:
       "Document relevance evaluator accuracy at labelling documents as relevant vs unrelated to a query.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],

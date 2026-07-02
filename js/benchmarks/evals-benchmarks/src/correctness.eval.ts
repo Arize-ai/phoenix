@@ -5,14 +5,14 @@
  * the incorrect answer — and the suite is gated on how accurately the
  * correctness evaluator labels them.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const correctnessEvaluator = createCorrectnessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // Examples designed to test the boundary conditions of the correctness rubric
@@ -386,7 +386,7 @@ px.describe(
   {
     description:
       "Boundary conditions of the correctness evaluator rubric with a deterministic 50/50 correct/incorrect split across categories: factual accuracy, completeness, logical consistency, precise terminology, misleading statements, missing info, ambiguity, partial correctness, nuanced accuracy, and technical precision.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],

@@ -5,14 +5,14 @@
  * (hallucinated fields, missing required fields, malformed JSON, etc.) and
  * gates the suite on labelling accuracy.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolInvocationEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const toolInvocationEvaluator = createToolInvocationEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // ============================================================================
@@ -546,7 +546,7 @@ px.describe(
   {
     description:
       "Tool invocation correctness across categories: hallucinated fields, missing required fields, malformed JSON, incorrect argument values, unsafe content (PII), correct single/multi-tool invocations, multi-turn context, and different tool schema formats.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],

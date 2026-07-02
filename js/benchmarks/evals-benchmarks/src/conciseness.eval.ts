@@ -5,14 +5,14 @@
  * the suite on how accurately the evaluator reproduces the expected labels.
  * Each example becomes a dataset example / experiment run on Phoenix.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createConcisenessEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const concisenessEvaluator = createConcisenessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // Examples designed to test the boundary conditions of the conciseness rubric
@@ -298,7 +298,7 @@ px.describe(
   {
     description:
       "Boundary conditions of the conciseness evaluator rubric across categories: perfectly concise, pleasantries/filler, hedging/qualifiers, meta-commentary, redundant restatements, unsolicited explanations, and edge cases.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],

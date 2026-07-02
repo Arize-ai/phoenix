@@ -5,14 +5,14 @@
  * unfaithful answer — and the suite is gated on how accurately the
  * faithfulness evaluator distinguishes them given the supporting knowledge.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 const examples = [
@@ -137,7 +137,7 @@ px.describe(
   {
     description:
       "Faithfulness evaluator accuracy at distinguishing faithful from unfaithful answers given supporting knowledge.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],

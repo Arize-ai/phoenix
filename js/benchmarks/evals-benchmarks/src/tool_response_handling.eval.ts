@@ -5,14 +5,14 @@
  * transformation, summarization, error handling, hallucination, and disclosure
  * cases, and gates the suite on labelling accuracy.
  */
-import { openai } from "@ai-sdk/openai";
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals";
 
 import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
 
 const toolResponseHandlingEvaluator = createToolResponseHandlingEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // ============================================================================
@@ -818,7 +818,7 @@ px.describe(
   {
     description:
       "Tool response handling correctness: data extraction, transformation, summarization, error handling, multi-tool handling, hallucination detection, and information disclosure prevention.",
-    metadata: { model: "gpt-4o-mini" },
+    metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
     ],
