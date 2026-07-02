@@ -23,6 +23,7 @@ import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 import type { SpansTableAsideQuery } from "./__generated__/SpansTableAsideQuery.graphql";
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
+import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   LatencyStatItem,
   ProjectInfoTitledPanel,
@@ -94,10 +95,12 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
   );
 
   const project = data?.project;
-  const spanAnnotationNames =
-    project?.spanAnnotationNames?.filter((name) => name !== "note") ?? [];
-  const traceAnnotationNames =
-    project?.traceAnnotationsNames?.filter((name) => name !== "note") ?? [];
+  const spanAnnotationNames = getNonNoteAnnotationNames(
+    project?.spanAnnotationNames ?? []
+  );
+  const traceAnnotationNames = getNonNoteAnnotationNames(
+    project?.traceAnnotationsNames ?? []
+  );
   const documentEvaluationNames = project?.documentEvaluationNames ?? [];
   const colors = useCategoryChartColors();
 

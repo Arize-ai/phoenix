@@ -1,26 +1,30 @@
 import { css } from "@emotion/react";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, Suspense, useEffect, useRef } from "react";
+import { Panel, Separator } from "react-resizable-panels";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 
 import {
   Button,
   CopyField,
   CopyInput,
+  ErrorBoundary,
   Flex,
   Icon,
   Icons,
   Label,
   Skeleton,
   Text,
+  TextErrorBoundaryFallback,
   View,
 } from "@phoenix/components";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 
-export const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 360;
-export const ASIDE_PANEL_MIN_SIZE_PIXELS = 320;
-export const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
+const ASIDE_PANEL_DEFAULT_SIZE_PIXELS = 360;
+const ASIDE_PANEL_MIN_SIZE_PIXELS = 320;
+const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
 
 /**
  * Wires a table's collapsible aside panel to the shared `showTableAside`
@@ -29,7 +33,7 @@ export const ASIDE_PANEL_MAX_SIZE_PIXELS = 600;
  * the panel's initial mount (before the store value has been applied) from
  * clobbering the store via onResize.
  */
-export function useTableAsidePanel() {
+function useTableAsidePanel() {
   const showTableAside = useProjectContext((state) => state.showTableAside);
   const setShowTableAside = useProjectContext(
     (state) => state.setShowTableAside
@@ -54,6 +58,41 @@ export function useTableAsidePanel() {
     }
   };
   return { showTableAside, asidePanelRef, onAsidePanelResize };
+}
+
+/**
+ * The resizable, collapsible aside panel of a table page: the drag separator,
+ * the panel itself (wired to the shared `showTableAside` store flag), and the
+ * error/suspense boundaries around the aside content. Render it as the last
+ * child of the table's resizable `Group`.
+ */
+export function TableAsidePanel({ children }: { children: ReactNode }) {
+  const { showTableAside, asidePanelRef, onAsidePanelResize } =
+    useTableAsidePanel();
+  return (
+    <>
+      <Separator
+        css={compactResizeHandleCSS}
+        disabled={!showTableAside}
+        style={showTableAside ? undefined : { display: "none" }}
+      />
+      <Panel
+        panelRef={asidePanelRef}
+        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
+        collapsedSize={0}
+        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
+        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
+        collapsible
+        onResize={onAsidePanelResize}
+      >
+        {showTableAside ? (
+          <ErrorBoundary fallback={TextErrorBoundaryFallback}>
+            <Suspense fallback={<TableAsideSkeleton />}>{children}</Suspense>
+          </ErrorBoundary>
+        ) : null}
+      </Panel>
+    </>
+  );
 }
 
 /**
@@ -199,7 +238,7 @@ export function ProjectInfoTitledPanel({
 /**
  * Loading placeholder for a table aside while its stats query is in flight.
  */
-export function TableAsideSkeleton() {
+function TableAsideSkeleton() {
   return (
     <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
       <Flex direction="column" gap="size-200" minWidth="size-3400">

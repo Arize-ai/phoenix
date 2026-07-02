@@ -16,6 +16,7 @@ import { floatFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { SessionsTableAsideQuery } from "./__generated__/SessionsTableAsideQuery.graphql";
 import { SessionAnnotationSummary } from "./SessionAnnotationSummary";
+import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import {
   LatencyStatItem,
   ProjectInfoTitledPanel,
@@ -86,8 +87,9 @@ export function SessionsTableAside(props: {
   );
 
   const project = data?.project;
-  const sessionAnnotationNames =
-    project?.sessionAnnotationNames?.filter((name) => name !== "note") ?? [];
+  const sessionAnnotationNames = getNonNoteAnnotationNames(
+    project?.sessionAnnotationNames ?? []
+  );
 
   return (
     <Group orientation="vertical">
