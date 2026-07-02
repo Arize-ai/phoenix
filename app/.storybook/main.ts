@@ -34,17 +34,17 @@ const config: StorybookConfig = {
       },
       build: {
         rolldownOptions: {
-          output: {
-            manualChunks(id) {
-              if (
-                id.includes("/node_modules/.pnpm/shiki@") ||
-                id.includes("/node_modules/.pnpm/@shikijs+") ||
-                id.includes("/node_modules/.pnpm/@streamdown+code@") ||
-                id.includes("/node_modules/.pnpm/streamdown@")
-              ) {
-                return "streamdown-shiki";
-              }
-            },
+          experimental: {
+            // Rolldown's `lazyBarrel` optimization (on by default in the
+            // rolldown 1.1.3 that vite 8.1.0 locks) miscompiles shiki's
+            // deeply-nested `export *` re-export chains: emitted chunks call
+            // the `__reExport` helper with no definition in scope, which
+            // crashes the published Storybook when Chromatic verifies it.
+            // Shiki is pulled in via @streamdown/code and @pierre/diffs.
+            // Remove once the lockfile resolves rolldown >= 1.1.4, which
+            // turns the experiment off by default; see
+            // https://github.com/rolldown/rolldown/issues/9806.
+            lazyBarrel: false,
           },
         },
       },
