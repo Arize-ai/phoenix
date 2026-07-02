@@ -906,6 +906,7 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/overview",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/create-evaluator",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification-metrics",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/phoenix-integration"

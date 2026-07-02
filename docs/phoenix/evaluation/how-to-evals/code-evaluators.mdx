@@ -211,3 +211,7 @@ The `create_evaluator` / `createEvaluator` function will convert many different 
 * An object with `score`, `label`, and/or `explanation` properties
 </Tab>
 </Tabs>
+
+### Built-In Classification Metrics
+
+For classification and labeling tasks, don't hand-roll precision/recall/F-score — Phoenix ships them as ready-made code evaluators in both languages, supporting binary and multi-class classification with `macro`/`micro`/`weighted` averaging. See [Precision / Recall / F-Score](/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore) for usage, the underlying formulas, and when to prefer each averaging strategy.

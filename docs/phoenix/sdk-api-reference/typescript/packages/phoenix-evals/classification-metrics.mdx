@@ -1,0 +1,103 @@
+---
+title: "Classification Metrics"
+description: "Precision, recall, and F-beta code evaluators in @arizeai/phoenix-evals"
+---
+
+The `code` entrypoint provides deterministic, non-LLM evaluators for classification metrics: precision, recall, and F-beta (including F1). Unlike the per-row LLM evaluators elsewhere in this package, these are dataset-level — `expected` and `output` are the full sequence of labels across every example you want to score together, not a single row's label.
+
+<section className="hidden" data-agent-context="relevant-source-files" aria-label="Relevant source files">
+  <h2>Relevant Source Files</h2>
+  <ul>
+    <li><code>src/code/index.ts</code></li>
+    <li><code>src/code/classificationMetrics.ts</code></li>
+  </ul>
+</section>
+
+## Example
+
+```ts
+import { createF1Evaluator } from "@arizeai/phoenix-evals/code";
+
+const f1 = createF1Evaluator();
+
+const result = await f1.evaluate({
+  expected: ["cat", "dog", "cat", "bird"],
+  output: ["cat", "cat", "cat", "bird"],
+});
+// { score: 0.6 }
+```
+
+## Built-In Evaluator Factories
+
+- `createPrecisionEvaluator(options?)` — `score` is precision
+- `createRecallEvaluator(options?)` — `score` is recall
+- `createF1Evaluator(options?)` — `score` is F1 (F-beta with `beta: 1`)
+- `createFBetaEvaluator(options?)` — `score` is F-beta; set `beta` to weight recall (`beta > 1`) or precision (`beta < 1`) more heavily
+- `createPrecisionRecallFScoreEvaluators(options?)` — returns `{ precision, recall, fScore }`, all built from one shared options object
+
+Each factory accepts the same options:
+
+```ts
+interface PrecisionRecallFScoreOptions {
+  beta?: number; // default 1
+  average?: "macro" | "micro" | "weighted"; // default "macro"
+  positiveLabel?: string | number; // for binary one-vs-rest scoring
+  zeroDivision?: number; // default 0, used when a metric is undefined (0/0)
+}
+```
+
+## Binary Classification
+
+```ts
+import {
+  createPrecisionEvaluator,
+  createRecallEvaluator,
+} from "@arizeai/phoenix-evals/code";
+
+const precision = createPrecisionEvaluator({ positiveLabel: "spam" });
+const recall = createRecallEvaluator({ positiveLabel: "spam" });
+
+const example = {
+  expected: ["spam", "ham", "spam", "ham", "spam"],
+  output: ["spam", "spam", "ham", "ham", "spam"],
+};
+
+await precision.evaluate(example); // { score: 0.667 }
+await recall.evaluate(example); // { score: 0.667 }
+```
+
+## Multi-Class Averaging
+
+```ts
+import { createPrecisionRecallFScoreEvaluators } from "@arizeai/phoenix-evals/code";
+
+// "macro" (default): unweighted mean across classes
+// "weighted": mean weighted by each class's support
+// "micro": pool TP/FP/FN across classes first (equals accuracy for
+// single-label multi-class problems)
+const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators({
+  average: "weighted",
+});
+```
+
+## When To Use
+
+- Scoring classification or labeling tasks (routing, tagging, moderation categories) against ground-truth labels
+- Comparing predicted vs. expected label sequences collected from an experiment or dataset
+- Choosing an F-beta weighting that matches the cost of false positives vs. false negatives for your task (e.g. `beta: 2` when missing a true positive is costlier than a false alarm)
+
+For the underlying formulas, the precision/recall tradeoff, averaging-strategy semantics, and citations, see the [Precision / Recall / F-Score](/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore) guide. A runnable walkthrough covering binary classification, F-beta tradeoffs, and all three averaging strategies lives in the package's [`examples/classification_metrics_example.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-evals/examples/classification_metrics_example.ts).
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/code/index.ts</code></li>
+    <li><code>src/code/classificationMetrics.ts</code></li>
+    <li><code>src/code/createClassificationMetricEvaluator.ts</code></li>
+    <li><code>src/code/createPrecisionEvaluator.ts</code></li>
+    <li><code>src/code/createRecallEvaluator.ts</code></li>
+    <li><code>src/code/createFBetaEvaluator.ts</code></li>
+    <li><code>src/code/createF1Evaluator.ts</code></li>
+    <li><code>src/code/createPrecisionRecallFScoreEvaluators.ts</code></li>
+  </ul>
+</section>

@@ -61,18 +61,20 @@ node_modules/@arizeai/phoenix-evals/docs/
 node_modules/@arizeai/phoenix-evals/src/
 ```
 
-The bundled docs cover evaluator creation, LLM evaluators, templates, classification, and Phoenix integration.
+The bundled docs cover evaluator creation, LLM evaluators, classification metrics, templates, classification, and Phoenix integration.
 
 ## Where To Start
 
 - [Create evaluator](./create-evaluator) for custom and code-based evaluator flows
 - [LLM evaluators](./llm-evaluators) and [Classification](./classification) for model-backed evaluation
+- [Classification metrics](./classification-metrics) for precision/recall/F-beta code evaluators
 - [Templates](./templates) and [Phoenix integration](./phoenix-integration) for prompt helpers and experiment wiring
 
 ## Source Layout
 
 - `src/index.ts` re-exports the package surface you usually import from `@arizeai/phoenix-evals`
 - `src/llm/` contains classification helpers and built-in LLM evaluator factories
+- `src/code/` contains deterministic classification-metric evaluators (precision, recall, F-beta)
 - `src/helpers/` contains `createEvaluator` and evaluation-result helpers
 - `src/template/` contains `formatTemplate` and `getTemplateVariables`
 - `src/types/` contains shared evaluator and prompt types
@@ -82,6 +84,7 @@ The bundled docs cover evaluator creation, LLM evaluators, templates, classifica
   <ul>
     <li><code>src/index.ts</code></li>
     <li><code>src/llm/</code></li>
+    <li><code>src/code/</code></li>
     <li><code>src/helpers/</code></li>
     <li><code>src/template/</code></li>
     <li><code>src/core/</code></li>

@@ -41,6 +41,11 @@ const hallucinationEval = createHallucinationEvaluator({ model: openai("gpt-4o")
 Legacy evaluators (`HallucinationEvaluator`, `QAEvaluator`, `RelevanceEvaluator`,
 `ToxicityEvaluator`, `SummarizationEvaluator`) are in `phoenix.evals.legacy` and deprecated.
 
+**TypeScript**: `PrecisionRecallFScore` is also available via `@arizeai/phoenix-evals/code`
+as `createPrecisionEvaluator`, `createRecallEvaluator`, `createF1Evaluator`,
+`createFBetaEvaluator`, and `createPrecisionRecallFScoreEvaluators` — see
+[evaluators-code-typescript.md](evaluators-code-typescript.md).
+
 ## When to Use
 
 | Situation | Recommendation |

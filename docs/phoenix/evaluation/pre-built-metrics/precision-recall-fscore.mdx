@@ -5,11 +5,11 @@ description: "Compute precision, recall, and F-beta scores for classification ta
 
 ## Overview
 
-The **PrecisionRecallFScore** evaluator computes precision, recall, and F-beta scores for comparing predicted labels against expected labels. It supports both binary and multi-class classification with various averaging strategies.
+Precision, recall, and F-beta score compare predicted labels against expected labels for classification tasks. Phoenix ships them as the **PrecisionRecallFScore** evaluator in Python and as the `createPrecisionEvaluator` / `createRecallEvaluator` / `createFBetaEvaluator` (and `createF1Evaluator`) factories in TypeScript. Both support binary and multi-class classification with the same averaging strategies.
 
 ### When to Use
 
-Use the PrecisionRecallFScore evaluator when you need to:
+Use these metrics when you need to:
 
 - **Evaluate classification performance** - Measure how well your model predicts correct labels
 - **Compare label sequences** - Assess predicted vs expected labels for multi-item outputs
@@ -17,8 +17,41 @@ Use the PrecisionRecallFScore evaluator when you need to:
 - **Multi-class evaluation** - Evaluate across multiple categories with different averaging strategies
 
 <Info>
-This is a code-based evaluator that computes standard classification metrics. Both `expected` and `output` should be sequences of labels (strings or integers).
+This is a code-based evaluator that computes standard classification metrics. Both `expected` and `output` should be sequences of labels (strings or integers) — the full sequence across a dataset, not a single row's label.
 </Info>
+
+## How These Metrics Work
+
+Every prediction for a given class falls into one of four buckets: **true positive** (TP, correctly predicted that class), **false positive** (FP, predicted that class but it wasn't), **false negative** (FN, was that class but predicted something else), and true negative (not that class and not predicted as it). Precision, recall, and F-beta are all built from TP, FP, and FN:
+
+| Metric | Formula | Answers |
+|--------|---------|---------|
+| **Precision** | `TP / (TP + FP)` | Of everything predicted as this class, what fraction actually was? |
+| **Recall** | `TP / (TP + FN)` | Of everything that actually is this class, what fraction did the model find? |
+| **F-beta** | `(1 + beta^2) * precision * recall / (beta^2 * precision + recall)` | The weighted harmonic mean of precision and recall. |
+
+Precision and recall trade off against each other: a model that predicts the positive class more aggressively tends to raise recall (catches more true positives) at the cost of precision (more false alarms), and vice versa. Which one matters more is a property of the task, not the model:
+
+- **Spam filtering** — a false positive (a real email marked as spam) is usually worse than a false negative (spam that slips through), so precision matters more.
+- **Medical screening / fraud detection** — a false negative (a missed disease or fraudulent transaction) is usually worse than a false positive (an unnecessary follow-up), so recall matters more.
+
+**F-beta** (the F-measure introduced by Van Rijsbergen, see [References](#references)) lets you encode that priority in a single number: `beta` sets how many times more recall is weighted than precision. `beta = 1` (F1, the default) weights them equally. `beta > 1` (e.g. F2) weights recall more heavily — appropriate for the medical-screening case above. `beta < 1` (e.g. F0.5) weights precision more heavily — appropriate for the spam-filtering case. F-beta is the harmonic (not arithmetic) mean, so it stays low if either precision or recall is low — a model can't compensate for a very poor recall with very high precision (or vice versa) the way an arithmetic mean would let it.
+
+### Averaging Strategies
+
+Precision, recall, and F-beta are inherently per-class metrics. For multi-class classification, `average` controls how the per-class scores combine into a single number:
+
+| Strategy | Description | Good for |
+|----------|-------------|----------|
+| `macro` | Compute each class's metric independently, then take the unweighted mean. | Surfacing whether a rare class is being ignored — every class counts equally regardless of how often it occurs. |
+| `weighted` | Like `macro`, but each class's metric is weighted by its support (how often it actually occurs). | Reflecting overall performance when class frequencies are meaningful and imbalance is expected. |
+| `micro` | Pool every class's TP, FP, and FN first, then compute one precision/recall/F-beta from the totals. | A single aggregate number. For single-label multi-class problems (exactly one predicted and one expected label per example), micro precision, recall, and F1 are all equal to overall accuracy. |
+
+`macro` and `weighted` compute F-beta per class first and then average the per-class F-beta values — they don't derive F-beta from the averaged precision and recall. This matches [scikit-learn's `precision_recall_fscore_support`](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html) semantics (see [References](#references)), so results are directly comparable to the equivalent `sklearn.metrics` call.
+
+<Note>
+For numeric labels `{0, 1}` with the default `"macro"` average and no `positive_label`/`positiveLabel` configured, the evaluator automatically treats `1` as the positive class and computes binary (one-vs-rest) metrics instead of multi-class averaging. Configuring a non-default `average` skips this auto-detection, so an explicitly requested averaging strategy is never silently overridden by the shape of the data.
+</Note>
 
 ## Supported Levels
 
@@ -30,7 +63,7 @@ This evaluator is not tied to specific tracing levels. It operates on lists of p
 
 ## Input Requirements
 
-The PrecisionRecallFScore evaluator requires two inputs:
+The evaluator requires two inputs:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -39,42 +72,53 @@ The PrecisionRecallFScore evaluator requires two inputs:
 
 Both sequences must have the same length and contain at least one element.
 
-<Note>
-For numeric labels `{0, 1}`, the evaluator automatically treats `1` as the positive class.
-</Note>
-
 ### Constructor Arguments
 
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `beta` | `float` | `1.0` | Weight of recall relative to precision (F1 by default) |
-| `average` | `str` | `"macro"` | Averaging strategy: `"macro"`, `"micro"`, or `"weighted"` |
-| `positive_label` | `str \| int` | `None` | For binary classification, specify the positive class |
-| `zero_division` | `float` | `0.0` | Value to use when a metric is undefined (0/0) |
+<Tabs>
+  <Tab title="Python" icon="python">
+    | Argument | Type | Default | Description |
+    |----------|------|---------|-------------|
+    | `beta` | `float` | `1.0` | Weight of recall relative to precision (F1 by default) |
+    | `average` | `str` | `"macro"` | Averaging strategy: `"macro"`, `"micro"`, or `"weighted"` |
+    | `positive_label` | `str \| int` | `None` | For binary classification, specify the positive class |
+    | `zero_division` | `float` | `0.0` | Value to use when a metric is undefined (0/0) |
+  </Tab>
+  <Tab title="TypeScript" icon="js">
+    | Option | Type | Default | Description |
+    |--------|------|---------|-------------|
+    | `beta` | `number` | `1` | Weight of recall relative to precision. Only on `createFBetaEvaluator` (F1 is `createF1Evaluator`, equivalent to `beta: 1`). |
+    | `average` | `"macro" \| "micro" \| "weighted"` | `"macro"` | Averaging strategy |
+    | `positiveLabel` | `string \| number` | `undefined` | For binary classification, specify the positive class |
+    | `zeroDivision` | `number` | `0` | Value to use when a metric is undefined (0/0) |
+  </Tab>
+</Tabs>
 
 ## Output Interpretation
 
-The evaluator returns three `Score` objects:
+<Tabs>
+  <Tab title="Python" icon="python">
+    The evaluator returns three `Score` objects:
 
-| Score Name | Description |
-|------------|-------------|
-| `precision` | Ratio of true positives to predicted positives |
-| `recall` | Ratio of true positives to actual positives |
-| `f1` (or `f{beta}`) | Harmonic mean of precision and recall |
+    | Score Name | Description |
+    |------------|-------------|
+    | `precision` | Ratio of true positives to predicted positives |
+    | `recall` | Ratio of true positives to actual positives |
+    | `f1` (or `f{beta}`) | Harmonic mean of precision and recall |
 
-All scores have:
-- `direction` = `"maximize"` (higher is better)
-- `kind` = `"code"` (code-based evaluator)
+    All scores have `direction = "maximize"` (higher is better) and `kind = "code"` (code-based evaluator).
+  </Tab>
+  <Tab title="TypeScript" icon="js">
+    Each factory returns an evaluator whose `.evaluate({ expected, output })` resolves to `{ score }`:
 
-### Averaging Strategies 
+    | Evaluator | `score` is |
+    |-----------|------------|
+    | `createPrecisionEvaluator()` | Precision |
+    | `createRecallEvaluator()` | Recall |
+    | `createF1Evaluator()` / `createFBetaEvaluator({ beta })` | F1 / F-beta |
 
-For multi-class classification. 
-
-| Strategy | Description |
-|----------|-------------|
-| `macro` | Calculate metrics for each class, then average (treats all classes equally) |
-| `micro` | Calculate metrics globally by counting total TP, FP, FN |
-| `weighted` | Average weighted by class support (number of true instances) |
+    Every evaluator has `kind: "CODE"` and `optimizationDirection: "MAXIMIZE"`. Its `name` reflects the configuration, e.g. `precision`, `recall_weighted`, `f1`, `f0_5_micro`.
+  </Tab>
+</Tabs>
 
 ## Usage Examples
 
@@ -105,9 +149,27 @@ For multi-class classification.
   </Tab>
 
   <Tab title="TypeScript" icon="js">
-    <Note>
-    The PrecisionRecallFScore evaluator is currently only available in Python.
-    </Note>
+    ```typescript
+    import {
+      createPrecisionRecallFScoreEvaluators,
+    } from "@arizeai/phoenix-evals/code";
+
+    // Create matching precision/recall/F1 evaluators (F1, macro averaging by default)
+    const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators();
+
+    // Multi-class evaluation
+    const example = {
+      expected: ["cat", "dog", "cat", "bird", "dog"],
+      output: ["cat", "cat", "cat", "bird", "dog"],
+    };
+
+    console.log("precision:", (await precision.evaluate(example)).score?.toFixed(3));
+    console.log("recall:", (await recall.evaluate(example)).score?.toFixed(3));
+    console.log("f1:", (await fScore.evaluate(example)).score?.toFixed(3));
+    // precision: 0.889
+    // recall: 0.833
+    // f1: 0.822
+    ```
   </Tab>
 </Tabs>
 
@@ -115,24 +177,56 @@ For multi-class classification.
 
 For binary classification, specify the positive label:
 
-```python
-from phoenix.evals.metrics import PrecisionRecallFScore
+<Tabs>
+  <Tab title="Python" icon="python">
+    ```python
+    from phoenix.evals.metrics import PrecisionRecallFScore
 
-# Binary classification for spam detection
-evaluator = PrecisionRecallFScore(positive_label="spam")
+    # Binary classification for spam detection
+    evaluator = PrecisionRecallFScore(positive_label="spam")
 
-eval_input = {
-    "expected": ["spam", "ham", "spam", "ham", "spam"],
-    "output": ["spam", "spam", "ham", "ham", "spam"]
-}
+    eval_input = {
+        "expected": ["spam", "ham", "spam", "ham", "spam"],
+        "output": ["spam", "spam", "ham", "ham", "spam"]
+    }
 
-scores = evaluator.evaluate(eval_input)
-for score in scores:
-    print(f"{score.name}: {score.score:.3f}")
-# precision: 0.667  (2 TP / 3 predicted spam)
-# recall: 0.667     (2 TP / 3 actual spam)
-# f1: 0.667
-```
+    scores = evaluator.evaluate(eval_input)
+    for score in scores:
+        print(f"{score.name}: {score.score:.3f}")
+    # precision: 0.667  (2 TP / 3 predicted spam)
+    # recall: 0.667     (2 TP / 3 actual spam)
+    # f1: 0.667
+    ```
+  </Tab>
+  <Tab title="TypeScript" icon="js">
+    ```typescript
+    import {
+      createPrecisionEvaluator,
+      createRecallEvaluator,
+      createF1Evaluator,
+    } from "@arizeai/phoenix-evals/code";
+
+    // Binary classification for spam detection
+    const precision = createPrecisionEvaluator({ positiveLabel: "spam" });
+    const recall = createRecallEvaluator({ positiveLabel: "spam" });
+    const f1 = createF1Evaluator({ positiveLabel: "spam" });
+
+    const example = {
+      expected: ["spam", "ham", "spam", "ham", "spam"],
+      output: ["spam", "spam", "ham", "ham", "spam"],
+    };
+
+    console.log("precision:", (await precision.evaluate(example)).score?.toFixed(3));
+    console.log("recall:", (await recall.evaluate(example)).score?.toFixed(3));
+    console.log("f1:", (await f1.evaluate(example)).score?.toFixed(3));
+    // precision: 0.667  (2 TP / 3 predicted spam)
+    // recall: 0.667     (2 TP / 3 actual spam)
+    // f1: 0.667
+    ```
+
+    A runnable version of this example, plus F-beta and all three averaging strategies, lives in [`examples/classification_metrics_example.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-evals/examples/classification_metrics_example.ts).
+  </Tab>
+</Tabs>
 
 ## Using with Phoenix
 
@@ -144,13 +238,24 @@ Run evaluations on traces collected in Phoenix and log results as annotations:
 
 ### Running Experiments
 
-Use the PrecisionRecallFScore evaluator in Phoenix experiments:
+Use these metrics in Phoenix experiments:
 
 - [Using Evaluators in Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators)
+
+<Note>
+These metrics are dataset-level (batch), not per-row: `expected`/`output` are the full sequence of labels across every example you want to score together. Collect every row's expected and predicted label first, then call the evaluator once over the full arrays — don't wire it in as a per-row experiment evaluator.
+</Note>
+
+## References
+
+- Van Rijsbergen, C.J. (1979). *Information Retrieval* (2nd ed.). Butterworth-Heinemann. — origin of the F-measure and its `beta` parameter.
+- [Precision and recall](https://en.wikipedia.org/wiki/Precision_and_recall) — Wikipedia overview of the underlying concepts and terminology.
+- [`sklearn.metrics.precision_recall_fscore_support`](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_fscore_support.html) — scikit-learn's reference implementation; the `average` strategies here follow the same semantics.
 
 ## API Reference
 
 - **Python**: [PrecisionRecallFScore](https://arize-phoenix.readthedocs.io/projects/evals/api/evals.html#module-phoenix.evals.metrics)
+- **TypeScript**: [Classification Metrics](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification-metrics)
 
 ## Related
 
