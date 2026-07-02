@@ -341,6 +341,11 @@ export function SpanDetails({
                 </ToggleButton>
                 <CopyToClipboardButton
                   size="S"
+                  text={span.trace.traceId}
+                  tooltipText="Copy Trace ID"
+                />
+                <CopyToClipboardButton
+                  size="S"
                   text={span.spanId}
                   tooltipText="Copy Span ID"
                 />
