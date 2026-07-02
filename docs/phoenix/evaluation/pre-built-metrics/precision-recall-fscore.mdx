@@ -5,12 +5,7 @@ description: "Compute precision, recall, and F-beta scores for classification ta
 
 ## Overview
 
-The **PrecisionRecallFScore** evaluator computes precision, recall, and F-beta scores for comparing predicted labels against expected labels. It supports both binary and multi-class classification with various averaging strategies.
-
-It is available in both languages:
-
-- **Python** — the `PrecisionRecallFScore` evaluator returns all three scores from a single `.evaluate()` call.
-- **TypeScript** — `@arizeai/phoenix-evals/code` offers both a single composed evaluator (`createPrecisionRecallFScoreEvaluator`, mirroring the Python `PrecisionRecallFScore`) and individual metric factories (`createPrecisionEvaluator`, `createRecallEvaluator`, `createFBetaEvaluator`, `createF1Evaluator`) when you want one score per evaluator.
+The **PrecisionRecallFScore** evaluator computes precision, recall, and F-beta scores for comparing predicted labels against expected labels. It supports both binary and multi-class classification with various averaging strategies, and is available in Python and TypeScript.
 
 ### When to Use
 
@@ -40,7 +35,7 @@ Precision and recall trade off against each other: a model that predicts the pos
 - **Spam filtering** — a false positive (a real email marked as spam) is usually worse than a false negative (spam that slips through), so precision matters more.
 - **Medical screening / fraud detection** — a false negative (a missed disease or fraudulent transaction) is usually worse than a false positive (an unnecessary follow-up), so recall matters more.
 
-**F-beta** (the F-measure introduced by Van Rijsbergen, see [References](#references)) lets you encode that priority in a single number: `beta` sets how many times more recall is weighted than precision. `beta = 1` (F1, the default) weights them equally. `beta > 1` (e.g. F2) weights recall more heavily — appropriate for the medical-screening case above. `beta < 1` (e.g. F0.5) weights precision more heavily — appropriate for the spam-filtering case. F-beta is the harmonic (not arithmetic) mean, so it stays low if either precision or recall is low — a model can't compensate for a very poor recall with very high precision (or vice versa) the way an arithmetic mean would let it.
+**F-beta** (the F-measure introduced by Van Rijsbergen, see [References](#references)) combines them into a single number, where `beta` sets how much more recall is weighted than precision: `beta = 1` (F1, the default) weights them equally, `beta > 1` (e.g. F2) favors recall, and `beta < 1` (e.g. F0.5) favors precision. Because it's a harmonic mean, F-beta stays low if *either* precision or recall is low.
 
 ### Averaging Strategies
 
@@ -113,28 +108,10 @@ Both sequences must have the same length and contain at least one element.
     All scores have `direction = "maximize"` (higher is better) and `kind = "code"` (code-based evaluator).
   </Tab>
   <Tab title="TypeScript" icon="js">
-    The **composed** evaluator, `createPrecisionRecallFScoreEvaluator`, mirrors the Python `PrecisionRecallFScore`: `.evaluate({ expected, output })` returns the F-beta as the headline `score` (the single number combining precision and recall), a human-readable `explanation`, and all three metrics plus the resolved config in `metadata`:
+    - **`createPrecisionRecallFScoreEvaluator`** (composed) returns the F-beta as the headline `score`, with all three metrics and the resolved config on `metadata`.
+    - The **individual** factories (`createPrecisionEvaluator`, `createRecallEvaluator`, `createFBetaEvaluator`, `createF1Evaluator`) each resolve to a single `{ score }`.
 
-    ```ts
-    {
-      score: 0.822,        // the F-beta (F1 by default)
-      explanation: "precision=0.888889, recall=0.833333, f1=0.822222",
-      metadata: {
-        precision: 0.888..., recall: 0.833..., fScore: 0.822...,
-        beta: 1, average: "macro", labels: [...], positiveLabel: null,
-      },
-    }
-    ```
-
-    The **individual** factories each return an evaluator whose `.evaluate({ expected, output })` resolves to a single `{ score }`:
-
-    | Evaluator | `score` is |
-    |-----------|------------|
-    | `createPrecisionEvaluator()` | Precision |
-    | `createRecallEvaluator()` | Recall |
-    | `createF1Evaluator()` / `createFBetaEvaluator({ beta })` | F1 / F-beta |
-
-    Every evaluator has `kind: "CODE"` and `optimizationDirection: "MAXIMIZE"`. The composed evaluator is named `precision_recall_fscore`; each individual factory's `name` reflects its configuration, e.g. `precision`, `recall_weighted`, `f1`, `f0_5_micro`.
+    Every evaluator has `kind: "CODE"` and `optimizationDirection: "MAXIMIZE"`. See [Usage Examples](#usage-examples) for the exact result shapes.
   </Tab>
 </Tabs>
 
