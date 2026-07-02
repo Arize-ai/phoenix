@@ -109,7 +109,36 @@ opens.
 | `--custom-provider-id <id>` | Use a custom provider configured under **Settings → Models** (requires `--model`). |
 | `--bypass-edits` | Apply edits without manual approval (see [You stay in control](#you-stay-in-control)). |
 | `--enable-web-access` | Allow PXI to consult the web for grounding. |
+| `--enable-subagents` | Allow the server to attach subagents (including the server-side bash tool). |
+| `--enable-graphql-mutations` | Allow PXI to run state-changing GraphQL mutations. |
+| `--ingest-traces` | Persist this session's PXI traces locally in Phoenix. |
+| `--export-remote-traces` | Export this session's PXI traces to a configured remote collector. |
+| `--attach-user-id` | Attach the authenticated Phoenix user to PXI traces (opt-in; see the **Privacy, safety & configuration** section below). |
 | `--skip-model-preflight` | Skip the model catalog and credential checks before launch. |
+
+Each capability flag is still subject to the server's own settings — for
+example, `--enable-subagents` has no effect when
+`PHOENIX_AGENTS_DISABLE_BASH=true`, and `--export-remote-traces` requires a
+configured collector and an administrator who has allowed export.
+
+## Slash commands
+
+Inside the terminal chat, lines beginning with `/` are handled locally by the
+client and never sent to the model.
+
+| Command | Effect |
+| --- | --- |
+| `/help` | List the available slash commands. |
+| `/clear` | Clear the conversation history and start a fresh session. |
+| `/exit` | Exit the terminal client. |
+
+## Status line
+
+While a turn streams, PXI shows a live **thinking indicator** and, once the
+response arrives, a bottom-right **token-usage line** — the total tokens for the
+turn, preceded by a cache-activity summary when the provider reports cache
+reads or writes. The active model name is shown next to the input prompt so you
+always know which provider and model the session is talking to.
 
 ## What it does
 
@@ -298,6 +327,13 @@ present, so it does not offer an action that cannot succeed on your current page
   with `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME`). When recording is enabled, tool
   inputs and outputs are recorded on the corresponding spans, so you can audit
   what PXI did and evaluate it like any other agent in Phoenix.
+
+  **Attach your identity (opt-in).** Session traces are anonymous by default. If
+  you want to associate a session with the signed-in user — for example to
+  attribute recorded sessions to a specific person — enable **Attach your email
+  to session traces** under **Settings → Assistant → Personal settings**. From
+  the terminal client the same opt-in is the `--attach-user-id` flag. It is off
+  unless you turn it on.
   </Accordion>
 
   <Accordion title="Safety limits">
