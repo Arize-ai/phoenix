@@ -12,6 +12,11 @@ import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
 import { writeStructuredError } from "../structuredError";
 import {
+  collectValueFlag,
+  hasCategoricalValueInput,
+  resolveCategoricalValues,
+} from "./annotationConfigValues";
+import {
   formatAnnotationConfigOutput,
   formatAnnotationConfigsOutput,
   type OutputFormat,
@@ -22,18 +27,23 @@ type AnnotationConfig =
   | componentsV1["schemas"]["ContinuousAnnotationConfig"]
   | componentsV1["schemas"]["FreeformAnnotationConfig"];
 
-type CategoricalAnnotationValue =
-  componentsV1["schemas"]["CategoricalAnnotationValue"];
-
 type CreateAnnotationConfigData =
   componentsV1["schemas"]["CreateAnnotationConfigData"];
 
 type OptimizationDirection = componentsV1["schemas"]["OptimizationDirection"];
 
+type AnnotationConfigType = "CATEGORICAL" | "CONTINUOUS" | "FREEFORM";
+
 const OPTIMIZATION_DIRECTIONS: readonly OptimizationDirection[] = [
   "MINIMIZE",
   "MAXIMIZE",
   "NONE",
+];
+
+const ANNOTATION_CONFIG_TYPES: readonly AnnotationConfigType[] = [
+  "CATEGORICAL",
+  "CONTINUOUS",
+  "FREEFORM",
 ];
 
 interface AnnotationConfigListOptions {
@@ -44,11 +54,34 @@ interface AnnotationConfigListOptions {
   limit?: number;
 }
 
+interface AnnotationConfigGetOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: OutputFormat;
+  progress?: boolean;
+}
+
 interface AnnotationConfigDeleteOptions {
   endpoint?: string;
   apiKey?: string;
   yes?: boolean;
   progress?: boolean;
+}
+
+interface AnnotationConfigCreateOptions {
+  endpoint?: string;
+  apiKey?: string;
+  format?: OutputFormat;
+  progress?: boolean;
+  type?: string;
+  name?: string;
+  description?: string;
+  optimizationDirection?: string;
+  lowerBound?: number;
+  upperBound?: number;
+  threshold?: number;
+  value?: string[];
+  values?: string;
 }
 
 interface AnnotationConfigUpdateOptions {
@@ -62,48 +95,87 @@ interface AnnotationConfigUpdateOptions {
   lowerBound?: number;
   upperBound?: number;
   threshold?: number;
+  value?: string[];
   values?: string;
 }
 
 /**
- * Parse the `--values` JSON payload into categorical annotation values.
+ * Build the full config body for `POST /v1/annotation_configs` from create
+ * flags. Type-specific flags are validated against the requested `--type` so a
+ * mismatch (e.g. `--threshold` on a categorical config) fails loudly.
  *
- * Accepts a JSON array of objects shaped like `{ "label": string, "score"?:
- * number }`. Throws a descriptive error on malformed input so the caller can
- * surface an actionable message.
+ * `optimization_direction` is required by the API for categorical and
+ * continuous configs; when omitted it defaults to `NONE`. Freeform configs
+ * leave it null unless explicitly set.
  */
-function parseCategoricalValues(raw: string): CategoricalAnnotationValue[] {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(
-      "--values must be a valid JSON array, e.g. " +
-        '\'[{"label":"good","score":1},{"label":"bad","score":0}]\''
-    );
-  }
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("--values must be a non-empty JSON array of label objects");
-  }
-  return parsed.map((entry) => {
-    if (
-      typeof entry !== "object" ||
-      entry === null ||
-      typeof (entry as { label?: unknown }).label !== "string"
-    ) {
+function buildCreateConfigData(
+  options: AnnotationConfigCreateOptions,
+  type: AnnotationConfigType
+): CreateAnnotationConfigData {
+  const name = options.name as string;
+  const description = options.description;
+  const optimizationDirection =
+    (options.optimizationDirection as OptimizationDirection | undefined) ??
+    "NONE";
+
+  if (type === "CATEGORICAL") {
+    if (options.lowerBound !== undefined || options.upperBound !== undefined) {
       throw new Error(
-        'Each --values entry must be an object with a string "label" field'
+        "--lower-bound and --upper-bound are not valid for CATEGORICAL configs"
       );
     }
-    const { label, score } = entry as { label: string; score?: unknown };
-    if (score !== undefined && score !== null && typeof score !== "number") {
-      throw new Error('--values "score" must be a number when provided');
+    if (options.threshold !== undefined) {
+      throw new Error("--threshold is not valid for CATEGORICAL configs");
+    }
+    const values = resolveCategoricalValues(options);
+    if (!values) {
+      throw new Error(
+        "CATEGORICAL configs require at least one --value (or --values JSON)"
+      );
     }
     return {
-      label,
-      ...(score !== undefined && score !== null ? { score } : {}),
+      type: "CATEGORICAL",
+      name,
+      description,
+      optimization_direction: optimizationDirection,
+      values,
     };
-  });
+  }
+
+  if (type === "CONTINUOUS") {
+    if (hasCategoricalValueInput(options)) {
+      throw new Error(
+        "--value/--values are only valid for CATEGORICAL configs"
+      );
+    }
+    if (options.threshold !== undefined) {
+      throw new Error("--threshold is not valid for CONTINUOUS configs");
+    }
+    return {
+      type: "CONTINUOUS",
+      name,
+      description,
+      optimization_direction: optimizationDirection,
+      lower_bound: options.lowerBound ?? null,
+      upper_bound: options.upperBound ?? null,
+    };
+  }
+
+  // FREEFORM
+  if (hasCategoricalValueInput(options)) {
+    throw new Error("--value/--values are only valid for CATEGORICAL configs");
+  }
+  return {
+    type: "FREEFORM",
+    name,
+    description,
+    optimization_direction: options.optimizationDirection
+      ? optimizationDirection
+      : null,
+    threshold: options.threshold ?? null,
+    lower_bound: options.lowerBound ?? null,
+    upper_bound: options.upperBound ?? null,
+  };
 }
 
 /**
@@ -114,7 +186,7 @@ function parseCategoricalValues(raw: string): CategoricalAnnotationValue[] {
  * immutable — to change it, delete and recreate the config.
  *
  * Type-specific flags are validated against the existing config's type so a
- * mismatch (e.g. `--values` on a continuous config) fails loudly instead of
+ * mismatch (e.g. `--value` on a continuous config) fails loudly instead of
  * being silently ignored.
  */
 function buildUpdatedConfigData(
@@ -139,22 +211,22 @@ function buildUpdatedConfigData(
     if (options.threshold !== undefined) {
       throw new Error("--threshold is not valid for CATEGORICAL configs");
     }
+    const resolvedValues = resolveCategoricalValues(options);
     return {
       type: "CATEGORICAL",
       name,
       description,
       optimization_direction:
         optimizationDirection ?? existing.optimization_direction,
-      values:
-        options.values !== undefined
-          ? parseCategoricalValues(options.values)
-          : existing.values,
+      values: resolvedValues ?? existing.values,
     };
   }
 
   if (existing.type === "CONTINUOUS") {
-    if (options.values !== undefined) {
-      throw new Error("--values is only valid for CATEGORICAL configs");
+    if (hasCategoricalValueInput(options)) {
+      throw new Error(
+        "--value/--values are only valid for CATEGORICAL configs"
+      );
     }
     if (options.threshold !== undefined) {
       throw new Error("--threshold is not valid for CONTINUOUS configs");
@@ -177,8 +249,8 @@ function buildUpdatedConfigData(
   }
 
   // FREEFORM
-  if (options.values !== undefined) {
-    throw new Error("--values is only valid for CATEGORICAL configs");
+  if (hasCategoricalValueInput(options)) {
+    throw new Error("--value/--values are only valid for CATEGORICAL configs");
   }
   return {
     type: "FREEFORM",
@@ -287,6 +359,175 @@ async function annotationConfigListHandler(
 }
 
 /**
+ * Handler for `annotation-config get`
+ */
+async function annotationConfigGetHandler(
+  configIdentifier: string,
+  options: AnnotationConfigGetOptions
+): Promise<void> {
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Fetching annotation config ${configIdentifier}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.GET(
+      "/v1/annotation_configs/{config_identifier}",
+      {
+        params: {
+          path: {
+            config_identifier: configIdentifier,
+          },
+        },
+      }
+    );
+
+    // The client throws on non-2xx responses (e.g. a 404 for an unknown
+    // identifier), so this guard only trips on an unexpected empty body.
+    if (response.error || !response.data) {
+      throw new Error(
+        `Annotation config '${configIdentifier}' not found${response.error ? `: ${response.error}` : ""}`
+      );
+    }
+
+    writeOutput({
+      message: formatAnnotationConfigOutput({
+        config: response.data.data,
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error fetching annotation config: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
+ * Handler for `annotation-config create`
+ */
+async function annotationConfigCreateHandler(
+  options: AnnotationConfigCreateOptions
+): Promise<void> {
+  // Argument-shape validation runs before the try block so its `process.exit`
+  // isn't caught and re-mapped by the catch-all error handler below.
+  if (!options.type) {
+    writeStructuredError({
+      format: options.format,
+      message: "Missing required flag --type",
+      code: "INVALID_ARGUMENT",
+      hint: "px annotation-config create --type CATEGORICAL --name <name> --value good=1",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  const type = options.type.toUpperCase() as AnnotationConfigType;
+  if (!ANNOTATION_CONFIG_TYPES.includes(type)) {
+    writeStructuredError({
+      format: options.format,
+      message: `Invalid --type '${options.type}'. Must be one of: ${ANNOTATION_CONFIG_TYPES.join(", ")}`,
+      code: "INVALID_ARGUMENT",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  if (!options.name) {
+    writeStructuredError({
+      format: options.format,
+      message: "Missing required flag --name",
+      code: "INVALID_ARGUMENT",
+      hint: `px annotation-config create --type ${type} --name <name>`,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  if (
+    options.optimizationDirection !== undefined &&
+    !OPTIMIZATION_DIRECTIONS.includes(
+      options.optimizationDirection as OptimizationDirection
+    )
+  ) {
+    writeStructuredError({
+      format: options.format,
+      message: `Invalid --optimization-direction '${options.optimizationDirection}'. Must be one of: ${OPTIMIZATION_DIRECTIONS.join(", ")}`,
+      code: "INVALID_ARGUMENT",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+  if (type === "CATEGORICAL" && !hasCategoricalValueInput(options)) {
+    writeStructuredError({
+      format: options.format,
+      message:
+        "CATEGORICAL configs require at least one --value (or --values JSON)",
+      code: "INVALID_ARGUMENT",
+      hint: `px annotation-config create --type CATEGORICAL --name ${options.name} --value good=1 --value bad=0`,
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+    });
+
+    const validation = validateConfig({ config, projectRequired: false });
+    if (!validation.valid) {
+      writeError({
+        message: getConfigErrorMessage({ errors: validation.errors }),
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+
+    const client = createPhoenixClient({ config });
+
+    const body = buildCreateConfigData(options, type);
+
+    writeProgress({
+      message: `Creating annotation config ${options.name}...`,
+      noProgress: !options.progress,
+    });
+
+    const response = await client.POST("/v1/annotation_configs", {
+      body,
+    });
+
+    if (response.error || !response.data) {
+      throw new Error(`Failed to create annotation config: ${response.error}`);
+    }
+
+    writeOutput({
+      message: formatAnnotationConfigOutput({
+        config: response.data.data,
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error creating annotation config: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+/**
  * Handler for `annotation-config delete`
  */
 async function annotationConfigDeleteHandler(
@@ -349,8 +590,8 @@ async function annotationConfigUpdateHandler(
   configIdentifier: string,
   options: AnnotationConfigUpdateOptions
 ): Promise<void> {
-  // Input validation runs before the try block so its `process.exit` isn't
-  // caught and re-mapped by the catch-all error handler below.
+  // Argument-shape validation runs before the try block so its `process.exit`
+  // isn't caught and re-mapped by the catch-all error handler below.
 
   // Require at least one field to update so an accidental no-op invocation
   // fails fast with the correct usage instead of silently re-writing the
@@ -362,7 +603,7 @@ async function annotationConfigUpdateHandler(
     options.lowerBound !== undefined ||
     options.upperBound !== undefined ||
     options.threshold !== undefined ||
-    options.values !== undefined;
+    hasCategoricalValueInput(options);
   if (!hasUpdate) {
     writeStructuredError({
       format: options.format,
@@ -468,14 +709,43 @@ async function annotationConfigUpdateHandler(
 }
 
 /**
+ * Attach the shared categorical value-input options to a command. Both
+ * `create` and `update` accept values the same way: a repeatable, shell-
+ * friendly `--value label[=score]` flag, or a single `--values` JSON payload
+ * for bulk/agent use.
+ */
+function addCategoricalValueOptions(command: Command): Command {
+  return command
+    .option(
+      "--value <label[=score]>",
+      "Categorical label with optional score, e.g. good=1 (repeatable; CATEGORICAL configs)",
+      collectValueFlag,
+      []
+    )
+    .option(
+      "--values <json>",
+      'Categorical values as JSON — bulk/agent alternative to --value, e.g. \'[{"label":"good","score":1}]\''
+    );
+}
+
+/**
  * Create the `annotation-config` command with subcommands
  */
 export function createAnnotationConfigCommand(): Command {
   const command = new Command("annotation-config");
   command.description("Manage Phoenix annotation configurations");
 
-  const listCommand = new Command("list");
-  listCommand
+  command.addCommand(createAnnotationConfigListCommand());
+  command.addCommand(createAnnotationConfigGetCommand());
+  command.addCommand(createAnnotationConfigCreateCommand());
+  command.addCommand(createAnnotationConfigUpdateCommand());
+  command.addCommand(createAnnotationConfigDeleteCommand());
+
+  return command;
+}
+
+export function createAnnotationConfigListCommand(): Command {
+  return new Command("list")
     .description("List all annotation configurations")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
@@ -491,16 +761,78 @@ export function createAnnotationConfigCommand(): Command {
       parseInt
     )
     .action(annotationConfigListHandler);
+}
 
-  command.addCommand(listCommand);
-  command.addCommand(createAnnotationConfigUpdateCommand());
-  command.addCommand(createAnnotationConfigDeleteCommand());
+export function createAnnotationConfigGetCommand(): Command {
+  return new Command("get")
+    .description("Fetch an annotation configuration by name or ID")
+    .argument("<config-identifier>", "Annotation config name or ID")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px annotation-config get quality\n" +
+        "  px annotation-config get cfg-123 --format raw --no-progress | jq -r '.id'\n"
+    )
+    .action(annotationConfigGetHandler);
+}
 
-  return command;
+export function createAnnotationConfigCreateCommand(): Command {
+  const command = new Command("create")
+    .description("Create a new annotation configuration")
+    .option(
+      "--type <type>",
+      "Config type: CATEGORICAL, CONTINUOUS, or FREEFORM"
+    )
+    .option("--name <name>", "Annotation config name")
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--description <description>", "Annotation config description")
+    .option(
+      "--optimization-direction <direction>",
+      "Optimization direction: MINIMIZE, MAXIMIZE, or NONE (default: NONE)"
+    )
+    .option(
+      "--lower-bound <number>",
+      "Lower bound (CONTINUOUS/FREEFORM configs)",
+      parseFloat
+    )
+    .option(
+      "--upper-bound <number>",
+      "Upper bound (CONTINUOUS/FREEFORM configs)",
+      parseFloat
+    )
+    .option("--threshold <number>", "Threshold (FREEFORM configs)", parseFloat);
+
+  addCategoricalValueOptions(command);
+
+  return command
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px annotation-config create --type CATEGORICAL --name quality --value good=1 --value bad=0\n" +
+        "  px annotation-config create --type CONTINUOUS --name score --lower-bound 0 --upper-bound 1\n" +
+        "  px annotation-config create --type FREEFORM --name notes --description 'Reviewer notes'\n" +
+        '  px annotation-config create --type CATEGORICAL --name quality --values \'[{"label":"good","score":1}]\' --format raw\n'
+    )
+    .action(annotationConfigCreateHandler);
 }
 
 export function createAnnotationConfigUpdateCommand(): Command {
-  return new Command("update")
+  const command = new Command("update")
     .description("Update an annotation configuration")
     .argument("<config-identifier>", "Annotation config name or ID")
     .option("--endpoint <url>", "Phoenix API endpoint")
@@ -521,11 +853,11 @@ export function createAnnotationConfigUpdateCommand(): Command {
       "Upper bound (CONTINUOUS/FREEFORM configs)",
       parseFloat
     )
-    .option("--threshold <number>", "Threshold (FREEFORM configs)", parseFloat)
-    .option(
-      "--values <json>",
-      'Categorical values as JSON, e.g. \'[{"label":"good","score":1}]\''
-    )
+    .option("--threshold <number>", "Threshold (FREEFORM configs)", parseFloat);
+
+  addCategoricalValueOptions(command);
+
+  return command
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
@@ -535,9 +867,9 @@ export function createAnnotationConfigUpdateCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  px annotation-config update my-config --description 'Updated description'\n" +
-        "  px annotation-config update my-config --name renamed --optimization-direction MAXIMIZE\n" +
-        '  px annotation-config update my-config --values \'[{"label":"good","score":1},{"label":"bad","score":0}]\'\n' +
+        "  px annotation-config update quality --description 'Updated description'\n" +
+        "  px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE\n" +
+        "  px annotation-config update quality --value good=1 --value bad=0\n" +
         "  px annotation-config update cfg-123 --name renamed --format raw --no-progress | jq -r '.id'\n"
     )
     .action(annotationConfigUpdateHandler);

@@ -184,6 +184,70 @@ describe("annotation-config update", () => {
     ]);
   });
 
+  it("updates categorical values from repeatable --value flags", async () => {
+    const fetchMock = makeFetchMock([
+      { ok: true, body: { data: CATEGORICAL } },
+      { ok: true, body: { data: CATEGORICAL } },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await createAnnotationConfigCommand().parseAsync(
+      [
+        "update",
+        "quality",
+        "--value",
+        "excellent=2",
+        "--value",
+        "poor",
+        ...BASE_ARGS,
+        "--no-progress",
+      ],
+      { from: "user" }
+    );
+
+    const body = (await getFetchBody(
+      fetchMock.mock.calls[1][0],
+      fetchMock.mock.calls[1][1]
+    )) as Record<string, unknown>;
+    expect(body.values).toEqual([
+      { label: "excellent", score: 2 },
+      { label: "poor" },
+    ]);
+  });
+
+  it("exits FAILURE when both --value and --values are supplied", async () => {
+    const fetchMock = makeFetchMock([
+      { ok: true, body: { data: CATEGORICAL } },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createAnnotationConfigCommand().parseAsync(
+        [
+          "update",
+          "quality",
+          "--value",
+          "good=1",
+          "--values",
+          '[{"label":"bad"}]',
+          ...BASE_ARGS,
+          "--no-progress",
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+  });
+
   it("updates continuous bounds", async () => {
     const fetchMock = makeFetchMock([
       { ok: true, body: { data: CONTINUOUS } },

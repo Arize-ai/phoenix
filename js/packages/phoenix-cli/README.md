@@ -476,6 +476,24 @@ px session-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
 
 ---
 
+Annotation configs come in three types — `CATEGORICAL` (a fixed set of labels, each with an optional numeric score), `CONTINUOUS` (a numeric range), and `FREEFORM` (free text). The `create`, `get`, `update`, and `delete` commands round out full CRUD alongside `list`.
+
+#### Specifying categorical values
+
+`create` and `update` accept categorical labels the same way, so you only learn it once. Prefer the repeatable, shell-friendly flag; the JSON form is a bulk/agent alternative.
+
+```bash
+# Repeatable flag: label with an optional score (label=score, or just label)
+--value good=1 --value bad=0 --value needs-review
+
+# JSON payload (handy for agents or large label sets)
+--values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+```
+
+The two forms are mutually exclusive — pass one or the other, not both.
+
+---
+
 ### `px annotation-config list`
 
 List annotation configurations defined in your Phoenix instance.
@@ -491,34 +509,88 @@ px annotation-config list --format raw --no-progress | jq '.[].name'
 
 ---
 
+### `px annotation-config get <config-identifier>`
+
+Fetch a single annotation configuration by name or ID. The config is written to stdout in the selected `--format` (a single object for `raw`/`json`).
+
+```bash
+px annotation-config get quality
+px annotation-config get cfg-123 --format raw --no-progress | jq -r '.id'
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress`     | Suppress progress output   | —        |
+
+---
+
+### `px annotation-config create`
+
+Create a new annotation configuration via `POST /v1/annotation_configs`. The created config is written to stdout in the selected `--format`.
+
+```bash
+# Categorical config with labelled values
+px annotation-config create --type CATEGORICAL --name quality --value good=1 --value bad=0
+
+# Continuous config with a numeric range
+px annotation-config create --type CONTINUOUS --name score --lower-bound 0 --upper-bound 1
+
+# Freeform (free-text) config
+px annotation-config create --type FREEFORM --name notes --description 'Reviewer notes'
+
+# Agent: capture the new ID
+px annotation-config create --type CATEGORICAL --name quality --values '[{"label":"good","score":1}]' \
+  --format raw --no-progress | jq -r '.id'
+```
+
+| Option                           | Description                                           | Default  |
+| -------------------------------- | ----------------------------------------------------- | -------- |
+| `--type <type>`                  | `CATEGORICAL`, `CONTINUOUS`, or `FREEFORM` (required) | —        |
+| `--name <name>`                  | Annotation config name (required)                     | —        |
+| `--description <description>`    | Description                                           | —        |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE`                     | `NONE`   |
+| `--value <label[=score]>`        | Categorical label (repeatable; CATEGORICAL configs)   | —        |
+| `--values <json>`                | Categorical values as JSON (CATEGORICAL configs)      | —        |
+| `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)             | —        |
+| `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)             | —        |
+| `--threshold <number>`           | Threshold (FREEFORM configs)                          | —        |
+| `--format <format>`              | `pretty`, `json`, or `raw`                            | `pretty` |
+| `--no-progress`                  | Suppress progress output                              | —        |
+
+`--type` and `--name` are required; a `CATEGORICAL` config also requires at least one value. Flags that don't apply to the chosen type are rejected.
+
+---
+
 ### `px annotation-config update <config-identifier>`
 
 Update an annotation configuration by name or ID. Only the fields you pass are changed — the command fetches the existing config, merges your flags, and writes the result back via `PUT /v1/annotation_configs/{id}`. The config `type` is immutable; to change it, delete and recreate the config. The updated config is written to stdout in the selected `--format`.
 
 ```bash
-# Human: rename and change optimization direction
+# Rename and change optimization direction
 px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE
 
-# Update the label set of a categorical config
-px annotation-config update quality --values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+# Replace the label set of a categorical config
+px annotation-config update quality --value good=1 --value bad=0
 
 # Agent: capture the updated ID
 px annotation-config update cfg-123 --description "Updated" --format raw --no-progress | jq -r '.id'
 ```
 
-| Option                           | Description                                             | Default  |
-| -------------------------------- | ------------------------------------------------------- | -------- |
-| `--name <name>`                  | New name                                                | —        |
-| `--description <description>`    | New description                                         | —        |
-| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE`                       | —        |
-| `--values <json>`                | Categorical label objects as JSON (CATEGORICAL configs) | —        |
-| `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)               | —        |
-| `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)               | —        |
-| `--threshold <number>`           | Threshold (FREEFORM configs)                            | —        |
-| `--format <format>`              | `pretty`, `json`, or `raw`                              | `pretty` |
-| `--no-progress`                  | Suppress progress output                                | —        |
+| Option                           | Description                                         | Default  |
+| -------------------------------- | --------------------------------------------------- | -------- |
+| `--name <name>`                  | New name                                            | —        |
+| `--description <description>`    | New description                                     | —        |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE`                   | —        |
+| `--value <label[=score]>`        | Categorical label (repeatable; CATEGORICAL configs) | —        |
+| `--values <json>`                | Categorical values as JSON (CATEGORICAL configs)    | —        |
+| `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)           | —        |
+| `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)           | —        |
+| `--threshold <number>`           | Threshold (FREEFORM configs)                        | —        |
+| `--format <format>`              | `pretty`, `json`, or `raw`                          | `pretty` |
+| `--no-progress`                  | Suppress progress output                            | —        |
 
-At least one field flag is required; an invocation with none exits with `INVALID_ARGUMENT`. Flags that don't apply to the config's type (e.g. `--values` on a continuous config) are rejected.
+At least one field flag is required; an invocation with none exits with `INVALID_ARGUMENT`. Flags that don't apply to the config's type (e.g. `--value` on a continuous config) are rejected.
 
 ---
 
