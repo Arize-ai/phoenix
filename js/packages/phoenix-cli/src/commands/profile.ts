@@ -6,6 +6,7 @@ import { Command } from "commander";
 
 import { ExitCode } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { collectString } from "../optionParsers";
 import {
   type ProfileEntry,
   type SettingsFile,
@@ -55,10 +56,6 @@ function isValidUrl(value: string): boolean {
   } catch {
     return false;
   }
-}
-
-function collectStrings(value: string, previous: string[]): string[] {
-  return previous.concat([value]);
 }
 
 /**
@@ -252,7 +249,7 @@ function createProfileCreateCommand(): Command {
     .option(
       "--header <key=value>",
       "Custom HTTP header (repeatable)",
-      collectStrings,
+      collectString,
       []
     )
     .option(
