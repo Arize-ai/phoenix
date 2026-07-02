@@ -1,5 +1,6 @@
 """
-Endpoints for agent authentication discovery.
+Endpoints for agent authentication discovery, following the auth.md
+convention: https://workos.com/auth-md/docs/apps
 
 Serves:
   GET /auth.md                              -- human/agent-readable auth guide
@@ -22,6 +23,9 @@ async def protected_resource_metadata(request: Request) -> JSONResponse:
         {
             "resource": base_url,
             "resource_name": "Arize Phoenix",
+            # Phoenix issues its own credentials; there is no external
+            # OAuth authorization server.
+            "authorization_servers": [],
             "bearer_methods_supported": ["header"],
             "scopes_supported": [],
             "resource_documentation": f"{base_url}/auth.md",
@@ -42,21 +46,33 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
         return dedent(f"""\
             # auth.md
 
-            This Arize Phoenix deployment is running **without authentication**. All endpoints
-            are publicly accessible — no credentials are required.
+            Arize Phoenix — AI observability & evaluation platform.
+
+            This deployment is running **without authentication**. All endpoints are
+            publicly accessible — no credentials are required.
 
             **Resource:** {base_url}
             **Protected Resource Metadata:** {base_url}/.well-known/oauth-protected-resource
+
+            This document follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
         """)
 
     return dedent(f"""\
         # auth.md
 
-        This Arize Phoenix deployment requires bearer-token authentication. Send an
+        Arize Phoenix — AI observability & evaluation platform.
+
+        This deployment requires bearer-token authentication. Send an
         `Authorization: Bearer <token>` header on every request.
 
         **Resource:** {base_url}
         **Protected Resource Metadata:** {base_url}/.well-known/oauth-protected-resource
+
+        ## Registration
+
+        Phoenix does not implement the agent registration protocol (`/agent/identity`)
+        or OAuth token exchange. Credentials are provisioned out of band, as described
+        below.
 
         ## Obtain a credential
 
@@ -78,4 +94,16 @@ def _build_auth_md(*, base_url: str, authentication_enabled: bool) -> str:
         Requests without a valid token receive `401 Unauthorized` with a
         `WWW-Authenticate` challenge pointing at the Protected Resource Metadata
         above.
+
+        ## Scopes
+
+        Phoenix does not use OAuth scopes (`scopes_supported` is empty). Access is
+        governed by the role of the user the credential belongs to.
+
+        ## Support
+
+        For integration issues, open an issue at
+        https://github.com/Arize-ai/phoenix/issues.
+
+        This document follows the [auth.md convention](https://workos.com/auth-md/docs/apps).
     """)

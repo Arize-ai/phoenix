@@ -52,6 +52,7 @@ class TestProtectedResourceMetadata:
         data = resp.json()
         assert data["resource"] == "http://test"
         assert data["resource_name"] == "Arize Phoenix"
+        assert data["authorization_servers"] == []
         assert data["bearer_methods_supported"] == ["header"]
         assert data["scopes_supported"] == []
         assert data["resource_documentation"] == "http://test/auth.md"
@@ -75,6 +76,7 @@ class TestGetAuthMd:
         assert "Authorization: Bearer" in body
         assert "http://test/.well-known/oauth-protected-resource" in body
         assert "http://test/auth/login" in body
+        assert "https://workos.com/auth-md/docs/apps" in body
 
 
 class TestWWWAuthenticateHeader:
