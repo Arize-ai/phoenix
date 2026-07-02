@@ -94,6 +94,7 @@ from phoenix.server.api.routers import (
     create_v1_router,
     oauth2_router,
 )
+from phoenix.server.api.routers.auth_md import router as auth_md_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
@@ -783,7 +784,14 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     response instead of a JSON response. For the original source code, see
     https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
     """
-    headers = getattr(exc, "headers", None)
+    headers = dict(getattr(exc, "headers", None) or {})
+    if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
+        base_url = str(request.base_url).rstrip("/")
+        prm_url = f"{base_url}/.well-known/oauth-protected-resource"
+        headers.setdefault(
+            "WWW-Authenticate",
+            f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
+        )
     if not is_body_allowed_for_status_code(exc.status_code):
         return Response(status_code=exc.status_code, headers=headers)
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
@@ -1025,6 +1033,7 @@ def create_app(
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
+    app.include_router(auth_md_router)
     if authentication_enabled:
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
