@@ -60,8 +60,19 @@ import {
   createRecallEvaluator,
   createF1Evaluator,
   createFBetaEvaluator,
+  createPrecisionRecallFScoreEvaluator,
   createPrecisionRecallFScoreEvaluators,
 } from "@arizeai/phoenix-evals/code";
+
+// Composed evaluator (analog of Python's PrecisionRecallFScore): one
+// evaluator returning all three metrics. Headline score is the F-beta;
+// precision/recall/fScore + config are on `metadata`.
+const composed = createPrecisionRecallFScoreEvaluator();
+const composedResult = await composed.evaluate({
+  expected: ["cat", "dog", "cat", "bird", "dog"],
+  output: ["cat", "cat", "cat", "bird", "dog"],
+});
+// { score: 0.822, explanation: "...", metadata: { precision, recall, fScore, ... } }
 
 // Binary classification via positiveLabel (or auto-detected for numeric {0,1}
 // labels under the default "macro" average)

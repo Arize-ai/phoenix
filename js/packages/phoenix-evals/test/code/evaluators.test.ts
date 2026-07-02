@@ -4,6 +4,7 @@ import type * as ClassificationMetricsModule from "../../src/code/classification
 import { createF1Evaluator } from "../../src/code/createF1Evaluator";
 import { createFBetaEvaluator } from "../../src/code/createFBetaEvaluator";
 import { createPrecisionEvaluator } from "../../src/code/createPrecisionEvaluator";
+import { createPrecisionRecallFScoreEvaluator } from "../../src/code/createPrecisionRecallFScoreEvaluator";
 import { createPrecisionRecallFScoreEvaluators } from "../../src/code/createPrecisionRecallFScoreEvaluators";
 import { createRecallEvaluator } from "../../src/code/createRecallEvaluator";
 
@@ -132,5 +133,61 @@ describe("createPrecisionRecallFScoreEvaluators", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+});
+
+describe("createPrecisionRecallFScoreEvaluator", () => {
+  it("returns a single composed evaluator with all three metrics", async () => {
+    const evaluator = createPrecisionRecallFScoreEvaluator();
+    expect(evaluator.name).toBe("precision_recall_fscore");
+    expect(evaluator.kind).toBe("CODE");
+    expect(evaluator.optimizationDirection).toBe("MAXIMIZE");
+
+    const result = await evaluator.evaluate({
+      expected: ["cat", "dog", "cat", "bird", "dog"],
+      output: ["cat", "cat", "cat", "bird", "dog"],
+    });
+
+    // Headline score is the F-beta (F1 by default).
+    expect(result.score).toBeCloseTo(0.822222, 5);
+    // All three metrics plus the resolved config live in metadata.
+    expect(result.metadata?.precision).toBeCloseTo(0.888889, 5);
+    expect(result.metadata?.recall).toBeCloseTo(0.833333, 5);
+    expect(result.metadata?.fScore).toBeCloseTo(0.822222, 5);
+    expect(result.metadata?.beta).toBe(1);
+    expect(result.metadata?.average).toBe("macro");
+    expect(result.metadata?.positiveLabel).toBeNull();
+    expect(result.explanation).toContain("precision=");
+    expect(result.explanation).toContain("recall=");
+    expect(result.explanation).toContain("f1=");
+  });
+
+  it("reflects beta and average in the explanation and metadata", async () => {
+    const evaluator = createPrecisionRecallFScoreEvaluator({
+      beta: 2,
+      average: "micro",
+    });
+    const result = await evaluator.evaluate({
+      expected: ["a", "b", "a", "c"],
+      output: ["a", "a", "a", "c"],
+    });
+    expect(result.metadata?.beta).toBe(2);
+    expect(result.metadata?.average).toBe("micro");
+    expect(result.explanation).toContain("precision_micro=");
+    expect(result.explanation).toContain("f2_micro=");
+  });
+
+  it("computes binary one-vs-rest metrics for a configured positive label", async () => {
+    const evaluator = createPrecisionRecallFScoreEvaluator({
+      positiveLabel: "spam",
+    });
+    const result = await evaluator.evaluate({
+      expected: ["spam", "ham", "spam", "ham", "spam"],
+      output: ["spam", "spam", "ham", "ham", "spam"],
+    });
+    expect(result.score).toBeCloseTo(2 / 3, 10);
+    expect(result.metadata?.precision).toBeCloseTo(2 / 3, 10);
+    expect(result.metadata?.recall).toBeCloseTo(2 / 3, 10);
+    expect(result.metadata?.positiveLabel).toBe("spam");
   });
 });

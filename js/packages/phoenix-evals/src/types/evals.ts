@@ -40,6 +40,13 @@ export interface EvaluationResult {
    * @example "The model correctly identified the sentiment of the text."
    */
   explanation?: string;
+  /**
+   * Additional structured data about the evaluation. Useful when a single
+   * evaluator produces more than one number (e.g. precision, recall, and
+   * F-score together) and the headline `score` alone can't carry it.
+   * @example { precision: 0.9, recall: 0.83, f1: 0.86 }
+   */
+  metadata?: Record<string, unknown>;
 }
 
 /**
