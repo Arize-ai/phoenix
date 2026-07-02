@@ -182,6 +182,8 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
+EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR"]
+EvalWorkGrain: TypeAlias = Literal["SPAN"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
 SystemSettingKey: TypeAlias = Literal[
@@ -3066,3 +3068,81 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
     """
     if not is_encrypted(target.config):
         raise ValueError("Config is not encrypted")
+
+
+class EvalWorkCursor(HasId):
+    """Producer watermark and single-active-producer lease for online-eval work
+    materialization, one row per (grain, consumer_group)."""
+
+    __tablename__ = "eval_work_cursors"
+    grain: Mapped[EvalWorkGrain] = mapped_column(
+        CheckConstraint("grain IN ('SPAN', 'TRACE', 'SESSION')", name="valid_grain"),
+        nullable=False,
+    )
+    consumer_group: Mapped[str] = mapped_column(String, nullable=False)
+
+    produced_through_id: Mapped[int] = mapped_column(_Integer, nullable=False, server_default="0")
+    observed_high_water_id: Mapped[Optional[int]] = mapped_column(_Integer)
+    observed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("grain", "consumer_group"),)
+
+
+class EvalWorkUnit(HasId):
+    """A span-grain eval task — run one evaluator against one span. The producer
+    materializes rows here; consumers claim, run, and complete them."""
+
+    __tablename__ = "eval_work_units"
+    span_rowid: Mapped[int] = mapped_column(
+        ForeignKey("spans.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
+
+    status: Mapped[EvalWorkStatus] = mapped_column(
+        CheckConstraint(
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR')",
+            name="valid_eval_work_status",
+        ),
+        default="PENDING",
+        server_default="PENDING",
+    )
+
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+    claimed_by: Mapped[Optional[str]] = mapped_column(String)
+
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    error: Mapped[Optional[str]] = mapped_column(String)
+    cooldown_until: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
+
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    span: Mapped["Span"] = relationship("Span")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+
+    __table_args__ = (
+        UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
+        Index(
+            "ix_eval_work_units_claimable",
+            "status",
+            "id",
+            postgresql_where=text("status <> 'DONE'"),
+            sqlite_where=text("status <> 'DONE'"),
+        ),
+    )

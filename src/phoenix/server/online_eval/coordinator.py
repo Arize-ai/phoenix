@@ -1,0 +1,101 @@
+"""Consumer-side coordination seam for online-eval work distribution over the
+``eval_work_units`` table: claim/heartbeat/complete/fail transitions plus queue-lag
+observability. Producer-side operations (cursor lease, watermark advance, work-row
+materialization) are not part of this interface.
+
+Work-unit lifecycle:
+
+    PENDING --claim--> RUNNING --complete--> DONE
+                       RUNNING --fail-----> ERROR
+    RUNNING (lease lapsed) --> reclaimable
+    ERROR (cooldown elapsed, attempts remain) --> retried
+"""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional, Protocol
+
+LEASE_TTL_SECONDS = 90
+HEARTBEAT_INTERVAL_SECONDS = 30
+
+
+@dataclass(frozen=True)
+class ClaimedWorkUnit:
+    """A leased work unit. ``identifier`` keys the annotation write so re-runs of the
+    same (span, evaluator, config) collide on the annotation unique constraint;
+    ``lease_expires_at`` is the claim time plus ``LEASE_TTL_SECONDS``."""
+
+    work_unit_id: int
+    span_rowid: int
+    evaluator_id: int
+    config_fingerprint: str
+    identifier: str
+    attempts: int
+    claimed_by: str
+    lease_expires_at: datetime
+
+
+@dataclass(frozen=True)
+class QueueLag:
+    """Observable backlog; all fields are zero when no cursor or work rows exist.
+    ``frontier_gap`` is the spans.id distance between the producer's eligible frontier
+    and its watermark; ``oldest_pending_age_seconds`` is None when the queue is empty."""
+
+    pending_count: int
+    running_count: int
+    frontier_gap: int
+    oldest_pending_age_seconds: Optional[float]
+
+
+class EvalWorkCoordinator(Protocol):
+    """Coordinates online-eval work across replicas behind a swappable backend."""
+
+    async def claim(
+        self,
+        *,
+        claimed_by: str,
+        limit: int,
+    ) -> Sequence[ClaimedWorkUnit]:
+        """Lease up to ``limit`` claimable work units for ``claimed_by``. A unit is
+        claimable when it is PENDING, or RUNNING with a lapsed lease, or ERROR past
+        its cooldown with attempts remaining. Returns an empty sequence when no
+        claimable work exists."""
+        ...
+
+    async def heartbeat(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Renew the lease on a claimed unit. Returns False if the claim was lost —
+        never silent success."""
+        ...
+
+    async def complete(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Transition a claimed unit RUNNING -> DONE. Returns False if the claim was lost."""
+        ...
+
+    async def fail(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+        error: str,
+        cooldown_until: Optional[datetime] = None,
+    ) -> bool:
+        """Transition a claimed unit RUNNING -> ERROR, recording the error, incrementing
+        attempts, and setting an optional retry cooldown. Returns False if the claim was lost."""
+        ...
+
+    async def lag(self) -> QueueLag:
+        """Report current queue backlog. Returns zeroed metrics when the queue is empty."""
+        ...

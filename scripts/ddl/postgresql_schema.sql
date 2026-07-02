@@ -18,6 +18,30 @@ CREATE TABLE public.annotation_configs (
 );
 
 
+-- Table: eval_work_cursors
+-- ------------------------
+CREATE TABLE public.eval_work_cursors (
+    id bigserial NOT NULL,
+    grain VARCHAR NOT NULL,
+    consumer_group VARCHAR NOT NULL,
+    produced_through_id BIGINT NOT NULL DEFAULT '0'::bigint,
+    observed_high_water_id BIGINT,
+    observed_at TIMESTAMP WITH TIME ZONE,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_cursors PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_cursors_grain_consumer_group
+        UNIQUE (grain, consumer_group),
+    CHECK (((grain)::text = ANY ((ARRAY[
+            'SPAN'::character varying,
+            'TRACE'::character varying,
+            'SESSION'::character varying
+        ])::text[])))
+);
+
+
 -- Table: generative_models
 -- ------------------------
 CREATE TABLE public.generative_models (
@@ -766,6 +790,46 @@ CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators
     USING btree (project_id);
+
+
+-- Table: eval_work_units
+-- ----------------------
+CREATE TABLE public.eval_work_units (
+    id bigserial NOT NULL,
+    span_rowid BIGINT NOT NULL,
+    evaluator_id BIGINT NOT NULL,
+    config_fingerprint VARCHAR NOT NULL,
+    status VARCHAR NOT NULL DEFAULT 'PENDING'::character varying,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claimed_by VARCHAR,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    error VARCHAR,
+    cooldown_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_eval_work_units PRIMARY KEY (id),
+    CONSTRAINT uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint
+        UNIQUE (span_rowid, evaluator_id, config_fingerprint),
+    CHECK (((status)::text = ANY ((ARRAY[
+            'PENDING'::character varying,
+            'RUNNING'::character varying,
+            'DONE'::character varying,
+            'ERROR'::character varying
+        ])::text[]))),
+    CONSTRAINT fk_eval_work_units_evaluator_id_evaluators FOREIGN KEY
+        (evaluator_id)
+        REFERENCES public.evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_eval_work_units_span_rowid_spans FOREIGN KEY
+        (span_rowid)
+        REFERENCES public.spans (id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX ix_eval_work_units_claimable ON public.eval_work_units
+    USING btree (status, id) WHERE ((status)::text <> 'DONE'::text);
+CREATE INDEX ix_eval_work_units_evaluator_id ON public.eval_work_units
+    USING btree (evaluator_id);
 
 
 -- Table: experiments
