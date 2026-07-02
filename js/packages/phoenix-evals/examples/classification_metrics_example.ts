@@ -3,7 +3,6 @@ import {
   createF1Evaluator,
   createFBetaEvaluator,
   createPrecisionEvaluator,
-  createPrecisionRecallFScoreEvaluator,
   createPrecisionRecallFScoreEvaluators,
   createRecallEvaluator,
 } from "../src/code";
@@ -130,31 +129,9 @@ async function multiClassAveragingExample() {
   }
 }
 
-async function composedEvaluatorExample() {
-  console.log("\n=== Composed evaluator: all three metrics at once ===");
-
-  // If you'd rather have a single evaluator that returns precision, recall,
-  // and F-score together (the TypeScript analog of Python's
-  // `PrecisionRecallFScore`), use `createPrecisionRecallFScoreEvaluator`
-  // (singular). The headline `score` is the F-beta — the single number that
-  // combines precision and recall — and the full breakdown is on `metadata`.
-  const evaluator = createPrecisionRecallFScoreEvaluator();
-  const result = await evaluator.evaluate({
-    expected: ["cat", "dog", "cat", "bird", "dog"],
-    output: ["cat", "cat", "cat", "bird", "dog"],
-  });
-
-  console.log("score (f1):", result.score?.toFixed(3)); // 0.822
-  console.log("explanation:", result.explanation);
-  // precision=0.888889, recall=0.833333, f1=0.822222
-  console.log("metadata:", result.metadata);
-  // { precision: 0.888..., recall: 0.833..., fScore: 0.822..., beta: 1, ... }
-}
-
 async function main() {
   await binaryClassificationExample();
   await multiClassAveragingExample();
-  await composedEvaluatorExample();
 }
 
 main().catch(console.error);

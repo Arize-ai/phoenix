@@ -108,10 +108,15 @@ Both sequences must have the same length and contain at least one element.
     All scores have `direction = "maximize"` (higher is better) and `kind = "code"` (code-based evaluator).
   </Tab>
   <Tab title="TypeScript" icon="js">
-    - **`createPrecisionRecallFScoreEvaluator`** (composed) returns the F-beta as the headline `score`, with all three metrics and the resolved config on `metadata`.
-    - The **individual** factories (`createPrecisionEvaluator`, `createRecallEvaluator`, `createFBetaEvaluator`, `createF1Evaluator`) each resolve to a single `{ score }`.
+    Each factory returns an evaluator whose `.evaluate({ expected, output })` resolves to a single `{ score }`:
 
-    Every evaluator has `kind: "CODE"` and `optimizationDirection: "MAXIMIZE"`. See [Usage Examples](#usage-examples) for the exact result shapes.
+    | Evaluator | `score` is |
+    |-----------|------------|
+    | `createPrecisionEvaluator()` | Precision |
+    | `createRecallEvaluator()` | Recall |
+    | `createF1Evaluator()` / `createFBetaEvaluator({ beta })` | F1 / F-beta |
+
+    `createPrecisionRecallFScoreEvaluators()` bundles matching `{ precision, recall, fScore }` evaluators from one options object. Every evaluator has `kind: "CODE"` and `optimizationDirection: "MAXIMIZE"`, and its `name` reflects the configuration, e.g. `precision`, `recall_weighted`, `f1`, `f0_5_micro`.
   </Tab>
 </Tabs>
 
@@ -144,37 +149,16 @@ Both sequences must have the same length and contain at least one element.
   </Tab>
 
   <Tab title="TypeScript" icon="js">
-    Use the single composed evaluator (the direct analog of Python's `PrecisionRecallFScore`) to get all three metrics from one call:
-
-    ```typescript
-    import {
-      createPrecisionRecallFScoreEvaluator,
-    } from "@arizeai/phoenix-evals/code";
-
-    // Composed evaluator (F1, macro averaging by default)
-    const evaluator = createPrecisionRecallFScoreEvaluator();
-
-    // Multi-class evaluation
-    const scores = await evaluator.evaluate({
-      expected: ["cat", "dog", "cat", "bird", "dog"],
-      output: ["cat", "cat", "cat", "bird", "dog"],
-    });
-
-    console.log(scores.score?.toFixed(3)); // 0.822 (the F1 score)
-    console.log(scores.metadata);
-    // { precision: 0.889, recall: 0.833, fScore: 0.822, beta: 1, average: "macro", ... }
-    ```
-
-    Or use the individual factories when you want one score per evaluator (for example to chart precision, recall, and F-score as distinct metrics):
-
     ```typescript
     import {
       createPrecisionRecallFScoreEvaluators,
     } from "@arizeai/phoenix-evals/code";
 
     // Matching precision/recall/F1 evaluators sharing one options object
+    // (F1, macro averaging by default)
     const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators();
 
+    // Multi-class evaluation
     const example = {
       expected: ["cat", "dog", "cat", "bird", "dog"],
       output: ["cat", "cat", "cat", "bird", "dog"],

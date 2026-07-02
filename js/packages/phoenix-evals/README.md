@@ -153,23 +153,6 @@ The library also includes built-in, deterministic (non-LLM) code evaluators for 
 - **Recall** — of everything that actually belongs to a class, the fraction the model found (`TP / (TP + FN)`). Lower recall means more misses.
 - **F-beta** — the weighted harmonic mean of precision and recall. `beta = 1` (F1, the default) weights them equally; `beta > 1` weights recall more (use when missing a true positive is costlier, e.g. medical screening); `beta < 1` weights precision more (use when a false alarm is costlier, e.g. spam filtering).
 
-The composed `createPrecisionRecallFScoreEvaluator` (singular) returns all three metrics from one evaluator — the TypeScript analog of Python's `PrecisionRecallFScore`. The headline `score` is the F-beta; the full breakdown is on `metadata`:
-
-```typescript
-import { createPrecisionRecallFScoreEvaluator } from "@arizeai/phoenix-evals/code";
-
-const evaluator = createPrecisionRecallFScoreEvaluator();
-const result = await evaluator.evaluate({
-  expected: ["cat", "dog", "cat", "bird", "dog"],
-  output: ["cat", "cat", "cat", "bird", "dog"],
-});
-console.log(result.score); // 0.822 (the F1 score)
-console.log(result.metadata);
-// { precision: 0.889, recall: 0.833, fScore: 0.822, beta: 1, average: "macro", ... }
-```
-
-Or use the individual factories when you want a single score per evaluator (for example to chart precision, recall, and F-score as distinct metrics):
-
 ```typescript
 import {
   createPrecisionEvaluator,
@@ -192,7 +175,7 @@ const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators({
 });
 ```
 
-Use `createFBetaEvaluator({ beta })` for F-scores other than F1 (e.g. `beta: 2` weights recall higher than precision).
+Use `createFBetaEvaluator({ beta })` for F-scores other than F1 (e.g. `beta: 2` weights recall higher than precision). `createPrecisionRecallFScoreEvaluators` returns three separate evaluators (`{ precision, recall, fScore }`) sharing one options object — each yields a single score, matching the individual factories.
 
 For multi-class data, `average` controls how per-class scores combine into one number: `"macro"` (default) weights every class equally — good for surfacing whether a rare class is being ignored; `"weighted"` weights each class by how often it occurs — good when overall performance matters more than parity across classes; `"micro"` pools every true/false positive and false negative across classes first — for single-label multi-class problems this equals overall accuracy.
 

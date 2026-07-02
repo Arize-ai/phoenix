@@ -27,36 +27,15 @@ const result = await f1.evaluate({
 // { score: 0.6 }
 ```
 
-## All Three Metrics At Once
-
-`createPrecisionRecallFScoreEvaluator` (singular) is the direct analog of Python's `PrecisionRecallFScore` — a single evaluator that computes precision, recall, and F-beta together. The headline `score` is the F-beta; the full breakdown is on `metadata`.
-
-```ts
-import { createPrecisionRecallFScoreEvaluator } from "@arizeai/phoenix-evals/code";
-
-const evaluator = createPrecisionRecallFScoreEvaluator();
-
-const result = await evaluator.evaluate({
-  expected: ["cat", "dog", "cat", "bird", "dog"],
-  output: ["cat", "cat", "cat", "bird", "dog"],
-});
-// {
-//   score: 0.822, // the F1 score
-//   explanation: "precision=0.888889, recall=0.833333, f1=0.822222",
-//   metadata: { precision: 0.888..., recall: 0.833..., fScore: 0.822..., beta: 1, average: "macro", ... },
-// }
-```
-
 ## Built-In Evaluator Factories
 
-- `createPrecisionRecallFScoreEvaluator(options?)` — a single **composed** evaluator (the analog of Python's `PrecisionRecallFScore`). Returns the F-beta as the headline `score`, with `precision`, `recall`, `fScore`, and the resolved config on `metadata`.
 - `createPrecisionEvaluator(options?)` — `score` is precision
 - `createRecallEvaluator(options?)` — `score` is recall
 - `createF1Evaluator(options?)` — `score` is F1 (F-beta with `beta: 1`)
 - `createFBetaEvaluator(options?)` — `score` is F-beta; set `beta` to weight recall (`beta > 1`) or precision (`beta < 1`) more heavily
 - `createPrecisionRecallFScoreEvaluators(options?)` — returns `{ precision, recall, fScore }`: three separate evaluators built from one shared options object
 
-Each factory accepts the same options:
+Each evaluator resolves to a single `{ score }`. (Python's `PrecisionRecallFScore` returns all three scores from one call; in TypeScript each evaluator yields one score, so use the bundle above to get all three.) Each factory accepts the same options:
 
 ```ts
 interface PrecisionRecallFScoreOptions {
@@ -119,7 +98,6 @@ For the underlying formulas, the precision/recall tradeoff, averaging-strategy s
     <li><code>src/code/createRecallEvaluator.ts</code></li>
     <li><code>src/code/createFBetaEvaluator.ts</code></li>
     <li><code>src/code/createF1Evaluator.ts</code></li>
-    <li><code>src/code/createPrecisionRecallFScoreEvaluator.ts</code></li>
     <li><code>src/code/createPrecisionRecallFScoreEvaluators.ts</code></li>
   </ul>
 </section>

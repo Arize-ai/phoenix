@@ -54,26 +54,6 @@ function resultHasExplanation(
 }
 
 /**
- * Type guard to check if a value has a metadata property.
- *
- * @param result - The value to check
- * @returns True if the value is an object with an object-valued metadata property
- *
- * @internal
- */
-function resultHasMetadata(
-  result: unknown
-): result is { metadata: Record<string, unknown> } {
-  return (
-    typeof result === "object" &&
-    result !== null &&
-    "metadata" in result &&
-    typeof result.metadata === "object" &&
-    result.metadata !== null
-  );
-}
-
-/**
  * Converts an unknown value to an {@link EvaluationResult}.
  *
  * This function provides a flexible way to normalize various return types from
@@ -82,7 +62,7 @@ function resultHasMetadata(
  *
  * - **Numbers**: Converted to `{ score: number }`
  * - **Strings**: Converted to `{ label: string }`
- * - **Objects**: Extracts `score`, `label`, `explanation`, and `metadata` properties if present
+ * - **Objects**: Extracts `score`, `label`, and `explanation` properties if present
  * - **Other types**: Returns an empty `EvaluationResult` object
  *
  * This is particularly useful when creating evaluators from functions that may
@@ -158,9 +138,6 @@ export function toEvaluationResult(result: unknown): EvaluationResult {
     }
     if (resultHasExplanation(result)) {
       evaluationResult.explanation = result.explanation;
-    }
-    if (resultHasMetadata(result)) {
-      evaluationResult.metadata = result.metadata;
     }
     return evaluationResult;
   }

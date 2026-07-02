@@ -42,27 +42,6 @@ describe("toEvaluationResult", () => {
     });
   });
 
-  it("should extract a metadata object when present", () => {
-    const result = toEvaluationResult({
-      score: 0.82,
-      metadata: { precision: 0.89, recall: 0.83 },
-    });
-    expect(result).toEqual({
-      score: 0.82,
-      metadata: { precision: 0.89, recall: 0.83 },
-    });
-  });
-
-  it("should ignore non-object metadata values", () => {
-    const result = toEvaluationResult({
-      score: 0.5,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      metadata: "not an object" as any,
-    });
-    expect(result).toEqual({ score: 0.5 });
-    expect(result).not.toHaveProperty("metadata");
-  });
-
   it("should ignore extra properties in object", () => {
     const result = toEvaluationResult({
       score: 0.8,
