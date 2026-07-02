@@ -292,7 +292,7 @@ describe("annotation-config create", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("exits FAILURE when a value flag is used on a non-categorical type", async () => {
+  it("exits INVALID_ARGUMENT when a value flag is used on a non-categorical type", async () => {
     const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -316,8 +316,71 @@ describe("annotation-config create", () => {
         ],
         { from: "user" }
       )
-    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("exits INVALID_ARGUMENT before any network call when a numeric flag is not a number", async () => {
+    const fetchMock = makeFetchMock([{ ok: true, body: {} }]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createAnnotationConfigCommand().parseAsync(
+        [
+          "create",
+          "--type",
+          "CONTINUOUS",
+          "--name",
+          "score",
+          "--lower-bound",
+          "abc",
+          ...BASE_ARGS,
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    // A typo'd bound must never be sent to the API as null.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a lowercase --optimization-direction and sends it uppercased", async () => {
+    const fetchMock = makeFetchMock([
+      { ok: true, body: { data: CATEGORICAL } },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await createAnnotationConfigCommand().parseAsync(
+      [
+        "create",
+        "--type",
+        "categorical",
+        "--name",
+        "quality",
+        "--value",
+        "good=1",
+        "--optimization-direction",
+        "maximize",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    const body = (await getFetchBody(
+      fetchMock.mock.calls[0][0],
+      fetchMock.mock.calls[0][1]
+    )) as Record<string, unknown>;
+    expect(body.optimization_direction).toBe("MAXIMIZE");
   });
 });

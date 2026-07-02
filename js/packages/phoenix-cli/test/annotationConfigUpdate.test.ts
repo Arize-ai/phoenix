@@ -217,7 +217,7 @@ describe("annotation-config update", () => {
     ]);
   });
 
-  it("exits FAILURE when both --value and --values are supplied", async () => {
+  it("exits INVALID_ARGUMENT when both --value and --values are supplied", async () => {
     const fetchMock = makeFetchMock([
       { ok: true, body: { data: CATEGORICAL } },
     ]);
@@ -243,9 +243,67 @@ describe("annotation-config update", () => {
         ],
         { from: "user" }
       )
-    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+  });
+
+  it("exits INVALID_ARGUMENT before any network call when a numeric flag is not a number", async () => {
+    const fetchMock = makeFetchMock([{ ok: true, body: { data: CONTINUOUS } }]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+      code?: number
+    ) => {
+      throw new Error(`process.exit:${code}`);
+    }) as never);
+
+    await expect(
+      createAnnotationConfigCommand().parseAsync(
+        [
+          "update",
+          "score",
+          "--lower-bound",
+          "abc",
+          ...BASE_ARGS,
+          "--no-progress",
+        ],
+        { from: "user" }
+      )
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
+
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
+    // A typo'd bound must never reach the API (it would silently clear the
+    // existing bound to null).
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a lowercase --optimization-direction and sends it uppercased", async () => {
+    const fetchMock = makeFetchMock([
+      { ok: true, body: { data: CATEGORICAL } },
+      { ok: true, body: { data: CATEGORICAL } },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await createAnnotationConfigCommand().parseAsync(
+      [
+        "update",
+        "quality",
+        "--optimization-direction",
+        "minimize",
+        ...BASE_ARGS,
+        "--no-progress",
+      ],
+      { from: "user" }
+    );
+
+    const body = (await getFetchBody(
+      fetchMock.mock.calls[1][0],
+      fetchMock.mock.calls[1][1]
+    )) as Record<string, unknown>;
+    expect(body.optimization_direction).toBe("MINIMIZE");
   });
 
   it("updates continuous bounds", async () => {
@@ -357,7 +415,7 @@ describe("annotation-config update", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("exits FAILURE when --values is used on a non-categorical config", async () => {
+  it("exits INVALID_ARGUMENT when --values is used on a non-categorical config", async () => {
     const fetchMock = makeFetchMock([{ ok: true, body: { data: CONTINUOUS } }]);
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -379,9 +437,9 @@ describe("annotation-config update", () => {
         ],
         { from: "user" }
       )
-    ).rejects.toThrow(`process.exit:${ExitCode.FAILURE}`);
+    ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
 
-    expect(exitSpy).toHaveBeenCalledWith(ExitCode.FAILURE);
+    expect(exitSpy).toHaveBeenCalledWith(ExitCode.INVALID_ARGUMENT);
     // The GET happened, but the PUT never fired because the merge threw.
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

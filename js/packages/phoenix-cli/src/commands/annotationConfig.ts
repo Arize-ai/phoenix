@@ -8,11 +8,15 @@ import {
   validateConfig,
 } from "../config";
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
-import { ExitCode, getExitCodeForError } from "../exitCodes";
+import {
+  ExitCode,
+  getExitCodeForError,
+  InvalidArgumentError,
+} from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { collectString, parseNumberOption } from "../optionParsers";
 import { writeStructuredError } from "../structuredError";
 import {
-  collectValueFlag,
   hasCategoricalValueInput,
   resolveCategoricalValues,
 } from "./annotationConfigValues";
@@ -100,9 +104,55 @@ interface AnnotationConfigUpdateOptions {
 }
 
 /**
+ * Flags whose validity depends on the annotation config type — shared shape
+ * between the create and update option interfaces.
+ */
+interface TypeScopedFlagOptions {
+  lowerBound?: number;
+  upperBound?: number;
+  threshold?: number;
+  value?: string[];
+  values?: string;
+}
+
+/**
+ * Reject flags that don't apply to the config's type, so a mismatch (e.g.
+ * `--threshold` on a categorical config) fails loudly instead of being
+ * silently ignored. Shared by both create and update so the rules can't
+ * drift between the two.
+ */
+function assertFlagsValidForConfigType(
+  options: TypeScopedFlagOptions,
+  type: AnnotationConfigType
+): void {
+  if (type === "CATEGORICAL") {
+    if (options.lowerBound !== undefined || options.upperBound !== undefined) {
+      throw new InvalidArgumentError(
+        "--lower-bound and --upper-bound are not valid for CATEGORICAL configs"
+      );
+    }
+    if (options.threshold !== undefined) {
+      throw new InvalidArgumentError(
+        "--threshold is not valid for CATEGORICAL configs"
+      );
+    }
+    return;
+  }
+  if (hasCategoricalValueInput(options)) {
+    throw new InvalidArgumentError(
+      "--value/--values are only valid for CATEGORICAL configs"
+    );
+  }
+  if (type === "CONTINUOUS" && options.threshold !== undefined) {
+    throw new InvalidArgumentError(
+      "--threshold is not valid for CONTINUOUS configs"
+    );
+  }
+}
+
+/**
  * Build the full config body for `POST /v1/annotation_configs` from create
- * flags. Type-specific flags are validated against the requested `--type` so a
- * mismatch (e.g. `--threshold` on a categorical config) fails loudly.
+ * flags.
  *
  * `optimization_direction` is required by the API for categorical and
  * continuous configs; when omitted it defaults to `NONE`. Freeform configs
@@ -112,6 +162,8 @@ function buildCreateConfigData(
   options: AnnotationConfigCreateOptions,
   type: AnnotationConfigType
 ): CreateAnnotationConfigData {
+  assertFlagsValidForConfigType(options, type);
+
   const name = options.name as string;
   const description = options.description;
   const optimizationDirection =
@@ -119,17 +171,9 @@ function buildCreateConfigData(
     "NONE";
 
   if (type === "CATEGORICAL") {
-    if (options.lowerBound !== undefined || options.upperBound !== undefined) {
-      throw new Error(
-        "--lower-bound and --upper-bound are not valid for CATEGORICAL configs"
-      );
-    }
-    if (options.threshold !== undefined) {
-      throw new Error("--threshold is not valid for CATEGORICAL configs");
-    }
     const values = resolveCategoricalValues(options);
     if (!values) {
-      throw new Error(
+      throw new InvalidArgumentError(
         "CATEGORICAL configs require at least one --value (or --values JSON)"
       );
     }
@@ -143,14 +187,6 @@ function buildCreateConfigData(
   }
 
   if (type === "CONTINUOUS") {
-    if (hasCategoricalValueInput(options)) {
-      throw new Error(
-        "--value/--values are only valid for CATEGORICAL configs"
-      );
-    }
-    if (options.threshold !== undefined) {
-      throw new Error("--threshold is not valid for CONTINUOUS configs");
-    }
     return {
       type: "CONTINUOUS",
       name,
@@ -161,10 +197,6 @@ function buildCreateConfigData(
     };
   }
 
-  // FREEFORM
-  if (hasCategoricalValueInput(options)) {
-    throw new Error("--value/--values are only valid for CATEGORICAL configs");
-  }
   return {
     type: "FREEFORM",
     name,
@@ -184,15 +216,13 @@ function buildCreateConfigData(
  * /v1/annotation_configs/{id}`. Only fields the caller supplied are changed;
  * everything else is carried over from `existing`. The config `type` is
  * immutable — to change it, delete and recreate the config.
- *
- * Type-specific flags are validated against the existing config's type so a
- * mismatch (e.g. `--value` on a continuous config) fails loudly instead of
- * being silently ignored.
  */
 function buildUpdatedConfigData(
   existing: AnnotationConfig,
   options: AnnotationConfigUpdateOptions
 ): CreateAnnotationConfigData {
+  assertFlagsValidForConfigType(options, existing.type);
+
   const name = options.name ?? existing.name;
   const description =
     options.description !== undefined
@@ -203,14 +233,6 @@ function buildUpdatedConfigData(
     existing.optimization_direction;
 
   if (existing.type === "CATEGORICAL") {
-    if (options.lowerBound !== undefined || options.upperBound !== undefined) {
-      throw new Error(
-        "--lower-bound and --upper-bound are not valid for CATEGORICAL configs"
-      );
-    }
-    if (options.threshold !== undefined) {
-      throw new Error("--threshold is not valid for CATEGORICAL configs");
-    }
     const resolvedValues = resolveCategoricalValues(options);
     return {
       type: "CATEGORICAL",
@@ -223,14 +245,6 @@ function buildUpdatedConfigData(
   }
 
   if (existing.type === "CONTINUOUS") {
-    if (hasCategoricalValueInput(options)) {
-      throw new Error(
-        "--value/--values are only valid for CATEGORICAL configs"
-      );
-    }
-    if (options.threshold !== undefined) {
-      throw new Error("--threshold is not valid for CONTINUOUS configs");
-    }
     return {
       type: "CONTINUOUS",
       name,
@@ -248,10 +262,6 @@ function buildUpdatedConfigData(
     };
   }
 
-  // FREEFORM
-  if (hasCategoricalValueInput(options)) {
-    throw new Error("--value/--values are only valid for CATEGORICAL configs");
-  }
   return {
     type: "FREEFORM",
     name,
@@ -268,6 +278,54 @@ function buildUpdatedConfigData(
         ? options.upperBound
         : existing.upper_bound,
   };
+}
+
+/**
+ * Validate the numeric and enum flags shared by `create` and `update`,
+ * exiting with `INVALID_ARGUMENT` on the first invalid one. Runs before the
+ * handler's `try` block so the exit code isn't re-mapped by the catch-all.
+ *
+ * Normalizes `optimizationDirection` to uppercase in place so it is
+ * case-insensitive, matching how `--type` is treated.
+ */
+function exitOnInvalidSharedWriteFlags(options: {
+  format?: OutputFormat;
+  optimizationDirection?: string;
+  lowerBound?: number;
+  upperBound?: number;
+  threshold?: number;
+}): void {
+  const numericFlags = [
+    ["--lower-bound", options.lowerBound],
+    ["--upper-bound", options.upperBound],
+    ["--threshold", options.threshold],
+  ] as const;
+  for (const [flag, value] of numericFlags) {
+    if (value !== undefined && !Number.isFinite(value)) {
+      writeStructuredError({
+        format: options.format,
+        message: `${flag} must be a finite number`,
+        code: "INVALID_ARGUMENT",
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+  }
+  if (options.optimizationDirection !== undefined) {
+    const rawDirection = options.optimizationDirection;
+    options.optimizationDirection = rawDirection.toUpperCase();
+    if (
+      !OPTIMIZATION_DIRECTIONS.includes(
+        options.optimizationDirection as OptimizationDirection
+      )
+    ) {
+      writeStructuredError({
+        format: options.format,
+        message: `Invalid --optimization-direction '${rawDirection}'. Must be one of: ${OPTIMIZATION_DIRECTIONS.join(", ")}`,
+        code: "INVALID_ARGUMENT",
+      });
+      process.exit(ExitCode.INVALID_ARGUMENT);
+    }
+  }
 }
 
 /**
@@ -456,19 +514,7 @@ async function annotationConfigCreateHandler(
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
-  if (
-    options.optimizationDirection !== undefined &&
-    !OPTIMIZATION_DIRECTIONS.includes(
-      options.optimizationDirection as OptimizationDirection
-    )
-  ) {
-    writeStructuredError({
-      format: options.format,
-      message: `Invalid --optimization-direction '${options.optimizationDirection}'. Must be one of: ${OPTIMIZATION_DIRECTIONS.join(", ")}`,
-      code: "INVALID_ARGUMENT",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
+  exitOnInvalidSharedWriteFlags(options);
   if (type === "CATEGORICAL" && !hasCategoricalValueInput(options)) {
     writeStructuredError({
       format: options.format,
@@ -614,19 +660,7 @@ async function annotationConfigUpdateHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  if (
-    options.optimizationDirection !== undefined &&
-    !OPTIMIZATION_DIRECTIONS.includes(
-      options.optimizationDirection as OptimizationDirection
-    )
-  ) {
-    writeStructuredError({
-      format: options.format,
-      message: `Invalid --optimization-direction '${options.optimizationDirection}'. Must be one of: ${OPTIMIZATION_DIRECTIONS.join(", ")}`,
-      code: "INVALID_ARGUMENT",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
+  exitOnInvalidSharedWriteFlags(options);
 
   try {
     const config = resolveConfig({
@@ -719,7 +753,7 @@ function addCategoricalValueOptions(command: Command): Command {
     .option(
       "--value <label[=score]>",
       "Categorical label with optional score, e.g. good=1 (repeatable; CATEGORICAL configs)",
-      collectValueFlag,
+      collectString,
       []
     )
     .option(
@@ -759,6 +793,12 @@ export function createAnnotationConfigListCommand(): Command {
       "--limit <number>",
       "Maximum number of annotation configs to fetch",
       parseInt
+    )
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px annotation-config list\n" +
+        "  px annotation-config list --format raw --no-progress | jq '.[].name'\n"
     )
     .action(annotationConfigListHandler);
 }
@@ -802,14 +842,18 @@ export function createAnnotationConfigCreateCommand(): Command {
     .option(
       "--lower-bound <number>",
       "Lower bound (CONTINUOUS/FREEFORM configs)",
-      parseFloat
+      parseNumberOption
     )
     .option(
       "--upper-bound <number>",
       "Upper bound (CONTINUOUS/FREEFORM configs)",
-      parseFloat
+      parseNumberOption
     )
-    .option("--threshold <number>", "Threshold (FREEFORM configs)", parseFloat);
+    .option(
+      "--threshold <number>",
+      "Threshold (FREEFORM configs)",
+      parseNumberOption
+    );
 
   addCategoricalValueOptions(command);
 
@@ -846,14 +890,18 @@ export function createAnnotationConfigUpdateCommand(): Command {
     .option(
       "--lower-bound <number>",
       "Lower bound (CONTINUOUS/FREEFORM configs)",
-      parseFloat
+      parseNumberOption
     )
     .option(
       "--upper-bound <number>",
       "Upper bound (CONTINUOUS/FREEFORM configs)",
-      parseFloat
+      parseNumberOption
     )
-    .option("--threshold <number>", "Threshold (FREEFORM configs)", parseFloat);
+    .option(
+      "--threshold <number>",
+      "Threshold (FREEFORM configs)",
+      parseNumberOption
+    );
 
   addCategoricalValueOptions(command);
 
@@ -883,5 +931,11 @@ export function createAnnotationConfigDeleteCommand(): Command {
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("-y, --yes", "Skip confirmation prompt")
     .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        "  px annotation-config delete cfg-123\n" +
+        "  px annotation-config delete cfg-123 --yes\n"
+    )
     .action(annotationConfigDeleteHandler);
 }

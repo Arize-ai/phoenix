@@ -1,5 +1,7 @@
 import type { componentsV1 } from "@arizeai/phoenix-client";
 
+import { InvalidArgumentError } from "../exitCodes";
+
 type CategoricalAnnotationValue =
   componentsV1["schemas"]["CategoricalAnnotationValue"];
 
@@ -9,20 +11,15 @@ type CategoricalAnnotationValue =
  * `value` is the repeatable, shell-friendly form (`--value good=1`); `values`
  * is the JSON escape hatch (`--values '[{"label":"good","score":1}]'`) for
  * bulk or agent-driven use. The two are mutually exclusive.
+ *
+ * All parse failures throw `InvalidArgumentError` so handlers exit with
+ * `ExitCode.INVALID_ARGUMENT` rather than the generic failure code.
  */
 export interface CategoricalValueOptions {
   /** Collected occurrences of the repeatable `--value label[=score]` flag. */
   value?: string[];
   /** The `--values <json>` payload. */
   values?: string;
-}
-
-/**
- * Commander collector for the repeatable `--value` flag. Appends each
- * occurrence to a fresh array so the shared option default is never mutated.
- */
-export function collectValueFlag(entry: string, previous: string[]): string[] {
-  return [...previous, entry];
 }
 
 /**
@@ -36,23 +33,25 @@ function parseValueFlag(entry: string): CategoricalAnnotationValue {
   const separatorIndex = entry.indexOf("=");
   if (separatorIndex === -1) {
     if (entry.length === 0) {
-      throw new Error("--value requires a non-empty label");
+      throw new InvalidArgumentError("--value requires a non-empty label");
     }
     return { label: entry };
   }
   const label = entry.slice(0, separatorIndex);
   const scoreText = entry.slice(separatorIndex + 1);
   if (label.length === 0) {
-    throw new Error(`--value '${entry}' is missing a label before '='`);
+    throw new InvalidArgumentError(
+      `--value '${entry}' is missing a label before '='`
+    );
   }
   if (scoreText.trim().length === 0) {
-    throw new Error(
+    throw new InvalidArgumentError(
       `--value '${entry}' has an empty score; use 'label' for no score or 'label=<number>'`
     );
   }
   const score = Number(scoreText);
   if (!Number.isFinite(score)) {
-    throw new Error(
+    throw new InvalidArgumentError(
       `--value '${entry}' has a non-numeric score; expected 'label=<number>'`
     );
   }
@@ -70,13 +69,15 @@ function parseValuesJson(raw: string): CategoricalAnnotationValue[] {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error(
+    throw new InvalidArgumentError(
       "--values must be a valid JSON array, e.g. " +
         '\'[{"label":"good","score":1},{"label":"bad","score":0}]\''
     );
   }
   if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("--values must be a non-empty JSON array of label objects");
+    throw new InvalidArgumentError(
+      "--values must be a non-empty JSON array of label objects"
+    );
   }
   return parsed.map((entry) => {
     if (
@@ -85,13 +86,15 @@ function parseValuesJson(raw: string): CategoricalAnnotationValue[] {
       typeof (entry as { label?: unknown }).label !== "string" ||
       (entry as { label: string }).label.length === 0
     ) {
-      throw new Error(
+      throw new InvalidArgumentError(
         'Each --values entry must be an object with a non-empty string "label"'
       );
     }
     const { label, score } = entry as { label: string; score?: unknown };
     if (score !== undefined && score !== null && typeof score !== "number") {
-      throw new Error('--values "score" must be a number when provided');
+      throw new InvalidArgumentError(
+        '--values "score" must be a number when provided'
+      );
     }
     return {
       label,
@@ -115,7 +118,7 @@ export function resolveCategoricalValues(
   const hasFlags = options.value !== undefined && options.value.length > 0;
   const hasJson = options.values !== undefined;
   if (hasFlags && hasJson) {
-    throw new Error(
+    throw new InvalidArgumentError(
       "Specify categorical values with either repeatable --value flags or a single --values JSON payload, not both"
     );
   }

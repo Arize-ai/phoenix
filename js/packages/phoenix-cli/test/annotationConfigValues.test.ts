@@ -1,19 +1,35 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  collectValueFlag,
   hasCategoricalValueInput,
   resolveCategoricalValues,
 } from "../src/commands/annotationConfigValues";
+import { InvalidArgumentError } from "../src/exitCodes";
+import { collectString, parseNumberOption } from "../src/optionParsers";
 
-describe("collectValueFlag", () => {
+describe("collectString", () => {
   it("appends without mutating the previous array", () => {
-    const first = collectValueFlag("good=1", []);
-    const second = collectValueFlag("bad=0", first);
+    const first = collectString("good=1", []);
+    const second = collectString("bad=0", first);
     expect(first).toEqual(["good=1"]);
     expect(second).toEqual(["good=1", "bad=0"]);
     // previous array is untouched
     expect(first).toEqual(["good=1"]);
+  });
+});
+
+describe("parseNumberOption", () => {
+  it("parses integers, decimals, and negatives", () => {
+    expect(parseNumberOption("1")).toBe(1);
+    expect(parseNumberOption("-1.5")).toBe(-1.5);
+    expect(parseNumberOption(" 0 ")).toBe(0);
+  });
+
+  it("yields NaN for garbage instead of truncating like parseFloat", () => {
+    expect(parseNumberOption("abc")).toBeNaN();
+    expect(parseNumberOption("1abc")).toBeNaN();
+    expect(parseNumberOption("")).toBeNaN();
+    expect(parseNumberOption("   ")).toBeNaN();
   });
 });
 
@@ -128,5 +144,17 @@ describe("resolveCategoricalValues - precedence and absence", () => {
         values: '[{"label":"good"}]',
       })
     ).toThrow(/not both/);
+  });
+
+  it("throws InvalidArgumentError so handlers exit with INVALID_ARGUMENT", () => {
+    expect(() => resolveCategoricalValues({ value: ["good=abc"] })).toThrow(
+      InvalidArgumentError
+    );
+    expect(() => resolveCategoricalValues({ values: "not json" })).toThrow(
+      InvalidArgumentError
+    );
+    expect(() =>
+      resolveCategoricalValues({ value: ["a=1"], values: "[]" })
+    ).toThrow(InvalidArgumentError);
   });
 });

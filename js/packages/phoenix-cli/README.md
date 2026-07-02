@@ -558,7 +558,7 @@ px annotation-config create --type CATEGORICAL --name quality --values '[{"label
 | `--format <format>`              | `pretty`, `json`, or `raw`                            | `pretty` |
 | `--no-progress`                  | Suppress progress output                              | —        |
 
-`--type` and `--name` are required; a `CATEGORICAL` config also requires at least one value. Flags that don't apply to the chosen type are rejected.
+`--type` and `--name` are required; a `CATEGORICAL` config also requires at least one value. `--type` and `--optimization-direction` are case-insensitive. Invalid input — including flags that don't apply to the chosen type — exits with `INVALID_ARGUMENT`.
 
 ---
 
@@ -590,7 +590,7 @@ px annotation-config update cfg-123 --description "Updated" --format raw --no-pr
 | `--format <format>`              | `pretty`, `json`, or `raw`                          | `pretty` |
 | `--no-progress`                  | Suppress progress output                            | —        |
 
-At least one field flag is required; an invocation with none exits with `INVALID_ARGUMENT`. Flags that don't apply to the config's type (e.g. `--value` on a continuous config) are rejected.
+At least one field flag is required. Invalid input — including flags that don't apply to the config's type (e.g. `--value` on a continuous config) — exits with `INVALID_ARGUMENT`.
 
 ---
 
