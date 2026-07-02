@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "evals": "vitest run --config phoenix.vitest.config.ts",
-    "evals:local": "PHOENIX_TEST_TRACING=false vitest run --config phoenix.vitest.config.ts",
+    "evals:local": "PHOENIX_TEST_TRACKING=false vitest run --config phoenix.vitest.config.ts",
     "evals:watch": "vitest watch --config phoenix.vitest.config.ts"
   },
   "dependencies": {
