@@ -472,7 +472,7 @@ class Query:
             projects_query = projects_query.where(
                 getattr(models.Project, filter.col.value).ilike(f"%{filter.value}%")
             )
-        projects_query = exclude_experiment_projects(projects_query)
+        projects_query = exclude_experiment_projects(projects_query, info.context.db.dialect)
         projects_query = exclude_dataset_evaluator_projects(projects_query)
         async with info.context.db.read() as session:
             projects = await session.stream_scalars(projects_query)
@@ -1734,7 +1734,7 @@ class Query:
     @strawberry.field
     async def project_count(self, info: Info[Context, None]) -> int:
         stmt = select(func.count(models.Project.id))
-        stmt = exclude_experiment_projects(stmt)
+        stmt = exclude_experiment_projects(stmt, info.context.db.dialect)
         stmt = exclude_dataset_evaluator_projects(stmt)
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0

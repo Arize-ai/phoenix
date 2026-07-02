@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from sqlalchemy import func, insert
+from sqlalchemy import func, insert, select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -60,6 +60,73 @@ class TestDeleteExperiment:
                 ]
             }
         }
+
+    async def test_only_auto_generated_projects_are_deleted(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        """Deleting experiments must delete auto-generated projects but never user-named ones."""
+        generated_project = "Experiment-" + "c" * 24
+        user_project = "team-shared-evals"
+        async with db() as session:
+            dataset_id = await session.scalar(
+                insert(models.Dataset)
+                .returning(models.Dataset.id)
+                .values(name="ds", description=None, metadata_={})
+            )
+            version_id = await session.scalar(
+                insert(models.DatasetVersion)
+                .returning(models.DatasetVersion.id)
+                .values(dataset_id=dataset_id, description=None, metadata_={})
+            )
+            session.add(models.Project(name=generated_project))
+            session.add(models.Project(name=user_project))
+            generated_exp_id = await session.scalar(
+                insert(models.Experiment)
+                .returning(models.Experiment.id)
+                .values(
+                    dataset_id=dataset_id,
+                    dataset_version_id=version_id,
+                    name="generated-exp",
+                    repetitions=1,
+                    metadata_={},
+                    project_name=generated_project,
+                )
+            )
+            user_exp_id = await session.scalar(
+                insert(models.Experiment)
+                .returning(models.Experiment.id)
+                .values(
+                    dataset_id=dataset_id,
+                    dataset_version_id=version_id,
+                    name="user-exp",
+                    repetitions=1,
+                    metadata_={},
+                    project_name=user_project,
+                )
+            )
+
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={
+                "experimentIds": [
+                    str(GlobalID(type_name="Experiment", node_id=str(generated_exp_id))),
+                    str(GlobalID(type_name="Experiment", node_id=str(user_exp_id))),
+                ],
+            },
+        )
+        assert not response.errors
+
+        async with db() as session:
+            generated_exists = await session.scalar(
+                select(models.Project).where(models.Project.name == generated_project)
+            )
+            user_exists = await session.scalar(
+                select(models.Project).where(models.Project.name == user_project)
+            )
+        assert generated_exists is None, "Auto-generated experiment project should be deleted"
+        assert user_exists is not None, "User-named project must not be deleted"
 
     async def test_non_existent_experiment_id_results_in_no_deletions_and_returns_error(
         self,

@@ -108,7 +108,7 @@ async def get_projects(
     """  # noqa: E501
     stmt = select(models.Project).order_by(models.Project.id.desc())
     if not include_experiment_projects:
-        stmt = exclude_experiment_projects(stmt)
+        stmt = exclude_experiment_projects(stmt, request.app.state.db.dialect)
     if not include_dataset_evaluator_projects:
         stmt = exclude_dataset_evaluator_projects(stmt)
     async with request.app.state.db() as session:

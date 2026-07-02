@@ -642,14 +642,18 @@ class TestProjects:
         whether it has associated experiments or the include_experiment_projects parameter.
 
         This test verifies that:
-        1. Regular experiment projects are excluded by default from the response
-        2. Regular experiment projects are included when include_experiment_projects=True
-        3. The playground project is always included in the response, even when:
+        1. Auto-generated experiment projects (named "Experiment-<24 hex chars>") are excluded
+           by default from the response
+        2. Auto-generated experiment projects are included when include_experiment_projects=True
+        3. User-named experiment projects stay visible by default (classification is by name
+           pattern, not by whether an experiment references the project)
+        4. The playground project is always included in the response, even when:
            - It has an associated experiment
            - Other experiment projects are being excluded
 
         This behavior is important because:
-        - Regular experiment projects can be filtered to reduce clutter
+        - Auto-generated experiment projects can be filtered to reduce clutter
+        - User-named projects can be reused across many experiments and must remain findable
         - The playground project is special and should always be visible
         - Having an experiment shouldn't change the playground project's visibility
         """
@@ -657,9 +661,9 @@ class TestProjects:
         regular_projects = await self._insert_projects(db, 2)
 
         async with db() as session:
-            # Create a regular experiment project - this should be filtered by default
+            # Create an auto-generated experiment project - this should be filtered by default
             experiment_project = models.Project(
-                name="experiment-project",
+                name="Experiment-0123456789abcdef01234567",
                 description="A project created from an experiment - should be filtered by default",
             )
             session.add(experiment_project)
@@ -677,16 +681,35 @@ class TestProjects:
             session.add(dataset_version)
             await session.flush()
 
-            # Create an experiment for the regular experiment project
+            # Create an experiment for the auto-generated experiment project
             experiment = models.Experiment(
                 dataset_id=dataset.id,
                 dataset_version_id=dataset_version.id,
                 name="test-experiment",
                 repetitions=1,
                 metadata_={},
-                project_name="experiment-project",
+                project_name="Experiment-0123456789abcdef01234567",
             )
             session.add(experiment)
+            await session.flush()
+
+            # Create a user-named experiment project - this should stay visible by default
+            user_named_experiment_project = models.Project(
+                name="team-feature-x",
+                description="A user-owned project reused across experiments - stays visible",
+            )
+            session.add(user_named_experiment_project)
+            await session.flush()
+
+            user_named_experiment = models.Experiment(
+                dataset_id=dataset.id,
+                dataset_version_id=dataset_version.id,
+                name="user-named-experiment",
+                repetitions=1,
+                metadata_={},
+                project_name="team-feature-x",
+            )
+            session.add(user_named_experiment)
             await session.flush()
 
             # Create the playground project - this should always be visible
@@ -719,18 +742,30 @@ class TestProjects:
         data = response.json()
         returned_projects = data["data"]
 
-        # Should return regular projects and playground project (but not experiment project)
-        expected_count = len(regular_projects) + 1  # +1 for playground project
+        # Should return regular projects, the user-named experiment project, and playground
+        # (but not the auto-generated experiment project)
+        expected_count = (
+            len(regular_projects) + 2
+        )  # +1 for user-named experiment project, +1 for playground
         assert len(returned_projects) == expected_count, (
-            f"Expected {expected_count} projects (regular + playground), "
+            f"Expected {expected_count} projects (regular + user-named experiment + playground), "
             f"got {len(returned_projects)}"
         )
 
-        # Regular experiment project should be filtered out by default
+        # Auto-generated experiment project should be filtered out by default
         experiment_project_ids = [str(GlobalID(Project.__name__, str(experiment_project.id)))]
         returned_project_ids = [p["id"] for p in returned_projects]
         assert not any(id_ in returned_project_ids for id_ in experiment_project_ids), (
-            "Regular experiment project should be excluded by default to reduce clutter"
+            "Auto-generated experiment project should be excluded by default to reduce clutter"
+        )
+
+        # User-named experiment project should stay visible by default
+        user_named_project_ids = [
+            str(GlobalID(Project.__name__, str(user_named_experiment_project.id)))
+        ]
+        assert any(id_ in returned_project_ids for id_ in user_named_project_ids), (
+            "User-named experiment project should stay visible by default - classification is by "
+            "name pattern, not by whether an experiment references the project"
         )
 
         # Playground project should be included despite having an experiment
@@ -749,15 +784,17 @@ class TestProjects:
         returned_projects = data["data"]
 
         # Should return all projects when including experiment projects
-        expected_count = len(regular_projects) + 2  # +1 for experiment project, +1 for playground
+        expected_count = (
+            len(regular_projects) + 3
+        )  # +1 auto-generated experiment, +1 user-named experiment, +1 playground
         assert len(returned_projects) == expected_count, (
             f"Expected {expected_count} projects (regular + experiment + playground), got {len(returned_projects)}"
         )
 
-        # Regular experiment project should now be included
+        # Auto-generated experiment project should now be included
         returned_project_ids = [p["id"] for p in returned_projects]
         assert any(id_ in returned_project_ids for id_ in experiment_project_ids), (
-            "Regular experiment project should be included when explicitly requested"
+            "Auto-generated experiment project should be included when explicitly requested"
         )
 
         # Playground project should still be included (as always)

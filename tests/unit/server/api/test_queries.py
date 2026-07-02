@@ -674,7 +674,7 @@ async def projects_with_and_without_experiments(
             insert(models.Project)
             .returning(models.Project.id)
             .values(
-                name="experiment-project-name",
+                name="Experiment-" + "a" * 24,
                 description="experiment-project-description",
             )
         )
@@ -697,7 +697,7 @@ async def projects_with_and_without_experiments(
                 name="experiment-name",
                 repetitions=1,
                 metadata_={},
-                project_name="experiment-project-name",
+                project_name="Experiment-" + "a" * 24,
             )
         )
 

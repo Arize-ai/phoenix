@@ -27,7 +27,6 @@ from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.roles import InElementRole
 from typing_extensions import assert_never
 
-from phoenix.config import PLAYGROUND_PROJECT_NAME
 from phoenix.db import models
 
 
@@ -392,14 +391,45 @@ async def insert_experiment_with_examples_snapshot(
 _AnyTuple = TypeVar("_AnyTuple", bound=tuple[Any, ...])
 
 
+# Auto-generated experiment projects are named "Experiment-<24 lowercase hex chars>"
+# (see phoenix.server.experiments.utils.generate_experiment_project_name). Matching this
+# name pattern lets project hiding and auto-deletion leave user-supplied project names alone
+# (the create-experiment route forbids them from matching this pattern), so a user-named
+# project stays visible in project lists and is never auto-deleted with an experiment.
+# The pattern mirrors EXPERIMENT_PROJECT_NAME_PATTERN in that module.
+_GENERATED_EXPERIMENT_PROJECT_NAME_REGEX = "^Experiment-[0-9a-f]{24}$"  # PostgreSQL regex
+_GENERATED_EXPERIMENT_PROJECT_NAME_GLOB = "Experiment-" + "[0-9a-f]" * 24  # SQLite GLOB
+
+
+def generated_experiment_project_name_clause(
+    name: SQLColumnExpression[Any],
+    dialect: SupportedSQLDialect,
+) -> SQLColumnExpression[bool]:
+    """SQL predicate that is true when ``name`` is an auto-generated experiment project name."""
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        return name.op("~")(_GENERATED_EXPERIMENT_PROJECT_NAME_REGEX)
+    if dialect is SupportedSQLDialect.SQLITE:
+        # GLOB is case-sensitive and supports character classes, unlike LIKE.
+        return name.op("GLOB")(_GENERATED_EXPERIMENT_PROJECT_NAME_GLOB)
+    assert_never(dialect)
+
+
 def exclude_experiment_projects(
     stmt: Select[_AnyTuple],
+    dialect: SupportedSQLDialect,
 ) -> Select[_AnyTuple]:
+    # Hide a project only when an experiment references it AND its name matches the
+    # auto-generated pattern. Restricting to the generated pattern keeps user-supplied
+    # project names visible (the create-experiment route forbids them from matching the
+    # pattern), while the experiment-reference join preserves the prior behavior for
+    # generated projects — including surfacing an orphaned generated project once the
+    # experiment that created it is deleted. The playground project is never hidden
+    # because its name does not match the pattern.
     return stmt.outerjoin(
         models.Experiment,
         and_(
             models.Project.name == models.Experiment.project_name,
-            models.Experiment.project_name != PLAYGROUND_PROJECT_NAME,
+            generated_experiment_project_name_clause(models.Experiment.project_name, dialect),
         ),
     ).where(models.Experiment.project_name.is_(None))
 
