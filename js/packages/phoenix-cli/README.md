@@ -105,6 +105,25 @@ For VS Code project-wide association add to `.vscode/settings.json`:
 
 ## Commands
 
+### `pxi`
+
+Open **PXI** (Phoenix Intelligence), an interactive terminal chat with the Phoenix
+agent. It connects to a running Phoenix instance and is the same server-side agent
+that powers the in-browser assistant — investigate failing traces, iterate on
+prompts, and drive Phoenix from your terminal.
+
+```bash
+pxi                                                          # uses PHOENIX_HOST / PHOENIX_API_KEY
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+npx -y @arizeai/phoenix-cli pxi                              # run without installing
+```
+
+Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
+[PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
+slash-command reference, model setup, and privacy controls.
+
+---
+
 ### `px self update`
 
 Check the npm registry for the latest CLI release and update the installed
