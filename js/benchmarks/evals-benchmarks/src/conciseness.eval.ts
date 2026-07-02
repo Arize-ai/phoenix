@@ -8,8 +8,17 @@
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createConcisenessEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
 import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
 
 const concisenessEvaluator = createConcisenessEvaluator({
   model: evalModel,
@@ -276,7 +285,7 @@ px.describe(
     px.test.each(cases)(
       (row) =>
         `[${String(row.metadata?.category)}] ${String(row.input.question)}`,
-      async ({ input }) => {
+      async ({ input, expected }) => {
         const result = await concisenessEvaluator.evaluate({
           input: input.question,
           output: input.answer,
@@ -291,9 +300,15 @@ px.describe(
           annotatorKind: "LLM",
         });
         // Score the verdict against the rubric's expected label.
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
         await px.evaluate(accuracy);
       }
     );
+    registerAggregateMetricsTest(labels);
   },
   {
     description:
@@ -301,6 +316,7 @@ px.describe(
     metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
     ],
   }
 );

@@ -8,8 +8,17 @@
 import * as px from "@arizeai/phoenix-client/vitest";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
 import { accuracy } from "./evaluators.js";
 import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
 
 const faithfulnessEvaluator = createFaithfulnessEvaluator({
   model: evalModel,
@@ -116,7 +125,7 @@ px.describe(
     px.test.each(cases)(
       (row) =>
         `[${String(row.metadata?.variant)}] ${String(row.input.question)}`,
-      async ({ input }) => {
+      async ({ input, expected }) => {
         const result = await faithfulnessEvaluator.evaluate({
           input: input.question,
           context: input.context,
@@ -130,9 +139,15 @@ px.describe(
           explanation: result.explanation,
           annotatorKind: "LLM",
         });
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
         await px.evaluate(accuracy);
       }
     );
+    registerAggregateMetricsTest(labels);
   },
   {
     description:
@@ -140,6 +155,7 @@ px.describe(
     metadata: { model: evalModelName },
     acceptanceCriteria: [
       { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
     ],
   }
 );
