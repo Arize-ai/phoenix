@@ -145,6 +145,34 @@ console.log(relevanceResult);
 // Output: { label: "relevant", score: 1, explanation: "..." }
 ```
 
+### Code Evaluators
+
+The library also includes built-in, deterministic (non-LLM) code evaluators for common classification metrics: precision, recall, and F-beta (including F1). These are available from the `@arizeai/phoenix-evals/code` module and work over a batch of expected vs. predicted labels, supporting both binary classification (via `positiveLabel`) and multi-class classification (via `macro`/`micro`/`weighted` averaging).
+
+```typescript
+import {
+  createPrecisionEvaluator,
+  createRecallEvaluator,
+  createF1Evaluator,
+  createPrecisionRecallFScoreEvaluators,
+} from "@arizeai/phoenix-evals/code";
+
+const f1 = createF1Evaluator();
+const result = await f1.evaluate({
+  expected: ["cat", "dog", "cat", "bird"],
+  output: ["cat", "cat", "cat", "bird"],
+});
+console.log(result);
+// Output: { score: 0.6 }
+
+// Or create matching precision/recall/F-score evaluators at once
+const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators({
+  average: "weighted",
+});
+```
+
+Use `createFBetaEvaluator({ beta })` for F-scores other than F1 (e.g. `beta: 2` weights recall higher than precision).
+
 ### Data Mapping
 
 When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:
