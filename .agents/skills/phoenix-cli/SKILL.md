@@ -275,22 +275,25 @@ px prompt get <name> --format text --no-progress   # plain text, ideal for pipin
 Full CRUD: `list`, `get`, `create`, `update`, `delete`. Types are `CATEGORICAL` (labels + optional scores), `CONTINUOUS` (numeric range), `FREEFORM` (free text).
 
 ```bash
-px annotation-config list                                           # list all configs (table view)
-px annotation-config list --format raw --no-progress | jq '.[].name' # config names as JSON
-px annotation-config get quality --format raw --no-progress          # fetch one by name or ID
+px annotation-config list                                                # all configs (table view)
+px annotation-config list --format raw --no-progress | jq -r '.[].name' # config names as JSON
+px annotation-config get response-quality --format raw --no-progress     # one config by name or ID
 
-# create — categorical, continuous, or freeform
-px annotation-config create --type CATEGORICAL --name quality --value good=1 --value bad=0
-px annotation-config create --type CONTINUOUS --name score --lower-bound 0 --upper-bound 1
-px annotation-config create --type FREEFORM --name notes --description 'Reviewer notes'
+# create — categorical (scored labels), continuous (numeric range), or freeform (free text)
+px annotation-config create --type CATEGORICAL --name response-quality --value good=1 --value bad=0
+px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1
+px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'
 
 # update by name or ID — only the fields you pass change; type is immutable
-px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE
-px annotation-config update quality --value good=1 --value bad=0
-px annotation-config update cfg-123 --description "Updated" --format raw --no-progress | jq -r '.id'
+px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE
+px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0
+px annotation-config update response-quality --description "Updated" --format raw --no-progress | jq -r '.id'
+
+# delete by ID — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; --yes skips the prompt
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
 
-Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
+Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
 
 ## GraphQL
 

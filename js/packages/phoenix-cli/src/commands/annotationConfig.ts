@@ -797,8 +797,12 @@ export function createAnnotationConfigListCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  px annotation-config list\n" +
-        "  px annotation-config list --format raw --no-progress | jq '.[].name'\n"
+        "  # Show all annotation configs as a table\n" +
+        "  px annotation-config list\n\n" +
+        "  # Extract config names as JSON (agent-friendly)\n" +
+        "  px annotation-config list --format raw --no-progress | jq -r '.[].name'\n\n" +
+        "  # Fetch at most 10 configs\n" +
+        "  px annotation-config list --limit 10\n"
     )
     .action(annotationConfigListHandler);
 }
@@ -818,8 +822,12 @@ export function createAnnotationConfigGetCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  px annotation-config get quality\n" +
-        "  px annotation-config get cfg-123 --format raw --no-progress | jq -r '.id'\n"
+        "  # Look up a config by name\n" +
+        "  px annotation-config get response-quality\n\n" +
+        "  # Resolve a config name to its ID (agent-friendly)\n" +
+        "  px annotation-config get response-quality --format raw --no-progress | jq -r '.id'\n\n" +
+        "  # Inspect the labels of a categorical config\n" +
+        "  px annotation-config get response-quality --format raw --no-progress | jq '.values'\n"
     )
     .action(annotationConfigGetHandler);
 }
@@ -867,10 +875,16 @@ export function createAnnotationConfigCreateCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  px annotation-config create --type CATEGORICAL --name quality --value good=1 --value bad=0\n" +
-        "  px annotation-config create --type CONTINUOUS --name score --lower-bound 0 --upper-bound 1\n" +
-        "  px annotation-config create --type FREEFORM --name notes --description 'Reviewer notes'\n" +
-        '  px annotation-config create --type CATEGORICAL --name quality --values \'[{"label":"good","score":1}]\' --format raw\n'
+        "  # Pass/fail quality rating with scored labels (higher is better)\n" +
+        "  px annotation-config create --type CATEGORICAL --name response-quality --value good=1 --value bad=0 --optimization-direction MAXIMIZE\n\n" +
+        "  # Sentiment labels without scores\n" +
+        "  px annotation-config create --type CATEGORICAL --name sentiment --value positive --value neutral --value negative\n\n" +
+        "  # Confidence score between 0 and 1\n" +
+        "  px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1 --optimization-direction MAXIMIZE\n\n" +
+        "  # Free-text feedback from human reviewers\n" +
+        "  px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'\n\n" +
+        "  # Create from a JSON payload and capture the new config ID (agent-friendly)\n" +
+        '  px annotation-config create --type CATEGORICAL --name response-quality --values \'[{"label":"good","score":1},{"label":"bad","score":0}]\' --format raw --no-progress | jq -r \'.id\'\n'
     )
     .action(annotationConfigCreateHandler);
 }
@@ -915,10 +929,16 @@ export function createAnnotationConfigUpdateCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        "  px annotation-config update quality --description 'Updated description'\n" +
-        "  px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE\n" +
-        "  px annotation-config update quality --value good=1 --value bad=0\n" +
-        "  px annotation-config update cfg-123 --name renamed --format raw --no-progress | jq -r '.id'\n"
+        "  # Change only the description; every other field is preserved\n" +
+        "  px annotation-config update response-quality --description 'Pass/fail rating from human review'\n\n" +
+        "  # Rename a config and set its optimization direction\n" +
+        "  px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE\n\n" +
+        "  # Replace the label set of a categorical config\n" +
+        "  px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0\n\n" +
+        "  # Widen the range of a continuous config\n" +
+        "  px annotation-config update confidence --lower-bound -1 --upper-bound 1\n\n" +
+        "  # Update and capture the config ID (agent-friendly)\n" +
+        "  px annotation-config update response-quality --description 'Updated' --format raw --no-progress | jq -r '.id'\n"
     )
     .action(annotationConfigUpdateHandler);
 }
@@ -926,16 +946,24 @@ export function createAnnotationConfigUpdateCommand(): Command {
 export function createAnnotationConfigDeleteCommand(): Command {
   return new Command("delete")
     .description("Delete an annotation configuration")
-    .argument("<config-id>", "Annotation config ID")
+    .argument(
+      "<config-id>",
+      "Annotation config ID (resolve a name with: px annotation-config get <name>)"
+    )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("-y, --yes", "Skip confirmation prompt")
     .option("--no-progress", "Disable progress indicators")
     .addHelpText(
       "after",
-      "\nExamples:\n" +
-        "  px annotation-config delete cfg-123\n" +
-        "  px annotation-config delete cfg-123 --yes\n"
+      "\nDeletes are disabled unless PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true is set.\n" +
+        "\nExamples:\n" +
+        "  # Delete with an interactive confirmation prompt\n" +
+        "  px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM=\n\n" +
+        "  # Skip the confirmation prompt (for scripts and agents)\n" +
+        "  px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes\n\n" +
+        "  # Resolve a name to its ID, then delete it\n" +
+        "  px annotation-config get response-quality --format raw --no-progress | jq -r '.id' | xargs px annotation-config delete --yes\n"
     )
     .action(annotationConfigDeleteHandler);
 }
