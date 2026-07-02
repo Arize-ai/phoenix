@@ -370,9 +370,9 @@ export function ExperimentsTable({
               datasetId={data.id}
             />
             {isBaseline ? (
-              <View marginStart="auto">
+              <span style={{ marginInlineStart: "auto" }}>
                 <BaselineExperimentBadge size="M" />
-              </View>
+              </span>
             ) : null}
           </Flex>
         );
