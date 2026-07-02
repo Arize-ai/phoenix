@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<48e3b868e80e231f0922239ff2014e26>>
+ * @generated SignedSource<<9b61ece2c8f95a9869b9b06e774ba510>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,11 +9,11 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ExperimentActionMenuSetBaselineMutation$variables = {
+export type useSetExperimentBaselineMutation$variables = {
   baseline: boolean;
   experimentId: string;
 };
-export type ExperimentActionMenuSetBaselineMutation$data = {
+export type useSetExperimentBaselineMutation$data = {
   readonly setExperimentBaseline: {
     readonly experiment: {
       readonly id: string;
@@ -25,9 +25,9 @@ export type ExperimentActionMenuSetBaselineMutation$data = {
     } | null;
   };
 };
-export type ExperimentActionMenuSetBaselineMutation = {
-  response: ExperimentActionMenuSetBaselineMutation$data;
-  variables: ExperimentActionMenuSetBaselineMutation$variables;
+export type useSetExperimentBaselineMutation = {
+  response: useSetExperimentBaselineMutation$data;
+  variables: useSetExperimentBaselineMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -109,7 +109,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ExperimentActionMenuSetBaselineMutation",
+    "name": "useSetExperimentBaselineMutation",
     "selections": (v3/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -121,20 +121,20 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ExperimentActionMenuSetBaselineMutation",
+    "name": "useSetExperimentBaselineMutation",
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "8fc3e1391af00a60aa6869feb9e94f47",
+    "cacheID": "ccdb23d63a4878cb11c73881969f75b9",
     "id": null,
     "metadata": {},
-    "name": "ExperimentActionMenuSetBaselineMutation",
+    "name": "useSetExperimentBaselineMutation",
     "operationKind": "mutation",
-    "text": "mutation ExperimentActionMenuSetBaselineMutation(\n  $experimentId: ID!\n  $baseline: Boolean!\n) {\n  setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {\n    experiment {\n      id\n      isBaseline\n    }\n    previousBaselineExperiment {\n      id\n      isBaseline\n    }\n  }\n}\n"
+    "text": "mutation useSetExperimentBaselineMutation(\n  $experimentId: ID!\n  $baseline: Boolean!\n) {\n  setExperimentBaseline(experimentId: $experimentId, baseline: $baseline) {\n    experiment {\n      id\n      isBaseline\n    }\n    previousBaselineExperiment {\n      id\n      isBaseline\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ea0f4dc2c280316c57f6dc0c0e6eff24";
+(node as any).hash = "b0b46f092b1fba02be2b5b7508662132";
 
 export default node;

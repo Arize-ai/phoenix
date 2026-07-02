@@ -25,6 +25,7 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { FloatingToolbarContainer } from "@phoenix/components/core/toolbar/FloatingToolbarContainer";
+import { useSetExperimentBaseline } from "@phoenix/components/experiment/useSetExperimentBaseline";
 import { useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -54,27 +55,6 @@ export function ExperimentSelectionToolbar(
       }
     }
   `);
-  const [setExperimentBaseline, isSettingExperimentBaseline] =
-    useMutation(graphql`
-      mutation ExperimentSelectionToolbarSetBaselineMutation(
-        $experimentId: ID!
-        $baseline: Boolean!
-      ) {
-        setExperimentBaseline(
-          experimentId: $experimentId
-          baseline: $baseline
-        ) {
-          experiment {
-            id
-            isBaseline
-          }
-          previousBaselineExperiment {
-            id
-            isBaseline
-          }
-        }
-      }
-    `);
   const {
     datasetId,
     selectedExperiments,
@@ -84,6 +64,8 @@ export function ExperimentSelectionToolbar(
   const isPlural = selectedExperiments.length !== 1;
   const notifySuccess = useNotifySuccess();
   const notifyError = useNotifyError();
+  const { setExperimentBaseline, isSettingExperimentBaseline } =
+    useSetExperimentBaseline();
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Setting a baseline only applies to a single selected experiment
@@ -94,34 +76,17 @@ export function ExperimentSelectionToolbar(
     if (!singleSelectedExperiment) {
       return;
     }
-    const nextBaseline = !singleSelectedExperiment.isBaseline;
     setExperimentBaseline({
-      variables: {
-        experimentId: singleSelectedExperiment.id,
-        baseline: nextBaseline,
-      },
-      onCompleted: () => {
-        notifySuccess({
-          title: nextBaseline ? "Baseline set" : "Baseline removed",
-          message: nextBaseline
-            ? "The experiment has been marked as the baseline."
-            : "The experiment is no longer marked as the baseline.",
-        });
-      },
-      onError: (error) => {
-        const formattedError = getErrorMessagesFromRelayMutationError(error);
+      experimentId: singleSelectedExperiment.id,
+      isBaseline: singleSelectedExperiment.isBaseline,
+      onError: (message) => {
         notifyError({
           title: "Failed to update baseline",
-          message: formattedError?.[0] ?? error.message,
+          message,
         });
       },
     });
-  }, [
-    singleSelectedExperiment,
-    setExperimentBaseline,
-    notifySuccess,
-    notifyError,
-  ]);
+  }, [singleSelectedExperiment, setExperimentBaseline, notifyError]);
 
   const handleDelete = useCallback(() => {
     deleteExperiments({

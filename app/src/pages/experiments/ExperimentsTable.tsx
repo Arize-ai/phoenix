@@ -621,6 +621,7 @@ export function ExperimentsTable({
               <ExperimentActionMenu
                 projectId={project?.id || null}
                 experimentId={row.original.id}
+                canSetBaseline
                 isBaseline={row.original.isBaseline}
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}

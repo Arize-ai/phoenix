@@ -28,8 +28,9 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { useSetExperimentBaseline } from "@phoenix/components/experiment/useSetExperimentBaseline";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotify, useNotifySuccess } from "@phoenix/contexts";
+import { useNotify, useNotifyError, useNotifySuccess } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { toGqlCredentials } from "@phoenix/pages/playground/playgroundUtils";
 import { assertUnreachable } from "@phoenix/typeUtils";
@@ -48,29 +49,34 @@ export enum ExperimentAction {
 
 type ExperimentJobStatus = "RUNNING" | "COMPLETED" | "STOPPED" | "ERROR";
 
-type ExperimentActionMenuProps =
+type ExperimentActionMenuBaseProps = {
+  projectId?: string | null;
+  experimentId: string;
+  metadata: unknown;
+  jobStatus?: ExperimentJobStatus | null;
+  size?: ButtonProps["size"];
+} & (
   | {
-      projectId?: string | null;
-      experimentId: string;
-      metadata: unknown;
-      isBaseline?: boolean;
-      jobStatus?: ExperimentJobStatus | null;
-      canDeleteExperiment: true;
-      size?: ButtonProps["size"];
-      onBaselineChange?: () => void;
-      onExperimentDeleted: () => void;
+      canSetBaseline: true;
+      isBaseline: boolean;
     }
   | {
-      projectId?: string | null;
-      experimentId: string;
-      metadata: unknown;
-      isBaseline?: boolean;
-      jobStatus?: ExperimentJobStatus | null;
-      canDeleteExperiment: false;
-      size?: ButtonProps["size"];
-      onBaselineChange?: () => void;
-      onExperimentDeleted?: undefined;
-    };
+      canSetBaseline?: false;
+      isBaseline?: undefined;
+    }
+);
+
+type ExperimentActionMenuProps = ExperimentActionMenuBaseProps &
+  (
+    | {
+        canDeleteExperiment: true;
+        onExperimentDeleted: () => void;
+      }
+    | {
+        canDeleteExperiment: false;
+        onExperimentDeleted?: undefined;
+      }
+  );
 
 export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [commitDeleteExperiment, isDeletingExperiment] = useMutation(graphql`
@@ -105,27 +111,6 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       }
     }
   `);
-  const [commitSetExperimentBaseline, isSettingExperimentBaseline] =
-    useMutation(graphql`
-      mutation ExperimentActionMenuSetBaselineMutation(
-        $experimentId: ID!
-        $baseline: Boolean!
-      ) {
-        setExperimentBaseline(
-          experimentId: $experimentId
-          baseline: $baseline
-        ) {
-          experiment {
-            id
-            isBaseline
-          }
-          previousBaselineExperiment {
-            id
-            isBaseline
-          }
-        }
-      }
-    `);
   const { projectId, jobStatus } = props;
   const { datasetId } = useParams();
   const credentials = useCredentialsContext((state) => state);
@@ -133,7 +118,10 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isMetadataDialogOpen, setIsMetadataDialogOpen] = useState(false);
   const notify = useNotify();
+  const notifyError = useNotifyError();
   const notifySuccess = useNotifySuccess();
+  const { setExperimentBaseline, isSettingExperimentBaseline } =
+    useSetExperimentBaseline();
   const [error, setError] = useState<string | null>(null);
   const onExperimentDeleted = props.onExperimentDeleted;
 
@@ -226,7 +214,7 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
       </MenuItem>
     );
   }
-  if (typeof props.isBaseline === "boolean") {
+  if (props.canSetBaseline) {
     menuItems.push(
       <MenuItem
         key={ExperimentAction.TOGGLE_BASELINE}
@@ -351,29 +339,17 @@ export function ExperimentActionMenu(props: ExperimentActionMenuProps) {
                   break;
                 }
                 case ExperimentAction.TOGGLE_BASELINE: {
-                  const nextBaseline = !props.isBaseline;
-                  commitSetExperimentBaseline({
-                    variables: {
-                      experimentId: props.experimentId,
-                      baseline: nextBaseline,
-                    },
-                    onCompleted: () => {
-                      notifySuccess({
-                        title: nextBaseline
-                          ? "Baseline set"
-                          : "Baseline removed",
-                        message: nextBaseline
-                          ? "The experiment has been marked as the baseline."
-                          : "The experiment is no longer marked as the baseline.",
+                  if (!props.canSetBaseline) {
+                    break;
+                  }
+                  setExperimentBaseline({
+                    experimentId: props.experimentId,
+                    isBaseline: props.isBaseline,
+                    onError: (message) => {
+                      notifyError({
+                        title: "Failed to update baseline",
+                        message,
                       });
-                      props.onBaselineChange?.();
-                    },
-                    onError: (error) => {
-                      const msgs =
-                        getErrorMessagesFromRelayMutationError(error);
-                      setError(
-                        `Failed to update baseline: ${msgs?.[0] ?? error.message}`
-                      );
                     },
                   });
                   break;

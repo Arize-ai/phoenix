@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7659497beec30766a9839b5ce0d0160e>>
+ * @generated SignedSource<<41cbc9ac6235b5f1f748e1ad0879ccbb>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -106,6 +106,7 @@ export type ExperimentCompareTable_comparisons$data = {
           };
           readonly id: string;
           readonly isBaseline: boolean;
+          readonly isEphemeral: boolean;
           readonly metadata: any;
           readonly name: string;
           readonly project: {
@@ -665,6 +666,13 @@ return {
                           "name": "isBaseline",
                           "storageKey": null
                         },
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "isEphemeral",
+                          "storageKey": null
+                        },
                         (v9/*: any*/),
                         {
                           "alias": null,
@@ -865,6 +873,6 @@ return {
 };
 })();
 
-(node as any).hash = "745418ab79989eb3632547af3c8ec4bc";
+(node as any).hash = "33ea7d0490310d4c56e46aaad74e779c";
 
 export default node;

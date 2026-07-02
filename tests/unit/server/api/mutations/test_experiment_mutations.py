@@ -1,7 +1,7 @@
 from typing import Any
 
 import pytest
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, select, update
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -270,6 +270,22 @@ class TestSetExperimentBaselineMutation:
         }
       }
     """
+    SET_THEN_UNSET_MUTATION = """
+      mutation ($experimentId: ID!) {
+        set: setExperimentBaseline(experimentId: $experimentId, baseline: true) {
+          experiment {
+            id
+            isBaseline
+          }
+        }
+        unset: setExperimentBaseline(experimentId: $experimentId, baseline: false) {
+          experiment {
+            id
+            isBaseline
+          }
+        }
+      }
+    """
 
     async def test_marks_experiment_as_baseline(
         self,
@@ -393,6 +409,31 @@ class TestSetExperimentBaselineMutation:
             assert tag is not None
             assert tag.experiment_id == 1
 
+    async def test_set_then_unset_in_same_request_returns_current_baseline_state(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        experiment_id = str(GlobalID(type_name="Experiment", node_id=str(1)))
+
+        response = await gql_client.execute(
+            query=self.SET_THEN_UNSET_MUTATION,
+            variables={"experimentId": experiment_id},
+        )
+
+        assert not response.errors
+        assert response.data == {
+            "set": {"experiment": {"id": experiment_id, "isBaseline": True}},
+            "unset": {"experiment": {"id": experiment_id, "isBaseline": False}},
+        }
+        async with db() as session:
+            assert (
+                await session.scalar(
+                    select(models.ExperimentTag.id).where(models.ExperimentTag.name == "baseline")
+                )
+            ) is None
+
     async def test_allows_one_baseline_per_dataset(
         self,
         db: DbSessionFactory,
@@ -470,6 +511,27 @@ class TestSetExperimentBaselineMutation:
         assert (errors := response.errors)
         assert len(errors) == 1
         assert errors[0].message == f"Experiment {experiment_id} not found"
+
+    async def test_ephemeral_experiment_cannot_be_marked_as_baseline(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        simple_experiments: Any,
+    ) -> None:
+        experiment_id = GlobalID(type_name="Experiment", node_id=str(1))
+        async with db() as session:
+            await session.execute(
+                update(models.Experiment).where(models.Experiment.id == 1).values(is_ephemeral=True)
+            )
+
+        response = await gql_client.execute(
+            query=self.MUTATION,
+            variables={"experimentId": str(experiment_id), "baseline": True},
+        )
+
+        assert (errors := response.errors)
+        assert len(errors) == 1
+        assert errors[0].message == "Ephemeral experiments cannot be marked as baseline"
 
 
 @pytest.fixture
