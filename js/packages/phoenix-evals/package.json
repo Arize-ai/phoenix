@@ -40,6 +40,10 @@
       "import": "./dist/esm/llm/*.js",
       "require": "./dist/src/llm/*.js"
     },
+    "./code": {
+      "import": "./dist/esm/code/index.js",
+      "require": "./dist/src/code/index.js"
+    },
     "./code/*": {
       "import": "./dist/esm/code/*.js",
       "require": "./dist/src/code/*.js"

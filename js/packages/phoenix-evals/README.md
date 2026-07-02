@@ -173,6 +173,8 @@ const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators({
 
 Use `createFBetaEvaluator({ beta })` for F-scores other than F1 (e.g. `beta: 2` weights recall higher than precision).
 
+> **Note:** unlike the per-row LLM evaluators above, these classification-metric evaluators are batch/dataset-level: `expected`/`output` are the full sequence of labels across every example, not a single row's labels. Don't wire them directly into `runExperiment` as a per-row evaluator — instead, collect every row's expected/predicted label first, then call `.evaluate({ expected, output })` once over the full arrays.
+
 ### Data Mapping
 
 When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:

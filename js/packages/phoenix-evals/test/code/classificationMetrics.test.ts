@@ -127,6 +127,47 @@ describe("computePrecisionRecallFScore", () => {
     expect(result.positiveLabel).toBeNull();
   });
 
+  it("does not auto-detect a positive label for 0/1 data when a non-macro average is explicitly configured", () => {
+    // Regression test: labels are exactly {0,1}, which would trigger binary
+    // auto-detection under the default "macro" average, but an explicit
+    // non-macro average must be honored instead of silently switching to
+    // one-vs-rest binary scoring.
+    const expected = [0, 1, 0, 1, 1];
+    const output = [1, 1, 0, 0, 1];
+    const result = computePrecisionRecallFScore(
+      { expected, output },
+      { average: "weighted" }
+    );
+    expect(result.positiveLabel).toBeNull();
+
+    // class 0: TP=1, FP=1, FN=1 -> P=0.5, R=0.5, F1=0.5, support=2
+    // class 1: TP=2, FP=1, FN=1 -> P=2/3, R=2/3, F1=2/3, support=3
+    // weighted P = (0.5*2 + (2/3)*3) / 5 = 3/5 = 0.6; same for R and F1.
+    expect(result.precision).toBeCloseTo(0.6, 10);
+    expect(result.recall).toBeCloseTo(0.6, 10);
+    expect(result.fScore).toBeCloseTo(0.6, 10);
+  });
+
+  it("still honors an explicit positiveLabel even with a non-macro average", () => {
+    const result = computePrecisionRecallFScore(
+      { expected: [0, 1, 0, 1, 1], output: [1, 1, 0, 0, 1] },
+      { average: "weighted", positiveLabel: 1 }
+    );
+    expect(result.positiveLabel).toBe(1);
+    // class 1 one-vs-rest: TP=2, FP=1, FN=1 -> P=R=2/3
+    expect(result.precision).toBeCloseTo(2 / 3, 10);
+    expect(result.recall).toBeCloseTo(2 / 3, 10);
+  });
+
+  it("treats NaN labels as equal to each other instead of always mismatching", () => {
+    const result = computePrecisionRecallFScore({
+      expected: [NaN, 1],
+      output: [NaN, 1],
+    });
+    expect(result.precision).toBeCloseTo(1, 10);
+    expect(result.recall).toBeCloseTo(1, 10);
+  });
+
   it("collects labels in first-seen order across expected then output", () => {
     const result = computePrecisionRecallFScore({
       expected: ["b", "a"],

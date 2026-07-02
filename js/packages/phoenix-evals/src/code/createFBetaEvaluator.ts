@@ -1,7 +1,5 @@
 import type { EvaluatorBase } from "../core/EvaluatorBase";
-import { createEvaluator } from "../helpers/createEvaluator";
 import {
-  computePrecisionRecallFScore,
   formatBetaForMetricName,
   getAverageMetricNameSuffix,
 } from "./classificationMetrics";
@@ -9,6 +7,7 @@ import type {
   ClassificationExample,
   PrecisionRecallFScoreOptions,
 } from "./classificationMetrics";
+import { createClassificationMetricEvaluator } from "./createClassificationMetricEvaluator";
 
 /**
  * Creates a code evaluator that computes the F-beta score: the weighted
@@ -17,8 +16,8 @@ import type {
  * score).
  *
  * Supports binary classification (via `positiveLabel`, or auto-detected when
- * labels are the numeric set `{0, 1}`) and multi-class classification (via
- * the `average` strategy).
+ * `average` is at its default `"macro"` and labels are the numeric set
+ * `{0, 1}`) and multi-class classification (via the `average` strategy).
  *
  * @example
  * ```typescript
@@ -34,18 +33,9 @@ export function createFBetaEvaluator<
 >(options: PrecisionRecallFScoreOptions = {}): EvaluatorBase<RecordType> {
   const { beta = 1 } = options;
   const suffix = getAverageMetricNameSuffix(options);
-  return createEvaluator<RecordType>(
-    ({ expected, output }) => {
-      const result = computePrecisionRecallFScore(
-        { expected, output },
-        options
-      );
-      return { score: result.fScore };
-    },
-    {
-      name: `${formatBetaForMetricName(beta)}${suffix}`,
-      kind: "CODE",
-      optimizationDirection: "MAXIMIZE",
-    }
+  return createClassificationMetricEvaluator<RecordType>(
+    `${formatBetaForMetricName(beta)}${suffix}`,
+    "fScore",
+    options
   );
 }

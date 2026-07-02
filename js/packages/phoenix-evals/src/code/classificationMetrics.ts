@@ -50,9 +50,11 @@ export interface PrecisionRecallFScoreOptions {
   zeroDivision?: number;
   /**
    * When set, compute binary precision/recall/F exclusively for this label
-   * (one-vs-rest). If not set and the labels are the numeric set `{0, 1}`,
-   * the positive label defaults to `1`. Otherwise, multi-class averaging is
-   * used.
+   * (one-vs-rest). If not set, `average` is at its default `"macro"`, and
+   * the labels are the numeric set `{0, 1}`, the positive label defaults to
+   * `1`. Otherwise, multi-class averaging is used. The auto-detection is
+   * skipped whenever a non-default `average` is configured, so an explicit
+   * `average` is never silently overridden by the shape of the data.
    */
   positiveLabel?: ClassificationLabel;
 }
@@ -150,6 +152,24 @@ function collectLabels(
   return ordered;
 }
 
+/**
+ * Compares two labels the same way `Map`/`Set` key lookups do (SameValueZero),
+ * so a `NaN` label matches another `NaN` label instead of always mismatching
+ * under strict `===`.
+ */
+function labelsAreEqual(
+  a: ClassificationLabel,
+  b: ClassificationLabel
+): boolean {
+  return (
+    a === b ||
+    (typeof a === "number" &&
+      typeof b === "number" &&
+      Number.isNaN(a) &&
+      Number.isNaN(b))
+  );
+}
+
 function computeClassCounts(
   expected: ClassificationLabel[],
   output: ClassificationLabel[],
@@ -166,31 +186,37 @@ function computeClassCounts(
   for (const [index, expectedLabel] of expected.entries()) {
     // `output` is validated to have the same length as `expected`.
     const outputLabel = output[index] as ClassificationLabel;
-    if (expectedLabel === outputLabel) {
-      const counts = countsByLabel.get(expectedLabel);
-      if (counts) {
-        counts.truePositive += 1;
-      }
+    // `labels` is derived from these same `expected`/`output` arrays, so both
+    // labels are always pre-populated keys in `countsByLabel`.
+    if (labelsAreEqual(expectedLabel, outputLabel)) {
+      const counts = countsByLabel.get(expectedLabel) as ClassCounts;
+      counts.truePositive += 1;
     } else {
-      const predictedCounts = countsByLabel.get(outputLabel);
-      if (predictedCounts) {
-        predictedCounts.falsePositive += 1;
-      }
-      const expectedCounts = countsByLabel.get(expectedLabel);
-      if (expectedCounts) {
-        expectedCounts.falseNegative += 1;
-      }
+      const predictedCounts = countsByLabel.get(outputLabel) as ClassCounts;
+      predictedCounts.falsePositive += 1;
+      const expectedCounts = countsByLabel.get(expectedLabel) as ClassCounts;
+      expectedCounts.falseNegative += 1;
     }
   }
   return countsByLabel;
 }
 
+/**
+ * Resolves the one-vs-rest positive label, if any. Auto-detection of a
+ * numeric `{0, 1}` label set only applies under the default `"macro"`
+ * average, so an explicitly configured `"micro"`/`"weighted"` average is
+ * never silently replaced by binary one-vs-rest scoring.
+ */
 function resolvePositiveLabel(
   configuredPositiveLabel: ClassificationLabel | undefined,
-  labels: ClassificationLabel[]
+  labels: ClassificationLabel[],
+  average: AverageType
 ): ClassificationLabel | null {
   if (configuredPositiveLabel !== undefined) {
     return configuredPositiveLabel;
+  }
+  if (average !== "macro") {
+    return null;
   }
   const uniqueLabels = new Set(labels);
   if (uniqueLabels.size === 2 && uniqueLabels.has(0) && uniqueLabels.has(1)) {
@@ -308,9 +334,16 @@ function weightedMean(
  * Computes precision, recall, and F-beta score for a batch of expected vs.
  * predicted labels.
  *
+ * `expected`/`output` are the full sequence of labels across an entire
+ * dataset, not a single row — this and the evaluators built on it are
+ * dataset-level, unlike the package's per-row LLM evaluators. Call it once
+ * over every row's collected labels rather than wiring it into a per-row
+ * pipeline (e.g. `runExperiment`'s per-row evaluators).
+ *
  * Supports both binary classification (via `positiveLabel`, or
- * auto-detected when labels are the numeric set `{0, 1}`) and multi-class
- * classification (via the `average` strategy).
+ * auto-detected when `average` is at its default `"macro"` and the labels
+ * are the numeric set `{0, 1}`) and multi-class classification (via the
+ * `average` strategy).
  *
  * @example Multi-class (macro average)
  * ```typescript
@@ -346,7 +379,11 @@ export function computePrecisionRecallFScore(
 
   const labels = collectLabels(expected, output);
   const countsByLabel = computeClassCounts(expected, output, labels);
-  const resolvedPositiveLabel = resolvePositiveLabel(positiveLabel, labels);
+  const resolvedPositiveLabel = resolvePositiveLabel(
+    positiveLabel,
+    labels,
+    average
+  );
 
   if (resolvedPositiveLabel !== null) {
     const classCounts = countsByLabel.get(resolvedPositiveLabel);
@@ -409,9 +446,12 @@ export function formatBetaForMetricName(beta: number): string {
 
 /**
  * The suffix appended to a metric name to reflect the aggregation strategy,
- * e.g. `"precision"` vs. `"precision_micro"`. No suffix is used in
- * one-vs-rest binary mode (when `positiveLabel` is configured), since
- * `average` is not applicable there.
+ * e.g. `"precision"` vs. `"precision_micro"`. No suffix is used when
+ * `positiveLabel` is explicitly configured, since `average` is not
+ * applicable in that one-vs-rest binary mode. This mirrors
+ * `resolvePositiveLabel`'s auto-detection rule (only under the default
+ * `"macro"` average) so a constructed evaluator's static name always
+ * matches what `computePrecisionRecallFScore` actually computes.
  */
 export function getAverageMetricNameSuffix({
   average = "macro",

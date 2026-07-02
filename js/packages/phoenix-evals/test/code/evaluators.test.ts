@@ -1,10 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type * as ClassificationMetricsModule from "../../src/code/classificationMetrics";
 import { createF1Evaluator } from "../../src/code/createF1Evaluator";
 import { createFBetaEvaluator } from "../../src/code/createFBetaEvaluator";
 import { createPrecisionEvaluator } from "../../src/code/createPrecisionEvaluator";
 import { createPrecisionRecallFScoreEvaluators } from "../../src/code/createPrecisionRecallFScoreEvaluators";
 import { createRecallEvaluator } from "../../src/code/createRecallEvaluator";
+
+vi.mock(
+  "../../src/code/classificationMetrics",
+  async (importOriginal: () => Promise<typeof ClassificationMetricsModule>) => {
+    const actual = await importOriginal();
+    return {
+      ...actual,
+      computePrecisionRecallFScore: vi.fn(actual.computePrecisionRecallFScore),
+    };
+  }
+);
 
 const multiClassExample = {
   expected: ["cat", "dog", "cat", "bird"],
@@ -103,5 +115,22 @@ describe("createPrecisionRecallFScoreEvaluators", () => {
     expect(precisionResult.score).toBeCloseTo(0.75, 10);
     expect(recallResult.score).toBeCloseTo(0.75, 10);
     expect(fScoreResult.score).toBeCloseTo(0.75, 10);
+  });
+
+  it("computes the confusion matrix once and reuses it across all three evaluators for the same example", async () => {
+    const { computePrecisionRecallFScore } =
+      await import("../../src/code/classificationMetrics");
+    const { precision, recall, fScore } =
+      createPrecisionRecallFScoreEvaluators();
+
+    await precision.evaluate(multiClassExample);
+    await recall.evaluate(multiClassExample);
+    await fScore.evaluate(multiClassExample);
+
+    expect(computePrecisionRecallFScore).toHaveBeenCalledTimes(1);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 });
