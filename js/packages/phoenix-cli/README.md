@@ -499,7 +499,14 @@ The two forms are mutually exclusive — pass one or the other, not both.
 List annotation configurations defined in your Phoenix instance.
 
 ```bash
-px annotation-config list --format raw --no-progress | jq '.[].name'
+# Show all annotation configs as a table
+px annotation-config list
+
+# Extract config names as JSON (agent-friendly)
+px annotation-config list --format raw --no-progress | jq -r '.[].name'
+
+# Fetch at most 10 configs
+px annotation-config list --limit 10
 ```
 
 | Option              | Description                | Default  |
@@ -514,8 +521,14 @@ px annotation-config list --format raw --no-progress | jq '.[].name'
 Fetch a single annotation configuration by name or ID. The config is written to stdout in the selected `--format` (a single object for `raw`/`json`).
 
 ```bash
-px annotation-config get quality
-px annotation-config get cfg-123 --format raw --no-progress | jq -r '.id'
+# Look up a config by name
+px annotation-config get response-quality
+
+# Resolve a config name to its ID (agent-friendly)
+px annotation-config get response-quality --format raw --no-progress | jq -r '.id'
+
+# Inspect the labels of a categorical config
+px annotation-config get response-quality --format raw --no-progress | jq '.values'
 ```
 
 | Option              | Description                | Default  |
@@ -530,17 +543,23 @@ px annotation-config get cfg-123 --format raw --no-progress | jq -r '.id'
 Create a new annotation configuration via `POST /v1/annotation_configs`. The created config is written to stdout in the selected `--format`.
 
 ```bash
-# Categorical config with labelled values
-px annotation-config create --type CATEGORICAL --name quality --value good=1 --value bad=0
+# Pass/fail quality rating with scored labels (higher is better)
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --value good=1 --value bad=0 --optimization-direction MAXIMIZE
 
-# Continuous config with a numeric range
-px annotation-config create --type CONTINUOUS --name score --lower-bound 0 --upper-bound 1
+# Sentiment labels without scores
+px annotation-config create --type CATEGORICAL --name sentiment \
+  --value positive --value neutral --value negative
 
-# Freeform (free-text) config
-px annotation-config create --type FREEFORM --name notes --description 'Reviewer notes'
+# Confidence score between 0 and 1
+px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1
 
-# Agent: capture the new ID
-px annotation-config create --type CATEGORICAL --name quality --values '[{"label":"good","score":1}]' \
+# Free-text feedback from human reviewers
+px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'
+
+# Create from a JSON payload and capture the new config ID (agent-friendly)
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --values '[{"label":"good","score":1},{"label":"bad","score":0}]' \
   --format raw --no-progress | jq -r '.id'
 ```
 
@@ -567,14 +586,20 @@ px annotation-config create --type CATEGORICAL --name quality --values '[{"label
 Update an annotation configuration by name or ID. Only the fields you pass are changed — the command fetches the existing config, merges your flags, and writes the result back via `PUT /v1/annotation_configs/{id}`. The config `type` is immutable; to change it, delete and recreate the config. The updated config is written to stdout in the selected `--format`.
 
 ```bash
-# Rename and change optimization direction
-px annotation-config update quality --name accuracy --optimization-direction MAXIMIZE
+# Change only the description; every other field is preserved
+px annotation-config update response-quality --description 'Pass/fail rating from human review'
+
+# Rename a config and set its optimization direction
+px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE
 
 # Replace the label set of a categorical config
-px annotation-config update quality --value good=1 --value bad=0
+px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0
 
-# Agent: capture the updated ID
-px annotation-config update cfg-123 --description "Updated" --format raw --no-progress | jq -r '.id'
+# Widen the range of a continuous config
+px annotation-config update confidence --lower-bound -1 --upper-bound 1
+
+# Update and capture the config ID (agent-friendly)
+px annotation-config update response-quality --description 'Updated' --format raw --no-progress | jq -r '.id'
 ```
 
 | Option                           | Description                                         | Default  |
@@ -591,6 +616,28 @@ px annotation-config update cfg-123 --description "Updated" --format raw --no-pr
 | `--no-progress`                  | Suppress progress output                            | —        |
 
 At least one field flag is required. Invalid input — including flags that don't apply to the config's type (e.g. `--value` on a continuous config) — exits with `INVALID_ARGUMENT`.
+
+---
+
+### `px annotation-config delete <config-id>`
+
+Delete an annotation configuration by ID. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed.
+
+```bash
+# Delete with an interactive confirmation prompt
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM=
+
+# Skip the confirmation prompt (for scripts and agents)
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
+
+# Resolve a name to its ID, then delete it
+px annotation-config get response-quality --format raw --no-progress | jq -r '.id' | xargs px annotation-config delete --yes
+```
+
+| Option          | Description              | Default |
+| --------------- | ------------------------ | ------- |
+| `-y, --yes`     | Skip confirmation prompt | —       |
+| `--no-progress` | Suppress progress output | —       |
 
 ---
 
