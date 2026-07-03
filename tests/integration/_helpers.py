@@ -2185,6 +2185,10 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
+    # Dataset labels
+    (200, "GET", "v1/dataset_labels"),
+    (422, "GET", "v1/dataset_labels/fake-id-{}"),
+    (404, "GET", "v1/datasets/fake-id-{}/labels"),
     # Experiments
     (422, "GET", "v1/experiments/fake-id-{}"),
     (422, "GET", "v1/datasets/fake-id-{}/experiments"),
@@ -2237,6 +2241,7 @@ _ADMIN_ONLY_ENDPOINTS = (
 _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     # POST routes
     (422, "POST", "v1/annotation_configs"),
+    (422, "POST", "v1/dataset_labels"),
     (400, "POST", "v1/datasets/upload"),
     (422, "POST", "v1/datasets/fake-id-{}/experiments"),
     (422, "POST", "v1/document_annotations"),
@@ -2256,10 +2261,15 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    (422, "PUT", "v1/datasets/fake-id-{}/labels"),
+    (422, "PUT", "v1/datasets/fake-id-{}/labels/test-label"),
     # PATCH routes
     (422, "PATCH", "v1/experiments/fake-id-{}"),
+    (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
+    (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
     (422, "DELETE", "v1/experiments/fake-id-{}"),
     (404, "DELETE", "v1/sessions/fake-id-{}"),
@@ -2322,6 +2332,7 @@ def _ensure_endpoint_coverage_is_exhaustive() -> None:
         path = re.sub(r"fake-id-\{\}", "{id}", path)
         path = re.sub(r"\{[^}]*\}", "{id}", path)
         path = re.sub(r"/tags/test-tag$", "/tags/{id}", path)
+        path = re.sub(r"/labels/test-label$", "/labels/{id}", path)
         return path
 
     # Map normalized paths back to original paths for error reporting

@@ -1347,6 +1347,623 @@
         }
       }
     },
+    "/v1/dataset_labels": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset labels",
+        "description": "Retrieve a paginated list of all dataset labels in the system.",
+        "operationId": "listDatasetLabels",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a dataset label GlobalID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a dataset label GlobalID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset labels to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset labels to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDatasetLabelsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Create a dataset label",
+        "operationId": "createDatasetLabel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset label with the same name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request body"
+          }
+        }
+      }
+    },
+    "/v1/dataset_labels/{label_id}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Get a dataset label by ID",
+        "operationId": "getDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update a dataset label by ID",
+        "description": "Partially update a dataset label's name, color, and/or description. Only the fields included in the request body are changed; omitted fields are left as-is.",
+        "operationId": "updateDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDatasetLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset label with the same name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID or request body"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete a dataset label by ID",
+        "description": "Delete a dataset label. This also removes the label from every dataset it is applied to.",
+        "operationId": "deleteDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/labels": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List the labels applied to a dataset",
+        "operationId": "listDatasetLabelsForDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetLabelsForDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Replace the set of labels applied to a dataset",
+        "description": "Replace the entire set of labels applied to a dataset. Labels present in the request but not currently applied are added; labels currently applied but absent from the request are removed. An empty list removes all labels.",
+        "operationId": "setDatasetLabelsForDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDatasetLabelsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDatasetLabelsForDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or one or more dataset labels not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or request body"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Apply a label to a dataset",
+        "description": "Apply an existing label to a dataset. This operation is idempotent: applying a label that is already applied is a no-op that returns the label.",
+        "operationId": "addDatasetLabelToDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          },
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label to apply",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label to apply"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddDatasetLabelToDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or dataset label ID"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Remove a label from a dataset",
+        "description": "Remove a label from a dataset without deleting the label itself. This operation is idempotent: removing a label that is not applied is a no-op.",
+        "operationId": "removeDatasetLabelFromDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          },
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label to remove",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label to remove"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or dataset label ID"
+          }
+        }
+      }
+    },
     "/v1/datasets": {
       "get": {
         "tags": [
@@ -6783,6 +7400,18 @@
   },
   "components": {
     "schemas": {
+      "AddDatasetLabelToDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AddDatasetLabelToDatasetResponseBody"
+      },
       "AgentSpanContext": {
         "properties": {
           "type": {
@@ -7878,6 +8507,52 @@
         ],
         "title": "CreateAnnotationConfigResponseBody"
       },
+      "CreateDatasetLabelRequestBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "The name of the dataset label"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#([0-9a-f]{6})$",
+            "title": "Color",
+            "description": "A lowercase hex color code (e.g. '#00cc88') used to display the label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the dataset label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "color"
+        ],
+        "title": "CreateDatasetLabelRequestBody"
+      },
+      "CreateDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateDatasetLabelResponseBody"
+      },
       "CreateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -8478,6 +9153,41 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetLabel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "color"
+        ],
+        "title": "DatasetLabel"
       },
       "DatasetVersion": {
         "properties": {
@@ -9759,6 +10469,46 @@
         ],
         "title": "GetAnnotationConfigsResponseBody"
       },
+      "GetDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetDatasetLabelResponseBody"
+      },
+      "GetDatasetLabelsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetDatasetLabelsResponseBody"
+      },
       "GetDatasetResponseBody": {
         "properties": {
           "data": {
@@ -10400,6 +11150,22 @@
           "data"
         ],
         "title": "ListDatasetExamplesResponseBody"
+      },
+      "ListDatasetLabelsForDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListDatasetLabelsForDatasetResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
         "properties": {
@@ -14032,6 +14798,36 @@
         ],
         "title": "SessionTraceData"
       },
+      "SetDatasetLabelsForDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetDatasetLabelsForDatasetResponseBody"
+      },
+      "SetDatasetLabelsRequestBody": {
+        "properties": {
+          "dataset_label_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dataset Label Ids",
+            "description": "The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels."
+          }
+        },
+        "type": "object",
+        "title": "SetDatasetLabelsRequestBody"
+      },
       "SourceDocumentUIPart": {
         "properties": {
           "type": {
@@ -16020,6 +16816,64 @@
           "data"
         ],
         "title": "UpdateAnnotationConfigResponseBody"
+      },
+      "UpdateDatasetLabelRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "New name for the label (null is rejected; name is required)"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^#([0-9a-f]{6})$",
+                "description": "A lowercase six-digit hex color code (e.g. '#00cc88')"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "New lowercase hex color code for the label (null is rejected)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the label (null clears the description)"
+          }
+        },
+        "type": "object",
+        "title": "UpdateDatasetLabelRequestBody",
+        "description": "Fields to update on a dataset label. Omit a field to leave it unchanged."
+      },
+      "UpdateDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateDatasetLabelResponseBody"
       },
       "UpdateExperimentRequestBody": {
         "properties": {

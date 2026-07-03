@@ -1,12 +1,14 @@
-from typing import Any, Generic, Optional, TypedDict, TypeVar, Union
+from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
 
 from fastapi import HTTPException
+from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 
@@ -17,6 +19,20 @@ DataType = TypeVar("DataType")
 Responses: TypeAlias = dict[
     Union[int, str], dict[str, Any]
 ]  # input type for the `responses` parameter of a fastapi route
+
+HexColor: TypeAlias = Annotated[
+    str,
+    Field(
+        pattern=models.HEX_COLOR_REGEX,
+        description="A lowercase six-digit hex color code (e.g. '#00cc88')",
+    ),
+]
+"""
+A request-body field type for hex colors. Validates against the same pattern
+enforced at the database layer (`_HexColor` in `phoenix.db.models`) so that
+invalid colors are rejected at request-validation time (422) rather than
+surfacing as an opaque database error.
+"""
 
 
 class StatusCodeWithDescription(TypedDict):
@@ -149,3 +165,44 @@ async def get_project_by_identifier(
                 detail=f"Project with ID {project_identifier} not found",
             )
     return project
+
+
+async def get_dataset_by_identifier(
+    session: AsyncSession,
+    dataset_identifier: str,
+) -> models.Dataset:
+    """
+    Get a dataset by its ID or name.
+
+    Args:
+        session: The database session.
+        dataset_identifier: The dataset ID (GlobalID) or name.
+
+    Returns:
+        The dataset object.
+
+    Raises:
+        HTTPException: If the identifier format is invalid or the dataset is not found.
+    """
+    # Try to parse as a GlobalID first; otherwise, treat the identifier as a name.
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(dataset_identifier),
+            DatasetNodeType.__name__,
+        )
+    except Exception:
+        stmt = select(models.Dataset).filter_by(name=dataset_identifier)
+        dataset = await session.scalar(stmt)
+        if dataset is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset with name {dataset_identifier} not found",
+            )
+    else:
+        dataset = await session.get(models.Dataset, id_)
+        if dataset is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset with ID {dataset_identifier} not found",
+            )
+    return dataset
