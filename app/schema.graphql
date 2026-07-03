@@ -3012,6 +3012,7 @@ type Prompt implements Node {
   metadata: JSON!
   createdAt: DateTime!
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
+  versionCount: Int!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
