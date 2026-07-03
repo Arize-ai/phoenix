@@ -35,5 +35,6 @@ export const dslFilterFieldCSS = css`
   box-sizing: border-box;
   .filter-icon {
     margin-left: var(--global-dimension-static-size-100);
+    margin-right: var(--global-dimension-static-size-50);
   }
 `;
