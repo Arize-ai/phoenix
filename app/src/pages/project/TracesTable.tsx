@@ -249,6 +249,7 @@ export function TracesTable(props: TracesTableProps) {
                 name
                 metadata
                 statusCode
+                statusMessage
                 startTime
                 endTime
                 latencyMs
@@ -310,6 +311,7 @@ export function TracesTable(props: TracesTableProps) {
                       spanKind
                       name
                       statusCode: propagatedStatusCode
+                      statusMessage
                       startTime
                       endTime
                       latencyMs
@@ -786,6 +788,22 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "output.value",
         enableSorting: false,
         cell: TextCell,
+      },
+      {
+        header: "error",
+        accessorKey: "statusMessage",
+        id: "error",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const value = getValue() as string;
+          if (!value) {
+            return "--";
+          }
+          return <Text color="danger">{value}</Text>;
+        },
       },
       {
         header: "metadata",

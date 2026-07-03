@@ -284,6 +284,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 statusCode
+                statusMessage
                 startTime
                 latencyMs
                 tokenCountTotal @skip(if: $rootSpansOnly)
@@ -668,6 +669,19 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "output.value",
       cell: TextCell,
       enableSorting: false,
+    },
+    {
+      header: "error",
+      accessorKey: "statusMessage",
+      id: "error",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        if (!value) {
+          return "--";
+        }
+        return <Text color="danger">{value}</Text>;
+      },
     },
     {
       header: "notes",
