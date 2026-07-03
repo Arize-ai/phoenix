@@ -14,6 +14,7 @@ from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
+    HexColor,
     PaginatedResponseBody,
     ResponseBody,
     add_errors_to_responses,
@@ -29,11 +30,6 @@ router = APIRouter(tags=["datasets"])
 
 DATASET_LABEL_NODE_NAME = DatasetLabelNodeType.__name__
 
-# Mirror the DB-level hex color constraint (see `_HexColor` in `phoenix.db.models`)
-# so that invalid colors are rejected at request-validation time (422) rather than
-# surfacing as an opaque database error.
-_HEX_COLOR_PATTERN = r"^#([0-9a-f]{6})$"
-
 
 class DatasetLabel(V1RoutesBaseModel):
     id: str
@@ -44,9 +40,8 @@ class DatasetLabel(V1RoutesBaseModel):
 
 class DatasetLabelData(V1RoutesBaseModel):
     name: str = Field(..., min_length=1, description="The name of the dataset label")
-    color: str = Field(
+    color: HexColor = Field(
         ...,
-        pattern=_HEX_COLOR_PATTERN,
         description="A lowercase hex color code (e.g. '#00cc88') used to display the label",
     )
     description: Optional[str] = Field(
@@ -68,9 +63,8 @@ class UpdateDatasetLabelRequestBody(V1RoutesBaseModel):
         min_length=1,
         description="New name for the label (null is rejected; name is required)",
     )
-    color: Optional[str] = Field(
+    color: Optional[HexColor] = Field(
         default=UNDEFINED,
-        pattern=_HEX_COLOR_PATTERN,
         description="New lowercase hex color code for the label (null is rejected)",
     )
     description: Optional[str] = Field(

@@ -1,6 +1,7 @@
-from typing import Any, Generic, Optional, TypedDict, TypeVar, Union
+from typing import Annotated, Any, Generic, Optional, TypedDict, TypeVar, Union
 
 from fastapi import HTTPException
+from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
@@ -18,6 +19,20 @@ DataType = TypeVar("DataType")
 Responses: TypeAlias = dict[
     Union[int, str], dict[str, Any]
 ]  # input type for the `responses` parameter of a fastapi route
+
+HexColor: TypeAlias = Annotated[
+    str,
+    Field(
+        pattern=models.HEX_COLOR_REGEX,
+        description="A lowercase six-digit hex color code (e.g. '#00cc88')",
+    ),
+]
+"""
+A request-body field type for hex colors. Validates against the same pattern
+enforced at the database layer (`_HexColor` in `phoenix.db.models`) so that
+invalid colors are rejected at request-validation time (422) rather than
+surfacing as an opaque database error.
+"""
 
 
 class StatusCodeWithDescription(TypedDict):

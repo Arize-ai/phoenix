@@ -16836,7 +16836,8 @@
             "anyOf": [
               {
                 "type": "string",
-                "pattern": "^#([0-9a-f]{6})$"
+                "pattern": "^#([0-9a-f]{6})$",
+                "description": "A lowercase six-digit hex color code (e.g. '#00cc88')"
               },
               {
                 "type": "null"
