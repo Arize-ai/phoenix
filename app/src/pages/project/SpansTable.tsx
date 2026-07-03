@@ -284,6 +284,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 statusCode
+                statusMessage
                 startTime
                 latencyMs
                 tokenCountTotal @skip(if: $rootSpansOnly)
@@ -668,6 +669,32 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "output.value",
       cell: TextCell,
       enableSorting: false,
+    },
+    {
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>error</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Error
+            </Heading>
+            <Text>
+              The status message recorded on the span when its status code is
+              ERROR, e.g. an exception message.
+            </Text>
+          </ContextualHelp>
+        </Flex>
+      ),
+      accessorKey: "statusMessage",
+      id: "error",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        if (!value) {
+          return "--";
+        }
+        return <Text color="danger">{value}</Text>;
+      },
     },
     {
       header: "notes",
