@@ -671,7 +671,20 @@ export function SpansTable(props: SpansTableProps) {
       enableSorting: false,
     },
     {
-      header: "error",
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>error</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Error
+            </Heading>
+            <Text>
+              The status message recorded on the span when its status code is
+              ERROR, e.g. an exception message.
+            </Text>
+          </ContextualHelp>
+        </Flex>
+      ),
       accessorKey: "statusMessage",
       id: "error",
       enableSorting: false,
