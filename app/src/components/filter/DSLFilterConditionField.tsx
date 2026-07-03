@@ -82,10 +82,15 @@ const basicSetupOptions: BasicSetupOptions = {
 
 const suggestionsSection: CompletionSection = { name: "Suggestions", rank: 1 };
 const fieldsSection: CompletionSection = { name: "Fields", rank: 3 };
-// Reserved for completions loaded via `loadCompletions` — sorts between
-// Suggestions and Fields: loaded names reflect the user's actual data, so
-// they shouldn't be buried under the generic field vocabulary
-const loadedSectionRank = 2;
+
+/**
+ * Section for completions loaded via `loadCompletions` — sorts between the
+ * built-in Suggestions and Fields groups: loaded names reflect the user's
+ * actual data, so they shouldn't be buried under the generic field vocabulary.
+ */
+export function createLoadedCompletionSection(name: string): CompletionSection {
+  return { name, rank: 2 };
+}
 
 /**
  * How many snippets the Suggestions group shows while the user is browsing
@@ -95,54 +100,6 @@ const loadedSectionRank = 2;
  * once the user types.
  */
 const MAX_BROWSE_SUGGESTIONS = 5;
-
-/**
- * Expands names of annotation-like objects (annotations, evaluations) into
- * completions for their filterable members — `.label`, `.score`, and
- * `.explanation` — grouped under `sectionName` below the built-in
- * Suggestions and Fields groups. Intended for `loadCompletions` results so
- * the typeahead can suggest values that actually exist in the user's data.
- */
-export function createAnnotationMemberCompletions({
-  accessor,
-  noun,
-  sectionName,
-  names,
-}: {
-  /** DSL accessor for the collection, e.g. "annotations" or "evals" */
-  accessor: string;
-  /** Human-readable noun for the info text, e.g. "annotation" */
-  noun: string;
-  /** Typeahead group header for these completions */
-  sectionName: string;
-  /** Names that exist in the user's data */
-  names: readonly string[];
-}): Completion[] {
-  const section: CompletionSection = {
-    name: sectionName,
-    rank: loadedSectionRank,
-  };
-  return names.flatMap((name) => [
-    {
-      label: `${accessor}['${name}'].label`,
-      type: "variable",
-      info: `The label of the '${name}' ${noun}`,
-      section,
-    },
-    {
-      label: `${accessor}['${name}'].score`,
-      type: "variable",
-      info: `The score of the '${name}' ${noun}`,
-      section,
-    },
-    {
-      label: `${accessor}['${name}'].explanation`,
-      type: "variable",
-      info: `The explanation of the '${name}' ${noun}`,
-      section,
-    },
-  ]);
-}
 
 const defaultSnippets: DSLFilterSnippet[] = [];
 
