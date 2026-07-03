@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
-import { startTransition, useState } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import { startTransition, Suspense, useState } from "react";
+import { graphql, useLazyLoadQuery, usePaginationFragment } from "react-relay";
 
 import {
   Autocomplete,
@@ -25,6 +25,7 @@ import type { StylableProps } from "@phoenix/components/core/types";
 
 import type { ProjectMenu_projects$key } from "./__generated__/ProjectMenu_projects.graphql";
 import type { ProjectMenuProjectsQuery } from "./__generated__/ProjectMenuProjectsQuery.graphql";
+import type { ProjectMenuSelectedProjectQuery } from "./__generated__/ProjectMenuSelectedProjectQuery.graphql";
 
 const PAGE_SIZE = 50;
 
@@ -48,6 +49,67 @@ export type ProjectMenuProps = StylableProps & {
   searchPlaceholder?: string;
   size?: MenuButtonProps["size"];
 };
+
+type ProjectMenuButtonProps = StylableProps & {
+  projectName: string | null;
+  placeholder: string;
+  size?: MenuButtonProps["size"];
+};
+
+function ProjectMenuButton({
+  projectName,
+  placeholder,
+  size,
+  css: propCSS,
+}: ProjectMenuButtonProps) {
+  return (
+    <MenuButton
+      aria-label={projectName ? `Project: ${projectName}` : "Project"}
+      css={propCSS}
+      leadingVisual={<Icon svg={<Icons.Trace />} />}
+      size={size}
+      trailingVisual={<SelectChevronUpDownIcon />}
+    >
+      {projectName ? (
+        <MenuButtonValue>{projectName}</MenuButtonValue>
+      ) : (
+        <MenuButtonValue isPlaceholder>{placeholder}</MenuButtonValue>
+      )}
+    </MenuButton>
+  );
+}
+
+/**
+ * A menu button that resolves the selected project's name by id. Used when
+ * the name is not available from data already fetched, e.g. when the route
+ * was entered client-side (so the route loader never fetched the selected
+ * project) and the project is not in the loaded pages of the connection.
+ */
+function SelectedProjectMenuButton({
+  projectId,
+  ...buttonProps
+}: Omit<ProjectMenuButtonProps, "projectName"> & { projectId: string }) {
+  const data = useLazyLoadQuery<ProjectMenuSelectedProjectQuery>(
+    graphql`
+      query ProjectMenuSelectedProjectQuery($id: ID!) {
+        node(id: $id) {
+          __typename
+          id
+          ... on Project {
+            name
+          }
+        }
+      }
+    `,
+    { id: projectId },
+    { fetchPolicy: "store-or-network" }
+  );
+  const projectName =
+    data.node?.__typename === "Project" && typeof data.node.name === "string"
+      ? data.node.name
+      : null;
+  return <ProjectMenuButton projectName={projectName} {...buttonProps} />;
+}
 
 export function ProjectMenu({
   query,
@@ -174,21 +236,32 @@ export function ProjectMenu({
         }
       }}
     >
-      <MenuButton
-        aria-label={
-          displayProjectName ? `Project: ${displayProjectName}` : "Project"
-        }
-        css={propCSS}
-        leadingVisual={<Icon svg={<Icons.Trace />} />}
-        size={size}
-        trailingVisual={<SelectChevronUpDownIcon />}
-      >
-        {displayProjectName ? (
-          <MenuButtonValue>{displayProjectName}</MenuButtonValue>
-        ) : (
-          <MenuButtonValue isPlaceholder>{placeholder}</MenuButtonValue>
-        )}
-      </MenuButton>
+      {selectedProjectId && displayProjectName == null ? (
+        <Suspense
+          fallback={
+            <ProjectMenuButton
+              css={propCSS}
+              placeholder={placeholder}
+              projectName={null}
+              size={size}
+            />
+          }
+        >
+          <SelectedProjectMenuButton
+            css={propCSS}
+            placeholder={placeholder}
+            projectId={selectedProjectId}
+            size={size}
+          />
+        </Suspense>
+      ) : (
+        <ProjectMenuButton
+          css={propCSS}
+          placeholder={placeholder}
+          projectName={displayProjectName}
+          size={size}
+        />
+      )}
       <MenuContainer placement="bottom start">
         <Autocomplete filter={contains}>
           <MenuHeader>
