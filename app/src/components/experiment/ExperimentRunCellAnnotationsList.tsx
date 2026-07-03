@@ -300,7 +300,7 @@ export function ExperimentRunCellAnnotationsList(
               <DialogTrigger>
                 <TooltipTrigger>
                   <IconButton size="S" aria-label="Filter by annotation">
-                    <Icon svg={<Icons.Funnel />} />
+                    <Icon svg={<Icons.ListFilter />} />
                   </IconButton>
                   <Tooltip>
                     <TooltipArrow />

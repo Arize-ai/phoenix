@@ -1229,7 +1229,7 @@ function getToolPresentation(
         preview: getSetSpansFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.Funnel />,
+        icon: <Icons.ListFilter />,
         details: <GenericToolDetails part={part} />,
       };
     default: {
