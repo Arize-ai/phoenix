@@ -2217,6 +2217,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (404, "GET", "v1/sessions/fake-id-{}"),
     # Traces (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/traces"),
+    # Traces (single trace by identifier)
+    (404, "GET", "v1/traces/fake-id-{}"),
     # Viewer (authenticated user profile)
     (200, "GET", "v1/user"),
 )

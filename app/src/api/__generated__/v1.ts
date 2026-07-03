@@ -549,6 +549,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/traces/{trace_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a single trace by identifier
+         * @description Fetch a single trace by its identifier, without requiring a project. The identifier can be either:
+         *     1. A Relay node ID (base64-encoded GlobalID)
+         *     2. An OpenTelemetry trace_id (hex string)
+         *
+         *     Returns the same trace shape as the project traces list endpoint, including cumulative token counts and the owning project_id. Span details are not included; use `GET /projects/{project_identifier}/spans?trace_id=...` to retrieve spans.
+         */
+        get: operations["getTrace"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a trace by identifier
+         * @description Delete an entire trace by its identifier. The identifier can be either:
+         *     1. A Relay node ID (base64-encoded)
+         *     2. An OpenTelemetry trace_id (hex string)
+         *
+         *     This will permanently remove all spans in the trace and their associated data.
+         */
+        delete: operations["deleteTrace"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/trace_annotations": {
         parameters: {
             query?: never;
@@ -581,30 +613,6 @@ export interface paths {
          */
         post: operations["createTraceNote"];
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/traces/{trace_identifier}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a trace by identifier
-         * @description Delete an entire trace by its identifier. The identifier can be either:
-         *     1. A Relay node ID (base64-encoded)
-         *     2. An OpenTelemetry trace_id (hex string)
-         *
-         *     This will permanently remove all spans in the trace and their associated data.
-         */
-        delete: operations["deleteTrace"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2677,6 +2685,10 @@ export interface components {
             data: components["schemas"]["SessionData"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetTraceResponseBody */
+        GetTraceResponseBody: {
+            data: components["schemas"]["TraceData"];
         };
         /** GetTracesResponseBody */
         GetTracesResponseBody: {
@@ -7255,6 +7267,104 @@ export interface operations {
             };
         };
     };
+    getTrace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetTraceResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteTrace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     annotateTraces: {
         parameters: {
             query?: {
@@ -7341,54 +7451,6 @@ export interface operations {
                 };
             };
             /** @description Trace not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    deleteTrace: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
-                trace_identifier: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;
