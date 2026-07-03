@@ -44,7 +44,7 @@ import {
   getDSLFilterCompletionTokenBeforeCursor,
   shouldSuppressDSLFilterCompletionsInString,
   validDSLFilterCompletionTokenPattern,
-} from "./DSLFilterConditionFieldUtils";
+} from "./dslFilterConditionFieldUtils";
 import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,

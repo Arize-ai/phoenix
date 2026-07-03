@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getDSLFilterCompletionTokenBeforeCursor,
   shouldSuppressDSLFilterCompletionsInString,
-} from "../DSLFilterConditionFieldUtils";
+} from "../dslFilterConditionFieldUtils";
 
 describe("DSLFilterConditionField completion helpers", () => {
   it("includes quoted subscripts with spaces in the replacement token", () => {

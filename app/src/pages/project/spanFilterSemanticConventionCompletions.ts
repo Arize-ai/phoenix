@@ -23,21 +23,43 @@ import type {
 } from "@codemirror/autocomplete";
 import type { EditorView } from "@uiw/react-codemirror";
 
+/**
+ * Shape exposed by `@arizeai/openinference-semantic-conventions`: enum keys map
+ * to dotted OpenInference attribute paths such as `llm.provider`.
+ */
 type SemanticConventionMap = Readonly<Record<string, string>>;
+
+/**
+ * A segment in the backend filter DSL's attribute accessor syntax. Strings
+ * become quoted subscripts (`['llm']`), while numbers become list indexes
+ * (`[0]`).
+ */
 type AttributePathSegment = string | number;
 
+/**
+ * Enum values that should be offered after a specific field is compared with
+ * `==` or `!=`.
+ */
 type OpenInferenceAttributeValueCompletionConfig = {
   accessor: string;
   detail: string;
   values: readonly string[];
 };
 
+/**
+ * The partially typed enum-value expression immediately before the cursor.
+ */
 type OpenInferenceAttributeValueCompletionContext = {
   accessor: string;
   quote: "'" | '"';
   typedText: string;
 };
 
+/**
+ * A completion-ready attribute path plus the display path shown in the detail
+ * column. These can differ because indexed list traversals are shown as
+ * `llm.input_messages[0].message.role`, not as a raw accessor.
+ */
 type SemanticConventionAttributePath = {
   pathSegments: readonly AttributePathSegment[];
   detail: string;
@@ -45,6 +67,12 @@ type SemanticConventionAttributePath = {
 
 const DEFAULT_SEMANTIC_CONVENTIONS: SemanticConventionMap = SemanticConventions;
 const SPAN_KIND_FIELD = "span_kind";
+/**
+ * Completions must include an explicit list index for nested OpenInference
+ * structures. The backend DSL supports integer subscripts but does not provide
+ * wildcard traversal, so `attributes['llm']['input_messages']['message']...`
+ * is invalid whereas `attributes['llm']['input_messages'][0]...` is meaningful.
+ */
 const LIST_ITEM_INDEX = 0;
 
 const openInferenceAttributesSection: CompletionSection = {
@@ -66,6 +94,10 @@ const attributeAccessorSegmentPattern = new RegExp(
   "g"
 );
 
+/**
+ * Converts the semantic-conventions package's dotted path representation into
+ * independent DSL accessor segments.
+ */
 function semanticConventionPathToSegments(
   semanticConventionPath: string
 ): string[] {
@@ -82,6 +114,14 @@ function createNestedOnlySemanticConventionPaths({
   return Object.values(postfixes).map((postfix) => `${prefix}.${postfix}`);
 }
 
+/**
+ * Postfix convention groups describe objects nested inside list-valued
+ * attributes. The semantic-conventions package publishes them as standalone
+ * dotted paths (`message.role`, `document.id`, `tool_call.id`, etc.), but
+ * Phoenix stores them under list roots like `llm.input_messages[0]` and
+ * `retrieval.documents[0]`. Offering the standalone paths as top-level
+ * `attributes[...]` filters creates valid-looking filters that match no spans.
+ */
 const nestedOnlySemanticConventionPaths = new Set<string>([
   ...createNestedOnlySemanticConventionPaths({
     prefix: SemanticAttributePrefixes.message,
@@ -111,11 +151,21 @@ const nestedOnlySemanticConventionPaths = new Set<string>([
   `${SemanticAttributePrefixes.embedding}.${EmbeddingAttributePostfixes.vector}`,
 ]);
 
+/**
+ * Paths that are OpenInference conventions but should not be offered as
+ * `attributes[...]` filters. `openinference.span.kind` is ingested into the
+ * dedicated `span_kind` column in the REST v1 path, and metadata has its own
+ * typed filter surface.
+ */
 const hiddenTopLevelSemanticConventionPaths = new Set<string>([
   SemanticConventions.METADATA,
   SemanticConventions.OPENINFERENCE_SPAN_KIND,
 ]);
 
+/**
+ * Returns whether a semantic-convention path is stored as a top-level span
+ * attribute in Phoenix.
+ */
 function isTopLevelSemanticConventionPath(
   semanticConventionPath: string
 ): boolean {
@@ -125,6 +175,10 @@ function isTopLevelSemanticConventionPath(
   );
 }
 
+/**
+ * Formats path segments for the completion detail column. This intentionally
+ * resembles OpenInference dotted paths while keeping list indexes visible.
+ */
 function attributePathSegmentsToDetailPath(
   pathSegments: readonly AttributePathSegment[]
 ): string {
@@ -138,6 +192,10 @@ function attributePathSegmentsToDetailPath(
     .join("");
 }
 
+/**
+ * Builds a nested list traversal by inserting the required list item index
+ * between a list-valued root and the object's per-item convention path.
+ */
 function createIndexedNestedAttributePath({
   listRootPath,
   itemPathSegments,
@@ -156,6 +214,11 @@ function createIndexedNestedAttributePath({
   };
 }
 
+/**
+ * Expands LLM message list roots into the conventions that actually live on
+ * each message item: `message.*`, `message.contents[0].message_content.*`, and
+ * `message.tool_calls[0].tool_call.*`.
+ */
 function createMessageAttributePaths({
   listRootPath,
 }: {
@@ -219,6 +282,11 @@ function createMessageAttributePaths({
   ];
 }
 
+/**
+ * Nested OpenInference conventions that Phoenix can traverse when the filter
+ * includes a concrete list index. Each completion uses `[0]` as an editable
+ * placeholder index so users see the required shape of the DSL.
+ */
 const defaultNestedSemanticConventionAttributePaths: readonly SemanticConventionAttributePath[] =
   [
     ...createMessageAttributePaths({
@@ -271,14 +339,28 @@ const defaultNestedSemanticConventionAttributePaths: readonly SemanticConvention
     ),
   ];
 
+/**
+ * Escapes a path segment for the single-quoted subscript form used by inserted
+ * completions.
+ */
 function escapeAttributePathSegment(pathSegment: string): string {
   return pathSegment.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+/**
+ * Reverses escaping for path segments matched from either single- or
+ * double-quoted user input before re-emitting them in the canonical accessor
+ * form.
+ */
 function unescapeAttributePathSegment(pathSegment: string): string {
   return pathSegment.replace(/\\(["'\\])/g, "$1");
 }
 
+/**
+ * Converts a segment list into backend DSL subscript syntax. Bracket notation
+ * is used for every string segment so completions always produce the same
+ * filter shape as the backend attribute path parser expects.
+ */
 function attributePathSegmentsToAccessor(
   pathSegments: readonly AttributePathSegment[]
 ): string {
@@ -291,6 +373,10 @@ function attributePathSegmentsToAccessor(
     .join("");
 }
 
+/**
+ * Converts a dotted OpenInference path into the canonical Phoenix filter DSL
+ * accessor, e.g. `llm.provider` becomes `attributes['llm']['provider']`.
+ */
 export function semanticConventionPathToAttributeAccessor(
   semanticConventionPath: string
 ): string {
@@ -299,6 +385,11 @@ export function semanticConventionPathToAttributeAccessor(
   )}`;
 }
 
+/**
+ * Canonicalizes an accessor before comparing it to a value-completion config.
+ * Users may type double quotes or escaped characters, but completion configs
+ * use the single-quoted bracket form emitted by this module.
+ */
 export function normalizeOpenInferenceAttributeAccessor(
   accessor: string
 ): string {
@@ -331,6 +422,14 @@ export function normalizeOpenInferenceAttributeAccessor(
   return `attributes${attributePathSegmentsToAccessor(pathSegments)}`;
 }
 
+/**
+ * Creates field completions for OpenInference span attributes.
+ *
+ * Top-level semantic conventions are generated directly from the package enum,
+ * excluding per-item postfix groups that are only meaningful below list roots.
+ * Nested list conventions are provided separately so each one includes the
+ * required numeric index in the suggested DSL accessor.
+ */
 export function createOpenInferenceAttributeCompletions({
   semanticConventions,
   nestedSemanticConventionAttributePaths,
@@ -380,6 +479,12 @@ export function createOpenInferenceAttributeCompletions({
     });
 }
 
+/**
+ * Enum-value completions for fields Phoenix can evaluate reliably. Note that
+ * `openinference.span.kind` is intentionally omitted in favor of `span_kind`,
+ * and nested-only conventions such as `audio.mime_type` are not offered as
+ * value-completion roots.
+ */
 const defaultOpenInferenceAttributeValueCompletionConfigs = [
   {
     accessor: SPAN_KIND_FIELD,
@@ -416,6 +521,12 @@ const defaultOpenInferenceAttributeValueCompletionConfigs = [
   },
 ] satisfies readonly OpenInferenceAttributeValueCompletionConfig[];
 
+/**
+ * Returns the enum-value completion context when the cursor is inside a quoted
+ * right-hand-side literal for a supported comparison. The left boundary avoids
+ * treating identifiers that merely end with a supported field name, such as
+ * `my_span_kind`, as OpenInference fields.
+ */
 export function getOpenInferenceAttributeValueCompletionContext(
   textBeforeCursor: string
 ): OpenInferenceAttributeValueCompletionContext | null {
@@ -434,6 +545,11 @@ export function getOpenInferenceAttributeValueCompletionContext(
   };
 }
 
+/**
+ * Finds how much of the current quoted value should be replaced. When the user
+ * accepts a completion in the middle of an existing literal, the stale suffix
+ * is removed up to the closing quote instead of being left behind.
+ */
 function getValueCompletionReplacementEnd({
   view,
   to,
@@ -464,6 +580,10 @@ function getValueCompletionReplacementEnd({
   return { to: view.state.doc.length, hasClosingQuote: false };
 }
 
+/**
+ * Applies a value completion while preserving an existing closing quote or
+ * inserting one when the user is completing an unterminated string.
+ */
 function createValueCompletionApply({
   quote,
 }: {
@@ -487,6 +607,10 @@ function createValueCompletionApply({
   };
 }
 
+/**
+ * Creates CodeMirror completion items for the enum values of one OpenInference
+ * attribute.
+ */
 function createValueCompletions({
   valueCompletionConfig,
   quote,
@@ -506,6 +630,10 @@ function createValueCompletions({
   }));
 }
 
+/**
+ * Builds the completion source that offers enum values after supported
+ * OpenInference comparisons such as `span_kind == 'LL`.
+ */
 export function createOpenInferenceAttributeValueCompletionSource({
   valueCompletionConfigs = defaultOpenInferenceAttributeValueCompletionConfigs,
   section = openInferenceAttributeValuesSection,
@@ -547,7 +675,15 @@ export function createOpenInferenceAttributeValueCompletionSource({
   };
 }
 
+/**
+ * Default OpenInference field completions used by the span filter DSL editor.
+ */
 export const openInferenceAttributeCompletions =
   createOpenInferenceAttributeCompletions();
+
+/**
+ * Default OpenInference enum-value completion source used by the span filter
+ * DSL editor.
+ */
 export const openInferenceAttributeValueCompletionSource =
   createOpenInferenceAttributeValueCompletionSource();

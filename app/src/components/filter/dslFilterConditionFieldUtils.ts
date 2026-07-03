@@ -18,16 +18,38 @@ const tokenBeforeCursorPattern = new RegExp(
   String.raw`${dslFilterTokenPattern.source}$`
 );
 
+/**
+ * CodeMirror's `validFor` guard for the token returned by
+ * `getDSLFilterCompletionTokenBeforeCursor`. If the user keeps typing inside
+ * a valid DSL accessor prefix, CodeMirror can filter the existing completion
+ * result instead of asking every completion source to recompute.
+ */
 export const validDSLFilterCompletionTokenPattern = new RegExp(
   String.raw`^(?:${dslFilterTokenPattern.source})?$`
 );
 
+/**
+ * The editable token range CodeMirror should replace when accepting a DSL
+ * completion. `text` is the partial token at the cursor, and `from`/`to` are
+ * offsets in the current document.
+ */
 export type DSLFilterCompletionToken = {
   from: number;
   to: number;
   text: string;
 };
 
+/**
+ * Returns the DSL accessor token immediately before the cursor.
+ *
+ * The span filter DSL allows partially typed dotted members and subscripts:
+ * `input.`, `annotations['Human Fee`, and
+ * `attributes['llm']['input_messages'][0]['message'].` are all valid
+ * completion prefixes. Keeping the whole prefix is important because
+ * CodeMirror replaces this range when a completion is accepted; if the matcher
+ * drops an existing subscript or trailing dot, accepting a suggestion can
+ * duplicate the accessor instead of completing it.
+ */
 export function getDSLFilterCompletionTokenBeforeCursor(
   textBeforeCursor: string
 ): DSLFilterCompletionToken {
@@ -40,6 +62,12 @@ export function getDSLFilterCompletionTokenBeforeCursor(
   };
 }
 
+/**
+ * Finds an unmatched quote before the cursor while respecting backslash
+ * escapes. This is intentionally lightweight: it only needs enough string
+ * awareness to avoid offering field completions while the user is typing a
+ * literal value such as `== 'application/js`.
+ */
 function getOpenStringStartBeforeCursor(
   textBeforeCursor: string
 ): number | null {
@@ -74,6 +102,15 @@ function getOpenStringStartBeforeCursor(
   return openQuoteIndex;
 }
 
+/**
+ * Determines whether normal field completions should be suppressed because
+ * the cursor is inside a string literal value.
+ *
+ * A quoted subscript such as `annotations['Human Fee` should still complete
+ * because the string starts inside the token being replaced. A value literal
+ * such as `span_kind == 'LL` should not show field completions because the
+ * open quote starts before the current token.
+ */
 export function shouldSuppressDSLFilterCompletionsInString({
   textBeforeCursor,
   tokenFrom,
