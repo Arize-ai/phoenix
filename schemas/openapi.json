@@ -6082,6 +6082,24 @@
               "title": "Include Dataset Evaluator Projects"
             },
             "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators."
+          },
+          {
+            "name": "name_contains",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only projects whose name contains this substring (case-insensitive).",
+              "title": "Name Contains"
+            },
+            "description": "Return only projects whose name contains this substring (case-insensitive)."
           }
         ],
         "responses": {

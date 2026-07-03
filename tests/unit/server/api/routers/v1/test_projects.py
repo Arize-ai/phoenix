@@ -632,6 +632,100 @@ class TestProjects:
                 f"Project at index {i} should have ID {projects[i].id}, got {project_id}"
             )
 
+    async def test_list_projects_name_contains_filter(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        """
+        Test filtering projects by name substring with the name_contains parameter.
+
+        This test verifies that:
+        1. Only projects whose name contains the substring are returned
+        2. Matching is case-insensitive
+        3. SQL LIKE wildcards (% and _) in the filter are treated literally
+        4. Unicode names are matched correctly
+        5. The filter combines with cursor-based pagination
+        6. No projects are returned when nothing matches
+        """
+        names = [
+            "Alpha Project",
+            "alphabet soup",
+            "Beta Project",
+            "100% complete",
+            "under_score",
+            "项目名称",
+        ]
+        async with db() as session:
+            for name in names:
+                session.add(models.Project(name=name, description=token_hex(8)))
+            await session.flush()
+
+        url = "v1/projects"
+
+        # Case-insensitive substring match
+        response = await httpx_client.get(url, params={"name_contains": "ALPHA"})
+        assert response.status_code == 200, (
+            f"GET /projects with name_contains should return 200, got {response.status_code}: {response.text}"
+        )
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"Alpha Project", "alphabet soup"}, (
+            f"name_contains='ALPHA' should match case-insensitively, got {returned_names}"
+        )
+
+        # LIKE wildcard % must be treated literally
+        response = await httpx_client.get(url, params={"name_contains": "100%"})
+        assert response.status_code == 200
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"100% complete"}, (
+            f"name_contains='100%' should match the literal percent sign only, got {returned_names}"
+        )
+
+        # LIKE wildcard _ must be treated literally
+        response = await httpx_client.get(url, params={"name_contains": "under_"})
+        assert response.status_code == 200
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"under_score"}, (
+            f"name_contains='under_' should match the literal underscore only, got {returned_names}"
+        )
+
+        # Unicode substring match
+        response = await httpx_client.get(url, params={"name_contains": "名称"})
+        assert response.status_code == 200
+        returned_names = {p["name"] for p in response.json()["data"]}
+        assert returned_names == {"项目名称"}, (
+            f"name_contains='名称' should match the unicode name, got {returned_names}"
+        )
+
+        # No match returns an empty list
+        response = await httpx_client.get(url, params={"name_contains": token_hex(16)})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"] == [], "No projects should match a random filter string"
+        assert data["next_cursor"] is None, "next_cursor should be null when nothing matches"
+
+        # Combines with pagination
+        response = await httpx_client.get(url, params={"name_contains": "project", "limit": 1})
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["data"]) == 1, "limit=1 should return exactly 1 matching project"
+        assert data["next_cursor"] is not None, (
+            "next_cursor should be present when more matching projects remain"
+        )
+        first_page_name = data["data"][0]["name"]
+        response = await httpx_client.get(
+            url, params={"name_contains": "project", "cursor": data["next_cursor"]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        returned_names = {p["name"] for p in data["data"]}
+        assert {first_page_name} | returned_names == {"Alpha Project", "Beta Project"}, (
+            f"Paginated pages should cover all matching projects, got {returned_names}"
+        )
+        assert data["next_cursor"] is None, (
+            "next_cursor should be null when all matching projects have been returned"
+        )
+
     async def test_include_experiment_projects_parameter(
         self,
         httpx_client: httpx.AsyncClient,
