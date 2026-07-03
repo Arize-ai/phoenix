@@ -222,7 +222,10 @@ export function AssistantMessageActions({
     if (selectedFeedback === feedback) {
       // Undo: clicking the already-active button removes the annotation.
       try {
-        await deleteAnnotations({ projectName: assistantProjectName, identifier });
+        await deleteAnnotations({
+          projectName: assistantProjectName,
+          identifier,
+        });
         setSelectedFeedback(null);
       } catch {
         // Swallow errors; UI state simply won't reflect the undo.
