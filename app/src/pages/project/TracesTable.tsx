@@ -1078,7 +1078,7 @@ export function TracesTable(props: TracesTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <ProjectTableEmpty projectName={data.name} />
+            <ProjectTableEmpty />
           ) : columnSizingInfo.isResizingColumn ? (
             <MemoizedTableBody
               table={

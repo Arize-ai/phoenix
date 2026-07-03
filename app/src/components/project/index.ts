@@ -7,15 +7,8 @@ export type { GradientCircleRadioProps } from "./GradientCircleRadio";
 export { GradientCircleRadioGroup } from "./GradientCircleRadioGroup";
 export type { GradientCircleRadioGroupProps } from "./GradientCircleRadioGroup";
 
-export {
-  PythonIntegrations,
-  TypeScriptIntegrations,
-  TypeScriptPlatformIntegrations,
-} from "./Integrations";
 export * from "./IntegrationIcons";
 export { ProjectMenu } from "./ProjectMenu";
 export type { ProjectMenuProps } from "./ProjectMenu";
-export { PythonProjectGuide } from "./PythonProjectGuide";
-export { TypeScriptProjectGuide } from "./TypeScriptProjectGuide";
 export * from "./hosting";
 export * from "./integrationSnippets";
