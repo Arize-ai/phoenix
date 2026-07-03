@@ -1107,6 +1107,78 @@ class TestGraphQLQuery:
             logged_in_user.gql(_app, query)
 
 
+class TestProjectMutationPermissions:
+    # createProject is member-allowed (IsNotViewer); deleteProject, clearProject,
+    # and patchProject are admin-only (IsAdminIfAuthEnabled), matching the REST API
+    # where PUT/DELETE /v1/projects require admin.
+
+    QUERY = """
+      mutation CreateProject($input: CreateProjectInput!) {
+        createProject(input: $input) {
+          project { id }
+        }
+      }
+
+      mutation PatchProject($input: PatchProjectInput!) {
+        patchProject(input: $input) {
+          project { id }
+        }
+      }
+
+      mutation ClearProject($input: ClearProjectInput!) {
+        clearProject(input: $input) { __typename }
+      }
+
+      mutation DeleteProject($projectId: ID!) {
+        deleteProject(id: $projectId) { __typename }
+      }
+    """
+
+    @pytest.mark.parametrize(
+        "role_or_user",
+        [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN],
+        ids=["viewer", "member", "admin", "default_admin"],
+    )
+    def test_role_based_access(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        is_admin = role_or_user in (_ADMIN, _DEFAULT_ADMIN)
+        is_viewer = role_or_user is _VIEWER
+
+        response, _ = _DEFAULT_ADMIN.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="CreateProject",
+            variables={"input": {"name": f"auth-project-{token_hex(8)}"}},
+        )
+        project_id = response["data"]["createProject"]["project"]["id"]
+
+        user = _get_user(_app, role_or_user).log_in(_app)
+
+        def check(allowed: bool, operation: str, variables: dict[str, Any]) -> None:
+            if allowed:
+                user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+            else:
+                with pytest.raises(Unauthorized):
+                    user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+
+        check(
+            not is_viewer,
+            "CreateProject",
+            {"input": {"name": f"auth-project-{token_hex(8)}"}},
+        )
+        check(
+            is_admin,
+            "PatchProject",
+            {"input": {"id": project_id, "description": "updated"}},
+        )
+        check(is_admin, "ClearProject", {"input": {"id": project_id}})
+        check(is_admin, "DeleteProject", {"projectId": project_id})
+
+
 class TestSandboxAndCodeEvaluatorPermissions:
     # Tier 1 (admin-only): sandbox-config mutations + updateSandboxProvider.
     # Tier 2 (IsNotViewer): code-evaluator mutations + evaluatorPreviews.

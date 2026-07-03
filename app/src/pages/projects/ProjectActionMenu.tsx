@@ -24,7 +24,10 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
-import { useNotifySuccess } from "@phoenix/contexts";
+import {
+  useNotifySuccess,
+  useViewerCanManageProjects,
+} from "@phoenix/contexts";
 
 import type { ProjectActionMenuClearMutation } from "./__generated__/ProjectActionMenuClearMutation.graphql";
 import type { ProjectActionMenuDeleteMutation } from "./__generated__/ProjectActionMenuDeleteMutation.graphql";
@@ -54,7 +57,8 @@ export function ProjectActionMenu({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showRemoveDataDialog, setShowRemoveDataDialog] = useState(false);
-  const canDelete = projectName !== "default";
+  const canManageProjects = useViewerCanManageProjects();
+  const canDelete = canManageProjects && projectName !== "default";
   const [commitDelete] = useMutation<ProjectActionMenuDeleteMutation>(graphql`
     mutation ProjectActionMenuDeleteMutation($projectId: ID!) {
       deleteProject(id: $projectId) {
@@ -155,28 +159,32 @@ export function ProjectActionMenu({
                 <Text>Copy Name</Text>
               </Flex>
             </MenuItem>
-            <MenuItem id={ProjectAction.CLEAR} textValue="Clear All Traces">
-              <Flex
-                direction={"row"}
-                gap="size-75"
-                justifyContent={"start"}
-                alignItems={"center"}
-              >
-                <Icon svg={<Icons.Refresh />} />
-                <Text>Clear All Data</Text>
-              </Flex>
-            </MenuItem>
-            <MenuItem id={ProjectAction.REMOVE_DATA} textValue="Remove Data">
-              <Flex
-                direction={"row"}
-                gap="size-75"
-                justifyContent={"start"}
-                alignItems={"center"}
-              >
-                <Icon svg={<Icons.CloseCircle />} />
-                <Text>Remove Data</Text>
-              </Flex>
-            </MenuItem>
+            {canManageProjects ? (
+              <MenuItem id={ProjectAction.CLEAR} textValue="Clear All Traces">
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.Refresh />} />
+                  <Text>Clear All Data</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
+            {canManageProjects ? (
+              <MenuItem id={ProjectAction.REMOVE_DATA} textValue="Remove Data">
+                <Flex
+                  direction={"row"}
+                  gap="size-75"
+                  justifyContent={"start"}
+                  alignItems={"center"}
+                >
+                  <Icon svg={<Icons.CloseCircle />} />
+                  <Text>Remove Data</Text>
+                </Flex>
+              </MenuItem>
+            ) : null}
             {canDelete ? (
               <MenuItem id={ProjectAction.DELETE}>
                 <Flex
