@@ -28,7 +28,11 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { useNotifySuccess, useProjectContext } from "@phoenix/contexts";
+import {
+  useNotifySuccess,
+  useProjectContext,
+  useViewerCanManageProjects,
+} from "@phoenix/contexts";
 
 import type { ProjectFormParams } from "../projects/ProjectForm";
 import { GRADIENT_PRESETS, ProjectForm } from "../projects/ProjectForm";
@@ -160,6 +164,7 @@ const ProjectConfigCard = ({
   const [isEditing, setIsEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
+  const canManageProjects = useViewerCanManageProjects();
 
   const [commit, isCommitting] =
     useMutation<ProjectConfigPagePatchProjectMutation>(graphql`
@@ -208,7 +213,7 @@ const ProjectConfigCard = ({
     <Card
       title="Project Settings"
       extra={
-        isEditing ? undefined : (
+        isEditing || !canManageProjects ? undefined : (
           <Button
             variant="default"
             size="S"
