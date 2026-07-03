@@ -37,6 +37,7 @@ import {
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
 import { useInterval } from "@phoenix/hooks/useInterval";
+import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
 import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 
@@ -47,6 +48,14 @@ import { PromptsEmpty } from "./PromptsEmpty";
 
 const PAGE_SIZE = 100;
 const PROMPTS_POLL_INTERVAL_MS = 60_000;
+
+const tokenListCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+  flex-wrap: wrap;
+`;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
@@ -99,9 +108,16 @@ export function PromptsTable(props: PromptsTableProps) {
                 name
                 description
                 version {
+                  id
                   createdAt
                   modelName
                   modelProvider
+                }
+                versionCount
+                versionTags {
+                  id
+                  name
+                  promptVersionId
                 }
                 labels {
                   id
@@ -152,6 +168,7 @@ export function PromptsTable(props: PromptsTableProps) {
           lastUpdatedAt: edge.prompt.version.createdAt,
           modelName: edge.prompt.version.modelName,
           modelProvider: edge.prompt.version.modelProvider,
+          latestVersionId: edge.prompt.version.id,
           ...edge.prompt,
         };
       }),
@@ -198,15 +215,7 @@ export function PromptsTable(props: PromptsTableProps) {
         enableSorting: false,
         cell: ({ row }) => {
           return (
-            <ul
-              css={css`
-                display: flex;
-                flex-direction: row;
-                gap: var(--global-dimension-size-100);
-                min-width: 0;
-                flex-wrap: wrap;
-              `}
-            >
+            <ul css={tokenListCSS}>
               {row.original.labels.map((label) => (
                 <li key={label.id}>
                   <StopPropagation>
@@ -246,6 +255,52 @@ export function PromptsTable(props: PromptsTableProps) {
                 <Truncate>{modelName}</Truncate>
               </Text>
             </Flex>
+          );
+        },
+      },
+      {
+        header: "versions",
+        accessorKey: "versionCount",
+      },
+      {
+        header: "latest version",
+        accessorKey: "latestVersionId",
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <CellWithControlsWrap
+              controls={
+                <CopyToClipboardButton text={row.original.latestVersionId} />
+              }
+            >
+              <Link
+                to={`${row.original.id}/versions/${row.original.latestVersionId}`}
+              >
+                <Truncate maxWidth={200} title={row.original.latestVersionId}>
+                  {row.original.latestVersionId}
+                </Truncate>
+              </Link>
+            </CellWithControlsWrap>
+          );
+        },
+      },
+      {
+        header: "version tags",
+        accessorKey: "versionTags",
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <ul css={tokenListCSS}>
+              {row.original.versionTags.map((tag) => (
+                <li key={tag.id}>
+                  <Link
+                    to={`${row.original.id}/versions/${tag.promptVersionId}`}
+                  >
+                    <TagVersionLabel maxWidth={200}>{tag.name}</TagVersionLabel>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           );
         },
       },
