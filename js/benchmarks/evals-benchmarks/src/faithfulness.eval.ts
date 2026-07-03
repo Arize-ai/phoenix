@@ -1,13 +1,27 @@
-import { openai } from "@ai-sdk/openai";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+/**
+ * Faithfulness evaluator benchmark.
+ *
+ * Each example becomes two deterministic runs — the faithful answer and the
+ * unfaithful answer — and the suite is gated on how accurately the
+ * faithfulness evaluator distinguishes them given the supporting knowledge.
+ */
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createFaithfulnessEvaluator } from "@arizeai/phoenix-evals";
+
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
+import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
+
 const faithfulnessEvaluator = createFaithfulnessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 const examples = [
@@ -78,71 +92,70 @@ const examples = [
   },
 ];
 
-type TaskOutput = {
-  expected_label: "unfaithful" | "faithful";
-  label: "unfaithful" | "faithful";
-  score: number;
-  explanation: string;
-};
+type FaithfulnessLabel = "faithful" | "unfaithful";
 
-const correctEvaluator = asExperimentEvaluator({
-  name: "correctness",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === "unfaithful" ? "unfaithful" : "faithful";
-    return {
-      label: label,
-      score: score,
-      explanation: `The evaluator labeled the answer as ${label}. Expected: ${(output as unknown as { expected_label: string }).expected_label}`,
-      metadata: {},
-    };
+// Deterministic split: each example contributes a faithful run (the correct
+// answer) and an unfaithful run (a contradicting answer) over the same context.
+const cases = examples.flatMap((example) => [
+  {
+    input: {
+      question: example.question,
+      context: example.knowledge,
+      answer: example.right_answer,
+    },
+    expected: { label: "faithful" as FaithfulnessLabel },
+    metadata: { variant: "faithful" },
+    splits: ["faithful"],
   },
-});
+  {
+    input: {
+      question: example.question,
+      context: example.knowledge,
+      answer: example.unfaithful_answer,
+    },
+    expected: { label: "unfaithful" as FaithfulnessLabel },
+    metadata: { variant: "unfaithful" },
+    splits: ["unfaithful"],
+  },
+]);
 
-async function main() {
-  const dataset = await createDataset({
-    name: "faithfulness-eval" + Math.random(),
-    description: "Evaluate the faithfulness of the model",
-    examples: examples.map((example) => ({
-      input: { question: example.question, context: example.knowledge },
-      output: {
-        answer: example.right_answer,
-        unfaithful_answer: example.unfaithful_answer,
-      },
-      metadata: {
-        knowledge: example.knowledge,
-      },
-    })),
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const useUnfaithful = Math.random() < 0.2;
-    const answer = useUnfaithful
-      ? example.output?.unfaithful_answer
-      : example.output?.answer;
-
-    const evalResult = await faithfulnessEvaluator.evaluate({
-      input: example.input.question as string,
-      context: example.input.context as string,
-      output: answer as string,
-    });
-
-    return {
-      expected_label: useUnfaithful ? "unfaithful" : "faithful",
-      ...evalResult,
-    };
-  };
-  runExperiment({
-    experimentName: "faithfulness-eval",
-    experimentDescription: "Evaluate the faithfulness of the model",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [correctEvaluator],
-  });
-}
-
-main();
+px.describe(
+  "faithfulness-eval",
+  () => {
+    px.test.each(cases)(
+      (row) =>
+        `[${String(row.metadata?.variant)}] ${String(row.input.question)}`,
+      async ({ input, expected }) => {
+        const result = await faithfulnessEvaluator.evaluate({
+          input: input.question,
+          context: input.context,
+          output: input.answer,
+        });
+        px.logOutput(result);
+        px.logAnnotation({
+          name: "faithfulness",
+          label: result.label,
+          score: result.score,
+          explanation: result.explanation,
+          annotatorKind: "LLM",
+        });
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
+        await px.evaluate(accuracy);
+      }
+    );
+    registerAggregateMetricsTest(labels);
+  },
+  {
+    description:
+      "Faithfulness evaluator accuracy at distinguishing faithful from unfaithful answers given supporting knowledge.",
+    metadata: { model: evalModelName },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
+    ],
+  }
+);

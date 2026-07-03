@@ -1,14 +1,26 @@
-import { openai } from "@ai-sdk/openai";
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+/**
+ * Document relevance evaluator benchmark.
+ *
+ * Runs the document-relevance evaluator over query/document pairs and gates the
+ * suite on how accurately it labels each document as relevant vs unrelated.
+ */
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createDocumentRelevanceEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
+import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
+
 const relevanceEvaluator = createDocumentRelevanceEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 const examples = [
@@ -195,60 +207,53 @@ const examples = [
   },
 ];
 
-type TaskOutput = {
-  label: "relevant" | "unrelated";
-  score: number;
-  explanation: string;
-};
+type RelevanceLabel = "relevant" | "unrelated";
 
-const correctEvaluator = asExperimentEvaluator({
-  name: "correctness",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const expected = args.expected as TaskOutput;
-    const label = output.label === expected.label ? "correct" : "incorrect";
-    const score = output.label === expected.label ? 1 : 0;
-    return {
-      label: label,
-      score: score,
-      explanation: `The evaluator labeled the answer as ${label}. Expected: ${expected?.label}`,
-      metadata: {},
-    };
-  },
+const cases = examples.map((example) => {
+  const label: RelevanceLabel = example.relevant ? "relevant" : "unrelated";
+  return {
+    input: { question: example.input, documentText: example.documentText },
+    expected: { label },
+    metadata: {},
+    splits: [label],
+  };
 });
 
-async function main() {
-  const dataset = await createDataset({
-    name: "document-relevancy-eval" + Math.random(),
-    description: "Evaluate the relevancy of the model",
-    examples: examples.map((example) => ({
-      input: { question: example.input, documentText: example.documentText },
-      output: {
-        label: example.relevant ? "relevant" : "unrelated",
-      },
-      metadata: {},
-    })),
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const evalResult = await relevanceEvaluator.evaluate({
-      input: example.input.question as string,
-      documentText: example.input.documentText as string,
-    });
-
-    return {
-      ...evalResult,
-    };
-  };
-  runExperiment({
-    experimentName: "document-relevancy-eval",
-    experimentDescription: "Evaluate the relevancy of the model",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [correctEvaluator],
-  });
-}
-
-main();
+px.describe(
+  "document-relevancy-eval",
+  () => {
+    px.test.each(cases)(
+      (row) => String(row.input.question),
+      async ({ input, expected }) => {
+        const result = await relevanceEvaluator.evaluate({
+          input: input.question,
+          documentText: input.documentText,
+        });
+        px.logOutput(result);
+        px.logAnnotation({
+          name: "document_relevance",
+          label: result.label,
+          score: result.score,
+          explanation: result.explanation,
+          annotatorKind: "LLM",
+        });
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
+        await px.evaluate(accuracy);
+      }
+    );
+    registerAggregateMetricsTest(labels);
+  },
+  {
+    description:
+      "Document relevance evaluator accuracy at labelling documents as relevant vs unrelated to a query.",
+    metadata: { model: evalModelName },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
+    ],
+  }
+);

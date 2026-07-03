@@ -1,16 +1,27 @@
-import { openai } from "@ai-sdk/openai";
-/* eslint-disable no-console */
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  getExperiment,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+/**
+ * Correctness evaluator benchmark.
+ *
+ * Each base example yields two runs — one with the correct answer and one with
+ * the incorrect answer — and the suite is gated on how accurately the
+ * correctness evaluator labels them.
+ */
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createCorrectnessEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
+import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
+
 const correctnessEvaluator = createCorrectnessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // Examples designed to test the boundary conditions of the correctness rubric
@@ -335,257 +346,65 @@ const examplesByCategory = {
 };
 
 // Flatten examples with category information
-const examples = Object.entries(examplesByCategory).flatMap(
+
+type CorrectnessLabel = "correct" | "incorrect";
+
+// Deterministic 50/50 split: each base example becomes two runs, one labelled
+// "correct" (correct answer) and one "incorrect" (incorrect answer).
+const cases = Object.entries(examplesByCategory).flatMap(
   ([category, categoryExamples]) =>
-    categoryExamples.map((example) => ({
-      ...example,
-      category,
-    }))
+    categoryExamples.flatMap((example) => [
+      {
+        input: { question: example.input, answer: example.correct_answer },
+        expected: { label: "correct" as CorrectnessLabel },
+        metadata: { category, variant: "correct" },
+        splits: [category, "correct_answer"],
+      },
+      {
+        input: { question: example.input, answer: example.incorrect_answer },
+        expected: { label: "incorrect" as CorrectnessLabel },
+        metadata: { category, variant: "incorrect" },
+        splits: [category, "incorrect_answer"],
+      },
+    ])
 );
 
-// Create dataset entries with deterministic correct/incorrect split
-// For each example, we create TWO entries: one with correct answer, one with incorrect
-const datasetExamples = examples.flatMap((example, index) => [
-  {
-    input: { question: example.input },
-    output: {
-      answer: example.correct_answer,
-      expected_label: "correct" as const,
-    },
-    metadata: {
-      category: example.category,
-      variant: "correct",
-      example_index: index,
-    },
-    splits: [example.category, "correct_answer"],
-  },
-  {
-    input: { question: example.input },
-    output: {
-      answer: example.incorrect_answer,
-      expected_label: "incorrect" as const,
-    },
-    metadata: {
-      category: example.category,
-      variant: "incorrect",
-      example_index: index,
-    },
-    splits: [example.category, "incorrect_answer"],
-  },
-]);
-
-type TaskOutput = {
-  expected_label: "correct" | "incorrect";
-  label: "correct" | "incorrect";
-  score: number;
-  explanation: string;
-  category: string;
-  variant: string;
-};
-
-const accuracyEvaluator = asExperimentEvaluator({
-  name: "accuracy",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === output.label ? "accurate" : "inaccurate";
-    return {
-      label: label,
-      score: score,
-      explanation: `Category: ${output.category}, Variant: ${output.variant}. The evaluator labeled the answer as "${output.label}". Expected: "${output.expected_label}"`,
-      metadata: { category: output.category, variant: output.variant },
-    };
-  },
-});
-
-async function main() {
-  console.log("\n" + "=".repeat(60));
-  console.log("BENCHMARK CONFIGURATION");
-  console.log("=".repeat(60));
-  console.log(`Categories: ${Object.keys(examplesByCategory).length}`);
-  console.log(
-    `Examples per category: ${Object.values(examplesByCategory)[0]?.length ?? 0}`
-  );
-  console.log(`Total base examples: ${examples.length}`);
-  console.log(
-    `Total dataset entries (2 per example): ${datasetExamples.length}`
-  );
-  console.log(
-    `Split: 50% correct answers, 50% incorrect answers (deterministic)`
-  );
-  console.log("=".repeat(60) + "\n");
-
-  const dataset = await createDataset({
-    name: "correctness-rubric-boundary-test-" + Date.now(),
-    description:
-      "Benchmark testing boundary conditions of the correctness evaluator rubric with deterministic 50/50 correct/incorrect split across 10 categories: factual accuracy, completeness, logical consistency, precise terminology, misleading statements, missing info, ambiguity, partial correctness, nuanced accuracy, and technical precision",
-    examples: datasetExamples,
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const answer = example.output?.answer as string;
-    const expectedLabel = example.output?.expected_label as
-      | "correct"
-      | "incorrect";
-
-    const evalResult = await correctnessEvaluator.evaluate({
-      input: example.input.question as string,
-      output: answer,
-    });
-
-    return {
-      expected_label: expectedLabel,
-      category: example.metadata?.category as string,
-      variant: example.metadata?.variant as string,
-      ...evalResult,
-    };
-  };
-
-  const experiment = await runExperiment({
-    experimentName: "correctness-rubric-boundary-test",
-    experimentDescription:
-      "Testing the correctness evaluator against rubric boundary conditions with deterministic 50/50 split",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [accuracyEvaluator],
-  });
-
-  // Fetch full experiment details including runs
-  const experimentResult = await getExperiment({
-    experimentId: experiment.id,
-  });
-
-  // Print experiment summary
-  console.log("\n" + "=".repeat(80));
-  console.log("EXPERIMENT RESULTS SUMMARY");
-  console.log("=".repeat(80));
-  console.log(`Experiment ID: ${experimentResult.id}`);
-  console.log(`Dataset ID: ${experimentResult.datasetId}`);
-  console.log(`Total Examples: ${experimentResult.exampleCount}`);
-  console.log(`Successful Runs: ${experimentResult.successfulRunCount}`);
-  console.log(`Failed Runs: ${experimentResult.failedRunCount}`);
-  console.log(`Missing Runs: ${experimentResult.missingRunCount}`);
-
-  // Analyze runs by category and variant
-  const runsByCategory: Record<
-    string,
-    {
-      correct_variant: { correct: number; incorrect: number; errors: number };
-      incorrect_variant: { correct: number; incorrect: number; errors: number };
-    }
-  > = {};
-
-  for (const run of Object.values(experimentResult.runs)) {
-    const output = run.output as TaskOutput | null;
-    const category = output?.category || "unknown";
-    const variant = output?.variant || "unknown";
-
-    if (!runsByCategory[category]) {
-      runsByCategory[category] = {
-        correct_variant: { correct: 0, incorrect: 0, errors: 0 },
-        incorrect_variant: { correct: 0, incorrect: 0, errors: 0 },
-      };
-    }
-
-    const variantKey =
-      variant === "correct" ? "correct_variant" : "incorrect_variant";
-
-    if (run.error) {
-      runsByCategory[category][variantKey].errors++;
-    } else if (output?.expected_label === output?.label) {
-      runsByCategory[category][variantKey].correct++;
-    } else {
-      runsByCategory[category][variantKey].incorrect++;
-    }
-  }
-
-  console.log("\n" + "-".repeat(80));
-  console.log("ACCURACY BY CATEGORY AND VARIANT");
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"Category".padEnd(25)} | ${"Correct Answers".padEnd(20)} | ${"Incorrect Answers".padEnd(20)} | Overall`
-  );
-  console.log("-".repeat(80));
-
-  let totalCorrect = 0;
-  let totalIncorrect = 0;
-  let totalErrors = 0;
-  let totalCorrectVariantCorrect = 0;
-  let totalCorrectVariantTotal = 0;
-  let totalIncorrectVariantCorrect = 0;
-  let totalIncorrectVariantTotal = 0;
-
-  for (const [category, stats] of Object.entries(runsByCategory).sort()) {
-    const correctTotal =
-      stats.correct_variant.correct +
-      stats.correct_variant.incorrect +
-      stats.correct_variant.errors;
-    const incorrectTotal =
-      stats.incorrect_variant.correct +
-      stats.incorrect_variant.incorrect +
-      stats.incorrect_variant.errors;
-    const overallTotal = correctTotal + incorrectTotal;
-
-    const correctAcc =
-      correctTotal > 0
-        ? ((stats.correct_variant.correct / correctTotal) * 100).toFixed(0)
-        : "N/A";
-    const incorrectAcc =
-      incorrectTotal > 0
-        ? ((stats.incorrect_variant.correct / incorrectTotal) * 100).toFixed(0)
-        : "N/A";
-    const overallAcc =
-      overallTotal > 0
-        ? (
-            ((stats.correct_variant.correct + stats.incorrect_variant.correct) /
-              overallTotal) *
-            100
-          ).toFixed(0)
-        : "N/A";
-
-    console.log(
-      `  ${category.padEnd(25)} | ${`${correctAcc}% (${stats.correct_variant.correct}/${correctTotal})`.padEnd(20)} | ${`${incorrectAcc}% (${stats.incorrect_variant.correct}/${incorrectTotal})`.padEnd(20)} | ${overallAcc}%`
+px.describe(
+  "correctness-rubric-boundary-test",
+  () => {
+    px.test.each(cases)(
+      (row) =>
+        `[${String(row.metadata?.category)}/${String(row.metadata?.variant)}] ${String(row.input.question)}`,
+      async ({ input, expected }) => {
+        const result = await correctnessEvaluator.evaluate({
+          input: input.question,
+          output: input.answer,
+        });
+        px.logOutput(result);
+        px.logAnnotation({
+          name: "correctness",
+          label: result.label,
+          score: result.score,
+          explanation: result.explanation,
+          annotatorKind: "LLM",
+        });
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
+        await px.evaluate(accuracy);
+      }
     );
-
-    totalCorrect +=
-      stats.correct_variant.correct + stats.incorrect_variant.correct;
-    totalIncorrect +=
-      stats.correct_variant.incorrect + stats.incorrect_variant.incorrect;
-    totalErrors +=
-      stats.correct_variant.errors + stats.incorrect_variant.errors;
-    totalCorrectVariantCorrect += stats.correct_variant.correct;
-    totalCorrectVariantTotal += correctTotal;
-    totalIncorrectVariantCorrect += stats.incorrect_variant.correct;
-    totalIncorrectVariantTotal += incorrectTotal;
+    registerAggregateMetricsTest(labels);
+  },
+  {
+    description:
+      "Boundary conditions of the correctness evaluator rubric with a deterministic 50/50 correct/incorrect split across categories: factual accuracy, completeness, logical consistency, precise terminology, misleading statements, missing info, ambiguity, partial correctness, nuanced accuracy, and technical precision.",
+    metadata: { model: evalModelName },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
+    ],
   }
-
-  const overallTotal = totalCorrect + totalIncorrect + totalErrors;
-  const overallAccuracy =
-    overallTotal > 0 ? ((totalCorrect / overallTotal) * 100).toFixed(1) : "N/A";
-  const correctVariantAccuracy =
-    totalCorrectVariantTotal > 0
-      ? ((totalCorrectVariantCorrect / totalCorrectVariantTotal) * 100).toFixed(
-          0
-        )
-      : "N/A";
-  const incorrectVariantAccuracy =
-    totalIncorrectVariantTotal > 0
-      ? (
-          (totalIncorrectVariantCorrect / totalIncorrectVariantTotal) *
-          100
-        ).toFixed(0)
-      : "N/A";
-
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"OVERALL".padEnd(25)} | ${`${correctVariantAccuracy}% (${totalCorrectVariantCorrect}/${totalCorrectVariantTotal})`.padEnd(20)} | ${`${incorrectVariantAccuracy}% (${totalIncorrectVariantCorrect}/${totalIncorrectVariantTotal})`.padEnd(20)} | ${overallAccuracy}%`
-  );
-  console.log("=".repeat(80));
-  console.log(`\nTotal Errors: ${totalErrors}`);
-  console.log("=".repeat(80) + "\n");
-}
-
-main();
+);

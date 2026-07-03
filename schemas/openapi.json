@@ -300,6 +300,318 @@
         }
       }
     },
+    "/v1/projects/{project_identifier}/annotation_configs": {
+      "get": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "List annotation configurations assigned to a project",
+        "description": "Retrieve a paginated list of the annotation configurations assigned to a project, identified by either project ID or project name.",
+        "operationId": "getProjectAnnotationConfigs",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (base64-encoded annotation config ID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (base64-encoded annotation config ID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Maximum number of configs to return",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of configs to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of the project's annotation configurations with pagination information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProjectAnnotationConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Replace the set of annotation configurations assigned to a project",
+        "description": "Replace the project's entire set of assigned annotation configurations with the provided set. The server diffs the desired set against the current set: configs in the body but not assigned are added, and configs assigned but not in the body are removed. An empty array clears all assignments.",
+        "operationId": "setProjectAnnotationConfigs",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProjectAnnotationConfigsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The resulting set of annotation configurations assigned to the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetProjectAnnotationConfigsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}": {
+      "put": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Assign an annotation configuration to a project",
+        "description": "Assign an annotation configuration to a project. This operation is idempotent: re-assigning a config that is already assigned is a no-op that returns the config. Both the project and the config are identified by either ID or name.",
+        "operationId": "assignAnnotationConfigToProject",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "config_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The annotation configuration identifier: either ID or name.",
+              "title": "Config Identifier"
+            },
+            "description": "The annotation configuration identifier: either ID or name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The annotation configuration assigned to the project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssignAnnotationConfigToProjectResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "annotation_configs"
+        ],
+        "summary": "Unassign an annotation configuration from a project",
+        "description": "Unassign an annotation configuration from a project. This operation is idempotent: unassigning a config that is not currently assigned is a no-op. The underlying annotation config is not deleted. Both the project and the config are identified by either ID or name.",
+        "operationId": "unassignAnnotationConfigFromProject",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name."
+          },
+          {
+            "name": "config_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The annotation configuration identifier: either ID or name.",
+              "title": "Config Identifier"
+            },
+            "description": "The annotation configuration identifier: either ID or name."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content returned on successful unassignment"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
     "/v1/projects/{project_identifier}/span_annotations": {
       "get": {
         "tags": [
@@ -1343,6 +1655,623 @@
               }
             },
             "description": "Invalid parameters"
+          }
+        }
+      }
+    },
+    "/v1/dataset_labels": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List dataset labels",
+        "description": "Retrieve a paginated list of all dataset labels in the system.",
+        "operationId": "listDatasetLabels",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor for pagination (a dataset label GlobalID)",
+              "title": "Cursor"
+            },
+            "description": "Cursor for pagination (a dataset label GlobalID)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "The max number of dataset labels to return at a time.",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "The max number of dataset labels to return at a time."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDatasetLabelsResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Create a dataset label",
+        "operationId": "createDatasetLabel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset label with the same name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request body"
+          }
+        }
+      }
+    },
+    "/v1/dataset_labels/{label_id}": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Get a dataset label by ID",
+        "operationId": "getDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update a dataset label by ID",
+        "description": "Partially update a dataset label's name, color, and/or description. Only the fields included in the request body are changed; omitted fields are left as-is.",
+        "operationId": "updateDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDatasetLabelRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDatasetLabelResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset label with the same name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID or request body"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete a dataset label by ID",
+        "description": "Delete a dataset label. This also removes the label from every dataset it is applied to.",
+        "operationId": "deleteDatasetLabel",
+        "parameters": [
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset label ID"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/labels": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List the labels applied to a dataset",
+        "operationId": "listDatasetLabelsForDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListDatasetLabelsForDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Replace the set of labels applied to a dataset",
+        "description": "Replace the entire set of labels applied to a dataset. Labels present in the request but not currently applied are added; labels currently applied but absent from the request are removed. An empty list removes all labels.",
+        "operationId": "setDatasetLabelsForDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDatasetLabelsRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetDatasetLabelsForDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or one or more dataset labels not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or request body"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+      "put": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Apply a label to a dataset",
+        "description": "Apply an existing label to a dataset. This operation is idempotent: applying a label that is already applied is a no-op that returns the label.",
+        "operationId": "addDatasetLabelToDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          },
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label to apply",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label to apply"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddDatasetLabelToDatasetResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or dataset label not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or dataset label ID"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Remove a label from a dataset",
+        "description": "Remove a label from a dataset without deleting the label itself. This operation is idempotent: removing a label that is not applied is a no-op.",
+        "operationId": "removeDatasetLabelFromDataset",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either the dataset ID (GlobalID) or its name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either the dataset ID (GlobalID) or its name."
+          },
+          {
+            "name": "label_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset label to remove",
+              "title": "Label Id"
+            },
+            "description": "The ID of the dataset label to remove"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset identifier or dataset label ID"
           }
         }
       }
@@ -5153,6 +6082,24 @@
               "title": "Include Dataset Evaluator Projects"
             },
             "description": "Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators."
+          },
+          {
+            "name": "name_contains",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return only projects whose name contains this substring (case-insensitive).",
+              "title": "Name Contains"
+            },
+            "description": "Return only projects whose name contains this substring (case-insensitive)."
           }
         ],
         "responses": {
@@ -6783,6 +7730,18 @@
   },
   "components": {
     "schemas": {
+      "AddDatasetLabelToDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AddDatasetLabelToDatasetResponseBody"
+      },
       "AgentSpanContext": {
         "properties": {
           "type": {
@@ -7040,6 +7999,37 @@
         ],
         "title": "AppContext",
         "description": "Per-turn browser clock context for resolving relative time requests."
+      },
+      "AssignAnnotationConfigToProjectResponseBody": {
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            ],
+            "title": "Data",
+            "discriminator": {
+              "propertyName": "type",
+              "mapping": {
+                "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+              }
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AssignAnnotationConfigToProjectResponseBody"
       },
       "AssistantMessageMetadata": {
         "properties": {
@@ -7878,6 +8868,52 @@
         ],
         "title": "CreateAnnotationConfigResponseBody"
       },
+      "CreateDatasetLabelRequestBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name",
+            "description": "The name of the dataset label"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#([0-9a-f]{6})$",
+            "title": "Color",
+            "description": "A lowercase hex color code (e.g. '#00cc88') used to display the label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the dataset label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "color"
+        ],
+        "title": "CreateDatasetLabelRequestBody"
+      },
+      "CreateDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateDatasetLabelResponseBody"
+      },
       "CreateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -8478,6 +9514,41 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetLabel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "color"
+        ],
+        "title": "DatasetLabel"
       },
       "DatasetVersion": {
         "properties": {
@@ -9759,6 +10830,46 @@
         ],
         "title": "GetAnnotationConfigsResponseBody"
       },
+      "GetDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetDatasetLabelResponseBody"
+      },
+      "GetDatasetLabelsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetDatasetLabelsResponseBody"
+      },
       "GetDatasetResponseBody": {
         "properties": {
           "data": {
@@ -9838,6 +10949,52 @@
           "next_cursor"
         ],
         "title": "GetIncompleteExperimentRunsResponseBody"
+      },
+      "GetProjectAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "GetProjectAnnotationConfigsResponseBody"
       },
       "GetProjectResponseBody": {
         "properties": {
@@ -10400,6 +11557,22 @@
           "data"
         ],
         "title": "ListDatasetExamplesResponseBody"
+      },
+      "ListDatasetLabelsForDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ListDatasetLabelsForDatasetResponseBody"
       },
       "ListDatasetVersionsResponseBody": {
         "properties": {
@@ -14032,6 +15205,99 @@
         ],
         "title": "SessionTraceData"
       },
+      "SetDatasetLabelsForDatasetResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetLabel"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetDatasetLabelsForDatasetResponseBody"
+      },
+      "SetDatasetLabelsRequestBody": {
+        "properties": {
+          "dataset_label_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dataset Label Ids",
+            "description": "The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels."
+          }
+        },
+        "type": "object",
+        "title": "SetDatasetLabelsRequestBody"
+      },
+      "SetProjectAnnotationConfigsRequestBody": {
+        "properties": {
+          "annotation_config_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Annotation Config Ids",
+            "description": "The complete set of annotation configuration GlobalIDs that should be assigned to the project. Configs not in this list are unassigned; an empty list clears all assignments."
+          }
+        },
+        "type": "object",
+        "required": [
+          "annotation_config_ids"
+        ],
+        "title": "SetProjectAnnotationConfigsRequestBody"
+      },
+      "SetProjectAnnotationConfigsResponseBody": {
+        "properties": {
+          "data": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CategoricalAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/ContinuousAnnotationConfig"
+                },
+                {
+                  "$ref": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "CATEGORICAL": "#/components/schemas/CategoricalAnnotationConfig",
+                  "CONTINUOUS": "#/components/schemas/ContinuousAnnotationConfig",
+                  "FREEFORM": "#/components/schemas/FreeformAnnotationConfig"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "SetProjectAnnotationConfigsResponseBody"
+      },
       "SourceDocumentUIPart": {
         "properties": {
           "type": {
@@ -16020,6 +17286,64 @@
           "data"
         ],
         "title": "UpdateAnnotationConfigResponseBody"
+      },
+      "UpdateDatasetLabelRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "New name for the label (null is rejected; name is required)"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^#([0-9a-f]{6})$",
+                "description": "A lowercase six-digit hex color code (e.g. '#00cc88')"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "New lowercase hex color code for the label (null is rejected)"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "New description for the label (null clears the description)"
+          }
+        },
+        "type": "object",
+        "title": "UpdateDatasetLabelRequestBody",
+        "description": "Fields to update on a dataset label. Omit a field to leave it unchanged."
+      },
+      "UpdateDatasetLabelResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetLabel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateDatasetLabelResponseBody"
       },
       "UpdateExperimentRequestBody": {
         "properties": {

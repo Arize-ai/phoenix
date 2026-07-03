@@ -1,16 +1,27 @@
-import { openai } from "@ai-sdk/openai";
-/* eslint-disable no-console */
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  getExperiment,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+/**
+ * Tool response handling evaluator benchmark.
+ *
+ * Runs the tool-response-handling evaluator across data extraction,
+ * transformation, summarization, error handling, hallucination, and disclosure
+ * cases, and gates the suite on labelling accuracy.
+ */
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createToolResponseHandlingEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
+import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
+
 const toolResponseHandlingEvaluator = createToolResponseHandlingEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // ============================================================================
@@ -771,273 +782,61 @@ const examplesByCategory = {
 };
 
 // Flatten examples with category information
-const examples = Object.entries(examplesByCategory).flatMap(
+
+type ToolResponseLabel = "correct" | "incorrect";
+
+const cases = Object.entries(examplesByCategory).flatMap(
   ([category, categoryExamples]) =>
     categoryExamples.map((example) => ({
-      ...example,
-      category,
+      input: {
+        input: example.input,
+        toolCall: example.tool_call,
+        toolResult: example.tool_result,
+        output: example.output,
+      },
+      expected: { label: example.expected_label as ToolResponseLabel },
+      metadata: { category, failure_mode: example.failure_mode },
+      splits: [category, example.expected_label],
     }))
 );
 
-// Create dataset entries
-const datasetExamples = examples.map((example, index) => ({
-  input: {
-    input: example.input,
-    toolCall: example.tool_call,
-    toolResult: example.tool_result,
-    output: example.output,
-  },
-  output: {
-    expected_label: example.expected_label,
-  },
-  metadata: {
-    category: example.category,
-    failure_mode: example.failure_mode,
-    example_index: index,
-  },
-  splits: [example.category, example.expected_label],
-}));
-
-type TaskOutput = {
-  expected_label: "correct" | "incorrect";
-  label: "correct" | "incorrect";
-  score: number;
-  explanation: string;
-  category: string;
-  failure_mode: string | null;
-};
-
-const accuracyEvaluator = asExperimentEvaluator({
-  name: "accuracy",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput | null;
-
-    // Handle null output (task errors)
-    if (!output) {
-      return {
-        label: "error",
-        score: 0,
-        explanation: "Task failed to produce output",
-        metadata: {},
-      };
-    }
-
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === output.label ? "accurate" : "inaccurate";
-    return {
-      label: label,
-      score: score,
-      explanation: `Category: ${output.category}. The evaluator labeled the handling as "${output.label}". Expected: "${output.expected_label}"${output.failure_mode ? `. Failure mode: ${output.failure_mode}` : ""}`,
-      metadata: {
-        category: output.category,
-        failure_mode: output.failure_mode,
-      },
-    };
-  },
-});
-
-async function main() {
-  console.log("\n" + "=".repeat(60));
-  console.log("TOOL RESPONSE HANDLING BENCHMARK CONFIGURATION");
-  console.log("=".repeat(60));
-  console.log(`Categories: ${Object.keys(examplesByCategory).length}`);
-  console.log(`Total examples: ${examples.length}`);
-
-  // Count by expected label
-  const correctCount = examples.filter(
-    (e) => e.expected_label === "correct"
-  ).length;
-  const incorrectCount = examples.filter(
-    (e) => e.expected_label === "incorrect"
-  ).length;
-  console.log(
-    `Expected correct: ${correctCount}, Expected incorrect: ${incorrectCount}`
-  );
-
-  // Count by category
-  const categoryCounts: Record<string, number> = {};
-  examples.forEach((e) => {
-    categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1;
-  });
-  console.log("Examples per category:");
-  Object.entries(categoryCounts).forEach(([cat, count]) => {
-    console.log(`  ${cat}: ${count}`);
-  });
-  console.log("=".repeat(60) + "\n");
-
-  const dataset = await createDataset({
-    name: "tool-response-handling-benchmark-" + Date.now(),
-    description:
-      "Benchmark testing tool response handling correctness: data extraction, transformation, summarization, error handling, multi-tool handling, hallucination detection, information disclosure prevention",
-    examples: datasetExamples,
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const expectedLabel = example.output?.expected_label as
-      | "correct"
-      | "incorrect";
-
-    const evalResult = await toolResponseHandlingEvaluator.evaluate({
-      input: example.input.input as string,
-      toolCall: example.input.toolCall as string,
-      toolResult: example.input.toolResult as string,
-      output: example.input.output as string,
-    });
-
-    return {
-      expected_label: expectedLabel,
-      category: example.metadata?.category as string,
-      failure_mode: example.metadata?.failure_mode as string | null,
-      ...evalResult,
-    };
-  };
-
-  const experiment = await runExperiment({
-    experimentName: "tool-response-handling-benchmark",
-    experimentDescription:
-      "Testing the tool response handling evaluator across various scenarios",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [accuracyEvaluator],
-  });
-
-  // Fetch full experiment details including runs
-  const experimentResult = await getExperiment({
-    experimentId: experiment.id,
-  });
-
-  // Print experiment summary
-  console.log("\n" + "=".repeat(80));
-  console.log("EXPERIMENT RESULTS SUMMARY");
-  console.log("=".repeat(80));
-  console.log(`Experiment ID: ${experimentResult.id}`);
-  console.log(`Dataset ID: ${experimentResult.datasetId}`);
-  console.log(`Total Examples: ${experimentResult.exampleCount}`);
-  console.log(`Successful Runs: ${experimentResult.successfulRunCount}`);
-  console.log(`Failed Runs: ${experimentResult.failedRunCount}`);
-  console.log(`Missing Runs: ${experimentResult.missingRunCount}`);
-
-  // Analyze runs by category and build confusion matrix
-  const runsByCategory: Record<
-    string,
-    { correct: number; incorrect: number; errors: number }
-  > = {};
-
-  // Confusion matrix counters
-  let truePositives = 0; // Predicted correct, Actually correct
-  let trueNegatives = 0; // Predicted incorrect, Actually incorrect
-  let falsePositives = 0; // Predicted correct, Actually incorrect
-  let falseNegatives = 0; // Predicted incorrect, Actually correct
-
-  for (const run of Object.values(experimentResult.runs)) {
-    const output = run.output as TaskOutput | null;
-    const category = output?.category || "unknown";
-
-    if (!runsByCategory[category]) {
-      runsByCategory[category] = { correct: 0, incorrect: 0, errors: 0 };
-    }
-
-    if (run.error) {
-      runsByCategory[category].errors++;
-    } else if (output?.expected_label === output?.label) {
-      runsByCategory[category].correct++;
-      // Update confusion matrix for correct predictions
-      if (output?.label === "correct") {
-        truePositives++;
-      } else {
-        trueNegatives++;
+px.describe(
+  "tool-response-handling-benchmark",
+  () => {
+    px.test.each(cases)(
+      (row) => `[${String(row.metadata?.category)}] ${String(row.input.input)}`,
+      async ({ input, expected }) => {
+        const result = await toolResponseHandlingEvaluator.evaluate({
+          input: input.input,
+          toolCall: input.toolCall,
+          toolResult: input.toolResult,
+          output: input.output,
+        });
+        px.logOutput(result);
+        px.logAnnotation({
+          name: "tool_response_handling",
+          label: result.label,
+          score: result.score,
+          explanation: result.explanation,
+          annotatorKind: "LLM",
+        });
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
+        await px.evaluate(accuracy);
       }
-    } else {
-      runsByCategory[category].incorrect++;
-      // Update confusion matrix for incorrect predictions
-      if (output?.label === "correct") {
-        falsePositives++;
-      } else {
-        falseNegatives++;
-      }
-    }
-  }
-
-  console.log("\n" + "-".repeat(80));
-  console.log("ACCURACY BY CATEGORY");
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"Category".padEnd(30)} | ${"Accuracy".padEnd(15)} | Details`
-  );
-  console.log("-".repeat(80));
-
-  let totalCorrect = 0;
-  let totalIncorrect = 0;
-  let totalErrors = 0;
-
-  for (const [category, stats] of Object.entries(runsByCategory).sort()) {
-    const total = stats.correct + stats.incorrect + stats.errors;
-    const accuracy =
-      total > 0 ? ((stats.correct / total) * 100).toFixed(0) : "N/A";
-
-    console.log(
-      `  ${category.padEnd(30)} | ${`${accuracy}%`.padEnd(15)} | ${stats.correct}/${total} correct${stats.errors > 0 ? `, ${stats.errors} errors` : ""}`
     );
-
-    totalCorrect += stats.correct;
-    totalIncorrect += stats.incorrect;
-    totalErrors += stats.errors;
+    registerAggregateMetricsTest(labels);
+  },
+  {
+    description:
+      "Tool response handling correctness: data extraction, transformation, summarization, error handling, multi-tool handling, hallucination detection, and information disclosure prevention.",
+    metadata: { model: evalModelName },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
+    ],
   }
-
-  const overallTotal = totalCorrect + totalIncorrect + totalErrors;
-  const overallAccuracy =
-    overallTotal > 0 ? ((totalCorrect / overallTotal) * 100).toFixed(1) : "N/A";
-
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"OVERALL".padEnd(30)} | ${`${overallAccuracy}%`.padEnd(15)} | ${totalCorrect}/${overallTotal} correct${totalErrors > 0 ? `, ${totalErrors} errors` : ""}`
-  );
-  console.log("=".repeat(80));
-
-  // Print confusion matrix
-  console.log("\n" + "=".repeat(80));
-  console.log("CONFUSION MATRIX");
-  console.log("=".repeat(80));
-  console.log(
-    `                          │ Predicted: Correct │ Predicted: Incorrect │`
-  );
-  console.log("-".repeat(80));
-  console.log(
-    `  Actual: Correct         │ ${String(truePositives).padStart(18)} │ ${String(falseNegatives).padStart(20)} │`
-  );
-  console.log(
-    `  Actual: Incorrect       │ ${String(falsePositives).padStart(18)} │ ${String(trueNegatives).padStart(20)} │`
-  );
-  console.log("=".repeat(80));
-
-  // Calculate metrics
-  const precision =
-    truePositives + falsePositives > 0
-      ? ((truePositives / (truePositives + falsePositives)) * 100).toFixed(1)
-      : "N/A";
-  const recall =
-    truePositives + falseNegatives > 0
-      ? ((truePositives / (truePositives + falseNegatives)) * 100).toFixed(1)
-      : "N/A";
-  const f1Score =
-    precision !== "N/A" && recall !== "N/A"
-      ? parseFloat(precision) + parseFloat(recall) > 0
-        ? (
-            (2 * (parseFloat(precision) * parseFloat(recall))) /
-            (parseFloat(precision) + parseFloat(recall))
-          ).toFixed(1)
-        : "0.0"
-      : "N/A";
-
-  console.log(`\nMetrics:`);
-  console.log(`  Precision (PPV): ${precision}%`);
-  console.log(`  Recall (TPR):    ${recall}%`);
-  console.log(`  F1 Score:        ${f1Score}%`);
-  console.log(`\nTotal Errors: ${totalErrors}`);
-  console.log("=".repeat(80) + "\n");
-}
-
-main();
+);
