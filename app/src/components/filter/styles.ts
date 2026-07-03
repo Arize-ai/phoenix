@@ -33,7 +33,7 @@ export const dslFilterFieldCSS = css`
     border-color: var(--global-color-danger);
   }
   box-sizing: border-box;
-  .search-icon {
+  .filter-icon {
     margin-left: var(--global-dimension-static-size-100);
   }
 `;

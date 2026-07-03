@@ -201,7 +201,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       ref={fieldRef}
     >
       <Flex direction="row" alignItems="center">
-        <Icon svg={<Icons.Search />} className="search-icon" />
+        <Icon svg={<Icons.ListFilter />} className="filter-icon" />
         <CodeMirror
           css={dslFilterCodeMirrorCSS}
           indentWithTab={false}

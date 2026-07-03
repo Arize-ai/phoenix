@@ -903,6 +903,10 @@ export const Folder = () => (
   </svg>
 );
 
+/**
+ * @deprecated Use {@link ListFilter} instead — the funnel glyph has been
+ * replaced by the list-filter glyph for filtering affordances.
+ */
 export const Funnel = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
@@ -1183,6 +1187,24 @@ export const List = () => (
         <rect x="7" y="6" width="14" height="2" rx=".94" ry=".94" />
       </g>
     </g>
+  </svg>
+);
+
+export const ListFilter = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M2 5h20" />
+    <path d="M6 12h12" />
+    <path d="M9 19h6" />
   </svg>
 );
 
