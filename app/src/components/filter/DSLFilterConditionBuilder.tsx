@@ -1,5 +1,4 @@
 import { python } from "@codemirror/lang-python";
-import type { Extension } from "@codemirror/state";
 import { css } from "@emotion/react";
 import CodeMirror from "@uiw/react-codemirror";
 import { useState } from "react";
@@ -21,7 +20,7 @@ export type DSLFilterSnippet = {
   snippet: string;
 };
 
-const defaultLanguage = python();
+const pythonLanguage = python();
 
 export type DSLFilterConditionBuilderProps = {
   /**
@@ -32,10 +31,6 @@ export type DSLFilterConditionBuilderProps = {
    * Callback when the user adds a snippet to the filter condition
    */
   onAddCondition: (condition: string) => void;
-  /**
-   * The CodeMirror language of the DSL. Defaults to python.
-   */
-  language?: Extension;
 };
 
 /**
@@ -45,7 +40,7 @@ export type DSLFilterConditionBuilderProps = {
 export function DSLFilterConditionBuilder(
   props: DSLFilterConditionBuilderProps
 ) {
-  const { snippets, onAddCondition, language = defaultLanguage } = props;
+  const { snippets, onAddCondition } = props;
   return (
     <View
       width="500px"
@@ -60,7 +55,6 @@ export function DSLFilterConditionBuilder(
             label={label}
             initialSnippet={snippet}
             onAddCondition={onAddCondition}
-            language={language}
           />
         ))}
       </Flex>
@@ -76,14 +70,8 @@ export function DSLFilterConditionSnippet(props: {
   label: string;
   initialSnippet: string;
   onAddCondition: (condition: string) => void;
-  language?: Extension;
 }) {
-  const {
-    label,
-    initialSnippet,
-    onAddCondition,
-    language = defaultLanguage,
-  } = props;
+  const { label, initialSnippet, onAddCondition } = props;
   const [snippet, setSnippet] = useState<string>(initialSnippet);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
@@ -109,7 +97,7 @@ export function DSLFilterConditionSnippet(props: {
               highlightActiveLine: false,
               highlightActiveLineGutter: false,
             }}
-            extensions={[language]}
+            extensions={[pythonLanguage]}
             editable={true}
             onChange={setSnippet}
             theme={codeMirrorTheme}

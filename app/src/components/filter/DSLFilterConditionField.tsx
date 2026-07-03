@@ -5,7 +5,6 @@ import type {
 } from "@codemirror/autocomplete";
 import { autocompletion } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
-import type { Extension } from "@codemirror/state";
 import { css } from "@emotion/react";
 import type { EditorView } from "@uiw/react-codemirror";
 import CodeMirror, {
@@ -47,7 +46,7 @@ export type DSLFilterConditionValidationResult = {
   errorMessage?: string | null;
 };
 
-const defaultLanguage = python();
+const pythonLanguage = python();
 
 const basicSetupOptions: BasicSetupOptions = {
   lineNumbers: false,
@@ -109,10 +108,6 @@ export type DSLFilterConditionFieldProps = {
   onValidationStateChange?: (isValid: boolean) => void;
   placeholder?: string;
   /**
-   * The CodeMirror language of the DSL. Defaults to python.
-   */
-  language?: Extension;
-  /**
    * Optional content for the condition builder popover (e.g. a
    * `DSLFilterConditionBuilder`). When provided, a "+" trigger is shown at
    * the end of the field.
@@ -124,8 +119,8 @@ export type DSLFilterConditionFieldProps = {
 /**
  * A filter condition input for a python-like filter DSL with typeahead,
  * async validation, and an optional snippet builder. The DSL itself is fully
- * defined by the caller via `completions`, `validateCondition`, `language`,
- * and `builder`.
+ * defined by the caller via `completions`, `validateCondition`, and
+ * `builder`.
  */
 export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
   const {
@@ -136,7 +131,6 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     onValidCondition,
     onValidationStateChange,
     placeholder = "filter condition",
-    language = defaultLanguage,
     builder,
     className,
   } = props;
@@ -158,7 +152,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
         },
       },
     ]),
-    language,
+    pythonLanguage,
     autocompletion({ override: [createCompletionSource(completions)] }),
   ];
 
