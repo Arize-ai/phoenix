@@ -1,20 +1,22 @@
 import type { Completion } from "@codemirror/autocomplete";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import {
-  DSLFilterConditionBuilder,
+  createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterSnippet,
 } from "@phoenix/components/filter";
 import environment from "@phoenix/RelayEnvironment";
 
+import type { ExperimentRunFilterConditionFieldCompletionsQuery } from "./__generated__/ExperimentRunFilterConditionFieldCompletionsQuery.graphql";
 import type { ExperimentRunFilterConditionFieldValidationQuery } from "./__generated__/ExperimentRunFilterConditionFieldValidationQuery.graphql";
 import { useExperimentRunFilterCondition } from "./ExperimentRunFilterConditionContext";
 
 /**
- * The vocabulary of the experiment run filter DSL: fields on an experiment
- * run plus macro snippets for common conditions.
+ * The fields of the experiment run filter DSL that an expression can
+ * reference
  */
 const experimentRunFilterCompletions: Completion[] = [
   {
@@ -50,95 +52,106 @@ const experimentRunFilterCompletions: Completion[] = [
   {
     label: "evals",
     type: "variable",
-    info: "The evaluations of the experiment run",
+    info: "The evaluations of the experiment run, accessed by name",
   },
   {
-    label: "search input",
-    type: "text",
-    apply: "'' in input",
-    detail: "macro",
-  },
-  {
-    label: "search reference output",
-    type: "text",
-    apply: "'' in reference_output",
-    detail: "macro",
-  },
-  {
-    label: "search output",
-    type: "text",
-    apply: "'' in output",
-    detail: "macro",
-  },
-  {
-    label: "has error",
-    type: "text",
-    apply: "error is not None",
-    detail: "macro",
-  },
-  {
-    label: "Latency >= 10s",
-    type: "text",
-    apply: "latency_ms >= 10_000",
-    detail: "macro",
-  },
-  {
-    label: "Hallucinations",
-    type: "text",
-    apply: "evals['hallucination'].label == 'hallucinated'",
-    detail: "macro",
-  },
-  {
-    label: "Metadata",
-    type: "text",
-    apply: "metadata['category'] == 'hard_examples'",
-    detail: "macro",
+    label: "experiments",
+    type: "variable",
+    info: "The experiments being compared, accessed by position - e.x. experiments[0]",
   },
 ];
 
+/**
+ * Example conditions shown as suggestions in the typeahead — notably when
+ * the empty field is focused. `${placeholder}` segments become tab-through
+ * fields on insert.
+ */
 const experimentRunFilterSnippets: DSLFilterSnippet[] = [
   {
-    key: "substring",
-    label: "filter by substring",
-    snippet: "'search term' in output['key']",
+    label: "search output for substring",
+    snippet: "'${search text}' in output",
   },
   {
-    key: "errors",
+    label: "search input for substring",
+    snippet: "'${search text}' in input",
+  },
+  {
+    label: "search reference output for substring",
+    snippet: "'${search text}' in reference_output",
+  },
+  {
     label: "filter on errors",
     snippet: "error is not None",
   },
   {
-    key: "eval_label",
+    label: "filter out errors",
+    snippet: "error is None",
+  },
+  {
     label: "filter by evaluation label",
-    snippet: "evals['hallucination'].label == 'hallucinated'",
+    snippet: "evals['${name}'].label == '${label}'",
   },
   {
-    key: "eval_score",
     label: "filter by evaluation score",
-    snippet: "evals['hallucination'].score >= 0.5",
+    snippet: "evals['${name}'].score >= ${0.5}",
   },
   {
-    key: "eval_explanation",
-    label: "filter by evaluation explanation",
-    snippet: "'search term' in evals['hallucination'].explanation",
+    label: "search evaluation explanation",
+    snippet: "'${search text}' in evals['${name}'].explanation",
   },
   {
-    key: "compare_experiments",
     label: "filter for lower scores than first experiment",
-    snippet:
-      "evals['hallucination'].score < experiments[0].evals['hallucination'].score",
+    snippet: "evals['${name}'].score < experiments[0].evals['${name}'].score",
   },
   {
-    key: "metadata",
     label: "filter by metadata",
-    snippet: "metadata['category'] == 'hard_examples'",
+    snippet: "metadata['${key}'] == '${value}'",
   },
   {
-    key: "latency",
     label: "filter by latency",
-    snippet: "latency_ms >= 10_000",
+    snippet: "latency_ms >= ${10_000}",
   },
 ];
+
+/**
+ * Fetches the evaluation names that actually exist on the experiments so the
+ * typeahead can suggest real values rather than made-up examples
+ */
+async function fetchEvaluationCompletions(
+  experimentIds: string[]
+): Promise<Completion[]> {
+  const results = await Promise.all(
+    experimentIds.map((id) =>
+      fetchQuery<ExperimentRunFilterConditionFieldCompletionsQuery>(
+        environment,
+        graphql`
+          query ExperimentRunFilterConditionFieldCompletionsQuery($id: ID!) {
+            experiment: node(id: $id) {
+              ... on Experiment {
+                annotationSummaries {
+                  annotationName
+                }
+              }
+            }
+          }
+        `,
+        { id }
+      ).toPromise()
+    )
+  );
+  const names = new Set<string>();
+  for (const result of results) {
+    for (const summary of result?.experiment?.annotationSummaries ?? []) {
+      names.add(summary.annotationName);
+    }
+  }
+  return createAnnotationMemberCompletions({
+    accessor: "evals",
+    noun: "evaluation",
+    sectionName: "Evaluations",
+    names: [...names],
+  });
+}
 
 /**
  * Async server-side validation of the experiment run filter condition expression
@@ -147,12 +160,6 @@ async function validateExperimentRunFilterCondition(
   condition: string,
   experimentIds: string[]
 ) {
-  if (!condition) {
-    return {
-      isValid: true,
-      errorMessage: null,
-    };
-  }
   const validationResult =
     await fetchQuery<ExperimentRunFilterConditionFieldValidationQuery>(
       environment,
@@ -193,28 +200,37 @@ export function ExperimentRunFilterConditionField(
     onValidCondition,
     placeholder = `filter condition (e.g., evals["Hallucination"].label == 'hallucinated')`,
   } = props;
-  const { filterCondition, setFilterCondition, appendFilterCondition } =
+  const { filterCondition, setFilterCondition } =
     useExperimentRunFilterCondition();
 
   const [searchParams] = useSearchParams();
-  const experimentIds = searchParams.getAll("experimentId");
+  // Key the callbacks below on the ids' contents rather than the searchParams
+  // object, whose identity changes when any unrelated param changes
+  const experimentIdsKey = searchParams.getAll("experimentId").join(",");
+
+  const { loadEvaluationCompletions, validateCondition } = useMemo(() => {
+    const ids = experimentIdsKey.split(",").filter(Boolean);
+    return {
+      // Stable identity so the field fetches (and caches) the experiments'
+      // real evaluation names only once
+      loadEvaluationCompletions:
+        ids.length > 0 ? () => fetchEvaluationCompletions(ids) : undefined,
+      validateCondition: (condition: string) =>
+        validateExperimentRunFilterCondition(condition, ids),
+    };
+  }, [experimentIdsKey]);
 
   return (
     <DSLFilterConditionField
+      aria-label="Filter experiment runs"
       value={filterCondition}
       onChange={setFilterCondition}
       placeholder={placeholder}
       completions={experimentRunFilterCompletions}
-      validateCondition={(condition) =>
-        validateExperimentRunFilterCondition(condition, experimentIds)
-      }
+      snippets={experimentRunFilterSnippets}
+      loadCompletions={loadEvaluationCompletions}
+      validateCondition={validateCondition}
       onValidCondition={onValidCondition}
-      builder={
-        <DSLFilterConditionBuilder
-          snippets={experimentRunFilterSnippets}
-          onAddCondition={appendFilterCondition}
-        />
-      }
     />
   );
 }

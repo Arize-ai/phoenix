@@ -6,14 +6,13 @@ import { fn } from "storybook/test";
 import { Flex, Text, View } from "@phoenix/components";
 import type { DSLFilterSnippet } from "@phoenix/components/filter";
 import {
-  DSLFilterConditionBuilder,
+  createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterConditionFieldProps,
 } from "@phoenix/components/filter";
 
 /**
- * An example DSL vocabulary: variables the expression can reference plus
- * "macro" snippets that expand to full conditions.
+ * An example DSL vocabulary: the fields an expression can reference
  */
 const completions: Completion[] = [
   {
@@ -31,37 +30,55 @@ const completions: Completion[] = [
     type: "variable",
     info: "The metadata of the record",
   },
+];
+
+/**
+ * Example conditions surfaced in the typeahead as suggestions — including
+ * when the empty field is focused. `${placeholder}` segments become
+ * tab-through fields on insert. More snippets than the browse cap, so the
+ * story demonstrates that only the first few show when the empty field is
+ * focused while the rest (e.g. "filter by name prefix") surface as you type.
+ */
+const snippets: DSLFilterSnippet[] = [
   {
-    label: "Latency >= 10s",
-    type: "text",
-    apply: "latency_ms >= 10_000",
-    detail: "macro",
+    label: "filter by latency",
+    snippet: "latency_ms >= ${10_000}",
   },
   {
-    label: "Metadata",
-    type: "text",
-    apply: "metadata['topic'] == 'agent'",
-    detail: "macro",
+    label: "filter by metadata",
+    snippet: "metadata['${key}'] == '${value}'",
+  },
+  {
+    label: "filter by substring",
+    snippet: "'${search text}' in name",
+  },
+  {
+    label: "filter by name",
+    snippet: "name == '${name}'",
+  },
+  {
+    label: "filter by fast responses",
+    snippet: "latency_ms < ${1_000}",
+  },
+  {
+    label: "filter by name prefix",
+    snippet: "name.startswith('${prefix}')",
   },
 ];
 
-const snippets: DSLFilterSnippet[] = [
-  {
-    key: "latency",
-    label: "filter by latency",
-    snippet: "latency_ms >= 10_000",
-  },
-  {
-    key: "metadata",
-    label: "filter by metadata",
-    snippet: "metadata['topic'] == 'agent'",
-  },
-  {
-    key: "substring",
-    label: "filter by substring",
-    snippet: "'agent' in name",
-  },
-];
+/**
+ * Simulates fetching completions for values that actually exist in the
+ * user's data (e.g. annotation names)
+ */
+async function loadCompletions(): Promise<Completion[]> {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return createAnnotationMemberCompletions({
+    accessor: "annotations",
+    noun: "annotation",
+    sectionName: "Annotations",
+    names: ["Hallucination", "Toxicity"],
+  });
+}
 
 /**
  * A fake async validator: rejects expressions containing "invalid" so the
@@ -95,8 +112,6 @@ export default meta;
 const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
   const [value, setValue] = useState<string>("");
   const [validCondition, setValidCondition] = useState<string>("");
-  const appendCondition = (condition: string) =>
-    setValue(value ? `${value} and ${condition}` : condition);
   return (
     <View width="600px">
       <Flex direction="column" gap="size-100">
@@ -105,17 +120,13 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
           value={value}
           onChange={setValue}
           completions={completions}
+          snippets={snippets}
+          loadCompletions={loadCompletions}
           validateCondition={validateCondition}
           onValidCondition={(condition) => {
             setValidCondition(condition);
             args.onValidCondition(condition);
           }}
-          builder={
-            <DSLFilterConditionBuilder
-              snippets={snippets}
-              onAddCondition={appendCondition}
-            />
-          }
         />
         <Text color="text-700" size="XS">
           {validCondition
@@ -128,17 +139,20 @@ const Template: StoryFn<DSLFilterConditionFieldProps> = (args) => {
 };
 
 /**
- * Type to see the DSL vocabulary via typeahead. Conditions containing the
- * word "invalid" fail validation to demonstrate the error state.
+ * Focus the empty field to see suggested conditions and fields; type to
+ * filter them. Suggestions insert with tab-through placeholders. Conditions
+ * containing the word "invalid" fail validation to demonstrate the error
+ * state.
  */
 export const Default = {
   render: Template,
 };
 
 /**
- * Without a `builder`, the "+" snippet-builder trigger is omitted.
+ * Without `snippets` or `loadCompletions`, the typeahead surfaces only the
+ * static field vocabulary.
  */
-export const WithoutBuilder: StoryFn<DSLFilterConditionFieldProps> = (args) => {
+export const FieldsOnly: StoryFn<DSLFilterConditionFieldProps> = (args) => {
   const [value, setValue] = useState<string>("");
   return (
     <View width="600px">
