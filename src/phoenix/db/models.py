@@ -748,6 +748,11 @@ class ProjectSession(HasId):
             "project_id",
             text("start_time DESC"),
         ),
+        Index(
+            "ix_project_sessions_project_id_end_time",
+            "project_id",
+            text("end_time DESC"),
+        ),
     )
 
 

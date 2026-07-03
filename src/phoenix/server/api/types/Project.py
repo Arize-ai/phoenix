@@ -516,7 +516,12 @@ class Project(Node):
             has_next_page=has_next_page,
         )
 
-    @strawberry.field
+    @strawberry.field(
+        description="Sessions in the project. The time range filter uses interval-overlap "
+        "semantics: a session is included iff [startTime, endTime] intersects "
+        "[timeRange.start, timeRange.end), i.e. the session had activity inside the "
+        "window. Long-running sessions therefore appear in every window they overlap."
+    )  # type: ignore
     async def sessions(
         self,
         info: Info[Context, None],
@@ -548,11 +553,16 @@ class Project(Node):
                 )
         stmt = select(table).filter_by(project_id=self.id)
         if time_range:
+            # A session spans [start_time, end_time]; it belongs to the window iff the
+            # two intervals overlap, i.e. the session had activity inside the window.
             if time_range.start:
-                stmt = stmt.where(time_range.start <= table.start_time)
+                stmt = stmt.where(time_range.start <= table.end_time)
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
+            # The substring may match anywhere in the session, including traces outside
+            # the window — the subquery scopes sessions by the same interval overlap as
+            # the filter above, bounding the substring scan to the window's sessions.
             filtered_session_rowids = get_filtered_session_rowids_subquery(
                 session_filter_condition=filter_io_substring,
                 project_rowids=[self.id],
@@ -1507,6 +1517,9 @@ class Project(Node):
         time_bin_config: Optional[TimeBinConfig] = UNSET,
     ) -> "AnnotationScoreTimeSeries":
         stride, utc_offset_minutes = _time_bin_stride(time_bin_config)
+        # Buckets by start_time (a session belongs to exactly one bucket), so unlike the
+        # sessions connection's interval-overlap filter, a long-running session appears
+        # only in the bucket where it started — the two surfaces intentionally differ.
         bucket = date_trunc(
             info.context.db.dialect, stride, models.ProjectSession.start_time, utc_offset_minutes
         )
