@@ -22,7 +22,8 @@ def _create_dataset(app: _AppInfo, name: str) -> str:
 def _create_label(app: _AppInfo, **body: Any) -> dict[str, Any]:
     resp = _httpx_client(app).post("v1/dataset_labels", json=body)
     assert resp.status_code == 201, resp.text
-    return resp.json()["data"]
+    data: dict[str, Any] = resp.json()["data"]
+    return data
 
 
 class TestDatasetLabelCRUD:
