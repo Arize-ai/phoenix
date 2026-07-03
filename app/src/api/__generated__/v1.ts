@@ -60,6 +60,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/annotation_configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List annotation configurations assigned to a project
+         * @description Retrieve a paginated list of the annotation configurations assigned to a project, identified by either project ID or project name.
+         */
+        get: operations["getProjectAnnotationConfigs"];
+        /**
+         * Replace the set of annotation configurations assigned to a project
+         * @description Replace the project's entire set of assigned annotation configurations with the provided set. The server diffs the desired set against the current set: configs in the body but not assigned are added, and configs assigned but not in the body are removed. An empty array clears all assignments.
+         */
+        put: operations["setProjectAnnotationConfigs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign an annotation configuration to a project
+         * @description Assign an annotation configuration to a project. This operation is idempotent: re-assigning a config that is already assigned is a no-op that returns the config. Both the project and the config are identified by either ID or name.
+         */
+        put: operations["assignAnnotationConfigToProject"];
+        post?: never;
+        /**
+         * Unassign an annotation configuration from a project
+         * @description Unassign an annotation configuration from a project. This operation is idempotent: unassigning a config that is not currently assigned is a no-op. The underlying annotation config is not deleted. Both the project and the config are identified by either ID or name.
+         */
+        delete: operations["unassignAnnotationConfigFromProject"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_identifier}/span_annotations": {
         parameters: {
             query?: never;
@@ -1621,6 +1669,11 @@ export interface components {
             /** Timezone */
             timeZone: string;
         };
+        /** AssignAnnotationConfigToProjectResponseBody */
+        AssignAnnotationConfigToProjectResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
         /**
          * AssistantMessageMetadata
          * @description Wire schema for the chat stream's `message_metadata` payload.
@@ -2767,6 +2820,13 @@ export interface components {
         GetIncompleteExperimentRunsResponseBody: {
             /** Data */
             data: components["schemas"]["IncompleteExperimentRun"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetProjectAnnotationConfigsResponseBody */
+        GetProjectAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -4528,6 +4588,21 @@ export interface components {
              */
             dataset_label_ids?: string[];
         };
+        /** SetProjectAnnotationConfigsRequestBody */
+        SetProjectAnnotationConfigsRequestBody: {
+            /**
+             * Annotation Config Ids
+             * @description The complete set of annotation configuration GlobalIDs that should be assigned to the project. Configs not in this list are unassigned; an empty list clears all assignments.
+             */
+            annotation_config_ids: string[];
+        };
+        /** SetProjectAnnotationConfigsResponseBody */
+        SetProjectAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /**
          * SourceDocumentUIPart
          * @description A document source part of a message.
@@ -5859,6 +5934,217 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProjectAnnotationConfigs: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded annotation config ID) */
+                cursor?: string | null;
+                /** @description Maximum number of configs to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of the project's annotation configurations with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetProjectAnnotationConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setProjectAnnotationConfigs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectAnnotationConfigsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The resulting set of annotation configurations assigned to the project */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetProjectAnnotationConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    assignAnnotationConfigToProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+                /** @description The annotation configuration identifier: either ID or name. */
+                config_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The annotation configuration assigned to the project */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignAnnotationConfigToProjectResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    unassignAnnotationConfigFromProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+                /** @description The annotation configuration identifier: either ID or name. */
+                config_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful unassignment */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

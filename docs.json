@@ -942,7 +942,11 @@
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/create-an-annotation-configuration",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/get-an-annotation-configuration-by-id-or-name",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/update-an-annotation-configuration",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations-assigned-to-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/assign-an-annotation-configuration-to-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/unassign-an-annotation-configuration-from-a-project",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/replace-the-set-of-annotation-configurations-assigned-to-a-project"
                     ]
                   },
                   {

@@ -2207,6 +2207,8 @@ _COMMON_RESOURCE_ENDPOINTS = (
     # Annotation configs
     (200, "GET", "v1/annotation_configs"),
     (404, "GET", "v1/annotation_configs/fake-id-{}"),
+    # Project annotation config assignments (project-scoped)
+    (404, "GET", "v1/projects/fake-id-{}/annotation_configs"),
     # Spans (project-scoped)
     (404, "GET", "v1/projects/fake-id-{}/spans"),
     (404, "GET", "v1/projects/fake-id-{}/spans/otlpv1"),
@@ -2261,6 +2263,8 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
+    (404, "PUT", "v1/projects/{0}/annotation_configs/{0}"),
+    (422, "PUT", "v1/projects/fake-id-{}/annotation_configs"),
     (422, "PUT", "v1/datasets/fake-id-{}/labels"),
     (422, "PUT", "v1/datasets/fake-id-{}/labels/test-label"),
     # PATCH routes
@@ -2268,6 +2272,7 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "PATCH", "v1/dataset_labels/fake-id-{}"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
+    (404, "DELETE", "v1/projects/{0}/annotation_configs/{0}"),
     (422, "DELETE", "v1/dataset_labels/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}/labels/test-label"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
