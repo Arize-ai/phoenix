@@ -1043,7 +1043,7 @@ export function SpansTable(props: SpansTableProps) {
                 // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
                 // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                 // will be replaced to eliminate this condition.
-                <ProjectTableEmpty projectName={data.name} />
+                <ProjectTableEmpty />
               ) : columnSizingInfo.isResizingColumn ? (
                 <MemoizedTableBody
                   table={table}
