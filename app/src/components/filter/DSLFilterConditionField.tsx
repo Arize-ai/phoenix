@@ -219,13 +219,24 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
         <button
           css={css`
             margin-right: var(--global-dimension-static-size-100);
+            padding: 2px;
             color: var(--global-text-color-700);
+            border-radius: var(--global-rounding-small);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
             visibility: ${hasCondition ? "visible" : "hidden"};
+            &:hover {
+              color: var(--global-text-color-900);
+              background-color: var(--global-color-gray-300);
+            }
           `}
           onClick={() => onChange("")}
           className="button--reset"
+          aria-label="Clear filter condition"
         >
-          <Icon svg={<Icons.CloseCircle />} />
+          <Icon svg={<Icons.Close />} />
         </button>
         {builder ? (
           <DialogTrigger>
