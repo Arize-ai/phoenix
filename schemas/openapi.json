@@ -4289,6 +4289,62 @@
               "title": "Session Identifier"
             },
             "description": "List of session identifiers to filter traces by. Each value can be either a session_id string or a session GlobalID. Only traces belonging to the specified sessions will be returned."
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI.",
+              "title": "Error"
+            },
+            "description": "Filter by trace error status. If true, only return traces that contain at least one span with `status_code == ERROR`. If false, only return traces with no errored spans. If omitted, traces are not filtered by error status. Matches the error indicator shown in the UI."
+          },
+          {
+            "name": "min_latency_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive lower bound on trace latency in milliseconds.",
+              "title": "Min Latency Ms"
+            },
+            "description": "Inclusive lower bound on trace latency in milliseconds."
+          },
+          {
+            "name": "max_latency_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive upper bound on trace latency in milliseconds.",
+              "title": "Max Latency Ms"
+            },
+            "description": "Inclusive upper bound on trace latency in milliseconds."
           }
         ],
         "responses": {
