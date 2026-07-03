@@ -675,6 +675,10 @@ class SessionTraceData(TypedDict):
     end_time: str
 
 
+class SetProjectAnnotationConfigsRequestBody(TypedDict):
+    annotation_config_ids: Sequence[str]
+
+
 class SourceDocumentUIPart(TypedDict):
     type: Literal["source-document"]
     sourceId: str
@@ -1250,6 +1254,13 @@ class GetIncompleteExperimentRunsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class GetProjectAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
+
+
 class GetProjectResponseBody(TypedDict):
     data: Project
 
@@ -1418,6 +1429,13 @@ class SessionData(TypedDict):
     token_count_total: NotRequired[int]
 
 
+class SetProjectAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
+
+
 class Span(TypedDict):
     name: str
     context: SpanContext
@@ -1511,6 +1529,10 @@ class FieldSummarizeRequest(TypedDict):
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
     attachUserId: NotRequired[bool]
+
+
+class AssignAnnotationConfigToProjectResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
 class AssistantMessageMetadata(TypedDict):
