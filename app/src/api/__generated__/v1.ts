@@ -246,6 +246,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dataset_labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dataset labels
+         * @description Retrieve a paginated list of all dataset labels in the system.
+         */
+        get: operations["listDatasetLabels"];
+        put?: never;
+        /** Create a dataset label */
+        post: operations["createDatasetLabel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dataset_labels/{label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a dataset label by ID */
+        get: operations["getDatasetLabel"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a dataset label by ID
+         * @description Delete a dataset label. This also removes the label from every dataset it is applied to.
+         */
+        delete: operations["deleteDatasetLabel"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a dataset label by ID
+         * @description Partially update a dataset label's name, color, and/or description. Only the fields included in the request body are changed; omitted fields are left as-is.
+         */
+        patch: operations["updateDatasetLabel"];
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the labels applied to a dataset */
+        get: operations["listDatasetLabelsForDataset"];
+        /**
+         * Replace the set of labels applied to a dataset
+         * @description Replace the entire set of labels applied to a dataset. Labels present in the request but not currently applied are added; labels currently applied but absent from the request are removed. An empty list removes all labels.
+         */
+        put: operations["setDatasetLabelsForDataset"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply a label to a dataset
+         * @description Apply an existing label to a dataset. This operation is idempotent: applying a label that is already applied is a no-op that returns the label.
+         */
+        put: operations["addDatasetLabelToDataset"];
+        post?: never;
+        /**
+         * Remove a label from a dataset
+         * @description Remove a label from a dataset without deleting the label itself. This operation is idempotent: removing a label that is not applied is a no-op.
+         */
+        delete: operations["removeDatasetLabelFromDataset"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/datasets": {
         parameters: {
             query?: never;
@@ -1469,6 +1560,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AddDatasetLabelToDatasetResponseBody */
+        AddDatasetLabelToDatasetResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
+        };
         /**
          * AgentSpanContext
          * @description Span the user has selected.
@@ -1861,6 +1956,28 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /** CreateDatasetLabelRequestBody */
+        CreateDatasetLabelRequestBody: {
+            /**
+             * Name
+             * @description The name of the dataset label
+             */
+            name: string;
+            /**
+             * Color
+             * @description A lowercase hex color code (e.g. '#00cc88') used to display the label
+             */
+            color: string;
+            /**
+             * Description
+             * @description An optional description of the dataset label
+             */
+            description?: string | null;
+        };
+        /** CreateDatasetLabelResponseBody */
+        CreateDatasetLabelResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
+        };
         /**
          * CreateExperimentRequestBody
          * @description Details of the experiment to be created
@@ -2128,6 +2245,17 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DatasetLabel */
+        DatasetLabel: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Color */
+            color: string;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -2662,6 +2790,17 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetDatasetLabelResponseBody */
+        GetDatasetLabelResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
+        };
+        /** GetDatasetLabelsResponseBody */
+        GetDatasetLabelsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetLabel"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
             data: components["schemas"]["DatasetWithExampleCount"];
@@ -2897,6 +3036,11 @@ export interface components {
         /** ListDatasetExamplesResponseBody */
         ListDatasetExamplesResponseBody: {
             data: components["schemas"]["ListDatasetExamplesData"];
+        };
+        /** ListDatasetLabelsForDatasetResponseBody */
+        ListDatasetLabelsForDatasetResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetLabel"][];
         };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
@@ -4431,6 +4575,19 @@ export interface components {
              */
             end_time: string;
         };
+        /** SetDatasetLabelsForDatasetResponseBody */
+        SetDatasetLabelsForDatasetResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetLabel"][];
+        };
+        /** SetDatasetLabelsRequestBody */
+        SetDatasetLabelsRequestBody: {
+            /**
+             * Dataset Label Ids
+             * @description The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels.
+             */
+            dataset_label_ids?: string[];
+        };
         /** SetProjectAnnotationConfigsRequestBody */
         SetProjectAnnotationConfigsRequestBody: {
             /**
@@ -5328,6 +5485,31 @@ export interface components {
         UpdateAnnotationConfigResponseBody: {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
+        /**
+         * UpdateDatasetLabelRequestBody
+         * @description Fields to update on a dataset label. Omit a field to leave it unchanged.
+         */
+        UpdateDatasetLabelRequestBody: {
+            /**
+             * Name
+             * @description New name for the label (null is rejected; name is required)
+             */
+            name?: string | null;
+            /**
+             * Color
+             * @description New lowercase hex color code for the label (null is rejected)
+             */
+            color?: string | null;
+            /**
+             * Description
+             * @description New description for the label (null clears the description)
+             */
+            description?: string | null;
+        };
+        /** UpdateDatasetLabelResponseBody */
+        UpdateDatasetLabelResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
         };
         /**
          * UpdateExperimentRequestBody
@@ -6329,6 +6511,467 @@ export interface operations {
                 };
             };
             /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listDatasetLabels: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a dataset label GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of dataset labels to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDatasetLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetLabelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset label with the same name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the dataset label */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDatasetLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset label ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the dataset label */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset label ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    updateDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the dataset label */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetLabelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateDatasetLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset label with the same name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset label ID or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listDatasetLabelsForDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetLabelsForDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setDatasetLabelsForDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDatasetLabelsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetDatasetLabelsForDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or one or more dataset labels not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    addDatasetLabelToDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+                /** @description The ID of the dataset label to apply */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddDatasetLabelToDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier or dataset label ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    removeDatasetLabelFromDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+                /** @description The ID of the dataset label to remove */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier or dataset label ID */
             422: {
                 headers: {
                     [name: string]: unknown;

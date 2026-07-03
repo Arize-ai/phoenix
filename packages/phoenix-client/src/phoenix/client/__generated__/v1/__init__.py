@@ -57,6 +57,12 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CreateDatasetLabelRequestBody(TypedDict):
+    name: str
+    color: str
+    description: NotRequired[str]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -127,6 +133,13 @@ class DatasetExample(TypedDict):
     updated_at: str
 
 
+class DatasetLabel(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
+
+
 class DatasetVersion(TypedDict):
     version_id: str
     description: Optional[str]
@@ -189,6 +202,15 @@ class FileUIPart(TypedDict):
     url: str
     filename: NotRequired[str]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class GetDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
+class GetDatasetLabelsResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+    next_cursor: Optional[str]
 
 
 class GetDatasetResponseBody(TypedDict):
@@ -257,6 +279,10 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
+
+
+class ListDatasetLabelsForDatasetResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
 
 
 class ListDatasetVersionsResponseBody(TypedDict):
@@ -675,6 +701,14 @@ class SessionTraceData(TypedDict):
     end_time: str
 
 
+class SetDatasetLabelsForDatasetResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+
+
+class SetDatasetLabelsRequestBody(TypedDict):
+    dataset_label_ids: NotRequired[Sequence[str]]
+
+
 class SetProjectAnnotationConfigsRequestBody(TypedDict):
     annotation_config_ids: Sequence[str]
 
@@ -909,6 +943,16 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
+class UpdateDatasetLabelRequestBody(TypedDict):
+    name: NotRequired[str]
+    color: NotRequired[str]
+    description: NotRequired[str]
+
+
+class UpdateDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
 class UpdateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -983,6 +1027,10 @@ class FieldSummarizeResponse(TypedDict):
 
 class ToolCallProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
+
+
+class AddDatasetLabelToDatasetResponseBody(TypedDict):
+    data: DatasetLabel
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -1078,6 +1126,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class CreateDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
 
 
 class CreateExperimentResponseBody(TypedDict):
