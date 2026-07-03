@@ -1,16 +1,27 @@
-import { openai } from "@ai-sdk/openai";
-/* eslint-disable no-console */
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  getExperiment,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+/**
+ * Conciseness evaluator benchmark.
+ *
+ * Runs the conciseness evaluator against rubric boundary conditions and gates
+ * the suite on how accurately the evaluator reproduces the expected labels.
+ * Each example becomes a dataset example / experiment run on Phoenix.
+ */
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createConcisenessEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
+import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
+
 const concisenessEvaluator = createConcisenessEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 // Examples designed to test the boundary conditions of the conciseness rubric
@@ -254,220 +265,58 @@ const examplesByCategory = {
   ],
 };
 
-// Flatten examples with category information
-const examples = Object.entries(examplesByCategory).flatMap(
+type ConcisenessLabel = "concise" | "verbose";
+
+// One dataset example / experiment run per rubric case. The Q&A pair under
+// test is the task input; the rubric's expected verdict is the reference.
+const cases = Object.entries(examplesByCategory).flatMap(
   ([category, categoryExamples]) =>
     categoryExamples.map((example) => ({
-      ...example,
-      category,
+      input: { question: example.input, answer: example.output },
+      expected: { label: example.expected_label as ConcisenessLabel },
+      metadata: { category },
+      splits: [category],
     }))
 );
 
-// Create dataset entries
-const datasetExamples = examples.map((example, index) => ({
-  input: { question: example.input },
-  output: {
-    answer: example.output,
-    expected_label: example.expected_label,
-  },
-  metadata: {
-    category: example.category,
-    example_index: index,
-  },
-  splits: [example.category],
-}));
-
-type TaskOutput = {
-  expected_label: "concise" | "verbose";
-  label: "concise" | "verbose";
-  score: number;
-  explanation: string;
-  category: string;
-  input: string;
-  output: string;
-};
-
-const accuracyEvaluator = asExperimentEvaluator({
-  name: "accuracy",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === output.label ? "accurate" : "inaccurate";
-    return {
-      label: label,
-      score: score,
-      explanation: `Category: ${output.category}. The evaluator labeled the answer as "${output.label}". Expected: "${output.expected_label}"`,
-      metadata: { category: output.category },
-    };
-  },
-});
-
-async function main() {
-  console.log("\n" + "=".repeat(60));
-  console.log("BENCHMARK CONFIGURATION");
-  console.log("=".repeat(60));
-  console.log(`Categories: ${Object.keys(examplesByCategory).length}`);
-  console.log(`Total examples: ${examples.length}`);
-  console.log("=".repeat(60) + "\n");
-
-  const dataset = await createDataset({
-    name: "conciseness-rubric-boundary-test-" + Date.now(),
-    description:
-      "Benchmark testing boundary conditions of the conciseness evaluator rubric across categories: perfectly concise, pleasantries/filler, hedging/qualifiers, meta-commentary, redundant restatements, unsolicited explanations, and edge cases",
-    examples: datasetExamples,
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const answer = example.output?.answer as string;
-    const expectedLabel = example.output?.expected_label as
-      | "concise"
-      | "verbose";
-
-    const evalResult = await concisenessEvaluator.evaluate({
-      input: example.input.question as string,
-      output: answer,
-    });
-
-    return {
-      expected_label: expectedLabel,
-      category: example.metadata?.category as string,
-      input: example.input.question as string,
-      output: answer,
-      ...evalResult,
-    };
-  };
-
-  const experiment = await runExperiment({
-    experimentName: "conciseness-rubric-boundary-test",
-    experimentDescription:
-      "Testing the conciseness evaluator against rubric boundary conditions",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [accuracyEvaluator],
-  });
-
-  // Fetch full experiment details including runs
-  const experimentResult = await getExperiment({
-    experimentId: experiment.id,
-  });
-
-  // Print experiment summary
-  console.log("\n" + "=".repeat(80));
-  console.log("EXPERIMENT RESULTS SUMMARY");
-  console.log("=".repeat(80));
-  console.log(`Experiment ID: ${experimentResult.id}`);
-  console.log(`Dataset ID: ${experimentResult.datasetId}`);
-  console.log(`Total Examples: ${experimentResult.exampleCount}`);
-  console.log(`Successful Runs: ${experimentResult.successfulRunCount}`);
-  console.log(`Failed Runs: ${experimentResult.failedRunCount}`);
-  console.log(`Missing Runs: ${experimentResult.missingRunCount}`);
-
-  // Analyze runs by category and collect failed examples
-  const runsByCategory: Record<
-    string,
-    { correct: number; incorrect: number; errors: number }
-  > = {};
-
-  const failedExamples: {
-    category: string;
-    input: string;
-    output: string;
-    expected: string;
-    actual: string;
-    explanation: string;
-  }[] = [];
-
-  for (const run of Object.values(experimentResult.runs)) {
-    const output = run.output as TaskOutput | null;
-    const category = output?.category || "unknown";
-
-    if (!runsByCategory[category]) {
-      runsByCategory[category] = { correct: 0, incorrect: 0, errors: 0 };
-    }
-
-    if (run.error) {
-      runsByCategory[category].errors++;
-    } else if (output?.expected_label === output?.label) {
-      runsByCategory[category].correct++;
-    } else {
-      runsByCategory[category].incorrect++;
-      if (output) {
-        failedExamples.push({
-          category: output.category,
-          input: output.input,
-          output: output.output,
-          expected: output.expected_label,
-          actual: output.label,
-          explanation: output.explanation,
+px.describe(
+  "conciseness-rubric-boundary-test",
+  () => {
+    px.test.each(cases)(
+      (row) =>
+        `[${String(row.metadata?.category)}] ${String(row.input.question)}`,
+      async ({ input, expected }) => {
+        const result = await concisenessEvaluator.evaluate({
+          input: input.question,
+          output: input.answer,
         });
+        // The evaluator-under-test's verdict is the run output.
+        px.logOutput(result);
+        px.logAnnotation({
+          name: "conciseness",
+          label: result.label,
+          score: result.score,
+          explanation: result.explanation,
+          annotatorKind: "LLM",
+        });
+        // Score the verdict against the rubric's expected label.
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
+        await px.evaluate(accuracy);
       }
-    }
-  }
-
-  console.log("\n" + "-".repeat(80));
-  console.log("ACCURACY BY CATEGORY");
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"Category".padEnd(30)} | ${"Accuracy".padEnd(15)} | Details`
-  );
-  console.log("-".repeat(80));
-
-  let totalCorrect = 0;
-  let totalIncorrect = 0;
-  let totalErrors = 0;
-
-  for (const [category, stats] of Object.entries(runsByCategory).sort()) {
-    const total = stats.correct + stats.incorrect + stats.errors;
-    const acc = total > 0 ? ((stats.correct / total) * 100).toFixed(0) : "N/A";
-
-    console.log(
-      `  ${category.padEnd(30)} | ${`${acc}% (${stats.correct}/${total})`.padEnd(15)} | ${stats.errors > 0 ? `${stats.errors} errors` : ""}`
     );
-
-    totalCorrect += stats.correct;
-    totalIncorrect += stats.incorrect;
-    totalErrors += stats.errors;
+    registerAggregateMetricsTest(labels);
+  },
+  {
+    description:
+      "Boundary conditions of the conciseness evaluator rubric across categories: perfectly concise, pleasantries/filler, hedging/qualifiers, meta-commentary, redundant restatements, unsolicited explanations, and edge cases.",
+    metadata: { model: evalModelName },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
+    ],
   }
-
-  const overallTotal = totalCorrect + totalIncorrect + totalErrors;
-  const overallAccuracy =
-    overallTotal > 0 ? ((totalCorrect / overallTotal) * 100).toFixed(1) : "N/A";
-
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"OVERALL".padEnd(30)} | ${`${overallAccuracy}% (${totalCorrect}/${overallTotal})`.padEnd(15)} | ${totalErrors > 0 ? `${totalErrors} errors` : ""}`
-  );
-  console.log("=".repeat(80));
-  console.log(`\nTotal Errors: ${totalErrors}`);
-
-  // Print failed examples
-  if (failedExamples.length > 0) {
-    console.log("\n" + "=".repeat(80));
-    console.log(`FAILED EXAMPLES (${failedExamples.length})`);
-    console.log("=".repeat(80));
-
-    for (const [i, ex] of failedExamples.entries()) {
-      const truncatedOutput =
-        ex.output.length > 120 ? ex.output.slice(0, 120) + "..." : ex.output;
-      const truncatedExplanation =
-        ex.explanation.length > 200
-          ? ex.explanation.slice(0, 200) + "..."
-          : ex.explanation;
-
-      console.log(`\n  ${i + 1}. [${ex.category}]`);
-      console.log(`     Input:    ${ex.input}`);
-      console.log(`     Output:   ${truncatedOutput}`);
-      console.log(`     Expected: ${ex.expected}  |  Got: ${ex.actual}`);
-      console.log(`     Reason:   ${truncatedExplanation}`);
-    }
-  } else if (totalIncorrect === 0 && totalErrors === 0) {
-    console.log("\nAll examples matched expected labels.");
-  }
-
-  console.log("\n" + "=".repeat(80) + "\n");
-}
-
-main();
+);

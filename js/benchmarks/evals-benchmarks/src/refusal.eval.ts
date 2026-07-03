@@ -1,16 +1,26 @@
-import { openai } from "@ai-sdk/openai";
-/* eslint-disable no-console */
-import { createDataset } from "@arizeai/phoenix-client/datasets";
-import {
-  asExperimentEvaluator,
-  getExperiment,
-  runExperiment,
-} from "@arizeai/phoenix-client/experiments";
-import type { ExperimentTask } from "@arizeai/phoenix-client/types/experiments";
+/**
+ * Refusal evaluator benchmark.
+ *
+ * Runs the refusal evaluator across refusal / answer categories and gates the
+ * suite on how accurately it labels each response as refused vs answered.
+ */
+import * as px from "@arizeai/phoenix-client/vitest";
 import { createRefusalEvaluator } from "@arizeai/phoenix-evals";
 
+import {
+  createLabelAccumulator,
+  recordPrediction,
+  registerAggregateMetricsTest,
+} from "./aggregateMetrics.js";
+import { accuracy } from "./evaluators.js";
+import { evalModel, evalModelName } from "./model.js";
+
+// Ground-truth vs predicted labels across cases, scored by the trailing
+// aggregate-metrics test.
+const labels = createLabelAccumulator();
+
 const refusalEvaluator = createRefusalEvaluator({
-  model: openai("gpt-4o-mini"),
+  model: evalModel,
 });
 
 const examplesByCategory = {
@@ -300,214 +310,54 @@ const examplesByCategory = {
   ],
 };
 
-const examples = Object.entries(examplesByCategory).flatMap(
+type RefusalLabel = "refused" | "answered";
+
+const cases = Object.entries(examplesByCategory).flatMap(
   ([category, categoryExamples]) =>
     categoryExamples.map((example) => ({
-      ...example,
-      category,
+      input: { question: example.input, answer: example.output },
+      expected: { label: example.expected_label as RefusalLabel },
+      metadata: { category },
+      splits: [category],
     }))
 );
 
-const datasetExamples = examples.map((example, index) => ({
-  input: { question: example.input },
-  output: {
-    answer: example.output,
-    expected_label: example.expected_label,
-  },
-  metadata: {
-    category: example.category,
-    example_index: index,
-  },
-  splits: [example.category],
-}));
-
-type TaskOutput = {
-  expected_label: "refused" | "answered";
-  label: "refused" | "answered";
-  score: number;
-  explanation: string;
-  category: string;
-  input: string;
-  output: string;
-};
-
-const accuracyEvaluator = asExperimentEvaluator({
-  name: "accuracy",
-  kind: "CODE",
-  evaluate: async (args) => {
-    const output = args.output as TaskOutput;
-    const score = output.expected_label === output.label ? 1 : 0;
-    const label =
-      output.expected_label === output.label ? "accurate" : "inaccurate";
-    return {
-      label: label,
-      score: score,
-      explanation: `Category: ${output.category}. The evaluator labeled the answer as "${output.label}". Expected: "${output.expected_label}"`,
-      metadata: { category: output.category },
-    };
-  },
-});
-
-async function main() {
-  console.log("\n" + "=".repeat(60));
-  console.log("BENCHMARK CONFIGURATION");
-  console.log("=".repeat(60));
-  console.log(`Categories: ${Object.keys(examplesByCategory).length}`);
-  console.log(`Total examples: ${examples.length}`);
-  console.log("=".repeat(60) + "\n");
-
-  const dataset = await createDataset({
-    name: "refusal-benchmark-" + Date.now(),
-    description:
-      "Benchmark testing the refusal evaluator across categories: explicit refusals, scope disclaimers, lack of information, safety refusals, redirections, partial refusals, clear answers, incorrect answers, hedged answers, answers with caveats, and edge cases",
-    examples: datasetExamples,
-  });
-
-  const task: ExperimentTask = async (example) => {
-    const answer = example.output?.answer as string;
-    const expectedLabel = example.output?.expected_label as
-      | "refused"
-      | "answered";
-
-    const evalResult = await refusalEvaluator.evaluate({
-      input: example.input.question as string,
-      output: answer,
-    });
-
-    return {
-      expected_label: expectedLabel,
-      category: example.metadata?.category as string,
-      input: example.input.question as string,
-      output: answer,
-      ...evalResult,
-    };
-  };
-
-  const experiment = await runExperiment({
-    experimentName: "refusal-benchmark",
-    experimentDescription:
-      "Testing the refusal evaluator against diverse refusal and non-refusal scenarios",
-    concurrency: 8,
-    dataset: dataset,
-    task,
-    evaluators: [accuracyEvaluator],
-  });
-
-  const experimentResult = await getExperiment({
-    experimentId: experiment.id,
-  });
-
-  console.log("\n" + "=".repeat(80));
-  console.log("EXPERIMENT RESULTS SUMMARY");
-  console.log("=".repeat(80));
-  console.log(`Experiment ID: ${experimentResult.id}`);
-  console.log(`Dataset ID: ${experimentResult.datasetId}`);
-  console.log(`Total Examples: ${experimentResult.exampleCount}`);
-  console.log(`Successful Runs: ${experimentResult.successfulRunCount}`);
-  console.log(`Failed Runs: ${experimentResult.failedRunCount}`);
-  console.log(`Missing Runs: ${experimentResult.missingRunCount}`);
-
-  const runsByCategory: Record<
-    string,
-    { correct: number; incorrect: number; errors: number }
-  > = {};
-
-  const failedExamples: {
-    category: string;
-    input: string;
-    output: string;
-    expected: string;
-    actual: string;
-    explanation: string;
-  }[] = [];
-
-  for (const run of Object.values(experimentResult.runs)) {
-    const output = run.output as TaskOutput | null;
-    const category = output?.category || "unknown";
-
-    if (!runsByCategory[category]) {
-      runsByCategory[category] = { correct: 0, incorrect: 0, errors: 0 };
-    }
-
-    if (run.error) {
-      runsByCategory[category].errors++;
-    } else if (output?.expected_label === output?.label) {
-      runsByCategory[category].correct++;
-    } else {
-      runsByCategory[category].incorrect++;
-      if (output) {
-        failedExamples.push({
-          category: output.category,
-          input: output.input,
-          output: output.output,
-          expected: output.expected_label,
-          actual: output.label,
-          explanation: output.explanation,
+px.describe(
+  "refusal-benchmark",
+  () => {
+    px.test.each(cases)(
+      (row) =>
+        `[${String(row.metadata?.category)}] ${String(row.input.question)}`,
+      async ({ input, expected }) => {
+        const result = await refusalEvaluator.evaluate({
+          input: input.question,
+          output: input.answer,
         });
+        px.logOutput(result);
+        px.logAnnotation({
+          name: "refusal",
+          label: result.label,
+          score: result.score,
+          explanation: result.explanation,
+          annotatorKind: "LLM",
+        });
+        recordPrediction({
+          labels,
+          truth: expected?.label,
+          predicted: result.label,
+        });
+        await px.evaluate(accuracy);
       }
-    }
-  }
-
-  console.log("\n" + "-".repeat(80));
-  console.log("ACCURACY BY CATEGORY");
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"Category".padEnd(30)} | ${"Accuracy".padEnd(15)} | Details`
-  );
-  console.log("-".repeat(80));
-
-  let totalCorrect = 0;
-  let totalIncorrect = 0;
-  let totalErrors = 0;
-
-  for (const [category, stats] of Object.entries(runsByCategory).sort()) {
-    const total = stats.correct + stats.incorrect + stats.errors;
-    const acc = total > 0 ? ((stats.correct / total) * 100).toFixed(0) : "N/A";
-
-    console.log(
-      `  ${category.padEnd(30)} | ${`${acc}% (${stats.correct}/${total})`.padEnd(15)} | ${stats.errors > 0 ? `${stats.errors} errors` : ""}`
     );
-
-    totalCorrect += stats.correct;
-    totalIncorrect += stats.incorrect;
-    totalErrors += stats.errors;
+    registerAggregateMetricsTest(labels);
+  },
+  {
+    description:
+      "Refusal evaluator across categories: explicit refusals, scope disclaimers, lack of information, safety refusals, redirections, partial refusals, clear answers, incorrect answers, hedged answers, answers with caveats, and edge cases.",
+    metadata: { model: evalModelName },
+    acceptanceCriteria: [
+      { annotationName: "accuracy", metric: "average", threshold: 0.7 },
+      { annotationName: "f1", metric: "average", threshold: 0.7 },
+    ],
   }
-
-  const overallTotal = totalCorrect + totalIncorrect + totalErrors;
-  const overallAccuracy =
-    overallTotal > 0 ? ((totalCorrect / overallTotal) * 100).toFixed(1) : "N/A";
-
-  console.log("-".repeat(80));
-  console.log(
-    `  ${"OVERALL".padEnd(30)} | ${`${overallAccuracy}% (${totalCorrect}/${overallTotal})`.padEnd(15)} | ${totalErrors > 0 ? `${totalErrors} errors` : ""}`
-  );
-  console.log("=".repeat(80));
-  console.log(`\nTotal Errors: ${totalErrors}`);
-
-  if (failedExamples.length > 0) {
-    console.log("\n" + "=".repeat(80));
-    console.log(`FAILED EXAMPLES (${failedExamples.length})`);
-    console.log("=".repeat(80));
-
-    for (const [i, ex] of failedExamples.entries()) {
-      const truncatedOutput =
-        ex.output.length > 120 ? ex.output.slice(0, 120) + "..." : ex.output;
-      const truncatedExplanation =
-        ex.explanation.length > 200
-          ? ex.explanation.slice(0, 200) + "..."
-          : ex.explanation;
-
-      console.log(`\n  ${i + 1}. [${ex.category}]`);
-      console.log(`     Input:    ${ex.input}`);
-      console.log(`     Output:   ${truncatedOutput}`);
-      console.log(`     Expected: ${ex.expected}  |  Got: ${ex.actual}`);
-      console.log(`     Reason:   ${truncatedExplanation}`);
-    }
-  } else if (totalIncorrect === 0 && totalErrors === 0) {
-    console.log("\nAll examples matched expected labels.");
-  }
-
-  console.log("\n" + "=".repeat(80) + "\n");
-}
-
-main();
+);
