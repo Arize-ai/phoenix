@@ -69,7 +69,9 @@ def get_base_url() -> httpx.URL:
     host: str = get_env_host()
     if host == "0.0.0.0":
         host = "127.0.0.1"
-    base_url: str = get_env_collector_endpoint() or f"http://{host}:{get_env_port()}"
+    base_url: str = get_env_collector_endpoint() or (
+        f"http://{host}:{get_env_port()}{get_env_host_root_path()}"
+    )
     return httpx.URL(base_url)
 
 
