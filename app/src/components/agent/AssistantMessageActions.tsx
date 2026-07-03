@@ -271,7 +271,11 @@ export function AssistantMessageActions({
         {canAnnotate ? (
           <MessageAction
             label="Thumbs up"
-            tooltip="Mark this response as helpful"
+            tooltip={
+              selectedFeedback === "positive"
+                ? "Undo helpful feedback"
+                : "Mark this response as helpful"
+            }
             isDisabled={isSubmittingFeedback}
             onPress={() => {
               void handleFeedback("positive");
@@ -286,7 +290,11 @@ export function AssistantMessageActions({
         {canAnnotate ? (
           <MessageAction
             label="Thumbs down"
-            tooltip="Mark this response as unhelpful"
+            tooltip={
+              selectedFeedback === "negative"
+                ? "Undo unhelpful feedback"
+                : "Mark this response as unhelpful"
+            }
             isDisabled={isSubmittingFeedback}
             onPress={() => {
               void handleFeedback("negative");
