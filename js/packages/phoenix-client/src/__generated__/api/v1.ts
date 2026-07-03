@@ -698,7 +698,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Get a single span by span_identifier
+         * @description Fetch a single span by identifier. The identifier may be either a relay GlobalID or an OpenTelemetry span_id. The returned payload matches the span schema emitted by the project span list endpoint.
+         */
+        get: operations["getSpan"];
         put?: never;
         post?: never;
         /**
@@ -2677,6 +2681,10 @@ export interface components {
             data: components["schemas"]["SessionData"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /** GetSpanResponseBody */
+        GetSpanResponseBody: {
+            data: components["schemas"]["Span"];
         };
         /** GetTracesResponseBody */
         GetTracesResponseBody: {
@@ -7697,6 +7705,56 @@ export interface operations {
                 };
             };
             /** @description Span not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getSpan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The span identifier: either a relay GlobalID or OpenTelemetry span_id */
+                span_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetSpanResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
             404: {
                 headers: {
                     [name: string]: unknown;

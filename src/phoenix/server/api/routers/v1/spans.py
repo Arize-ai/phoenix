@@ -583,6 +583,78 @@ class SpansResponseBody(PaginatedResponseBody[Span]):
     pass
 
 
+class GetSpanResponseBody(ResponseBody[Span]):
+    pass
+
+
+def _span_orm_to_pydantic_span(span_orm: models.Span, trace_id: str) -> Span:
+    """Serialize a ``models.Span`` ORM row into the API :class:`Span` payload.
+
+    Shared by the project span list endpoint and the single-span GET endpoint
+    so both surfaces emit an identical span schema.
+    """
+    # Convert events to Phoenix Event list
+    events: list[SpanEvent] = []
+    for event in span_orm.events:
+        event_time = event.get("timestamp")
+        parsed_time = None
+
+        if event_time:
+            if isinstance(event_time, datetime):
+                parsed_time = normalize_datetime(event_time, timezone.utc)
+            elif isinstance(event_time, str):
+                try:
+                    naive_time = datetime.fromisoformat(event_time)
+                    parsed_time = normalize_datetime(naive_time, timezone.utc)
+                except ValueError:
+                    # If ISO format fails, try to parse as timestamp
+                    try:
+                        parsed_time = datetime.fromtimestamp(float(event_time), tz=timezone.utc)
+                    except (ValueError, TypeError):
+                        parsed_time = datetime.now(timezone.utc)  # fallback
+            elif isinstance(event_time, (int, float)):
+                try:
+                    # Assume nanoseconds if very large, otherwise seconds
+                    if event_time > 1e12:  # nanoseconds
+                        parsed_time = datetime.fromtimestamp(
+                            event_time / 1_000_000_000, tz=timezone.utc
+                        )
+                    else:  # seconds
+                        parsed_time = datetime.fromtimestamp(event_time, tz=timezone.utc)
+                except (ValueError, OSError):
+                    parsed_time = datetime.now(timezone.utc)  # fallback
+        else:
+            parsed_time = datetime.now(timezone.utc)  # fallback
+
+        events.append(
+            SpanEvent(
+                name=event.get("name", ""),
+                timestamp=parsed_time,
+                attributes=event.get("attributes", {}),
+            )
+        )
+
+    attributes = {k: v for k, v in flatten(span_orm.attributes or dict(), recurse_on_sequence=True)}
+    openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
+
+    return Span(
+        id=str(GlobalID("Span", str(span_orm.id))),
+        name=span_orm.name or "",
+        context=SpanContext(
+            trace_id=trace_id,
+            span_id=span_orm.span_id or "",
+        ),
+        span_kind=openinference_span_kind,
+        parent_id=span_orm.parent_id,
+        start_time=span_orm.start_time,
+        end_time=span_orm.end_time,
+        status_code=span_orm.status_code,
+        status_message=span_orm.status_message or "",
+        attributes=attributes,
+        events=events,
+    )
+
+
 # TODO: Add property details to SpanQuery schema
 @router.post(
     "/spans",
@@ -1012,72 +1084,9 @@ async def span_search(
         next_cursor = str(GlobalID("Span", str(span_extra.id)))
 
     # Convert ORM rows -> Phoenix spans
-    result_spans: list[Span] = []
-    for span_orm, span_trace_id in rows:
-        # Convert events to Phoenix Event list
-        events: list[SpanEvent] = []
-        for event in span_orm.events:
-            event_time = event.get("timestamp")
-            parsed_time = None
-
-            if event_time:
-                if isinstance(event_time, datetime):
-                    parsed_time = normalize_datetime(event_time, timezone.utc)
-                elif isinstance(event_time, str):
-                    try:
-                        naive_time = datetime.fromisoformat(event_time)
-                        parsed_time = normalize_datetime(naive_time, timezone.utc)
-                    except ValueError:
-                        # If ISO format fails, try to parse as timestamp
-                        try:
-                            parsed_time = datetime.fromtimestamp(float(event_time), tz=timezone.utc)
-                        except (ValueError, TypeError):
-                            parsed_time = datetime.now(timezone.utc)  # fallback
-                elif isinstance(event_time, (int, float)):
-                    try:
-                        # Assume nanoseconds if very large, otherwise seconds
-                        if event_time > 1e12:  # nanoseconds
-                            parsed_time = datetime.fromtimestamp(
-                                event_time / 1_000_000_000, tz=timezone.utc
-                            )
-                        else:  # seconds
-                            parsed_time = datetime.fromtimestamp(event_time, tz=timezone.utc)
-                    except (ValueError, OSError):
-                        parsed_time = datetime.now(timezone.utc)  # fallback
-            else:
-                parsed_time = datetime.now(timezone.utc)  # fallback
-
-            events.append(
-                SpanEvent(
-                    name=event.get("name", ""),
-                    timestamp=parsed_time,
-                    attributes=event.get("attributes", {}),
-                )
-            )
-
-        attributes = {
-            k: v for k, v in flatten(span_orm.attributes or dict(), recurse_on_sequence=True)
-        }
-        openinference_span_kind = attributes.pop("openinference.span.kind", "UNKNOWN")
-
-        result_spans.append(
-            Span(
-                id=str(GlobalID("Span", str(span_orm.id))),
-                name=span_orm.name or "",
-                context=SpanContext(
-                    trace_id=span_trace_id,
-                    span_id=span_orm.span_id or "",
-                ),
-                span_kind=openinference_span_kind,
-                parent_id=span_orm.parent_id,
-                start_time=span_orm.start_time,
-                end_time=span_orm.end_time,
-                status_code=span_orm.status_code,
-                status_message=span_orm.status_message or "",
-                attributes=attributes,
-                events=events,
-            )
-        )
+    result_spans: list[Span] = [
+        _span_orm_to_pydantic_span(span_orm, span_trace_id) for span_orm, span_trace_id in rows
+    ]
 
     return SpansResponseBody(next_cursor=next_cursor, data=result_spans)
 
@@ -1459,6 +1468,52 @@ async def create_spans(
         total_received=total_received,
         total_queued=len(spans_to_queue),
     )
+
+
+@router.get(
+    "/spans/{span_identifier}",
+    operation_id="getSpan",
+    summary="Get a single span by span_identifier",
+    description=(
+        "Fetch a single span by identifier. The identifier may be either a relay "
+        "GlobalID or an OpenTelemetry span_id. The returned payload matches the span "
+        "schema emitted by the project span list endpoint."
+    ),
+    responses=add_errors_to_responses([404]),
+)
+async def get_span(
+    request: Request,
+    span_identifier: str = Path(
+        description="The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+    ),
+) -> GetSpanResponseBody:
+    # Resolve the identifier the same way deleteSpan does: accept a relay
+    # GlobalID or a raw OpenTelemetry span_id.
+    try:
+        span_rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(span_identifier),
+            "Span",
+        )
+        predicate = models.Span.id == span_rowid
+        error_detail = f"Span with relay ID '{span_identifier}' not found"
+    except Exception:
+        predicate = models.Span.span_id == span_identifier
+        error_detail = f"Span with span_id '{span_identifier}' not found"
+
+    stmt = (
+        select(models.Span, models.Trace.trace_id)
+        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+        .where(predicate)
+    )
+
+    async with request.app.state.db.read() as session:
+        row = (await session.execute(stmt)).first()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail=error_detail)
+
+    span_orm, span_trace_id = row
+    return GetSpanResponseBody(data=_span_orm_to_pydantic_span(span_orm, span_trace_id))
 
 
 @router.delete(

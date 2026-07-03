@@ -1138,6 +1138,68 @@ async def test_phoenix_openinference_span_kind_extraction(
     assert "openinference.span.kind" not in span.attributes
 
 
+async def test_get_span_by_otel_span_id(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+) -> None:
+    resp = await httpx_client.get("v1/spans/7e2f08cb43bbf521")
+    assert resp.is_success
+    span = Span.model_validate(resp.json()["data"])
+    assert span.context.span_id == "7e2f08cb43bbf521"
+    assert span.context.trace_id == "649993371fa95c788177f739b7423818"
+    assert span.name == "chain span"
+    # span_kind is derived from the openinference.span.kind attribute (absent here),
+    # mirroring the list endpoint's behavior.
+    assert span.span_kind == "UNKNOWN"
+    assert span.status_code == "OK"
+    assert span.status_message == "okay"
+    assert span.parent_id is None
+    assert span.attributes["input.value"] == "chain-span-input-value"
+    assert span.attributes["output.value"] == "chain-span-output-value"
+
+
+async def test_get_span_by_global_id(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+) -> None:
+    # First look up the span's relay GlobalID via the list endpoint.
+    list_resp = await httpx_client.get("v1/projects/project-name/spans")
+    assert list_resp.is_success
+    span_global_id = list_resp.json()["data"][0]["id"]
+
+    resp = await httpx_client.get(f"v1/spans/{span_global_id}")
+    assert resp.is_success
+    span = Span.model_validate(resp.json()["data"])
+    assert span.id == span_global_id
+    assert span.context.span_id == "7e2f08cb43bbf521"
+
+
+async def test_get_span_matches_list_endpoint_payload(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span_with_events: None
+) -> None:
+    # The single-span GET must emit the exact same schema as the list endpoint.
+    list_resp = await httpx_client.get("v1/projects/project-name/spans")
+    assert list_resp.is_success
+    list_span = list_resp.json()["data"][0]
+
+    resp = await httpx_client.get(f"v1/spans/{list_span['id']}")
+    assert resp.is_success
+    assert resp.json()["data"] == list_span
+
+
+async def test_get_span_not_found_with_global_id(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+) -> None:
+    missing_global_id = str(GlobalID("Span", "123456789"))
+    resp = await httpx_client.get(f"v1/spans/{missing_global_id}")
+    assert resp.status_code == 404
+
+
+async def test_get_span_not_found_with_otel_span_id(
+    httpx_client: httpx.AsyncClient, project_with_a_single_trace_and_span: None
+) -> None:
+    resp = await httpx_client.get("v1/spans/non-existent-span")
+    assert resp.status_code == 404
+
+
 @pytest.fixture
 async def multi_trace_project(db: DbSessionFactory) -> None:
     """Insert a project with two traces, each containing spans."""
