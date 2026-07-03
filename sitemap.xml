@@ -1413,6 +1413,22 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations-assigned-to-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/assign-an-annotation-configuration-to-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/unassign-an-annotation-configuration-from-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/replace-the-set-of-annotation-configurations-assigned-to-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
