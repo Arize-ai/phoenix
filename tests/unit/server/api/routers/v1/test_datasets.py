@@ -12,7 +12,7 @@ import pyarrow as pa
 import pytest
 from httpx import HTTPStatusError
 from pandas.testing import assert_frame_equal
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.orm import joinedload
 from strawberry.relay import GlobalID
 
@@ -4562,3 +4562,313 @@ async def test_update_roundtrip_all_eight_cases(
     germany = next(e for e in db_examples if e.external_id == "capital-germany")
     germany_rev = next(r for r in v2_only if r.dataset_example_id == germany.id)
     assert germany_rev.output == {"answer": "Berlin"}
+
+
+# ---------------------------------------------------------------------------
+# Dataset split create / update / delete endpoints
+# ---------------------------------------------------------------------------
+
+
+async def _create_dataset_with_examples(
+    httpx_client: httpx.AsyncClient,
+    name: str,
+    num_examples: int,
+) -> tuple[str, list[str]]:
+    """Create a dataset via upload and return (dataset_id, [example node_ids])."""
+    response = await httpx_client.post(
+        url="v1/datasets/upload?sync=true",
+        json={
+            "action": "create",
+            "name": name,
+            "inputs": [{"q": f"Q{i}"} for i in range(num_examples)],
+            "outputs": [{"a": f"A{i}"} for i in range(num_examples)],
+        },
+    )
+    assert response.status_code == 200
+    dataset_id = response.json()["data"]["dataset_id"]
+    examples_response = await httpx_client.get(f"/v1/datasets/{dataset_id}/examples")
+    assert examples_response.status_code == 200
+    example_ids = [e["node_id"] for e in examples_response.json()["data"]["examples"]]
+    assert len(example_ids) == num_examples
+    return dataset_id, example_ids
+
+
+async def test_create_dataset_split_empty(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_split_empty", 1)
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "description": "training split"},
+    )
+    assert response.status_code == 201
+    split = response.json()["data"]
+    assert split["name"] == "train"
+    assert split["description"] == "training split"
+    assert split["color"] == "#33c5e8"  # default color
+    assert split["metadata"] == {}
+    assert split["example_count"] == 0
+    assert "created_at" in split and "updated_at" in split
+
+    async with db() as session:
+        db_split = await session.scalar(
+            select(models.DatasetSplit).where(models.DatasetSplit.name == "train")
+        )
+        assert db_split is not None
+
+
+async def test_create_dataset_split_with_examples(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_split_seed", 3)
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={
+            "name": "test",
+            "color": "#00cc88",
+            "metadata": {"k": "v"},
+            "example_ids": example_ids[:2],
+        },
+    )
+    assert response.status_code == 201
+    split = response.json()["data"]
+    assert split["color"] == "#00cc88"
+    assert split["metadata"] == {"k": "v"}
+    assert split["example_count"] == 2
+
+    split_rowid = int(GlobalID.from_id(split["id"]).node_id)
+    async with db() as session:
+        member_count = await session.scalar(
+            select(func.count())
+            .select_from(models.DatasetSplitDatasetExample)
+            .where(models.DatasetSplitDatasetExample.dataset_split_id == split_rowid)
+        )
+        assert member_count == 2
+
+
+async def test_create_dataset_split_accepts_dataset_name(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    await _create_dataset_with_examples(httpx_client, "named_dataset", 1)
+    response = await httpx_client.post(
+        url="/v1/datasets/named_dataset/splits",
+        json={"name": "validation"},
+    )
+    assert response.status_code == 201
+    assert response.json()["data"]["name"] == "validation"
+
+
+async def test_create_dataset_split_duplicate_name_conflict(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_split_dup", 1)
+    first = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "dup"},
+    )
+    assert first.status_code == 201
+    second = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "dup"},
+    )
+    assert second.status_code == 409
+
+
+async def test_create_dataset_split_empty_name_rejected(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_split_blank", 1)
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "   "},
+    )
+    assert response.status_code == 422
+
+
+async def test_create_dataset_split_example_not_in_dataset(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_a, _ = await _create_dataset_with_examples(httpx_client, "ds_split_a", 1)
+    _, other_examples = await _create_dataset_with_examples(httpx_client, "ds_split_b", 1)
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_a}/splits",
+        json={"name": "cross", "example_ids": other_examples},
+    )
+    assert response.status_code == 404
+
+
+async def test_create_dataset_split_dataset_not_found(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    missing = str(GlobalID("Dataset", "99999"))
+    response = await httpx_client.post(
+        url=f"/v1/datasets/{missing}/splits",
+        json={"name": "train"},
+    )
+    assert response.status_code == 404
+
+
+async def test_update_dataset_split_fields(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_fields", 1)
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "description": "orig", "metadata": {"a": 1}},
+    )
+    split_id = created.json()["data"]["id"]
+
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{split_id}",
+        json={"name": "train-renamed", "color": "#123456", "metadata": {"b": 2}},
+    )
+    assert response.status_code == 200
+    split = response.json()["data"]
+    assert split["name"] == "train-renamed"
+    assert split["color"] == "#123456"
+    assert split["metadata"] == {"b": 2}
+    assert split["description"] == "orig"  # untouched
+
+
+async def test_update_dataset_split_clear_description(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_clear", 1)
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "description": "orig"},
+    )
+    split_id = created.json()["data"]["id"]
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{split_id}",
+        json={"description": None},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["description"] is None
+
+
+async def test_update_dataset_split_add_and_remove_examples(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(
+        httpx_client, "ds_patch_membership", 3
+    )
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "example_ids": example_ids[:1]},
+    )
+    split_id = created.json()["data"]["id"]
+    assert created.json()["data"]["example_count"] == 1
+
+    # Add two more (one of which is already a member -> idempotent) and remove the first.
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{split_id}",
+        json={
+            "add_example_ids": [example_ids[0], example_ids[1], example_ids[2]],
+            "remove_example_ids": [example_ids[0]],
+        },
+    )
+    assert response.status_code == 200
+    # example 0 removed, examples 1 and 2 added -> 2 members
+    assert response.json()["data"]["example_count"] == 2
+
+
+async def test_update_dataset_split_not_found(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_404", 1)
+    missing = str(GlobalID("DatasetSplit", "99999"))
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{missing}",
+        json={"name": "x"},
+    )
+    assert response.status_code == 404
+
+
+async def test_update_dataset_split_invalid_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_422", 1)
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/not-a-global-id",
+        json={"name": "x"},
+    )
+    assert response.status_code == 422
+
+
+async def test_update_dataset_split_duplicate_name_conflict(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_patch_conflict", 1)
+    await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train"},
+    )
+    other = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "test"},
+    )
+    other_id = other.json()["data"]["id"]
+    response = await httpx_client.patch(
+        url=f"/v1/datasets/{dataset_id}/splits/{other_id}",
+        json={"name": "train"},
+    )
+    assert response.status_code == 409
+
+
+async def test_delete_dataset_split(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    dataset_id, example_ids = await _create_dataset_with_examples(httpx_client, "ds_delete", 2)
+    created = await httpx_client.post(
+        url=f"/v1/datasets/{dataset_id}/splits",
+        json={"name": "train", "example_ids": example_ids},
+    )
+    split_id = created.json()["data"]["id"]
+    split_rowid = int(GlobalID.from_id(split_id).node_id)
+
+    response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/{split_id}")
+    assert response.status_code == 204
+
+    dataset_rowid = int(GlobalID.from_id(dataset_id).node_id)
+    async with db() as session:
+        # Split and its memberships are gone.
+        assert (
+            await session.scalar(
+                select(models.DatasetSplit).where(models.DatasetSplit.id == split_rowid)
+            )
+            is None
+        )
+        member_count = await session.scalar(
+            select(func.count())
+            .select_from(models.DatasetSplitDatasetExample)
+            .where(models.DatasetSplitDatasetExample.dataset_split_id == split_rowid)
+        )
+        assert member_count == 0
+        # Underlying examples are untouched.
+        example_count = await session.scalar(
+            select(func.count())
+            .select_from(models.DatasetExample)
+            .where(models.DatasetExample.dataset_id == dataset_rowid)
+        )
+        assert example_count == 2
+
+
+async def test_delete_dataset_split_not_found(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_404", 1)
+    missing = str(GlobalID("DatasetSplit", "99999"))
+    response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/{missing}")
+    assert response.status_code == 404
+
+
+async def test_delete_dataset_split_invalid_id(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    dataset_id, _ = await _create_dataset_with_examples(httpx_client, "ds_delete_422", 1)
+    response = await httpx_client.delete(f"/v1/datasets/{dataset_id}/splits/not-a-global-id")
+    assert response.status_code == 422

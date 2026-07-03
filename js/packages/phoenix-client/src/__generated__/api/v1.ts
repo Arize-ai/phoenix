@@ -284,6 +284,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/datasets/{dataset_identifier}/splits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a dataset split */
+        post: operations["createDatasetSplit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a dataset split */
+        delete: operations["deleteDatasetSplit"];
+        options?: never;
+        head?: never;
+        /** Update a dataset split */
+        patch: operations["updateDatasetSplit"];
+        trace?: never;
+    };
     "/v1/datasets/{id}/csv": {
         parameters: {
             query?: never;
@@ -1808,6 +1843,40 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /** CreateDatasetSplitRequestBody */
+        CreateDatasetSplitRequestBody: {
+            /**
+             * Name
+             * @description A unique name for the split.
+             */
+            name: string;
+            /**
+             * Description
+             * @description An optional description of the split.
+             */
+            description?: string | null;
+            /**
+             * Color
+             * @description An optional hex color for the split (e.g. #33c5e8). Omit for a default.
+             */
+            color?: string | null;
+            /**
+             * Metadata
+             * @description Arbitrary JSON metadata for the split.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Example Ids
+             * @description Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split.
+             */
+            example_ids?: string[];
+        };
+        /** CreateDatasetSplitResponseBody */
+        CreateDatasetSplitResponseBody: {
+            data: components["schemas"]["DatasetSplit"];
+        };
         /**
          * CreateExperimentRequestBody
          * @description Details of the experiment to be created
@@ -2070,6 +2139,33 @@ export interface components {
             metadata: {
                 [key: string]: unknown;
             };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** DatasetSplit */
+        DatasetSplit: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Color */
+            color: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Example Count */
+            example_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
@@ -5254,6 +5350,45 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /** UpdateDatasetSplitRequestBody */
+        UpdateDatasetSplitRequestBody: {
+            /**
+             * Name
+             * @description A new unique name for the split.
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description A new description, or null to clear it.
+             */
+            description?: string | null;
+            /**
+             * Color
+             * @description A new hex color for the split.
+             */
+            color?: string | null;
+            /**
+             * Metadata
+             * @description New JSON metadata that replaces the existing metadata.
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Add Example Ids
+             * @description Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op.
+             */
+            add_example_ids?: string[];
+            /**
+             * Remove Example Ids
+             * @description Dataset example IDs (GlobalIDs) to remove from the split.
+             */
+            remove_example_ids?: string[];
+        };
+        /** UpdateDatasetSplitResponseBody */
+        UpdateDatasetSplitResponseBody: {
+            data: components["schemas"]["DatasetSplit"];
+        };
         /**
          * UpdateExperimentRequestBody
          * @description Fields to update on an experiment. Omit a field to leave it unchanged.
@@ -6382,6 +6517,184 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetSplitRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetSplitResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset split with the given name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+                /** @description The ID (GlobalID) of the dataset split. */
+                split_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or split not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset split ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    updateDatasetSplit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either dataset ID or dataset name. */
+                dataset_identifier: string;
+                /** @description The ID (GlobalID) of the dataset split. */
+                split_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetSplitRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateDatasetSplitResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset, split, or example not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset split with the given name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };

@@ -1994,6 +1994,251 @@
         }
       }
     },
+    "/v1/datasets/{dataset_identifier}/splits": {
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Create a dataset split",
+        "operationId": "createDatasetSplit",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDatasetSplitRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateDatasetSplitResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or example not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset split with the given name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{dataset_identifier}/splits/{split_id}": {
+      "patch": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Update a dataset split",
+        "operationId": "updateDatasetSplit",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "split_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID (GlobalID) of the dataset split.",
+              "title": "Split Id"
+            },
+            "description": "The ID (GlobalID) of the dataset split."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDatasetSplitRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateDatasetSplitResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset, split, or example not found"
+          },
+          "409": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A dataset split with the given name already exists"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete a dataset split",
+        "operationId": "deleteDatasetSplit",
+        "parameters": [
+          {
+            "name": "dataset_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The dataset identifier: either dataset ID or dataset name.",
+              "title": "Dataset Identifier"
+            },
+            "description": "The dataset identifier: either dataset ID or dataset name."
+          },
+          {
+            "name": "split_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID (GlobalID) of the dataset split.",
+              "title": "Split Id"
+            },
+            "description": "The ID (GlobalID) of the dataset split."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Dataset or split not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset split ID"
+          }
+        }
+      }
+    },
     "/v1/datasets/{id}/csv": {
       "get": {
         "tags": [
@@ -7878,6 +8123,70 @@
         ],
         "title": "CreateAnnotationConfigResponseBody"
       },
+      "CreateDatasetSplitRequestBody": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "A unique name for the split."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "An optional description of the split."
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "An optional hex color for the split (e.g. #33c5e8). Omit for a default."
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "description": "Arbitrary JSON metadata for the split."
+          },
+          "example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Example Ids",
+            "description": "Optional dataset example IDs (GlobalIDs) to seed the split with. Each example must belong to this dataset. Omit to create an empty split."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CreateDatasetSplitRequestBody"
+      },
+      "CreateDatasetSplitResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetSplit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateDatasetSplitResponseBody"
+      },
       "CreateExperimentRequestBody": {
         "properties": {
           "name": {
@@ -8478,6 +8787,64 @@
           "updated_at"
         ],
         "title": "DatasetExample"
+      },
+      "DatasetSplit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "example_count": {
+            "type": "integer",
+            "title": "Example Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "color",
+          "metadata",
+          "example_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DatasetSplit"
       },
       "DatasetVersion": {
         "properties": {
@@ -16020,6 +16387,89 @@
           "data"
         ],
         "title": "UpdateAnnotationConfigResponseBody"
+      },
+      "UpdateDatasetSplitRequestBody": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A new unique name for the split."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "A new description, or null to clear it."
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "description": "A new hex color for the split."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "New JSON metadata that replaces the existing metadata."
+          },
+          "add_example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Add Example Ids",
+            "description": "Dataset example IDs (GlobalIDs) to add to the split. Each example must belong to this dataset. Adding an example already in the split is a no-op."
+          },
+          "remove_example_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Remove Example Ids",
+            "description": "Dataset example IDs (GlobalIDs) to remove from the split."
+          }
+        },
+        "type": "object",
+        "title": "UpdateDatasetSplitRequestBody"
+      },
+      "UpdateDatasetSplitResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DatasetSplit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "UpdateDatasetSplitResponseBody"
       },
       "UpdateExperimentRequestBody": {
         "properties": {

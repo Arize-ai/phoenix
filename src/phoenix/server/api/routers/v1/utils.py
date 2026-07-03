@@ -7,6 +7,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
+from phoenix.server.api.types.Dataset import Dataset as DatasetNodeType
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 
@@ -149,3 +150,44 @@ async def get_project_by_identifier(
                 detail=f"Project with ID {project_identifier} not found",
             )
     return project
+
+
+async def get_dataset_by_identifier(
+    session: AsyncSession,
+    dataset_identifier: str,
+) -> models.Dataset:
+    """
+    Get a dataset by its ID or name.
+
+    Args:
+        session: The database session.
+        dataset_identifier: The dataset GlobalID or name.
+
+    Returns:
+        The dataset object.
+
+    Raises:
+        HTTPException: If the identifier format is invalid or the dataset is not found.
+    """
+    # Try to parse as a GlobalID first; otherwise treat the identifier as a name.
+    try:
+        id_ = from_global_id_with_expected_type(
+            GlobalID.from_id(dataset_identifier),
+            DatasetNodeType.__name__,
+        )
+    except Exception:
+        stmt = select(models.Dataset).filter_by(name=dataset_identifier)
+        dataset = await session.scalar(stmt)
+        if dataset is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset with name {dataset_identifier} not found",
+            )
+    else:
+        dataset = await session.get(models.Dataset, id_)
+        if dataset is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Dataset with ID {dataset_identifier} not found",
+            )
+    return dataset
