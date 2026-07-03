@@ -5283,3 +5283,191 @@ async def test_trace_with_unmatched_global_node_id_returns_null(
     assert not response.errors
     assert response.data is not None
     assert response.data["node"]["trace"] is None
+
+
+@dataclass
+class _TimeRangeSessionsData:
+    project: models.Project
+    sessions_by_name: dict[str, models.ProjectSession]
+
+
+class TestProjectSessionsTimeRange:
+    """The sessions connection uses interval-overlap semantics for timeRange:
+    a session is included iff [start_time, end_time] intersects [start, end)."""
+
+    _QUERY = """
+        query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
+          node(id: $projectId) {
+            ... on Project {
+              sessions(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {
+                edges { node { id } }
+              }
+            }
+          }
+        }
+    """
+
+    _BASE_TIME = datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+    _WINDOW_START = _BASE_TIME + timedelta(minutes=10)
+    _WINDOW_END = _BASE_TIME + timedelta(minutes=20)
+
+    @classmethod
+    def _minutes(cls, minute: int) -> datetime:
+        return cls._BASE_TIME + timedelta(minutes=minute)
+
+    @pytest.fixture
+    async def _sessions_data(
+        self,
+        db: DbSessionFactory,
+    ) -> _TimeRangeSessionsData:
+        minutes = self._minutes
+        intervals = {
+            # started before the window, last activity inside it (the long-running case)
+            "long_running": (0, 15),
+            # entirely before the window
+            "before_window": (0, 5),
+            # last activity exactly at the window start (closed lower bound)
+            "ends_at_window_start": (0, 10),
+            # entirely inside the window
+            "inside_window": (12, 13),
+            # spans the entire window
+            "spans_window": (5, 25),
+            # starts exactly at the window end (right-exclusive upper bound)
+            "starts_at_window_end": (20, 30),
+        }
+        sessions_by_name = {}
+        async with db() as session:
+            project = await _add_project(session)
+            for name, (start_minute, end_minute) in intervals.items():
+                project_session = await _add_project_session(
+                    session,
+                    project,
+                    start_time=minutes(start_minute),
+                    end_time=minutes(end_minute),
+                )
+                sessions_by_name[name] = project_session
+                trace = await _add_trace(
+                    session,
+                    project,
+                    project_session,
+                    start_time=minutes(start_minute),
+                    end_time=minutes(start_minute) + timedelta(seconds=30),
+                )
+                await _add_span(
+                    session,
+                    trace,
+                    start_time=minutes(start_minute),
+                    end_time=minutes(start_minute) + timedelta(seconds=30),
+                    attributes={"input": {"value": f"input for {name}"}},
+                )
+        return _TimeRangeSessionsData(project=project, sessions_by_name=sessions_by_name)
+
+    async def _get_session_ids(
+        self,
+        gql_client: AsyncGraphQLClient,
+        data: _TimeRangeSessionsData,
+        time_range: Optional[dict[str, str]],
+        filter_io_substring: Optional[str] = None,
+    ) -> set[str]:
+        response = await gql_client.execute(
+            query=self._QUERY,
+            variables={
+                "projectId": str(GlobalID(Project.__name__, str(data.project.id))),
+                "timeRange": time_range,
+                "filterIoSubstring": filter_io_substring,
+            },
+        )
+        assert not response.errors
+        assert response.data is not None
+        edges = response.data["node"]["sessions"]["edges"]
+        return {edge["node"]["id"] for edge in edges}
+
+    def _expected_ids(self, data: _TimeRangeSessionsData, *names: str) -> set[str]:
+        return {_gid(data.sessions_by_name[name]) for name in names}
+
+    async def test_includes_sessions_overlapping_the_window(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        actual = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert actual == self._expected_ids(
+            _sessions_data,
+            "long_running",
+            "ends_at_window_start",
+            "inside_window",
+            "spans_window",
+        )
+
+    async def test_open_ended_lower_bound_filters_by_last_activity(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        time_range = {"start": self._WINDOW_START.isoformat()}
+        actual = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert actual == self._expected_ids(
+            _sessions_data,
+            "long_running",
+            "ends_at_window_start",
+            "inside_window",
+            "spans_window",
+            "starts_at_window_end",
+        )
+
+    async def test_open_ended_upper_bound_filters_by_start_time(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        time_range = {"end": self._WINDOW_END.isoformat()}
+        actual = await self._get_session_ids(gql_client, _sessions_data, time_range)
+        assert actual == self._expected_ids(
+            _sessions_data,
+            "long_running",
+            "before_window",
+            "ends_at_window_start",
+            "inside_window",
+            "spans_window",
+        )
+
+    async def test_substring_filter_matches_traces_outside_the_window(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # The long-running session's only trace starts before the window; the session
+        # must still be returned because it overlaps the window and its content matches.
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        actual = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            filter_io_substring="input for long_running",
+        )
+        assert actual == self._expected_ids(_sessions_data, "long_running")
+
+    async def test_substring_filter_does_not_widen_the_window(
+        self,
+        _sessions_data: _TimeRangeSessionsData,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # A session outside the window stays excluded even if its content matches.
+        time_range = {
+            "start": self._WINDOW_START.isoformat(),
+            "end": self._WINDOW_END.isoformat(),
+        }
+        actual = await self._get_session_ids(
+            gql_client,
+            _sessions_data,
+            time_range,
+            filter_io_substring="input for before_window",
+        )
+        assert actual == set()

@@ -146,13 +146,14 @@ async def _add_project_session(
     project: models.Project,
     session_id: Optional[str] = None,
     start_time: Optional[datetime] = None,
+    end_time: Optional[datetime] = None,
 ) -> models.ProjectSession:
     start_time = start_time or datetime.now(timezone.utc)
     project_session = models.ProjectSession(
         session_id=session_id or token_hex(4),
         project_id=project.id,
         start_time=start_time,
-        end_time=start_time,
+        end_time=end_time or start_time,
     )
     session.add(project_session)
     await session.flush()
