@@ -26,6 +26,7 @@ import {
   useInteractiveLegend,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
@@ -58,6 +59,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function TopModelsByToken({
   projectId,
   timeRange,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
@@ -91,7 +93,8 @@ export function TopModelsByToken({
         start: timeRange.start?.toISOString(),
         end: timeRange.end?.toISOString(),
       },
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   const chartData = useMemo(() => {

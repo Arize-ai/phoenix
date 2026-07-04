@@ -1,5 +1,4 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -10,11 +9,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   InteractiveLegend,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
@@ -27,49 +23,19 @@ import {
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
-import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
+import { CountTimeSeriesTooltipContent } from "@phoenix/pages/project/metrics/CountTimeSeriesTooltipContent";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import {
-  intFormatter,
-  intShortFormatter,
-} from "@phoenix/utils/numberFormatUtils";
+import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import { intShortFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { ToolSpanCountTimeSeriesQuery } from "./__generated__/ToolSpanCountTimeSeriesQuery.graphql";
-
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const { fullTimeFormatter } = useTimeFormatters();
-  if (active && payload && payload.length) {
-    return (
-      <ChartTooltip>
-        {label && (
-          <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(Number(label))
-          )}`}</Text>
-        )}
-        {payload.map((entry) => {
-          const name = String(entry.dataKey ?? entry.name ?? "unknown");
-          return (
-            <ChartTooltipItem
-              color={entry.color ?? "transparent"}
-              key={name}
-              shape="circle"
-              name={name}
-              value={intFormatter(Number(entry.value))}
-            />
-          );
-        })}
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
 
 export function ToolSpanCountTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -112,7 +78,8 @@ export function ToolSpanCountTimeSeries({
         utcOffsetMinutes,
       },
       filterCondition: 'span_kind == "TOOL"',
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
@@ -167,7 +134,7 @@ export function ToolSpanCountTimeSeries({
               />
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <Tooltip
-                content={TooltipContent}
+                content={CountTimeSeriesTooltipContent}
                 // TODO formalize this
                 cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
               />

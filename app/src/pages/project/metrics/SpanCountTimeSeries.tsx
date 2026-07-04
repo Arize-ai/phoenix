@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Bar,
@@ -29,9 +30,12 @@ import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/type
 import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { intShortFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { LLMSpanCountTimeSeriesQuery } from "./__generated__/LLMSpanCountTimeSeriesQuery.graphql";
+import type { SpanCountTimeSeriesQuery } from "./__generated__/SpanCountTimeSeriesQuery.graphql";
 
-export function LLMSpanCountTimeSeries({
+/**
+ * A time series of all span counts in the project, broken down by status.
+ */
+export function SpanCountTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
@@ -40,20 +44,18 @@ export function LLMSpanCountTimeSeries({
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<LLMSpanCountTimeSeriesQuery>(
+  const data = useLazyLoadQuery<SpanCountTimeSeriesQuery>(
     graphql`
-      query LLMSpanCountTimeSeriesQuery(
+      query SpanCountTimeSeriesQuery(
         $projectId: ID!
         $timeRange: TimeRange!
         $timeBinConfig: TimeBinConfig!
-        $filterCondition: String!
       ) {
         project: node(id: $projectId) {
           ... on Project {
             spanCountTimeSeries(
               timeRange: $timeRange
               timeBinConfig: $timeBinConfig
-              filterCondition: $filterCondition
             ) {
               data {
                 timestamp
@@ -77,19 +79,20 @@ export function LLMSpanCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-      filterCondition: 'span_kind == "LLM"',
     },
     getMetricQueryFetchOptions(fetchKey)
   );
 
-  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
-    (datum) => ({
-      timestamp: new Date(datum.timestamp).getTime(),
-      error: datum.errorCount,
-      unset: datum.unsetCount,
-      ok: datum.okCount,
-      total: datum.totalCount ?? 0,
-    })
+  const chartData = useMemo(
+    () =>
+      (data.project.spanCountTimeSeries?.data ?? []).map((datum) => ({
+        timestamp: new Date(datum.timestamp).getTime(),
+        error: datum.errorCount,
+        unset: datum.unsetCount,
+        ok: datum.okCount,
+        total: datum.totalCount ?? 0,
+      })),
+    [data.project.spanCountTimeSeries?.data]
   );
   const hasData = chartData.some((datum) => datum.total > 0);
 
@@ -136,7 +139,6 @@ export function LLMSpanCountTimeSeries({
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <Tooltip
                 content={CountTimeSeriesTooltipContent}
-                // TODO formalize this
                 cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
               />
               <Bar

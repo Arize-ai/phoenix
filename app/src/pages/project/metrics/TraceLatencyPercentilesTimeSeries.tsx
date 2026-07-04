@@ -31,6 +31,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { formatFloat, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceLatencyPercentilesTimeSeriesQuery } from "./__generated__/TraceLatencyPercentilesTimeSeriesQuery.graphql";
@@ -68,6 +69,7 @@ export function TraceLatencyPercentilesTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -110,7 +112,8 @@ export function TraceLatencyPercentilesTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   const chartData = (

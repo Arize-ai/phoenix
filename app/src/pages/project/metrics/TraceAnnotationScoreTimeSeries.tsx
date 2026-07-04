@@ -6,11 +6,13 @@ import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { TraceAnnotationScoreTimeSeriesQuery } from "./__generated__/TraceAnnotationScoreTimeSeriesQuery.graphql";
 import { AnnotationScoreTimeSeriesChart } from "./AnnotationScoreTimeSeriesChart";
 import type { ProjectMetricViewProps } from "./types";
+import { getMetricQueryFetchOptions } from "./types";
 
 export function TraceAnnotationScoreTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -51,7 +53,8 @@ export function TraceAnnotationScoreTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   return (

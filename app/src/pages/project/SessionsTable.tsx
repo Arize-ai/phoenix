@@ -59,6 +59,8 @@ import { useSessionSearchContext } from "./SessionSearchContext";
 import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
+import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
+import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
@@ -137,6 +139,7 @@ export function SessionsTable(props: SessionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const { filterIoSubstringOrSessionId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
+  const projectId = useTracingContext((state) => state.projectId);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -528,107 +531,114 @@ export function SessionsTable(props: SessionsTableProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
   return (
-    <div css={spansTableCSS}>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <View flex="1 1 auto">
-            <SessionSearchField />
-          </View>
-          <SessionColumnSelector columns={computedColumns} query={data} />
-        </Flex>
-      </View>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={tableContainerRef}
-      >
-        <table
-          css={selectableTableCSS}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+    <TableMetricsChartsPanelGroup projectId={projectId} view="sessions">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    colSpan={header.colSpan}
-                    style={{
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                    }}
-                    key={header.id}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          data-sortable={header.column.getCanSort()}
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              left: header.getStart(),
-                              width: header.getSize(),
-                            },
-                          }}
-                        >
-                          <Truncate maxWidth="100%">
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                          </Truncate>
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.CaretUpFilled />
-                                ) : (
-                                  <Icons.CaretDownFilled />
-                                )
-                              }
-                            />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <SessionsTableEmpty />
-          ) : columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody table={table} />
-          ) : (
-            <TableBody table={table} />
-          )}
-        </table>
+          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+            <View flex="1 1 auto">
+              <SessionSearchField />
+            </View>
+            <TableMetricsChartSelector view="sessions" />
+            <SessionColumnSelector columns={computedColumns} query={data} />
+          </Flex>
+        </View>
+        <div
+          css={css`
+            flex: 1 1 auto;
+            overflow: auto;
+          `}
+          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          ref={tableContainerRef}
+        >
+          <table
+            css={selectableTableCSS}
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      colSpan={header.colSpan}
+                      style={{
+                        width: `calc(var(--header-${header.id}-size) * 1px)`,
+                      }}
+                      key={header.id}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            data-sortable={header.column.getCanSort()}
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "sort"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                              style: {
+                                left: header.getStart(),
+                                width: header.getSize(),
+                              },
+                            }}
+                          >
+                            <Truncate maxWidth="100%">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                            </Truncate>
+                            {header.column.getIsSorted() ? (
+                              <Icon
+                                className="sort-icon"
+                                svg={
+                                  header.column.getIsSorted() === "asc" ? (
+                                    <Icons.CaretUpFilled />
+                                  ) : (
+                                    <Icons.CaretDownFilled />
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {isEmpty ? (
+              <SessionsTableEmpty />
+            ) : columnSizingInfo.isResizingColumn ? (
+              <MemoizedTableBody table={table} />
+            ) : (
+              <TableBody table={table} />
+            )}
+          </table>
+        </div>
       </div>
-    </div>
+    </TableMetricsChartsPanelGroup>
   );
 }

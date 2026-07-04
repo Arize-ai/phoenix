@@ -29,6 +29,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import {
   costFormatter,
   floatShortFormatter,
@@ -69,6 +70,7 @@ export function TraceTokenCostTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -107,7 +109,8 @@ export function TraceTokenCostTimeSeries({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   const chartData = (data.project.traceTokenCostTimeSeries?.data ?? []).map(

@@ -18,6 +18,30 @@ export const resizeHandleCSS = css`
   }
 `;
 
+/**
+ * A resize handle that is invisible at rest and only shows its indicator
+ * color on hover, drag, or keyboard focus. Use where a persistent divider
+ * line would add visual noise.
+ */
+export const transparentResizeHandleCSS = css`
+  transition: 250ms linear all;
+  background-color: transparent;
+  --resize-handle-size: 3px;
+  outline: none;
+  &[aria-orientation="horizontal"] {
+    height: var(--resize-handle-size);
+  }
+  &[aria-orientation="vertical"] {
+    width: var(--resize-handle-size);
+  }
+
+  &:hover,
+  &:active,
+  &:focus-visible {
+    background-color: var(--global-resize-handle-indicator-color-hover);
+  }
+`;
+
 export const compactResizeHandleCSS = css`
   transition: 250ms linear all;
   background-color: var(--global-resize-handle-background-color);

@@ -29,6 +29,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
@@ -146,7 +147,8 @@ function getTokenTotal(
 function useTraceTokenCountTimeSeriesData({
   projectId,
   timeRange,
-}: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
+  fetchKey,
+}: Pick<ProjectMetricViewProps, "projectId" | "timeRange" | "fetchKey">) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
@@ -192,7 +194,8 @@ function useTraceTokenCountTimeSeriesData({
         scale,
         utcOffsetMinutes,
       },
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   return {
@@ -278,10 +281,12 @@ export function TraceTokenCountTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const { data, scale } = useTraceTokenCountTimeSeriesData({
     projectId,
     timeRange,
+    fetchKey,
   });
   const chartData = data.map((datum) => ({
     timestamp: new Date(datum.timestamp).getTime(),
@@ -371,10 +376,12 @@ function TraceTokenDetailsTimeSeries({
   timeRange,
   onTimeRangeSelected,
   tokenKind,
+  fetchKey,
 }: ProjectMetricViewProps & { tokenKind: TokenDetailsKind }) {
   const { data, scale } = useTraceTokenCountTimeSeriesData({
     projectId,
     timeRange,
+    fetchKey,
   });
   const tokenTypes = Array.from(
     data.reduce((types, datum) => {

@@ -86,6 +86,8 @@ import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { spansTableCSS } from "./styles";
+import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
+import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
 import {
   DEFAULT_SORT,
   getGqlSort,
@@ -121,7 +123,7 @@ type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
 
 const TableBody = <
   T extends TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
-    IAdditionalSpansRow,
+    IAdditionalSpansRow
 >({
   table,
 }: {
@@ -232,6 +234,7 @@ export function TracesTable(props: TracesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { fetchKey } = useStreamState();
+  const projectId = useTracingContext((state) => state.projectId);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -409,7 +412,9 @@ export function TracesTable(props: TracesTableProps) {
             ...root,
             // Indicate that this is an additional row, not a span
             __additionalRow: true,
-            name: `+ ${numSpansNotLoaded} more span${numSpansNotLoaded > 1 ? "s" : ""}`,
+            name: `+ ${numSpansNotLoaded} more span${
+              numSpansNotLoaded > 1 ? "s" : ""
+            }`,
             id: `additional-${root.id}`,
             // Clear out the span info
             input: { value: "" },
@@ -1018,124 +1023,131 @@ export function TracesTable(props: TracesTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   return (
-    <div css={spansTableCSS}>
-      <View
-        paddingTop="size-100"
-        paddingBottom="size-100"
-        paddingStart="size-200"
-        paddingEnd="size-200"
-        borderBottomColor="default"
-        borderBottomWidth="thin"
-        flex="none"
-      >
-        <Flex direction="row" gap="size-100" width="100%" alignItems="center">
-          <SpanFilterConditionField onValidCondition={setFilterCondition} />
-          <SpanColumnSelector columns={computedColumns} query={data} />
-        </Flex>
-      </View>
-      <div
-        css={css`
-          flex: 1 1 auto;
-          overflow: auto;
-        `}
-        onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
-        ref={tableContainerRef}
-      >
-        <table
-          css={selectableTableCSS}
-          style={{
-            ...columnSizeVars,
-            width: table.getTotalSize(),
-            minWidth: "100%",
-          }}
+    <TableMetricsChartsPanelGroup projectId={projectId} view="traces">
+      <div css={spansTableCSS}>
+        <View
+          paddingTop="size-100"
+          paddingBottom="size-100"
+          paddingStart="size-200"
+          paddingEnd="size-200"
+          borderBottomColor="default"
+          borderBottomWidth="thin"
+          flex="none"
         >
-          <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    style={{
-                      ...getCommonPinningStyles(header.column),
-                      width: `calc(var(--header-${header.id}-size) * 1px)`,
-                    }}
-                    colSpan={header.colSpan}
-                    key={header.id}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <>
-                        <div
-                          data-sortable={header.column.getCanSort()}
-                          {...{
-                            className: header.column.getCanSort() ? "sort" : "",
-                            onClick: header.column.getToggleSortingHandler(),
-                            style: {
-                              left: header.getStart(),
-                              width: header.getSize(),
-                            },
-                          }}
-                        >
-                          <Truncate maxWidth="100%">
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                          </Truncate>
-                          {header.column.getIsSorted() ? (
-                            <Icon
-                              className="sort-icon"
-                              svg={
-                                header.column.getIsSorted() === "asc" ? (
-                                  <Icons.CaretUpFilled />
-                                ) : (
-                                  <Icons.CaretDownFilled />
-                                )
-                              }
-                            />
-                          ) : null}
-                        </div>
-                        <div
-                          {...{
-                            onMouseDown: header.getResizeHandler(),
-                            onTouchStart: header.getResizeHandler(),
-                            className: `resizer ${
-                              header.column.getIsResizing() ? "isResizing" : ""
-                            }`,
-                          }}
-                        />
-                      </>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          {isEmpty ? (
-            <ProjectTableEmpty />
-          ) : columnSizingInfo.isResizingColumn ? (
-            <MemoizedTableBody
-              table={
-                // We can't access the internal TableRowType in the TableBody component
-                // so we cast to unknown and then to the correct type
-                table as unknown as ComponentProps<typeof TableBody>["table"]
-              }
-            />
-          ) : (
-            <TableBody
-              table={
-                // We can't access the internal TableRowType in the TableBody component
-                // so we cast to unknown and then to the correct type
-                table as unknown as ComponentProps<typeof TableBody>["table"]
-              }
-            />
-          )}
-        </table>
+          <Flex direction="row" gap="size-100" width="100%" alignItems="center">
+            <SpanFilterConditionField onValidCondition={setFilterCondition} />
+            <TableMetricsChartSelector view="traces" />
+            <SpanColumnSelector columns={computedColumns} query={data} />
+          </Flex>
+        </View>
+        <div
+          css={css`
+            flex: 1 1 auto;
+            overflow: auto;
+          `}
+          onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
+          ref={tableContainerRef}
+        >
+          <table
+            css={selectableTableCSS}
+            style={{
+              ...columnSizeVars,
+              width: table.getTotalSize(),
+              minWidth: "100%",
+            }}
+          >
+            <thead>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      style={{
+                        ...getCommonPinningStyles(header.column),
+                        width: `calc(var(--header-${header.id}-size) * 1px)`,
+                      }}
+                      colSpan={header.colSpan}
+                      key={header.id}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <>
+                          <div
+                            data-sortable={header.column.getCanSort()}
+                            {...{
+                              className: header.column.getCanSort()
+                                ? "sort"
+                                : "",
+                              onClick: header.column.getToggleSortingHandler(),
+                              style: {
+                                left: header.getStart(),
+                                width: header.getSize(),
+                              },
+                            }}
+                          >
+                            <Truncate maxWidth="100%">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                            </Truncate>
+                            {header.column.getIsSorted() ? (
+                              <Icon
+                                className="sort-icon"
+                                svg={
+                                  header.column.getIsSorted() === "asc" ? (
+                                    <Icons.CaretUpFilled />
+                                  ) : (
+                                    <Icons.CaretDownFilled />
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </div>
+                          <div
+                            {...{
+                              onMouseDown: header.getResizeHandler(),
+                              onTouchStart: header.getResizeHandler(),
+                              className: `resizer ${
+                                header.column.getIsResizing()
+                                  ? "isResizing"
+                                  : ""
+                              }`,
+                            }}
+                          />
+                        </>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            {isEmpty ? (
+              <ProjectTableEmpty />
+            ) : columnSizingInfo.isResizingColumn ? (
+              <MemoizedTableBody
+                table={
+                  // We can't access the internal TableRowType in the TableBody component
+                  // so we cast to unknown and then to the correct type
+                  table as unknown as ComponentProps<typeof TableBody>["table"]
+                }
+              />
+            ) : (
+              <TableBody
+                table={
+                  // We can't access the internal TableRowType in the TableBody component
+                  // so we cast to unknown and then to the correct type
+                  table as unknown as ComponentProps<typeof TableBody>["table"]
+                }
+              />
+            )}
+          </table>
+        </div>
+        {selectedRows.length ? (
+          <SpanSelectionToolbar
+            selectedSpans={selectedSpans}
+            onClearSelection={clearSelection}
+          />
+        ) : null}
       </div>
-      {selectedRows.length ? (
-        <SpanSelectionToolbar
-          selectedSpans={selectedSpans}
-          onClearSelection={clearSelection}
-        />
-      ) : null}
-    </div>
+    </TableMetricsChartsPanelGroup>
   );
 }

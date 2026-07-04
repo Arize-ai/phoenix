@@ -29,6 +29,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
+import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
@@ -66,6 +67,7 @@ export function LLMSpanErrorsTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
+  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -106,7 +108,8 @@ export function LLMSpanErrorsTimeSeries({
         utcOffsetMinutes,
       },
       filterCondition: 'span_kind == "LLM"',
-    }
+    },
+    getMetricQueryFetchOptions(fetchKey)
   );
 
   const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(

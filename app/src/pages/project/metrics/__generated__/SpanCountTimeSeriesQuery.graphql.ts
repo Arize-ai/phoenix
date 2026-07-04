@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4a70941359c8adc595283f337bd66e35>>
+ * @generated SignedSource<<44cb64f69a37281b34621ba48ea19794>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,25 +18,27 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type ProjectTraceCountSparklineQuery$variables = {
+export type SpanCountTimeSeriesQuery$variables = {
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type ProjectTraceCountSparklineQuery$data = {
+export type SpanCountTimeSeriesQuery$data = {
   readonly project: {
-    readonly traceCountByStatusTimeSeries?: {
+    readonly spanCountTimeSeries?: {
       readonly data: ReadonlyArray<{
-        readonly errorCount: number;
-        readonly okCount: number;
+        readonly errorCount: number | null;
+        readonly okCount: number | null;
         readonly timestamp: string;
+        readonly totalCount: number | null;
+        readonly unsetCount: number | null;
       }>;
     };
   };
 };
-export type ProjectTraceCountSparklineQuery = {
-  response: ProjectTraceCountSparklineQuery$data;
-  variables: ProjectTraceCountSparklineQuery$variables;
+export type SpanCountTimeSeriesQuery = {
+  response: SpanCountTimeSeriesQuery$data;
+  variables: SpanCountTimeSeriesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -79,15 +81,15 @@ v4 = {
           "variableName": "timeRange"
         }
       ],
-      "concreteType": "TraceCountByStatusTimeSeries",
+      "concreteType": "SpanCountTimeSeries",
       "kind": "LinkedField",
-      "name": "traceCountByStatusTimeSeries",
+      "name": "spanCountTimeSeries",
       "plural": false,
       "selections": [
         {
           "alias": null,
           "args": null,
-          "concreteType": "TraceCountByStatusTimeSeriesDataPoint",
+          "concreteType": "SpanCountTimeSeriesDataPoint",
           "kind": "LinkedField",
           "name": "data",
           "plural": true,
@@ -112,6 +114,20 @@ v4 = {
               "kind": "ScalarField",
               "name": "errorCount",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "unsetCount",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -132,7 +148,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectTraceCountSparklineQuery",
+    "name": "SpanCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -158,7 +174,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ProjectTraceCountSparklineQuery",
+    "name": "SpanCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -189,16 +205,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5e9e765733f839546b930446ef291a97",
+    "cacheID": "d994978599507530c97d5ad7cb4d41e2",
     "id": null,
     "metadata": {},
-    "name": "ProjectTraceCountSparklineQuery",
+    "name": "SpanCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query ProjectTraceCountSparklineQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2f5d0a87bc32362a503e858a566942b6";
+(node as any).hash = "27721ac269396a6decf085fb4b3fcc66";
 
 export default node;
