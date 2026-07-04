@@ -2,7 +2,7 @@ import type { Row, Table } from "@tanstack/react-table";
 import type { MouseEvent } from "react";
 import { useEffect, useRef } from "react";
 
-import { addRowRangeToSelection } from "./selectionUtils";
+import { addRowRangeToSelection } from "./addRowRangeToSelection";
 
 /**
  * Tracks a row-selection anchor and applies shift-click range selection to the

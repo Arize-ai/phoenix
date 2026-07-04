@@ -13,6 +13,9 @@ export * from "./LargeTextWrap";
 export * from "./JSONCell";
 export * from "./PaddedCell";
 export * from "./IndeterminateCheckboxCell";
+
+// Row selection
+export * from "./addRowRangeToSelection";
+export * from "./constants";
 export * from "./RowSelectionColumn";
-export * from "./selectionUtils";
 export * from "./useShiftClickRowSelection";

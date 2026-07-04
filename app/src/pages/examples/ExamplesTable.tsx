@@ -28,7 +28,7 @@ import {
 import {
   CHECKBOX_COLUMN_ID,
   CHECKBOX_COLUMN_PINNING,
-} from "@phoenix/components/table/selectionUtils";
+} from "@phoenix/components/table/constants";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
