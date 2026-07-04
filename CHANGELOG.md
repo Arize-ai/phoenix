@@ -1,5 +1,18 @@
 # Changelog
 
+## [17.17.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.16.0...arize-phoenix-v17.17.0) (2026-07-04)
+
+
+### Features
+
+* **app:** add shift-click range selection to tables ([#14060](https://github.com/Arize-ai/phoenix/issues/14060)) ([1327bfa](https://github.com/Arize-ai/phoenix/commit/1327bfa0042516f96ec43415b7059d0c917ace0c))
+* **ui:** recent searches in the span filter typeahead ([#14062](https://github.com/Arize-ai/phoenix/issues/14062)) ([9024db5](https://github.com/Arize-ai/phoenix/commit/9024db5d40903b65504bd4641a988e66418c6e26))
+
+
+### Bug Fixes
+
+* **app:** restrict shift-click range selection to same-depth rows ([#14063](https://github.com/Arize-ai/phoenix/issues/14063)) ([12d3eac](https://github.com/Arize-ai/phoenix/commit/12d3eacdff9db8dfd5d5f2c5fd12fb1a3ccb889c))
+
 ## [17.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.15.0...arize-phoenix-v17.16.0) (2026-07-04)
 
 
