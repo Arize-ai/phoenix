@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -11,12 +12,52 @@ import yaml
 ROOT = Path(__file__).resolve().parents[4]
 DATASETS_DIR = ROOT / "evals" / "pxi" / "datasets"
 ARTIFACT_DIR = ROOT / "evals" / "pxi" / "experiments" / "context-pruning"
+CORPUS_DIR = ARTIFACT_DIR / "corpus"
+BLOCKS_DIR = CORPUS_DIR / "blocks"
 CORPUS_SEED = 20260703
 RUN_ORDER_SEED = 20260704
+DEPTHS = (5_000, 25_000, 50_000, 100_000, 150_000)
+TYPE_A_TASKS = 40
+CARRIERS = ("tool_result", "user_text", "assistant_text")
+POSITIONS = ("p10", "p50", "p90")
+ARCHETYPES = ("filter", "time_window", "trace_id", "model_constraint")
+
+
+def _token_estimate(text: str) -> int:
+    return max(1, len(text) // 4) if text else 0
+
+
+def _message_text(message: dict[str, Any]) -> str:
+    chunks: list[str] = []
+    content = message.get("content")
+    if isinstance(content, str):
+        chunks.append(content)
+    for call in message.get("tool_calls") or []:
+        chunks.append(json.dumps(call, sort_keys=True))
+    return "\n".join(chunks)
+
+
+def _prefix_tokens(messages: list[dict[str, Any]]) -> int:
+    return sum(_token_estimate(_message_text(message)) for message in messages)
+
+
+def _trim_to_depth(messages: list[dict[str, Any]], depth_tokens: int) -> None:
+    realized = _prefix_tokens(messages)
+    if realized <= depth_tokens:
+        return
+    excess_chars = (realized - depth_tokens) * 4
+    for message in reversed(messages):
+        if message.get("role") != "tool":
+            continue
+        content = message.get("content")
+        if not isinstance(content, str) or len(content) <= excess_chars + 200:
+            continue
+        message["content"] = content[:-excess_chars].rstrip()
+        return
 
 
 def _tool_turn(index: int, content: str) -> list[dict[str, Any]]:
-    tool_call_id = f"seeded-tool-{index}"
+    tool_call_id = f"context-pruning-tool-{index}"
     return [
         {
             "role": "assistant",
@@ -37,98 +78,221 @@ def _tool_turn(index: int, content: str) -> list[dict[str, Any]]:
     ]
 
 
-def _prefix(
-    depth_tokens: int, *, needle: str | None = None, carrier: str = "tool_result"
-) -> list[dict[str, Any]]:
-    target_chars = depth_tokens * 4
-    messages: list[dict[str, Any]] = []
-    chunk_index = 0
-    total_chars = 0
-    while total_chars < target_chars:
-        base = (
-            f"seed={CORPUS_SEED}; chunk={chunk_index}; "
-            "historical Phoenix trace context with span ids, project notes, and tool output. "
-        )
-        repeated = (base * 30)[:1800]
-        if needle and chunk_index == 1 and carrier == "tool_result":
-            repeated += f"\nimportant earlier filter token: {needle}\n"
-        if needle and chunk_index == 1 and carrier == "user_text":
-            messages.append({"role": "user", "content": f"Remember cohort token {needle}."})
-        if needle and chunk_index == 1 and carrier == "assistant_text":
-            messages.append({"role": "assistant", "content": f"Noted: cohort token {needle}."})
-        messages.extend(_tool_turn(chunk_index, repeated))
-        total_chars += len(repeated)
-        chunk_index += 1
+def _base_tool_content(index: int) -> str:
+    base = (
+        f"seed={CORPUS_SEED}; block={index}; source=synthetic-calibration; "
+        "phoenix trace rows with span ids, timestamps, statuses, model names, "
+        "latency metrics, token counts, and tool output excerpts. "
+    )
+    return (base * 120)[:4_000]
+
+
+def _needle_text(needle: str, archetype: str) -> str:
+    if archetype == "filter":
+        return f"Earlier established filter expression token: {needle}"
+    if archetype == "time_window":
+        return f"Earlier established time-window token: {needle}"
+    if archetype == "trace_id":
+        return f"Earlier surfaced outlier trace id token: {needle}"
+    return f"Earlier user-stated model constraint token: {needle}"
+
+
+def materialize_prefix(spec: dict[str, Any]) -> list[dict[str, Any]]:
+    depth_tokens = int(spec["depth_tokens"])
+    needle = spec.get("needle")
+    carrier = str(spec.get("carrier", "tool_result"))
+    position = str(spec.get("position", "p50"))
+    archetype = str(spec.get("archetype", "filter"))
+    position_ratio = {"p10": 0.10, "p50": 0.50, "p90": 0.90}.get(position, 0.50)
+    target_needle_tokens = int(depth_tokens * position_ratio)
+
+    messages: list[dict[str, Any]] = [
+        {
+            "role": "user",
+            "content": "We are investigating Phoenix traces in the context-pruning corpus.",
+        }
+    ]
+    inserted_needle = needle is None
+    block_index = 0
+    while _prefix_tokens(messages) < depth_tokens:
+        current_tokens = _prefix_tokens(messages)
+        should_insert = not inserted_needle and current_tokens >= target_needle_tokens
+        content = _base_tool_content(block_index)
+        if should_insert and carrier == "tool_result":
+            content += "\n" + _needle_text(str(needle), archetype) + "\n"
+            inserted_needle = True
+        if should_insert and carrier == "user_text":
+            messages.append({"role": "user", "content": _needle_text(str(needle), archetype)})
+            inserted_needle = True
+        if should_insert and carrier == "assistant_text":
+            messages.append({"role": "assistant", "content": _needle_text(str(needle), archetype)})
+            inserted_needle = True
+        messages.extend(_tool_turn(block_index, content))
+        block_index += 1
+    if not inserted_needle and needle is not None:
+        messages.append({"role": "user", "content": _needle_text(str(needle), archetype)})
+    _trim_to_depth(messages, depth_tokens)
     return messages
 
 
-def _set_filter_example(
-    example_id: str,
-    *,
-    depth_tokens: int,
-    prompt: str,
-    condition: Any,
-    split: str,
-) -> dict[str, Any]:
+def expand_context_pruning_prefix(input_value: dict[str, Any]) -> dict[str, Any]:
+    spec = input_value.get("context_pruning_prefix")
+    if not isinstance(spec, dict):
+        return input_value
+    raw_messages = input_value.get("messages")
+    if not isinstance(raw_messages, list):
+        raise ValueError("context_pruning_prefix inputs must also define messages")
+    expanded = dict(input_value)
+    expanded["messages"] = [*materialize_prefix(spec), *raw_messages]
+    return expanded
+
+
+def _load_dataset(stem: str) -> dict[str, Any]:
+    dataset = yaml.safe_load((DATASETS_DIR / f"{stem}.yaml").read_text())
+    if not isinstance(dataset, dict):
+        raise ValueError(f"dataset {stem} must load as an object")
+    return dataset
+
+
+def _source_type_a_examples() -> list[dict[str, Any]]:
+    examples: list[dict[str, Any]] = []
+    for stem in ("set_spans_filter", "set_time_range", "save_prompt"):
+        dataset = _load_dataset(stem)
+        for example in dataset["examples"]:
+            copied = deepcopy(example)
+            copied["id"] = f"{stem}--{copied['id']}"
+            examples.append(copied)
+    if len(examples) < TYPE_A_TASKS:
+        raise RuntimeError(f"need {TYPE_A_TASKS} Type A examples, found {len(examples)}")
+    return examples[:TYPE_A_TASKS]
+
+
+def _prefix_spec(depth: int, **overrides: Any) -> dict[str, Any]:
+    spec: dict[str, Any] = {
+        "seed": CORPUS_SEED,
+        "depth_tokens": depth,
+        "composition": "fallback-60-tool-25-assistant-15-user",
+    }
+    spec.update(overrides)
+    return spec
+
+
+def _with_prefix(example: dict[str, Any], depth: int, task_index: int) -> dict[str, Any]:
+    messages = example["input"]["messages"]
     return {
-        "id": example_id,
-        "splits": [split],
-        "input": {"messages": [*_prefix(depth_tokens), {"role": "user", "content": prompt}]},
-        "expected": {
-            "tools": {"required": ["set_spans_filter"]},
-            "tool_call_args": {"set_spans_filter": {"condition": condition}},
-            "budgets": {"max_tool_calls": 1},
+        "id": f"type-a-{task_index:02d}-{example['id']}-{depth}",
+        "splits": ["dev"],
+        "input": {
+            "context_pruning_prefix": _prefix_spec(depth),
+            "messages": messages,
         },
+        "expected": deepcopy(example["expected"]),
         "metadata": {
             "context_pruning": {
                 "task_type": "A",
-                "depth_tokens": depth_tokens,
+                "source_id": example["id"],
+                "depth_tokens": depth,
                 "seed": CORPUS_SEED,
             }
         },
     }
 
 
-def _needle_example(
-    example_id: str,
-    *,
-    depth_tokens: int,
-    carrier: str,
-    position: str,
-    split: str,
-) -> dict[str, Any]:
-    needle = f"cohort-{carrier.replace('_', '-')}-{position}-{depth_tokens}"
-    prompt = "Re-apply the cohort filter token we established earlier."
+def type_a_dataset() -> dict[str, Any]:
+    examples: list[dict[str, Any]] = []
+    for task_index, source in enumerate(_source_type_a_examples(), start=1):
+        for depth in DEPTHS:
+            examples.append(_with_prefix(source, depth, task_index))
     return {
-        "id": example_id,
-        "splits": [split],
-        "input": {
-            "messages": [
-                *_prefix(depth_tokens, needle=needle, carrier=carrier),
-                {"role": "user", "content": prompt},
-            ]
-        },
-        "expected": {
+        "dataset_name": "context_pruning_type_a",
+        "description": "Context-pruning Type A history-independent tasks across nested depths.",
+        "evaluators": [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ],
+        "examples": examples,
+    }
+
+
+def _needle(archetype: str, carrier: str, position: str, index: int) -> str:
+    return f"cohort-{archetype}-{carrier.replace('_', '-')}-{position}-{index:02d}"
+
+
+def _type_b_expected(archetype: str, needle: str) -> dict[str, Any]:
+    if archetype in {"filter", "trace_id", "model_constraint"}:
+        return {
             "tools": {"required": ["set_spans_filter"]},
-            "tool_call_args": {
-                "set_spans_filter": {
-                    "condition": {
-                        "contains_all": [needle],
-                    }
-                }
-            },
+            "tool_call_args": {"set_spans_filter": {"condition": {"contains_all": [needle]}}},
             "budgets": {"max_tool_calls": 1},
-        },
-        "metadata": {
-            "context_pruning": {
-                "task_type": "B",
-                "depth_tokens": depth_tokens,
-                "carrier": carrier,
-                "position": position,
-                "needle": needle,
-                "seed": CORPUS_SEED,
-            }
-        },
+        }
+    return {
+        "tools": {"required": ["set_time_range"]},
+        "tool_call_args": {"set_time_range": {"startTime": {"contains_all": [needle]}}},
+        "budgets": {"max_tool_calls": 1},
+    }
+
+
+def _type_b_prompt(archetype: str) -> str:
+    if archetype == "filter":
+        return "Re-apply the earlier cohort filter expression."
+    if archetype == "time_window":
+        return "Re-apply the earlier time window."
+    if archetype == "trace_id":
+        return "Filter to the outlier trace id we found earlier."
+    return "Filter to the model constraint the user stated earlier."
+
+
+def type_b_dataset() -> dict[str, Any]:
+    examples: list[dict[str, Any]] = []
+    task_index = 1
+    for archetype in ARCHETYPES:
+        for carrier in CARRIERS:
+            for position in POSITIONS:
+                needle = _needle(archetype, carrier, position, task_index)
+                for depth in DEPTHS:
+                    examples.append(
+                        {
+                            "id": (
+                                f"type-b-{task_index:02d}-{archetype}-{carrier}-{position}-{depth}"
+                            ),
+                            "splits": ["dev"],
+                            "input": {
+                                "context_pruning_prefix": _prefix_spec(
+                                    depth,
+                                    needle=needle,
+                                    carrier=carrier,
+                                    position=position,
+                                    archetype=archetype,
+                                ),
+                                "messages": [
+                                    {"role": "user", "content": _type_b_prompt(archetype)}
+                                ],
+                            },
+                            "expected": _type_b_expected(archetype, needle),
+                            "metadata": {
+                                "context_pruning": {
+                                    "task_type": "B",
+                                    "carrier": carrier,
+                                    "position": position,
+                                    "archetype": archetype,
+                                    "needle": needle,
+                                    "depth_tokens": depth,
+                                    "seed": CORPUS_SEED,
+                                }
+                            },
+                        }
+                    )
+                task_index += 1
+    return {
+        "dataset_name": "context_pruning_type_b",
+        "description": "Context-pruning Type B needle tasks across carriers, positions, and depths.",
+        "evaluators": [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ],
+        "examples": examples,
     }
 
 
@@ -144,12 +308,14 @@ def cache_smoke_dataset() -> dict[str, Any]:
         },
         "budgets": {"max_tool_calls": 1},
     }
-    messages = [*_prefix(5_000), {"role": "user", "content": prompt}]
     examples = [
         {
             "id": f"cache-smoke-{index}",
             "splits": ["dev"],
-            "input": {"messages": messages},
+            "input": {
+                "context_pruning_prefix": _prefix_spec(5_000),
+                "messages": [{"role": "user", "content": prompt}],
+            },
             "expected": expected,
             "metadata": {
                 "context_pruning": {
@@ -174,39 +340,11 @@ def cache_smoke_dataset() -> dict[str, Any]:
 
 
 def pilot_dataset() -> dict[str, Any]:
-    examples: list[dict[str, Any]] = []
-    type_a_specs = [
-        ("llm", "Show only LLM spans.", "span_kind == 'LLM'"),
-        ("tool", "Show only tool spans.", "span_kind == 'TOOL'"),
-        ("errors", "Show errored spans.", "status_code == 'ERROR'"),
-        (
-            "slow",
-            "Show spans taking at least five seconds.",
-            {"contains_all": ["latency_ms", "5000"], "not_contains": ["latency_ms < "]},
-        ),
-    ]
-    for depth in (5_000, 25_000):
-        for slug, prompt, condition in type_a_specs:
-            examples.append(
-                _set_filter_example(
-                    f"type-a-{slug}-{depth}",
-                    depth_tokens=depth,
-                    prompt=prompt,
-                    condition=condition,
-                    split="dev",
-                )
-            )
-    for depth in (5_000, 25_000):
-        for carrier in ("tool_result", "user_text", "assistant_text"):
-            examples.append(
-                _needle_example(
-                    f"type-b-{carrier}-{depth}",
-                    depth_tokens=depth,
-                    carrier=carrier,
-                    position="middle",
-                    split="dev",
-                )
-            )
+    examples = type_a_dataset()["examples"][:8] + type_b_dataset()["examples"][:6]
+    for example in examples:
+        example["id"] = (
+            example["id"].replace("type-a-", "pilot-type-a-").replace("type-b-", "pilot-type-b-")
+        )
     return {
         "dataset_name": "context_pruning_pilot",
         "description": "Seeded context-pruning pilot tasks for P0/P1 policy checks.",
@@ -231,9 +369,80 @@ def task_hashes(dataset: dict[str, Any]) -> list[dict[str, str]]:
     return hashes
 
 
+def _write_blocks() -> None:
+    BLOCKS_DIR.mkdir(parents=True, exist_ok=True)
+    for index in range(8):
+        (BLOCKS_DIR / f"synthetic-block-{index:02d}.txt").write_text(
+            _base_tool_content(index), encoding="utf-8"
+        )
+
+
+def _corpus_stats() -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for depth in DEPTHS:
+        messages = materialize_prefix(_prefix_spec(depth))
+        realized = _prefix_tokens(messages)
+        rows.append(
+            {
+                "target_tokens": depth,
+                "realized_estimated_tokens": realized,
+                "delta_pct": round((realized - depth) / depth * 100, 2),
+                "messages": len(messages),
+            }
+        )
+    return rows
+
+
+def _write_report(datasets: list[dict[str, Any]]) -> None:
+    stats = _corpus_stats()
+    lines = [
+        "# Context Pruning Corpus Report",
+        "",
+        f"Seed: `{CORPUS_SEED}`",
+        "",
+        "The repository artifact uses compact `input.context_pruning_prefix` specs.",
+        "The PXI harness expands those specs into deterministic primed histories at runtime.",
+        "",
+        "## Datasets",
+        "",
+        "| Dataset | Examples |",
+        "|---|---:|",
+    ]
+    lines.extend(
+        f"| {dataset['dataset_name']} | {len(dataset['examples'])} |" for dataset in datasets
+    )
+    lines.extend(
+        [
+            "",
+            "## Prefix Depth Check",
+            "",
+            "| Target tokens | Realized estimated tokens | Delta pct | Messages |",
+            "|---:|---:|---:|---:|",
+        ]
+    )
+    lines.extend(
+        (
+            f"| {row['target_tokens']} | {row['realized_estimated_tokens']} | "
+            f"{row['delta_pct']} | {row['messages']} |"
+        )
+        for row in stats
+    )
+    lines.extend(
+        [
+            "",
+            "Calibration status: fallback synthetic blocks are primary until Playwright-generated",
+            "PXI calibration sessions are recorded. All blocks are generated from the pinned seed",
+            "and contain no real user data.",
+        ]
+    )
+    (CORPUS_DIR / "REPORT.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def write_artifacts() -> None:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
-    datasets = [cache_smoke_dataset(), pilot_dataset()]
+    CORPUS_DIR.mkdir(parents=True, exist_ok=True)
+    _write_blocks()
+    datasets = [cache_smoke_dataset(), pilot_dataset(), type_a_dataset(), type_b_dataset()]
     for dataset in datasets:
         path = DATASETS_DIR / f"{dataset['dataset_name']}.yaml"
         path.write_text(yaml.safe_dump(dataset, sort_keys=False), encoding="utf-8")
@@ -246,6 +455,7 @@ def write_artifacts() -> None:
         json.dumps(hashes, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    _write_report(datasets)
 
 
 def main() -> int:

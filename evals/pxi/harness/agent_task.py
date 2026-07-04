@@ -207,7 +207,12 @@ def _build_run_inputs(
     - **Last entry is ``role: assistant``.** Rejected: nothing remains for
       the agent to do.
     """
-    raw_messages = input.get("messages")
+    from evals.pxi.experiments.context_pruning.corpus_builder import (
+        expand_context_pruning_prefix,
+    )
+
+    expanded_input = expand_context_pruning_prefix(input)
+    raw_messages = expanded_input.get("messages")
     if not isinstance(raw_messages, list) or not raw_messages:
         raise ValueError("PXI eval input.messages must be a non-empty list")
     if not isinstance(raw_messages[-1], dict):
