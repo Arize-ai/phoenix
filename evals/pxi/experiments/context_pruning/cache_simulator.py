@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from evals.pxi.experiments.context_pruning.cost_model import anthropic_cost_usd
 
@@ -13,6 +13,9 @@ class SimulatedTurn:
     output_tokens: int
     cacheable_prefix_tokens: int
     prefix_key: str = "full"
+    summarizer_usage: dict[str, int] = field(default_factory=dict)
+    refetch_input_tokens: int = 0
+    refetch_output_tokens: int = 0
 
 
 @dataclass(frozen=True)
@@ -21,6 +24,7 @@ class SimulatedUsage:
     output_tokens: int
     cache_read_tokens: int
     cache_write_tokens: int
+    line_items: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def as_usage(self) -> dict[str, int]:
         return {
@@ -59,12 +63,47 @@ def simulate_anthropic_prompt_cache(
         else:
             cache_read_tokens = 0
             cache_write_tokens = 0
+        summarizer_usage = {
+            "input_tokens": int(turn.summarizer_usage.get("input_tokens", 0) or 0),
+            "output_tokens": int(turn.summarizer_usage.get("output_tokens", 0) or 0),
+            "cache_read_tokens": int(turn.summarizer_usage.get("cache_read_tokens", 0) or 0),
+            "cache_write_tokens": int(turn.summarizer_usage.get("cache_write_tokens", 0) or 0),
+        }
+        refetch_usage = {
+            "input_tokens": max(0, turn.refetch_input_tokens),
+            "output_tokens": max(0, turn.refetch_output_tokens),
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+        agent_usage = {
+            "input_tokens": turn.input_tokens,
+            "output_tokens": turn.output_tokens,
+            "cache_read_tokens": cache_read_tokens,
+            "cache_write_tokens": cache_write_tokens,
+        }
         usages.append(
             SimulatedUsage(
-                input_tokens=turn.input_tokens,
-                output_tokens=turn.output_tokens,
-                cache_read_tokens=cache_read_tokens,
-                cache_write_tokens=cache_write_tokens,
+                input_tokens=(
+                    agent_usage["input_tokens"]
+                    + summarizer_usage["input_tokens"]
+                    + refetch_usage["input_tokens"]
+                ),
+                output_tokens=(
+                    agent_usage["output_tokens"]
+                    + summarizer_usage["output_tokens"]
+                    + refetch_usage["output_tokens"]
+                ),
+                cache_read_tokens=(
+                    agent_usage["cache_read_tokens"] + summarizer_usage["cache_read_tokens"]
+                ),
+                cache_write_tokens=(
+                    agent_usage["cache_write_tokens"] + summarizer_usage["cache_write_tokens"]
+                ),
+                line_items={
+                    "agent": agent_usage,
+                    "summarizer": summarizer_usage,
+                    "refetch": refetch_usage,
+                },
             )
         )
     return usages
@@ -93,3 +132,11 @@ def turns_to_break_even(
         if total_anthropic_cost(policy_usages) <= total_anthropic_cost(baseline_usages):
             return turn_count
     return None
+
+
+def empirical_openai_cached_tokens(input_tokens: int, *, hit_rate: float) -> int:
+    if hit_rate < 0 or hit_rate > 1:
+        raise ValueError("hit_rate must be between 0 and 1")
+    if input_tokens < 1_024:
+        return 0
+    return int(input_tokens * hit_rate)
