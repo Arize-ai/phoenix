@@ -2,8 +2,9 @@ import { css } from "@emotion/react";
 
 import { classNames } from "@phoenix/utils/classNames";
 
-import { Icon, Icons } from "../icon";
 import type { StylableProps } from "../types";
+import { Icon } from "./Icon";
+import * as Icons from "./Icons";
 
 const disclosureArrowCSS = css`
   flex: none;

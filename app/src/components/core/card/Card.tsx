@@ -2,7 +2,7 @@ import type { Ref } from "react";
 import { useEffect, useEffectEvent, useId, useState } from "react";
 
 import { Heading } from "../content";
-import { DisclosureArrow } from "../disclosure";
+import { DisclosureArrow } from "../icon";
 import { useStyleProps, viewStyleProps } from "../utils";
 import { cardCSS } from "./styles";
 import type { CardProps } from "./types";
