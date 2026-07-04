@@ -2,7 +2,7 @@ import type { Ref } from "react";
 import { useEffect, useEffectEvent, useId, useState } from "react";
 
 import { Heading } from "../content";
-import { Icon, Icons } from "../icon";
+import { DisclosureArrow } from "../disclosure";
 import { useStyleProps, viewStyleProps } from "../utils";
 import { cardCSS } from "./styles";
 import type { CardProps } from "./types";
@@ -75,10 +75,9 @@ function Card({
             aria-controls={bodyId}
             aria-expanded={!isCollapsed}
           >
-            <Icon
-              svg={<Icons.ChevronDownSmall />}
+            <DisclosureArrow
+              isExpanded={!isCollapsed}
               className="card__collapse-toggle-icon"
-              aria-hidden="true"
             />
             {headingContents}
           </button>

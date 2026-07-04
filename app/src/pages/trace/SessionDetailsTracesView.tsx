@@ -24,10 +24,9 @@ import {
 import { useSearchParams } from "react-router";
 
 import {
+  DisclosureArrow,
   Empty,
   Flex,
-  Icon,
-  Icons,
   Loading,
   Text,
   Truncate,
@@ -493,7 +492,7 @@ function TraceRowChevron({ isExpanded }: { isExpanded: boolean }) {
       data-expanded={isExpanded}
       data-testid="session-trace-row-chevron"
     >
-      <Icon svg={<Icons.ChevronRightSmall />} />
+      <DisclosureArrow isExpanded={isExpanded} />
     </span>
   );
 }
@@ -693,7 +692,7 @@ const traceRowCSS = css`
 const traceRowHeaderCSS = css`
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-static-size-200);
   background: transparent;
@@ -714,12 +713,11 @@ const traceRowHeaderCSS = css`
 
 const chevronCSS = css`
   flex: none;
-  transition: transform 120ms ease;
   display: inline-flex;
-
-  &[data-expanded="true"] {
-    transform: rotate(90deg);
-  }
+  align-items: center;
+  /* Center the arrow on the title line rather than floating between the
+   * title and metrics lines. */
+  height: var(--global-line-height-s);
 `;
 
 const traceTreeContainerCSS = css`

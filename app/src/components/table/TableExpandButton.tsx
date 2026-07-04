@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Icon, Icons } from "@phoenix/components";
+import { DisclosureArrow } from "@phoenix/components";
 
 type TableExpandButtonProps = {
   onClick: (event: unknown) => void;
@@ -18,26 +18,19 @@ export function TableExpandButton(props: TableExpandButtonProps) {
       }}
       aria-label={props["aria-label"]}
       css={css`
-        color: var(--global-text-color-500);
         cursor: pointer;
+        display: flex;
+        align-items: center;
         .icon-wrap {
-          font-size: 1.2rem;
+          font-size: 1rem;
         }
 
-        &:hover {
+        &:hover .disclosure-arrow {
           color: var(--global-color-primary);
         }
       `}
     >
-      <Icon
-        svg={
-          props.isExpanded ? (
-            <Icons.ChevronDownSmall />
-          ) : (
-            <Icons.ChevronRightSmall />
-          )
-        }
-      />
+      <DisclosureArrow isExpanded={props.isExpanded} />
     </button>
   );
 }
