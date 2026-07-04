@@ -2,6 +2,13 @@ from phoenix.server.agents.capabilities.anthropic_prompt_cache import (
     AnthropicPromptCacheCapability,
     build_anthropic_prompt_cache_capability,
 )
+from phoenix.server.agents.capabilities.context_policy import (
+    ENV_CONTEXT_POLICY,
+    ContextPolicyCapability,
+    ContextPolicyConfig,
+    build_context_policy_capability,
+    parse_context_policy,
+)
 from phoenix.server.agents.capabilities.contexts import get_context_capability_function
 from phoenix.server.agents.capabilities.docs_mcp import (
     MintlifyDocsMCPCapability,
@@ -16,8 +23,13 @@ from phoenix.server.agents.capabilities.tools.external import (
 __all__ = [
     "AnthropicPromptCacheCapability",
     "build_anthropic_prompt_cache_capability",
+    "build_context_policy_capability",
+    "ContextPolicyCapability",
+    "ContextPolicyConfig",
+    "ENV_CONTEXT_POLICY",
     "MintlifyDocsMCPCapability",
     "MintlifyDocsMCPServer",
+    "parse_context_policy",
     "SkillsCapability",
     "get_context_capability_function",
     "get_external_tool_capability_function",

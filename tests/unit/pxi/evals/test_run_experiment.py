@@ -7,6 +7,7 @@ Run directly:
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 
 import pytest
@@ -27,7 +28,9 @@ from evals.pxi.harness.run_experiment import (
     _phoenix_examples,
     _rewrite_stable_example_ids,
     main,
+    run,
 )
+from phoenix.server.agents.capabilities import ENV_CONTEXT_POLICY
 
 
 def _dataset() -> EvalDataset:
@@ -237,6 +240,53 @@ def test_main_forwards_explicit_splits(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert main(["--dataset", "set_spans_filter", "--splits", "dev", "val"]) == 0
     assert captured[0].splits == ("dev", "val")
+
+
+def test_main_forwards_context_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: list[ExperimentConfig] = []
+
+    def fake_run(config: ExperimentConfig) -> int:
+        captured.append(config)
+        return 0
+
+    monkeypatch.setattr("evals.pxi.harness.run_experiment.run", fake_run)
+
+    assert main(["--dataset", "set_spans_filter", "--policy", "p1"]) == 0
+    assert captured[0].context_policy == "p1"
+
+
+def test_main_rejects_invalid_context_policy() -> None:
+    assert main(["--dataset", "set_spans_filter", "--policy", "bogus"]) == 2
+
+
+def test_run_temporarily_sets_context_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed: list[str | None] = []
+
+    async def fake_run_async(config: ExperimentConfig) -> int:
+        observed.append(os.environ.get(ENV_CONTEXT_POLICY))
+        return 0
+
+    monkeypatch.delenv(ENV_CONTEXT_POLICY, raising=False)
+    monkeypatch.setattr("evals.pxi.harness.run_experiment._run_async", fake_run_async)
+
+    assert (
+        run(
+            ExperimentConfig(
+                dataset="set_spans_filter",
+                base_url="http://x",
+                bearer_token=None,
+                experiment_name=None,
+                experiment_name_suffix=None,
+                fail_on_regression=False,
+                splits=("dev",),
+                evaluator_override=None,
+                context_policy="p1",
+            )
+        )
+        == 0
+    )
+    assert observed == ["p1"]
+    assert ENV_CONTEXT_POLICY not in os.environ
 
 
 def test_phoenix_examples_include_splits() -> None:

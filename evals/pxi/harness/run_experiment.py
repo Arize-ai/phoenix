@@ -42,6 +42,7 @@ from evals.pxi.harness.reporting import (
     report_to_markdown,
     write_reports,
 )
+from phoenix.server.agents.capabilities import ENV_CONTEXT_POLICY, parse_context_policy
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 
@@ -60,6 +61,7 @@ class ExperimentConfig:
     evaluator_override: tuple[str, ...] | None
     report_dir: Path | None = None
     print_report: bool = False
+    context_policy: str | None = None
 
 
 def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
@@ -288,6 +290,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 or _git_value("rev-parse", "--abbrev-ref", "HEAD"),
                 "assistant_provider": os.getenv(ENV_ASSISTANT_PROVIDER, DEFAULT_ASSISTANT_PROVIDER),
                 "assistant_model": os.getenv(ENV_ASSISTANT_MODEL, DEFAULT_ASSISTANT_MODEL),
+                "context_policy": config.context_policy or os.getenv(ENV_CONTEXT_POLICY, "full"),
                 "started_at": datetime.now(timezone.utc).isoformat(),
             }
             print(f"Running experiment: {name}")
@@ -356,7 +359,17 @@ async def _run_async(config: ExperimentConfig) -> int:
 
 def run(config: ExperimentConfig) -> int:
     """Synchronous entrypoint that drives the async experiment run."""
-    return asyncio.run(_run_async(config))
+    previous_policy = os.environ.get(ENV_CONTEXT_POLICY)
+    if config.context_policy is not None:
+        os.environ[ENV_CONTEXT_POLICY] = config.context_policy
+    try:
+        return asyncio.run(_run_async(config))
+    finally:
+        if config.context_policy is not None:
+            if previous_policy is None:
+                os.environ.pop(ENV_CONTEXT_POLICY, None)
+            else:
+                os.environ[ENV_CONTEXT_POLICY] = previous_policy
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -424,12 +437,26 @@ def build_parser() -> argparse.ArgumentParser:
             f"for permanent changes. Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
         ),
     )
+    parser.add_argument(
+        "--policy",
+        dest="context_policy",
+        help=(
+            "Context policy for this run. Use full/p0, p1, p1c, p6, or an explicit "
+            "policy string such as clear_tool_uses:k=5,threshold=30000."
+        ),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entrypoint for ``run_experiment.py`` and ``python -m`` invocations."""
     args = build_parser().parse_args(argv)
+    if args.context_policy is not None:
+        try:
+            parse_context_policy(args.context_policy)
+        except ValueError as exc:
+            print(f"Invalid context policy: {exc}", file=sys.stderr)
+            return 2
     base_url, _ = _configured_base_url()
     config = ExperimentConfig(
         dataset=args.dataset,
@@ -442,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
         report_dir=args.report_dir,
         print_report=args.print_report,
+        context_policy=args.context_policy,
     )
     try:
         return run(config)

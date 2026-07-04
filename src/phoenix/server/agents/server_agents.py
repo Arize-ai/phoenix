@@ -15,6 +15,7 @@ from pydantic_ai.ui.vercel_ai.response_types import ToolOutputAvailableChunk
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     build_anthropic_prompt_cache_capability,
+    build_context_policy_capability,
 )
 from phoenix.server.agents.capabilities.skills import SkillsCapability, SkillsToolset
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
@@ -98,6 +99,8 @@ def build_server_agent(
             capabilities.append(web_fetch)
     if (prompt_cache := build_anthropic_prompt_cache_capability(model)) is not None:
         capabilities.append(prompt_cache)
+    if (context_policy := build_context_policy_capability(model)) is not None:
+        capabilities.append(context_policy)
     if enable_subagents:
         server_agent = build_server_agent(
             model=model,
