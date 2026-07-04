@@ -79,48 +79,51 @@ Consolidated report: `evals/pxi/experiments/context-pruning/gates/REPORT.md`.
 Commands:
 
 ```bash
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6007 \
+PHOENIX_COLLECTOR_ENDPOINT=http://127.0.0.1:6007 \
+PHOENIX_GRPC_PORT=6017 \
+PHOENIX_ALLOW_EXTERNAL_RESOURCES=true \
 PHOENIX_AGENTS_ASSISTANT_PROVIDER=ANTHROPIC \
 PHOENIX_AGENTS_ASSISTANT_MODEL=claude-opus-4-6 \
-uv run python -m evals.pxi.harness.run_experiment \
+uv run python -m evals.pxi.experiments.context_pruning.run_matrix \
   --dataset context_pruning_pilot \
-  --splits dev \
+  --policies p0,p1,p2 \
+  --repetitions 1 \
   --concurrency 1 \
-  --experiment-name context-pruning-pilot-p0
-
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6007 \
-PHOENIX_AGENTS_ASSISTANT_PROVIDER=ANTHROPIC \
-PHOENIX_AGENTS_ASSISTANT_MODEL=claude-opus-4-6 \
-uv run python -m evals.pxi.harness.run_experiment \
-  --dataset context_pruning_pilot \
-  --splits dev \
-  --concurrency 1 \
-  --policy p1c \
-  --experiment-name context-pruning-pilot-p1c
+  --name-prefix context-pruning-pilot-current \
+  --base-url http://127.0.0.1:6007 \
+  --provider ANTHROPIC \
+  --model claude-opus-4-6 \
+  --report-dir /private/tmp/context-pruning-current-pilot-reports
 ```
 
 Usage and latency:
 
-| Experiment | Runs | input_tokens | output_tokens | cache_read_tokens | cache_write_tokens | avg_latency_ms | illustrative_cost_usd |
+| Experiment | Runs | input_tokens | output_tokens | cache_read_tokens | cache_write_tokens | median_latency_ms | illustrative_cost_usd |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| context-pruning-pilot-p0 | 14 | 444152 | 1528 | 182036 | 262074 | 4698 | 1.767391 |
-| context-pruning-pilot-p1c | 14 | 281121 | 1514 | 173852 | 107227 | 4299 | 0.795155 |
+| context-pruning-pilot-current...p0 | 14 | 980358 | 1291 | 161434 | 818882 | 4591 | 5.231215 |
+| context-pruning-pilot-current...p1 | 14 | 400432 | 1402 | 287841 | 112549 | 3638 | 0.882612 |
+| context-pruning-pilot-current...p2 | 14 | 902051 | 2611 | 287841 | 15912 | 3491 | 3.300136 |
 
 Evaluator pass rates:
 
 | Experiment | Evaluator | Passed | Total |
 |---|---|---:|---:|
-| context-pruning-pilot-p0 | correct_tools_called | 10 | 14 |
-| context-pruning-pilot-p0 | tool_call_args_match | 9 | 14 |
-| context-pruning-pilot-p0 | tool_call_count_within_limit | 14 | 14 |
-| context-pruning-pilot-p1c | correct_tools_called | 8 | 14 |
-| context-pruning-pilot-p1c | tool_call_args_match | 8 | 14 |
-| context-pruning-pilot-p1c | tool_call_count_within_limit | 14 | 14 |
+| P0 full history | correct_tools_called | 14 | 14 |
+| P0 full history | tool_call_args_match | 14 | 14 |
+| P0 full history | tool_call_count_within_limit | 14 | 14 |
+| P1 threshold tool-result clearing | correct_tools_called | 11 | 14 |
+| P1 threshold tool-result clearing | tool_call_args_match | 11 | 14 |
+| P1 threshold tool-result clearing | tool_call_count_within_limit | 14 | 14 |
+| P2 threshold summarization | correct_tools_called | 14 | 14 |
+| P2 threshold summarization | tool_call_args_match | 14 | 14 |
+| P2 threshold summarization | tool_call_count_within_limit | 14 | 14 |
 
 Interpretation:
-- P1c reduced total input tokens by 36.7% and cache-write tokens by 59.1% on this seeded pilot.
-- P1c also reduced deterministic tool/arg pass rates on the seeded Type-B needle tasks, as expected for aggressive continuous clearing.
-- This is a smoke/pilot artifact, not the final preregistered grid.
+- P1 reduced illustrative cost by 83.1% vs. P0 on this one-repetition pilot, but failed the
+  three high-depth Type-B tool-result examples included in the pilot.
+- P2 preserved 14/14 deterministic quality while reducing illustrative cost by 36.9% vs. P0;
+  its summarizer call usage is included in the `policy_usage` totals.
+- This is a smoke/pilot artifact, not the final preregistered 5-run, two-model grid.
 
 ## Continuation Policy Smoke
 
