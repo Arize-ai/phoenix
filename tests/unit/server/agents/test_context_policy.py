@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pydantic_ai.messages import (
+    ModelMessage,
     ModelRequest,
     ModelResponse,
     TextPart,
@@ -12,7 +13,9 @@ from pydantic_ai.messages import (
 from phoenix.server.agents.capabilities.context_policy import (
     TOOL_RESULT_CLEARED_TEMPLATE,
     ContextPolicyConfig,
+    SummaryResult,
     apply_context_policy,
+    apply_context_policy_async,
     parse_context_policy,
 )
 
@@ -191,6 +194,56 @@ def test_threshold_summary_drops_trailing_tool_results_without_matching_tool_cal
         if isinstance(message, ModelRequest)
     )
     assert transformed[-1] is messages[-1]
+
+
+async def test_threshold_summary_async_uses_summarizer_and_returns_usage() -> None:
+    messages: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        ModelResponse(parts=[TextPart(content="old assistant detail needle-a")]),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    async def summarize(
+        middle: list[ModelMessage],
+        config: ContextPolicyConfig,
+        model: object,
+    ) -> SummaryResult:
+        assert middle == [messages[1]]
+        assert config.max_summary_tokens == 20
+        assert getattr(model, "model_name") == "claude-test"
+        return SummaryResult(
+            text="summary kept needle-a",
+            usage={
+                "input_tokens": 9,
+                "output_tokens": 3,
+                "cache_read_tokens": 2,
+                "cache_write_tokens": 4,
+            },
+        )
+
+    applied = await apply_context_policy_async(
+        messages,
+        ContextPolicyConfig(
+            name="threshold_summary",
+            threshold_tokens=0,
+            trailing_tokens=1,
+            max_summary_tokens=20,
+        ),
+        model=type("FakeModel", (), {"system": "anthropic", "model_name": "claude-test"})(),
+        summary_provider=summarize,
+    )
+
+    assert applied.usage == {
+        "input_tokens": 9,
+        "output_tokens": 3,
+        "cache_read_tokens": 2,
+        "cache_write_tokens": 4,
+    }
+    summary_message = applied.messages[1]
+    assert isinstance(summary_message, ModelRequest)
+    summary_part = summary_message.parts[0]
+    assert isinstance(summary_part, UserPromptPart)
+    assert "summary kept needle-a" in str(summary_part.content)
 
 
 def test_noop_summary_uses_pinned_placeholder() -> None:

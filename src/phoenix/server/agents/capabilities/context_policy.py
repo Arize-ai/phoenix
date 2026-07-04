@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, replace
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import ModelMessage, ModelRequest, ToolReturnPart, UserPromptPart
@@ -16,9 +16,30 @@ DEFAULT_CLEAR_THRESHOLD_TOKENS = 30_000
 DEFAULT_SUMMARY_THRESHOLD_TOKENS = 40_000
 DEFAULT_TRAILING_TOKENS = 8_000
 DEFAULT_MAX_SUMMARY_TOKENS = 2_000
+SUMMARIZATION_PROMPT = (
+    "You are compacting the earlier portion of a conversation between a user and PXI,\n"
+    """\
+the Phoenix observability platform's in-app agent. Write a summary (≤1500 words)
+that preserves, in this order of priority:
+1. The user's goals and any constraints they stated.
+2. Concrete values established earlier: filter expressions, time ranges, IDs
+   (trace/span/dataset/project), file paths, metric names — verbatim.
+3. Decisions made and their rationale.
+4. Tool results that remain relevant: what was queried and the key findings
+   (not raw payloads).
+5. Open threads or unfinished work.
+Omit pleasantries, superseded attempts, and raw tool output bodies.
+Do not add information not present in the conversation."""
+)
 TOOL_RESULT_CLEARED_TEMPLATE = (
     "[Tool result cleared to save context. Tool: {tool_name}. "
     "Original size: {n_chars} characters. Re-run the tool if this result is needed.]"
+)
+USAGE_KEYS = (
+    "input_tokens",
+    "output_tokens",
+    "cache_read_tokens",
+    "cache_write_tokens",
 )
 
 
@@ -30,6 +51,36 @@ class ContextPolicyConfig:
     trailing_tokens: int = DEFAULT_TRAILING_TOKENS
     max_summary_tokens: int = DEFAULT_MAX_SUMMARY_TOKENS
     oracle_terms: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ContextPolicyApplication:
+    messages: list[ModelMessage]
+    usage: dict[str, int]
+
+
+@dataclass(frozen=True)
+class SummaryResult:
+    text: str
+    usage: dict[str, int]
+
+
+SummaryProvider = Callable[
+    [list[ModelMessage], ContextPolicyConfig, Model],
+    Awaitable[SummaryResult],
+]
+
+
+def zero_usage() -> dict[str, int]:
+    return {key: 0 for key in USAGE_KEYS}
+
+
+def add_usage(*usages: dict[str, int]) -> dict[str, int]:
+    total = zero_usage()
+    for usage in usages:
+        for key in USAGE_KEYS:
+            total[key] += int(usage.get(key, 0) or 0)
+    return total
 
 
 def _parse_policy_params(raw_params: str) -> dict[str, str]:
@@ -203,6 +254,8 @@ def _extractive_summary(messages: list[ModelMessage], max_summary_tokens: int) -
 def _apply_compaction_policy(
     messages: list[ModelMessage],
     config: ContextPolicyConfig,
+    *,
+    summary_text: str | None = None,
 ) -> list[ModelMessage]:
     if _estimate_message_tokens(messages) <= config.threshold_tokens:
         return messages
@@ -221,14 +274,19 @@ def _apply_compaction_policy(
     if config.name == "naive_truncation":
         return [*kept_prefix, *trailing]
     if config.name == "noop_summary":
-        summary_text = "[Earlier conversation history was removed to save context.]"
-    else:
+        resolved_summary_text = "[Earlier conversation history was removed to save context.]"
+    elif summary_text is None:
         summary = _extractive_summary(middle, config.max_summary_tokens)
-        summary_text = (
+        resolved_summary_text = (
             "The earlier conversation history was compacted to save context. "
             f"<conversation_summary>{summary}</conversation_summary>"
         )
-    return [*kept_prefix, _summary_message(summary_text), *trailing]
+    else:
+        resolved_summary_text = (
+            "The earlier conversation history was compacted to save context. "
+            f"<conversation_summary>{summary_text}</conversation_summary>"
+        )
+    return [*kept_prefix, _summary_message(resolved_summary_text), *trailing]
 
 
 def _apply_oracle_policy(
@@ -296,9 +354,137 @@ def apply_context_policy(
     return transformed
 
 
+def _messages_to_summary_input(messages: list[ModelMessage]) -> str:
+    chunks: list[str] = []
+    for index, message in enumerate(messages):
+        text = _message_text(message)
+        if text:
+            chunks.append(f'<message index="{index}">\n{text}\n</message>')
+    return "\n\n".join(chunks)
+
+
+def _model_name(model: Model) -> str:
+    model_name = getattr(model, "model_name", None) or getattr(model, "_model_name", None)
+    if isinstance(model_name, str) and model_name:
+        return model_name
+    model_id = getattr(model, "model_id", None)
+    if isinstance(model_id, str) and model_id:
+        return model_id
+    raise RuntimeError("context policy summarization requires a model name")
+
+
+def _anthropic_usage(usage: Any) -> dict[str, int]:
+    return {
+        "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
+        "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+        "cache_read_tokens": int(getattr(usage, "cache_read_input_tokens", 0) or 0),
+        "cache_write_tokens": int(getattr(usage, "cache_creation_input_tokens", 0) or 0),
+    }
+
+
+def _openai_usage(usage: Any) -> dict[str, int]:
+    input_details = getattr(usage, "input_tokens_details", None)
+    cached_tokens = int(getattr(input_details, "cached_tokens", 0) or 0)
+    return {
+        "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
+        "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
+        "cache_read_tokens": cached_tokens,
+        "cache_write_tokens": 0,
+    }
+
+
+def _content_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    text = getattr(content, "text", None)
+    if isinstance(text, str):
+        return text
+    return str(content)
+
+
+async def summarize_with_model(
+    messages: list[ModelMessage],
+    config: ContextPolicyConfig,
+    model: Model,
+) -> SummaryResult:
+    summary_input = _messages_to_summary_input(messages)
+    if not summary_input:
+        return SummaryResult(text="", usage=zero_usage())
+    model_name = _model_name(model)
+    if model.system == "anthropic":
+        from anthropic import AsyncAnthropic
+
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY is required for P2 context summarization")
+        response = await AsyncAnthropic(api_key=api_key, max_retries=0).messages.create(
+            model=model_name,
+            max_tokens=config.max_summary_tokens,
+            temperature=0,
+            system=SUMMARIZATION_PROMPT,
+            messages=[{"role": "user", "content": summary_input}],
+        )
+        return SummaryResult(
+            text="\n".join(_content_text(part) for part in response.content).strip(),
+            usage=_anthropic_usage(response.usage),
+        )
+    if model.system == "openai":
+        from openai import AsyncOpenAI
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL")
+        if not api_key and not base_url:
+            raise RuntimeError("OPENAI_API_KEY is required for P2 context summarization")
+        openai_response = await AsyncOpenAI(
+            api_key=api_key or "sk-placeholder",
+            base_url=base_url,
+            max_retries=0,
+        ).responses.create(
+            model=model_name,
+            input=[
+                {"role": "system", "content": SUMMARIZATION_PROMPT},
+                {"role": "user", "content": summary_input},
+            ],
+            max_output_tokens=config.max_summary_tokens,
+        )
+        output_text = getattr(openai_response, "output_text", None)
+        return SummaryResult(
+            text=output_text if isinstance(output_text, str) else str(output_text or ""),
+            usage=_openai_usage(openai_response.usage),
+        )
+    raise RuntimeError(f"P2 context summarization is unsupported for provider {model.system!r}")
+
+
+async def apply_context_policy_async(
+    messages: list[ModelMessage],
+    config: ContextPolicyConfig,
+    model: Model,
+    *,
+    summary_provider: SummaryProvider = summarize_with_model,
+) -> ContextPolicyApplication:
+    if (
+        config.name == "threshold_summary"
+        and _estimate_message_tokens(messages) > config.threshold_tokens
+    ):
+        first_user_index = _first_user_index(messages)
+        trailing_start_index = _trailing_start_index(messages, config.trailing_tokens)
+        middle_start = (first_user_index + 1) if first_user_index is not None else 0
+        middle = messages[middle_start:trailing_start_index]
+        summary = await summary_provider(middle, config, model)
+        return ContextPolicyApplication(
+            messages=_apply_compaction_policy(messages, config, summary_text=summary.text),
+            usage=summary.usage,
+        )
+    return ContextPolicyApplication(
+        messages=apply_context_policy(messages, config),
+        usage=zero_usage(),
+    )
+
+
 @dataclass
 class ContextPolicyCapability(AbstractCapability[AgentDepsT]):
     config: ContextPolicyConfig
+    model: Model
 
     def get_model_settings(self) -> AnthropicModelSettings | None:
         if self.config.name != "anthropic_context_editing":
@@ -313,7 +499,10 @@ class ContextPolicyCapability(AbstractCapability[AgentDepsT]):
         ctx: RunContext[AgentDepsT],
         request_context: ModelRequestContext,
     ) -> ModelRequestContext:
-        request_context.messages = apply_context_policy(request_context.messages, self.config)
+        applied = await apply_context_policy_async(
+            request_context.messages, self.config, self.model
+        )
+        request_context.messages = applied.messages
         return request_context
 
 
@@ -326,4 +515,4 @@ def build_context_policy_capability(
         return None
     if resolved_config.name == "anthropic_context_editing" and model.system != "anthropic":
         return None
-    return ContextPolicyCapability[object](config=resolved_config)
+    return ContextPolicyCapability[object](config=resolved_config, model=model)

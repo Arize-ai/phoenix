@@ -21,20 +21,21 @@ ANTHROPIC_OPUS_4_6_2026_07_03 = TokenPrices(
 
 
 def usage_from_output(output: dict[str, Any]) -> dict[str, int]:
-    usage = output.get("usage") if isinstance(output, dict) else None
-    if not isinstance(usage, dict):
-        return {
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "cache_read_tokens": 0,
-            "cache_write_tokens": 0,
-        }
-    return {
-        "input_tokens": int(usage.get("input_tokens", 0) or 0),
-        "output_tokens": int(usage.get("output_tokens", 0) or 0),
-        "cache_read_tokens": int(usage.get("cache_read_tokens", 0) or 0),
-        "cache_write_tokens": int(usage.get("cache_write_tokens", 0) or 0),
+    totals = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
     }
+    if not isinstance(output, dict):
+        return totals
+    for key in ("usage", "policy_usage"):
+        usage = output.get(key)
+        if not isinstance(usage, dict):
+            continue
+        for usage_key in totals:
+            totals[usage_key] += int(usage.get(usage_key, 0) or 0)
+    return totals
 
 
 def anthropic_cost_usd(

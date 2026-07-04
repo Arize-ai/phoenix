@@ -40,6 +40,24 @@ def test_usage_from_output_defaults_missing_values_to_zero() -> None:
     }
 
 
+def test_usage_from_output_includes_policy_usage() -> None:
+    assert usage_from_output(
+        {
+            "usage": {"input_tokens": 10, "output_tokens": 2},
+            "policy_usage": {
+                "input_tokens": 3,
+                "output_tokens": 1,
+                "cache_write_tokens": 3,
+            },
+        }
+    ) == {
+        "input_tokens": 13,
+        "output_tokens": 3,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 3,
+    }
+
+
 def test_anthropic_cost_uses_cache_read_and_write_rates() -> None:
     usage = {
         "input_tokens": 100,

@@ -143,7 +143,8 @@ class TestBuildRunInputs:
         with pytest.raises(ValueError, match="non-empty string content"):
             _build_run_inputs({"messages": [{"role": "user", "content": ""}]})
 
-    def test_harness_context_policy_preflights_primed_user_history(
+    @pytest.mark.asyncio
+    async def test_harness_context_policy_preflights_primed_user_history(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         _, history = _build_run_inputs(
@@ -169,15 +170,23 @@ class TestBuildRunInputs:
         assert history is not None
         monkeypatch.setenv(
             "PHOENIX_AGENTS_ASSISTANT_CONTEXT_POLICY",
-            "p2:threshold=0,trailing_tokens=2000,max_summary_tokens=100",
+            "p3:threshold=0,trailing_tokens=2000,max_summary_tokens=100",
         )
 
-        transformed = _apply_harness_context_policy(history)
+        transformed = await _apply_harness_context_policy(
+            history,
+            model=SimpleNamespace(system="anthropic", model_name="claude-test"),  # type: ignore[arg-type]
+        )
 
-        assert transformed is not None
+        assert transformed.usage == {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
         assert all(
             not any(isinstance(part, ToolReturnPart) for part in message.parts)
-            for message in transformed
+            for message in transformed.messages
             if isinstance(message, ModelRequest)
         )
 
@@ -337,6 +346,12 @@ class TestAgentTaskOutput:
                 cache_read_tokens=5,
                 cache_write_tokens=3,
             ),
+            policy_usage={
+                "input_tokens": 13,
+                "output_tokens": 2,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 9,
+            },
             latency_ms=1234,
         )
 
@@ -346,6 +361,12 @@ class TestAgentTaskOutput:
             "output_tokens": 7,
             "cache_read_tokens": 5,
             "cache_write_tokens": 3,
+        }
+        assert output["policy_usage"] == {
+            "input_tokens": 13,
+            "output_tokens": 2,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 9,
         }
         assert output["latency_ms"] == 1234
 
@@ -362,6 +383,12 @@ class TestAgentTaskOutput:
 
         assert output["error"] == "RuntimeError: missing key"
         assert output["usage"] == {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+        assert output["policy_usage"] == {
             "input_tokens": 0,
             "output_tokens": 0,
             "cache_read_tokens": 0,
