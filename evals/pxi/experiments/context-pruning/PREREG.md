@@ -58,7 +58,38 @@ Hedging rules (binding on all write-ups): (a) The Complexity Trap (arXiv:2508.21
 | B (36 = 3 carriers × 3 positions × 4) | pass at 5K depth ≥80% AND zero-history pass ≤20% over 5 runs each. Failing tasks replaced, replacements re-gated. |
 | C (15) | end-state check must be a deterministic GraphQL-verifiable assertion on the seeded instance; dry-run of the user-turn controller completes ≤6 turns on at least one reference run. |
 
-Frozen task list = content hashes committed in this file's final version.
+### Task freeze v1 (2026-07-04)
+
+The gate-admitted Type A and Type B task list is frozen by the committed artifact
+`evals/pxi/experiments/context-pruning/TASK_HASHES.json`, generated with corpus seed
+`20260703`. That file contains one SHA-256 content hash per task example and is the
+authoritative task-freeze artifact for the main grid. The tables below record the
+dataset membership and first/last hash sentinels for reviewability.
+
+Gate results used for admission:
+
+| Gate | Dataset | Result | Decision |
+|---|---|---:|---|
+| Type A zero-history | `context_pruning_gate_type_a_zero` | 38/40 (95%) | admit |
+| Type B zero-history | `context_pruning_gate_type_b_zero` | 0/36 (0%) | admit |
+| Type B 5K positive control | `context_pruning_gate_type_b_5k` | 35/36 (97%) | admit |
+
+Frozen datasets:
+
+| Dataset | Examples | First hash | Last hash |
+|---|---:|---|---|
+| `context_pruning_type_a` | 200 | `d18beccfd2435be07259f1fe6ee3ca0815861058415360c194a16a72121d3361` | `eb23c4ff9bc0939a9600aa40f7dd34e47eb28456479620721e111fc133383c5d` |
+| `context_pruning_type_b` | 180 | `48a16a35f4db205e046f4249fbbb53da789d6471ff162b859a14a83b755c33ec` | `290f16f7be95a61f02362f19cc29058858ec4a77ceecbe2c77e5e4d281df6890` |
+| `context_pruning_type_a_5k` | 40 | `d18beccfd2435be07259f1fe6ee3ca0815861058415360c194a16a72121d3361` | `f720bbe357f490a03632ac25b8fc1da8e09ea68fe876156d07b250252b8fe517` |
+| `context_pruning_type_a_25k` | 40 | `48f19d4a8e9bcdbd93ef17dd45e4aa2c2a4c467d1096698cd59ff3549bb9c885` | `a3b947733edf9e69490f2a3cdba76b7b7f35a8acc0004ecf99dd1c1fd1813465` |
+| `context_pruning_type_a_50k` | 40 | `16617be19f72b159217cbec9b043087fdfdb817bcd39d331d5c968da39d049d0` | `cd64f25826feaeb9f3a59638f50af66cb25662822bbb2af36937019a9ffa775f` |
+| `context_pruning_type_a_100k` | 40 | `e0fe930f6fd67f6429377589acfc7b05f029cf2f5c72f188c3a3580907d07281` | `84999cd8e029665bad8488ec9d8cb2005b5e8199ac03726ded125013ddbe7f5a` |
+| `context_pruning_type_a_150k` | 40 | `26477f82010963aa3d1126192d7718a1524341f845f831c3181bbd8806e433e0` | `eb23c4ff9bc0939a9600aa40f7dd34e47eb28456479620721e111fc133383c5d` |
+| `context_pruning_type_b_5k` | 36 | `48a16a35f4db205e046f4249fbbb53da789d6471ff162b859a14a83b755c33ec` | `7e09b2d42b553bacc44f3c829292700d6c9ba42793ff69996875d876592e6a5e` |
+| `context_pruning_type_b_25k` | 36 | `a7d6575c130bc38eb4fa557969813aad822dc798991f89d66cc8d9400e9b5e95` | `9e755c93da15c592f9b895885b77a376cfcaa68b9f2fb82b9e1d997c7847a505` |
+| `context_pruning_type_b_50k` | 36 | `2b697e3489c2b6d9d9506fe22bce71929d05583f151f51a7e304bc0fe5ff0ac5` | `ce59ae91d3276f2da07523a395107489d9c0d271bcaf4f510beefa316aa798a7` |
+| `context_pruning_type_b_100k` | 36 | `0fd5aefd4beb1e2a0e78114a21cf0a42b421b00152fc84bdc481c93bdcb75864` | `9c5f6bc25ca4116579c9847af521a3af1e015716434eb884747e790f913f2f2e` |
+| `context_pruning_type_b_150k` | 36 | `19565c738c99bbbea8bb000ec766f30f6077b70e45f6d711e45986525cb0b4f9` | `290f16f7be95a61f02362f19cc29058858ec4a77ceecbe2c77e5e4d281df6890` |
 
 ## 6. Scoring
 
