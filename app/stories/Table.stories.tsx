@@ -13,6 +13,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { expect, userEvent, within } from "storybook/test";
 
 import {
   Button,
@@ -264,10 +265,12 @@ function BaseTable<T>({
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
     onRowSelectionChange: (updater) => {
-      const next =
-        typeof updater === "function" ? updater(rowSelection) : (updater ?? {});
-      setRowSelection(next);
-      onSelectionChange?.(Object.keys(next).length);
+      setRowSelection((prev) => {
+        const next =
+          typeof updater === "function" ? updater(prev) : (updater ?? {});
+        onSelectionChange?.(Object.keys(next).length);
+        return next;
+      });
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -672,4 +675,52 @@ const SelectableStoryComponent = () => {
 
 export const Selectable = {
   render: () => <SelectableStoryComponent />,
+};
+
+/**
+ * Shift-clicking a row's checkbox after clicking another row's checkbox
+ * selects every selectable row in between.
+ */
+export const ShiftClickRangeSelection: Story = {
+  render: () => <SelectableStoryComponent />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // checkboxes[0] is the "select all" header checkbox, followed by one
+    // checkbox per row in mockPeople order.
+    const checkboxes = await canvas.findAllByRole("checkbox");
+    // The checkbox input has `pointer-events: none` so clicks pass through
+    // to its wrapping div, which owns the (shift-)click handling.
+    const janeCell = checkboxes[2]!.closest("div")!; // Jane Smith
+    const charlieCell = checkboxes[5]!.closest("div")!; // Charlie Brown
+
+    // Held-modifier state (e.g. Shift) only persists across interactions
+    // within the same userEvent.setup() session, not across bare top-level
+    // userEvent.* calls.
+    const user = userEvent.setup();
+    await user.click(janeCell);
+    await user.keyboard("{Shift>}");
+    await user.click(charlieCell);
+    await user.keyboard("{/Shift}");
+
+    await expect(canvas.getByText("4 rows selected")).toBeInTheDocument();
+
+    for (const name of [
+      "Jane Smith",
+      "Bob Johnson",
+      "Alice Williams",
+      "Charlie Brown",
+    ]) {
+      await expect(canvas.getByText(name).closest("tr")).toHaveAttribute(
+        "data-selected",
+        "true"
+      );
+    }
+
+    for (const name of ["John Doe", "David Kim"]) {
+      await expect(canvas.getByText(name).closest("tr")).toHaveAttribute(
+        "data-selected",
+        "false"
+      );
+    }
+  },
 };

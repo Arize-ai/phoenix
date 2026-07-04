@@ -27,11 +27,11 @@ import {
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
+import { createRowSelectionColumn } from "@phoenix/components/table";
 import {
   CHECKBOX_COLUMN_ID,
   CHECKBOX_COLUMN_PINNING,
-} from "@phoenix/components/table/selectionUtils";
+} from "@phoenix/components/table/constants";
 import {
   getCommonPinningStyles,
   tableCSS,
@@ -42,21 +42,12 @@ import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/Annota
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 const columns = [
-  {
-    id: CHECKBOX_COLUMN_ID,
-    maxSize: 10,
-    header: () => null,
-    cell: ({ row }: CellContext<AnnotationConfig, unknown>) => (
-      <IndeterminateCheckboxCell
-        {...{
-          isSelected: row.getIsSelected(),
-          isDisabled: !row.getCanSelect(),
-          isIndeterminate: row.getIsSomeSelected(),
-          onChange: row.toggleSelected,
-        }}
-      />
-    ),
-  },
+  createRowSelectionColumn<AnnotationConfig>({
+    showSelectAllHeader: false,
+    size: 24,
+    minSize: 24,
+    maxSize: 24,
+  }),
   {
     id: "name",
     header: "Name",

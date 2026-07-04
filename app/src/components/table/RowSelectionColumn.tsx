@@ -1,8 +1,8 @@
 import type { ColumnDef, Row, Table } from "@tanstack/react-table";
 import type { MouseEvent } from "react";
 
+import { CHECKBOX_COLUMN_ID } from "./constants";
 import { IndeterminateCheckboxCell } from "./IndeterminateCheckboxCell";
-import { CHECKBOX_COLUMN_ID } from "./selectionUtils";
 
 export type SelectRowHandler<TData> = ({
   event,
@@ -20,6 +20,7 @@ export type SelectRowHandler<TData> = ({
  * @param params - selection column options
  * @param params.selectRow - optional custom row selection handler
  * @param params.shouldRenderCell - returns false for rows that should not show a checkbox
+ * @param params.showSelectAllHeader - renders a "select all" checkbox in the header; disable for single-row-selection tables
  * @param params.size - column size in pixels
  * @param params.minSize - minimum column size in pixels
  * @param params.maxSize - maximum column size in pixels
@@ -27,12 +28,14 @@ export type SelectRowHandler<TData> = ({
 export function createRowSelectionColumn<TData>({
   selectRow,
   shouldRenderCell = () => true,
+  showSelectAllHeader = true,
   size = 30,
   minSize = size,
   maxSize = size,
 }: {
   selectRow?: SelectRowHandler<TData>;
   shouldRenderCell?: (row: Row<TData>) => boolean;
+  showSelectAllHeader?: boolean;
   size?: number;
   minSize?: number;
   maxSize?: number;
@@ -44,13 +47,15 @@ export function createRowSelectionColumn<TData>({
     size,
     minSize,
     maxSize,
-    header: ({ table }) => (
-      <IndeterminateCheckboxCell
-        isSelected={table.getIsAllRowsSelected()}
-        isIndeterminate={table.getIsSomeRowsSelected()}
-        onChange={table.toggleAllRowsSelected}
-      />
-    ),
+    header: showSelectAllHeader
+      ? ({ table }) => (
+          <IndeterminateCheckboxCell
+            isSelected={table.getIsAllRowsSelected()}
+            isIndeterminate={table.getIsSomeRowsSelected()}
+            onChange={table.toggleAllRowsSelected}
+          />
+        )
+      : () => null,
     cell: ({ row, table }) => {
       if (!shouldRenderCell(row)) {
         return null;

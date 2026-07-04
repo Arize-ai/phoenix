@@ -33,11 +33,11 @@ import {
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
 import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import {
   CHECKBOX_COLUMN_ID,
   CHECKBOX_COLUMN_PINNING,
-} from "@phoenix/components/table/selectionUtils";
+} from "@phoenix/components/table/constants";
+import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
 import {
   getCommonPinningStyles,
   tableCSS,
