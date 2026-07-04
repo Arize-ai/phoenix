@@ -34,7 +34,7 @@ def _int_field(row: dict[str, Any], *names: str, default: int = 0) -> int:
         value = row.get(name)
         if value in (None, ""):
             continue
-        return max(0, int(float(value)))
+        return max(0, int(float(str(value))))
     return default
 
 
