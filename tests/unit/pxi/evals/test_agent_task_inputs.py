@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
 )
 
 from evals.pxi.harness.agent_task import (
+    _apply_harness_context_policy,
     _build_contexts,
     _build_run_inputs,
     _materialize_messages,
@@ -141,6 +142,44 @@ class TestBuildRunInputs:
     def test_rejects_final_user_turn_with_empty_content(self) -> None:
         with pytest.raises(ValueError, match="non-empty string content"):
             _build_run_inputs({"messages": [{"role": "user", "content": ""}]})
+
+    def test_harness_context_policy_preflights_primed_user_history(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _, history = _build_run_inputs(
+            {
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {"id": "t1", "name": "bash", "args": {"command": "cat large"}}
+                        ],
+                    },
+                    {
+                        "role": "tool",
+                        "tool_call_id": "t1",
+                        "name": "bash",
+                        "content": "large output " * 100,
+                    },
+                    {"role": "user", "content": "Remember cohort token cohort-user-text."},
+                    {"role": "user", "content": "Filter to the remembered cohort."},
+                ]
+            }
+        )
+        assert history is not None
+        monkeypatch.setenv(
+            "PHOENIX_AGENTS_ASSISTANT_CONTEXT_POLICY",
+            "p2:threshold=0,trailing_tokens=2000,max_summary_tokens=100",
+        )
+
+        transformed = _apply_harness_context_policy(history)
+
+        assert transformed is not None
+        assert all(
+            not any(isinstance(part, ToolReturnPart) for part in message.parts)
+            for message in transformed
+            if isinstance(message, ModelRequest)
+        )
 
 
 class TestMaterializeMessages:

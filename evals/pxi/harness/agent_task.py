@@ -26,6 +26,11 @@ from phoenix.config import (
 )
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.agents.capabilities.context_policy import (
+    ENV_CONTEXT_POLICY,
+    apply_context_policy,
+    parse_context_policy,
+)
 from phoenix.server.agents.context import (
     ChatContext,
     ProjectContext,
@@ -220,6 +225,15 @@ def _build_run_inputs(
         "PXI eval input.messages must end with a user turn (new prompt) or a tool "
         f"return (mid-loop continuation); got role={last_role!r}"
     )
+
+
+def _apply_harness_context_policy(
+    message_history: list[ModelMessage] | None,
+) -> list[ModelMessage] | None:
+    config = parse_context_policy(os.getenv(ENV_CONTEXT_POLICY))
+    if config is None or message_history is None:
+        return message_history
+    return apply_context_policy(message_history, config)
 
 
 def _materialize_messages(raw_messages: list[Any]) -> list[ModelMessage]:
@@ -524,6 +538,7 @@ async def run_pxi_example(
     """
     try:
         user_prompt, message_history = _build_run_inputs(input)
+        message_history = _apply_harness_context_policy(message_history)
         model = await _build_model()
         agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
         started_at = monotonic()
