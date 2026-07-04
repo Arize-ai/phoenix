@@ -5,6 +5,7 @@ from pathlib import Path
 
 from evals.pxi.experiments.context_pruning.corpus_builder import (
     DEPTHS,
+    depth_slug,
     expand_context_pruning_prefix,
     materialize_prefix,
 )
@@ -31,6 +32,20 @@ def test_context_pruning_generated_datasets_load() -> None:
     assert len(type_a.examples) == 40 * len(DEPTHS)
     assert type_b.dataset_name == "context_pruning_type_b"
     assert len(type_b.examples) == 3 * 3 * 4 * len(DEPTHS)
+    for depth in DEPTHS:
+        slug = depth_slug(depth)
+        type_a_depth = load_dataset(f"context_pruning_type_a_{slug}")
+        type_b_depth = load_dataset(f"context_pruning_type_b_{slug}")
+        assert len(type_a_depth.examples) == 40
+        assert len(type_b_depth.examples) == 3 * 3 * 4
+        assert {
+            example["metadata"]["context_pruning"]["depth_tokens"]
+            for example in type_a_depth.examples
+        } == {depth}
+        assert {
+            example["metadata"]["context_pruning"]["depth_tokens"]
+            for example in type_b_depth.examples
+        } == {depth}
 
 
 def test_context_pruning_prefix_expands_and_preserves_unique_needle() -> None:
@@ -64,6 +79,8 @@ def test_context_pruning_task_hashes_exist() -> None:
     assert hashes["corpus_seed"] == 20260703
     assert "context_pruning_cache_smoke" in hashes["datasets"]
     assert "context_pruning_pilot" in hashes["datasets"]
+    assert "context_pruning_type_a_150k" in hashes["datasets"]
+    assert "context_pruning_type_b_150k" in hashes["datasets"]
 
 
 def test_usage_from_output_defaults_missing_values_to_zero() -> None:

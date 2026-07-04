@@ -12,6 +12,7 @@ from evals.pxi.experiments.context_pruning.cache_simulator import (
 from evals.pxi.experiments.context_pruning.run_matrix import (
     _split_csv,
     build_cells,
+    build_preregistered_quality_cells,
     command_for_cell,
 )
 
@@ -75,6 +76,43 @@ def test_split_csv_uses_semicolons_for_parameterized_policies() -> None:
         "p2:threshold=0,trailing_tokens=2000",
         "p3:threshold=0,trailing_tokens=2000",
     )
+
+
+def test_build_preregistered_quality_cells_uses_depth_sliced_datasets() -> None:
+    cells = build_preregistered_quality_cells(
+        task_types=("type_a",),
+        repetitions=5,
+        concurrency=2,
+        name_prefix="main",
+    )
+
+    assert len(cells) == 25
+    assert cells[0].dataset == "context_pruning_type_a_5k"
+    assert cells[0].policy == "p0"
+    assert cells[-1].dataset == "context_pruning_type_a_150k"
+    assert cells[-1].policy == "p6"
+    assert all(cell.repetitions == 5 and cell.concurrency == 2 for cell in cells)
+
+
+def test_build_preregistered_quality_cells_can_omit_secondary() -> None:
+    cells = build_preregistered_quality_cells(
+        task_types=("type_b",),
+        include_secondary=False,
+        repetitions=1,
+        concurrency=1,
+    )
+
+    assert len(cells) == 15
+    assert {cell.policy for cell in cells} == {"p0", "p1", "p2"}
+
+
+def test_build_preregistered_quality_cells_rejects_unknown_task_type() -> None:
+    try:
+        build_preregistered_quality_cells(task_types=("type_c",))
+    except ValueError as error:
+        assert "unknown task type" in str(error)
+    else:
+        raise AssertionError("expected ValueError")
 
 
 def test_simulate_anthropic_prompt_cache_reads_warm_prefix() -> None:

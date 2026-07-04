@@ -24,6 +24,12 @@ POSITIONS = ("p10", "p50", "p90")
 ARCHETYPES = ("filter", "time_window", "trace_id", "model_constraint")
 
 
+def depth_slug(depth: int) -> str:
+    if depth % 1_000 != 0:
+        raise ValueError(f"depth must be a whole number of thousands: {depth}")
+    return f"{depth // 1_000}k"
+
+
 def _token_estimate(text: str) -> int:
     return max(1, len(text) // 4) if text else 0
 
@@ -212,6 +218,23 @@ def type_a_dataset() -> dict[str, Any]:
             "tool_call_args_match",
             "tool_call_count_within_limit",
         ],
+        "examples": examples,
+    }
+
+
+def depth_slice_dataset(dataset: dict[str, Any], *, depth: int) -> dict[str, Any]:
+    examples = [
+        deepcopy(example)
+        for example in dataset["examples"]
+        if example["metadata"]["context_pruning"]["depth_tokens"] == depth
+    ]
+    if not examples:
+        raise ValueError(f"{dataset['dataset_name']} has no examples at depth {depth}")
+    slug = depth_slug(depth)
+    return {
+        **dataset,
+        "dataset_name": f"{dataset['dataset_name']}_{slug}",
+        "description": f"{dataset['description']} Depth slice: {slug}.",
         "examples": examples,
     }
 
@@ -534,11 +557,15 @@ def write_artifacts() -> None:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
     _write_blocks()
+    type_a = type_a_dataset()
+    type_b = type_b_dataset()
     datasets = [
         cache_smoke_dataset(),
         pilot_dataset(),
-        type_a_dataset(),
-        type_b_dataset(),
+        type_a,
+        type_b,
+        *(depth_slice_dataset(type_a, depth=depth) for depth in DEPTHS),
+        *(depth_slice_dataset(type_b, depth=depth) for depth in DEPTHS),
         gate_type_a_zero_dataset(),
         gate_type_b_zero_dataset(),
         gate_type_b_5k_dataset(),

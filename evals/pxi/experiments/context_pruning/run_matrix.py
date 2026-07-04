@@ -7,7 +7,12 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from evals.pxi.experiments.context_pruning.corpus_builder import DEPTHS, depth_slug
+
 DEFAULT_POLICIES = ("p0", "p1", "p2", "p3", "p4", "p1c", "p6")
+FULL_SWEEP_POLICIES = ("p0", "p1", "p2")
+SECONDARY_POLICIES = ("p1c", "p3", "p4", "p5", "p6")
+SECONDARY_DEPTHS = (50_000, 150_000)
 _EXPERIMENT_NAME_UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
@@ -46,6 +51,44 @@ def build_cells(
         )
         for policy in policies
     ]
+
+
+def build_preregistered_quality_cells(
+    *,
+    task_types: tuple[str, ...] = ("type_a", "type_b"),
+    repetitions: int = 5,
+    concurrency: int = 1,
+    name_prefix: str = "context-pruning-main",
+    include_secondary: bool = True,
+) -> list[MatrixCell]:
+    cells: list[MatrixCell] = []
+    for task_type in task_types:
+        if task_type not in {"type_a", "type_b"}:
+            raise ValueError(f"unknown task type {task_type!r}")
+        for depth in DEPTHS:
+            dataset = f"context_pruning_{task_type}_{depth_slug(depth)}"
+            cells.extend(
+                build_cells(
+                    dataset=dataset,
+                    split="dev",
+                    policies=FULL_SWEEP_POLICIES,
+                    repetitions=repetitions,
+                    concurrency=concurrency,
+                    name_prefix=name_prefix,
+                )
+            )
+            if include_secondary and depth in SECONDARY_DEPTHS:
+                cells.extend(
+                    build_cells(
+                        dataset=dataset,
+                        split="dev",
+                        policies=SECONDARY_POLICIES,
+                        repetitions=repetitions,
+                        concurrency=concurrency,
+                        name_prefix=name_prefix,
+                    )
+                )
+    return cells
 
 
 def command_for_cell(cell: MatrixCell, *, report_dir: Path | None = None) -> list[str]:
@@ -105,6 +148,21 @@ def _split_csv(value: str) -> tuple[str, ...]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a context-pruning PXI experiment matrix.")
     parser.add_argument("--dataset", default="context_pruning_pilot")
+    parser.add_argument(
+        "--preregistered-quality-grid",
+        action="store_true",
+        help="Run the preregistered Type A/B quality grid over depth-sliced datasets.",
+    )
+    parser.add_argument(
+        "--task-types",
+        default="type_a,type_b",
+        help="Comma-separated task types for --preregistered-quality-grid.",
+    )
+    parser.add_argument(
+        "--no-secondary",
+        action="store_true",
+        help="Omit secondary P1c/P3/P4/P5/P6 cells from --preregistered-quality-grid.",
+    )
     parser.add_argument("--split", default="dev")
     parser.add_argument("--policies", default=",".join(DEFAULT_POLICIES))
     parser.add_argument("--repetitions", type=int, default=5)
@@ -121,14 +179,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.concurrency < 1:
         raise SystemExit("--concurrency must be >= 1")
     policies = _split_csv(args.policies)
-    cells = build_cells(
-        dataset=args.dataset,
-        split=args.split,
-        policies=policies,
-        repetitions=args.repetitions,
-        concurrency=args.concurrency,
-        name_prefix=args.name_prefix,
-    )
+    if args.preregistered_quality_grid:
+        cells = build_preregistered_quality_cells(
+            task_types=_split_csv(args.task_types),
+            repetitions=args.repetitions,
+            concurrency=args.concurrency,
+            name_prefix=args.name_prefix,
+            include_secondary=not args.no_secondary,
+        )
+    else:
+        cells = build_cells(
+            dataset=args.dataset,
+            split=args.split,
+            policies=policies,
+            repetitions=args.repetitions,
+            concurrency=args.concurrency,
+            name_prefix=args.name_prefix,
+        )
     return run_cells(
         cells,
         base_url=args.base_url,
