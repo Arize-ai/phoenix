@@ -255,6 +255,23 @@ def test_main_forwards_context_policy(monkeypatch: pytest.MonkeyPatch) -> None:
     assert captured[0].context_policy == "p1"
 
 
+def test_main_forwards_concurrency(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: list[ExperimentConfig] = []
+
+    def fake_run(config: ExperimentConfig) -> int:
+        captured.append(config)
+        return 0
+
+    monkeypatch.setattr("evals.pxi.harness.run_experiment.run", fake_run)
+
+    assert main(["--dataset", "set_spans_filter", "--concurrency", "1"]) == 0
+    assert captured[0].concurrency == 1
+
+
+def test_main_rejects_invalid_concurrency() -> None:
+    assert main(["--dataset", "set_spans_filter", "--concurrency", "0"]) == 2
+
+
 def test_main_rejects_invalid_context_policy() -> None:
     assert main(["--dataset", "set_spans_filter", "--policy", "bogus"]) == 2
 

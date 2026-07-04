@@ -62,6 +62,7 @@ class ExperimentConfig:
     report_dir: Path | None = None
     print_report: bool = False
     context_policy: str | None = None
+    concurrency: int = 3
 
 
 def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
@@ -301,7 +302,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
                 print_summary=True,
-                concurrency=3,
+                concurrency=config.concurrency,
                 timeout=180,
                 retries=0,
             )
@@ -309,7 +310,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 experiment=experiment,
                 evaluators=cast(Any, evaluators),
                 print_summary=True,
-                concurrency=3,
+                concurrency=config.concurrency,
                 timeout=180,
                 retries=0,
             )
@@ -445,6 +446,12 @@ def build_parser() -> argparse.ArgumentParser:
             "policy string such as clear_tool_uses:k=5,threshold=30000."
         ),
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=3,
+        help="Number of concurrent task/evaluator runs (default: 3). Use 1 for cache smoke runs.",
+    )
     return parser
 
 
@@ -457,6 +464,9 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as exc:
             print(f"Invalid context policy: {exc}", file=sys.stderr)
             return 2
+    if args.concurrency < 1:
+        print("Invalid concurrency: must be >= 1", file=sys.stderr)
+        return 2
     base_url, _ = _configured_base_url()
     config = ExperimentConfig(
         dataset=args.dataset,
@@ -470,6 +480,7 @@ def main(argv: list[str] | None = None) -> int:
         report_dir=args.report_dir,
         print_report=args.print_report,
         context_policy=args.context_policy,
+        concurrency=args.concurrency,
     )
     try:
         return run(config)
