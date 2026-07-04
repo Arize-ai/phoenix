@@ -920,6 +920,29 @@ export const Funnel = () => (
 
 //G
 
+// @src: lucide
+export const Gift = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M12 7v14" />
+    <path fill="none" d="M20 11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8" />
+    <path
+      fill="none"
+      d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"
+    />
+    <rect fill="none" x="3" y="7" width="18" height="4" rx="1" />
+  </svg>
+);
+
 export const GitBranch = () => (
   <svg
     width="20"
