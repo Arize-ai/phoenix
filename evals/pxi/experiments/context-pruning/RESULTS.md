@@ -4,8 +4,8 @@ Date: 2026-07-04
 
 Local Phoenix:
 - Endpoint: `http://localhost:6007`
-- Working dir: `/private/tmp/phoenix-context-pruning`
-- Database: `/private/tmp/phoenix-context-pruning/phoenix.db`
+- Working dir: `/private/tmp/context-pruning-phoenix-live`
+- Database: `/private/tmp/context-pruning-phoenix-live/phoenix.db`
 - Model: `ANTHROPIC/claude-opus-4-6`
 
 ## Cache Smoke
@@ -13,22 +13,26 @@ Local Phoenix:
 Command:
 
 ```bash
-PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6007 \
+PHOENIX_COLLECTOR_ENDPOINT=http://127.0.0.1:6007 \
+PHOENIX_GRPC_PORT=6017 \
+PHOENIX_ALLOW_EXTERNAL_RESOURCES=true \
 PHOENIX_AGENTS_ASSISTANT_PROVIDER=ANTHROPIC \
 PHOENIX_AGENTS_ASSISTANT_MODEL=claude-opus-4-6 \
 uv run python -m evals.pxi.harness.run_experiment \
   --dataset context_pruning_cache_smoke \
   --splits dev \
   --concurrency 1 \
-  --experiment-name context-pruning-cache-smoke-rerun
+  --repetitions 1 \
+  --experiment-name context-pruning-cache-smoke-live \
+  --report-dir /private/tmp/context-pruning-live-reports
 ```
 
-Experiment: `context-pruning-cache-smoke-rerun`
+Experiment: `context-pruning-cache-smoke-live`
 
 | Example | input_tokens | output_tokens | cache_read_tokens | cache_write_tokens | latency_ms |
 |---|---:|---:|---:|---:|---:|
-| cache-smoke-1 | 20605 | 85 | 20602 | 0 | 4724 |
-| cache-smoke-2 | 20605 | 85 | 20602 | 0 | 3363 |
+| cache-smoke-1 | 19731 | 85 | 0 | 19728 | 5223 |
+| cache-smoke-2 | 19731 | 85 | 19728 | 0 | 2909 |
 
 Evaluator pass rates:
 
@@ -39,6 +43,36 @@ Evaluator pass rates:
 | tool_call_count_within_limit | 2 | 2 |
 
 Acceptance result: nonzero `cache_read_tokens` was observed on the repeated examples.
+
+## Admission Gates
+
+Command pattern:
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=http://127.0.0.1:6007 \
+PHOENIX_GRPC_PORT=6017 \
+PHOENIX_ALLOW_EXTERNAL_RESOURCES=true \
+PHOENIX_AGENTS_ASSISTANT_PROVIDER=ANTHROPIC \
+PHOENIX_AGENTS_ASSISTANT_MODEL=claude-opus-4-6 \
+uv run python -m evals.pxi.experiments.context_pruning.run_matrix \
+  --dataset <gate-dataset> \
+  --policies p0 \
+  --repetitions 1 \
+  --concurrency 1 \
+  --name-prefix context-pruning-gate-v3 \
+  --base-url http://127.0.0.1:6007 \
+  --provider ANTHROPIC \
+  --model claude-opus-4-6 \
+  --report-dir /private/tmp/context-pruning-live-gate-reports
+```
+
+Consolidated report: `evals/pxi/experiments/context-pruning/gates/REPORT.md`.
+
+| Gate | Dataset | Pass rate | Criterion | Result |
+|---|---|---:|---:|---|
+| Type A zero-history | `context_pruning_gate_type_a_zero` | 38/40 (95%) | >=80% | pass |
+| Type B zero-history | `context_pruning_gate_type_b_zero` | 0/36 (0%) | <=20% | pass |
+| Type B 5K positive control | `context_pruning_gate_type_b_5k` | 35/36 (97%) | >=80% | pass |
 
 ## Seeded Pilot
 
@@ -135,6 +169,5 @@ Evaluator pass rates:
 | P4 low-threshold naive truncation | tool_call_args_match | 8 | 14 |
 | P4 low-threshold naive truncation | tool_call_count_within_limit | 14 | 14 |
 
-Implementation note: the current P2 implementation uses deterministic extractive compaction
-inside the request path. It validates the harness and policy shape, but it is not the final
-LLM summarizer arm described in the preregistration.
+Implementation note: P2 now calls the same-provider LLM summarizer in the request path and
+records summarizer `policy_usage` separately from the final agent turn usage.

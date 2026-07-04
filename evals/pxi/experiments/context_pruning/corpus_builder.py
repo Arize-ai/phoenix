@@ -90,12 +90,12 @@ def _base_tool_content(index: int) -> str:
 
 def _needle_text(needle: str, archetype: str) -> str:
     if archetype == "filter":
-        return f"Earlier established filter expression token: {needle}"
+        return f"Project note: the established cohort filter expression is `{needle}`."
     if archetype == "time_window":
-        return f"Earlier established time-window token: {needle}"
+        return f"Project note: the established investigation start time is `{needle}`."
     if archetype == "trace_id":
-        return f"Earlier surfaced outlier trace id token: {needle}"
-    return f"Earlier user-stated model constraint token: {needle}"
+        return f"Project note: the established outlier trace filter expression is `{needle}`."
+    return f"Project note: the established model constraint filter expression is `{needle}`."
 
 
 def materialize_prefix(spec: dict[str, Any]) -> list[dict[str, Any]]:
@@ -217,7 +217,15 @@ def type_a_dataset() -> dict[str, Any]:
 
 
 def _needle(archetype: str, carrier: str, position: str, index: int) -> str:
-    return f"cohort-{archetype}-{carrier.replace('_', '-')}-{position}-{index:02d}"
+    token = f"{archetype}-{carrier.replace('_', '-')}-{position}-{index:02d}"
+    if archetype == "filter":
+        return f"attributes['experiment.cohort'] == 'cohort-{token}'"
+    if archetype == "time_window":
+        day = (index - 1) % 28 + 1
+        return f"2026-07-{day:02d}T09:30:00Z"
+    if archetype == "trace_id":
+        return f"trace_id == 'trace-{token}'"
+    return f"llm.model_name == 'model-{token}'"
 
 
 def _type_b_expected(archetype: str, needle: str) -> dict[str, Any]:
@@ -236,12 +244,12 @@ def _type_b_expected(archetype: str, needle: str) -> dict[str, Any]:
 
 def _type_b_prompt(archetype: str) -> str:
     if archetype == "filter":
-        return "Re-apply the earlier cohort filter expression."
+        return "Use the earlier established cohort filter expression now."
     if archetype == "time_window":
-        return "Re-apply the earlier time window."
+        return "Use the earlier established investigation start time now."
     if archetype == "trace_id":
-        return "Filter to the outlier trace id we found earlier."
-    return "Filter to the model constraint the user stated earlier."
+        return "Use the earlier established outlier trace filter expression now."
+    return "Use the earlier established model constraint filter expression now."
 
 
 def type_b_dataset() -> dict[str, Any]:

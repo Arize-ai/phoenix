@@ -2,9 +2,9 @@
 
 | Gate | Dataset | Result | Pass rate | Criterion |
 |---|---|---:|---:|---|
-| type_a_zero | `context_pruning_gate_type_a_zero` | not_run | not run | >= 80% |
-| type_b_zero | `context_pruning_gate_type_b_zero` | not_run | not run | <= 20% |
-| type_b_5k | `context_pruning_gate_type_b_5k` | not_run | not run | >= 80% |
+| type_a_zero | `context_pruning_gate_type_a_zero` | pass | 38/40 (95%) | >= 80% |
+| type_b_zero | `context_pruning_gate_type_b_zero` | pass | 0/36 (0%) | <= 20% |
+| type_b_5k | `context_pruning_gate_type_b_5k` | pass | 35/36 (97%) | >= 80% |
 
 ## Rationale
 
