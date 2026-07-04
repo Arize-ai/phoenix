@@ -265,12 +265,13 @@ function BaseTable<T>({
     onColumnSizingChange: setColumnSizing,
     onSortingChange: setSorting,
     onRowSelectionChange: (updater) => {
-      setRowSelection((prev) => {
-        const next =
-          typeof updater === "function" ? updater(prev) : (updater ?? {});
-        onSelectionChange?.(Object.keys(next).length);
-        return next;
-      });
+      // TanStack invokes this from event handlers with an updater over the
+      // table's current state, so resolving against `rowSelection` here is
+      // safe and keeps side effects out of the setState updater.
+      const next =
+        typeof updater === "function" ? updater(rowSelection) : (updater ?? {});
+      setRowSelection(next);
+      onSelectionChange?.(Object.keys(next).length);
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),

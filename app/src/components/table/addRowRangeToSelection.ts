@@ -2,7 +2,7 @@ import type { RowSelectionState } from "@tanstack/react-table";
 
 type SelectableRow = {
   id: string;
-  depth: number;
+  parentId?: string;
   getCanSelect: () => boolean;
 };
 
@@ -10,10 +10,10 @@ type SelectableRow = {
  * Given an ordered row model and a selection range, returns a new selection
  * object that includes all selectable rows in the range.
  *
- * Rows are restricted to the same depth as the clicked row so that, in
- * hierarchical tables (e.g. an expanded trace's child spans), a range
- * selected between two top-level rows does not also sweep in nested rows
- * that happen to be rendered in between.
+ * Rows are restricted to siblings of the clicked row (same `parentId`) so
+ * that, in hierarchical tables (e.g. an expanded trace's child spans), a
+ * range does not sweep in nested rows rendered in between top-level rows,
+ * nor same-depth children of unrelated parents.
  *
  * @param params - range selection parameters
  * @param params.rows - ordered TanStack rows from the current row model
@@ -35,10 +35,10 @@ export function addRowRangeToSelection<TRow extends SelectableRow>({
 }): RowSelectionState {
   const start = Math.min(lastSelectedIndex, currentIndex);
   const end = Math.max(lastSelectedIndex, currentIndex);
-  const depth = rows[currentIndex]?.depth ?? 0;
+  const parentId = rows[currentIndex]?.parentId;
   const rowsToSelect = rows
     .slice(start, end + 1)
-    .filter((row) => row.depth === depth);
+    .filter((row) => row.parentId === parentId);
 
   const newSelection = { ...currentSelection };
   rowsToSelect.forEach((row) => {
