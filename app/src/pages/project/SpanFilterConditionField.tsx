@@ -15,6 +15,10 @@ import environment from "@phoenix/RelayEnvironment";
 import type { SpanFilterConditionFieldCompletionsQuery } from "./__generated__/SpanFilterConditionFieldCompletionsQuery.graphql";
 import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
 import { useSpanFilters } from "./SpanFiltersContext";
+import {
+  openInferenceAttributeCompletions,
+  openInferenceAttributeValueCompletionSource,
+} from "./spanFilterSemanticConventionCompletions";
 import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 /**
@@ -79,7 +83,7 @@ const spanFilterCompletions: Completion[] = [
   {
     label: "attributes",
     type: "variable",
-    info: "Span attributes, accessed by key - e.x. attributes['llm.model_name']",
+    info: "Span attributes, accessed by key - e.x. attributes['llm']['provider']",
   },
   {
     label: "annotations",
@@ -121,6 +125,11 @@ const spanFilterCompletions: Completion[] = [
     type: "variable",
     info: "Sum of token count total (prompt + completion) from self and all child spans",
   },
+  ...openInferenceAttributeCompletions,
+];
+
+const spanFilterCompletionSources = [
+  openInferenceAttributeValueCompletionSource,
 ];
 
 /**
@@ -139,6 +148,10 @@ const spanFilterSnippets: DSLFilterSnippet[] = [
   {
     label: "filter by span kind",
     snippet: "span_kind == '${LLM}'",
+  },
+  {
+    label: "filter by LLM provider",
+    snippet: "attributes['llm']['provider'] == '${openai}'",
   },
   {
     label: "filter by latency",
@@ -287,6 +300,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       placeholder={placeholder}
       completions={spanFilterCompletions}
       snippets={spanFilterSnippets}
+      completionSources={spanFilterCompletionSources}
       loadCompletions={loadAnnotationCompletions}
       validateCondition={validateCondition}
       onValidCondition={onValidCondition}

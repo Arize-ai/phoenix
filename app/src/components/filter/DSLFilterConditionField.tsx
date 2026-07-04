@@ -41,6 +41,11 @@ import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
 
 import {
+  getDSLFilterCompletionTokenBeforeCursor,
+  shouldSuppressDSLFilterCompletionsInString,
+  validDSLFilterCompletionTokenPattern,
+} from "./dslFilterConditionFieldUtils";
+import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
   dslFilterFieldCSS,
@@ -100,8 +105,10 @@ export function createLoadedCompletionSection(name: string): CompletionSection {
  * once the user types.
  */
 const MAX_BROWSE_SUGGESTIONS = 5;
+const MAX_BROWSE_FIELDS = 20;
 
 const defaultSnippets: DSLFilterSnippet[] = [];
+const defaultCompletionSources: CompletionSource[] = [];
 
 function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
   return snippetCompletion(snippet, {
@@ -111,18 +118,6 @@ function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
     section: suggestionsSection,
   });
 }
-
-/**
- * The DSL token under construction directly before the cursor: a dotted
- * identifier optionally followed by a (possibly still-unclosed) string
- * subscript and a trailing member access — e.g. `annotations['quality'].la`.
- * The subscript must be part of the match: accepting a completion replaces
- * exactly this range, so matching only `[\w.]*` would leave an already-typed
- * `annotations['quality']` in place and double it up.
- */
-const tokenBeforeCursor =
-  /(?:\w[\w.]*)?(?:\[(?:'[^']*'?|"[^"]*"?)?\]?)?(?:\.\w*)?/;
-const validTokenPattern = new RegExp(`^(?:${tokenBeforeCursor.source})$`);
 
 /**
  * Builds a CodeMirror completion source over the given DSL vocabulary.
@@ -136,10 +131,18 @@ function createCompletionSource(
   return async (
     context: CompletionContext
   ): Promise<CompletionResult | null> => {
-    const word = context.matchBefore(tokenBeforeCursor);
-    if (!word) return null;
+    const textBeforeCursor = context.state.doc.sliceString(0, context.pos);
+    const word = getDSLFilterCompletionTokenBeforeCursor(textBeforeCursor);
 
     if (word.from === word.to && !context.explicit) return null;
+    if (
+      shouldSuppressDSLFilterCompletionsInString({
+        textBeforeCursor,
+        tokenFrom: word.from,
+      })
+    ) {
+      return null;
+    }
 
     // Browsing: the dropdown is open with nothing typed at the cursor, so
     // there's no query to narrow the options — sources may return a curated
@@ -161,7 +164,7 @@ function createCompletionSource(
       // A browse result may be a curated subset — force a fresh query on
       // the next keystroke rather than letting CodeMirror filter the subset
       // in place, so typing matches against the full vocabulary
-      validFor: isBrowsing ? undefined : validTokenPattern,
+      validFor: isBrowsing ? undefined : validDSLFilterCompletionTokenPattern,
     };
   };
 }
@@ -199,6 +202,12 @@ export type DSLFilterConditionFieldProps = {
    * referentially stable function.
    */
   loadCompletions?: () => Promise<Completion[]>;
+  /**
+   * Additional CodeMirror completion sources for context-aware completions
+   * that need the editor state, e.g. suggesting allowed values after a known
+   * field comparison. Pass a referentially stable array.
+   */
+  completionSources?: CompletionSource[];
   /**
    * Async validation of the condition expression. Never called with an
    * empty (or whitespace-only) condition — the field resolves those as
@@ -246,6 +255,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
     completions,
     snippets = defaultSnippets,
     loadCompletions,
+    completionSources = defaultCompletionSources,
     validateCondition,
     onValidCondition,
     onValidationStateChange,
@@ -300,7 +310,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       ...(isBrowsing
         ? snippetOptions.slice(0, MAX_BROWSE_SUGGESTIONS)
         : snippetOptions),
-      ...fieldOptions,
+      ...(isBrowsing ? fieldOptions.slice(0, MAX_BROWSE_FIELDS) : fieldOptions),
     ];
     return [
       keymap.of([
@@ -338,6 +348,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       }),
       autocompletion({
         override: [
+          ...completionSources,
           createCompletionSource(staticOptions),
           ...(loadCompletionsOnce
             ? [createCompletionSource(loadCompletionsOnce)]
@@ -352,7 +363,7 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
           completion.type === "text" ? "dsl-filter-suggestion" : "",
       }),
     ];
-  }, [snippets, completions, loadCompletions, ariaLabel]);
+  }, [snippets, completions, loadCompletions, completionSources, ariaLabel]);
 
   // Validity attributes are applied directly to the contenteditable so
   // toggling them doesn't force a CodeMirror reconfigure
