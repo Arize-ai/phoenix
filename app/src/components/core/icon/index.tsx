@@ -1,3 +1,4 @@
+export * from "./DisclosureArrow";
 export * from "./Icon";
 export * from "./RecordIcon";
 export * from "./SelectChevronUpDownIcon";

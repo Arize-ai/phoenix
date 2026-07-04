@@ -194,7 +194,7 @@ export const toolPartCSS = css`
 
   /* Rotate chevron when open */
   &[open] > summary .tool-part__chevron {
-    transform: rotate(0deg);
+    transform: rotate(90deg);
   }
 
   .tool-part__body {
@@ -358,8 +358,8 @@ export const toolPartCSS = css`
 
   .tool-part__chevron {
     font-size: 18px;
-    transition: transform 150ms ease;
-    transform: rotate(-90deg);
+    transition: transform 200ms ease-in-out;
+    transform: rotate(0deg);
     opacity: 0;
   }
 
@@ -635,7 +635,7 @@ function ToolInvocationPartDetails({
           <span className="tool-part__title">
             <span className="tool-part__icon-slot">
               <Icon
-                svg={<Icons.ChevronDownSmall />}
+                svg={<Icons.ChevronRightSmall />}
                 className="tool-part__chevron"
               />
               <Icon

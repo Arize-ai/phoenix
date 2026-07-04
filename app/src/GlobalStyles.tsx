@@ -1387,6 +1387,14 @@ const codeMirrorOverridesCSS = css`
   .cm-gutters {
     background-color: var(--code-mirror-gutters-background-color) !important;
   }
+  /* Keep fold arrows subtle so they read as secondary to the code */
+  .cm-foldGutter .cm-gutterElement {
+    color: var(--global-text-color-300);
+    transition: color 200ms ease-in-out;
+    &:hover {
+      color: var(--global-text-color-900);
+    }
+  }
 `;
 
 const chartCSS = css`
