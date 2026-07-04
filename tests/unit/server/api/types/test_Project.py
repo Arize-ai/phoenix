@@ -5037,6 +5037,55 @@ async def test_trace_count_returns_expected_count(
     assert response.data["project"]["traceCount"] == 1
 
 
+async def test_session_count_returns_expected_count(
+    gql_client: AsyncGraphQLClient,
+    db: DbSessionFactory,
+) -> None:
+    early = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    late = datetime.fromisoformat("2021-06-01T00:00:00.000+00:00")
+    async with db() as session:
+        project = await _add_project(session, name="session-count-test")
+        await _add_project_session(session, project, start_time=early)
+        await _add_project_session(session, project, start_time=late)
+
+    query = """
+      query ($projectId: ID!, $timeRange: TimeRange) {
+        project: node(id: $projectId) {
+          ... on Project {
+            sessionCount(timeRange: $timeRange)
+          }
+        }
+      }
+    """
+
+    project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["sessionCount"] == 2
+
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "timeRange": {
+                "start": late.isoformat(),
+                "end": (late + timedelta(days=1)).isoformat(),
+            },
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["sessionCount"] == 1
+
+
 class TestAnnotationScoreTimeSeries:
     @pytest.fixture
     async def _annotation_score_data(self, db: DbSessionFactory) -> models.Project:

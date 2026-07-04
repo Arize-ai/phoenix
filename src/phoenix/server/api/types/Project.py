@@ -272,6 +272,22 @@ class Project(Node):
         )
 
     @strawberry.field
+    async def session_count(
+        self,
+        info: Info[Context, None],
+        time_range: Optional[TimeRange] = UNSET,
+    ) -> int:
+        return await info.context.data_loaders.record_counts.load(
+            (
+                "session",
+                self.id,
+                time_range or None,
+                None,
+                None,
+            ),
+        )
+
+    @strawberry.field
     async def token_count_total(
         self,
         info: Info[Context, None],
