@@ -63,6 +63,7 @@ class ExperimentConfig:
     print_report: bool = False
     context_policy: str | None = None
     concurrency: int = 3
+    repetitions: int = 1
 
 
 def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
@@ -304,6 +305,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 experiment_metadata=metadata,
                 print_summary=True,
                 concurrency=config.concurrency,
+                repetitions=config.repetitions,
                 timeout=180,
                 retries=0,
             )
@@ -453,6 +455,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=3,
         help="Number of concurrent task/evaluator runs (default: 3). Use 1 for cache smoke runs.",
     )
+    parser.add_argument(
+        "--repetitions",
+        type=int,
+        default=1,
+        help="Number of repeated task runs per example (default: 1).",
+    )
     return parser
 
 
@@ -468,6 +476,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.concurrency < 1:
         print("Invalid concurrency: must be >= 1", file=sys.stderr)
         return 2
+    if args.repetitions < 1:
+        print("Invalid repetitions: must be >= 1", file=sys.stderr)
+        return 2
     base_url, _ = _configured_base_url()
     config = ExperimentConfig(
         dataset=args.dataset,
@@ -482,6 +493,7 @@ def main(argv: list[str] | None = None) -> int:
         print_report=args.print_report,
         context_policy=args.context_policy,
         concurrency=args.concurrency,
+        repetitions=args.repetitions,
     )
     try:
         return run(config)
