@@ -44,6 +44,9 @@ Cell structure:
 
 Total command count: `50`.
 
+The matrix runner writes reports under one subdirectory per cell:
+`/private/tmp/context-pruning-main-reports/<experiment-name>/`.
+
 After a run finishes, summarize the standard report JSON files with:
 
 ```bash

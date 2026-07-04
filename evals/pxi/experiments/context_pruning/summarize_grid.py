@@ -41,7 +41,7 @@ def _cell_from_report(path: Path) -> dict[str, Any]:
 def summarize_report_dir(report_dir: Path) -> dict[str, Any]:
     cells = [
         _cell_from_report(path)
-        for path in sorted(report_dir.glob("context_pruning_type_*.report.json"))
+        for path in sorted(report_dir.rglob("context_pruning_type_*.report.json"))
     ]
     return {"cells": cells, "cell_count": len(cells)}
 

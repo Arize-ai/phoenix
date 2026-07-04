@@ -112,7 +112,7 @@ def command_for_cell(cell: MatrixCell, *, report_dir: Path | None = None) -> lis
     if cell.policy != "p0":
         command.extend(["--policy", cell.policy])
     if report_dir is not None:
-        command.extend(["--report-dir", str(report_dir)])
+        command.extend(["--report-dir", str(report_dir / cell.experiment_name)])
     return command
 
 

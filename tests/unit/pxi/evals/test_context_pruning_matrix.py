@@ -65,8 +65,25 @@ def test_command_for_cell_omits_policy_for_p0_and_includes_repetitions() -> None
     assert "--policy" not in p0_command
     assert p0_command[p0_command.index("--repetitions") + 1] == "5"
     assert p0_command[p0_command.index("--concurrency") + 1] == "2"
-    assert p0_command[-2:] == ["--report-dir", "/tmp/reports"]
+    assert p0_command[-2:] == ["--report-dir", "/tmp/reports/ctx-context_pruning_pilot-p0"]
     assert p1_command[p1_command.index("--policy") + 1] == "p1"
+
+
+def test_command_for_cell_uses_policy_specific_report_directory() -> None:
+    p0, p1 = build_cells(
+        dataset="context_pruning_type_a_5k",
+        split="dev",
+        policies=("p0", "p1"),
+        repetitions=5,
+        concurrency=1,
+        name_prefix="main",
+    )
+
+    p0_command = command_for_cell(p0, report_dir=Path("/tmp/reports"))
+    p1_command = command_for_cell(p1, report_dir=Path("/tmp/reports"))
+
+    assert p0_command[-1] == "/tmp/reports/main-context_pruning_type_a_5k-p0"
+    assert p1_command[-1] == "/tmp/reports/main-context_pruning_type_a_5k-p1"
 
 
 def test_split_csv_uses_semicolons_for_parameterized_policies() -> None:

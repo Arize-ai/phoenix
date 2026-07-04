@@ -38,15 +38,19 @@ def _write_report(
 
 
 def test_summarize_report_dir_extracts_cells(tmp_path: Path) -> None:
+    p0_dir = tmp_path / "context-pruning-main-context_pruning_type_a_5k-p0"
+    p2_dir = tmp_path / "context-pruning-main-context_pruning_type_b_150k-p2"
+    p0_dir.mkdir()
+    p2_dir.mkdir()
     _write_report(
-        tmp_path,
+        p0_dir,
         dataset="context_pruning_type_a_5k",
         experiment_name="context-pruning-main-context_pruning_type_a_5k-p0",
         passed=39,
         total=40,
     )
     _write_report(
-        tmp_path,
+        p2_dir,
         dataset="context_pruning_type_b_150k",
         experiment_name="context-pruning-main-context_pruning_type_b_150k-p2",
         passed=34,
