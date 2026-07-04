@@ -1,5 +1,31 @@
 # Changelog
 
+## [17.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.15.0...arize-phoenix-v17.16.0) (2026-07-04)
+
+
+### Features
+
+* add auth.md support for agent authentication discovery ([#13864](https://github.com/Arize-ai/phoenix/issues/13864)) ([495d879](https://github.com/Arize-ai/phoenix/commit/495d87933ae2ba00dbe8918eac5c2dbcbce4b2c0))
+* add baseline tagging for experiments ([#13991](https://github.com/Arize-ai/phoenix/issues/13991)) ([67f6166](https://github.com/Arize-ai/phoenix/commit/67f61660e6bb86da942918b54aae303bd639037f))
+* **api:** assign annotation configs to projects over REST ([#14028](https://github.com/Arize-ai/phoenix/issues/14028)) ([83d3cef](https://github.com/Arize-ai/phoenix/commit/83d3cef5e5f4bfef2399ca6cb52f208673b9036b))
+* **app:** add error column to spans and traces tables ([#14052](https://github.com/Arize-ai/phoenix/issues/14052)) ([4f82d5a](https://github.com/Arize-ai/phoenix/commit/4f82d5a9142bbf02abd459ae267287e6804e9c05))
+* **app:** add version count, latest version, and version tags columns to prompts table ([#14051](https://github.com/Arize-ai/phoenix/issues/14051)) ([2f7ea73](https://github.com/Arize-ai/phoenix/commit/2f7ea73a68416921633225a4cff8c00198ff6b5a))
+* **cli:** add annotation-config get, create, and update ([#13968](https://github.com/Arize-ai/phoenix/issues/13968)) ([94cd8f6](https://github.com/Arize-ai/phoenix/commit/94cd8f633880ead789a3f9affee708e0f546cfaa))
+* empty state ([#13823](https://github.com/Arize-ai/phoenix/issues/13823)) ([cf16827](https://github.com/Arize-ai/phoenix/commit/cf16827f6d02da86544d9d438faef5b2130a33f5))
+* **js:** add precision/recall/F-score code evaluators to phoenix-evals ([#14004](https://github.com/Arize-ai/phoenix/issues/14004)) ([1f7d5f0](https://github.com/Arize-ai/phoenix/commit/1f7d5f034d00bd15d4d50669578fb180d348811a))
+* **server:** add dataset label REST endpoints ([#14024](https://github.com/Arize-ai/phoenix/issues/14024)) ([67f84ba](https://github.com/Arize-ai/phoenix/commit/67f84ba8e2b65aaa74684a9633167eb4343acbb6))
+* **server:** add name_contains filter to GET /v1/projects ([#14029](https://github.com/Arize-ai/phoenix/issues/14029)) ([9debbd5](https://github.com/Arize-ai/phoenix/commit/9debbd50ca42efd9b0563688970345c379b8ea12)), closes [#14025](https://github.com/Arize-ai/phoenix/issues/14025)
+* **ui:** add dismissable version update notice to side nav ([#14056](https://github.com/Arize-ai/phoenix/issues/14056)) ([e78dc18](https://github.com/Arize-ai/phoenix/commit/e78dc189d8d543c8544a5042b1239e55c7afe7a3))
+
+
+### Bug Fixes
+
+* **agent:** undo PXI annotation by clicking active thumbs button ([#14048](https://github.com/Arize-ai/phoenix/issues/14048)) ([9bba6e0](https://github.com/Arize-ai/phoenix/commit/9bba6e0b00683ec9c7206627de29a4615d6600c9))
+* **app:** improve span filter completions ([#14057](https://github.com/Arize-ai/phoenix/issues/14057)) ([082fe43](https://github.com/Arize-ai/phoenix/commit/082fe432e10eedf4f4749ed44ee78fa4d495a957))
+* **storybook:** disable Rolldown's lazyBarrel experiment to fix the Chromatic build ([#13993](https://github.com/Arize-ai/phoenix/issues/13993)) ([15137e6](https://github.com/Arize-ai/phoenix/commit/15137e6d08bd62fb45e375e7dcbd28f7f7793cd5))
+* sync dashboards project selector with the project in the URL ([#14030](https://github.com/Arize-ai/phoenix/issues/14030)) ([8e6a169](https://github.com/Arize-ai/phoenix/commit/8e6a169bef789ec501cd14aece0f82773631b5c7))
+* **ui:** admin-gate settings version status, stop caching failed fetches ([#14058](https://github.com/Arize-ai/phoenix/issues/14058)) ([ef6c294](https://github.com/Arize-ai/phoenix/commit/ef6c2940b60abc135790bbccfc81ae8b66bfc0e3))
+
 ## [17.15.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.14.0...arize-phoenix-v17.15.0) (2026-07-01)
 
 
