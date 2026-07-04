@@ -13,6 +13,9 @@ The PXI harness expands those specs into deterministic primed histories at runti
 | context_pruning_pilot | 14 |
 | context_pruning_type_a | 200 |
 | context_pruning_type_b | 180 |
+| context_pruning_gate_type_a_zero | 40 |
+| context_pruning_gate_type_b_zero | 36 |
+| context_pruning_gate_type_b_5k | 36 |
 
 ## Prefix Depth Check
 

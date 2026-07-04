@@ -18,6 +18,7 @@ CORPUS_SEED = 20260703
 RUN_ORDER_SEED = 20260704
 DEPTHS = (5_000, 25_000, 50_000, 100_000, 150_000)
 TYPE_A_TASKS = 40
+TYPE_B_GATE_DEPTH = 5_000
 CARRIERS = ("tool_result", "user_text", "assistant_text")
 POSITIONS = ("p10", "p50", "p90")
 ARCHETYPES = ("filter", "time_window", "trace_id", "model_constraint")
@@ -296,6 +297,89 @@ def type_b_dataset() -> dict[str, Any]:
     }
 
 
+def gate_type_a_zero_dataset() -> dict[str, Any]:
+    examples: list[dict[str, Any]] = []
+    for task_index, source in enumerate(_source_type_a_examples(), start=1):
+        copied = deepcopy(source)
+        copied["id"] = f"gate-type-a-zero-{task_index:02d}-{source['id']}"
+        copied["splits"] = ["dev"]
+        copied["metadata"] = {
+            **dict(copied.get("metadata") or {}),
+            "context_pruning": {
+                "task_type": "A",
+                "source_id": source["id"],
+                "depth_tokens": 0,
+                "gate": "type_a_zero",
+                "seed": CORPUS_SEED,
+            },
+        }
+        examples.append(copied)
+    return {
+        "dataset_name": "context_pruning_gate_type_a_zero",
+        "description": "Admission gate: Type A source tasks without primed history.",
+        "evaluators": [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ],
+        "examples": examples,
+    }
+
+
+def _zero_history_type_b_example(example: dict[str, Any]) -> dict[str, Any]:
+    copied = deepcopy(example)
+    copied["id"] = (
+        copied["id"].replace("type-b-", "gate-type-b-zero-").removesuffix(f"-{TYPE_B_GATE_DEPTH}")
+    )
+    copied["input"] = {"messages": deepcopy(example["input"]["messages"])}
+    metadata = deepcopy(example.get("metadata") or {})
+    context = dict(metadata.get("context_pruning") or {})
+    context["depth_tokens"] = 0
+    context["gate"] = "type_b_zero"
+    metadata["context_pruning"] = context
+    copied["metadata"] = metadata
+    return copied
+
+
+def gate_type_b_zero_dataset() -> dict[str, Any]:
+    examples = [
+        _zero_history_type_b_example(example)
+        for example in type_b_dataset()["examples"]
+        if example["metadata"]["context_pruning"]["depth_tokens"] == TYPE_B_GATE_DEPTH
+    ]
+    return {
+        "dataset_name": "context_pruning_gate_type_b_zero",
+        "description": "Admission gate: Type B tasks without the required recalled history.",
+        "evaluators": [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ],
+        "examples": examples,
+    }
+
+
+def gate_type_b_5k_dataset() -> dict[str, Any]:
+    examples = [
+        deepcopy(example)
+        for example in type_b_dataset()["examples"]
+        if example["metadata"]["context_pruning"]["depth_tokens"] == TYPE_B_GATE_DEPTH
+    ]
+    for example in examples:
+        example["id"] = example["id"].replace("type-b-", "gate-type-b-5k-")
+        example["metadata"]["context_pruning"]["gate"] = "type_b_5k"
+    return {
+        "dataset_name": "context_pruning_gate_type_b_5k",
+        "description": "Admission gate: Type B tasks at the 5K recalled-history depth.",
+        "evaluators": [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ],
+        "examples": examples,
+    }
+
+
 def cache_smoke_dataset() -> dict[str, Any]:
     prompt = "Show only LLM spans."
     expected = {
@@ -442,7 +526,15 @@ def write_artifacts() -> None:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
     _write_blocks()
-    datasets = [cache_smoke_dataset(), pilot_dataset(), type_a_dataset(), type_b_dataset()]
+    datasets = [
+        cache_smoke_dataset(),
+        pilot_dataset(),
+        type_a_dataset(),
+        type_b_dataset(),
+        gate_type_a_zero_dataset(),
+        gate_type_b_zero_dataset(),
+        gate_type_b_5k_dataset(),
+    ]
     for dataset in datasets:
         path = DATASETS_DIR / f"{dataset['dataset_name']}.yaml"
         path.write_text(yaml.safe_dump(dataset, sort_keys=False), encoding="utf-8")
