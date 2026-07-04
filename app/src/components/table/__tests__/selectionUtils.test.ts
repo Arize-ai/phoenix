@@ -1,4 +1,4 @@
-import { addRangeToSelection } from "../selectionUtils";
+import { addRangeToSelection, addRowRangeToSelection } from "../selectionUtils";
 
 describe("addRangeToSelection", () => {
   const items = [
@@ -48,5 +48,51 @@ describe("addRangeToSelection", () => {
     const originalSelection = { a: true };
     addRangeToSelection(items, 1, 2, originalSelection);
     expect(originalSelection).toEqual({ a: true });
+  });
+});
+
+describe("addRowRangeToSelection", () => {
+  const rows = [
+    { id: "0", getCanSelect: () => true },
+    { id: "1", getCanSelect: () => true },
+    { id: "2", getCanSelect: () => true },
+    { id: "3", getCanSelect: () => true },
+  ];
+
+  it("selects rows by row id instead of original data id", () => {
+    const result = addRowRangeToSelection({
+      rows,
+      lastSelectedIndex: 1,
+      currentIndex: 3,
+      currentSelection: {},
+    });
+
+    expect(result).toEqual({ "1": true, "2": true, "3": true });
+  });
+
+  it("skips rows that cannot be selected", () => {
+    const result = addRowRangeToSelection({
+      rows: [
+        { id: "0", getCanSelect: () => true },
+        { id: "1", getCanSelect: () => false },
+        { id: "2", getCanSelect: () => true },
+      ],
+      lastSelectedIndex: 0,
+      currentIndex: 2,
+      currentSelection: {},
+    });
+
+    expect(result).toEqual({ "0": true, "2": true });
+  });
+
+  it("preserves existing row selections", () => {
+    const result = addRowRangeToSelection({
+      rows,
+      lastSelectedIndex: 1,
+      currentIndex: 2,
+      currentSelection: { "0": true },
+    });
+
+    expect(result).toEqual({ "0": true, "1": true, "2": true });
   });
 });

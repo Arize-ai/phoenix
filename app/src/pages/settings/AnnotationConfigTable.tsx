@@ -28,7 +28,14 @@ import { AnnotationLabel } from "@phoenix/components/annotation";
 import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { tableCSS } from "@phoenix/components/table/styles";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/selectionUtils";
+import {
+  getCommonPinningStyles,
+  tableCSS,
+} from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
 import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/AnnotationConfigSelectionToolbar";
@@ -36,7 +43,7 @@ import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 const columns = [
   {
-    id: "select",
+    id: CHECKBOX_COLUMN_ID,
     maxSize: 10,
     header: () => null,
     cell: ({ row }: CellContext<AnnotationConfig, unknown>) => (
@@ -232,6 +239,7 @@ export const AnnotationConfigTable = ({
     enableMultiRowSelection: false,
     state: {
       rowSelection,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
   });
   const isEmpty = table.getRowCount() === 0;
@@ -261,7 +269,11 @@ export const AnnotationConfigTable = ({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={getCommonPinningStyles(header.column)}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
@@ -318,8 +330,13 @@ export const AnnotationConfigTable = ({
                   <td
                     key={cell.id}
                     style={{
+                      ...getCommonPinningStyles(cell.column),
                       width: cell.column.getSize(),
                       maxWidth: cell.column.getSize(),
+                      userSelect:
+                        cell.column.id === CHECKBOX_COLUMN_ID
+                          ? "none"
+                          : undefined,
                     }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
