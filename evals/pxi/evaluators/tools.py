@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from phoenix.evals import create_evaluator
@@ -49,6 +50,18 @@ def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def _normalized_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+def _normalized_tool_call(call: dict[str, Any]) -> str:
+    tool_name = _tool_name(call) or ""
+    args = _tool_args(call)
+    if tool_name == "bash" and isinstance(command := args.get("command"), str):
+        args = {**args, "command": " ".join(command.split())}
+    return f"{tool_name}:{_normalized_json(args)}"
+
+
 def _expected_tools(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("tools", {}))
 
@@ -74,6 +87,20 @@ def _failure(explanation: str, *, metadata: dict[str, Any] | None = None) -> dic
 
 def _success() -> dict[str, Any]:
     return {"score": 1.0, "label": "pass"}
+
+
+def _collect_contains_all_needles(value: Any) -> list[str]:
+    needles: list[str] = []
+    if isinstance(value, dict):
+        contains_all = value.get("contains_all")
+        if isinstance(contains_all, list):
+            needles.extend(item for item in contains_all if isinstance(item, str))
+        for child in value.values():
+            needles.extend(_collect_contains_all_needles(child))
+    elif isinstance(value, list):
+        for child in value:
+            needles.extend(_collect_contains_all_needles(child))
+    return needles
 
 
 def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
@@ -157,6 +184,72 @@ def evaluate_tool_call_count(output: Any, expected: Any) -> dict[str, Any]:
     )
 
 
+def evaluate_redundant_refetch_count(output: Any, expected: Any) -> dict[str, Any]:
+    refetch_expectation = _as_dict(_as_dict(expected).get("refetch", {}))
+    cleared_calls = refetch_expectation.get("cleared_tool_calls")
+    if cleared_calls is None:
+        return _success()
+    if not isinstance(cleared_calls, list) or not all(
+        isinstance(item, dict) for item in cleared_calls
+    ):
+        return _failure("Expected refetch.cleared_tool_calls must be a list of tool-call objects")
+    max_refetches = refetch_expectation.get("max_refetches", 0)
+    if not isinstance(max_refetches, int) or max_refetches < 0:
+        return _failure("Expected refetch.max_refetches must be a non-negative integer")
+
+    cleared = {_normalized_tool_call(call) for call in cleared_calls}
+    observed = [_normalized_tool_call(call) for call in tool_calls_from_output(output)]
+    redundant = [call for call in observed if call in cleared]
+    if len(redundant) <= max_refetches:
+        return {
+            "score": 1.0,
+            "label": "pass",
+            "metadata": {"redundant_refetch_count": len(redundant)},
+        }
+    return _failure(
+        f"Observed {len(redundant)} redundant re-fetches, max allowed is {max_refetches}",
+        metadata={"redundant_refetch_count": len(redundant), "redundant_calls": redundant},
+    )
+
+
+_NEEDLE_RE = re.compile(r"\bcohort-[a-z0-9-]+\b")
+
+
+def evaluate_hallucinated_recall(output: Any, expected: Any) -> dict[str, Any]:
+    recall_expectation = _as_dict(_as_dict(expected).get("recall", {}))
+    true_needles = recall_expectation.get("true_needles")
+    if true_needles is None:
+        true_needles = _collect_contains_all_needles(_expected_tool_call_args(expected))
+    if not isinstance(true_needles, list) or not all(
+        isinstance(item, str) for item in true_needles
+    ):
+        return _failure("Expected recall.true_needles must be a list of strings")
+    if not true_needles:
+        return _success()
+
+    output_dict = _as_dict(output)
+    haystack = "\n".join(
+        part
+        for part in (
+            output_dict.get("assistant_text"),
+            _normalized_json(tool_calls_from_output(output)),
+        )
+        if isinstance(part, str)
+    )
+    observed_needles = sorted(set(_NEEDLE_RE.findall(haystack)))
+    hallucinated = [needle for needle in observed_needles if needle not in set(true_needles)]
+    if not hallucinated:
+        return {
+            "score": 1.0,
+            "label": "pass",
+            "metadata": {"observed_needles": observed_needles},
+        }
+    return _failure(
+        f"Output referenced needle-like tokens that were not true needles: {hallucinated}",
+        metadata={"observed_needles": observed_needles, "hallucinated_needles": hallucinated},
+    )
+
+
 @create_evaluator(name="correct_tools_called", kind="code")
 def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     """Phoenix evaluator entrypoint for tool-selection correctness.
@@ -173,6 +266,18 @@ def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
 def tool_call_count_within_limit(output: Any, expected: Any) -> dict[str, Any]:
     """Phoenix evaluator entrypoint for per-example tool-call budgets."""
     return evaluate_tool_call_count(output, expected)
+
+
+@create_evaluator(name="redundant_refetch_count", kind="code")
+def redundant_refetch_count(output: Any, expected: Any) -> dict[str, Any]:
+    """Count re-issued tool calls whose prior results were cleared."""
+    return evaluate_redundant_refetch_count(output, expected)
+
+
+@create_evaluator(name="hallucinated_recall", kind="code")
+def hallucinated_recall(output: Any, expected: Any) -> dict[str, Any]:
+    """Flag recalled context-pruning needle tokens that do not match the true needle."""
+    return evaluate_hallucinated_recall(output, expected)
 
 
 def _string_list(value: Any) -> list[str] | None:

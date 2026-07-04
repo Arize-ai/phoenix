@@ -8,6 +8,8 @@ from evals.pxi.evaluators.tools import (
     bash_command_substrings_match,
     correct_tools_called,
     forbidden_tool_call_args_match,
+    hallucinated_recall,
+    redundant_refetch_count,
     tool_call_args_match,
     tool_call_count_within_limit,
 )
@@ -23,7 +25,9 @@ EVALUATORS_BY_NAME: dict[str, Any] = {
     "bash_command_substrings_match": bash_command_substrings_match,
     "correct_tools_called": correct_tools_called,
     "forbidden_tool_call_args_match": forbidden_tool_call_args_match,
+    "hallucinated_recall": hallucinated_recall,
     "in_app_links_valid": in_app_links_valid,
+    "redundant_refetch_count": redundant_refetch_count,
     "tool_call_args_match": tool_call_args_match,
     "tool_call_count_within_limit": tool_call_count_within_limit,
 }
@@ -34,7 +38,9 @@ __all__ = [
     "bash_command_substrings_match",
     "correct_tools_called",
     "forbidden_tool_call_args_match",
+    "hallucinated_recall",
     "in_app_links_valid",
+    "redundant_refetch_count",
     "tool_call_args_match",
     "tool_call_count_within_limit",
 ]
