@@ -18,7 +18,16 @@ function fetchLatestVersion(): Promise<string | null> {
         const version: unknown = data?.info?.version;
         return typeof version === "string" ? version : null;
       })
-      .catch(() => null);
+      .catch(() => null)
+      .then((version) => {
+        // Don't memoize a failed/empty result — let the next mount retry
+        // instead of silently suppressing the notice for the rest of the
+        // session after a transient network failure.
+        if (version == null) {
+          latestVersionPromise = null;
+        }
+        return version;
+      });
   }
   return latestVersionPromise;
 }

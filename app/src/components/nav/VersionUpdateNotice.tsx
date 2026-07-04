@@ -8,6 +8,7 @@ import {
   Icons,
   Text,
 } from "@phoenix/components";
+import { VERSION } from "@phoenix/config";
 import { useViewerCanSeeVersionUpdates } from "@phoenix/contexts";
 import { useLatestPhoenixVersion, usePersistedState } from "@phoenix/hooks";
 import {
@@ -181,12 +182,11 @@ export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
   const [dismissedVersion, setDismissedVersion] = usePersistedState<
     string | null
   >(LOCAL_STORAGE_DISMISSED_UPDATE_VERSION_KEY, null);
-  const currentVersion = window.Config.platformVersion;
 
   const hasSignificantUpdate =
     latestVersion != null &&
     isVersionNewerBy({
-      current: currentVersion,
+      current: VERSION,
       latest: latestVersion,
       minorVersions: MINOR_VERSIONS_BEHIND_THRESHOLD,
     });
@@ -221,19 +221,18 @@ export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
  * visits deliberately (Settings > General), so it reports any newer version
  * — including a single minor or patch bump — rather than applying the nav
  * notice's two-minor-version threshold, which exists specifically to avoid
- * pushing a banner for every minor release. Renders nothing while the latest
+ * pushing a banner for every minor release. Only admins see this status, for
+ * the same reason the nav notice is admin-only: they are the ones who can
+ * act on it by upgrading the server. Renders nothing while the latest
  * version is unknown or when the server is up to date.
  */
-export function PlatformVersionStatus({
-  currentVersion,
-}: {
-  currentVersion: string;
-}) {
+export function PlatformVersionStatus() {
+  const canSeeVersionUpdates = useViewerCanSeeVersionUpdates();
   const latestVersion = useLatestPhoenixVersion();
   const isLagging =
     latestVersion != null &&
-    isVersionNewer({ current: currentVersion, latest: latestVersion });
-  if (!isLagging) {
+    isVersionNewer({ current: VERSION, latest: latestVersion });
+  if (!canSeeVersionUpdates || !isLagging) {
     return null;
   }
   return (
