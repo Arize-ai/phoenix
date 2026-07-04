@@ -17,6 +17,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Video | `Icons.PlayCircle` | Video-typed file attachments (no dedicated `Video*` icon). |
 | Code-evaluator form | `Icons.Edit` | Task-role context pill for the code-evaluator create/edit form the user is working in. The edit glyph reads as an action, distinct from entity icons used by surface pills. |
 | Context (generic) | `Icons.Info` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
+| Update / release notice | `Icons.Gift` | New-version notices and release prompts. |
 | Bypass / unguarded approvals | `Icons.Shield` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
 | Undo / rewind | `Icons.RotateCcw` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `History` (clock = history/session list). |
 | Resume / play | `Icons.Play` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircle` (used for video attachments). |

@@ -12,6 +12,7 @@ import {
   View,
 } from "@phoenix/components";
 import { CanManageRetentionPolicy, IsAdmin } from "@phoenix/components/auth";
+import { PlatformVersionStatus } from "@phoenix/components/nav";
 import { BASE_URL, VERSION } from "@phoenix/config";
 import type { settingsGeneralPageLoaderQuery } from "@phoenix/pages/settings/__generated__/settingsGeneralPageLoaderQuery.graphql";
 import { APIKeysCard } from "@phoenix/pages/settings/APIKeysCard";
@@ -57,6 +58,7 @@ export function SettingsGeneralPage() {
             <CopyInput />
             <Text slot="description">The version of the Phoenix server</Text>
           </CopyField>
+          <PlatformVersionStatus currentVersion={VERSION} />
         </form>
       </Card>
       <Card title="Database Usage">

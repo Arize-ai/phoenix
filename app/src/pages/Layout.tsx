@@ -25,6 +25,7 @@ import {
   TopNavActionsProvider,
   TopNavActionsSlot,
   TopNavbar,
+  VersionUpdateNotice,
 } from "@phoenix/components/nav";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
@@ -255,6 +256,7 @@ function SideNav() {
           </li>
         </ul>
         <ul css={bottomLinksCSS}>
+          <VersionUpdateNotice isExpanded={isSideNavExpanded} />
           <li key="github">
             <GitHubLink isExpanded={isSideNavExpanded} />
           </li>
