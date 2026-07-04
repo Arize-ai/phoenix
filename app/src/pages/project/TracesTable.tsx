@@ -42,11 +42,22 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  CellWithControlsWrap,
+  createRowSelectionColumn,
+  TextCell,
+} from "@phoenix/components/table";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/selectionUtils";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -145,6 +156,7 @@ const TableBody = <
                 <td
                   key={cell.id}
                   style={{
+                    ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
@@ -152,6 +164,10 @@ const TableBody = <
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    userSelect:
+                      cell.column.id === CHECKBOX_COLUMN_ID
+                        ? "none"
+                        : undefined,
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -409,6 +425,9 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
 
   const dynamicAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
     () =>
@@ -619,34 +638,13 @@ export function TracesTable(props: TracesTableProps) {
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
-      {
-        id: "select",
+      createRowSelectionColumn<TableRow>({
+        selectRow,
+        shouldRenderCell: (row) => !row.original.__additionalRow,
+        size: 24,
+        minSize: 24,
         maxSize: 24,
-        header: ({ table }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: table.getIsAllRowsSelected(),
-              isIndeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.toggleAllRowsSelected,
-            }}
-          />
-        ),
-        cell: ({ row }) => {
-          if (row.original.__additionalRow) {
-            return null;
-          }
-          return (
-            <IndeterminateCheckboxCell
-              {...{
-                isSelected: row.getIsSelected(),
-                isDisabled: !row.getCanSelect(),
-                isIndeterminate: row.getIsSomeSelected(),
-                onChange: row.toggleSelected,
-              }}
-            />
-          );
-        },
-      },
+      }),
       {
         header: "status",
         accessorKey: "statusCode",
@@ -891,7 +889,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns, searchParams]
+    [annotationColumns, searchParams, selectRow]
   );
 
   useEffect(() => {
@@ -968,9 +966,11 @@ export function TracesTable(props: TracesTableProps) {
       columnVisibility,
       rowSelection,
       columnSizing,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    enableRowSelection: (row) => !row.original.__additionalRow,
     enableSubRowSelection: false,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
@@ -1055,6 +1055,7 @@ export function TracesTable(props: TracesTableProps) {
                 {headerGroup.headers.map((header) => (
                   <th
                     style={{
+                      ...getCommonPinningStyles(header.column),
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
                     colSpan={header.colSpan}

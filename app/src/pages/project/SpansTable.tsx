@@ -48,11 +48,22 @@ import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotatio
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { CellWithControlsWrap, LoadMoreRow } from "@phoenix/components/table";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  CellWithControlsWrap,
+  createRowSelectionColumn,
+  LoadMoreRow,
+} from "@phoenix/components/table";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/selectionUtils";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
@@ -156,6 +167,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                 <td
                   key={cell.id}
                   style={{
+                    ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
@@ -163,6 +175,10 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    userSelect:
+                      cell.column.id === CHECKBOX_COLUMN_ID
+                        ? "none"
+                        : undefined,
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -392,6 +408,9 @@ export function SpansTable(props: SpansTableProps) {
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
 
   const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
     visibleAnnotationColumnNames.map((name) => {
@@ -558,29 +577,12 @@ export function SpansTable(props: SpansTableProps) {
     ...dynamicTraceAnnotationColumns,
   ];
   const columns: ColumnDef<TableRow>[] = [
-    {
-      id: "select",
+    createRowSelectionColumn<TableRow>({
+      selectRow,
+      size: 24,
+      minSize: 24,
       maxSize: 24,
-      header: ({ table }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: table.getIsAllRowsSelected(),
-            isIndeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.toggleAllRowsSelected,
-          }}
-        />
-      ),
-      cell: ({ row }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: row.getIsSelected(),
-            isDisabled: !row.getCanSelect(),
-            isIndeterminate: row.getIsSomeSelected(),
-            onChange: row.toggleSelected,
-          }}
-        />
-      ),
-    },
+    }),
     {
       header: "status",
       accessorKey: "statusCode",
@@ -855,6 +857,7 @@ export function SpansTable(props: SpansTableProps) {
       columnVisibility,
       rowSelection,
       columnSizing,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -1009,6 +1012,7 @@ export function SpansTable(props: SpansTableProps) {
                       <th
                         colSpan={header.colSpan}
                         style={{
+                          ...getCommonPinningStyles(header.column),
                           width: `calc(var(--header-${header.id}-size) * 1px)`,
                         }}
                         key={header.id}
