@@ -1,33 +1,23 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any, Protocol
-
-
-class AnthropicCountTokensClient(Protocol):
-    class Messages(Protocol):
-        async def count_tokens(
-            self,
-            *,
-            messages: Iterable[dict[str, Any]],
-            model: str,
-        ) -> Any: ...
-
-    messages: Messages
+from typing import Any
 
 
 async def count_tokens_anthropic(
     messages: Iterable[dict[str, Any]],
     model: str,
     *,
-    client: AnthropicCountTokensClient | None = None,
+    client: Any | None = None,
 ) -> int:
     """Count prompt tokens for Anthropic chat messages."""
     if client is None:
         from anthropic import AsyncAnthropic
 
-        client = AsyncAnthropic()
-    result = await client.messages.count_tokens(messages=messages, model=model)
+        resolved_client: Any = AsyncAnthropic()
+    else:
+        resolved_client = client
+    result = await resolved_client.messages.count_tokens(messages=messages, model=model)
     return int(result.input_tokens)
 
 

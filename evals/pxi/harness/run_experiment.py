@@ -283,6 +283,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 experiment = _empty_experiment(experiment_dataset)
                 return 0
             name = _experiment_name(dataset, config)
+            context_policy = config.context_policy or os.getenv(ENV_CONTEXT_POLICY) or "full"
             metadata = {
                 "git_sha": _git_value("rev-parse", "HEAD"),
                 # In CI, git is in a detached HEAD state so git rev-parse returns
@@ -291,7 +292,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 or _git_value("rev-parse", "--abbrev-ref", "HEAD"),
                 "assistant_provider": os.getenv(ENV_ASSISTANT_PROVIDER, DEFAULT_ASSISTANT_PROVIDER),
                 "assistant_model": os.getenv(ENV_ASSISTANT_MODEL, DEFAULT_ASSISTANT_MODEL),
-                "context_policy": config.context_policy or os.getenv(ENV_CONTEXT_POLICY, "full"),
+                "context_policy": context_policy,
                 "started_at": datetime.now(timezone.utc).isoformat(),
             }
             print(f"Running experiment: {name}")

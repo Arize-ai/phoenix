@@ -131,10 +131,10 @@ def apply_context_policy(
             continue
         parts: list[Any] = []
         changed = False
-        for part_index, part in enumerate(message.parts):
+        for part_index, message_part in enumerate(message.parts):
             replacement = replacements.get((message_index, part_index))
             if replacement is None:
-                parts.append(part)
+                parts.append(message_part)
             else:
                 parts.append(replacement)
                 changed = True
