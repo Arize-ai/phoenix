@@ -98,7 +98,8 @@ def run_cells(
 
 
 def _split_csv(value: str) -> tuple[str, ...]:
-    return tuple(item.strip() for item in value.split(",") if item.strip())
+    separator = ";" if ";" in value else ","
+    return tuple(item.strip() for item in value.split(separator) if item.strip())
 
 
 def main(argv: list[str] | None = None) -> int:

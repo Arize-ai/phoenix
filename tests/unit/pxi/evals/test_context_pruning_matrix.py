@@ -8,7 +8,11 @@ from evals.pxi.experiments.context_pruning.cache_simulator import (
     total_anthropic_cost,
     turns_to_break_even,
 )
-from evals.pxi.experiments.context_pruning.run_matrix import build_cells, command_for_cell
+from evals.pxi.experiments.context_pruning.run_matrix import (
+    _split_csv,
+    build_cells,
+    command_for_cell,
+)
 
 
 def test_build_cells_creates_one_cell_per_policy() -> None:
@@ -61,6 +65,15 @@ def test_command_for_cell_omits_policy_for_p0_and_includes_repetitions() -> None
     assert p0_command[p0_command.index("--concurrency") + 1] == "2"
     assert p0_command[-2:] == ["--report-dir", "/tmp/reports"]
     assert p1_command[p1_command.index("--policy") + 1] == "p1"
+
+
+def test_split_csv_uses_semicolons_for_parameterized_policies() -> None:
+    policies = _split_csv("p2:threshold=0,trailing_tokens=2000;p3:threshold=0,trailing_tokens=2000")
+
+    assert policies == (
+        "p2:threshold=0,trailing_tokens=2000",
+        "p3:threshold=0,trailing_tokens=2000",
+    )
 
 
 def test_simulate_anthropic_prompt_cache_reads_warm_prefix() -> None:
