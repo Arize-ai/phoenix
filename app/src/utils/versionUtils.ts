@@ -14,6 +14,22 @@ export function parseVersion(version: string): number[] | null {
 }
 
 /**
+ * Parses both `current` and `latest` version strings.
+ * @returns a tuple of their parsed segments, or null when either cannot be parsed
+ */
+function parseVersionPair(
+  current: string,
+  latest: string
+): [number[], number[]] | null {
+  const currentSegments = parseVersion(current);
+  const latestSegments = parseVersion(latest);
+  if (currentSegments == null || latestSegments == null) {
+    return null;
+  }
+  return [currentSegments, latestSegments];
+}
+
+/**
  * Determines whether `latest` is a strictly newer release than `current`.
  * Only numeric release segments are compared — pre-release suffixes are
  * ignored, so equal release numbers are never reported as newer.
@@ -29,11 +45,11 @@ export function isVersionNewer({
   current: string;
   latest: string;
 }): boolean {
-  const currentSegments = parseVersion(current);
-  const latestSegments = parseVersion(latest);
-  if (currentSegments == null || latestSegments == null) {
+  const parsed = parseVersionPair(current, latest);
+  if (parsed == null) {
     return false;
   }
+  const [currentSegments, latestSegments] = parsed;
   const segmentCount = Math.max(currentSegments.length, latestSegments.length);
   for (let index = 0; index < segmentCount; index++) {
     const currentSegment = currentSegments[index] ?? 0;
@@ -68,11 +84,11 @@ export function isVersionNewerBy({
   latest: string;
   minorVersions: number;
 }): boolean {
-  const currentSegments = parseVersion(current);
-  const latestSegments = parseVersion(latest);
-  if (currentSegments == null || latestSegments == null) {
+  const parsed = parseVersionPair(current, latest);
+  if (parsed == null) {
     return false;
   }
+  const [currentSegments, latestSegments] = parsed;
   const [currentMajor, currentMinor = 0] = currentSegments;
   const [latestMajor, latestMinor = 0] = latestSegments;
   if (latestMajor !== currentMajor) {

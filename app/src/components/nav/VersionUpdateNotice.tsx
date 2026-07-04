@@ -1,6 +1,7 @@
 import { css, keyframes } from "@emotion/react";
 
 import {
+  Alert,
   ExternalLink,
   Icon,
   IconButton,
@@ -11,10 +12,11 @@ import { useViewerCanSeeVersionUpdates } from "@phoenix/contexts";
 import { useLatestPhoenixVersion, usePersistedState } from "@phoenix/hooks";
 import {
   getPhoenixReleaseNotesUrl,
+  isVersionNewer,
   isVersionNewerBy,
 } from "@phoenix/utils/versionUtils";
 
-export const LOCAL_STORAGE_DISMISSED_UPDATE_VERSION_KEY =
+const LOCAL_STORAGE_DISMISSED_UPDATE_VERSION_KEY =
   "arize-phoenix-dismissed-update-version";
 
 /**
@@ -35,31 +37,8 @@ const versionUpdateNoticeIn = keyframes`
   }
 `;
 
-const versionUpdateNoticeSheenDrift = keyframes`
-  from {
-    opacity: 0.45;
-    transform: translate3d(-6%, -6%, 0) rotate(-8deg);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(6%, 6%, 0) rotate(8deg);
-  }
-`;
-
 const versionUpdateNoticeCSS = css`
-  /* the sheen brightens with white in dark mode, where a strong wash reads as
-     a glow; the same strength in light mode reads as a smudge of shadow, so
-     the darkening wash is kept much fainter there */
-  --version-update-notice-sheen-alpha-1: 0.3;
-  --version-update-notice-sheen-alpha-2: 0.2;
-
-  .theme--light & {
-    --version-update-notice-sheen-alpha-1: 0.09;
-    --version-update-notice-sheen-alpha-2: 0.06;
-  }
-
   position: relative;
-  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -68,52 +47,20 @@ const versionUpdateNoticeCSS = css`
   min-width: 0;
   padding: var(--global-dimension-static-size-200);
   margin-bottom: var(--global-dimension-static-size-100);
-  overflow: hidden;
   background-color: var(--global-color-gray-200);
   border: var(--global-border-size-thin) solid
     var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
-  /* gentle entrance: a short delay so the card doesn't pop in with the nav,
-     then a slow rise-and-fade with a decelerating ease */
+  /* gentle, one-time entrance: a short delay so the card doesn't pop in with
+     the nav, then a slow rise-and-fade with a decelerating ease. No looping
+     animation — this card can sit in the nav indefinitely until dismissed,
+     and a perpetual motion effect there would be distracting rather than
+     inviting. */
   animation: ${versionUpdateNoticeIn} 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s
     both;
 
-  /* soft diffuse washes of the text gray over the card surface — an
-     indistinct sheen rather than a distinct shape. The layer is oversized and
-     slowly drifts (transform-only, so it stays on the compositor) to gently
-     catch the eye. */
-  &::before {
-    content: "";
-    position: absolute;
-    inset: -50%;
-    z-index: -1;
-    background: radial-gradient(
-        65% 50% at 75% 25%,
-        rgba(
-          var(--global-color-gray-900-rgb),
-          var(--version-update-notice-sheen-alpha-1)
-        ),
-        transparent 60%
-      ),
-      radial-gradient(
-        55% 45% at 25% 75%,
-        rgba(
-          var(--global-color-gray-900-rgb),
-          var(--version-update-notice-sheen-alpha-2)
-        ),
-        transparent 55%
-      );
-    animation: ${versionUpdateNoticeSheenDrift} 4s ease-in-out infinite
-      alternate;
-    pointer-events: none;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-
-    &::before {
-      animation: none;
-    }
   }
 
   /* inverted monochrome tile — light-on-dark in dark mode, dark-on-light in
@@ -265,5 +212,41 @@ export function VersionUpdateNotice({ isExpanded }: { isExpanded: boolean }) {
       latestVersion={latestVersion}
       onDismiss={() => setDismissedVersion(latestVersion)}
     />
+  );
+}
+
+/**
+ * Shows how the running server version compares to the latest release on
+ * PyPI. Unlike {@link VersionUpdateNotice}, this is a pull surface the admin
+ * visits deliberately (Settings > General), so it reports any newer version
+ * — including a single minor or patch bump — rather than applying the nav
+ * notice's two-minor-version threshold, which exists specifically to avoid
+ * pushing a banner for every minor release. Renders nothing while the latest
+ * version is unknown or when the server is up to date.
+ */
+export function PlatformVersionStatus({
+  currentVersion,
+}: {
+  currentVersion: string;
+}) {
+  const latestVersion = useLatestPhoenixVersion();
+  const isLagging =
+    latestVersion != null &&
+    isVersionNewer({ current: currentVersion, latest: latestVersion });
+  if (!isLagging) {
+    return null;
+  }
+  return (
+    <Alert
+      variant="warning"
+      extra={
+        <ExternalLink href={getPhoenixReleaseNotesUrl(latestVersion)}>
+          View release notes
+        </ExternalLink>
+      }
+      data-testid="platform-version-status"
+    >
+      A newer version of Phoenix is available (v{latestVersion}).
+    </Alert>
   );
 }
