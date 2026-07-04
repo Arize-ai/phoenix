@@ -82,6 +82,13 @@ export const dslFilterCodeMirrorCSS = css`
     }
     .cm-completionLabel {
       font-family: "Geist Mono", monospace;
+      /* An option label can be an arbitrarily long expression (e.g. a
+         recent search) — truncate rather than wrap or overflow so every
+         row stays one line */
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     li.dsl-filter-suggestion .cm-completionLabel {
       font-family: "Geist", sans-serif;
