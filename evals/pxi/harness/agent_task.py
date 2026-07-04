@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from datetime import datetime, timezone
+from time import monotonic
 from typing import Any, Literal, cast
 
 from pydantic_ai.agent import AgentRunResult
@@ -413,7 +414,25 @@ def _assistant_text_from_messages(messages: list[dict[str, Any]]) -> str | None:
     return "\n".join(text_parts) if text_parts else None
 
 
-def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
+def _zero_usage() -> dict[str, int]:
+    return {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+    }
+
+
+def _serialize_usage(usage: Any) -> dict[str, int]:
+    return {key: int(getattr(usage, key, 0) or 0) for key in _zero_usage()}
+
+
+def agent_task_output(
+    result: AgentRunResult[AgentOutput],
+    *,
+    usage: Any | None = None,
+    latency_ms: int = 0,
+) -> dict[str, Any]:
     output = result.output
     messages = _serialize_new_messages(result)
     assistant_text = _assistant_text_from_messages(messages)
@@ -424,6 +443,8 @@ def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
         "assistant_text": assistant_text,
         "messages": messages,
         "raw_output_type": type(output).__name__,
+        "usage": _serialize_usage(usage) if usage is not None else _zero_usage(),
+        "latency_ms": latency_ms,
     }
 
 
@@ -500,12 +521,14 @@ async def run_pxi_example(
         user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
         agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        started_at = monotonic()
         result = await agent.run(
             user_prompt,
             deps=_build_dependencies(input),
             message_history=message_history,
         )
-        output = agent_task_output(result)
+        latency_ms = round((monotonic() - started_at) * 1000)
+        output = agent_task_output(result, usage=result.usage(), latency_ms=latency_ms)
     except Exception as exc:
         message = str(exc)
         if len(message) > _MAX_ERROR_MESSAGE_LEN:
@@ -515,6 +538,8 @@ async def run_pxi_example(
             "messages": [],
             "raw_output_type": type(exc).__name__,
             "error": f"{type(exc).__name__}: {message}" if message else type(exc).__name__,
+            "usage": _zero_usage(),
+            "latency_ms": 0,
         }
     payload = output
     if stable_example_id is not None:

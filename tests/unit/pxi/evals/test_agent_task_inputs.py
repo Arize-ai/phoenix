@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
+
 import pytest
 from pydantic_ai.messages import (
     ModelRequest,
@@ -14,6 +17,8 @@ from evals.pxi.harness.agent_task import (
     _build_contexts,
     _build_run_inputs,
     _materialize_messages,
+    agent_task_output,
+    run_pxi_example,
 )
 
 
@@ -254,3 +259,65 @@ class TestMaterializeMessages:
     def test_rejects_unknown_roles(self) -> None:
         with pytest.raises(ValueError, match="role must be user, assistant, or tool"):
             _materialize_messages([{"role": "system", "content": "x"}])
+
+
+class _FakeResult:
+    output = "fallback assistant text"
+
+    def __init__(self) -> None:
+        self._messages = [
+            {
+                "parts": [
+                    {
+                        "part_kind": "text",
+                        "content": "assistant text from message",
+                    }
+                ]
+            }
+        ]
+
+    def new_messages_json(self) -> str:
+        return json.dumps(self._messages)
+
+
+class TestAgentTaskOutput:
+    def test_includes_usage_and_latency(self) -> None:
+        output = agent_task_output(
+            _FakeResult(),  # type: ignore[arg-type]
+            usage=SimpleNamespace(
+                input_tokens=11,
+                output_tokens=7,
+                cache_read_tokens=5,
+                cache_write_tokens=3,
+            ),
+            latency_ms=1234,
+        )
+
+        assert output["assistant_text"] == "assistant text from message"
+        assert output["usage"] == {
+            "input_tokens": 11,
+            "output_tokens": 7,
+            "cache_read_tokens": 5,
+            "cache_write_tokens": 3,
+        }
+        assert output["latency_ms"] == 1234
+
+    @pytest.mark.asyncio
+    async def test_error_path_includes_zero_usage_and_latency(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def fail_build_model() -> object:
+            raise RuntimeError("missing key")
+
+        monkeypatch.setattr("evals.pxi.harness.agent_task._build_model", fail_build_model)
+
+        output = await run_pxi_example({"messages": [{"role": "user", "content": "hi"}]})
+
+        assert output["error"] == "RuntimeError: missing key"
+        assert output["usage"] == {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+        assert output["latency_ms"] == 0
