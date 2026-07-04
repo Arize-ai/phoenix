@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_POLICIES = ("p0", "p1", "p2", "p3", "p4", "p1c", "p6")
+_EXPERIMENT_NAME_UNSAFE_CHARS = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
 @dataclass(frozen=True)
@@ -17,6 +19,11 @@ class MatrixCell:
     repetitions: int
     concurrency: int
     experiment_name: str
+
+
+def policy_experiment_slug(policy: str) -> str:
+    slug = _EXPERIMENT_NAME_UNSAFE_CHARS.sub("-", policy).strip("-")
+    return slug or "policy"
 
 
 def build_cells(
@@ -35,7 +42,7 @@ def build_cells(
             policy=policy,
             repetitions=repetitions,
             concurrency=concurrency,
-            experiment_name=f"{name_prefix}-{dataset}-{policy}",
+            experiment_name=f"{name_prefix}-{dataset}-{policy_experiment_slug(policy)}",
         )
         for policy in policies
     ]

@@ -28,6 +28,21 @@ def test_build_cells_creates_one_cell_per_policy() -> None:
     assert cells[0].repetitions == 5
 
 
+def test_build_cells_sanitizes_parameterized_policy_names() -> None:
+    cells = build_cells(
+        dataset="context_pruning_pilot",
+        split="dev",
+        policies=("p2:threshold=0,trailing_tokens=2000",),
+        repetitions=1,
+        concurrency=1,
+        name_prefix="ctx",
+    )
+
+    assert cells[0].experiment_name == (
+        "ctx-context_pruning_pilot-p2-threshold-0-trailing_tokens-2000"
+    )
+
+
 def test_command_for_cell_omits_policy_for_p0_and_includes_repetitions() -> None:
     p0, p1 = build_cells(
         dataset="context_pruning_pilot",
