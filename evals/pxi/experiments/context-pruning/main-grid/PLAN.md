@@ -43,3 +43,12 @@ Cell structure:
 | Type B secondary | 50K, 150K | P1c, P3, P4, P5, P6 | 10 |
 
 Total command count: `50`.
+
+After a run finishes, summarize the standard report JSON files with:
+
+```bash
+uv run python -m evals.pxi.experiments.context_pruning.summarize_grid \
+  /private/tmp/context-pruning-main-reports \
+  --json-output evals/pxi/experiments/context-pruning/main-grid/SUMMARY.json \
+  --markdown-output evals/pxi/experiments/context-pruning/main-grid/SUMMARY.md
+```
