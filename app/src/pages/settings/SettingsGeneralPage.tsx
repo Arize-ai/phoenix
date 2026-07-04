@@ -58,7 +58,7 @@ export function SettingsGeneralPage() {
             <CopyInput />
             <Text slot="description">The version of the Phoenix server</Text>
           </CopyField>
-          <PlatformVersionStatus currentVersion={VERSION} />
+          <PlatformVersionStatus />
         </form>
       </Card>
       <Card title="Database Usage">
