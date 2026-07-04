@@ -17,6 +17,7 @@ from evals.pxi.harness.agent_task import (
     _build_contexts,
     _build_run_inputs,
     _materialize_messages,
+    _result_usage,
     agent_task_output,
     run_pxi_example,
 )
@@ -281,6 +282,13 @@ class _FakeResult:
 
 
 class TestAgentTaskOutput:
+    def test_result_usage_supports_property_and_method_shapes(self) -> None:
+        property_usage = SimpleNamespace(input_tokens=1)
+        method_usage = SimpleNamespace(input_tokens=2)
+
+        assert _result_usage(SimpleNamespace(usage=property_usage)) is property_usage  # type: ignore[arg-type]
+        assert _result_usage(SimpleNamespace(usage=lambda: method_usage)) is method_usage  # type: ignore[arg-type]
+
     def test_includes_usage_and_latency(self) -> None:
         output = agent_task_output(
             _FakeResult(),  # type: ignore[arg-type]

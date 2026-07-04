@@ -427,6 +427,11 @@ def _serialize_usage(usage: Any) -> dict[str, int]:
     return {key: int(getattr(usage, key, 0) or 0) for key in _zero_usage()}
 
 
+def _result_usage(result: AgentRunResult[AgentOutput]) -> Any:
+    usage = getattr(result, "usage", None)
+    return usage() if callable(usage) else usage
+
+
 def agent_task_output(
     result: AgentRunResult[AgentOutput],
     *,
@@ -528,7 +533,7 @@ async def run_pxi_example(
             message_history=message_history,
         )
         latency_ms = round((monotonic() - started_at) * 1000)
-        output = agent_task_output(result, usage=result.usage(), latency_ms=latency_ms)
+        output = agent_task_output(result, usage=_result_usage(result), latency_ms=latency_ms)
     except Exception as exc:
         message = str(exc)
         if len(message) > _MAX_ERROR_MESSAGE_LEN:
