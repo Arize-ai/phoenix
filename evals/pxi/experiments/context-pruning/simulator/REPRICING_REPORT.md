@@ -26,9 +26,23 @@ The unit tests cover:
 
 ## Complexity Trap Repricing
 
-Not yet run. The scripted download/normalization of Lindenbauer et al.'s released
-per-turn token data still needs to be added before this report can contain headline
-repricing numbers.
+Tooling added: `evals.pxi.experiments.context_pruning.complexity_repricing`.
+
+The CLI accepts a downloaded per-turn CSV, JSON, or JSONL export with strategy,
+trajectory/instance id, input tokens, output tokens, and optional prefix/summarizer
+token columns:
+
+```bash
+uv run python -m evals.pxi.experiments.context_pruning.complexity_repricing \
+  /path/to/complexity-trap-turns.jsonl \
+  --ttl-seconds 300 \
+  --output evals/pxi/experiments/context-pruning/simulator/complexity_trap_repriced.json
+```
+
+Current status: headline repricing numbers are pending the external token export
+from Lindenbauer et al. (arXiv:2508.21433). The arXiv page states that code and
+data are released for reproducibility, but this repository intentionally does not
+vendor a live third-party dataset URL or downloaded data blob.
 
 Disclosure to preserve in the final write-up: that secondary arm re-prices observed
 SWE-agent trajectories that were generated without cache-aware policies in the loop.
