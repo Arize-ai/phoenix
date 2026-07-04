@@ -1,7 +1,5 @@
 import type {
   Completion,
-  CompletionContext,
-  CompletionResult,
   CompletionSection,
   CompletionSource,
 } from "@codemirror/autocomplete";
@@ -40,11 +38,7 @@ import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 import { classNames } from "@phoenix/utils/classNames";
 
-import {
-  getDSLFilterCompletionTokenBeforeCursor,
-  shouldSuppressDSLFilterCompletionsInString,
-  validDSLFilterCompletionTokenPattern,
-} from "./dslFilterConditionFieldUtils";
+import { createDSLFilterCompletionSource } from "./dslFilterConditionFieldUtils";
 import {
   dslFilterCodeMirrorCSS,
   dslFilterErrorTooltipCSS,
@@ -117,56 +111,6 @@ function snippetToCompletion({ label, snippet }: DSLFilterSnippet): Completion {
     type: "text",
     section: suggestionsSection,
   });
-}
-
-/**
- * Builds a CodeMirror completion source over the given DSL vocabulary.
- * `getOptions` may be async (e.g. real values fetched from the server); each
- * source resolves independently so slow options don't block the rest of the
- * dropdown.
- */
-function createCompletionSource(
-  getOptions: (isBrowsing: boolean) => Completion[] | Promise<Completion[]>
-): CompletionSource {
-  return async (
-    context: CompletionContext
-  ): Promise<CompletionResult | null> => {
-    const textBeforeCursor = context.state.doc.sliceString(0, context.pos);
-    const word = getDSLFilterCompletionTokenBeforeCursor(textBeforeCursor);
-
-    if (word.from === word.to && !context.explicit) return null;
-    if (
-      shouldSuppressDSLFilterCompletionsInString({
-        textBeforeCursor,
-        tokenFrom: word.from,
-      })
-    ) {
-      return null;
-    }
-
-    // Browsing: the dropdown is open with nothing typed at the cursor, so
-    // there's no query to narrow the options — sources may return a curated
-    // subset rather than everything
-    const isBrowsing = word.from === word.to;
-
-    let options: Completion[];
-    try {
-      options = await getOptions(isBrowsing);
-    } catch {
-      // completions are a progressive enhancement — degrade silently
-      return null;
-    }
-    if (options.length === 0) return null;
-
-    return {
-      from: word.from,
-      options,
-      // A browse result may be a curated subset — force a fresh query on
-      // the next keystroke rather than letting CodeMirror filter the subset
-      // in place, so typing matches against the full vocabulary
-      validFor: isBrowsing ? undefined : validDSLFilterCompletionTokenPattern,
-    };
-  };
 }
 
 export type DSLFilterConditionFieldProps = {
@@ -349,9 +293,9 @@ export function DSLFilterConditionField(props: DSLFilterConditionFieldProps) {
       autocompletion({
         override: [
           ...completionSources,
-          createCompletionSource(staticOptions),
+          createDSLFilterCompletionSource(staticOptions),
           ...(loadCompletionsOnce
-            ? [createCompletionSource(loadCompletionsOnce)]
+            ? [createDSLFilterCompletionSource(loadCompletionsOnce)]
             : []),
         ],
         selectOnOpen: false,

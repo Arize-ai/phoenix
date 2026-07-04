@@ -1,5 +1,5 @@
 import type { Completion } from "@codemirror/autocomplete";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
@@ -8,6 +8,7 @@ import {
   createAnnotationMemberCompletions,
   DSLFilterConditionField,
   type DSLFilterSnippet,
+  useDSLFilterConditionHistory,
 } from "@phoenix/components/filter";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import environment from "@phoenix/RelayEnvironment";
@@ -269,6 +270,29 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     [projectId]
   );
 
+  // Recent searches are keyed per project rather than globally: filter
+  // expressions routinely reference project-specific names (annotations,
+  // metadata keys), so another project's history would be noise
+  const {
+    completionSource: recentSearchesCompletionSource,
+    recordValidCondition,
+  } = useDSLFilterConditionHistory({
+    historyKey: `span-filter-${projectId}`,
+  });
+
+  const completionSources = useMemo(
+    () => [recentSearchesCompletionSource, ...spanFilterCompletionSources],
+    [recentSearchesCompletionSource]
+  );
+
+  const handleValidCondition = useCallback(
+    (condition: string) => {
+      recordValidCondition(condition);
+      onValidCondition(condition);
+    },
+    [recordValidCondition, onValidCondition]
+  );
+
   // Advertise a project context that carries the current spanFilter while
   // the field is mounted. The merge in `selectActiveContexts` layers this
   // on top of the route-derived project context (which carries no filter)
@@ -300,10 +324,10 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       placeholder={placeholder}
       completions={spanFilterCompletions}
       snippets={spanFilterSnippets}
-      completionSources={spanFilterCompletionSources}
+      completionSources={completionSources}
       loadCompletions={loadAnnotationCompletions}
       validateCondition={validateCondition}
-      onValidCondition={onValidCondition}
+      onValidCondition={handleValidCondition}
       onValidationStateChange={setIsConditionValid}
     />
   );
