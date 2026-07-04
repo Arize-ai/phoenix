@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import (
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 
 from phoenix.server.agents.capabilities.context_policy import (
     TOOL_RESULT_CLEARED_TEMPLATE,
@@ -50,6 +57,27 @@ def test_parse_context_policy_shorthands() -> None:
         name="clear_tool_uses",
         keep_recent_tool_returns=2,
         threshold_tokens=10,
+    )
+    assert parse_context_policy("p2:threshold=10,trailing_tokens=4,max_summary_tokens=3") == (
+        ContextPolicyConfig(
+            name="threshold_summary",
+            threshold_tokens=10,
+            trailing_tokens=4,
+            max_summary_tokens=3,
+        )
+    )
+    assert parse_context_policy("p3") == ContextPolicyConfig(
+        name="noop_summary",
+        threshold_tokens=40_000,
+    )
+    assert parse_context_policy("p4:trailing_tokens=12") == ContextPolicyConfig(
+        name="naive_truncation",
+        threshold_tokens=40_000,
+        trailing_tokens=12,
+    )
+    assert parse_context_policy("p5:terms=needle-a|needle-b") == ContextPolicyConfig(
+        name="oracle_focused",
+        oracle_terms=("needle-a", "needle-b"),
     )
 
 
@@ -109,3 +137,85 @@ def test_apply_context_policy_preserves_non_tool_messages() -> None:
     )
 
     assert transformed[0] is messages[0]
+
+
+def test_threshold_summary_replaces_middle_with_summary_message() -> None:
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        ModelResponse(parts=[TextPart(content="old assistant detail needle-a")]),
+        *_history_with_tool_returns(2),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(
+            name="threshold_summary",
+            threshold_tokens=0,
+            trailing_tokens=2,
+            max_summary_tokens=20,
+        ),
+    )
+
+    assert transformed[0] is messages[0]
+    summary_message = transformed[1]
+    assert isinstance(summary_message, ModelRequest)
+    summary_part = summary_message.parts[0]
+    assert isinstance(summary_part, UserPromptPart)
+    assert "conversation_summary" in str(summary_part.content)
+    assert "old assistant detail needle-a" in str(summary_part.content)
+    assert transformed[-1] is messages[-1]
+
+
+def test_noop_summary_uses_pinned_placeholder() -> None:
+    messages: list[ModelRequest | ModelResponse] = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        ModelResponse(parts=[TextPart(content="old assistant detail")]),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(name="noop_summary", threshold_tokens=0, trailing_tokens=1),
+    )
+
+    summary_message = transformed[1]
+    assert isinstance(summary_message, ModelRequest)
+    summary_part = summary_message.parts[0]
+    assert isinstance(summary_part, UserPromptPart)
+    assert summary_part.content == "[Earlier conversation history was removed to save context.]"
+
+
+def test_naive_truncation_keeps_first_user_and_trailing_messages_without_summary() -> None:
+    messages: list[ModelRequest | ModelResponse] = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        ModelResponse(parts=[TextPart(content="old assistant detail")]),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(name="naive_truncation", threshold_tokens=0, trailing_tokens=1),
+    )
+
+    assert transformed == [messages[0], messages[-1]]
+
+
+def test_oracle_focused_keeps_matching_messages_and_trailing_context() -> None:
+    messages: list[ModelRequest | ModelResponse] = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        ModelResponse(parts=[TextPart(content="irrelevant old detail")]),
+        ModelResponse(parts=[TextPart(content="important needle-a detail")]),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(
+            name="oracle_focused",
+            trailing_tokens=1,
+            oracle_terms=("needle-a",),
+        ),
+    )
+
+    assert transformed == [messages[0], messages[2], messages[3]]
