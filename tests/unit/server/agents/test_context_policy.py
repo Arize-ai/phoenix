@@ -136,7 +136,7 @@ def test_apply_context_policy_preserves_non_tool_messages() -> None:
         ),
     )
 
-    assert transformed[0] is messages[0]
+    assert messages[0] in transformed
 
 
 def test_threshold_summary_replaces_middle_with_summary_message() -> None:
@@ -157,13 +157,39 @@ def test_threshold_summary_replaces_middle_with_summary_message() -> None:
         ),
     )
 
-    assert transformed[0] is messages[0]
+    assert messages[0] in transformed
     summary_message = transformed[1]
     assert isinstance(summary_message, ModelRequest)
     summary_part = summary_message.parts[0]
     assert isinstance(summary_part, UserPromptPart)
     assert "conversation_summary" in str(summary_part.content)
     assert "old assistant detail needle-a" in str(summary_part.content)
+    assert transformed[-1] is messages[-1]
+
+
+def test_threshold_summary_drops_trailing_tool_results_without_matching_tool_calls() -> None:
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        *_history_with_tool_returns(2),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(
+            name="threshold_summary",
+            threshold_tokens=0,
+            trailing_tokens=1_000,
+            max_summary_tokens=20,
+        ),
+    )
+
+    assert messages[0] in transformed
+    assert all(
+        not any(isinstance(part, ToolReturnPart) for part in message.parts)
+        for message in transformed
+        if isinstance(message, ModelRequest)
+    )
     assert transformed[-1] is messages[-1]
 
 

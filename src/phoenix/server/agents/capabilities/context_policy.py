@@ -180,6 +180,16 @@ def _summary_message(content: str) -> ModelRequest:
     return ModelRequest(parts=[UserPromptPart(content=content)])
 
 
+def _safe_compaction_trailing_messages(messages: list[ModelMessage]) -> list[ModelMessage]:
+    safe_messages: list[ModelMessage] = []
+    for message in messages:
+        if not isinstance(message, ModelRequest):
+            continue
+        if all(isinstance(part, UserPromptPart) for part in message.parts):
+            safe_messages.append(message)
+    return safe_messages
+
+
 def _extractive_summary(messages: list[ModelMessage], max_summary_tokens: int) -> str:
     max_chars = max_summary_tokens * 4
     if max_chars <= 0:
@@ -204,7 +214,7 @@ def _apply_compaction_policy(
         if first_user_index is not None and first_user_index < trailing_start_index
         else []
     )
-    trailing = messages[trailing_start_index:]
+    trailing = _safe_compaction_trailing_messages(messages[trailing_start_index:])
     middle_start = (first_user_index + 1) if first_user_index is not None else 0
     middle = messages[middle_start:trailing_start_index]
 
