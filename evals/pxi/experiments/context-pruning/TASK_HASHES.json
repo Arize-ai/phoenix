@@ -1,0 +1,74 @@
+{
+  "corpus_seed": 20260703,
+  "datasets": {
+    "context_pruning_cache_smoke": [
+      {
+        "id": "cache-smoke-1",
+        "sha256": "63d40a19ba4a14702d3aa7bf5867ad7052a6d199225a4a5cc4de27337093817d"
+      },
+      {
+        "id": "cache-smoke-2",
+        "sha256": "1f53646bcef190602916fa1645f81c7e84a23abdc2c5daf3f15cd32f91638df1"
+      }
+    ],
+    "context_pruning_pilot": [
+      {
+        "id": "type-a-llm-5000",
+        "sha256": "2d7398bc85dac10ab1b5e23a0e406a4bc7fdc53c01d5292659e637b0a7e2dfa8"
+      },
+      {
+        "id": "type-a-tool-5000",
+        "sha256": "f6846123bb0f0a3f34f034578ae55665c849afc64f1ded46e3eecae606d24a59"
+      },
+      {
+        "id": "type-a-errors-5000",
+        "sha256": "8078e14a4294066e0cb07ddd6507cf356fb533837bcbf4202eb370545db34c50"
+      },
+      {
+        "id": "type-a-slow-5000",
+        "sha256": "824a8fdfb0fa64d658867488283084ecb191dded20f420ac775c77ada4a22a08"
+      },
+      {
+        "id": "type-a-llm-25000",
+        "sha256": "477ea47c6b12596fbdedd46a68bcbf4a2b04aeb23b171bea582f880282d5c60c"
+      },
+      {
+        "id": "type-a-tool-25000",
+        "sha256": "d6a4baab6d56a19d22f7f40af63beafbb1a7341be5cb559a8b499bfa239c8909"
+      },
+      {
+        "id": "type-a-errors-25000",
+        "sha256": "b672ec4d1c659a424848655d410907c3c817645eabdee9d5733e707a7003b10f"
+      },
+      {
+        "id": "type-a-slow-25000",
+        "sha256": "593e492a1cb3fb4f1b5865c506268bb62c84d2a36d2a48c41af1f078cab6812a"
+      },
+      {
+        "id": "type-b-tool_result-5000",
+        "sha256": "5579084ba49955223e43b78692a63e857ef736b858c7db702af22d48bc2d4d71"
+      },
+      {
+        "id": "type-b-user_text-5000",
+        "sha256": "d97dc5f642eeae58e103888de4a22f51aa5e7679d44d649bf72164fbbf94ad72"
+      },
+      {
+        "id": "type-b-assistant_text-5000",
+        "sha256": "a7b84e620886b629c630ad9e1cde7bc532fbfcdfba78184eec611a4daa2253b2"
+      },
+      {
+        "id": "type-b-tool_result-25000",
+        "sha256": "4e035a87480d50524cf99e2be13e00bfd22ce1de5185d64ac739cbb7ae6974b7"
+      },
+      {
+        "id": "type-b-user_text-25000",
+        "sha256": "1cb0a9d7470d18956f7eea5c583fab1c9e8025cc133c38da1a31b1119b2c2779"
+      },
+      {
+        "id": "type-b-assistant_text-25000",
+        "sha256": "02f5d5f2f82a26037a00cfd243fb2e0b290c65ad04341e90fe8d3aa8aaca1fe7"
+      }
+    ]
+  },
+  "run_order_seed": 20260704
+}
