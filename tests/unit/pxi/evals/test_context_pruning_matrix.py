@@ -14,6 +14,8 @@ from evals.pxi.experiments.context_pruning.run_matrix import (
     build_cells,
     build_preregistered_quality_cells,
     command_for_cell,
+    report_path_for_cell,
+    run_cells,
 )
 
 
@@ -84,6 +86,48 @@ def test_command_for_cell_uses_policy_specific_report_directory() -> None:
 
     assert p0_command[-1] == "/tmp/reports/main-context_pruning_type_a_5k-p0"
     assert p1_command[-1] == "/tmp/reports/main-context_pruning_type_a_5k-p1"
+
+
+def test_run_cells_skips_existing_report(tmp_path: Path, monkeypatch) -> None:
+    p0, p1 = build_cells(
+        dataset="context_pruning_type_a_5k",
+        split="dev",
+        policies=("p0", "p1"),
+        repetitions=5,
+        concurrency=1,
+        name_prefix="main",
+    )
+    report_path = report_path_for_cell(p0, tmp_path)
+    report_path.parent.mkdir()
+    report_path.write_text("{}", encoding="utf-8")
+    commands: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+
+        class Completed:
+            returncode = 0
+
+        return Completed()
+
+    monkeypatch.setattr(
+        "evals.pxi.experiments.context_pruning.run_matrix.subprocess.run",
+        fake_run,
+    )
+
+    assert (
+        run_cells(
+            [p0, p1],
+            base_url="http://localhost:6006",
+            provider="ANTHROPIC",
+            model="claude-opus-4-6",
+            report_dir=tmp_path,
+        )
+        == 0
+    )
+
+    assert len(commands) == 1
+    assert commands[0][-1] == str(tmp_path / p1.experiment_name)
 
 
 def test_split_csv_uses_semicolons_for_parameterized_policies() -> None:

@@ -116,6 +116,10 @@ def command_for_cell(cell: MatrixCell, *, report_dir: Path | None = None) -> lis
     return command
 
 
+def report_path_for_cell(cell: MatrixCell, report_dir: Path) -> Path:
+    return report_dir / cell.experiment_name / f"{cell.dataset}.report.json"
+
+
 def run_cells(
     cells: list[MatrixCell],
     *,
@@ -130,6 +134,9 @@ def run_cells(
     env["PHOENIX_AGENTS_ASSISTANT_PROVIDER"] = provider
     env["PHOENIX_AGENTS_ASSISTANT_MODEL"] = model
     for cell in cells:
+        if report_dir is not None and report_path_for_cell(cell, report_dir).exists():
+            print(f"Skipping completed cell: {cell.experiment_name}")
+            continue
         command = command_for_cell(cell, report_dir=report_dir)
         print(" ".join(command))
         if dry_run:
