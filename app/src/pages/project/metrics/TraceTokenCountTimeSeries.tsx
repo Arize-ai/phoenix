@@ -17,10 +17,11 @@ import {
   ChartTooltipItem,
   InteractiveLegend,
   TimeRangeChartBrush,
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
@@ -29,7 +30,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
@@ -147,8 +148,7 @@ function getTokenTotal(
 function useTraceTokenCountTimeSeriesData({
   projectId,
   timeRange,
-  fetchKey,
-}: Pick<ProjectMetricViewProps, "projectId" | "timeRange" | "fetchKey">) {
+}: Pick<ProjectMetricViewProps, "projectId" | "timeRange">) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
@@ -195,7 +195,7 @@ function useTraceTokenCountTimeSeriesData({
         utcOffsetMinutes,
       },
     },
-    getMetricQueryFetchOptions(fetchKey)
+    useMetricQueryFetchOptions()
   );
 
   return {
@@ -281,12 +281,10 @@ export function TraceTokenCountTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-  fetchKey,
 }: ProjectMetricViewProps) {
   const { data, scale } = useTraceTokenCountTimeSeriesData({
     projectId,
     timeRange,
-    fetchKey,
   });
   const chartData = data.map((datum) => ({
     timestamp: new Date(datum.timestamp).getTime(),
@@ -311,31 +309,21 @@ export function TraceTokenCountTimeSeries({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
               syncId={"projectMetrics"}
               {...chartProps}
             >
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={70}
+                {...compactYAxisProps}
+                allowDecimals={false}
                 tickFormatter={(x) => intShortFormatter(x)}
-                label={{
-                  value: "Tokens",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                style={{ fill: "var(--global-text-color-700)" }}
               />
               <Tooltip
                 content={TooltipContent}
@@ -376,12 +364,10 @@ function TraceTokenDetailsTimeSeries({
   timeRange,
   onTimeRangeSelected,
   tokenKind,
-  fetchKey,
 }: ProjectMetricViewProps & { tokenKind: TokenDetailsKind }) {
   const { data, scale } = useTraceTokenCountTimeSeriesData({
     projectId,
     timeRange,
-    fetchKey,
   });
   const tokenTypes = Array.from(
     data.reduce((types, datum) => {
@@ -427,34 +413,21 @@ function TraceTokenDetailsTimeSeries({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
               syncId={"projectMetrics"}
               {...chartProps}
             >
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={70}
+                {...compactYAxisProps}
+                allowDecimals={false}
                 tickFormatter={(x) => intShortFormatter(x)}
-                label={{
-                  value:
-                    tokenKind === "prompt"
-                      ? "Prompt tokens"
-                      : "Completion tokens",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                style={{ fill: "var(--global-text-color-700)" }}
               />
               <Tooltip
                 content={TokenDetailsTooltipContent}

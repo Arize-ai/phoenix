@@ -26,9 +26,15 @@ import { SearchIcon } from "@phoenix/components/core/field";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 
 import type { MetricChartTableView } from "./constants";
-import { MAX_SELECTED_METRIC_CHARTS } from "./constants";
+import {
+  MAX_SELECTED_METRIC_CHARTS,
+  PROJECT_METRIC_CHART_KEYS,
+} from "./constants";
 import type { ProjectMetricChart } from "./metrics/chartCatalog";
-import { PROJECT_METRIC_CHARTS } from "./metrics/chartCatalog";
+import {
+  getProjectMetricCharts,
+  PROJECT_METRIC_CHARTS,
+} from "./metrics/chartCatalog";
 
 const chartMenuItemContentCSS = css`
   display: flex;
@@ -84,26 +90,22 @@ function ChartSelectorMenu({ view }: { view: MetricChartTableView }) {
   const setMetricChartKeys = useProjectContext(
     (state) => state.setMetricChartKeys
   );
-  const selectedCharts = PROJECT_METRIC_CHARTS.filter((chart) =>
-    selectedChartKeys.includes(chart.key)
-  );
+  const selectedCharts = getProjectMetricCharts(selectedChartKeys);
+  const selectedKeySet = new Set(selectedChartKeys);
   const unselectedCharts = PROJECT_METRIC_CHARTS.filter(
-    (chart) => !selectedChartKeys.includes(chart.key)
+    (chart) => !selectedKeySet.has(chart.key)
   );
   const isAtMax = selectedChartKeys.length >= MAX_SELECTED_METRIC_CHARTS;
   const disabledKeys = isAtMax
-    ? PROJECT_METRIC_CHARTS.map((chart) => chart.key).filter(
-        (key) => !selectedChartKeys.includes(key)
-      )
+    ? unselectedCharts.map((chart) => chart.key)
     : [];
 
   const onSelectionChange = (selection: Selection) => {
-    const catalogKeys = PROJECT_METRIC_CHARTS.map((chart) => chart.key);
     // Normalize to the catalog order so the charts display in a stable order
     const newSelectedKeys =
       selection === "all"
-        ? catalogKeys
-        : catalogKeys.filter((key) => selection.has(key));
+        ? PROJECT_METRIC_CHART_KEYS
+        : PROJECT_METRIC_CHART_KEYS.filter((key) => selection.has(key));
     setMetricChartKeys(
       view,
       newSelectedKeys.slice(0, MAX_SELECTED_METRIC_CHARTS)
@@ -141,18 +143,14 @@ function ChartSelectorMenu({ view }: { view: MetricChartTableView }) {
                 ))}
               </MenuSection>
               <Separator />
-              <MenuSection>
-                <MenuSectionTitle title="Available" />
-                {unselectedCharts.map((chart) => (
-                  <ChartMenuItem key={chart.key} chart={chart} />
-                ))}
-              </MenuSection>
             </>
           )}
-          {selectedCharts.length === 0 &&
-            unselectedCharts.map((chart) => (
+          <MenuSection>
+            <MenuSectionTitle title="Available" />
+            {unselectedCharts.map((chart) => (
               <ChartMenuItem key={chart.key} chart={chart} />
             ))}
+          </MenuSection>
         </Menu>
       </Autocomplete>
       <MenuFooter>

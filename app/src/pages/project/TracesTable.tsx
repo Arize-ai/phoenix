@@ -123,7 +123,7 @@ type NestedSpanTableRow<TSpan extends IAdditionalSpansRow> = TSpan & {
 
 const TableBody = <
   T extends TracesTable_spans$data["rootSpans"]["edges"][number]["rootSpan"] &
-    IAdditionalSpansRow
+    IAdditionalSpansRow,
 >({
   table,
 }: {
@@ -234,7 +234,6 @@ export function TracesTable(props: TracesTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { fetchKey } = useStreamState();
-  const projectId = useTracingContext((state) => state.projectId);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<TracesTableQuery, TracesTable_spans$key>(
       graphql`
@@ -1023,7 +1022,7 @@ export function TracesTable(props: TracesTableProps) {
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
 
   return (
-    <TableMetricsChartsPanelGroup projectId={projectId} view="traces">
+    <TableMetricsChartsPanelGroup view="traces">
       <div css={spansTableCSS}>
         <View
           paddingTop="size-100"

@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { graphql, useLazyLoadQuery } from "react-relay";
+import { useLazyLoadQuery } from "react-relay";
 import {
   Bar,
   BarChart,
@@ -22,49 +21,40 @@ import {
   useBinTimeTickFormatter,
   useInteractiveLegend,
   useSemanticChartColors,
-  useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { CountTimeSeriesTooltipContent } from "@phoenix/pages/project/metrics/CountTimeSeriesTooltipContent";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { intShortFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
+import type { SpanCountTimeSeriesQuery } from "./__generated__/SpanCountTimeSeriesQuery.graphql";
+import { spanCountTimeSeriesQuery } from "./SpanCountTimeSeries";
 
-export function TraceCountTimeSeries({
+/**
+ * A time series of error counts for the spans matching a filter condition,
+ * e.g. `span_kind == "LLM"`. Reuses the span count query so it shares a
+ * single request and store entry with the corresponding count chart.
+ */
+export function SpanErrorsTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-}: ProjectMetricViewProps) {
+  filterCondition,
+  emptyMessage,
+}: ProjectMetricViewProps & {
+  filterCondition: string;
+  /**
+   * Shown when there are spans but none of them errored
+   */
+  emptyMessage: string;
+}) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
-  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
-    graphql`
-      query TraceCountTimeSeriesQuery(
-        $projectId: ID!
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            traceCountByStatusTimeSeries(
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              data {
-                timestamp
-                okCount
-                errorCount
-                totalCount
-              }
-            }
-          }
-        }
-      }
-    `,
+  const data = useLazyLoadQuery<SpanCountTimeSeriesQuery>(
+    spanCountTimeSeriesQuery,
     {
       projectId,
       timeRange: {
@@ -75,25 +65,25 @@ export function TraceCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
+      filterCondition,
     },
     useMetricQueryFetchOptions()
   );
 
-  const chartData = useMemo(
-    () =>
-      (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
-        timestamp: new Date(datum.timestamp).getTime(),
-        ok: datum.okCount,
-        error: datum.errorCount,
-        total: datum.totalCount,
-      })),
-    [data.project.traceCountByStatusTimeSeries?.data]
+  const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
+    (datum) => ({
+      timestamp: new Date(datum.timestamp).getTime(),
+      error: datum.errorCount,
+      total: datum.totalCount ?? 0,
+    })
   );
-  const hasData = chartData.some((datum) => datum.total > 0);
+  const hasSpans = chartData.some((datum) => datum.total > 0);
+  // Traffic with zero errors would otherwise draw as a blank chart, so
+  // surface it as an explicit (good news) empty state
+  const hasErrors = chartData.some((datum) => (datum.error ?? 0) > 0);
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
-  const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
@@ -101,8 +91,8 @@ export function TraceCountTimeSeries({
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
         <ChartEmptyStateOverlay
-          isEmpty={!hasData}
-          message="No data in this time range"
+          isEmpty={!hasErrors}
+          message={hasSpans ? emptyMessage : "No data in this time range"}
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -120,12 +110,11 @@ export function TraceCountTimeSeries({
               <YAxis
                 {...compactYAxisProps}
                 allowDecimals={false}
-                tickFormatter={(x) => intFormatter(x)}
+                tickFormatter={(x) => intShortFormatter(x)}
               />
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <Tooltip
                 content={CountTimeSeriesTooltipContent}
-                // TODO formalize this
                 cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
               />
               <Bar
@@ -133,20 +122,14 @@ export function TraceCountTimeSeries({
                 stackId="a"
                 fill={SemanticChartColors.danger}
                 hide={isDataKeyHidden("error")}
-              />
-              <Bar
-                dataKey="ok"
-                stackId="a"
-                fill={colors.gray300}
-                hide={isDataKeyHidden("ok")}
                 radius={[2, 2, 0, 0]}
               />
 
               <InteractiveLegend
-                iconType="circle"
-                iconSize={8}
                 {...defaultLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
+                iconType="circle"
+                iconSize={8}
                 onToggleDataKey={toggleDataKey}
               />
             </BarChart>

@@ -139,7 +139,6 @@ export function SessionsTable(props: SessionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const { filterIoSubstringOrSessionId } = useSessionSearchContext();
   const { fetchKey } = useStreamState();
-  const projectId = useTracingContext((state) => state.projectId);
   const { data, loadNext, hasNext, isLoadingNext, refetch } =
     usePaginationFragment<SessionsTableQuery, SessionsTable_sessions$key>(
       graphql`
@@ -531,7 +530,7 @@ export function SessionsTable(props: SessionsTableProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getFlatHeaders, columnSizingInfo, columnSizingState, colLength]);
   return (
-    <TableMetricsChartsPanelGroup projectId={projectId} view="sessions">
+    <TableMetricsChartsPanelGroup view="sessions">
       <div css={spansTableCSS}>
         <View
           paddingTop="size-100"

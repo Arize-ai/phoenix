@@ -19,23 +19,17 @@ export const resizeHandleCSS = css`
 `;
 
 /**
- * A resize handle that is invisible at rest and only shows its indicator
- * color on hover, drag, or keyboard focus. Use where a persistent divider
- * line would add visual noise.
+ * A resize handle that is invisible at rest and on hover — the resize cursor
+ * is the only hover affordance — and only shows its indicator color while
+ * dragging or keyboard-focused. Use where a persistent divider line would add
+ * visual noise.
  */
 export const transparentResizeHandleCSS = css`
-  transition: 250ms linear all;
+  ${resizeHandleCSS};
   background-color: transparent;
-  --resize-handle-size: 3px;
-  outline: none;
-  &[aria-orientation="horizontal"] {
-    height: var(--resize-handle-size);
+  &:hover {
+    background-color: transparent;
   }
-  &[aria-orientation="vertical"] {
-    width: var(--resize-handle-size);
-  }
-
-  &:hover,
   &:active,
   &:focus-visible {
     background-color: var(--global-resize-handle-indicator-color-hover);

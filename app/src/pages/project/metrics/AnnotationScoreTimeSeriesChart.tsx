@@ -21,10 +21,11 @@ import {
   useInteractiveLegend,
 } from "@phoenix/components/chart";
 import {
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
@@ -134,28 +135,18 @@ export function AnnotationScoreTimeSeriesChart({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               syncId={"projectMetrics"}
               {...chartProps}
             >
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                width={55}
+                {...compactYAxisProps}
                 tickFormatter={(x) => formatFloat(x)}
-                label={{
-                  value: "Score",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                {...defaultYAxisProps}
               />
               <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
               <Tooltip

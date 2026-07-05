@@ -22,17 +22,21 @@ import {
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import {
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
-import { formatFloat, intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import {
+  formatFloat,
+  latencyMsFormatter,
+} from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceLatencyPercentilesTimeSeriesQuery } from "./__generated__/TraceLatencyPercentilesTimeSeriesQuery.graphql";
 
@@ -69,7 +73,6 @@ export function TraceLatencyPercentilesTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -113,7 +116,7 @@ export function TraceLatencyPercentilesTimeSeries({
         utcOffsetMinutes,
       },
     },
-    getMetricQueryFetchOptions(fetchKey)
+    useMetricQueryFetchOptions()
   );
 
   const chartData = (
@@ -146,29 +149,19 @@ export function TraceLatencyPercentilesTimeSeries({
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               syncId={"projectMetrics"}
               {...chartProps}
             >
               <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                width={70}
-                tickFormatter={(x) => intFormatter(x)}
-                label={{
-                  value: "Latency (s)",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
-                {...defaultYAxisProps}
+                {...compactYAxisProps}
+                tickFormatter={(seconds) => latencyMsFormatter(seconds * 1000)}
               />
               <Line
                 type="monotone"

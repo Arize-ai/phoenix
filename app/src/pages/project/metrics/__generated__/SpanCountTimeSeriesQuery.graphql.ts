@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44cb64f69a37281b34621ba48ea19794>>
+ * @generated SignedSource<<f1c48ba3fb381643f8c9626d9262a397>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,7 @@ export type TimeBinConfig = {
   utcOffsetMinutes?: number;
 };
 export type SpanCountTimeSeriesQuery$variables = {
+  filterCondition?: string | null;
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
@@ -45,31 +46,41 @@ const node: ConcreteRequest = (function(){
 var v0 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "projectId"
+  "name": "filterCondition"
 },
 v1 = {
   "defaultValue": null,
   "kind": "LocalArgument",
-  "name": "timeBinConfig"
+  "name": "projectId"
 },
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "timeBinConfig"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v3 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "projectId"
   }
 ],
-v4 = {
+v5 = {
   "kind": "InlineFragment",
   "selections": [
     {
       "alias": null,
       "args": [
+        {
+          "kind": "Variable",
+          "name": "filterCondition",
+          "variableName": "filterCondition"
+        },
         {
           "kind": "Variable",
           "name": "timeBinConfig",
@@ -144,7 +155,8 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -152,13 +164,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       }
@@ -169,16 +181,17 @@ return {
   "kind": "Request",
   "operation": {
     "argumentDefinitions": [
-      (v0/*: any*/),
+      (v1/*: any*/),
+      (v3/*: any*/),
       (v2/*: any*/),
-      (v1/*: any*/)
+      (v0/*: any*/)
     ],
     "kind": "Operation",
     "name": "SpanCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -191,7 +204,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v4/*: any*/),
+          (v5/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -205,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d994978599507530c97d5ad7cb4d41e2",
+    "cacheID": "aeb47b6f9a26374cc88f9bf10ecac40e",
     "id": null,
     "metadata": {},
     "name": "SpanCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query SpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "27721ac269396a6decf085fb4b3fcc66";
+(node as any).hash = "e1620f4c69b60d3e19f6082f504c91b5";
 
 export default node;

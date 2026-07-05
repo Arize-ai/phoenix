@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { useParams } from "react-router";
 
 import { Flex, useTimeRange } from "@phoenix/components";
@@ -7,7 +7,6 @@ import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 
 import { getProjectMetricChart } from "./chartCatalog";
 import { MetricPanel } from "./MetricPanel";
-import type { EpochTimeRange } from "./useClosedTimeRange";
 import { useClosedTimeRange } from "./useClosedTimeRange";
 
 /**
@@ -32,7 +31,7 @@ export function ProjectMetricsPage() {
     throw new Error("projectId is required");
   }
 
-  const epochTimeRange = useClosedTimeRange();
+  const timeRange = useClosedTimeRange();
   const { setCustomTimeRange } = useTimeRange();
 
   return (
@@ -46,7 +45,7 @@ export function ProjectMetricsPage() {
     >
       <MetricPanels
         projectId={projectId}
-        epochTimeRange={epochTimeRange}
+        timeRange={timeRange}
         onTimeRangeSelected={setCustomTimeRange}
       />
     </main>
@@ -54,20 +53,13 @@ export function ProjectMetricsPage() {
 }
 const MetricPanels = memo(function MetricPanels({
   projectId,
-  epochTimeRange,
+  timeRange,
   onTimeRangeSelected,
 }: {
   projectId: string;
-  epochTimeRange: EpochTimeRange;
+  timeRange: TimeRange;
   onTimeRangeSelected: (timeRange: TimeRange) => void;
 }) {
-  const timeRange = useMemo(
-    () => ({
-      start: new Date(epochTimeRange.start),
-      end: new Date(epochTimeRange.end),
-    }),
-    [epochTimeRange]
-  );
   return (
     <div
       css={css`

@@ -129,17 +129,26 @@ const CHART_DEFINITIONS: Record<
 };
 
 /**
- * The project metric charts in display order.
+ * The canonical chart objects, built once so repeated lookups return stable
+ * references.
  */
-export const PROJECT_METRIC_CHARTS: ProjectMetricChart[] =
-  PROJECT_METRIC_CHART_KEYS.map((key) => ({
+const CHARTS_BY_KEY = Object.fromEntries(
+  PROJECT_METRIC_CHART_KEYS.map((key) => [
     key,
-    ...CHART_DEFINITIONS[key],
-  }));
+    { key, ...CHART_DEFINITIONS[key] },
+  ])
+) as Record<ProjectMetricChartKey, ProjectMetricChart>;
 
 export const getProjectMetricChart = (
   key: ProjectMetricChartKey
-): ProjectMetricChart => ({
-  key,
-  ...CHART_DEFINITIONS[key],
-});
+): ProjectMetricChart => CHARTS_BY_KEY[key];
+
+export const getProjectMetricCharts = (
+  keys: readonly ProjectMetricChartKey[]
+): ProjectMetricChart[] => keys.map(getProjectMetricChart);
+
+/**
+ * The project metric charts in display order.
+ */
+export const PROJECT_METRIC_CHARTS: ProjectMetricChart[] =
+  getProjectMetricCharts(PROJECT_METRIC_CHART_KEYS);

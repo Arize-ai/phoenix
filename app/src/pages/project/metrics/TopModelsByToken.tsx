@@ -17,6 +17,7 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
+  compactChartMargin,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -26,7 +27,7 @@ import {
   useInteractiveLegend,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
@@ -59,7 +60,6 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function TopModelsByToken({
   projectId,
   timeRange,
-  fetchKey,
 }: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
@@ -94,7 +94,7 @@ export function TopModelsByToken({
         end: timeRange.end?.toISOString(),
       },
     },
-    getMetricQueryFetchOptions(fetchKey)
+    useMetricQueryFetchOptions()
   );
 
   const chartData = useMemo(() => {
@@ -122,7 +122,7 @@ export function TopModelsByToken({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={chartData}
-          margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+          margin={compactChartMargin}
           layout="vertical"
           barSize={10}
         >
@@ -143,6 +143,9 @@ export function TopModelsByToken({
             dataKey="model"
             type="category"
             width={120}
+            axisLine={false}
+            tickLine={false}
+            tickMargin={4}
             tickFormatter={truncateModelName}
           />
           <Bar

@@ -910,7 +910,7 @@ export function SpansTable(props: SpansTableProps) {
   return (
     <Group orientation="horizontal" id="spans-table-layout">
       <Panel>
-        <TableMetricsChartsPanelGroup projectId={projectId} view="spans">
+        <TableMetricsChartsPanelGroup view="spans">
           <div css={spansTableCSS}>
             <View
               paddingTop="size-100"

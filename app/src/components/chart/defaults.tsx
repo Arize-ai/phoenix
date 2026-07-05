@@ -44,6 +44,44 @@ export const defaultTimeXAxisProps: XAxisProps = {
   padding: { left: TIME_AXIS_EDGE_PADDING, right: TIME_AXIS_EDGE_PADDING },
 };
 
+/**
+ * Y axis for compact metric charts: the width hugs the tick labels instead of
+ * reserving a fixed gutter, and the axis/tick lines are dropped so the
+ * gridlines carry the scale. Encode the unit in the tick formatter (e.g.
+ * "$3", "1.2s", "40k") rather than in a rotated axis label — the label eats
+ * horizontal space the plot needs and restates the chart title.
+ */
+export const compactYAxisProps: YAxisProps = {
+  ...defaultYAxisProps,
+  width: "auto",
+  axisLine: false,
+  tickLine: false,
+  tickMargin: 4,
+};
+
+/**
+ * Time x axis for compact metric charts: keeps the baseline for bars to sit
+ * on but drops the tick marks and trims the reserved height.
+ */
+export const compactTimeXAxisProps: XAxisProps = {
+  ...defaultTimeXAxisProps,
+  tickLine: false,
+  tickMargin: 6,
+  height: 24,
+};
+
+/**
+ * Margin for compact metric charts: headroom above the tallest mark, right
+ * margin so the final x tick label doesn't clip against the panel edge. The
+ * left gutter comes entirely from the y axis' auto width.
+ */
+export const compactChartMargin = {
+  top: 4,
+  right: 18,
+  left: 0,
+  bottom: 0,
+};
+
 export const defaultSelectedTimestampReferenceLineProps = {
   stroke: "var(--global-color-gray-900)",
 };

@@ -14,10 +14,11 @@ import {
   ChartEmptyStateOverlay,
   InteractiveLegend,
   TimeRangeChartBrush,
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
   useBinTimeTickFormatter,
   useInteractiveLegend,
   useSemanticChartColors,
@@ -27,48 +28,60 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { CountTimeSeriesTooltipContent } from "@phoenix/pages/project/metrics/CountTimeSeriesTooltipContent";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import { intShortFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { SpanCountTimeSeriesQuery } from "./__generated__/SpanCountTimeSeriesQuery.graphql";
 
 /**
- * A time series of all span counts in the project, broken down by status.
+ * Shared with SpanErrorsTimeSeries so a count chart and its errors chart
+ * issue one identical query that Relay can dedupe and serve from the store.
+ */
+export const spanCountTimeSeriesQuery = graphql`
+  query SpanCountTimeSeriesQuery(
+    $projectId: ID!
+    $timeRange: TimeRange!
+    $timeBinConfig: TimeBinConfig!
+    $filterCondition: String
+  ) {
+    project: node(id: $projectId) {
+      ... on Project {
+        spanCountTimeSeries(
+          timeRange: $timeRange
+          timeBinConfig: $timeBinConfig
+          filterCondition: $filterCondition
+        ) {
+          data {
+            timestamp
+            okCount
+            errorCount
+            unsetCount
+            totalCount
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * A time series of span counts in the project, broken down by status.
+ * Optionally scoped to the spans matching a filter condition, e.g.
+ * `span_kind == "LLM"`.
  */
 export function SpanCountTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-  fetchKey,
-}: ProjectMetricViewProps) {
+  filterCondition = null,
+}: ProjectMetricViewProps & {
+  filterCondition?: string | null;
+}) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
   const data = useLazyLoadQuery<SpanCountTimeSeriesQuery>(
-    graphql`
-      query SpanCountTimeSeriesQuery(
-        $projectId: ID!
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            spanCountTimeSeries(
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              data {
-                timestamp
-                okCount
-                errorCount
-                unsetCount
-                totalCount
-              }
-            }
-          }
-        }
-      }
-    `,
+    spanCountTimeSeriesQuery,
     {
       projectId,
       timeRange: {
@@ -79,8 +92,9 @@ export function SpanCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
+      filterCondition,
     },
-    getMetricQueryFetchOptions(fetchKey)
+    useMetricQueryFetchOptions()
   );
 
   const chartData = useMemo(
@@ -112,29 +126,20 @@ export function SpanCountTimeSeries({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
               syncId={"projectMetrics"}
               {...chartProps}
             >
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={55}
+                {...compactYAxisProps}
+                allowDecimals={false}
                 tickFormatter={(x) => intShortFormatter(x)}
-                label={{
-                  value: "Count",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
               />
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <Tooltip

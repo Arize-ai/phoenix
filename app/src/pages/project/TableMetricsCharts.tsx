@@ -1,20 +1,30 @@
-import type { ReactNode } from "react";
-import { Group, Panel, Separator } from "react-resizable-panels";
 import { css } from "@emotion/react";
+import { memo, type ReactNode } from "react";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
 
 import { useTimeRange, View } from "@phoenix/components";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { MetricChartTableView } from "./constants";
-import { PROJECT_METRIC_CHARTS } from "./metrics/chartCatalog";
+import { getProjectMetricCharts } from "./metrics/chartCatalog";
 import { MetricPanel } from "./metrics/MetricPanel";
+import { MetricFetchKeyProvider } from "./metrics/types";
 import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 
 const CHARTS_PANEL_DEFAULT_SIZE_PIXELS = 230;
 const CHARTS_PANEL_MIN_SIZE_PIXELS = 160;
 const CHARTS_PANEL_MAX_SIZE = "60%";
+
+const PANEL_IDS_WITH_CHARTS = ["metrics-charts", "table-content"];
+const PANEL_IDS_WITHOUT_CHARTS = ["table-content"];
 
 /**
  * Pull the following panel up by the handle's height so the handle adds no
@@ -43,13 +53,12 @@ const chartsGridCSS = css`
  * support drag-to-select time range zooming. The selection is persisted per
  * project and per table view.
  */
-export function TableMetricsCharts({
-  projectId,
+const TableMetricsCharts = memo(function TableMetricsCharts({
   view,
 }: {
-  projectId: string;
   view: MetricChartTableView;
 }) {
+  const projectId = useTracingContext((state) => state.projectId);
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
   );
@@ -57,17 +66,8 @@ export function TableMetricsCharts({
   const { fetchKey } = useStreamState();
   // Re-close the time range on each stream refresh so live, open-ended
   // ranges extend to include newly streamed data
-  const epochTimeRange = useClosedTimeRange({ refreshKey: fetchKey });
-  const charts = PROJECT_METRIC_CHARTS.filter((chart) =>
-    selectedChartKeys.includes(chart.key)
-  );
-  if (charts.length === 0) {
-    return null;
-  }
-  const timeRange = {
-    start: new Date(epochTimeRange.start),
-    end: new Date(epochTimeRange.end),
-  };
+  const timeRange = useClosedTimeRange({ refreshKey: fetchKey });
+  const charts = getProjectMetricCharts(selectedChartKeys);
   return (
     <View
       paddingStart="size-200"
@@ -79,25 +79,27 @@ export function TableMetricsCharts({
       zIndex={2}
     >
       <div css={chartsGridCSS}>
-        {charts.map(({ key, name, description, Component }) => (
-          <MetricPanel
-            key={key}
-            title={name}
-            subtitle={description}
-            chartHeight="fill"
-          >
-            <Component
-              projectId={projectId}
-              timeRange={timeRange}
-              onTimeRangeSelected={setCustomTimeRange}
-              fetchKey={fetchKey}
-            />
-          </MetricPanel>
-        ))}
+        {/* Re-fetch the charts on each stream refresh so they stay live */}
+        <MetricFetchKeyProvider value={fetchKey}>
+          {charts.map(({ key, name, description, Component }) => (
+            <MetricPanel
+              key={key}
+              title={name}
+              subtitle={description}
+              fillHeight
+            >
+              <Component
+                projectId={projectId}
+                timeRange={timeRange}
+                onTimeRangeSelected={setCustomTimeRange}
+              />
+            </MetricPanel>
+          ))}
+        </MetricFetchKeyProvider>
       </div>
     </View>
   );
-}
+});
 
 /**
  * Lays out the metric charts strip above a table in a vertically resizable
@@ -107,22 +109,32 @@ export function TableMetricsCharts({
  * and handle are not rendered and the table content fills the space.
  */
 export function TableMetricsChartsPanelGroup({
-  projectId,
   view,
   children,
 }: {
-  projectId: string;
   view: MetricChartTableView;
   children: ReactNode;
 }) {
-  const selectedChartKeys = useProjectContext(
-    (state) => state.metricChartKeys[view]
+  // The store guarantees keys are valid catalog keys, so any selection means
+  // there are charts to show
+  const hasCharts = useProjectContext(
+    (state) => state.metricChartKeys[view].length > 0
   );
-  const hasCharts = PROJECT_METRIC_CHARTS.some((chart) =>
-    selectedChartKeys.includes(chart.key)
-  );
+  // Persist the layout so the charts strip keeps its height across reloads
+  // and remounts (e.g. table refetches) instead of resetting to the default
+  const layoutId = `${view}-table-metrics-layout`;
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: layoutId,
+    panelIds: hasCharts ? PANEL_IDS_WITH_CHARTS : PANEL_IDS_WITHOUT_CHARTS,
+    storage: localStorage,
+  });
   return (
-    <Group orientation="vertical" id={`${view}-table-metrics-layout`}>
+    <Group
+      orientation="vertical"
+      id={layoutId}
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+    >
       {hasCharts && (
         <>
           <Panel
@@ -133,9 +145,11 @@ export function TableMetricsChartsPanelGroup({
             groupResizeBehavior="preserve-pixel-size"
             style={{ overflow: "visible" }}
           >
-            <TableMetricsCharts projectId={projectId} view={view} />
+            <TableMetricsCharts view={view} />
           </Panel>
-          <Separator css={[transparentResizeHandleCSS, chartsResizeHandleCSS]} />
+          <Separator
+            css={[transparentResizeHandleCSS, chartsResizeHandleCSS]}
+          />
         </>
       )}
       <Panel id="table-content">{children}</Panel>

@@ -17,10 +17,11 @@ import {
   ChartTooltipItem,
   InteractiveLegend,
   TimeRangeChartBrush,
+  compactChartMargin,
+  compactTimeXAxisProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultTimeXAxisProps,
-  defaultYAxisProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
@@ -29,7 +30,7 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { getMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
 import {
   costFormatter,
   floatShortFormatter,
@@ -70,7 +71,6 @@ export function TraceTokenCostTimeSeries({
   projectId,
   timeRange,
   onTimeRangeSelected,
-  fetchKey,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -110,7 +110,7 @@ export function TraceTokenCostTimeSeries({
         utcOffsetMinutes,
       },
     },
-    getMetricQueryFetchOptions(fetchKey)
+    useMetricQueryFetchOptions()
   );
 
   const chartData = (data.project.traceTokenCostTimeSeries?.data ?? []).map(
@@ -143,30 +143,20 @@ export function TraceTokenCostTimeSeries({
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
-              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              margin={compactChartMargin}
               barSize={10}
               syncId={"projectMetrics"}
               {...chartProps}
             >
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <XAxis
-                {...defaultTimeXAxisProps}
+                {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
               />
               <YAxis
-                {...defaultYAxisProps}
-                width={70}
-                tickFormatter={(x) => floatShortFormatter(x)}
-                label={{
-                  value: "Cost (USD)",
-                  angle: -90,
-                  dx: -28,
-                  style: {
-                    textAnchor: "middle",
-                    fill: "var(--chart-axis-label-color)",
-                  },
-                }}
+                {...compactYAxisProps}
+                tickFormatter={(x) => `$${floatShortFormatter(x)}`}
               />
               <Tooltip
                 content={TooltipContent}
