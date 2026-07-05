@@ -67,19 +67,15 @@ export function TraceTreeToolbar() {
         }
         .trace-tree-toolbar__search .react-aria-Input {
           min-width: 0;
-          padding-left: 0 !important;
-          padding-right: var(--global-dimension-size-300) !important;
+          padding-left: var(--global-dimension-static-size-200) !important;
+          padding-right: var(--global-dimension-static-size-300) !important;
           color: var(--global-text-color-900);
-          font-size: var(--global-font-size-m);
-          line-height: var(--global-line-height-m);
+          font-size: var(--global-font-size-s);
+          line-height: var(--global-line-height-s);
         }
         .trace-tree-toolbar__search .react-aria-Input::placeholder {
           color: var(--global-text-color-700);
           font-style: normal;
-        }
-        .trace-tree-toolbar__search .search-field:focus-within {
-          background-color: var(--global-color-gray-100);
-          border-radius: var(--global-rounding-small);
         }
       `}
     >

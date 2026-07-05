@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import { DisclosureArrow, Empty, Flex } from "@phoenix/components";
+import { DisclosureArrow, Empty, Flex, Text } from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -66,8 +66,16 @@ export function TraceTree(props: TraceTreeProps) {
         data-testid="trace-tree"
       >
         {noSearchResults ? (
-          <li aria-live="polite">
-            <Empty message={`No spans match "${searchQuery}"`} size="S" />
+          <li
+            aria-live="polite"
+            css={css`
+              padding: var(--global-dimension-static-size-100)
+                var(--global-dimension-static-size-300);
+            `}
+          >
+            <Text color="text-700" size="XS">
+              {`No spans match "${searchQuery}"`}
+            </Text>
           </li>
         ) : null}
         {!rootSpan ? (
