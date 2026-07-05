@@ -20,6 +20,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model as PydanticAIModel
+from pydantic_ai.settings import ModelSettings
 
 from phoenix.config import (
     get_env_allow_external_resources,
@@ -52,6 +53,7 @@ from phoenix.server.agents.types import AgentDependencies, AgentOutput
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
 DEFAULT_PROJECT_NODE_ID = "UHJvamVjdDox"
+DEFAULT_MODEL_SETTINGS = ModelSettings(temperature=0.0)
 ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
@@ -578,6 +580,7 @@ async def run_pxi_example(
             user_prompt,
             deps=_build_dependencies(input),
             message_history=resolved_message_history,
+            model_settings=DEFAULT_MODEL_SETTINGS,
         )
         latency_ms = round((monotonic() - started_at) * 1000)
         output = agent_task_output(

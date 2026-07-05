@@ -395,3 +395,37 @@ class TestAgentTaskOutput:
             "cache_write_tokens": 0,
         }
         assert output["latency_ms"] == 0
+
+    @pytest.mark.asyncio
+    async def test_run_uses_deterministic_model_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured: dict[str, object] = {}
+
+        async def build_model() -> object:
+            return object()
+
+        class FakeAgent:
+            async def run(self, *args: object, **kwargs: object) -> _FakeResult:
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                result = _FakeResult()
+                result.usage = SimpleNamespace(
+                    input_tokens=1,
+                    output_tokens=2,
+                    cache_read_tokens=3,
+                    cache_write_tokens=4,
+                )
+                return result
+
+        def build_agent(**_: object) -> FakeAgent:
+            return FakeAgent()
+
+        monkeypatch.setattr("evals.pxi.harness.agent_task._build_model", build_model)
+        monkeypatch.setattr("evals.pxi.harness.agent_task.build_agent", build_agent)
+
+        output = await run_pxi_example({"messages": [{"role": "user", "content": "hi"}]})
+
+        assert output["assistant_text"] == "assistant text from message"
+        model_settings = captured["kwargs"]["model_settings"]  # type: ignore[index]
+        assert model_settings == {"temperature": 0.0}
