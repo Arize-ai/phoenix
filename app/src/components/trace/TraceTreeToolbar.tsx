@@ -67,7 +67,7 @@ export function TraceTreeToolbar() {
         }
         .trace-tree-toolbar__search .react-aria-Input {
           min-width: 0;
-          padding-left: var(--global-dimension-static-size-200) !important;
+          padding-left: var(--global-dimension-static-size-100) !important;
           padding-right: var(--global-dimension-static-size-300) !important;
           color: var(--global-text-color-900);
           font-size: var(--global-font-size-s);
