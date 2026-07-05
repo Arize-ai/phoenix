@@ -69,6 +69,32 @@ def test_summarize_report_dir_extracts_cells(tmp_path: Path) -> None:
     assert summary["cells"][1]["policy"] == "p2"
 
 
+def test_summarize_report_dir_prefers_nested_reports_for_duplicate_cells(
+    tmp_path: Path,
+) -> None:
+    nested_dir = tmp_path / "context-pruning-main-context_pruning_type_a_5k-p0"
+    nested_dir.mkdir()
+    _write_report(
+        tmp_path,
+        dataset="context_pruning_type_a_5k",
+        experiment_name="context-pruning-main-context_pruning_type_a_5k-p0",
+        passed=1,
+        total=40,
+    )
+    _write_report(
+        nested_dir,
+        dataset="context_pruning_type_a_5k",
+        experiment_name="context-pruning-main-context_pruning_type_a_5k-p0",
+        passed=39,
+        total=40,
+    )
+
+    summary = summarize_report_dir(tmp_path)
+
+    assert summary["cell_count"] == 1
+    assert summary["cells"][0]["examples_passed"] == 39
+
+
 def test_write_markdown_renders_summary(tmp_path: Path) -> None:
     summary = {
         "cell_count": 1,

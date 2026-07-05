@@ -39,10 +39,15 @@ def _cell_from_report(path: Path) -> dict[str, Any]:
 
 
 def summarize_report_dir(report_dir: Path) -> dict[str, Any]:
-    cells = [
-        _cell_from_report(path)
-        for path in sorted(report_dir.rglob("context_pruning_type_*.report.json"))
-    ]
+    cells_by_key: dict[tuple[str, str], tuple[bool, dict[str, Any]]] = {}
+    for path in sorted(report_dir.rglob("context_pruning_type_*.report.json")):
+        cell = _cell_from_report(path)
+        key = (cell["dataset"], cell["policy"])
+        is_nested = path.parent != report_dir
+        previous = cells_by_key.get(key)
+        if previous is None or (is_nested and not previous[0]):
+            cells_by_key[key] = (is_nested, cell)
+    cells = [cell for _, cell in cells_by_key.values()]
     return {"cells": cells, "cell_count": len(cells)}
 
 
