@@ -2,7 +2,14 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import { DisclosureArrow, Empty, Flex, Text } from "@phoenix/components";
+import {
+  DisclosureArrow,
+  Empty,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -66,16 +73,8 @@ export function TraceTree(props: TraceTreeProps) {
         data-testid="trace-tree"
       >
         {noSearchResults ? (
-          <li
-            aria-live="polite"
-            css={css`
-              padding: var(--global-dimension-static-size-100)
-                var(--global-dimension-static-size-300);
-            `}
-          >
-            <Text color="text-700" size="XS">
-              {`No spans match "${searchQuery}"`}
-            </Text>
+          <li aria-live="polite">
+            <TraceTreeSearchEmpty searchQuery={searchQuery} />
           </li>
         ) : null}
         {!rootSpan ? (
@@ -94,6 +93,39 @@ export function TraceTree(props: TraceTreeProps) {
           />
         ))}
       </ul>
+    </div>
+  );
+}
+
+function TraceTreeSearchEmpty({ searchQuery }: { searchQuery: string }) {
+  return (
+    <div
+      className="trace-tree-search-empty"
+      css={css`
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-static-size-300)
+          var(--global-dimension-static-size-200);
+        color: var(--global-text-color-700);
+        text-align: center;
+
+        .icon-wrap {
+          font-size: var(--global-font-size-l);
+          color: var(--global-text-color-500);
+        }
+
+        .text {
+          max-width: 180px;
+          text-wrap: balance;
+        }
+      `}
+    >
+      <Icon svg={<Icons.Trace />} />
+      <Text color="inherit" size="XS">
+        {`No spans match "${searchQuery}"`}
+      </Text>
     </div>
   );
 }
