@@ -38,7 +38,12 @@ def test_gate_commands_use_report_dir_and_policy_flag(tmp_path: Path) -> None:
 
     assert len(commands) == 6
     assert "--policy" not in commands[0]
-    assert commands[1][-4:] == ["--policy", "p2", "--report-dir", str(tmp_path)]
+    assert commands[1][-4:] == [
+        "--policy",
+        "p2",
+        "--report-dir",
+        str(tmp_path / "context-pruning-gate-type_a_zero-p2"),
+    ]
 
 
 def test_pass_rate_from_failure_report_json(tmp_path: Path) -> None:
