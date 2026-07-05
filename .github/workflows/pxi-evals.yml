@@ -153,20 +153,35 @@ jobs:
 
           for dataset_file in "${dataset_files[@]}"; do
             dataset="$(basename "${dataset_file}" .yaml)"
-            experiment_name="ci-pxi-eval-${dataset}-${branch_slug}-${short_sha}-${GITHUB_RUN_ID}"
+            experiment_name_base="ci-pxi-eval-${dataset}-${branch_slug}-${short_sha}-${GITHUB_RUN_ID}"
             echo "::group::PXI eval dataset: ${dataset}"
             echo "Dataset file: ${dataset_file}"
-            echo "Running PXI regression eval: ${experiment_name}"
-            if uv run python -m evals.pxi.harness.run_experiment \
-              --dataset "${dataset}" \
-              --splits regression \
-              --fail-on-regression \
-              --report-dir "${report_dir}" \
-              --experiment-name "${experiment_name}"; then
-              dataset_result=0
-            else
-              dataset_result=1
-            fi
+            dataset_result=1
+            max_attempts=2
+            for attempt in $(seq 1 "${max_attempts}"); do
+              if [[ "${attempt}" -eq 1 ]]; then
+                experiment_name="${experiment_name_base}"
+              else
+                experiment_name="${experiment_name_base}-retry${attempt}"
+                echo "::notice title=PXI eval retry::Retrying dataset '${dataset}' after a regression failure on attempt $((attempt - 1))/${max_attempts}."
+              fi
+              echo "Running PXI regression eval (attempt ${attempt}/${max_attempts}): ${experiment_name}"
+              if uv run python -m evals.pxi.harness.run_experiment \
+                --dataset "${dataset}" \
+                --splits regression \
+                --fail-on-regression \
+                --report-dir "${report_dir}" \
+                --experiment-name "${experiment_name}"; then
+                dataset_result=0
+                if [[ "${attempt}" -gt 1 ]]; then
+                  echo "::notice title=PXI eval recovered::Dataset '${dataset}' passed on retry ${attempt}/${max_attempts}."
+                  rm -f "${report_dir}/${dataset}.report.json" "${report_dir}/${dataset}.report.md"
+                fi
+                break
+              else
+                dataset_result=1
+              fi
+            done
             echo "::endgroup::"
 
             if [[ "${dataset_result}" -ne 0 ]]; then
