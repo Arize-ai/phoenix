@@ -19,6 +19,7 @@ import {
   InteractiveLegend,
   compactChartMargin,
   defaultCartesianGridProps,
+  defaultTooltipProps,
   compactLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
@@ -125,10 +126,7 @@ export function TopModelsByCost({
           barSize={10}
         >
           <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-          <Tooltip
-            content={TooltipContent}
-            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-          />
+          <Tooltip content={TooltipContent} {...defaultTooltipProps} />
           <XAxis
             {...defaultXAxisProps}
             type="number"

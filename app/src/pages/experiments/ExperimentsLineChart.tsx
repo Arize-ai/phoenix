@@ -23,7 +23,11 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
+  defaultCartesianGridProps,
   defaultLegendProps,
+  defaultTooltipProps,
+  defaultXAxisProps,
+  defaultYAxisProps,
   useInteractiveLegend,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -215,43 +219,34 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
               <stop offset="95%" stopColor={gray300} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid
-            strokeDasharray="4 4"
-            stroke="var(--global-color-gray-500)"
-            strokeOpacity={0.5}
-          />
-          <XAxis
-            dataKey="iteration"
-            tick={{ fontSize: 12, fill: "var(--global-text-color-700)" }}
-          />
+          <CartesianGrid {...defaultCartesianGridProps} />
+          <XAxis {...defaultXAxisProps} dataKey="iteration" />
           <YAxis
-            stroke="var(--global-color-gray-500)"
+            {...defaultYAxisProps}
             label={{
               value: "Score",
               angle: -90,
               position: "insideLeft",
               style: {
                 textAnchor: "middle",
-                fill: "var(--global-text-color-900)",
+                fill: "var(--chart-axis-label-color)",
               },
             }}
-            style={{ fill: "var(--global-text-color-700)" }}
             domain={yDomain}
           />
           <YAxis
+            {...defaultYAxisProps}
             yAxisId="right"
             orientation="right"
-            stroke="var(--global-color-gray-500)"
             label={{
               value: "avg latency",
               angle: 90,
               position: "insideRight",
               style: {
                 textAnchor: "middle",
-                fill: "var(--global-text-color-900)",
+                fill: "var(--chart-axis-label-color)",
               },
             }}
-            style={{ fill: "var(--global-text-color-700)" }}
             tickFormatter={latencyFormatter}
           />
 
@@ -282,7 +277,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
             iconSize={8}
             onToggleDataKey={toggleDataKey}
           />
-          <Tooltip content={TooltipContent} />
+          <Tooltip {...defaultTooltipProps} content={TooltipContent} />
         </ComposedChart>
       </ResponsiveContainer>
     </ChartEmptyStateOverlay>

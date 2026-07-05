@@ -21,6 +21,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
+  defaultTooltipProps,
   compactLegendProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
@@ -161,7 +162,7 @@ export function TraceTokenCostTimeSeries({
               <Tooltip
                 content={TooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               <Bar
                 dataKey="prompt"

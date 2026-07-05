@@ -26,6 +26,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
+  defaultTooltipProps,
   compactLegendProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -240,10 +241,7 @@ export function TraceLatencyPercentilesTimeSeries({
                 iconSize={8}
                 onToggleDataKey={toggleDataKey}
               />
-              <Tooltip
-                content={TooltipContent}
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-              />
+              <Tooltip content={TooltipContent} {...defaultTooltipProps} />
             </ComposedChart>
           </ResponsiveContainer>
         </ChartEmptyStateOverlay>

@@ -18,6 +18,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
+  defaultTooltipProps,
   compactLegendProps,
   useBinTimeTickFormatter,
   useInteractiveLegend,
@@ -144,7 +145,7 @@ export function SpanCountTimeSeries({
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <Tooltip
                 content={CountTimeSeriesTooltipContent}
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               <Bar
                 dataKey="error"

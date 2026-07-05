@@ -25,6 +25,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
+  defaultTooltipProps,
   compactLegendProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -149,10 +150,7 @@ export function AnnotationScoreTimeSeriesChart({
                 tickFormatter={(x) => formatFloat(x)}
               />
               <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-              <Tooltip
-                content={TooltipContent}
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-              />
+              <Tooltip content={TooltipContent} {...defaultTooltipProps} />
 
               {names.map((name) => {
                 return (

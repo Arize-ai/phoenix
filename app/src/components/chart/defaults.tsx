@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type {
   CartesianGridProps,
   LabelProps,
@@ -8,20 +7,33 @@ import type {
   YAxisProps,
 } from "recharts";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
-
 export const defaultCartesianGridProps: CartesianGridProps = {
   stroke: "var(--chart-cartesian-grid-stroke-color)",
 };
 
+/**
+ * Chart axis text is uniformly one step below the body size so the data and
+ * panel titles stay dominant. Set as an explicit pixel value (not a CSS var)
+ * because Recharts measures tick labels for the y axis' `width: "auto"`
+ * off-tree, where inherited styles and CSS vars don't apply — the measured
+ * and rendered sizes must come from the same literal.
+ */
+const CHART_AXIS_FONT_SIZE = "12px";
+
 export const defaultXAxisProps: XAxisProps = {
   stroke: "var(--chart-axis-stroke-color)",
-  style: { fill: "var(--chart-axis-text-color)" },
+  style: {
+    fill: "var(--chart-axis-text-color)",
+    fontSize: CHART_AXIS_FONT_SIZE,
+  },
 };
 
 export const defaultYAxisProps: YAxisProps = {
   stroke: "var(--chart-axis-stroke-color)",
-  style: { fill: "var(--chart-axis-text-color)" },
+  style: {
+    fill: "var(--chart-axis-text-color)",
+    fontSize: CHART_AXIS_FONT_SIZE,
+  },
 };
 
 const TIME_AXIS_EDGE_PADDING = 8;
@@ -44,15 +56,6 @@ export const defaultTimeXAxisProps: XAxisProps = {
 };
 
 /**
- * Compact charts drop axis text to the XS size so the panel title stays the
- * dominant text and the plot gets the space. Set as an explicit pixel value
- * (not a CSS var) because Recharts measures tick labels for the y axis'
- * `width: "auto"` off-tree, where inherited styles and CSS vars don't apply —
- * the measured and rendered sizes must come from the same literal.
- */
-const COMPACT_AXIS_FONT_SIZE = "12px";
-
-/**
  * Y axis for compact metric charts: the width hugs the tick labels instead of
  * reserving a fixed gutter, and the axis/tick lines are dropped so the
  * gridlines carry the scale. Encode the unit in the tick formatter (e.g.
@@ -65,10 +68,6 @@ export const compactYAxisProps: YAxisProps = {
   axisLine: false,
   tickLine: false,
   tickMargin: 2,
-  style: {
-    fill: "var(--chart-axis-text-color)",
-    fontSize: COMPACT_AXIS_FONT_SIZE,
-  },
 };
 
 /**
@@ -80,10 +79,6 @@ export const compactTimeXAxisProps: XAxisProps = {
   tickLine: false,
   tickMargin: 4,
   height: 18,
-  style: {
-    fill: "var(--chart-axis-text-color)",
-    fontSize: COMPACT_AXIS_FONT_SIZE,
-  },
 };
 
 /**
@@ -114,15 +109,14 @@ export const defaultSelectedTimestampReferenceLineLabelProps: LabelProps = {
   },
 };
 
+/**
+ * Shared hover cursor so every chart highlights the hovered bin the same way.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
+export const defaultTooltipProps: TooltipProps<any, any> = {
   cursor: {
-    fill: "var(--global-color-gray-300)",
+    fill: "var(--chart-tooltip-cursor-fill-color)",
   },
-};
-
-export const defaultChartTooltipWrapperStyle: CSSProperties = {
-  zIndex: NON_MODAL_FLOATING_Z_INDEX,
 };
 
 export const defaultLegendProps: LegendProps = {

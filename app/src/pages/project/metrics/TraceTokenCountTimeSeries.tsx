@@ -21,6 +21,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
+  defaultTooltipProps,
   compactLegendProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
@@ -328,7 +329,7 @@ export function TraceTokenCountTimeSeries({
               <Tooltip
                 content={TooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               <Bar
                 dataKey="prompt"
@@ -432,7 +433,7 @@ function TraceTokenDetailsTimeSeries({
               <Tooltip
                 content={TokenDetailsTooltipContent}
                 // TODO formalize this
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                {...defaultTooltipProps}
               />
               {tokenTypes.map((tokenType, index) => {
                 const dataKey = getTokenDetailDataKey(tokenType);
