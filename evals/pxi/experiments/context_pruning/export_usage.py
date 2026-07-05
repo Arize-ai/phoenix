@@ -107,8 +107,8 @@ def export_usage(db_path: Path, *, experiment_prefix: str) -> dict[str, Any]:
         experiment["successful_runs"] += 1
         output = _task_output(row["output"])
         usage = usage_from_output(output)
-        for key, value in usage.items():
-            experiment["usage"][key] += value
+        for usage_key, value in usage.items():
+            experiment["usage"][usage_key] += value
         latency = output.get("latency_ms")
         if isinstance(latency, int):
             experiment["latencies_ms"].append(latency)
@@ -123,8 +123,8 @@ def export_usage(db_path: Path, *, experiment_prefix: str) -> dict[str, Any]:
         task_type, depth = match.groups()
         experiment["task_type"] = task_type
         experiment["depth"] = depth
-        key = _cell_key(experiment)
-        selected[key] = _prefer_candidate(selected.get(key), experiment)
+        cell_key = _cell_key(experiment)
+        selected[cell_key] = _prefer_candidate(selected.get(cell_key), experiment)
 
     cells = []
     for cell in sorted(selected.values(), key=lambda c: (c["task_type"], c["depth"], c["policy"])):
