@@ -27,10 +27,11 @@ const menuCSS = css`
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--global-menu-item-gap);
+  /* The menu container itself takes focus when opened before focus moves to an
+     item. Suppress the container-level focus ring — keyboard focus is already
+     indicated on the focused item — so the whole menu doesn't get outlined. */
   &:focus-visible {
-    border-radius: var(--global-rounding-small);
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 0px;
+    outline: none;
   }
   &[data-empty] {
     align-items: center;
@@ -101,6 +102,7 @@ const menuItemCss = css`
   outline: none;
   cursor: default;
   color: var(--global-text-color-900);
+  text-decoration: none;
   position: relative;
   display: flex;
 
@@ -220,7 +222,7 @@ const MenuItemContent = ({
       `}
     >
       {leadingContent ? (
-        <Flex alignItems="center" gap="var(--global-menu-item-gap)">
+        <Flex alignItems="center" gap="static-size-100">
           {leadingContent} {children}
         </Flex>
       ) : (

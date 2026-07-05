@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useRef } from "react";
+import { Suspense, useRef } from "react";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
@@ -11,30 +11,25 @@ import {
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
 import {
+  AccountMenu,
   Brand,
-  DocsLink,
   GitHubLink,
-  ManagementLink,
   NavBreadcrumb,
-  NavButton,
   NavLink,
   NavTitle,
   SideNavbar,
   SideNavToggleButton,
-  ThemeSelector,
   TopNavActionsProvider,
   TopNavActionsSlot,
   TopNavbar,
   VersionUpdateNotice,
 } from "@phoenix/components/nav";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
   useHasOpenDrawer,
   useHasOpenModal,
 } from "@phoenix/hooks/useHasOpenModal";
-import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { LayoutLoaderData } from "./layoutLoader";
 
@@ -161,10 +156,6 @@ function SideNav() {
     (state) => state.isSideNavExpanded
   );
   const loaderData = useLoaderData<LayoutLoaderData>();
-  const { authenticationEnabled } = useFunctionality();
-  const onLogout = useCallback(() => {
-    window.location.replace(prependBasename("/auth/logout"));
-  }, []);
   return (
     <SideNavbar isExpanded={isSideNavExpanded}>
       <Brand />
@@ -264,46 +255,13 @@ function SideNav() {
             <NavLink
               to="/settings/general"
               text="Settings"
-              leadingVisual={<Icon svg={<Icons.Settings />} />}
+              leadingVisual={<Icon svg={<Icons.Options />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>
-          <li key="docs">
-            <DocsLink isExpanded={isSideNavExpanded} />
+          <li key="account">
+            <AccountMenu isExpanded={isSideNavExpanded} />
           </li>
-          <li key="support">
-            <NavLink
-              to="/support"
-              text="Support"
-              leadingVisual={<Icon svg={<Icons.LifeBuoy />} />}
-              isExpanded={isSideNavExpanded}
-            />
-          </li>
-          <li key="theme-toggle">
-            <ThemeSelector isExpanded={isSideNavExpanded} />
-          </li>
-          <li key="profile">
-            <NavLink
-              to="/profile"
-              text="Profile"
-              leadingVisual={<Icon svg={<Icons.Person />} />}
-              isExpanded={isSideNavExpanded}
-            />
-          </li>
-          {authenticationEnabled && (
-            <>
-              <Suspense>
-                <ManagementLink isExpanded={isSideNavExpanded} />
-              </Suspense>
-              <li key="logout">
-                <NavButton
-                  text="Log Out"
-                  leadingVisual={<Icon svg={<Icons.LogOut />} />}
-                  onClick={onLogout}
-                />
-              </li>
-            </>
-          )}
         </ul>
       </Flex>
     </SideNavbar>

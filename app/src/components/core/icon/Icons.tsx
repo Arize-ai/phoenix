@@ -443,6 +443,25 @@ export const ArrowUpRightCorner = () => (
   </svg>
 );
 
+// @src: lucide
+export const CircleUserRound = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path fill="none" d="M17.925 20.056a6 6 0 0 0-11.851.001" />
+    <circle fill="none" cx="12" cy="11" r="4" />
+    <circle fill="none" cx="12" cy="12" r="10" />
+  </svg>
+);
+
 export const Code = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     <g data-name="Layer 2">
