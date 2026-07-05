@@ -64,3 +64,43 @@ export function createSpanTree<TSpan extends ISpanItem>(
   );
   return rootSpans;
 }
+
+function spanMatchesSearchQuery(span: ISpanItem, normalizedQuery: string) {
+  return [span.name, span.spanKind, span.statusCode, span.id, span.spanId].some(
+    (value) => value.toLowerCase().includes(normalizedQuery)
+  );
+}
+
+function filterSpanTreeNode<TSpan extends ISpanItem>(
+  node: SpanTreeNode<TSpan>,
+  normalizedQuery: string
+): SpanTreeNode<TSpan> | null {
+  const children = node.children.flatMap((childNode) => {
+    const filteredChildNode = filterSpanTreeNode(childNode, normalizedQuery);
+    return filteredChildNode ? [filteredChildNode] : [];
+  });
+  if (spanMatchesSearchQuery(node.span, normalizedQuery) || children.length) {
+    return {
+      span: node.span,
+      children,
+    };
+  }
+  return null;
+}
+
+/**
+ * Filter a span tree to matching spans while preserving ancestor context.
+ */
+export function filterSpanTree<TSpan extends ISpanItem>(
+  spanTree: SpanTreeNode<TSpan>[],
+  searchQuery: string
+): SpanTreeNode<TSpan>[] {
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return spanTree;
+  }
+  return spanTree.flatMap((node) => {
+    const filteredNode = filterSpanTreeNode(node, normalizedQuery);
+    return filteredNode ? [filteredNode] : [];
+  });
+}
