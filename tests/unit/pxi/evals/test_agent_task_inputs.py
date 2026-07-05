@@ -312,8 +312,10 @@ class TestMaterializeMessages:
 
 class _FakeResult:
     output = "fallback assistant text"
+    usage: object | None
 
     def __init__(self) -> None:
+        self.usage = None
         self._messages = [
             {
                 "parts": [
