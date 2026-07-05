@@ -295,14 +295,25 @@ def _apply_oracle_policy(
 ) -> list[ModelMessage]:
     first_user_index = _first_user_index(messages)
     trailing_start_index = _trailing_start_index(messages, config.trailing_tokens)
-    keep_indices: set[int] = set(range(trailing_start_index, len(messages)))
+    transformed: list[ModelMessage] = []
     if first_user_index is not None:
-        keep_indices.add(first_user_index)
-    for index, message in enumerate(messages):
+        transformed.append(messages[first_user_index])
+
+    oracle_matches: list[str] = []
+    for message in messages:
         text = _message_text(message)
         if config.oracle_terms and any(term in text for term in config.oracle_terms):
-            keep_indices.add(index)
-    return [message for index, message in enumerate(messages) if index in keep_indices]
+            oracle_matches.append(text)
+    if oracle_matches:
+        transformed.append(
+            _summary_message(
+                "Oracle-retained context excerpts:\n"
+                + "\n\n".join(f"<excerpt>{text}</excerpt>" for text in oracle_matches)
+            )
+        )
+
+    transformed.extend(_safe_compaction_trailing_messages(messages[trailing_start_index:]))
+    return transformed
 
 
 def apply_context_policy(

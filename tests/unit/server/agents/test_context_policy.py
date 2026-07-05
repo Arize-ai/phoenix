@@ -297,4 +297,37 @@ def test_oracle_focused_keeps_matching_messages_and_trailing_context() -> None:
         ),
     )
 
-    assert transformed == [messages[0], messages[2], messages[3]]
+    assert transformed[0] is messages[0]
+    summary_message = transformed[1]
+    assert isinstance(summary_message, ModelRequest)
+    summary_part = summary_message.parts[0]
+    assert isinstance(summary_part, UserPromptPart)
+    assert "important needle-a detail" in str(summary_part.content)
+    assert transformed[2] is messages[3]
+
+
+def test_oracle_focused_does_not_keep_orphaned_tool_results() -> None:
+    messages: list[ModelRequest | ModelResponse] = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        *_history_with_tool_returns(2),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(
+            name="oracle_focused",
+            trailing_tokens=1_000,
+            oracle_terms=("large output 0",),
+        ),
+    )
+
+    assert all(
+        not any(isinstance(part, ToolReturnPart) for part in message.parts)
+        for message in transformed
+        if isinstance(message, ModelRequest)
+    )
+    summary_message = transformed[1]
+    assert isinstance(summary_message, ModelRequest)
+    assert "large output 0" in str(summary_message.parts[0].content)
+    assert transformed[-1] is messages[-1]
