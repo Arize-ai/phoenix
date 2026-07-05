@@ -976,6 +976,7 @@ const menuCSS = (theme: Theme) => css`
       --global-dimension-static-size-300
     );
     --global-menu-item-gap: var(--global-dimension-static-size-50);
+    --global-menu-item-content-gap: var(--global-dimension-static-size-100);
   }
 `;
 
