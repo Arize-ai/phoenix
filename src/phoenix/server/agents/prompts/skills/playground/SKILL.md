@@ -33,7 +33,9 @@ dataset-backed evaluation loop is in scope.
 7. Use `set_playground_repetitions` before running when the user is concerned about flakes,
    structured output consistency, tool-call reliability, or whether the prompt is ready to save.
    LLM outputs are nondeterministic; repetitions build confidence by checking the same task across
-   multiple runs instead of trusting one successful response.
+   multiple runs instead of trusting one successful response. The playground supports at most 30
+   repetitions; if the user asks for more, explain the limit and wait for a supported count instead
+   of setting repetitions or running.
 8. Call `run_playground` only when the user asks to run, try, test, or compare the current prompt.
    Treat the output as qualitative feedback rather than dataset-backed evidence.
 9. After the run finishes, call `read_playground_output` to inspect raw output and get the traceId
@@ -71,7 +73,9 @@ starting a recorded run.
    values; the staged scaffold applies to that one run and is consumed when it starts. This is
    separate from `save_prompt`, which saves prompt versions rather than run results.
 4. Use `set_playground_repetitions` before running when the user needs confidence across repeated
-   attempts, especially for flaky behavior, structured outputs, or tool-call correctness.
+   attempts, especially for flaky behavior, structured outputs, or tool-call correctness. The
+   playground supports at most 30 repetitions; if the user asks for more, explain the limit and wait
+   for a supported count instead of setting repetitions or running.
 5. Run the playground over the dataset. When recording is enabled, each prompt instance run over a
    dataset is captured as an experiment, with outputs and evaluator annotations available for
    review.
