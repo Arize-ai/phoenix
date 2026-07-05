@@ -222,7 +222,7 @@ const MenuItemContent = ({
       `}
     >
       {leadingContent ? (
-        <Flex alignItems="center" gap="static-size-100">
+        <Flex alignItems="center" gap="var(--global-menu-item-content-gap)">
           {leadingContent} {children}
         </Flex>
       ) : (
