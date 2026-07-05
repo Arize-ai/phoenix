@@ -11,6 +11,7 @@ import {
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
+import { SearchIcon } from "@phoenix/components/core/field";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { useTraceTree } from "./TraceTreeContext";
@@ -77,6 +78,16 @@ export function TraceTreeToolbar() {
           color: var(--global-text-color-700);
           font-style: normal;
         }
+        .trace-tree-toolbar__search .search-field__icon {
+          left: var(--global-dimension-static-size-100);
+          color: var(--global-text-color-500);
+          font-size: var(--global-font-size-s);
+        }
+        .trace-tree-toolbar__search .search-field__icon ~ .react-aria-Input {
+          padding-left: calc(
+            var(--global-dimension-static-size-200) + var(--global-font-size-s)
+          ) !important;
+        }
       `}
     >
       <Flex
@@ -94,6 +105,7 @@ export function TraceTreeToolbar() {
             value={searchValue}
             variant="quiet"
           >
+            <SearchIcon />
             <Input placeholder="Search trace" />
           </SearchField>
         </div>
