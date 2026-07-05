@@ -73,7 +73,8 @@ def test_context_pruning_prefix_expands_and_preserves_unique_needle() -> None:
 
 
 def test_context_pruning_task_hashes_exist() -> None:
-    path = Path("evals/pxi/experiments/context-pruning/TASK_HASHES.json")
+    repo_root = Path(__file__).resolve().parents[4]
+    path = repo_root / "evals/pxi/experiments/context-pruning/TASK_HASHES.json"
     hashes = json.loads(path.read_text())
 
     assert hashes["corpus_seed"] == 20260703
