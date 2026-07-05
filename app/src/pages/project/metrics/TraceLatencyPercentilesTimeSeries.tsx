@@ -26,7 +26,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  compactLegendProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -234,7 +234,7 @@ export function TraceLatencyPercentilesTimeSeries({
                 hide={isDataKeyHidden("max")}
               />
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="line"
                 iconSize={8}

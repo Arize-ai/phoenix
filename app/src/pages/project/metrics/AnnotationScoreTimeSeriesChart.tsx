@@ -25,7 +25,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  compactLegendProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
@@ -165,7 +165,7 @@ export function AnnotationScoreTimeSeriesChart({
               })}
 
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="line"
                 iconSize={8}

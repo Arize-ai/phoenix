@@ -19,7 +19,7 @@ import {
   InteractiveLegend,
   compactChartMargin,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  compactLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   truncateModelName,
@@ -165,7 +165,7 @@ export function TopModelsByToken({
             radius={[0, 2, 2, 0]}
           />
           <InteractiveLegend
-            {...defaultLegendProps}
+            {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}

@@ -43,7 +43,9 @@ const metricPanelCSS = css`
   .metric-panel__chart {
     flex: 1 1 auto;
     min-height: 0;
-    padding: var(--global-dimension-size-100);
+    /* Share the header's horizontal gutter so the chart's left edge (y-axis
+       labels) and right edge line up with the title */
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
     /* Let hover UI (e.g. tall chart tooltips) escape the panel
        instead of being clipped at the chart height */
     overflow: visible;

@@ -18,7 +18,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  compactLegendProps,
   useBinTimeTickFormatter,
   useInteractiveLegend,
   useSemanticChartColors,
@@ -166,7 +166,7 @@ export function SpanCountTimeSeries({
                 radius={[2, 2, 0, 0]}
               />
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="circle"
                 iconSize={8}

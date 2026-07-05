@@ -11,7 +11,6 @@ import type {
 import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 export const defaultCartesianGridProps: CartesianGridProps = {
-  strokeDasharray: "4 4",
   stroke: "var(--chart-cartesian-grid-stroke-color)",
 };
 
@@ -45,6 +44,15 @@ export const defaultTimeXAxisProps: XAxisProps = {
 };
 
 /**
+ * Compact charts drop axis text to the XS size so the panel title stays the
+ * dominant text and the plot gets the space. Set as an explicit pixel value
+ * (not a CSS var) because Recharts measures tick labels for the y axis'
+ * `width: "auto"` off-tree, where inherited styles and CSS vars don't apply —
+ * the measured and rendered sizes must come from the same literal.
+ */
+const COMPACT_AXIS_FONT_SIZE = "12px";
+
+/**
  * Y axis for compact metric charts: the width hugs the tick labels instead of
  * reserving a fixed gutter, and the axis/tick lines are dropped so the
  * gridlines carry the scale. Encode the unit in the tick formatter (e.g.
@@ -56,7 +64,11 @@ export const compactYAxisProps: YAxisProps = {
   width: "auto",
   axisLine: false,
   tickLine: false,
-  tickMargin: 4,
+  tickMargin: 2,
+  style: {
+    fill: "var(--chart-axis-text-color)",
+    fontSize: COMPACT_AXIS_FONT_SIZE,
+  },
 };
 
 /**
@@ -66,19 +78,26 @@ export const compactYAxisProps: YAxisProps = {
 export const compactTimeXAxisProps: XAxisProps = {
   ...defaultTimeXAxisProps,
   tickLine: false,
-  tickMargin: 6,
-  height: 24,
+  tickMargin: 4,
+  height: 18,
+  style: {
+    fill: "var(--chart-axis-text-color)",
+    fontSize: COMPACT_AXIS_FONT_SIZE,
+  },
 };
 
 /**
- * Margin for compact metric charts: headroom above the tallest mark, right
- * margin so the final x tick label doesn't clip against the panel edge. The
- * left gutter comes entirely from the y axis' auto width.
+ * Margin for compact metric charts. The panel supplies the real gutters, so
+ * the margins stay minimal and symmetric-looking: headroom above the tallest
+ * mark, a couple pixels on the left as measurement slack for the y axis'
+ * auto-width tick labels (Recharts measures them with the fallback font, so
+ * the widest label can otherwise clip by a pixel or two), and just enough on
+ * the right for the final x tick label's overhang past the plot edge.
  */
 export const compactChartMargin = {
   top: 4,
-  right: 18,
-  left: 0,
+  right: 8,
+  left: 2,
   bottom: 0,
 };
 
@@ -121,4 +140,21 @@ export const defaultLegendProps: LegendProps = {
       {value}
     </span>
   ),
+};
+
+/**
+ * Legend for compact metric charts: left-aligned so it shares the panel's
+ * left gutter with the title and y-axis labels, and so wrapped rows read
+ * top-left to bottom-right instead of leaving a right-aligned orphan row.
+ * Text drops to the XS size to match the compact axes.
+ */
+export const compactLegendProps: LegendProps = {
+  ...defaultLegendProps,
+  align: "left",
+  wrapperStyle: {
+    userSelect: "none",
+    fontSize: "var(--global-font-size-xs)",
+    lineHeight: "var(--global-line-height-xs)",
+    paddingTop: "var(--global-dimension-size-50)",
+  },
 };

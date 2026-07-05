@@ -21,7 +21,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  compactLegendProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
   useInteractiveLegend,
@@ -178,7 +178,7 @@ export function TraceTokenCostTimeSeries({
               />
 
               <InteractiveLegend
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 iconType="circle"
                 iconSize={8}

@@ -1391,12 +1391,13 @@ const codeMirrorOverridesCSS = css`
 
 const chartCSS = css`
   .theme {
+    /* Gridlines are solid and rely on low opacity to stay subtle */
     --chart-cartesian-grid-stroke-color: rgba(
       var(--global-color-gray-500-rgb),
-      0.24
+      0.16
     );
     --chart-axis-stroke-color: var(--global-color-gray-300);
-    --chart-axis-text-color: var(--global-text-color-700);
+    --chart-axis-text-color: var(--global-text-color-500);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
     --chart-time-range-brush-fill-color: var(--global-color-primary-100);

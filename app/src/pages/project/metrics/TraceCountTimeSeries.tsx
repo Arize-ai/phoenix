@@ -18,7 +18,7 @@ import {
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
+  compactLegendProps,
   useBinTimeTickFormatter,
   useInteractiveLegend,
   useSemanticChartColors,
@@ -145,7 +145,7 @@ export function TraceCountTimeSeries({
               <InteractiveLegend
                 iconType="circle"
                 iconSize={8}
-                {...defaultLegendProps}
+                {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
                 onToggleDataKey={toggleDataKey}
               />
