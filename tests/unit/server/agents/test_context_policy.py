@@ -306,6 +306,37 @@ def test_oracle_focused_keeps_matching_messages_and_trailing_context() -> None:
     assert transformed[2] is messages[3]
 
 
+def test_oracle_focused_without_terms_keeps_project_notes() -> None:
+    messages: list[ModelRequest | ModelResponse] = [
+        ModelRequest(parts=[UserPromptPart(content="first user goal")]),
+        ModelResponse(parts=[TextPart(content="irrelevant old detail")]),
+        ModelResponse(
+            parts=[
+                TextPart(
+                    content=(
+                        "Project note: the established cohort filter expression is "
+                        "`attributes['experiment.cohort'] == 'cohort-a'`."
+                    )
+                )
+            ]
+        ),
+        ModelRequest(parts=[UserPromptPart(content="final prompt")]),
+    ]
+
+    transformed = apply_context_policy(
+        messages,
+        ContextPolicyConfig(
+            name="oracle_focused",
+            trailing_tokens=1,
+        ),
+    )
+
+    summary_message = transformed[1]
+    assert isinstance(summary_message, ModelRequest)
+    assert "cohort-a" in str(summary_message.parts[0].content)
+    assert transformed[-1] is messages[-1]
+
+
 def test_oracle_focused_does_not_keep_orphaned_tool_results() -> None:
     messages: list[ModelRequest | ModelResponse] = [
         ModelRequest(parts=[UserPromptPart(content="first user goal")]),

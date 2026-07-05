@@ -302,7 +302,9 @@ def _apply_oracle_policy(
     oracle_matches: list[str] = []
     for message in messages:
         text = _message_text(message)
-        if config.oracle_terms and any(term in text for term in config.oracle_terms):
+        if (config.oracle_terms and any(term in text for term in config.oracle_terms)) or (
+            not config.oracle_terms and "Project note:" in text
+        ):
             oracle_matches.append(text)
     if oracle_matches:
         transformed.append(
