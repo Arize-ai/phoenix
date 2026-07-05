@@ -1,0 +1,145 @@
+{
+  "cell_count": 4,
+  "cells": [
+    {
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 108,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 6,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 102,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 7,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 101,
+          "total": 108
+        }
+      ],
+      "examples_passed": 95,
+      "examples_run": 108,
+      "pass_rate": 0.8796296296296297,
+      "policy": "p0",
+      "task_type": "type_b"
+    },
+    {
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 24,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 84,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 25,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 83,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 8,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 100,
+          "total": 108
+        }
+      ],
+      "examples_passed": 78,
+      "examples_run": 108,
+      "pass_rate": 0.7222222222222222,
+      "policy": "p1",
+      "task_type": "type_b"
+    },
+    {
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 96,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 12,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 96,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 12,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 23,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 85,
+          "total": 108
+        }
+      ],
+      "examples_passed": 12,
+      "examples_run": 108,
+      "pass_rate": 0.1111111111111111,
+      "policy": "p3",
+      "task_type": "type_b"
+    },
+    {
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 108,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 11,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 97,
+          "total": 108
+        },
+        {
+          "errors": 0,
+          "failing": 9,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 99,
+          "total": 108
+        }
+      ],
+      "examples_passed": 88,
+      "examples_run": 108,
+      "pass_rate": 0.8148148148148148,
+      "policy": "p5",
+      "task_type": "type_b"
+    }
+  ]
+}

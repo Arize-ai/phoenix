@@ -1,12 +1,68 @@
-# Context Pruning Stage 1 Live Results
+# Context Pruning Live Results
 
-Date: 2026-07-04
+Date: 2026-07-05
 
 Local Phoenix:
 - Endpoint: `http://localhost:6007`
-- Working dir: `/private/tmp/context-pruning-phoenix-live`
-- Database: `/private/tmp/context-pruning-phoenix-live/phoenix.db`
+- Working dir: `/private/tmp/context-pruning-phoenix-main`
+- Database: `/private/tmp/context-pruning-phoenix-main/phoenix.db`
 - Model: `ANTHROPIC/claude-opus-4-6`
+
+## Cost-Capped Main Checkpoint
+
+The original preregistered matrix was stopped before completion to keep live Anthropic spend
+under $300. The completed checkpoint is still interpretable:
+
+- Completed cells: 20
+- Completed task runs: 3,632
+- Measured Anthropic cost: $231.07
+- Main Type A summaries: `main-grid/SUMMARY.md`, `main-grid/USAGE.md`
+- Budgeted Type B confirmation: `main-grid/BUDGET_SUMMARY.md`, `main-grid/BUDGET_USAGE.md`
+
+Completed Type A quality cells:
+
+| Dataset | Policy | Pass rate | Cost |
+|---|---|---:|---:|
+| `context_pruning_type_a_5k` | p0 | 185/200 (92.5%) | $4.82 |
+| `context_pruning_type_a_5k` | p1 | 183/200 (91.5%) | $4.75 |
+| `context_pruning_type_a_5k` | p2 | 182/200 (91.0%) | $4.87 |
+| `context_pruning_type_a_25k` | p0 | 183/200 (91.5%) | $12.26 |
+| `context_pruning_type_a_25k` | p1 | 182/200 (91.0%) | $12.33 |
+| `context_pruning_type_a_25k` | p2 | 183/200 (91.5%) | $12.38 |
+| `context_pruning_type_a_50k` | p0 | 190/200 (95.0%) | $20.59 |
+| `context_pruning_type_a_50k` | p1 | 185/200 (92.5%) | $6.39 |
+| `context_pruning_type_a_50k` | p1c | 184/200 (92.0%) | $6.56 |
+| `context_pruning_type_a_50k` | p2 | 195/200 (97.5%) | $47.58 |
+| `context_pruning_type_a_50k` | p3 | 195/200 (97.5%) | $2.81 |
+| `context_pruning_type_a_50k` | p4 | 192/200 (96.0%) | $2.89 |
+| `context_pruning_type_a_50k` | p5 | 195/200 (97.5%) | $2.80 |
+| `context_pruning_type_a_50k` | p6 | 184/200 (92.0%) | $21.17 |
+| `context_pruning_type_a_100k` | p0 | 195/200 (97.5%) | $37.62 |
+| `context_pruning_type_a_100k` | p1 | 185/200 (92.5%) | $8.12 |
+
+Budgeted Type B 50K confirmation, three repetitions:
+
+| Policy | Pass rate | Cost | Median latency |
+|---|---:|---:|---:|
+| p0 | 95/108 (88.0%) | $15.40 | 4,280 ms |
+| p1 | 78/108 (72.2%) | $4.21 | 4,659 ms |
+| p3 | 12/108 (11.1%) | $1.96 | 5,909 ms |
+| p5 | 88/108 (81.5%) | $1.56 | 6,231 ms |
+
+Interpretation:
+- The full 50-cell preregistered matrix is not necessary for useful conclusions and would exceed
+  the $300 budget. The cost-capped checkpoint should be treated as the live pilot plus a targeted
+  Type B confirmation, not as the full preregistered result.
+- Type A shows meaningful policy tradeoffs: P3/P5/P4 at 50K preserved high quality at roughly
+  $2.8 per 200-run cell, while P2 also preserved quality but cost $47.6 because same-provider
+  summarization reduced cache leverage and added output tokens.
+- Type B shows a different regime: P1 degrades quality moderately, P3 fails because the retained
+  noop summary/trailing context drops required historical needles, and corrected P5 recovers much
+  of the baseline at low token cost. This is useful evidence that history-independent and
+  history-dependent tasks must be analyzed separately.
+- P5 was corrected during the run to retain synthetic `Project note:` oracle excerpts when no
+  explicit `terms=` parameter is provided; the budgeted Type B P5 row above is the corrected
+  rerun (`context-pruning-budget-context_pruning_type_b_50k-p5-fixed`).
 
 ## Cache Smoke
 
