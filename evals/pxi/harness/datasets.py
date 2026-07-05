@@ -7,6 +7,9 @@ import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
+EXPERIMENT_DATASETS_DIRS: tuple[Path, ...] = (
+    Path(__file__).resolve().parents[1] / "experiments" / "context-pruning" / "datasets",
+)
 ALLOWED_SPLITS: frozenset[str] = frozenset({"dev", "holdout", "regression", "val"})
 
 
@@ -95,7 +98,10 @@ class DatasetValidationError(ValueError):
 
 
 def _available_dataset_stems() -> list[str]:
-    return sorted(p.stem for p in DATASETS_DIR.glob("*.yaml"))
+    stems = {p.stem for p in DATASETS_DIR.glob("*.yaml")}
+    for directory in EXPERIMENT_DATASETS_DIRS:
+        stems.update(p.stem for p in directory.glob("*.yaml"))
+    return sorted(stems)
 
 
 def dataset_path(dataset: str) -> Path:
@@ -104,11 +110,14 @@ def dataset_path(dataset: str) -> Path:
     Raises :class:`FileNotFoundError` if no matching file exists, including
     the list of available stems in the error message.
     """
-    path = DATASETS_DIR / f"{dataset}.yaml"
-    if not path.exists():
+    candidates = [DATASETS_DIR / f"{dataset}.yaml"]
+    candidates.extend(directory / f"{dataset}.yaml" for directory in EXPERIMENT_DATASETS_DIRS)
+    for path in candidates:
+        if path.exists():
+            return path
+    else:
         available = _available_dataset_stems()
-        raise FileNotFoundError(f"Dataset not found: {path}. Available: {available}")
-    return path
+        raise FileNotFoundError(f"Dataset not found: {candidates[0]}. Available: {available}")
 
 
 def load_dataset(dataset: str | Path) -> EvalDataset:

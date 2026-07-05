@@ -10,8 +10,9 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[4]
-DATASETS_DIR = ROOT / "evals" / "pxi" / "datasets"
+SOURCE_DATASETS_DIR = ROOT / "evals" / "pxi" / "datasets"
 ARTIFACT_DIR = ROOT / "evals" / "pxi" / "experiments" / "context-pruning"
+GENERATED_DATASETS_DIR = ARTIFACT_DIR / "datasets"
 CORPUS_DIR = ARTIFACT_DIR / "corpus"
 BLOCKS_DIR = CORPUS_DIR / "blocks"
 CORPUS_SEED = 20260703
@@ -155,7 +156,7 @@ def expand_context_pruning_prefix(input_value: dict[str, Any]) -> dict[str, Any]
 
 
 def _load_dataset(stem: str) -> dict[str, Any]:
-    dataset = yaml.safe_load((DATASETS_DIR / f"{stem}.yaml").read_text())
+    dataset = yaml.safe_load((SOURCE_DATASETS_DIR / f"{stem}.yaml").read_text())
     if not isinstance(dataset, dict):
         raise ValueError(f"dataset {stem} must load as an object")
     return dataset
@@ -555,6 +556,7 @@ def _write_report(datasets: list[dict[str, Any]]) -> None:
 
 def write_artifacts() -> None:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    GENERATED_DATASETS_DIR.mkdir(parents=True, exist_ok=True)
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
     _write_blocks()
     type_a = type_a_dataset()
@@ -571,7 +573,7 @@ def write_artifacts() -> None:
         gate_type_b_5k_dataset(),
     ]
     for dataset in datasets:
-        path = DATASETS_DIR / f"{dataset['dataset_name']}.yaml"
+        path = GENERATED_DATASETS_DIR / f"{dataset['dataset_name']}.yaml"
         path.write_text(yaml.safe_dump(dataset, sort_keys=False), encoding="utf-8")
     hashes = {
         "corpus_seed": CORPUS_SEED,
