@@ -22,7 +22,7 @@
     Call `cancel_playground_run` when the user wants to stop an active playground run, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state.
     For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.
 {% if dataset %}
-    Running a prompt over the loaded dataset is implicitly an experiment: `load_skill` the `experiments` skill before designing a dataset run or reading experiment results, if it is not already loaded.
+    Running a prompt over the loaded dataset is implicitly an experiment: `load_skill` the `experiments` skill before designing a dataset run, comparing experiments, reviewing failure patterns, or planning iteration methodology, if it is not already loaded. A narrow scalar lookup about an already-run experiment (for example an average score, count, cost, or latency value) may be answered with `bash`/`phoenix-gql` directly and does not require loading the experiments skill first.
 {% endif %}
   </guidance>
   <dataset_evaluator_authoring>

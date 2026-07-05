@@ -5,7 +5,7 @@
   <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id | sanitize(enclosing_tag="dataset_version_node_id", max_chars=128) | e }}</dataset_version_node_id>
 {% endif %}
   <experiments_methodology>
-    Running a prompt over this dataset is implicitly an experiment. Before designing a dataset run or its evaluators — and before reading or comparing experiment results — `load_skill` the `experiments` skill for the iteration methodology if it is not already loaded.
+    Running a prompt over this dataset is implicitly an experiment. Before designing a dataset run or its evaluators — and before comparing experiments, reviewing failure patterns, or planning iteration methodology — `load_skill` the `experiments` skill if it is not already loaded. A narrow scalar lookup about an already-run experiment (for example an average score, count, cost, or latency value) may be answered with `bash`/`phoenix-gql` directly and does not require loading the experiments skill first.
   </experiments_methodology>
   <code_evaluator_authoring>
 {% if is_code_evaluator_form_mounted %}
