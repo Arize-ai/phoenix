@@ -13,7 +13,7 @@ EXPERIMENT_POLICY_RE = re.compile(r"-(p[0-9][A-Za-z0-9]*(?:-[A-Za-z0-9_.-]+)?)$"
 def _policy_from_report(report: dict[str, Any]) -> str:
     experiment_name = str(report.get("experiment_name") or "")
     if match := EXPERIMENT_POLICY_RE.search(experiment_name):
-        return match.group(1)
+        return match.group(1).removesuffix("-fixed")
     return "unknown"
 
 

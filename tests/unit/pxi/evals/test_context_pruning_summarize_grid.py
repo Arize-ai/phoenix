@@ -95,6 +95,22 @@ def test_summarize_report_dir_prefers_nested_reports_for_duplicate_cells(
     assert summary["cells"][0]["examples_passed"] == 39
 
 
+def test_summarize_report_dir_normalizes_fixed_rerun_suffix(tmp_path: Path) -> None:
+    report_dir = tmp_path / "context-pruning-main-context_pruning_type_a_50k-p5"
+    report_dir.mkdir()
+    _write_report(
+        report_dir,
+        dataset="context_pruning_type_a_50k",
+        experiment_name="context-pruning-main-context_pruning_type_a_50k-p5-fixed",
+        passed=39,
+        total=40,
+    )
+
+    summary = summarize_report_dir(tmp_path)
+
+    assert summary["cells"][0]["policy"] == "p5"
+
+
 def test_write_markdown_renders_summary(tmp_path: Path) -> None:
     summary = {
         "cell_count": 1,
