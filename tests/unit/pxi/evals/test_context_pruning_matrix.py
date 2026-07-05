@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from evals.pxi.experiments.context_pruning.cache_simulator import (
     SimulatedTurn,
@@ -88,7 +91,7 @@ def test_command_for_cell_uses_policy_specific_report_directory() -> None:
     assert p1_command[-1] == "/tmp/reports/main-context_pruning_type_a_5k-p1"
 
 
-def test_run_cells_skips_existing_report(tmp_path: Path, monkeypatch) -> None:
+def test_run_cells_skips_existing_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     p0, p1 = build_cells(
         dataset="context_pruning_type_a_5k",
         split="dev",
@@ -102,13 +105,9 @@ def test_run_cells_skips_existing_report(tmp_path: Path, monkeypatch) -> None:
     report_path.write_text("{}", encoding="utf-8")
     commands: list[list[str]] = []
 
-    def fake_run(command, **kwargs):
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         commands.append(command)
-
-        class Completed:
-            returncode = 0
-
-        return Completed()
+        return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(
         "evals.pxi.experiments.context_pruning.run_matrix.subprocess.run",
