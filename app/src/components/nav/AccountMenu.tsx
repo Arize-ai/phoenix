@@ -12,7 +12,6 @@ import {
   MenuHeader,
   MenuItem,
   MenuTrigger,
-  Separator,
   Text,
   Tooltip,
   TooltipTrigger,
@@ -116,17 +115,14 @@ export function AccountMenu({ isExpanded }: { isExpanded: boolean }) {
               </MenuItem>
             ) : null}
             {authenticationEnabled ? (
-              <>
-                <Separator />
-                <MenuItem
-                  onAction={() =>
-                    window.location.replace(prependBasename("/auth/logout"))
-                  }
-                  leadingContent={<Icon svg={<Icons.LogOut />} />}
-                >
-                  Log Out
-                </MenuItem>
-              </>
+              <MenuItem
+                onAction={() =>
+                  window.location.replace(prependBasename("/auth/logout"))
+                }
+                leadingContent={<Icon svg={<Icons.LogOut />} />}
+              >
+                Log Out
+              </MenuItem>
             ) : null}
           </Menu>
           <MenuFooter>
