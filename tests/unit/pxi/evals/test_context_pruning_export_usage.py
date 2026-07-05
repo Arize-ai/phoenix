@@ -39,6 +39,12 @@ def _create_db(path: Path) -> None:
             VALUES (2, 1, 'context-pruning-main-context_pruning_type_a_50k-p5-fixed')
             """
         )
+        conn.execute(
+            """
+            INSERT INTO experiments (id, dataset_id, name)
+            VALUES (3, 1, 'context-pruning-main-context_pruning_type_a_50k-p2')
+            """
+        )
         failed_output = {
             "task_output": {
                 "usage": {

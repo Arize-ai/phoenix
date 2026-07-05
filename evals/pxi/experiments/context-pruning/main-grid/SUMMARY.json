@@ -1,0 +1,565 @@
+{
+  "cell_count": 16,
+  "cells": [
+    {
+      "dataset": "context_pruning_type_a_100k",
+      "depth": "100k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 195,
+      "examples_run": 200,
+      "pass_rate": 0.975,
+      "policy": "p0",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_100k",
+      "depth": "100k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 15,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 185,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 15,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 185,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 185,
+      "examples_run": 200,
+      "pass_rate": 0.925,
+      "policy": "p1",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_25k",
+      "depth": "25k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 17,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 183,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 17,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 183,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 183,
+      "examples_run": 200,
+      "pass_rate": 0.915,
+      "policy": "p0",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_25k",
+      "depth": "25k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 18,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 182,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 18,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 182,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 182,
+      "examples_run": 200,
+      "pass_rate": 0.91,
+      "policy": "p1",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_25k",
+      "depth": "25k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 17,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 183,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 17,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 183,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 183,
+      "examples_run": 200,
+      "pass_rate": 0.915,
+      "policy": "p2",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 10,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 190,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 10,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 190,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 190,
+      "examples_run": 200,
+      "pass_rate": 0.95,
+      "policy": "p0",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 15,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 185,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 15,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 185,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 185,
+      "examples_run": 200,
+      "pass_rate": 0.925,
+      "policy": "p1",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 16,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 184,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 16,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 184,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 184,
+      "examples_run": 200,
+      "pass_rate": 0.92,
+      "policy": "p1c",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 195,
+      "examples_run": 200,
+      "pass_rate": 0.975,
+      "policy": "p2",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 195,
+      "examples_run": 200,
+      "pass_rate": 0.975,
+      "policy": "p3",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 8,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 192,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 8,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 192,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 192,
+      "examples_run": 200,
+      "pass_rate": 0.96,
+      "policy": "p4",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 5,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 195,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 195,
+      "examples_run": 200,
+      "pass_rate": 0.975,
+      "policy": "p5",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_50k",
+      "depth": "50k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 16,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 184,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 16,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 184,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 184,
+      "examples_run": 200,
+      "pass_rate": 0.92,
+      "policy": "p6",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_5k",
+      "depth": "5k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 15,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 185,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 15,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 185,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 185,
+      "examples_run": 200,
+      "pass_rate": 0.925,
+      "policy": "p0",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_5k",
+      "depth": "5k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 17,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 183,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 17,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 183,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 183,
+      "examples_run": 200,
+      "pass_rate": 0.915,
+      "policy": "p1",
+      "task_type": "type_a"
+    },
+    {
+      "dataset": "context_pruning_type_a_5k",
+      "depth": "5k",
+      "evaluators": [
+        {
+          "errors": 0,
+          "failing": 18,
+          "missing_score": 0,
+          "name": "correct_tools_called",
+          "passing": 182,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 18,
+          "missing_score": 0,
+          "name": "tool_call_args_match",
+          "passing": 182,
+          "total": 200
+        },
+        {
+          "errors": 0,
+          "failing": 0,
+          "missing_score": 0,
+          "name": "tool_call_count_within_limit",
+          "passing": 200,
+          "total": 200
+        }
+      ],
+      "examples_passed": 182,
+      "examples_run": 200,
+      "pass_rate": 0.91,
+      "policy": "p2",
+      "task_type": "type_a"
+    }
+  ]
+}

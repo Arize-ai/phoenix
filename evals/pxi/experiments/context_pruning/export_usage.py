@@ -115,6 +115,8 @@ def export_usage(db_path: Path, *, experiment_prefix: str) -> dict[str, Any]:
 
     selected: dict[tuple[str, str], dict[str, Any]] = {}
     for experiment in experiments.values():
+        if experiment["runs"] == 0:
+            continue
         match = DATASET_RE.match(experiment["dataset"])
         if match is None:
             continue
