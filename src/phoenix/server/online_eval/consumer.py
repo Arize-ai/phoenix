@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from secrets import token_hex
 from typing import Callable, Optional
 
+import httpx
 from sqlalchemy import select
 
 from phoenix.config import get_env_enable_prometheus
@@ -44,6 +45,40 @@ TICK_INTERVAL_SECONDS = 5.0
 CLAIM_BATCH_SIZE = 10
 ERROR_COOLDOWN_SECONDS = 60.0
 DRAIN_TIMEOUT_SECONDS = 10.0
+
+_TRANSIENT_HTTP_STATUS_CODES = frozenset({408, 429})
+
+
+def is_transient_error(exc: BaseException) -> bool:
+    """Best-effort classification of failures that heal on their own —
+    provider outages, rate limits, network partitions. Transient failures
+    retry after a flat cooldown WITHOUT counting toward MAX_ATTEMPTS, so an
+    outage longer than the retry budget cannot permanently exhaust queued
+    work. Anything unrecognized counts attempts as usual, which keeps poison
+    units bounded (fail-safe default). Walks the exception chain so wrapped
+    errors (e.g. ``EvalExecutionError`` raised from an httpx timeout)
+    classify by their root cause."""
+    seen: set[int] = set()
+    node: Optional[BaseException] = exc
+    while node is not None and id(node) not in seen:
+        seen.add(id(node))
+        # asyncio.TimeoutError is an alias of TimeoutError on 3.11+ but a
+        # distinct class on 3.10.
+        if isinstance(node, (ConnectionError, TimeoutError, asyncio.TimeoutError)):
+            return True
+        if isinstance(node, httpx.TransportError):
+            return True
+        # Provider SDK errors (openai, anthropic, ...) expose status_code
+        # directly; httpx.HTTPStatusError exposes it via .response.
+        status_code = getattr(node, "status_code", None)
+        if status_code is None:
+            status_code = getattr(getattr(node, "response", None), "status_code", None)
+        if isinstance(status_code, int) and (
+            status_code >= 500 or status_code in _TRANSIENT_HTTP_STATUS_CODES
+        ):
+            return True
+        node = node.__cause__ if node.__cause__ is not None else node.__context__
+    return False
 
 
 class OnlineEvalConsumer(DaemonTask):
@@ -162,16 +197,25 @@ class OnlineEvalConsumer(DaemonTask):
                 return
             await self._evaluate_with_heartbeat(unit, hydrated)
         except Exception as exc:
-            logger.exception(f"Online-eval work unit {unit.work_unit_id} failed")
-            cooldown_until = datetime.now(timezone.utc) + timedelta(
-                seconds=ERROR_COOLDOWN_SECONDS * (2**unit.attempts)
+            transient = is_transient_error(exc)
+            logger.exception(
+                f"Online-eval work unit {unit.work_unit_id} failed "
+                f"({'transient — will retry without counting an attempt' if transient else 'counting an attempt'})"  # noqa: E501
             )
+            # Transient failures cool down flat and don't count attempts (an
+            # outage retries until it heals); everything else backs off
+            # exponentially on the attempt count and exhausts at MAX_ATTEMPTS.
+            cooldown_seconds = (
+                ERROR_COOLDOWN_SECONDS if transient else ERROR_COOLDOWN_SECONDS * (2**unit.attempts)
+            )
+            cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
             try:
                 await self._coordinator.fail(
                     work_unit_id=unit.work_unit_id,
                     claimed_by=self._consumer_id,
                     error=str(exc),
                     cooldown_until=cooldown_until,
+                    count_attempt=not transient,
                 )
             except Exception:
                 logger.exception(

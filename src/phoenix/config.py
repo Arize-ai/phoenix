@@ -3229,8 +3229,15 @@ def get_env_online_eval_backstop_lookback_span_ids() -> int:
 def get_env_online_eval_pending_ttl_seconds() -> float:
     """
     Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
+
+    Defaults to 0, which disables TTL-based shedding: pending work units wait
+    until a consumer claims them, however long that takes (the admission gate
+    bounds queue growth). Setting a positive TTL opts into load shedding —
+    pending units older than the TTL are expired terminally and are NEVER
+    evaluated or re-materialized, so only set this if dropping evals on old
+    spans under sustained backlog is acceptable.
     """
-    return _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 3600.0)
+    return _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
 
 
 def get_env_online_eval_retention_seconds() -> float:

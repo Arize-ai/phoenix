@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any, AsyncIterator, Optional
 
+import httpx
 import pytest
 from sqlalchemy import select, update
 from sqlalchemy.orm import with_polymorphic
@@ -31,8 +32,9 @@ from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     FunctionCallChunk,
     ToolCallChunk,
 )
-from phoenix.server.online_eval.consumer import OnlineEvalConsumer
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer, is_transient_error
 from phoenix.server.online_eval.derivation import annotation_identifier, config_fingerprint
+from phoenix.server.online_eval.executor import EvalExecutionError
 from phoenix.server.online_eval.producer import resolve_criteria
 from phoenix.server.types import DbSessionFactory
 
@@ -283,6 +285,81 @@ async def test_evaluator_error_fails_unit_with_cooldown_and_no_annotation(
     assert unit.cooldown_until is not None
     assert unit.cooldown_until > before
     assert await _annotations(db) == []
+
+
+async def test_transient_provider_error_retries_without_burning_attempts(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A provider outage (network/timeout/5xx) must not walk a unit toward
+    MAX_ATTEMPTS: an outage longer than the retry budget would otherwise turn
+    every claimed unit terminally ERROR — permanent silent eval loss. Transient
+    failures cool down without counting an attempt, then complete once the
+    provider heals."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(
+            session,
+            trace,
+            attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
+        )
+    evaluator_id, criteria_id = await _seed_llm_criteria(db, project.id)
+    unit_id, _ = await _materialize_unit(db, span.id, evaluator_id, criteria_id)
+    _patch_playground_client(
+        monkeypatch, _StubLLMClient(error=httpx.ConnectError("provider unreachable"))
+    )
+
+    consumer = OnlineEvalConsumer(db, decrypt=lambda b: b)
+    await consumer._cycle()
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "ERROR"
+    assert unit.attempts == 0  # the outage did not consume a retry
+    assert unit.error is not None
+    assert "provider unreachable" in unit.error
+    assert unit.cooldown_until is not None
+    assert await _annotations(db) == []
+
+    # Once the cooldown lapses and the provider heals, the unit completes.
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == unit_id)
+            .values(cooldown_until=datetime.now(timezone.utc))
+        )
+    _patch_playground_client(monkeypatch, _StubLLMClient())
+    await consumer._cycle()
+
+    unit = await _get_unit(db, unit_id)
+    assert unit.status == "DONE"
+    assert unit.attempts == 0
+    assert len(await _annotations(db)) == 1
+
+
+def test_is_transient_error_classification() -> None:
+    request = httpx.Request("POST", "http://provider.test")
+    assert is_transient_error(TimeoutError("llm timed out"))
+    assert is_transient_error(asyncio.TimeoutError())
+    assert is_transient_error(ConnectionError("reset"))
+    assert is_transient_error(httpx.ConnectTimeout("t", request=request))
+    assert is_transient_error(
+        httpx.HTTPStatusError("503", request=request, response=httpx.Response(503, request=request))
+    )
+    # Wrapped errors classify by their root cause through the exception chain.
+    try:
+        try:
+            raise TimeoutError("llm timed out")
+        except TimeoutError as inner:
+            raise EvalExecutionError("wrapped") from inner
+    except EvalExecutionError as wrapped:
+        assert is_transient_error(wrapped)
+    # Fail-safe default: anything unrecognized counts attempts as usual.
+    assert not is_transient_error(RuntimeError("provider is down"))
+    assert not is_transient_error(ValueError("bad config"))
+    assert not is_transient_error(EvalExecutionError("evaluator returned no results"))
+    assert not is_transient_error(
+        httpx.HTTPStatusError("400", request=request, response=httpx.Response(400, request=request))
+    )
 
 
 async def test_staleness_guard_expires_unit_without_annotating(

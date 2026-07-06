@@ -161,14 +161,19 @@ class DbEvalWorkCoordinator:
         claimed_by: str,
         error: str,
         cooldown_until: Optional[datetime] = None,
+        count_attempt: bool = True,
     ) -> bool:
+        values: dict[str, Any] = {
+            "error": error,
+            "cooldown_until": cooldown_until,
+        }
+        if count_attempt:
+            values["attempts"] = models.EvalWorkUnit.attempts + 1
         return await self._fenced_transition(
             work_unit_id=work_unit_id,
             claimed_by=claimed_by,
             status="ERROR",
-            error=error,
-            attempts=models.EvalWorkUnit.attempts + 1,
-            cooldown_until=cooldown_until,
+            **values,
         )
 
     async def expire(

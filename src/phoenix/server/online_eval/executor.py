@@ -323,8 +323,12 @@ class OnlineEvalExecutor:
             # re-run emits no event and dataloader caches aren't re-invalidated.
             if self._event_queue is not None and inserted_ids:
                 self._event_queue.put(SpanAnnotationInsertEvent(tuple(inserted_ids)))
-        errors = [result["error"] for result in results if result["error"] is not None]
-        if errors:
-            raise EvalExecutionError(errors[0])
+        errored = [result for result in results if result["error"] is not None]
+        if errored:
+            # Chain the original exception (when the evaluator captured one) so
+            # the consumer can classify transient infrastructure failures —
+            # provider outages, network timeouts — and retry them without
+            # burning attempts.
+            raise EvalExecutionError(errored[0]["error"]) from errored[0].get("error_exc")
         if not records:
             raise EvalExecutionError("evaluator returned no results")

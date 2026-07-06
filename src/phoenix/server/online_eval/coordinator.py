@@ -93,9 +93,14 @@ class EvalWorkCoordinator(Protocol):
         claimed_by: str,
         error: str,
         cooldown_until: Optional[datetime] = None,
+        count_attempt: bool = True,
     ) -> bool:
-        """Transition a claimed unit RUNNING -> ERROR, recording the error, incrementing
-        attempts, and setting an optional retry cooldown. Returns False if the claim was lost."""
+        """Transition a claimed unit RUNNING -> ERROR, recording the error and setting an
+        optional retry cooldown. ``count_attempt=True`` (the default) increments attempts,
+        walking the unit toward the max-attempts claimability bar; pass False for transient
+        infrastructure failures (provider outage, network timeout) so the unit retries after
+        its cooldown without ever being exhausted by an outage. Returns False if the claim
+        was lost."""
         ...
 
     async def expire(

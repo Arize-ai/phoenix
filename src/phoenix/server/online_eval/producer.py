@@ -285,20 +285,27 @@ class OnlineEvalProducer(DaemonTask):
         return cursor
 
     async def _reap(self, now: datetime, produced_through_id: int) -> None:
-        pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
         retention_cutoff = now - timedelta(seconds=self._retention_seconds)
         # Terminal rows inside the backstop lookback window are never deleted,
         # regardless of age — they must remain to block backstop resurrection.
         reap_floor = produced_through_id - self._backstop_lookback_span_ids
         async with self._db() as session:
-            await session.execute(
-                update(models.EvalWorkUnit)
-                .where(
-                    models.EvalWorkUnit.status == "PENDING",
-                    models.EvalWorkUnit.created_at < pending_cutoff,
+            # TTL shedding is opt-in (default off): expiry is terminal — an
+            # EXPIRED row blocks backstop re-materialization of the same
+            # fingerprint forever, so a TTL turns any backlog older than it
+            # into permanently dropped work. With the TTL unset, pending
+            # units simply wait for a consumer; the admission gate (not this
+            # reaper) bounds queue growth.
+            if self._pending_ttl_seconds > 0:
+                pending_cutoff = now - timedelta(seconds=self._pending_ttl_seconds)
+                await session.execute(
+                    update(models.EvalWorkUnit)
+                    .where(
+                        models.EvalWorkUnit.status == "PENDING",
+                        models.EvalWorkUnit.created_at < pending_cutoff,
+                    )
+                    .values(status="EXPIRED")
                 )
-                .values(status="EXPIRED")
-            )
             await session.execute(
                 delete(models.EvalWorkUnit).where(
                     or_(
