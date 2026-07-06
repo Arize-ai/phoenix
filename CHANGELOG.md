@@ -1,5 +1,13 @@
 # Changelog
 
+## [17.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.18.0...arize-phoenix-v17.19.0) (2026-07-06)
+
+
+### Features
+
+* **app:** add trace tree search ([#14074](https://github.com/Arize-ai/phoenix/issues/14074)) ([f251dae](https://github.com/Arize-ai/phoenix/commit/f251daeab4245f73e913d7b6a25e87af410f1db4))
+* **app:** consolidated account menu in the side nav ([#14070](https://github.com/Arize-ai/phoenix/issues/14070)) ([7775860](https://github.com/Arize-ai/phoenix/commit/7775860c7e8f18fbe16cae053617d34172e69da0))
+
 ## [17.18.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.17.0...arize-phoenix-v17.18.0) (2026-07-04)
 
 
