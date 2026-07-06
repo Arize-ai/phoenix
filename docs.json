@@ -615,7 +615,8 @@
                 "group": "Vercel",
                 "pages": [
                   "docs/phoenix/integrations/typescript/vercel",
-                  "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js"
+                  "docs/phoenix/integrations/typescript/vercel/vercel-ai-sdk-tracing-js",
+                  "docs/phoenix/integrations/typescript/vercel/eve-tracing"
                 ]
               }
             ]
