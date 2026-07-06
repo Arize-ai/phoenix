@@ -536,6 +536,34 @@ class TestEndpointNormalization:
 
         assert result.geturl() == "http://example.com/phoenix/v1/traces"
 
+    def test_construct_http_endpoint_preserves_path_prefix_with_trailing_slash(self) -> None:
+        parsed = urlparse("http://example.com/phoenix/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
+    def test_construct_http_endpoint_keeps_existing_traces_path(self) -> None:
+        parsed = urlparse("http://example.com/v1/traces")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/v1/traces"
+
+    def test_construct_http_endpoint_normalizes_traces_path_with_trailing_slash(self) -> None:
+        parsed = urlparse("http://example.com/v1/traces/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/v1/traces"
+
+    def test_construct_http_endpoint_keeps_prefixed_traces_path(self) -> None:
+        parsed = urlparse("http://example.com/phoenix/v1/traces/")
+
+        result = _construct_http_endpoint(parsed)
+
+        assert result.geturl() == "http://example.com/phoenix/v1/traces"
+
 
 class TestPhoenixCloudEndpoint:
     def test_space_path_basic(self) -> None:

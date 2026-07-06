@@ -726,13 +726,13 @@ def _construct_http_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
         parsed_endpoint (ParseResult): Parsed URL endpoint.
 
     Returns:
-        ParseResult: Modified endpoint with "/v1/traces" path.
+        ParseResult: Endpoint with "/v1/traces" appended to any existing path prefix.
     """
     traces_suffix = "/v1/traces"
-    if parsed_endpoint.path.endswith(traces_suffix):
-        return parsed_endpoint
-    path_prefix = parsed_endpoint.path.rstrip("/")
-    return parsed_endpoint._replace(path=f"{path_prefix}{traces_suffix}")
+    path = parsed_endpoint.path.rstrip("/")
+    if path.endswith(traces_suffix):
+        return parsed_endpoint._replace(path=path)
+    return parsed_endpoint._replace(path=f"{path}{traces_suffix}")
 
 
 def _construct_phoenix_cloud_endpoint(parsed_endpoint: ParseResult) -> ParseResult:
