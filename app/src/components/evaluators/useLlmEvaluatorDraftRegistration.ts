@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef } from "react";
 
+import { cancelPendingApprovalsForTools } from "@phoenix/agent/shared/pendingApproval";
 import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   fromOutputConfigDraft,
@@ -158,7 +159,8 @@ export const useLlmEvaluatorDraftRegistration = ({
     const {
       registerClientAction,
       unregisterClientAction,
-      setPendingLlmEvaluatorEdit,
+      setPendingApproval,
+      clearPendingApproval,
     } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
     registerClientAction(
@@ -169,7 +171,8 @@ export const useLlmEvaluatorDraftRegistration = ({
       EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
       createEditLlmEvaluatorDraftClientAction({
         getDraftHost,
-        setPendingLlmEvaluatorEdit,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -187,13 +190,11 @@ export const useLlmEvaluatorDraftRegistration = ({
       unregisterClientAction(READ_LLM_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME);
-      for (const pendingEdit of Object.values(
-        agentStore.getState().pendingLlmEvaluatorEditsByToolCallId
-      )) {
-        if (pendingEdit) {
-          void pendingEdit.cancel?.();
-        }
-      }
+      cancelPendingApprovalsForTools({
+        pendingApprovalsByToolCallId:
+          agentStore.getState().pendingApprovalsByToolCallId,
+        toolNames: [EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME],
+      });
     };
   }, [
     agentStore,

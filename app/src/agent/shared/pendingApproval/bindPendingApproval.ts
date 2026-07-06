@@ -1,28 +1,44 @@
-import type { BindPendingApprovalOptions, PendingApproval } from "./types";
+import type {
+  BindPendingApprovalOptions,
+  PendingApprovalActions,
+  PendingApprovalIdentity,
+} from "./types";
 
 /**
- * Attach accept/reject callbacks to a proposed, approval-gated write. `accept`
- * clears the pending entry, runs the write via `apply`, and reports the outcome
- * to the model; `reject` clears the entry and reports `rejectedMessage`. In
- * bypass edit mode the caller invokes `accept({ approvalSource: "auto" })`
- * directly; in manual mode the inline card calls these on the user's click.
+ * Attach accept/reject/cancel callbacks to an approval-gated write proposal.
  *
- * This is the generic core shared by every approval-gated write tool — supply a
- * `TPreview` for the card payload and a per-domain `rejectedMessage`.
+ * This is the single generic lifecycle shared by every approval tool. Each
+ * path clears the pending entry from the store first, then:
+ * - `accept` runs the tool's `commit` and emits its `output` (or an error);
+ * - `reject` emits the tool's rejected output;
+ * - `cancel` (navigation-cancel) emits the tool's `navigationCancelError`.
+ *
+ * In bypass edit mode the caller invokes `accept({ approvalSource: "auto" })`
+ * directly; in manual mode the inline Accept/Reject card calls `accept`/`reject`
+ * on the user's click, and the owning surface's unmount cleanup calls `cancel`.
+ *
+ * The tool-specific `commit` returns the full model-facing output object, so
+ * consolidating the lifecycle preserves each tool's existing output shape.
+ *
+ * @param options - the pending data plus tool-specific behaviors; see
+ *   {@link BindPendingApprovalOptions}
+ * @returns the pending member `T` with `accept`/`reject`/`cancel` attached
  */
-export function bindPendingApproval<TPreview>({
+export function bindPendingApproval<
+  T extends PendingApprovalIdentity & PendingApprovalActions,
+>({
   pending,
-  apply,
+  commit,
+  buildRejectedOutput,
+  navigationCancelError,
   addToolOutput,
-  setPending,
-  rejectedMessage,
-}: BindPendingApprovalOptions<TPreview>): PendingApproval<TPreview> {
+  clearPending,
+}: BindPendingApprovalOptions<T>): T {
   const { toolCallId, toolName } = pending;
-  return {
-    ...pending,
+  const actions: PendingApprovalActions = {
     accept: async ({ approvalSource = "user" } = {}) => {
-      setPending(toolCallId, null);
-      const result = await apply();
+      clearPending(toolCallId);
+      const result = await commit({ approvalSource });
       if (!result.ok) {
         await addToolOutput({
           state: "output-error",
@@ -36,21 +52,34 @@ export function bindPendingApproval<TPreview>({
         state: "output-available",
         tool: toolName,
         toolCallId,
-        output: {
-          status: "accepted",
-          acceptedBy: approvalSource,
-          message: result.output,
-        },
+        output: result.output,
       });
     },
     reject: async () => {
-      setPending(toolCallId, null);
+      clearPending(toolCallId);
       await addToolOutput({
         state: "output-available",
         tool: toolName,
         toolCallId,
-        output: { status: "rejected", message: rejectedMessage },
+        output: buildRejectedOutput(),
       });
     },
+    // Only approvals with a navigation-cancel path get a `cancel` callback.
+    ...(navigationCancelError != null
+      ? {
+          cancel: async () => {
+            clearPending(toolCallId);
+            await addToolOutput({
+              state: "output-error",
+              tool: toolName,
+              toolCallId,
+              errorText: navigationCancelError,
+            });
+          },
+        }
+      : {}),
   };
+  // The spread reunites the serializable data with the freshly bound behavior;
+  // TypeScript cannot prove the result is exactly `T`, hence the assertion.
+  return { ...pending, ...actions } as T;
 }

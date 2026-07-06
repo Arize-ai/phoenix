@@ -328,9 +328,10 @@ describe("code evaluator draft agent tools", () => {
     let pending: PendingCodeEvaluatorEdit | null = null;
     const action = createEditCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingCodeEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
     });
     const result = await action(
       {
@@ -354,9 +355,10 @@ describe("code evaluator draft agent tools", () => {
     const outputs: Array<Record<string, unknown>> = [];
     const action = createEditCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingCodeEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
     });
     await action(
       {
@@ -382,9 +384,10 @@ describe("code evaluator draft agent tools", () => {
     const outputs: Array<Record<string, unknown>> = [];
     const action = createEditCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingCodeEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
     });
     await action(
       {
@@ -413,9 +416,10 @@ describe("code evaluator draft agent tools", () => {
     const outputs: Array<Record<string, unknown>> = [];
     const action = createEditCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
+      setPendingApproval: (_, edit) => {
         if (edit) surfacedPending = true;
       },
+      clearPendingApproval: () => {},
       shouldAutoAccept: () => true,
     });
     const result = await action(
@@ -459,9 +463,10 @@ describe("code evaluator draft agent tools", () => {
     let pending: PendingCodeEvaluatorEdit | null = null;
     const action = createEditCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingCodeEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
       shouldAutoAccept: () => true,
     });
     await action(

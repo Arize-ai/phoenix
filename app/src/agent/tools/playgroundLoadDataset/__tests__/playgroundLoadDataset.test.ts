@@ -130,13 +130,15 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingApproval = vi.fn();
+    const clearPendingApproval = vi.fn();
     const harness = createSearchParamsHarness();
     const action = createLoadDatasetClientAction({
       playgroundStore,
       setSearchParams: harness.setSearchParams,
       getSearchParams: harness.getSearchParams,
-      setPendingLoadDataset,
+      setPendingApproval,
+      clearPendingApproval,
       resolveDatasetTarget: resolverFor({
         ok: false,
         error: 'No dataset named "Ghost" was found.',
@@ -149,7 +151,7 @@ describe("playground load dataset agent tool", () => {
       ok: false,
       error: 'No dataset named "Ghost" was found.',
     });
-    expect(setPendingLoadDataset).not.toHaveBeenCalled();
+    expect(setPendingApproval).not.toHaveBeenCalled();
   });
 
   it("registers a pending load and dual-writes store + URL on accept", async () => {
@@ -157,13 +159,15 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingApproval = vi.fn();
+    const clearPendingApproval = vi.fn();
     const harness = createSearchParamsHarness("exampleId=ex-old");
     const action = createLoadDatasetClientAction({
       playgroundStore,
       setSearchParams: harness.setSearchParams,
       getSearchParams: harness.getSearchParams,
-      setPendingLoadDataset,
+      setPendingApproval,
+      clearPendingApproval,
       resolveDatasetTarget: resolverFor({
         ok: true,
         output: {
@@ -180,8 +184,8 @@ describe("playground load dataset agent tool", () => {
       toolCallContext
     );
 
-    expect(setPendingLoadDataset).toHaveBeenCalledTimes(1);
-    const pendingLoad = setPendingLoadDataset.mock
+    expect(setPendingApproval).toHaveBeenCalledTimes(1);
+    const pendingLoad = setPendingApproval.mock
       .calls[0]![1] as PendingLoadDataset;
     expect(pendingLoad.snapshot).toEqual({
       datasetId: "d1",
@@ -193,7 +197,7 @@ describe("playground load dataset agent tool", () => {
     await pendingLoad.accept?.();
 
     // Pending state cleared before the write.
-    expect(setPendingLoadDataset).toHaveBeenLastCalledWith("call-1", null);
+    expect(clearPendingApproval).toHaveBeenCalledWith("call-1");
     // Store write flips dataset mode for the experiment path.
     expect(playgroundStore.getState().datasetId).toBe("d1");
     // URL write sets datasetId + repeated splitId and clears the stale exampleId.
@@ -216,7 +220,8 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingApproval = vi.fn();
+    const clearPendingApproval = vi.fn();
     const harness = createSearchParamsHarness();
     const resolveDatasetTarget = resolverFor({
       ok: true,
@@ -231,12 +236,13 @@ describe("playground load dataset agent tool", () => {
       playgroundStore,
       setSearchParams: harness.setSearchParams,
       getSearchParams: harness.getSearchParams,
-      setPendingLoadDataset,
+      setPendingApproval,
+      clearPendingApproval,
       resolveDatasetTarget,
     });
 
     await action({ datasetName: "Support" }, toolCallContext);
-    const pendingLoad = setPendingLoadDataset.mock
+    const pendingLoad = setPendingApproval.mock
       .calls[0]![1] as PendingLoadDataset;
 
     // The user picked a different dataset after the proposal.
@@ -259,7 +265,8 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingApproval = vi.fn();
+    const clearPendingApproval = vi.fn();
     const harness = createSearchParamsHarness();
     const resolveDatasetTarget = vi
       .fn<ResolveDatasetTarget>()
@@ -280,12 +287,13 @@ describe("playground load dataset agent tool", () => {
       playgroundStore,
       setSearchParams: harness.setSearchParams,
       getSearchParams: harness.getSearchParams,
-      setPendingLoadDataset,
+      setPendingApproval,
+      clearPendingApproval,
       resolveDatasetTarget,
     });
 
     await action({ datasetName: "Support" }, toolCallContext);
-    const pendingLoad = setPendingLoadDataset.mock
+    const pendingLoad = setPendingApproval.mock
       .calls[0]![1] as PendingLoadDataset;
 
     await pendingLoad.accept?.();
@@ -306,13 +314,15 @@ describe("playground load dataset agent tool", () => {
       datasetId: null,
       modelConfigByProvider: {},
     });
-    const setPendingLoadDataset = vi.fn();
+    const setPendingApproval = vi.fn();
+    const clearPendingApproval = vi.fn();
     const harness = createSearchParamsHarness();
     const action = createLoadDatasetClientAction({
       playgroundStore,
       setSearchParams: harness.setSearchParams,
       getSearchParams: harness.getSearchParams,
-      setPendingLoadDataset,
+      setPendingApproval,
+      clearPendingApproval,
       shouldAutoAccept: () => true,
       resolveDatasetTarget: resolverFor({
         ok: true,

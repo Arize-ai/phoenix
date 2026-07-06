@@ -1,8 +1,15 @@
 export { bindPendingApproval } from "./bindPendingApproval";
+export { cancelPendingApprovalsForTools } from "./cancelPendingApprovals";
 export type {
-  ApprovalApplyResult,
+  PendingApproval,
+  PendingApprovalsByToolCallId,
+} from "./registry";
+export { selectPendingApproval } from "./selectPendingApproval";
+export type {
+  ApprovalCommitResult,
   ApprovalSource,
   ApprovalToolOutputSender,
   BindPendingApprovalOptions,
-  PendingApproval,
+  PendingApprovalActions,
+  PendingApprovalIdentity,
 } from "./types";

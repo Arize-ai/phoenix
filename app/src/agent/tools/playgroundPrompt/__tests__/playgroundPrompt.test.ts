@@ -229,8 +229,8 @@ describe("playground prompt agent tools", () => {
     const agentStore = createAgentStore();
     const removeAction = createRemovePromptInstanceClientAction({
       playgroundStore,
-      setPendingPromptInstanceRemoval:
-        agentStore.getState().setPendingPromptInstanceRemoval,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const addToolOutput = vi.fn();
 
@@ -276,8 +276,8 @@ describe("playground prompt agent tools", () => {
     const agentStore = createAgentStore();
     const removeAction = createRemovePromptInstanceClientAction({
       playgroundStore,
-      setPendingPromptInstanceRemoval:
-        agentStore.getState().setPendingPromptInstanceRemoval,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const instanceId = playgroundStore.getState().instances[1]!.id;
@@ -290,7 +290,7 @@ describe("playground prompt agent tools", () => {
     expect(result.ok).toBe(true);
     expect(addToolOutput).not.toHaveBeenCalled();
     const pendingRemoval =
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-remove"
       ];
     expect(pendingRemoval).toBeDefined();
@@ -298,7 +298,7 @@ describe("playground prompt agent tools", () => {
     await pendingRemoval!.accept!();
 
     expect(
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-remove"
       ]
     ).toBeUndefined();
@@ -338,8 +338,8 @@ describe("playground prompt agent tools", () => {
     const agentStore = createAgentStore();
     const removeAction = createRemovePromptInstanceClientAction({
       playgroundStore,
-      setPendingPromptInstanceRemoval:
-        agentStore.getState().setPendingPromptInstanceRemoval,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const instanceId = playgroundStore.getState().instances[1]!.id;
@@ -349,7 +349,7 @@ describe("playground prompt agent tools", () => {
       { toolCallId: "tool-call-reject", sessionId: "session-1", addToolOutput }
     );
     const pendingRemoval =
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-reject"
       ];
     expect(pendingRemoval).toBeDefined();
@@ -390,8 +390,8 @@ describe("playground prompt agent tools", () => {
     const agentStore = createAgentStore();
     const removeAction = createRemovePromptInstanceClientAction({
       playgroundStore,
-      setPendingPromptInstanceRemoval:
-        agentStore.getState().setPendingPromptInstanceRemoval,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
       shouldAutoAccept: () => true,
     });
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
@@ -405,7 +405,7 @@ describe("playground prompt agent tools", () => {
     expect(result.ok).toBe(true);
     expect(playgroundStore.getState().instances).toHaveLength(1);
     expect(
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-auto"
       ]
     ).toBeUndefined();
@@ -442,8 +442,8 @@ describe("playground prompt agent tools", () => {
     const agentStore = createAgentStore();
     const removeAction = createRemovePromptInstanceClientAction({
       playgroundStore,
-      setPendingPromptInstanceRemoval:
-        agentStore.getState().setPendingPromptInstanceRemoval,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const instanceId = playgroundStore.getState().instances[1]!.id;
@@ -453,7 +453,7 @@ describe("playground prompt agent tools", () => {
       { toolCallId: "tool-call-stale", sessionId: "session-1", addToolOutput }
     );
     const pendingRemoval =
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-stale"
       ];
     playgroundStore.getState().deleteInstance(instanceId);
@@ -480,8 +480,8 @@ describe("playground prompt agent tools", () => {
     const agentStore = createAgentStore();
     const removeAction = createRemovePromptInstanceClientAction({
       playgroundStore,
-      setPendingPromptInstanceRemoval:
-        agentStore.getState().setPendingPromptInstanceRemoval,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     let resolveToolOutput: (() => void) | undefined;
     const toolOutputPromise = new Promise<void>((resolve) => {
@@ -501,7 +501,7 @@ describe("playground prompt agent tools", () => {
 
     expect(result.ok).toBe(true);
     const pendingRemoval =
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-remove-cancel"
       ];
     expect(pendingRemoval).toBeDefined();
@@ -509,7 +509,7 @@ describe("playground prompt agent tools", () => {
     const cancelPromise = pendingRemoval!.cancel!();
 
     expect(
-      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+      agentStore.getState().pendingApprovalsByToolCallId[
         "tool-call-remove-cancel"
       ]
     ).toBeUndefined();
@@ -536,7 +536,8 @@ describe("playground prompt agent tools", () => {
     const readAction = createReadPromptClientAction({ playgroundStore });
     const editAction = createEditPromptClientAction({
       playgroundStore,
-      setPendingPromptEdit: agentStore.getState().setPendingPromptEdit,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
@@ -566,13 +567,13 @@ describe("playground prompt agent tools", () => {
     expect(editResult.ok).toBe(true);
     expect(addToolOutput).not.toHaveBeenCalled();
     const pendingEdit =
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-1"];
+      agentStore.getState().pendingApprovalsByToolCallId["tool-call-1"];
     expect(pendingEdit).toBeDefined();
 
     const acceptPromise = pendingEdit!.accept!();
 
     expect(
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-1"]
+      agentStore.getState().pendingApprovalsByToolCallId["tool-call-1"]
     ).toBeUndefined();
     resolveToolOutput?.();
     await acceptPromise;
@@ -605,7 +606,8 @@ describe("playground prompt agent tools", () => {
     const readAction = createReadPromptClientAction({ playgroundStore });
     const editAction = createEditPromptClientAction({
       playgroundStore,
-      setPendingPromptEdit: agentStore.getState().setPendingPromptEdit,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
@@ -634,13 +636,13 @@ describe("playground prompt agent tools", () => {
 
     expect(editResult.ok).toBe(true);
     const pendingEdit =
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"];
+      agentStore.getState().pendingApprovalsByToolCallId["tool-call-cancel"];
     expect(pendingEdit).toBeDefined();
 
     const cancelPromise = pendingEdit!.cancel!();
 
     expect(
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"]
+      agentStore.getState().pendingApprovalsByToolCallId["tool-call-cancel"]
     ).toBeUndefined();
     resolveToolOutput?.();
     await cancelPromise;
@@ -668,7 +670,8 @@ describe("playground prompt agent tools", () => {
     const readAction = createReadPromptClientAction({ playgroundStore });
     const editAction = createEditPromptClientAction({
       playgroundStore,
-      setPendingPromptEdit: agentStore.getState().setPendingPromptEdit,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
@@ -716,7 +719,8 @@ describe("playground prompt agent tools", () => {
     const readAction = createReadPromptClientAction({ playgroundStore });
     const editAction = createEditPromptClientAction({
       playgroundStore,
-      setPendingPromptEdit: agentStore.getState().setPendingPromptEdit,
+      setPendingApproval: agentStore.getState().setPendingApproval,
+      clearPendingApproval: agentStore.getState().clearPendingApproval,
     });
     const readResult = await readAction({});
     expect(readResult.ok).toBe(true);
@@ -742,7 +746,7 @@ describe("playground prompt agent tools", () => {
 
     expect(result.ok).toBe(true);
     expect(
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-3"]
+      agentStore.getState().pendingApprovalsByToolCallId["tool-call-3"]
     ).toBeDefined();
   });
 });

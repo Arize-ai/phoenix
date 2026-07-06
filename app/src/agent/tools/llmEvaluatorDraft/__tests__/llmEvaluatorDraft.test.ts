@@ -301,9 +301,10 @@ describe("llm evaluator draft edit lifecycle", () => {
     let pending: PendingLlmEvaluatorEdit | null = null;
     const action = createEditLlmEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingLlmEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
     });
     const result = await action(
       { operations: [{ type: "set_description", description: "from model" }] },
@@ -320,9 +321,10 @@ describe("llm evaluator draft edit lifecycle", () => {
     const outputs: Array<Record<string, unknown>> = [];
     const action = createEditLlmEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingLlmEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
     });
     await action(
       { operations: [{ type: "set_description", description: "accepted" }] },
@@ -347,9 +349,10 @@ describe("llm evaluator draft edit lifecycle", () => {
     const outputs: Array<Record<string, unknown>> = [];
     const action = createEditLlmEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
-        pending = edit;
+      setPendingApproval: (_, edit) => {
+        pending = edit as PendingLlmEvaluatorEdit;
       },
+      clearPendingApproval: () => {},
     });
     await action(
       { operations: [{ type: "set_description", description: "from model" }] },
@@ -377,9 +380,10 @@ describe("llm evaluator draft edit lifecycle", () => {
     const outputs: Array<Record<string, unknown>> = [];
     const action = createEditLlmEvaluatorDraftClientAction({
       getDraftHost: () => host,
-      setPendingLlmEvaluatorEdit: (_, edit) => {
+      setPendingApproval: (_, edit) => {
         if (edit) surfacedPending = true;
       },
+      clearPendingApproval: () => {},
       shouldAutoAccept: () => true,
     });
     const result = await action(

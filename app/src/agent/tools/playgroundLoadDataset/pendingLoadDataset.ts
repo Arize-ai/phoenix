@@ -1,46 +1,43 @@
-import {
-  LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
-  LOAD_DATASET_TOOL_NAME,
-} from "./constants";
+import { bindPendingApproval } from "@phoenix/agent/shared/pendingApproval";
+
+import { LOAD_DATASET_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
   BindPendingLoadDatasetOptions,
   PendingLoadDataset,
 } from "./types";
 
+/**
+ * Attaches accept/reject/cancel callbacks to a pending dataset load. The
+ * generic lifecycle lives in {@link bindPendingApproval}; the commit re-checks
+ * that the playground selection and resolved target have not drifted since the
+ * proposal, then writes the dataset/split ids.
+ */
 export function bindPendingLoadDatasetActions({
   pendingLoad,
   resolveDatasetTarget,
   readSelectionRevision,
   applyDatasetSelection,
   addToolOutput,
-  setPendingLoadDataset,
+  clearPending,
 }: BindPendingLoadDatasetOptions): PendingLoadDataset {
-  return {
-    ...pendingLoad,
-    accept: async ({ approvalSource = "user" } = {}) => {
-      setPendingLoadDataset(pendingLoad.toolCallId, null);
-
+  return bindPendingApproval<PendingLoadDataset>({
+    pending: pendingLoad,
+    addToolOutput,
+    clearPending,
+    navigationCancelError: LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
+    commit: async ({ approvalSource }) => {
       if (readSelectionRevision() !== pendingLoad.expectedRevision) {
-        await addToolOutput({
-          state: "output-error",
-          tool: LOAD_DATASET_TOOL_NAME,
-          toolCallId: pendingLoad.toolCallId,
-          errorText:
+        return {
+          ok: false,
+          error:
             "The playground dataset selection changed after this load was proposed, so it can no longer be applied.",
-        });
-        return;
+        };
       }
 
       // Dataset or split may have been deleted since the proposal — re-resolve before writing ids.
       const resolution = await resolveDatasetTarget(pendingLoad.input);
       if (!resolution.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: LOAD_DATASET_TOOL_NAME,
-          toolCallId: pendingLoad.toolCallId,
-          errorText: resolution.error,
-        });
-        return;
+        return { ok: false, error: resolution.error };
       }
       const resolvedSplitId = resolution.output.splitId;
       const proposedSplitId = pendingLoad.snapshot.splitIds[0] ?? null;
@@ -48,22 +45,17 @@ export function bindPendingLoadDatasetActions({
         resolution.output.datasetId !== pendingLoad.snapshot.datasetId ||
         resolvedSplitId !== proposedSplitId
       ) {
-        await addToolOutput({
-          state: "output-error",
-          tool: LOAD_DATASET_TOOL_NAME,
-          toolCallId: pendingLoad.toolCallId,
-          errorText:
+        return {
+          ok: false,
+          error:
             "The proposed dataset or split changed after this load was proposed, so it can no longer be applied.",
-        });
-        return;
+        };
       }
 
       applyDatasetSelection(pendingLoad.snapshot);
 
-      await addToolOutput({
-        state: "output-available",
-        tool: LOAD_DATASET_TOOL_NAME,
-        toolCallId: pendingLoad.toolCallId,
+      return {
+        ok: true,
         output: {
           status: "loaded",
           acceptedBy: approvalSource,
@@ -76,28 +68,11 @@ export function bindPendingLoadDatasetActions({
               ? "Dataset load auto-approved."
               : "Playground switched to dataset mode.",
         },
-      });
+      };
     },
-    reject: async () => {
-      setPendingLoadDataset(pendingLoad.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: LOAD_DATASET_TOOL_NAME,
-        toolCallId: pendingLoad.toolCallId,
-        output: {
-          status: "rejected",
-          message: "User rejected the proposed dataset load.",
-        },
-      });
-    },
-    cancel: async () => {
-      setPendingLoadDataset(pendingLoad.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: LOAD_DATASET_TOOL_NAME,
-        toolCallId: pendingLoad.toolCallId,
-        errorText: LOAD_DATASET_NAVIGATION_CANCEL_ERROR,
-      });
-    },
-  };
+    buildRejectedOutput: () => ({
+      status: "rejected",
+      message: "User rejected the proposed dataset load.",
+    }),
+  });
 }

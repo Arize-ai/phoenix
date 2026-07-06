@@ -1,6 +1,11 @@
+import type { PendingApproval } from "@phoenix/agent/shared/pendingApproval";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+} from "./constants";
 import {
   parseAddPromptInstanceInput,
   parseClonePromptInstanceInput,
@@ -18,7 +23,6 @@ import {
   getPromptSnapshot,
   resolveRemovablePromptInstance,
 } from "./promptStore";
-import type { PendingPromptEdit, PendingPromptInstanceRemoval } from "./types";
 
 /**
  * Creates the client action handler for the read_prompt_instance tool.
@@ -101,14 +105,13 @@ export function createAddPromptInstanceClientAction({
  */
 export function createRemovePromptInstanceClientAction({
   playgroundStore,
-  setPendingPromptInstanceRemoval,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
 }: {
   playgroundStore: PlaygroundStore;
-  setPendingPromptInstanceRemoval: (
-    toolCallId: string,
-    removal: PendingPromptInstanceRemoval | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
 }) {
   return async (
@@ -136,13 +139,14 @@ export function createRemovePromptInstanceClientAction({
     const pendingRemoval = bindPendingPromptInstanceRemovalActions({
       pendingRemoval: {
         toolCallId: actionContext.toolCallId,
+        toolName: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
         sessionId: actionContext.sessionId,
         instanceId: preview.output.instanceId,
         label: preview.output.label,
       },
       playgroundStore,
       addToolOutput: actionContext.addToolOutput,
-      setPendingPromptInstanceRemoval,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -150,7 +154,7 @@ export function createRemovePromptInstanceClientAction({
       return { ok: true };
     }
 
-    setPendingPromptInstanceRemoval(actionContext.toolCallId, pendingRemoval);
+    setPendingApproval(actionContext.toolCallId, pendingRemoval);
     return { ok: true };
   };
 }
@@ -162,14 +166,13 @@ export function createRemovePromptInstanceClientAction({
  */
 export function createEditPromptClientAction({
   playgroundStore,
-  setPendingPromptEdit,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
 }: {
   playgroundStore: PlaygroundStore;
-  setPendingPromptEdit: (
-    toolCallId: string,
-    edit: PendingPromptEdit | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
 }) {
   return async (
@@ -207,6 +210,7 @@ export function createEditPromptClientAction({
     const pendingEdit = bindPendingPromptEditActions({
       pendingEdit: {
         toolCallId: editContext.toolCallId,
+        toolName: EDIT_PROMPT_TOOL_NAME,
         sessionId: editContext.sessionId,
         instanceId: parsed.instanceId,
         expectedRevision: parsed.expectedRevision,
@@ -216,7 +220,7 @@ export function createEditPromptClientAction({
       },
       playgroundStore,
       addToolOutput: editContext.addToolOutput,
-      setPendingPromptEdit,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -224,7 +228,7 @@ export function createEditPromptClientAction({
       return { ok: true };
     }
 
-    setPendingPromptEdit(editContext.toolCallId, pendingEdit);
+    setPendingApproval(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };
 }

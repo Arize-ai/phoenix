@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import type { PendingApprovalActions } from "@phoenix/agent/shared/pendingApproval";
 import type {
   ApprovalSource,
   EvaluatorSubmitResult,
@@ -18,6 +19,7 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
+import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import type {
   editLlmEvaluatorDraftActionContextSchema,
   editLlmEvaluatorDraftInputSchema,
@@ -97,21 +99,17 @@ export type LlmEvaluatorDraftHost = {
 
 export type PendingLlmEvaluatorEdit = {
   toolCallId: string;
+  toolName: typeof EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME;
   sessionId: string;
   before: LLMEvaluatorDraftSnapshot;
   after: LLMEvaluatorDraftSnapshot;
   operations: EditLlmEvaluatorDraftOperation[];
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type BindPendingLlmEvaluatorEditOptions = {
-  pendingEdit: PendingLlmEvaluatorEdit;
+  pendingEdit: Omit<PendingLlmEvaluatorEdit, keyof PendingApprovalActions>;
   draftHost: LlmEvaluatorDraftHost;
   addToolOutput: LlmEvaluatorEditToolOutputSender;
-  setPendingLlmEvaluatorEdit: (
-    toolCallId: string,
-    edit: PendingLlmEvaluatorEdit | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };

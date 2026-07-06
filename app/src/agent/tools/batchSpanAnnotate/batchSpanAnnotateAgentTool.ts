@@ -46,13 +46,13 @@ export const batchSpanAnnotateAgentTool = defineTool<BatchSpanAnnotateInput>({
     const pendingAnnotation = bindPendingBatchSpanAnnotateActions({
       pendingAnnotation: {
         toolCallId: context.toolCallId,
+        toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
         sessionId: context.sessionId,
         annotations: input,
       },
       applyAnnotations: applySpanAnnotations,
       addToolOutput: context.addToolOutput,
-      setPendingBatchSpanAnnotate:
-        agentStore.getState().setPendingBatchSpanAnnotate,
+      clearPending: agentStore.getState().clearPendingApproval,
     });
 
     if (agentStore.getState().permissions.edits === "bypass") {
@@ -62,6 +62,6 @@ export const batchSpanAnnotateAgentTool = defineTool<BatchSpanAnnotateInput>({
 
     agentStore
       .getState()
-      .setPendingBatchSpanAnnotate(toolCall.toolCallId, pendingAnnotation);
+      .setPendingApproval(toolCall.toolCallId, pendingAnnotation);
   },
 });

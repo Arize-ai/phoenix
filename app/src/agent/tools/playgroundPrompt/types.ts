@@ -1,8 +1,12 @@
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { PendingApprovalActions } from "@phoenix/agent/shared/pendingApproval";
 import type { ChatMessage, PlaygroundStore } from "@phoenix/store/playground";
 
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+} from "./constants";
 import type {
   addPromptInstanceInputSchema,
   clonePromptInstanceInputSchema,
@@ -111,6 +115,7 @@ export type PromptEditSummary = {
 
 export type PendingPromptEdit = {
   toolCallId: string;
+  toolName: typeof EDIT_PROMPT_TOOL_NAME;
   /** Agent session that owns the unresolved edit_prompt_instance tool call. */
   sessionId: string;
   instanceId: number;
@@ -118,47 +123,38 @@ export type PendingPromptEdit = {
   before: PromptSnapshot;
   after: PromptSnapshot;
   operations: MaterializedEditPromptOperation[];
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type PendingPromptInstanceRemoval = {
   toolCallId: string;
+  toolName: typeof REMOVE_PROMPT_INSTANCE_TOOL_NAME;
   /** Agent session that owns the unresolved remove_prompt_instance tool call. */
   sessionId: string;
   instanceId: number;
   label: string;
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type EditPromptActionContext = z.output<
   typeof editPromptActionContextSchema
 >;
 
 export type BindPendingPromptEditOptions = {
-  /** Serializable pending edit proposal, possibly restored from Zustand. */
-  pendingEdit: PendingPromptEdit;
+  /** Serializable pending edit proposal (no bound lifecycle callbacks yet). */
+  pendingEdit: Omit<PendingPromptEdit, keyof PendingApprovalActions>;
   /** Live playground store used to re-check revisions and apply accepted edits. */
   playgroundStore: PlaygroundStore;
   /** Live AI SDK tool-output sender for the original tool call. */
   addToolOutput: PromptEditToolOutputSender;
-  setPendingPromptEdit: (
-    toolCallId: string,
-    edit: PendingPromptEdit | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };
 
 export type BindPendingPromptInstanceRemovalOptions = {
-  pendingRemoval: PendingPromptInstanceRemoval;
+  pendingRemoval: Omit<PendingPromptInstanceRemoval, keyof PendingApprovalActions>;
   playgroundStore: PlaygroundStore;
   addToolOutput: PromptEditToolOutputSender;
-  setPendingPromptInstanceRemoval: (
-    toolCallId: string,
-    removal: PendingPromptInstanceRemoval | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };
 
 export type PromptActionResult<TOutput> =

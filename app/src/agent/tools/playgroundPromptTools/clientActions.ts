@@ -1,6 +1,8 @@
+import type { PendingApproval } from "@phoenix/agent/shared/pendingApproval";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
+import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "./constants";
 import {
   buildPromptToolsDisplaySnapshot,
   computePromptToolsWriteSummary,
@@ -15,7 +17,6 @@ import {
   getPromptToolsSnapshot,
   planWritePromptTools,
 } from "./promptToolsStore";
-import type { PendingPromptToolWrite } from "./types";
 
 /** Returns the current prompt tool list snapshot as JSON. */
 export function createReadPromptToolsClientAction({
@@ -48,14 +49,13 @@ export function createReadPromptToolsClientAction({
  */
 export function createWritePromptToolsClientAction({
   playgroundStore,
-  setPendingPromptToolWrite,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
 }: {
   playgroundStore: PlaygroundStore;
-  setPendingPromptToolWrite: (
-    toolCallId: string,
-    write: PendingPromptToolWrite | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
 }) {
   return async (
@@ -95,6 +95,7 @@ export function createWritePromptToolsClientAction({
     const pendingWrite = bindPendingPromptToolWriteActions({
       pendingWrite: {
         toolCallId: writeContext.toolCallId,
+        toolName: WRITE_PROMPT_TOOLS_TOOL_NAME,
         sessionId: writeContext.sessionId,
         instanceId,
         expectedRevision: parsed.expectedRevision,
@@ -106,7 +107,7 @@ export function createWritePromptToolsClientAction({
       },
       playgroundStore,
       addToolOutput: writeContext.addToolOutput,
-      setPendingPromptToolWrite,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -114,7 +115,7 @@ export function createWritePromptToolsClientAction({
       return { ok: true };
     }
 
-    setPendingPromptToolWrite(writeContext.toolCallId, pendingWrite);
+    setPendingApproval(writeContext.toolCallId, pendingWrite);
     return { ok: true };
   };
 }

@@ -1,36 +1,34 @@
-import {
-  EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-} from "./constants";
+import { bindPendingApproval } from "@phoenix/agent/shared/pendingApproval";
+
+import { EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
   BindPendingLlmEvaluatorEditOptions,
   PendingLlmEvaluatorEdit,
 } from "./types";
 
+/**
+ * Attaches accept/reject/cancel callbacks to a pending LLM-evaluator draft
+ * edit. The generic lifecycle lives in {@link bindPendingApproval}; the commit
+ * applies the operations to the mounted draft host.
+ */
 export function bindPendingLlmEvaluatorEditActions({
   pendingEdit,
   draftHost,
   addToolOutput,
-  setPendingLlmEvaluatorEdit,
+  clearPending,
 }: BindPendingLlmEvaluatorEditOptions): PendingLlmEvaluatorEdit {
-  return {
-    ...pendingEdit,
-    accept: async ({ approvalSource = "user" } = {}) => {
-      setPendingLlmEvaluatorEdit(pendingEdit.toolCallId, null);
+  return bindPendingApproval<PendingLlmEvaluatorEdit>({
+    pending: pendingEdit,
+    addToolOutput,
+    clearPending,
+    navigationCancelError: EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+    commit: async ({ approvalSource }) => {
       const applied = draftHost.applyOperations(pendingEdit.operations);
       if (!applied.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-          toolCallId: pendingEdit.toolCallId,
-          errorText: applied.error,
-        });
-        return;
+        return { ok: false, error: applied.error };
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
+      return {
+        ok: true,
         output: {
           status: "accepted",
           acceptedBy: approvalSource,
@@ -39,28 +37,11 @@ export function bindPendingLlmEvaluatorEditActions({
               ? "LLM-evaluator draft edit auto-approved."
               : "LLM-evaluator draft edit applied.",
         },
-      });
+      };
     },
-    reject: async () => {
-      setPendingLlmEvaluatorEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
-        output: {
-          status: "rejected",
-          message: "User rejected the proposed LLM-evaluator draft edit.",
-        },
-      });
-    },
-    cancel: async () => {
-      setPendingLlmEvaluatorEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
-        errorText: EDIT_LLM_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-      });
-    },
-  };
+    buildRejectedOutput: () => ({
+      status: "rejected",
+      message: "User rejected the proposed LLM-evaluator draft edit.",
+    }),
+  });
 }

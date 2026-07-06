@@ -1,6 +1,6 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
+import { DefaultChatTransport, isToolUIPart } from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
 import {
@@ -17,20 +17,10 @@ import {
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
-import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
-import {
-  EDIT_PROMPT_TOOL_NAME,
-  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -195,33 +185,11 @@ export function useAgentChat({
   }) => {
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
+    // Clear any staged approval for a call we're about to error out. The
+    // unified slice is keyed by toolCallId, so this is a no-op for tool calls
+    // that never staged an approval.
     unresolvedToolCalls.forEach((toolCall) => {
-      if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
-        store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
-        store
-          .getState()
-          .setPendingPromptInstanceRemoval(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
-        store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === WRITE_PROMPT_TOOLS_TOOL_NAME) {
-        store.getState().setPendingPromptToolWrite(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
-        store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
-        store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME) {
-        store.getState().setPendingLlmEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === LOAD_DATASET_TOOL_NAME) {
-        store.getState().setPendingLoadDataset(toolCall.toolCallId, null);
-      }
+      store.getState().clearPendingApproval(toolCall.toolCallId);
     });
 
     await Promise.all(
@@ -329,17 +297,12 @@ export function useAgentChat({
           if (!isToolUIPart(part) || retained.has(part.toolCallId)) {
             continue;
           }
-          const toolName = getToolName(part);
-          if (toolName === EDIT_PROMPT_TOOL_NAME) {
-            state.setPendingPromptEdit(part.toolCallId, null);
-          } else if (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
-            state.setPendingPromptInstanceRemoval(part.toolCallId, null);
-          } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
-            state.setPendingBatchSpanAnnotate(part.toolCallId, null);
-          } else if (toolName === WRITE_PROMPT_TOOLS_TOOL_NAME) {
-            state.setPendingPromptToolWrite(part.toolCallId, null);
-          } else if (pendingElicitation?.toolCallId === part.toolCallId) {
+          if (pendingElicitation?.toolCallId === part.toolCallId) {
             state.setPendingElicitation(sessionId, null);
+          } else {
+            // Release any staged approval for a dropped tool part; keyed by
+            // toolCallId, so it is a no-op when nothing was staged.
+            state.clearPendingApproval(part.toolCallId);
           }
         }
       }

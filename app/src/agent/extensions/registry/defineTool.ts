@@ -65,9 +65,14 @@ export type AgentToolDefinition = {
    * only after the server-environment guard and capability gate have passed.
    */
   dispatch: (context: AgentToolDispatchContext) => Promise<void>;
-  // TODO(pending-tool-rehydration): a future `rehydration?` field can declare
-  // how a pending tool serializes its UI state and rebinds runtime
-  // dependencies, replacing each tool's bespoke Zustand + page-level logic.
+  // Approval-gated tools (edit_prompt_instance, save_prompt, …) do not declare
+  // their pending state here: `accept`/`reject`/`cancel` capture
+  // non-serializable runtime deps (Relay mutations, store setters,
+  // `addToolOutput`) that cannot live on this static registry entry. Instead the
+  // shared `bindPendingApproval` (agent/shared/pendingApproval) binds those
+  // callbacks at dispatch/mount time and the data lands in the single
+  // `pendingApprovalsByToolCallId` store slice — the "data in the store,
+  // behavior rebound at dispatch" split the rehydration seam was reserved for.
 };
 
 /** Resolves a tool's invalid-input message, which may depend on the input. */

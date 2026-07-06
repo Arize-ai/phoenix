@@ -1,7 +1,6 @@
 import type {
-  ApprovalApplyResult,
   ApprovalToolOutputSender,
-  PendingApproval,
+  PendingApprovalActions,
 } from "@phoenix/agent/shared/pendingApproval";
 
 export type { ApprovalSource } from "@phoenix/agent/shared/pendingApproval";
@@ -74,15 +73,23 @@ export type DatasetWritePreview =
   | { kind: "delete-labels"; labelNames: string[] }
   | { kind: "add-spans"; datasetName: string; spanCount: number };
 
-/** Outcome of applying a dataset write (the generic apply result). */
-export type DatasetWriteApplyResult = ApprovalApplyResult;
+/** Outcome of applying a dataset write: a success message or an error. */
+export type DatasetWriteApplyResult =
+  | { ok: true; output: string }
+  | { ok: false; error: string };
 
 /**
  * A dataset write (create dataset / add examples / split & label changes)
  * proposed by a tool call and awaiting the user's Accept/Reject in manual edit
- * mode — the generic {@link PendingApproval} specialized to the dataset preview.
+ * mode. Unlike the toolCallId-keyed approval union, dataset writes carry their
+ * data in a `preview` discriminated by `kind` and live in their own store slice;
+ * they share only the generic accept/reject lifecycle via `bindPendingApproval`.
  */
-export type PendingDatasetWrite = PendingApproval<DatasetWritePreview>;
+export type PendingDatasetWrite = {
+  toolCallId: string;
+  toolName: string;
+  preview: DatasetWritePreview;
+} & PendingApprovalActions;
 
 export type BindPendingDatasetWriteOptions = {
   pending: Pick<PendingDatasetWrite, "toolCallId" | "toolName" | "preview">;

@@ -1,8 +1,12 @@
+import type { PendingApproval } from "@phoenix/agent/shared/pendingApproval";
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
+import {
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "./constants";
 import {
   parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
@@ -13,7 +17,6 @@ import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit"
 import type {
   CodeEvaluatorActionResult,
   CodeEvaluatorDraftHost,
-  PendingCodeEvaluatorEdit,
 } from "./types";
 
 export function createReadCodeEvaluatorDraftClientAction({
@@ -42,14 +45,13 @@ export function createReadCodeEvaluatorDraftClientAction({
 
 export function createEditCodeEvaluatorDraftClientAction({
   getDraftHost,
-  setPendingCodeEvaluatorEdit,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
 }: {
   getDraftHost: () => CodeEvaluatorDraftHost | null;
-  setPendingCodeEvaluatorEdit: (
-    toolCallId: string,
-    edit: PendingCodeEvaluatorEdit | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
 }) {
   return async (
@@ -85,6 +87,7 @@ export function createEditCodeEvaluatorDraftClientAction({
     const pendingEdit = bindPendingCodeEvaluatorEditActions({
       pendingEdit: {
         toolCallId: editContext.toolCallId,
+        toolName: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
         sessionId: editContext.sessionId,
         before,
         after: proposed.output,
@@ -92,7 +95,7 @@ export function createEditCodeEvaluatorDraftClientAction({
       },
       draftHost: host,
       addToolOutput: editContext.addToolOutput,
-      setPendingCodeEvaluatorEdit,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -100,7 +103,7 @@ export function createEditCodeEvaluatorDraftClientAction({
       return { ok: true };
     }
 
-    setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
+    setPendingApproval(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };
 }

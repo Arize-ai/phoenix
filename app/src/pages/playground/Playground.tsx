@@ -19,6 +19,7 @@ import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { cancelPendingApprovalsForTools } from "@phoenix/agent/shared/pendingApproval";
 import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
@@ -423,11 +424,8 @@ function PlaygroundContent() {
     const {
       registerClientAction,
       unregisterClientAction,
-      setPendingPromptEdit,
-      setPendingPromptInstanceRemoval,
-      setPendingSavePrompt,
-      setPendingLoadDataset,
-      setPendingPromptToolWrite,
+      setPendingApproval,
+      clearPendingApproval,
     } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOL_NAME,
@@ -445,7 +443,8 @@ function PlaygroundContent() {
       REMOVE_PROMPT_INSTANCE_TOOL_NAME,
       createRemovePromptInstanceClientAction({
         playgroundStore,
-        setPendingPromptInstanceRemoval,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -454,7 +453,8 @@ function PlaygroundContent() {
       EDIT_PROMPT_TOOL_NAME,
       createEditPromptClientAction({
         playgroundStore,
-        setPendingPromptEdit,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -463,7 +463,8 @@ function PlaygroundContent() {
       SAVE_PROMPT_TOOL_NAME,
       createSavePromptClientAction({
         playgroundStore,
-        setPendingSavePrompt,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -501,7 +502,8 @@ function PlaygroundContent() {
         playgroundStore,
         setSearchParams,
         getSearchParams: () => searchParamsRef.current,
-        setPendingLoadDataset,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -514,7 +516,8 @@ function PlaygroundContent() {
       WRITE_PROMPT_TOOLS_TOOL_NAME,
       createWritePromptToolsClientAction({
         playgroundStore,
-        setPendingPromptToolWrite,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -543,41 +546,19 @@ function PlaygroundContent() {
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(SET_APPENDED_MESSAGES_PATH_TOOL_NAME);
-      for (const pendingEdit of Object.values(
-        agentStore.getState().pendingPromptEditsByToolCallId
-      )) {
-        if (pendingEdit) {
-          void pendingEdit.cancel?.();
-        }
-      }
-      for (const pendingRemoval of Object.values(
-        agentStore.getState().pendingPromptInstanceRemovalsByToolCallId
-      )) {
-        if (pendingRemoval) {
-          void pendingRemoval.cancel?.();
-        }
-      }
-      for (const pendingSave of Object.values(
-        agentStore.getState().pendingSavePromptsByToolCallId
-      )) {
-        if (pendingSave) {
-          void pendingSave.cancel?.();
-        }
-      }
-      for (const pendingLoad of Object.values(
-        agentStore.getState().pendingLoadDatasetsByToolCallId
-      )) {
-        if (pendingLoad) {
-          void pendingLoad.cancel?.();
-        }
-      }
-      for (const pendingWrite of Object.values(
-        agentStore.getState().pendingPromptToolWritesByToolCallId
-      )) {
-        if (pendingWrite) {
-          void pendingWrite.cancel?.();
-        }
-      }
+      // Discard any approval proposals owned by the playground surface that were
+      // never resolved before it unmounted.
+      cancelPendingApprovalsForTools({
+        pendingApprovalsByToolCallId:
+          agentStore.getState().pendingApprovalsByToolCallId,
+        toolNames: [
+          EDIT_PROMPT_TOOL_NAME,
+          REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+          SAVE_PROMPT_TOOL_NAME,
+          LOAD_DATASET_TOOL_NAME,
+          WRITE_PROMPT_TOOLS_TOOL_NAME,
+        ],
+      });
     };
   }, [agentStore, playgroundStore, setSearchParams]);
 

@@ -1,8 +1,12 @@
+import type { PendingApproval } from "@phoenix/agent/shared/pendingApproval";
 import { createEvaluatorSubmitClientAction } from "@phoenix/agent/tools/approval";
 import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
+import {
+  EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+  SUBMIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
+} from "./constants";
 import {
   parseEditLlmEvaluatorDraftActionContext,
   parseEditLlmEvaluatorDraftInput,
@@ -13,7 +17,6 @@ import { bindPendingLlmEvaluatorEditActions } from "./pendingLlmEvaluatorEdit";
 import type {
   LlmEvaluatorActionResult,
   LlmEvaluatorDraftHost,
-  PendingLlmEvaluatorEdit,
 } from "./types";
 
 export function createReadLlmEvaluatorDraftClientAction({
@@ -42,14 +45,13 @@ export function createReadLlmEvaluatorDraftClientAction({
 
 export function createEditLlmEvaluatorDraftClientAction({
   getDraftHost,
-  setPendingLlmEvaluatorEdit,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
 }: {
   getDraftHost: () => LlmEvaluatorDraftHost | null;
-  setPendingLlmEvaluatorEdit: (
-    toolCallId: string,
-    edit: PendingLlmEvaluatorEdit | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
 }) {
   return async (
@@ -85,6 +87,7 @@ export function createEditLlmEvaluatorDraftClientAction({
     const pendingEdit = bindPendingLlmEvaluatorEditActions({
       pendingEdit: {
         toolCallId: editContext.toolCallId,
+        toolName: EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME,
         sessionId: editContext.sessionId,
         before,
         after: proposed.output,
@@ -92,7 +95,7 @@ export function createEditLlmEvaluatorDraftClientAction({
       },
       draftHost: host,
       addToolOutput: editContext.addToolOutput,
-      setPendingLlmEvaluatorEdit,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -100,7 +103,7 @@ export function createEditLlmEvaluatorDraftClientAction({
       return { ok: true };
     }
 
-    setPendingLlmEvaluatorEdit(editContext.toolCallId, pendingEdit);
+    setPendingApproval(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };
 }

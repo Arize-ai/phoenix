@@ -13,19 +13,13 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
-import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
-import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
-import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
-import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
-import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
 import type {
-  PendingPromptEdit,
-  PendingPromptInstanceRemoval,
-} from "@phoenix/agent/tools/playgroundPrompt";
-import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
-import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
+  PendingApproval,
+  PendingApprovalsByToolCallId,
+} from "@phoenix/agent/shared/pendingApproval";
+import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
@@ -397,28 +391,23 @@ export interface AgentState extends AgentProps {
   unregisterClientAction: (name: string) => void;
 
   // -- Approval-gated tool proposals advertised by agent tool calls --
-  // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
-  // generic pending tool state map keyed by toolCallId. The tool registry
-  // should own each tool's serializer and runtime rebinder.
-  pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;
-  setPendingPromptEdit: (
-    toolCallId: string,
-    edit: PendingPromptEdit | null
-  ) => void;
-  pendingPromptInstanceRemovalsByToolCallId: Partial<
-    Record<string, PendingPromptInstanceRemoval>
-  >;
-  setPendingPromptInstanceRemoval: (
-    toolCallId: string,
-    removal: PendingPromptInstanceRemoval | null
-  ) => void;
-  pendingBatchSpanAnnotatesByToolCallId: Partial<
-    Record<string, PendingBatchSpanAnnotate>
-  >;
-  setPendingBatchSpanAnnotate: (
-    toolCallId: string,
-    annotation: PendingBatchSpanAnnotate | null
-  ) => void;
+  //
+  // A single toolCallId-keyed map holds every approval-gated pending write
+  // (edit_prompt_instance, remove_prompt_instance, batch_span_annotate,
+  // write_prompt_tools, save_prompt, edit_code_evaluator_draft,
+  // edit_llm_evaluator_draft, load_dataset). Entries are a `PendingApproval`
+  // discriminated union keyed by `toolName`; each carries plain preview data
+  // plus the accept/reject/cancel callbacks rebound at dispatch/mount time (the
+  // callbacks capture non-serializable runtime deps, so the slice is ephemeral).
+  // Read through `selectPendingApproval`; navigation-cancel through
+  // `cancelPendingApprovalsForTools`.
+  pendingApprovalsByToolCallId: PendingApprovalsByToolCallId;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
+
+  // Dataset write proposals (create/patch/split writes) keep their own slice:
+  // they run their staging via `bindPendingDatasetWrite`, not the shared
+  // approval lifecycle above.
   pendingDatasetWritesByToolCallId: Partial<
     Record<string, PendingDatasetWrite>
   >;
@@ -426,47 +415,14 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pending: PendingDatasetWrite | null
   ) => void;
+  // patch_experiment keeps its own slice: it is session-keyed and pruned with
+  // its session (see buildSessionRetentionPatch / deleteSession).
   pendingPatchExperimentsByToolCallId: Partial<
     Record<string, PendingPatchExperiment>
   >;
   setPendingPatchExperiment: (
     toolCallId: string,
     patch: PendingPatchExperiment | null
-  ) => void;
-  pendingPromptToolWritesByToolCallId: Partial<
-    Record<string, PendingPromptToolWrite>
-  >;
-  setPendingPromptToolWrite: (
-    toolCallId: string,
-    write: PendingPromptToolWrite | null
-  ) => void;
-  pendingSavePromptsByToolCallId: Partial<Record<string, PendingSavePrompt>>;
-  setPendingSavePrompt: (
-    toolCallId: string,
-    pendingSave: PendingSavePrompt | null
-  ) => void;
-
-  // -- Code-evaluator draft edit approvals advertised by edit_code_evaluator_draft tool calls --
-  pendingCodeEvaluatorEditsByToolCallId: Partial<
-    Record<string, PendingCodeEvaluatorEdit>
-  >;
-  setPendingCodeEvaluatorEdit: (
-    toolCallId: string,
-    edit: PendingCodeEvaluatorEdit | null
-  ) => void;
-
-  // -- LLM-evaluator draft edit approvals advertised by edit_llm_evaluator_draft tool calls --
-  pendingLlmEvaluatorEditsByToolCallId: Partial<
-    Record<string, PendingLlmEvaluatorEdit>
-  >;
-  setPendingLlmEvaluatorEdit: (
-    toolCallId: string,
-    edit: PendingLlmEvaluatorEdit | null
-  ) => void;
-  pendingLoadDatasetsByToolCallId: Partial<Record<string, PendingLoadDataset>>;
-  setPendingLoadDataset: (
-    toolCallId: string,
-    pendingLoad: PendingLoadDataset | null
   ) => void;
 }
 
@@ -684,16 +640,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     capabilities: createDefaultAgentCapabilities(),
     routeContexts: [],
     mountedContexts: {},
-    pendingPromptEditsByToolCallId: {},
-    pendingPromptInstanceRemovalsByToolCallId: {},
-    pendingBatchSpanAnnotatesByToolCallId: {},
+    pendingApprovalsByToolCallId: {},
     pendingDatasetWritesByToolCallId: {},
     pendingPatchExperimentsByToolCallId: {},
-    pendingPromptToolWritesByToolCallId: {},
-    pendingSavePromptsByToolCallId: {},
-    pendingCodeEvaluatorEditsByToolCallId: {},
-    pendingLlmEvaluatorEditsByToolCallId: {},
-    pendingLoadDatasetsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -1210,35 +1159,30 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
-    setPendingPromptEdit: (toolCallId, edit) => {
+    setPendingApproval: (toolCallId, pending) => {
       set(
-        (state) => {
-          const next = { ...state.pendingPromptEditsByToolCallId };
-          if (edit) {
-            next[toolCallId] = edit;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingPromptEditsByToolCallId: next };
-        },
+        (state) => ({
+          pendingApprovalsByToolCallId: {
+            ...state.pendingApprovalsByToolCallId,
+            [toolCallId]: pending,
+          },
+        }),
         false,
-        { type: "setPendingPromptEdit" }
+        { type: "setPendingApproval" }
       );
     },
-
-    setPendingPromptInstanceRemoval: (toolCallId, removal) => {
+    clearPendingApproval: (toolCallId) => {
       set(
         (state) => {
-          const next = { ...state.pendingPromptInstanceRemovalsByToolCallId };
-          if (removal) {
-            next[toolCallId] = removal;
-          } else {
-            delete next[toolCallId];
+          if (!(toolCallId in state.pendingApprovalsByToolCallId)) {
+            return state;
           }
-          return { pendingPromptInstanceRemovalsByToolCallId: next };
+          const next = { ...state.pendingApprovalsByToolCallId };
+          delete next[toolCallId];
+          return { pendingApprovalsByToolCallId: next };
         },
         false,
-        { type: "setPendingPromptInstanceRemoval" }
+        { type: "clearPendingApproval" }
       );
     },
 
@@ -1257,21 +1201,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setPendingDatasetWrite" }
       );
     },
-    setPendingBatchSpanAnnotate: (toolCallId, annotation) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingBatchSpanAnnotatesByToolCallId };
-          if (annotation) {
-            next[toolCallId] = annotation;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingBatchSpanAnnotatesByToolCallId: next };
-        },
-        false,
-        { type: "setPendingBatchSpanAnnotate" }
-      );
-    },
 
     setPendingPatchExperiment: (toolCallId, patch) => {
       set(
@@ -1286,85 +1215,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingPatchExperiment" }
-      );
-    },
-
-    setPendingPromptToolWrite: (toolCallId, write) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingPromptToolWritesByToolCallId };
-          if (write) {
-            next[toolCallId] = write;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingPromptToolWritesByToolCallId: next };
-        },
-        false,
-        { type: "setPendingPromptToolWrite" }
-      );
-    },
-
-    setPendingSavePrompt: (toolCallId, pendingSave) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingSavePromptsByToolCallId };
-          if (pendingSave) {
-            next[toolCallId] = pendingSave;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingSavePromptsByToolCallId: next };
-        },
-        false,
-        { type: "setPendingSavePrompt" }
-      );
-    },
-
-    setPendingCodeEvaluatorEdit: (toolCallId, edit) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingCodeEvaluatorEditsByToolCallId };
-          if (edit) {
-            next[toolCallId] = edit;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingCodeEvaluatorEditsByToolCallId: next };
-        },
-        false,
-        { type: "setPendingCodeEvaluatorEdit" }
-      );
-    },
-
-    setPendingLlmEvaluatorEdit: (toolCallId, edit) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingLlmEvaluatorEditsByToolCallId };
-          if (edit) {
-            next[toolCallId] = edit;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingLlmEvaluatorEditsByToolCallId: next };
-        },
-        false,
-        { type: "setPendingLlmEvaluatorEdit" }
-      );
-    },
-    setPendingLoadDataset: (toolCallId, pendingLoad) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingLoadDatasetsByToolCallId };
-          if (pendingLoad) {
-            next[toolCallId] = pendingLoad;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingLoadDatasetsByToolCallId: next };
-        },
-        false,
-        { type: "setPendingLoadDataset" }
       );
     },
 

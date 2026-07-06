@@ -1,7 +1,8 @@
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { PendingApprovalActions } from "@phoenix/agent/shared/pendingApproval";
 
+import { LOAD_DATASET_TOOL_NAME } from "./constants";
 import type {
   loadDatasetActionContextSchema,
   loadDatasetInputSchema,
@@ -46,28 +47,24 @@ export type ResolveDatasetTarget = (
 
 export type PendingLoadDataset = {
   toolCallId: string;
+  toolName: typeof LOAD_DATASET_TOOL_NAME;
   sessionId: string;
   input: LoadDatasetInput;
   snapshot: DatasetSelectionSnapshot;
   expectedSelection: ExpectedSelection;
   expectedRevision: string;
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type ApplyDatasetSelection = (
   snapshot: DatasetSelectionSnapshot
 ) => void;
 
 export type BindPendingLoadDatasetOptions = {
-  pendingLoad: PendingLoadDataset;
+  pendingLoad: Omit<PendingLoadDataset, keyof PendingApprovalActions>;
   resolveDatasetTarget: ResolveDatasetTarget;
   readSelectionRevision: () => string;
   applyDatasetSelection: ApplyDatasetSelection;
   addToolOutput: LoadDatasetToolOutputSender;
-  setPendingLoadDataset: (
-    toolCallId: string,
-    pendingLoad: PendingLoadDataset | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };

@@ -1,36 +1,34 @@
-import {
-  EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-} from "./constants";
+import { bindPendingApproval } from "@phoenix/agent/shared/pendingApproval";
+
+import { EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
   BindPendingCodeEvaluatorEditOptions,
   PendingCodeEvaluatorEdit,
 } from "./types";
 
+/**
+ * Attaches accept/reject/cancel callbacks to a pending code-evaluator draft
+ * edit. The generic lifecycle lives in {@link bindPendingApproval}; the commit
+ * applies the operations to the mounted draft host.
+ */
 export function bindPendingCodeEvaluatorEditActions({
   pendingEdit,
   draftHost,
   addToolOutput,
-  setPendingCodeEvaluatorEdit,
+  clearPending,
 }: BindPendingCodeEvaluatorEditOptions): PendingCodeEvaluatorEdit {
-  return {
-    ...pendingEdit,
-    accept: async ({ approvalSource = "user" } = {}) => {
-      setPendingCodeEvaluatorEdit(pendingEdit.toolCallId, null);
+  return bindPendingApproval<PendingCodeEvaluatorEdit>({
+    pending: pendingEdit,
+    addToolOutput,
+    clearPending,
+    navigationCancelError: EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+    commit: async ({ approvalSource }) => {
       const applied = draftHost.applyOperations(pendingEdit.operations);
       if (!applied.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-          toolCallId: pendingEdit.toolCallId,
-          errorText: applied.error,
-        });
-        return;
+        return { ok: false, error: applied.error };
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
+      return {
+        ok: true,
         output: {
           status: "accepted",
           acceptedBy: approvalSource,
@@ -39,28 +37,11 @@ export function bindPendingCodeEvaluatorEditActions({
               ? "Code-evaluator draft edit auto-approved."
               : "Code-evaluator draft edit applied.",
         },
-      });
+      };
     },
-    reject: async () => {
-      setPendingCodeEvaluatorEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
-        output: {
-          status: "rejected",
-          message: "User rejected the proposed code-evaluator draft edit.",
-        },
-      });
-    },
-    cancel: async () => {
-      setPendingCodeEvaluatorEdit(pendingEdit.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        toolCallId: pendingEdit.toolCallId,
-        errorText: EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
-      });
-    },
-  };
+    buildRejectedOutput: () => ({
+      status: "rejected",
+      message: "User rejected the proposed code-evaluator draft edit.",
+    }),
+  });
 }

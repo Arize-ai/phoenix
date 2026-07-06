@@ -2,15 +2,16 @@ import {
   parseRemovePromptInstanceInput,
   parseRemovePromptInstanceOutput,
   type PendingPromptInstanceRemoval,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { Flex } from "@phoenix/components";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import {
   ToolPartApprovalActions,
   ToolPartCodeBlock,
   ToolPartLabel,
 } from "./ToolPartPrimitives";
+import { usePendingApproval } from "./usePendingApproval";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
@@ -61,9 +62,9 @@ export function RemovePromptInstanceToolDetails({
 }: {
   part: ToolInvocationPart;
 }) {
-  const pendingRemoval = useAgentContext(
-    (state) =>
-      state.pendingPromptInstanceRemovalsByToolCallId[part.toolCallId] ?? null
+  const pendingRemoval = usePendingApproval(
+    part.toolCallId,
+    REMOVE_PROMPT_INSTANCE_TOOL_NAME
   );
   const input = parseRemovePromptInstanceInput(part.input);
   const result = parseRemovePromptInstanceOutput(part.output);

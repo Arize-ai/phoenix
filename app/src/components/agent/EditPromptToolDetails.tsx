@@ -6,9 +6,9 @@ import {
   promptSnapshotToText,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
+import { usePendingApproval } from "./usePendingApproval";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
 
@@ -33,9 +33,7 @@ export function formatEditPromptState(part: ToolInvocationPart): string {
 }
 
 export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
-  const pending = useAgentContext(
-    (state) => state.pendingPromptEditsByToolCallId[part.toolCallId] ?? null
-  );
+  const pending = usePendingApproval(part.toolCallId, EDIT_PROMPT_TOOL_NAME);
   const input = parseEditPromptInput(part.input);
 
   return (

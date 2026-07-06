@@ -4,11 +4,11 @@ import {
   parseEditCodeEvaluatorDraftInput,
   type PendingCodeEvaluatorEdit,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
+import { usePendingApproval } from "./usePendingApproval";
 
 export function getEditCodeEvaluatorDraftToolPreview(
   part: ToolInvocationPart
@@ -39,9 +39,10 @@ export function EditCodeEvaluatorDraftToolDetails({
 }: {
   part: ToolInvocationPart;
 }) {
-  const pending = useAgentContext((state) => {
-    return state.pendingCodeEvaluatorEditsByToolCallId[part.toolCallId] ?? null;
-  });
+  const pending = usePendingApproval(
+    part.toolCallId,
+    EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME
+  );
 
   return (
     <LazyDiffAcceptRejectToolDetails<

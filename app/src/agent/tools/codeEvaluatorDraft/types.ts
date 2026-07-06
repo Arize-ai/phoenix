@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import type { PendingApprovalActions } from "@phoenix/agent/shared/pendingApproval";
 import type {
   ApprovalSource,
   EvaluatorSubmitResult,
@@ -20,6 +21,7 @@ export type {
   EvaluatorSubmitToolOutput,
 };
 
+import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "./constants";
 import type {
   CodeEvaluatorEditToolOutputSender,
   editCodeEvaluatorDraftActionContextSchema,
@@ -112,21 +114,17 @@ export type CodeEvaluatorDraftHost = {
 
 export type PendingCodeEvaluatorEdit = {
   toolCallId: string;
+  toolName: typeof EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME;
   sessionId: string;
   before: CodeEvaluatorDraftSnapshot;
   after: CodeEvaluatorDraftSnapshot;
   operations: EditCodeEvaluatorDraftOperation[];
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type BindPendingCodeEvaluatorEditOptions = {
-  pendingEdit: PendingCodeEvaluatorEdit;
+  pendingEdit: Omit<PendingCodeEvaluatorEdit, keyof PendingApprovalActions>;
   draftHost: CodeEvaluatorDraftHost;
   addToolOutput: CodeEvaluatorEditToolOutputSender;
-  setPendingCodeEvaluatorEdit: (
-    toolCallId: string,
-    edit: PendingCodeEvaluatorEdit | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };

@@ -1,4 +1,5 @@
-import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "./constants";
+import { bindPendingApproval } from "@phoenix/agent/shared/pendingApproval";
+
 import type {
   AnnotateSpanInput,
   BindPendingBatchSpanAnnotateOptions,
@@ -20,38 +21,39 @@ function toAnnotationOutput(annotation: AnnotateSpanInput) {
   };
 }
 
-/** Attaches accept/reject callbacks to a pending batch span annotate proposal. */
+/**
+ * Attaches accept/reject/cancel callbacks to a pending batch span annotate
+ * proposal. The generic lifecycle lives in {@link bindPendingApproval}; only the
+ * commit (applying the annotations) is annotation-specific.
+ */
 export function bindPendingBatchSpanAnnotateActions({
   pendingAnnotation,
   applyAnnotations,
   addToolOutput,
-  setPendingBatchSpanAnnotate,
+  clearPending,
 }: BindPendingBatchSpanAnnotateOptions): PendingBatchSpanAnnotate {
   const { annotations } = pendingAnnotation;
   const count = annotations.length;
   const noun = count === 1 ? "annotation" : "annotations";
-  return {
-    ...pendingAnnotation,
-    accept: async ({ approvalSource = "user" } = {}) => {
-      setPendingBatchSpanAnnotate(pendingAnnotation.toolCallId, null);
+  return bindPendingApproval<PendingBatchSpanAnnotate>({
+    pending: pendingAnnotation,
+    addToolOutput,
+    clearPending,
+    navigationCancelError: BATCH_SPAN_ANNOTATE_NAVIGATION_CANCEL_ERROR,
+    commit: async ({ approvalSource }) => {
       try {
         await applyAnnotations(annotations);
       } catch (error) {
-        await addToolOutput({
-          state: "output-error",
-          tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-          toolCallId: pendingAnnotation.toolCallId,
-          errorText:
+        return {
+          ok: false,
+          error:
             error instanceof Error
               ? error.message
               : "Failed to apply span annotations.",
-        });
-        return;
+        };
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-        toolCallId: pendingAnnotation.toolCallId,
+      return {
+        ok: true,
         output: {
           status: "accepted",
           acceptedBy: approvalSource,
@@ -62,30 +64,13 @@ export function bindPendingBatchSpanAnnotateActions({
               ? `${count} span ${noun} auto-approved.`
               : `${count} span ${noun} applied.`,
         },
-      });
+      };
     },
-    reject: async () => {
-      setPendingBatchSpanAnnotate(pendingAnnotation.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-        toolCallId: pendingAnnotation.toolCallId,
-        output: {
-          status: "rejected",
-          count,
-          annotations: annotations.map(toAnnotationOutput),
-          message: `User rejected the proposed span ${noun}.`,
-        },
-      });
-    },
-    cancel: async () => {
-      setPendingBatchSpanAnnotate(pendingAnnotation.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: BATCH_SPAN_ANNOTATE_TOOL_NAME,
-        toolCallId: pendingAnnotation.toolCallId,
-        errorText: BATCH_SPAN_ANNOTATE_NAVIGATION_CANCEL_ERROR,
-      });
-    },
-  };
+    buildRejectedOutput: () => ({
+      status: "rejected",
+      count,
+      annotations: annotations.map(toAnnotationOutput),
+      message: `User rejected the proposed span ${noun}.`,
+    }),
+  });
 }

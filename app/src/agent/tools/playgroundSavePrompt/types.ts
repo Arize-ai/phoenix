@@ -2,8 +2,10 @@ import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { PendingApprovalActions } from "@phoenix/agent/shared/pendingApproval";
 import type { PlaygroundStore } from "@phoenix/store/playground";
+
+import { SAVE_PROMPT_TOOL_NAME } from "./constants";
 
 import type {
   CreateChatPromptInput,
@@ -79,25 +81,21 @@ export type SavePromptAction = (
 
 export type PendingSavePrompt = {
   toolCallId: string;
+  toolName: typeof SAVE_PROMPT_TOOL_NAME;
   /** Agent session that owns the unresolved save_prompt tool call. */
   sessionId: string;
   /** Parsed save_prompt input awaiting user approval. */
   input: SavePromptInput;
   /** Effective save target and metadata shown to the user before approval. */
   preview: SavePromptPreview;
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type BindPendingSavePromptOptions = {
-  pendingSave: PendingSavePrompt;
+  pendingSave: Omit<PendingSavePrompt, keyof PendingApprovalActions>;
   savePrompt: SavePromptAction;
   addToolOutput: SavePromptToolOutputSender;
-  setPendingSavePrompt: (
-    toolCallId: string,
-    pendingSave: PendingSavePrompt | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };
 
 export type CreatePromptResponse =

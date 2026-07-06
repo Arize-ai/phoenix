@@ -1,61 +1,93 @@
 import { bindPendingApproval } from "../index";
-import type { ApprovalApplyResult, PendingApproval } from "../types";
+import type {
+  ApprovalCommitResult,
+  ApprovalSource,
+  PendingApprovalActions,
+  PendingApprovalIdentity,
+} from "../types";
 
 type ToolOutputCall = Record<string, unknown>;
 
-function setup(applyResult: ApprovalApplyResult) {
+type DemoPending = PendingApprovalIdentity &
+  PendingApprovalActions & {
+    kind: string;
+  };
+
+function setup(commitResult: ApprovalCommitResult) {
   const outputs: ToolOutputCall[] = [];
-  const pendingSets: Array<PendingApproval<{ kind: string }> | null> = [];
-  let applyCalls = 0;
-  const pending = bindPendingApproval<{ kind: string }>({
+  const cleared: string[] = [];
+  let commitCalls = 0;
+  let lastApprovalSource: ApprovalSource | null = null;
+  const pending = bindPendingApproval<DemoPending>({
     pending: {
       toolCallId: "call-1",
       toolName: "some_write_tool",
-      preview: { kind: "demo" },
+      kind: "demo",
     },
-    apply: async () => {
-      applyCalls += 1;
-      return applyResult;
+    commit: async ({ approvalSource }) => {
+      commitCalls += 1;
+      lastApprovalSource = approvalSource;
+      return commitResult;
     },
+    buildRejectedOutput: () => ({ status: "rejected", message: "nothing written" }),
+    navigationCancelError: "surface closed",
     addToolOutput: (async (out: ToolOutputCall) => {
       outputs.push(out);
     }) as never,
-    setPending: (_toolCallId, value) => {
-      pendingSets.push(value);
+    clearPending: (toolCallId) => {
+      cleared.push(toolCallId);
     },
-    rejectedMessage: "nothing written",
   });
-  return { pending, outputs, pendingSets, getApplyCalls: () => applyCalls };
+  return {
+    pending,
+    outputs,
+    cleared,
+    getCommitCalls: () => commitCalls,
+    getLastApprovalSource: () => lastApprovalSource,
+  };
 }
 
 describe("bindPendingApproval", () => {
-  it("accept clears the pending entry, applies, and emits an accepted output", async () => {
-    const { pending, outputs, pendingSets, getApplyCalls } = setup({
-      ok: true,
-      output: "done",
-    });
+  it("preserves the serializable pending data alongside the bound actions", () => {
+    const { pending } = setup({ ok: true, output: "done" });
+    expect(pending.toolCallId).toBe("call-1");
+    expect(pending.toolName).toBe("some_write_tool");
+    expect(pending.kind).toBe("demo");
+    expect(typeof pending.accept).toBe("function");
+    expect(typeof pending.reject).toBe("function");
+    expect(typeof pending.cancel).toBe("function");
+  });
+
+  it("accept clears the pending entry, commits, and emits the commit output", async () => {
+    const { pending, outputs, cleared, getCommitCalls, getLastApprovalSource } =
+      setup({ ok: true, output: { status: "accepted", message: "done" } });
     await pending.accept?.();
-    expect(getApplyCalls()).toBe(1);
-    expect(pendingSets).toEqual([null]);
+    expect(getCommitCalls()).toBe(1);
+    expect(getLastApprovalSource()).toBe("user");
+    expect(cleared).toEqual(["call-1"]);
     expect(outputs).toEqual([
       {
         state: "output-available",
         tool: "some_write_tool",
         toolCallId: "call-1",
-        output: { status: "accepted", acceptedBy: "user", message: "done" },
+        output: { status: "accepted", message: "done" },
       },
     ]);
   });
 
-  it("records the approval source for an auto (bypass) accept", async () => {
-    const { pending, outputs } = setup({ ok: true, output: "done" });
+  it("forwards the approval source for an auto (bypass) accept", async () => {
+    const { pending, getLastApprovalSource } = setup({
+      ok: true,
+      output: "done",
+    });
     await pending.accept?.({ approvalSource: "auto" });
-    expect(outputs[0].output).toMatchObject({ acceptedBy: "auto" });
+    expect(getLastApprovalSource()).toBe("auto");
   });
 
-  it("emits an error output without applying again when apply fails", async () => {
-    const { pending, outputs } = setup({ ok: false, error: "boom" });
+  it("emits an error output when the commit fails", async () => {
+    const { pending, outputs, cleared } = setup({ ok: false, error: "boom" });
     await pending.accept?.();
+    expect(cleared).toEqual(["call-1"]);
     expect(outputs).toEqual([
       {
         state: "output-error",
@@ -66,20 +98,38 @@ describe("bindPendingApproval", () => {
     ]);
   });
 
-  it("reject clears the entry and reports the rejected message without applying", async () => {
-    const { pending, outputs, pendingSets, getApplyCalls } = setup({
+  it("reject clears the entry and reports the rejected output without committing", async () => {
+    const { pending, outputs, cleared, getCommitCalls } = setup({
       ok: true,
       output: "done",
     });
     await pending.reject?.();
-    expect(getApplyCalls()).toBe(0);
-    expect(pendingSets).toEqual([null]);
+    expect(getCommitCalls()).toBe(0);
+    expect(cleared).toEqual(["call-1"]);
     expect(outputs).toEqual([
       {
         state: "output-available",
         tool: "some_write_tool",
         toolCallId: "call-1",
         output: { status: "rejected", message: "nothing written" },
+      },
+    ]);
+  });
+
+  it("cancel clears the entry and reports the navigation-cancel error", async () => {
+    const { pending, outputs, cleared, getCommitCalls } = setup({
+      ok: true,
+      output: "done",
+    });
+    await pending.cancel?.();
+    expect(getCommitCalls()).toBe(0);
+    expect(cleared).toEqual(["call-1"]);
+    expect(outputs).toEqual([
+      {
+        state: "output-error",
+        tool: "some_write_tool",
+        toolCallId: "call-1",
+        errorText: "surface closed",
       },
     ]);
   });

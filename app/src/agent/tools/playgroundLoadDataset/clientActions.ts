@@ -1,8 +1,10 @@
 import type { SetURLSearchParams } from "react-router";
 
+import type { PendingApproval } from "@phoenix/agent/shared/pendingApproval";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
+import { LOAD_DATASET_TOOL_NAME } from "./constants";
 import {
   buildDatasetSelectionSnapshot,
   buildSelectionRevision,
@@ -16,7 +18,6 @@ import { bindPendingLoadDatasetActions } from "./pendingLoadDataset";
 import type {
   DatasetSelectionSnapshot,
   ExpectedSelection,
-  PendingLoadDataset,
   ResolveDatasetTarget,
 } from "./types";
 
@@ -57,17 +58,16 @@ export function createLoadDatasetClientAction({
   playgroundStore,
   setSearchParams,
   getSearchParams,
-  setPendingLoadDataset,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
   resolveDatasetTarget = resolveLoadDatasetTarget,
 }: {
   playgroundStore: PlaygroundStore;
   setSearchParams: SetURLSearchParams;
   getSearchParams: () => URLSearchParams;
-  setPendingLoadDataset: (
-    toolCallId: string,
-    pendingLoad: PendingLoadDataset | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
   resolveDatasetTarget?: ResolveDatasetTarget;
 }) {
@@ -97,6 +97,7 @@ export function createLoadDatasetClientAction({
     const pendingLoad = bindPendingLoadDatasetActions({
       pendingLoad: {
         toolCallId: actionContext.toolCallId,
+        toolName: LOAD_DATASET_TOOL_NAME,
         sessionId: actionContext.sessionId,
         input: parsed,
         snapshot: buildDatasetSelectionSnapshot(resolution.output),
@@ -108,7 +109,7 @@ export function createLoadDatasetClientAction({
       applyDatasetSelection: (snapshot) =>
         applyDatasetSelection({ snapshot, playgroundStore, setSearchParams }),
       addToolOutput: actionContext.addToolOutput,
-      setPendingLoadDataset,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -116,7 +117,7 @@ export function createLoadDatasetClientAction({
       return { ok: true };
     }
 
-    setPendingLoadDataset(actionContext.toolCallId, pendingLoad);
+    setPendingApproval(actionContext.toolCallId, pendingLoad);
     return { ok: true };
   };
 }

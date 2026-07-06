@@ -1,12 +1,13 @@
 import type { z } from "zod";
 
-import type { ApprovalSource } from "@phoenix/agent/tools/approval";
+import type { PendingApprovalActions } from "@phoenix/agent/shared/pendingApproval";
 import type {
   CanonicalToolChoice,
   PlaygroundStore,
   Tool,
 } from "@phoenix/store/playground";
 
+import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "./constants";
 import type {
   promptToolsActionContextSchema,
   PromptToolsWriteToolOutputSender,
@@ -153,6 +154,7 @@ export type PromptToolsWriteSummary = {
  */
 export type PendingPromptToolWrite = {
   toolCallId: string;
+  toolName: typeof WRITE_PROMPT_TOOLS_TOOL_NAME;
   /** Agent session that owns the unresolved write_prompt_tools tool call. */
   sessionId: string;
   instanceId: number;
@@ -164,24 +166,19 @@ export type PendingPromptToolWrite = {
   before: PromptToolsDisplaySnapshot;
   after: PromptToolsDisplaySnapshot;
   summary: PromptToolsWriteSummary;
-  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
-  reject?: () => Promise<void>;
-  cancel?: () => Promise<void>;
-};
+} & PendingApprovalActions;
 
 export type PromptToolsActionContext = z.output<
   typeof promptToolsActionContextSchema
 >;
 
 export type BindPendingPromptToolWriteOptions = {
-  /** Serializable pending batch proposal, possibly restored from Zustand. */
-  pendingWrite: PendingPromptToolWrite;
+  /** Serializable pending batch proposal (no bound lifecycle callbacks yet). */
+  pendingWrite: Omit<PendingPromptToolWrite, keyof PendingApprovalActions>;
   /** Live playground store used to re-check the revision and apply the batch. */
   playgroundStore: PlaygroundStore;
   /** Live AI SDK tool-output sender for the original tool call. */
   addToolOutput: PromptToolsWriteToolOutputSender;
-  setPendingPromptToolWrite: (
-    toolCallId: string,
-    write: PendingPromptToolWrite | null
-  ) => void;
+  /** Clears this proposal from the unified pending-approval store slice. */
+  clearPending: (toolCallId: string) => void;
 };

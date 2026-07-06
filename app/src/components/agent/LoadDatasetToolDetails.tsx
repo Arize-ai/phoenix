@@ -3,12 +3,12 @@ import type { ReactNode } from "react";
 import { z } from "zod";
 
 import {
+  LOAD_DATASET_TOOL_NAME,
   parseLoadDatasetInput,
   type DatasetSelectionSnapshot,
   type PendingLoadDataset,
 } from "@phoenix/agent/tools/playgroundLoadDataset";
 import { Flex } from "@phoenix/components";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import {
   ToolPartApprovalActions,
@@ -17,6 +17,7 @@ import {
 } from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
+import { usePendingApproval } from "./usePendingApproval";
 
 const loadDatasetToolDetailsCSS = css`
   && {
@@ -96,8 +97,9 @@ export function formatLoadDatasetState(part: ToolInvocationPart): string {
 }
 
 export function LoadDatasetToolDetails({ part }: { part: ToolInvocationPart }) {
-  const pendingLoad = useAgentContext(
-    (state) => state.pendingLoadDatasetsByToolCallId[part.toolCallId] ?? null
+  const pendingLoad = usePendingApproval(
+    part.toolCallId,
+    LOAD_DATASET_TOOL_NAME
   );
   const input = parseLoadDatasetInput(part.input);
   const isResolved = part.state === "output-available";

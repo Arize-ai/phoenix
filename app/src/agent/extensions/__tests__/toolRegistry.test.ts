@@ -160,7 +160,8 @@ describe("toolRegistry", () => {
     });
     const action = createSavePromptClientAction({
       playgroundStore,
-      setPendingSavePrompt: store.getState().setPendingSavePrompt,
+      setPendingApproval: store.getState().setPendingApproval,
+      clearPendingApproval: store.getState().clearPendingApproval,
       savePrompt,
     });
     store.getState().registerClientAction(SAVE_PROMPT_TOOL_NAME, action);
@@ -181,7 +182,7 @@ describe("toolRegistry", () => {
     expect(savePrompt).not.toHaveBeenCalled();
     expect(addToolOutput).not.toHaveBeenCalled();
     const pendingSave =
-      store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"];
+      store.getState().pendingApprovalsByToolCallId["tool-call-save-prompt"];
     expect(pendingSave).toEqual(
       expect.objectContaining({
         toolCallId: "tool-call-save-prompt",
@@ -213,7 +214,7 @@ describe("toolRegistry", () => {
       })
     );
     expect(
-      store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"]
+      store.getState().pendingApprovalsByToolCallId["tool-call-save-prompt"]
     ).toBeUndefined();
   });
 
@@ -362,7 +363,8 @@ describe("toolRegistry", () => {
     });
     const action = createSavePromptClientAction({
       playgroundStore,
-      setPendingSavePrompt: store.getState().setPendingSavePrompt,
+      setPendingApproval: store.getState().setPendingApproval,
+      clearPendingApproval: store.getState().clearPendingApproval,
       shouldAutoAccept: () => store.getState().permissions.edits === "bypass",
       savePrompt,
     });
@@ -387,7 +389,7 @@ describe("toolRegistry", () => {
       input,
     });
     expect(
-      store.getState().pendingSavePromptsByToolCallId[
+      store.getState().pendingApprovalsByToolCallId[
         "tool-call-save-prompt-bypass"
       ]
     ).toBeUndefined();

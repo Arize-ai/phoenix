@@ -7,11 +7,11 @@ import {
   WRITE_PROMPT_TOOLS_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPromptTools";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
+import { usePendingApproval } from "./usePendingApproval";
 
 /** One-line collapsed preview of the proposed batch (counts of writes/deletes). */
 export function getWritePromptToolsToolPreview(
@@ -45,9 +45,9 @@ export function WritePromptToolsToolDetails({
 }: {
   part: ToolInvocationPart;
 }) {
-  const pending = useAgentContext(
-    (state) =>
-      state.pendingPromptToolWritesByToolCallId[part.toolCallId] ?? null
+  const pending = usePendingApproval(
+    part.toolCallId,
+    WRITE_PROMPT_TOOLS_TOOL_NAME
   );
   const input = parseWritePromptToolsInput(part.input);
 

@@ -14,6 +14,7 @@ import {
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { cancelPendingApprovalsForTools } from "@phoenix/agent/shared/pendingApproval";
 import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
 import {
   applyDraftOperations,
@@ -385,7 +386,8 @@ export const EditCodeEvaluatorDialogContent = ({
     const {
       registerClientAction,
       unregisterClientAction,
-      setPendingCodeEvaluatorEdit,
+      setPendingApproval,
+      clearPendingApproval,
     } = agentStore.getState();
     const getDraftHost = () => draftHostRef.current;
     registerClientAction(
@@ -396,7 +398,8 @@ export const EditCodeEvaluatorDialogContent = ({
       EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
       createEditCodeEvaluatorDraftClientAction({
         getDraftHost,
-        setPendingCodeEvaluatorEdit,
+        setPendingApproval,
+        clearPendingApproval,
         shouldAutoAccept: () =>
           agentStore.getState().permissions.edits === "bypass",
       })
@@ -415,13 +418,11 @@ export const EditCodeEvaluatorDialogContent = ({
       unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
       unregisterClientAction(SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
-      for (const pendingEdit of Object.values(
-        agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
-      )) {
-        if (pendingEdit) {
-          void pendingEdit.cancel?.();
-        }
-      }
+      cancelPendingApprovalsForTools({
+        pendingApprovalsByToolCallId:
+          agentStore.getState().pendingApprovalsByToolCallId,
+        toolNames: [EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME],
+      });
     };
   }, [agentStore, store, mode, evaluatorNodeId]);
 

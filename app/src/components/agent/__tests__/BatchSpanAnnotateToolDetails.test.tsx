@@ -53,8 +53,9 @@ function createBatchSpanAnnotatePart(): ToolInvocationPart {
 
 function renderPendingAnnotations(annotations: PendingAnnotation[]) {
   const agentStore = createAgentStore();
-  agentStore.getState().setPendingBatchSpanAnnotate("tool-call-1", {
+  agentStore.getState().setPendingApproval("tool-call-1", {
     toolCallId: "tool-call-1",
+    toolName: BATCH_SPAN_ANNOTATE_TOOL_NAME,
     sessionId: "session-1",
     annotations,
     accept: async () => undefined,

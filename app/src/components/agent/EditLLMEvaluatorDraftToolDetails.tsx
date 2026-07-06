@@ -4,11 +4,11 @@ import {
   parseEditLlmEvaluatorDraftInput,
   type PendingLlmEvaluatorEdit,
 } from "@phoenix/agent/tools/llmEvaluatorDraft";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { LazyDiffAcceptRejectToolDetails } from "./LazyDiffAcceptRejectToolDetails";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState } from "./toolPartTypes";
+import { usePendingApproval } from "./usePendingApproval";
 
 export function getEditLlmEvaluatorDraftToolPreview(
   part: ToolInvocationPart
@@ -39,9 +39,10 @@ export function EditLLMEvaluatorDraftToolDetails({
 }: {
   part: ToolInvocationPart;
 }) {
-  const pending = useAgentContext((state) => {
-    return state.pendingLlmEvaluatorEditsByToolCallId[part.toolCallId] ?? null;
-  });
+  const pending = usePendingApproval(
+    part.toolCallId,
+    EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME
+  );
 
   return (
     <LazyDiffAcceptRejectToolDetails<

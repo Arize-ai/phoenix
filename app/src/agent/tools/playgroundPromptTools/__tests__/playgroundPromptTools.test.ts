@@ -4,6 +4,7 @@ import {
   createWritePromptToolsClientAction,
   getPromptToolsSnapshot,
   parseWritePromptToolsInput,
+  type PendingPromptToolWrite,
   type PromptToolsSnapshot,
   WRITE_PROMPT_TOOLS_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPromptTools";
@@ -18,6 +19,12 @@ import {
 
 const newStore = () =>
   createPlaygroundStore({ datasetId: null, modelConfigByProvider: {} });
+
+/** Reads the unified approval slice as the narrowed write-prompt-tools type. */
+const pendingWrites = (agentStore: ReturnType<typeof createAgentStore>) =>
+  agentStore.getState().pendingApprovalsByToolCallId as Partial<
+    Record<string, PendingPromptToolWrite>
+  >;
 
 /** Replace the tool list on the default instance (id 0). */
 const seedTools = (playgroundStore: PlaygroundStore, tools: Tool[]) => {
@@ -728,8 +735,8 @@ describe("playground prompt tools agent tools", () => {
     ) =>
       createWritePromptToolsClientAction({
         playgroundStore,
-        setPendingPromptToolWrite:
-          agentStore.getState().setPendingPromptToolWrite,
+        setPendingApproval: agentStore.getState().setPendingApproval,
+        clearPendingApproval: agentStore.getState().clearPendingApproval,
         ...(shouldAutoAccept ? { shouldAutoAccept } : {}),
       });
 
@@ -752,7 +759,7 @@ describe("playground prompt tools agent tools", () => {
       expect(addToolOutput).not.toHaveBeenCalled();
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(0);
       const pending =
-        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-1"];
+        pendingWrites(agentStore)["tc-1"];
       expect(pending).toBeDefined();
       expect(pending!.summary.created).toEqual(["get_weather"]);
       expect(pending!.before.entries).toHaveLength(0);
@@ -771,7 +778,7 @@ describe("playground prompt tools agent tools", () => {
         })
       );
       expect(
-        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-1"]
+        pendingWrites(agentStore)["tc-1"]
       ).toBeUndefined();
     });
 
@@ -791,7 +798,7 @@ describe("playground prompt tools agent tools", () => {
         { toolCallId: "tc-reject", sessionId: "s-1", addToolOutput }
       );
       const pending =
-        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-reject"];
+        pendingWrites(agentStore)["tc-reject"];
       expect(pending).toBeDefined();
       expect(pending!.summary.deleted).toEqual(["get_weather"]);
 
@@ -826,7 +833,7 @@ describe("playground prompt tools agent tools", () => {
       expect(result.ok).toBe(true);
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
       expect(
-        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-auto"]
+        pendingWrites(agentStore)["tc-auto"]
       ).toBeUndefined();
       expect(addToolOutput).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -860,7 +867,7 @@ describe("playground prompt tools agent tools", () => {
       expect(result.error).toContain("tools[1]");
       expect(result.error).toContain("9999");
       expect(
-        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-bad"]
+        pendingWrites(agentStore)["tc-bad"]
       ).toBeUndefined();
       expect(addToolOutput).not.toHaveBeenCalled();
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(1);
@@ -883,7 +890,7 @@ describe("playground prompt tools agent tools", () => {
       seedTools(playgroundStore, [functionTool(101, "added_later")]);
 
       const pending =
-        agentStore.getState().pendingPromptToolWritesByToolCallId["tc-stale"];
+        pendingWrites(agentStore)["tc-stale"];
       await pending!.accept!();
 
       expect(addToolOutput).toHaveBeenCalledWith(
@@ -918,7 +925,7 @@ describe("playground prompt tools agent tools", () => {
         { toolCallId: "tc-provider-stale", sessionId: "s-1", addToolOutput }
       );
       const pending =
-        agentStore.getState().pendingPromptToolWritesByToolCallId[
+        pendingWrites(agentStore)[
           "tc-provider-stale"
         ];
       playgroundStore.getState().updateInstance({
@@ -944,7 +951,7 @@ describe("playground prompt tools agent tools", () => {
       );
       expect(playgroundStore.getState().instances[0]!.tools).toHaveLength(0);
       expect(
-        agentStore.getState().pendingPromptToolWritesByToolCallId[
+        pendingWrites(agentStore)[
           "tc-provider-stale"
         ]
       ).toBeUndefined();

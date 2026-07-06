@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+import type { PendingApproval } from "@phoenix/agent/shared/pendingApproval";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { PlaygroundStore } from "@phoenix/store/playground";
 
+import { SAVE_PROMPT_TOOL_NAME } from "./constants";
 import { parseSavePromptInput } from "./parsers";
 import { bindPendingSavePromptActions } from "./pendingSavePrompt";
 import {
@@ -12,7 +14,6 @@ import {
 import type {
   SavePlaygroundPromptParams,
   SavePromptToolOutputSender,
-  PendingSavePrompt,
 } from "./types";
 
 type SavePlaygroundPrompt = (
@@ -37,15 +38,14 @@ function parseSavePromptActionContext(context: unknown) {
  */
 export function createSavePromptClientAction({
   playgroundStore,
-  setPendingSavePrompt,
+  setPendingApproval,
+  clearPendingApproval,
   shouldAutoAccept = () => false,
   savePrompt = savePlaygroundPrompt,
 }: {
   playgroundStore: PlaygroundStore;
-  setPendingSavePrompt: (
-    toolCallId: string,
-    pendingSave: PendingSavePrompt | null
-  ) => void;
+  setPendingApproval: (toolCallId: string, pending: PendingApproval) => void;
+  clearPendingApproval: (toolCallId: string) => void;
   shouldAutoAccept?: () => boolean;
   savePrompt?: SavePlaygroundPrompt;
 }) {
@@ -71,6 +71,7 @@ export function createSavePromptClientAction({
     const pendingSave = bindPendingSavePromptActions({
       pendingSave: {
         toolCallId: actionContext.toolCallId,
+        toolName: SAVE_PROMPT_TOOL_NAME,
         sessionId: actionContext.sessionId,
         input: parsed,
         preview: preview.output,
@@ -87,7 +88,7 @@ export function createSavePromptClientAction({
         };
       },
       addToolOutput: actionContext.addToolOutput,
-      setPendingSavePrompt,
+      clearPending: clearPendingApproval,
     });
 
     if (shouldAutoAccept()) {
@@ -95,7 +96,7 @@ export function createSavePromptClientAction({
       return { ok: true };
     }
 
-    setPendingSavePrompt(actionContext.toolCallId, pendingSave);
+    setPendingApproval(actionContext.toolCallId, pendingSave);
     return { ok: true };
   };
 }

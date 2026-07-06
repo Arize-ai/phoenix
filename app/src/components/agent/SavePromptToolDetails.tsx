@@ -12,7 +12,6 @@ import {
 } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Flex, Link, Token } from "@phoenix/components";
 import { getPromptVersionTagColor } from "@phoenix/constants/promptConstants";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import {
   ToolPartApprovalActions,
@@ -21,6 +20,7 @@ import {
 } from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
+import { usePendingApproval } from "./usePendingApproval";
 
 const savePromptToolDetailsCSS = css`
   && {
@@ -114,9 +114,7 @@ export function formatSavePromptState(part: ToolInvocationPart): string {
 }
 
 export function SavePromptToolDetails({ part }: { part: ToolInvocationPart }) {
-  const pendingSave = useAgentContext(
-    (state) => state.pendingSavePromptsByToolCallId[part.toolCallId] ?? null
-  );
+  const pendingSave = usePendingApproval(part.toolCallId, SAVE_PROMPT_TOOL_NAME);
   const input = parseSavePromptInput(part.input);
   const isResolved = part.state === "output-available";
   const isRejected = isResolved && getOutputStatus(part.output) === "rejected";

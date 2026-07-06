@@ -12,7 +12,6 @@ import { baseAnnotationLabelCSS } from "@phoenix/components/annotation/Annotatio
 import { AnnotationNameAndValue } from "@phoenix/components/annotation/AnnotationNameAndValue";
 import { AnnotationTooltip } from "@phoenix/components/annotation/AnnotationTooltip";
 import type { Annotation } from "@phoenix/components/annotation/types";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import {
   ToolPartApprovalActions,
@@ -21,6 +20,7 @@ import {
 } from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
+import { usePendingApproval } from "./usePendingApproval";
 
 const MAX_VISIBLE_SPAN_ANNOTATIONS = 4;
 
@@ -57,9 +57,9 @@ export function BatchSpanAnnotateToolDetails({
 }: {
   part: ToolInvocationPart;
 }) {
-  const pendingAnnotation = useAgentContext(
-    (state) =>
-      state.pendingBatchSpanAnnotatesByToolCallId[part.toolCallId] ?? null
+  const pendingAnnotation = usePendingApproval(
+    part.toolCallId,
+    BATCH_SPAN_ANNOTATE_TOOL_NAME
   );
   const annotations = parseBatchSpanAnnotateInput(part.input) ?? [];
   const hasAnnotations = annotations.length > 0;

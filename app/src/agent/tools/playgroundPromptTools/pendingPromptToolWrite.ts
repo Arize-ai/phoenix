@@ -1,7 +1,6 @@
-import {
-  WRITE_PROMPT_TOOLS_NAVIGATION_CANCEL_ERROR,
-  WRITE_PROMPT_TOOLS_TOOL_NAME,
-} from "./constants";
+import { bindPendingApproval } from "@phoenix/agent/shared/pendingApproval";
+
+import { WRITE_PROMPT_TOOLS_NAVIGATION_CANCEL_ERROR } from "./constants";
 import { applyWritePromptTools } from "./promptToolsStore";
 import type {
   BindPendingPromptToolWriteOptions,
@@ -9,22 +8,23 @@ import type {
 } from "./types";
 
 /**
- * Attaches accept/reject/cancel callbacks to a pending tool-write batch using
- * the live AI SDK tool-call context that created the proposal. Mirrors
- * `bindPendingPromptEditActions`: the batch is re-applied on accept (which
- * re-checks the revision against the current store), so a tool list that
- * drifted between propose and accept is rejected with the stale error.
+ * Attaches accept/reject/cancel callbacks to a pending tool-write batch. The
+ * generic lifecycle lives in {@link bindPendingApproval}; the commit is
+ * write-specific: it re-checks the provider hasn't drifted since the diff was
+ * proposed, then re-applies the batch (which re-checks the revision).
  */
 export function bindPendingPromptToolWriteActions({
   pendingWrite,
   playgroundStore,
   addToolOutput,
-  setPendingPromptToolWrite,
+  clearPending,
 }: BindPendingPromptToolWriteOptions): PendingPromptToolWrite {
-  return {
-    ...pendingWrite,
-    accept: async ({ approvalSource = "user" } = {}) => {
-      setPendingPromptToolWrite(pendingWrite.toolCallId, null);
+  return bindPendingApproval<PendingPromptToolWrite>({
+    pending: pendingWrite,
+    addToolOutput,
+    clearPending,
+    navigationCancelError: WRITE_PROMPT_TOOLS_NAVIGATION_CANCEL_ERROR,
+    commit: async ({ approvalSource }) => {
       const currentInstance = playgroundStore
         .getState()
         .instances.find((instance) => instance.id === pendingWrite.instanceId);
@@ -32,32 +32,21 @@ export function bindPendingPromptToolWriteActions({
         currentInstance != null &&
         currentInstance.model.provider !== pendingWrite.provider
       ) {
-        await addToolOutput({
-          state: "output-error",
-          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
-          toolCallId: pendingWrite.toolCallId,
-          errorText:
+        return {
+          ok: false,
+          error:
             "The playground provider changed after this prompt tool diff was proposed. Please run write_prompt_tools again so the diff can be reviewed in the current provider format.",
-        });
-        return;
+        };
       }
       const result = applyWritePromptTools({
         playgroundStore,
         input: pendingWrite.input,
       });
       if (!result.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
-          toolCallId: pendingWrite.toolCallId,
-          errorText: result.error,
-        });
-        return;
+        return { ok: false, error: result.error };
       }
-      await addToolOutput({
-        state: "output-available",
-        tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
-        toolCallId: pendingWrite.toolCallId,
+      return {
+        ok: true,
         output: {
           status: "accepted",
           acceptedBy: approvalSource,
@@ -68,29 +57,12 @@ export function bindPendingPromptToolWriteActions({
               ? "Prompt tool changes auto-approved."
               : "Prompt tool changes applied.",
         },
-      });
+      };
     },
-    reject: async () => {
-      setPendingPromptToolWrite(pendingWrite.toolCallId, null);
-      await addToolOutput({
-        state: "output-available",
-        tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
-        toolCallId: pendingWrite.toolCallId,
-        output: {
-          status: "rejected",
-          instanceId: pendingWrite.instanceId,
-          message: "User rejected the proposed prompt tool changes.",
-        },
-      });
-    },
-    cancel: async () => {
-      setPendingPromptToolWrite(pendingWrite.toolCallId, null);
-      await addToolOutput({
-        state: "output-error",
-        tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
-        toolCallId: pendingWrite.toolCallId,
-        errorText: WRITE_PROMPT_TOOLS_NAVIGATION_CANCEL_ERROR,
-      });
-    },
-  };
+    buildRejectedOutput: () => ({
+      status: "rejected",
+      instanceId: pendingWrite.instanceId,
+      message: "User rejected the proposed prompt tool changes.",
+    }),
+  });
 }
