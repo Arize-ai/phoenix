@@ -335,12 +335,45 @@ function getLoadSkillPresentation({
   return presentation;
 }
 
+/**
+ * Skill resource reads are routine bookkeeping, like skill loads: once
+ * complete they collapse to a single dim `Read skill resource
+ * <skill>/<resource>` line instead of a full tool row.
+ */
+function getReadSkillResourcePresentation({
+  state,
+  input,
+}: ToolPresenterOptions): Partial<ToolPresentation> {
+  const record = asRecord(input);
+  const skillName = record
+    ? getStringField({ record, field: "skill_name" })
+    : "";
+  const resourceName = record
+    ? getStringField({ record, field: "resource_name" })
+    : "";
+  const resourceLabel = toSingleLine({
+    text: [skillName, resourceName].filter(Boolean).join("/"),
+  });
+  const presentation: Partial<ToolPresentation> = {
+    icon: "✦",
+    previewText: resourceLabel,
+  };
+  if (state === "output-available") {
+    presentation.isQuiet = true;
+    presentation.quietLabel = resourceLabel
+      ? `Read skill resource ${resourceLabel}`
+      : "Read skill resource";
+  }
+  return presentation;
+}
+
 const TOOL_PRESENTERS: Record<string, ToolPresenter> = {
   bash: getBashPresentation,
   web_search: getWebSearchPresentation,
   web_fetch: getWebFetchPresentation,
   call_subagent: getCallSubagentPresentation,
   load_skill: getLoadSkillPresentation,
+  read_skill_resource: getReadSkillResourcePresentation,
 };
 
 /**

@@ -248,6 +248,53 @@ describe("getToolPresentation", () => {
       expect(presentation.quietLabel).toBe("Loaded skill");
     });
   });
+
+  describe("read_skill_resource", () => {
+    it("previews the skill and resource while running, without quieting", () => {
+      const presentation = getToolPresentation({
+        toolName: "read_skill_resource",
+        state: "input-available",
+        input: { skill_name: "datasets", resource_name: "query-guide" },
+        output: undefined,
+      });
+      expect(presentation.icon).toBe("✦");
+      expect(presentation.previewText).toBe("datasets/query-guide");
+      expect(presentation.isQuiet).toBe(false);
+    });
+
+    it("previews the skill name alone while the resource is still streaming", () => {
+      const presentation = getToolPresentation({
+        toolName: "read_skill_resource",
+        state: "input-streaming",
+        input: { skill_name: "datasets" },
+        output: undefined,
+      });
+      expect(presentation.previewText).toBe("datasets");
+    });
+
+    it("collapses to a quiet labeled line once complete", () => {
+      const presentation = getToolPresentation({
+        toolName: "read_skill_resource",
+        state: "output-available",
+        input: { skill_name: "datasets", resource_name: "query-guide" },
+        output: { content: "…" },
+      });
+      expect(presentation.isQuiet).toBe(true);
+      expect(presentation.quietLabel).toBe(
+        "Read skill resource datasets/query-guide"
+      );
+    });
+
+    it("uses a generic quiet label when the input is unavailable", () => {
+      const presentation = getToolPresentation({
+        toolName: "read_skill_resource",
+        state: "output-available",
+        input: undefined,
+        output: { content: "…" },
+      });
+      expect(presentation.quietLabel).toBe("Read skill resource");
+    });
+  });
 });
 
 describe("getClampedLines", () => {
