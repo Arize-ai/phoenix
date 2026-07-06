@@ -14,6 +14,15 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { useTraceTree } from "./TraceTreeContext";
 import { COMPACT_BREAKPOINT } from "./traceTreeStyles";
 
+/**
+ * Header controls for the trace tree panel.
+ *
+ * @remarks
+ * Search input debouncing is delegated to `DebouncedSearch`, while transition
+ * policy for filtering and global collapse/expand is owned by
+ * `TraceTreeProvider`. Keeping those concerns out of the toolbar keeps this
+ * component focused on layout and control wiring.
+ */
 export function TraceTreeToolbar() {
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
