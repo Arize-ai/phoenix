@@ -104,21 +104,29 @@ async def test_sandbox_providers_returns_nested_configs(
         SANDBOX_ADAPTER_METADATA[provider.backend_type].supported_languages
     )
     assert provider_result["enabled"] is True
-    assert provider_result["configs"] == [
-        {
-            "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
-            "name": sandbox_config.name.root,
-            "description": sandbox_config.description,
-            "language": sandbox_config.language,
-            "timeout": sandbox_config.timeout,
-            "enabled": sandbox_config.enabled,
-            "config": {
-                "envVars": [],
-                "internetAccess": None,
-                "dependencies": None,
-            },
-        }
-    ]
+
+    # `configs` holds every config for the provider. Built-in defaults may be seeded at
+    # startup (e.g. `default-wasm-python` when the WASM adapter registers because
+    # `wasmtime` is installed), so assert the fixture config is present by id rather than
+    # that it is the only config. See issue #13925.
+    config_result = next(
+        config
+        for config in provider_result["configs"]
+        if config["id"] == str(GlobalID("SandboxConfig", str(sandbox_config.id)))
+    )
+    assert config_result == {
+        "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+        "name": sandbox_config.name.root,
+        "description": sandbox_config.description,
+        "language": sandbox_config.language,
+        "timeout": sandbox_config.timeout,
+        "enabled": sandbox_config.enabled,
+        "config": {
+            "envVars": [],
+            "internetAccess": None,
+            "dependencies": None,
+        },
+    }
 
 
 async def test_sandbox_backends_and_providers_can_be_loaded_together(
