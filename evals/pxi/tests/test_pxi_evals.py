@@ -14,12 +14,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
+from phoenix.client.pytest import evaluate, log_output
 
 from evals.pxi.evaluators import EVALUATORS_BY_NAME
 from evals.pxi.harness.agent_task import run_pxi_example
 from evals.pxi.harness.datasets import DATASETS_DIR, load_dataset
 from evals.pxi.harness.reporting import PASSING_SCORE
-from phoenix.client.pytest import evaluate, log_output
 
 
 @dataclass(frozen=True)

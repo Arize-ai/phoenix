@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 import pytest_asyncio
+from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
 from evals.pxi.harness.agent_task import build_shared_docs_mcp_server
-from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
 RESULTS_PATH_ENV = "PXI_EVAL_RESULTS_PATH"
 DEFAULT_RESULTS_PATH = "pxi-eval-results.json"
