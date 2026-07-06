@@ -140,7 +140,7 @@ async def test_eval_work_unit_rejects_unknown_status(db: DbSessionFactory) -> No
                     evaluator_id=evaluator_id,
                     criteria_id=criteria_id,
                     config_fingerprint="fp-bad-status",
-                    status="FINISHED",  # type: ignore[arg-type]
+                    status="FINISHED",
                 )
             )
             await session.flush()
@@ -274,7 +274,7 @@ async def test_eval_work_cursor_rejects_unknown_grain(db: DbSessionFactory) -> N
         async with db() as session:
             session.add(
                 models.EvalWorkCursor(
-                    grain="DOCUMENT",  # type: ignore[arg-type]
+                    grain="DOCUMENT",
                     consumer_group="default",
                 )
             )

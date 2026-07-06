@@ -6,9 +6,9 @@ from sqlalchemy import func, select, update
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.online_eval.db_coordinator import MAX_ATTEMPTS
 from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.producer import (
-    MAX_ATTEMPTS,
     OnlineEvalProducer,
     resolve_criteria,
 )
@@ -244,7 +244,7 @@ async def test_reaper_transitions_and_deletes(
             evaluator_id=evaluator_id,
             criteria_id=criteria_id,
             config_fingerprint=f"fp-{token_hex(8)}",
-            **kwargs,  # type: ignore[arg-type]
+            **kwargs,
         )
 
     async with db() as session:
