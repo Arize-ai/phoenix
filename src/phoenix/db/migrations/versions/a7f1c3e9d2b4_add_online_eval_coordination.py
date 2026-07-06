@@ -63,6 +63,61 @@ def upgrade() -> None:
         sa.UniqueConstraint("grain", "consumer_group"),
     )
     op.create_table(
+        "project_evaluator_criteria",
+        sa.Column(
+            "id",
+            _Integer,
+            primary_key=True,
+        ),
+        sa.Column(
+            "project_id",
+            _Integer,
+            sa.ForeignKey("projects.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "evaluator_id",
+            _Integer,
+            sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("filter_condition", sa.String(), nullable=False, server_default=""),
+        sa.Column(
+            "sampling_rate",
+            sa.Float(),
+            sa.CheckConstraint(
+                "0.0 <= sampling_rate AND sampling_rate <= 1.0",
+                name="valid_sampling_rate",
+            ),
+            nullable=False,
+        ),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.UniqueConstraint("project_id", "name"),
+    )
+    op.create_index(
+        "ix_project_evaluator_criteria_project_id",
+        "project_evaluator_criteria",
+        ["project_id"],
+    )
+    op.create_index(
+        "ix_project_evaluator_criteria_evaluator_id",
+        "project_evaluator_criteria",
+        ["evaluator_id"],
+    )
+    op.create_table(
         "eval_work_units",
         sa.Column(
             "id",
@@ -81,12 +136,18 @@ def upgrade() -> None:
             sa.ForeignKey("evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column(
+            "criteria_id",
+            _Integer,
+            sa.ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("config_fingerprint", sa.String(), nullable=False),
         sa.Column(
             "status",
             sa.String(),
             sa.CheckConstraint(
-                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR')",
+                "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
                 name="valid_eval_work_status",
             ),
             nullable=False,
@@ -115,18 +176,31 @@ def upgrade() -> None:
         "ix_eval_work_units_claimable",
         "eval_work_units",
         ["status", "id"],
-        postgresql_where=sa.text("status <> 'DONE'"),
-        sqlite_where=sa.text("status <> 'DONE'"),
+        postgresql_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
+        sqlite_where=sa.text("status NOT IN ('DONE', 'EXPIRED')"),
     )
     op.create_index(
         "ix_eval_work_units_evaluator_id",
         "eval_work_units",
         ["evaluator_id"],
     )
+    op.create_index(
+        "ix_eval_work_units_criteria_id",
+        "eval_work_units",
+        ["criteria_id"],
+    )
 
 
 def downgrade() -> None:
+    op.drop_index("ix_eval_work_units_criteria_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_evaluator_id", table_name="eval_work_units")
     op.drop_index("ix_eval_work_units_claimable", table_name="eval_work_units")
     op.drop_table("eval_work_units")
+    op.drop_index(
+        "ix_project_evaluator_criteria_evaluator_id", table_name="project_evaluator_criteria"
+    )
+    op.drop_index(
+        "ix_project_evaluator_criteria_project_id", table_name="project_evaluator_criteria"
+    )
+    op.drop_table("project_evaluator_criteria")
     op.drop_table("eval_work_cursors")

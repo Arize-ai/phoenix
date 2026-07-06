@@ -132,13 +132,46 @@ RETENTION_POLICY_EXECUTIONS = Counter(
     labelnames=["status"],
 )
 
+ONLINE_EVAL_PENDING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_pending_work_units",
+    documentation="Current number of online-eval work units in PENDING status",
+)
+ONLINE_EVAL_RUNNING_WORK_UNITS = Gauge(
+    namespace="phoenix",
+    name="online_eval_running_work_units",
+    documentation="Current number of online-eval work units in RUNNING status",
+)
+ONLINE_EVAL_FRONTIER_GAP_SPAN_IDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_frontier_gap_span_ids",
+    documentation="Distance in span ids between the online-eval producer's observed "
+    "high-water mark and its produced-through watermark",
+)
+ONLINE_EVAL_OLDEST_PENDING_AGE_SECONDS = Gauge(
+    namespace="phoenix",
+    name="online_eval_oldest_pending_age_seconds",
+    documentation="Age in seconds of the oldest PENDING online-eval work unit "
+    "(0 when the queue is empty)",
+)
+ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
+    namespace="phoenix",
+    name="online_eval_ingest_spans_per_second",
+    documentation="Span ingest rate derived from successive online-eval cursor "
+    "high-water observations",
+)
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         for route in request.app.routes:
             match, _ = route.matches(request.scope)
             if match is Match.FULL:
-                path = route.path
+                # FastAPI 0.137+ mounts included routers as _IncludedRouter
+                # entries that match without carrying a path template; skip
+                # per-route metrics for those instead of raising on .path.
+                if (path := getattr(route, "path", None)) is None:
+                    return await call_next(request)
                 break
         else:
             return await call_next(request)

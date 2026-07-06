@@ -7,6 +7,7 @@ Work-unit lifecycle:
 
     PENDING --claim--> RUNNING --complete--> DONE
                        RUNNING --fail-----> ERROR
+                       RUNNING --expire---> EXPIRED
     RUNNING (lease lapsed) --> reclaimable
     ERROR (cooldown elapsed, attempts remain) --> retried
 """
@@ -31,6 +32,7 @@ class ClaimedWorkUnit:
     work_unit_id: int
     span_rowid: int
     evaluator_id: int
+    criteria_id: int
     config_fingerprint: str
     identifier: str
     attempts: int
@@ -94,6 +96,17 @@ class EvalWorkCoordinator(Protocol):
     ) -> bool:
         """Transition a claimed unit RUNNING -> ERROR, recording the error, incrementing
         attempts, and setting an optional retry cooldown. Returns False if the claim was lost."""
+        ...
+
+    async def expire(
+        self,
+        *,
+        work_unit_id: int,
+        claimed_by: str,
+    ) -> bool:
+        """Transition a claimed unit RUNNING -> EXPIRED. Terminal: for work that must
+        never run (stale config fingerprint, missing or disabled criteria), unlike the
+        retryable ERROR from ``fail``. Returns False if the claim was lost."""
         ...
 
     async def lag(self) -> QueueLag:

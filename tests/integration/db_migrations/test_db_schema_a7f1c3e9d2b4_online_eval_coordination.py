@@ -100,6 +100,54 @@ class TestEvalWorkCursors(_OnlineEvalSchemaTest):
         )
 
 
+class TestProjectEvaluatorCriteria(_OnlineEvalSchemaTest):
+    table_name = "project_evaluator_criteria"
+
+    @override
+    @classmethod
+    def _get_upgraded_schema_info(cls, db_backend: _DBBackend) -> Optional[_TableSchemaInfo]:
+        column_names = {
+            "id",
+            "project_id",
+            "evaluator_id",
+            "name",
+            "filter_condition",
+            "sampling_rate",
+            "enabled",
+            "created_at",
+            "updated_at",
+        }
+        index_names = {
+            "ix_project_evaluator_criteria_project_id",
+            "ix_project_evaluator_criteria_evaluator_id",
+        }
+        constraint_names = {
+            "pk_project_evaluator_criteria",
+            "uq_project_evaluator_criteria_project_id_name",
+            "fk_project_evaluator_criteria_project_id_projects",
+            "fk_project_evaluator_criteria_evaluator_id_evaluators",
+            "ck_project_evaluator_criteria_`valid_sampling_rate`",
+        }
+        if db_backend == "postgresql":
+            index_names.update(
+                {
+                    "pk_project_evaluator_criteria",
+                    "uq_project_evaluator_criteria_project_id_name",
+                }
+            )
+        elif db_backend == "sqlite":
+            index_names.update({"sqlite_autoindex_project_evaluator_criteria_1"})
+        else:
+            assert_never(db_backend)
+        return _TableSchemaInfo(
+            table_name=cls.table_name,
+            column_names=frozenset(column_names),
+            index_names=frozenset(index_names),
+            constraint_names=frozenset(constraint_names),
+            nullable_column_names=frozenset(),
+        )
+
+
 class TestEvalWorkUnits(_OnlineEvalSchemaTest):
     table_name = "eval_work_units"
 
@@ -110,6 +158,7 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
             "id",
             "span_rowid",
             "evaluator_id",
+            "criteria_id",
             "config_fingerprint",
             "status",
             "claimed_at",
@@ -123,12 +172,14 @@ class TestEvalWorkUnits(_OnlineEvalSchemaTest):
         index_names = {
             "ix_eval_work_units_claimable",
             "ix_eval_work_units_evaluator_id",
+            "ix_eval_work_units_criteria_id",
         }
         constraint_names = {
             "pk_eval_work_units",
             "uq_eval_work_units_span_rowid_evaluator_id_config_fingerprint",
             "fk_eval_work_units_span_rowid_spans",
             "fk_eval_work_units_evaluator_id_evaluators",
+            "fk_eval_work_units_criteria_id_project_evaluator_criteria",
             "ck_eval_work_units_`valid_eval_work_status`",
         }
         if db_backend == "postgresql":

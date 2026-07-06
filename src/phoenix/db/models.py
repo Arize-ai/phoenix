@@ -182,7 +182,7 @@ GenerativeModelSDK: TypeAlias = Literal[
     "aws_bedrock",
 ]
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
-EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR"]
+EvalWorkStatus: TypeAlias = Literal["PENDING", "RUNNING", "DONE", "ERROR", "EXPIRED"]
 EvalWorkGrain: TypeAlias = Literal["SPAN"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
@@ -3070,6 +3070,43 @@ def validate_provider_config(_: Any, __: Any, target: "GenerativeModelCustomProv
         raise ValueError("Config is not encrypted")
 
 
+class ProjectEvaluatorCriteria(HasId):
+    """Attaches an evaluator to a project for online evaluation: which spans to
+    match, how they are sampled, and the annotation name results are written under."""
+
+    __tablename__ = "project_evaluator_criteria"
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    filter_condition: Mapped[str] = mapped_column(String, nullable=False, server_default="")
+    sampling_rate: Mapped[float] = mapped_column(
+        Float,
+        CheckConstraint(
+            "0.0 <= sampling_rate AND sampling_rate <= 1.0",
+            name="valid_sampling_rate",
+        ),
+        nullable=False,
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+
+    project: Mapped["Project"] = relationship("Project")
+    evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+
+    __table_args__ = (UniqueConstraint("project_id", "name"),)
+
+
 class EvalWorkCursor(HasId):
     """Producer watermark and single-active-producer lease for online-eval work
     materialization, one row per (grain, consumer_group)."""
@@ -3110,11 +3147,16 @@ class EvalWorkUnit(HasId):
         nullable=False,
         index=True,
     )
+    criteria_id: Mapped[int] = mapped_column(
+        ForeignKey("project_evaluator_criteria.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     config_fingerprint: Mapped[str] = mapped_column(String, nullable=False)
 
     status: Mapped[EvalWorkStatus] = mapped_column(
         CheckConstraint(
-            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR')",
+            "status IN ('PENDING', 'RUNNING', 'DONE', 'ERROR', 'EXPIRED')",
             name="valid_eval_work_status",
         ),
         default="PENDING",
@@ -3135,6 +3177,7 @@ class EvalWorkUnit(HasId):
 
     span: Mapped["Span"] = relationship("Span")
     evaluator: Mapped["Evaluator"] = relationship("Evaluator")
+    criteria: Mapped["ProjectEvaluatorCriteria"] = relationship("ProjectEvaluatorCriteria")
 
     __table_args__ = (
         UniqueConstraint("span_rowid", "evaluator_id", "config_fingerprint"),
@@ -3142,7 +3185,7 @@ class EvalWorkUnit(HasId):
             "ix_eval_work_units_claimable",
             "status",
             "id",
-            postgresql_where=text("status <> 'DONE'"),
-            sqlite_where=text("status <> 'DONE'"),
+            postgresql_where=text("status NOT IN ('DONE', 'EXPIRED')"),
+            sqlite_where=text("status NOT IN ('DONE', 'EXPIRED')"),
         ),
     )
