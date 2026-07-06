@@ -38,7 +38,7 @@ export function MessageCopyAction({ text }: MessageCopyActionProps) {
       onPress={handleCopy}
     >
       <Icon
-        svg={isCopied ? <Icons.Checkmark /> : <Icons.DuplicateOutline />}
+        svg={isCopied ? <Icons.Checkmark /> : <Icons.Duplicate />}
         color={isCopied ? "success" : "inherit"}
       />
     </MessageAction>

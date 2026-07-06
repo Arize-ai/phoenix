@@ -77,7 +77,6 @@ const fieldCSS = css`
   box-sizing: border-box;
   .search-icon {
     margin-left: var(--global-dimension-static-size-100);
-    margin-top: var(--global-dimension-static-size-100);
   }
 `;
 
@@ -324,7 +323,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       css={fieldCSS}
       ref={filterConditionFieldRef}
     >
-      <Flex direction="row">
+      <Flex direction="row" alignItems="center">
         <Icon svg={<Icons.Search />} className="search-icon" />
         <CodeMirror
           css={codeMirrorCSS}
@@ -349,7 +348,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
           onClick={() => setFilterCondition("")}
           className="button--reset"
         >
-          <Icon svg={<Icons.CloseCircleOutline />} />
+          <Icon svg={<Icons.CloseCircle />} />
         </button>
         <DialogTrigger>
           <IconButton
@@ -365,7 +364,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
             `}
             className="button--reset"
           >
-            <Icon svg={<Icons.PlusOutline />} />
+            <Icon svg={<Icons.Plus />} />
           </IconButton>
           <Popover placement="bottom right">
             <FilterConditionBuilder
@@ -495,7 +494,7 @@ function FilterConditionSnippet(props: {
           aria-label="Add to filter condition"
           variant="default"
           onPress={() => onAddFilterConditionSnippet(snippet)}
-          leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+          leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
         />
       </Flex>
     </div>

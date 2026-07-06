@@ -66,10 +66,7 @@ export function SecretsTable({
                       tabIndex={0}
                       aria-label="Secret could not be decrypted"
                     >
-                      <Icon
-                        svg={<Icons.AlertTriangleOutline />}
-                        color="warning"
-                      />
+                      <Icon svg={<Icons.AlertTriangle />} color="warning" />
                     </span>
                   </Focusable>
                   <Tooltip>

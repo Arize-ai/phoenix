@@ -430,6 +430,11 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PromptContext(TypedDict):
+    type: Literal["prompt"]
+    promptNodeId: str
+
+
 class PromptDeepSeekInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
@@ -579,6 +584,12 @@ class PromptToolFunctionDefinition(TypedDict):
 class PromptToolRaw(TypedDict):
     type: Literal["raw"]
     raw: Mapping[str, Any]
+
+
+class PromptVersionContext(TypedDict):
+    type: Literal["prompt_version"]
+    promptNodeId: str
+    promptVersionNodeId: str
 
 
 class PromptVersionTag(TypedDict):
@@ -1499,6 +1510,7 @@ class FieldSummarizeRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
 
 
 class AssistantMessageMetadata(TypedDict):
@@ -1546,6 +1558,7 @@ class ChatRegenerateMessage(TypedDict):
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -1553,6 +1566,8 @@ class ChatRegenerateMessage(TypedDict):
                 ProjectContext,
                 TraceContext,
                 SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
@@ -1575,6 +1590,7 @@ class ChatSubmitMessage(TypedDict):
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -1582,6 +1598,8 @@ class ChatSubmitMessage(TypedDict):
                 ProjectContext,
                 TraceContext,
                 SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,

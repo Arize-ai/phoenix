@@ -277,6 +277,13 @@
                     ]
                   }
                 ]
+              },
+              {
+                "group": "Integrations",
+                "pages": [
+                  "docs/phoenix/evaluation/integrations/pytest",
+                  "docs/phoenix/evaluation/integrations/vitest-jest"
+                ]
               }
             ]
           },
@@ -312,7 +319,8 @@
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators",
                   "docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions",
-                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits"
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/splits",
+                  "docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest"
                 ]
               }
             ]
@@ -879,7 +887,16 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/sessions",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/prompts",
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/datasets",
-                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments"
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/experiments",
+                  {
+                    "group": "CI eval tests",
+                    "pages": [
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest",
+                      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations"
+                    ]
+                  }
                 ]
               },
               {
@@ -1208,6 +1225,7 @@
               "docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook",
               "docs/phoenix/cookbook/evaluation/evaluate-an-agent",
               "docs/phoenix/cookbook/evaluation/trace-level-evaluation",
+              "docs/phoenix/cookbook/evaluation/session-level-evaluation",
               "docs/phoenix/cookbook/evaluation/evaluate-rag",
               "docs/phoenix/cookbook/evaluation/code-readability-evaluation",
               "docs/phoenix/cookbook/evaluation/relevance-classification-evaluation",
@@ -1219,7 +1237,8 @@
             "group": "Guardrails & Safety",
             "icon": "shield-halved",
             "pages": [
-              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense"
+              "docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense",
+              "docs/phoenix/cookbook/guardrails/designing-realtime-guardrails"
             ]
           },
           {
@@ -1231,6 +1250,7 @@
               "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
+              "docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness",
               "docs/phoenix/cookbook/datasets-and-experiments/cookbooks"
             ]
           }
@@ -1247,6 +1267,8 @@
               {
                 "group": "06.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest",
+                  "docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools",
                   "docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing",
                   "docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands",
                   "docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update",

@@ -1849,6 +1849,88 @@ class TestProject:
     ) -> Any:
         return await _node(field, Project.__name__, project.id, httpx_client)
 
+    async def test_annotation_name_counts(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Span/trace/session annotation name counts reflect the number of annotations per name."""
+        async with db() as session:
+            project = await _add_project(session, name="annotation-name-counts-test")
+            project_session = await _add_project_session(session, project)
+            trace = await _add_trace(session, project, project_session)
+            span = await _add_span(session, trace)
+
+            # 2 span annotations named "correctness", 1 named "relevance"
+            for name in ("correctness", "correctness", "relevance"):
+                session.add(
+                    models.SpanAnnotation(
+                        span_rowid=span.id,
+                        name=name,
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        metadata_={},
+                        identifier=token_hex(4),
+                    )
+                )
+            # 3 trace annotations named "quality"
+            for _ in range(3):
+                session.add(
+                    models.TraceAnnotation(
+                        trace_rowid=trace.id,
+                        name="quality",
+                        annotator_kind="HUMAN",
+                        source="APP",
+                        metadata_={},
+                        identifier=token_hex(4),
+                    )
+                )
+            # 1 session annotation named "helpfulness"
+            session.add(
+                models.ProjectSessionAnnotation(
+                    project_session_id=project_session.id,
+                    name="helpfulness",
+                    annotator_kind="HUMAN",
+                    source="APP",
+                    metadata_={},
+                    identifier=token_hex(4),
+                )
+            )
+
+        span_counts = await self._node(
+            "spanAnnotationNameCounts{name count}", project, httpx_client
+        )
+        assert span_counts == [
+            {"name": "correctness", "count": 2},
+            {"name": "relevance", "count": 1},
+        ]
+
+        trace_counts = await self._node(
+            "traceAnnotationNameCounts{name count}", project, httpx_client
+        )
+        assert trace_counts == [{"name": "quality", "count": 3}]
+
+        session_counts = await self._node(
+            "sessionAnnotationNameCounts{name count}", project, httpx_client
+        )
+        assert session_counts == [{"name": "helpfulness", "count": 1}]
+
+    async def test_annotation_name_counts_empty(
+        self,
+        db: DbSessionFactory,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        """Projects without annotations return empty lists for each level."""
+        async with db() as session:
+            project = await _add_project(session, name="annotation-name-counts-empty")
+        assert await self._node("spanAnnotationNameCounts{name count}", project, httpx_client) == []
+        assert (
+            await self._node("traceAnnotationNameCounts{name count}", project, httpx_client) == []
+        )
+        assert (
+            await self._node("sessionAnnotationNameCounts{name count}", project, httpx_client) == []
+        )
+
     @pytest.fixture
     async def _data(
         self,
@@ -5216,3 +5298,70 @@ class TestAnnotationScoreTimeSeries:
                 "satisfaction": pytest.approx(0.9),
             },
         }
+
+
+async def test_trace_resolves_by_otel_id_and_global_node_id(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    # The trace resolver accepts either an OpenTelemetry trace id (a hex string)
+    # or a Relay global node id, decoding the latter when possible and otherwise
+    # falling back to an OpenTelemetry trace id lookup
+    # (see https://github.com/Arize-ai/phoenix/issues/13513).
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    trace_gid = str(GlobalID("Trace", str(trace.id)))
+    query = """
+    query ($pid: ID!, $tid: ID!) {
+      node(id: $pid) {
+        ... on Project {
+          trace(traceId: $tid) { id }
+        }
+      }
+    }
+    """
+
+    # Resolve by OpenTelemetry trace id.
+    response = await gql_client.execute(
+        query=query,
+        variables={"pid": project_gid, "tid": trace.trace_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"]["id"] == trace_gid
+
+    # Resolve by Relay global node id.
+    response = await gql_client.execute(
+        query=query,
+        variables={"pid": project_gid, "tid": trace_gid},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"]["id"] == trace_gid
+
+
+async def test_trace_with_unmatched_global_node_id_returns_null(
+    db: DbSessionFactory,
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    async with db() as session:
+        project = await _add_project(session)
+    project_gid = str(GlobalID("Project", str(project.id)))
+    node_id_as_trace_id = str(GlobalID("Trace", "2003"))
+    response = await gql_client.execute(
+        query="""
+        query ($pid: ID!, $tid: ID!) {
+          node(id: $pid) {
+            ... on Project {
+              trace(traceId: $tid) { id }
+            }
+          }
+        }
+        """,
+        variables={"pid": project_gid, "tid": node_id_as_trace_id},
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["trace"] is None

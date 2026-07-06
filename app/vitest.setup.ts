@@ -25,6 +25,7 @@ export const baseWindowConfig = {
   basename: "/",
   platformVersion: "1.0.0",
   agentAssistantDisabled: false,
+  agentBashDisabled: false,
   authErrorMessages: {},
 };
 Object.defineProperty(window, "Config", {

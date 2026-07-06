@@ -235,7 +235,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           variant={disabled ? "default" : "primary"}
           isDisabled={disabled}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           aria-label="Add Annotation"
         >
           Annotation

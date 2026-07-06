@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e93685810b01465b956606350eb59b2>>
+ * @generated SignedSource<<e121895d059280fde009adfe520b5fec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 import { FragmentRefs } from "relay-runtime";
 export type PromptsTable_prompts$data = {
   readonly prompts: {
@@ -24,6 +25,8 @@ export type PromptsTable_prompts$data = {
         readonly name: string;
         readonly version: {
           readonly createdAt: string;
+          readonly modelName: string;
+          readonly modelProvider: ModelProvider;
         };
       };
     }>;
@@ -161,6 +164,20 @@ return {
                       "kind": "ScalarField",
                       "name": "createdAt",
                       "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "modelName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "modelProvider",
+                      "storageKey": null
                     }
                   ],
                   "storageKey": null
@@ -250,6 +267,6 @@ return {
 };
 })();
 
-(node as any).hash = "33daede08f0acc18f45f19692993314f";
+(node as any).hash = "d5dd38748ccb61e832bd17f8dab756cd";
 
 export default node;

@@ -23,6 +23,7 @@ import {
   Alert,
   Card,
   ContentSkeleton,
+  ContextualHelp,
   Empty,
   Flex,
   Link,
@@ -48,12 +49,16 @@ export const ProjectAnnotationConfigCard = (
   props: ProjectAnnotationConfigCardProps
 ) => {
   return (
-    <Card title="Project Annotations">
-      <Alert variant="info" banner>
-        Annotation Configs are configured globally and can be associated with
-        multiple projects. Select the annotation configs you want to use for
-        this project.
-      </Alert>
+    <Card
+      title="Annotation Configs"
+      titleExtra={
+        <ContextualHelp variant="info">
+          Annotation Configs are configured globally and can be associated with
+          multiple projects. Select the annotation configs you want to use for
+          this project.
+        </ContextualHelp>
+      }
+    >
       <Suspense fallback={<ContentSkeleton />}>
         <ProjectAnnotationConfigCardContent projectId={props.projectId} />
       </Suspense>

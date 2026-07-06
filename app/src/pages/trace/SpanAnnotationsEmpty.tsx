@@ -14,7 +14,7 @@ export function SpanAnnotationsEmpty() {
         <Text size="L">No annotations for this span</Text>
 
         <ExternalLinkButton
-          leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
+          leadingVisual={<Icon svg={<Icons.Edit2 />} />}
           href="https://arize.com/docs/phoenix/tracing/how-to-tracing/feedback-and-annotations/annotating-in-the-ui"
           size="S"
         >

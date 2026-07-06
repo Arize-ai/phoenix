@@ -213,6 +213,11 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationNameCount {
+  name: String!
+  count: Int!
+}
+
 type AnnotationScoreTimeSeries {
   data: [AnnotationScoreTimeSeriesDataPoint!]!
   names: [String!]!
@@ -241,6 +246,11 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+enum AnnotationTimeRangeField {
+  ANNOTATION_CREATED_AT
+  SOURCE_START_TIME
 }
 
 enum AnnotationType {
@@ -1132,6 +1142,9 @@ type DatasetLabel implements Node {
   name: String!
   description: String
   color: String!
+
+  """The number of datasets that this label is applied to."""
+  usageCount: Int!
 }
 
 """A connection to a list of items."""
@@ -1351,6 +1364,26 @@ input DeleteModelMutationInput {
 type DeleteModelMutationPayload {
   model: GenerativeModel!
   query: Query!
+}
+
+type DeleteProjectAnnotationsByNamePayload {
+  deletedAnnotationCount: Int!
+  query: Query!
+}
+
+input DeleteProjectAnnotationsInput {
+  projectId: ID!
+  annotationName: String!
+
+  """
+  If provided, only annotations whose timestamp falls within this range are deleted. The end of the range is right-exclusive.
+  """
+  timeRange: TimeRange
+
+  """
+  Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
+  """
+  timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
 }
 
 input DeleteProjectTraceRetentionPolicyInput {
@@ -2399,6 +2432,21 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+
+  """
+  Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSpanAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every trace annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectTraceAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
@@ -2700,6 +2748,21 @@ type Project implements Node {
   Names of all available annotations for sessions. (The list contains no duplicates.)
   """
   sessionAnnotationNames: [String!]!
+
+  """
+  Span annotation names along with the number of span annotations that have been added for each name in this project.
+  """
+  spanAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Trace annotation names along with the number of trace annotations that have been added for each name in this project.
+  """
+  traceAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Session annotation names along with the number of session annotations that have been added for each name in this project.
+  """
+  sessionAnnotationNameCounts: [AnnotationNameCount!]!
 
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
@@ -3115,6 +3178,9 @@ type PromptLabel implements Node {
   name: String!
   description: String
   color: String
+
+  """The number of prompts that this label is applied to."""
+  usageCount: Int!
 }
 
 type PromptLabelAssociationMutationPayload {

@@ -75,14 +75,14 @@ export function MessageRewindActions({
   return (
     <MenuTrigger>
       <MessageAction label="More actions">
-        <Icon svg={<Icons.MoreHorizontalOutline />} />
+        <Icon svg={<Icons.MoreHorizontal />} />
       </MessageAction>
       <MenuContainer placement="bottom end" minHeight="auto">
         <Menu onAction={handleAction}>
           {showRewind ? (
             <MenuItem
               id="rewind"
-              leadingContent={<Icon svg={<Icons.RotateCcwOutline />} />}
+              leadingContent={<Icon svg={<Icons.RotateCcw />} />}
             >
               {role === "user"
                 ? "Rewind to this message"
@@ -92,7 +92,7 @@ export function MessageRewindActions({
           {canFork ? (
             <MenuItem
               id="fork"
-              leadingContent={<Icon svg={<Icons.GitBranchOutline />} />}
+              leadingContent={<Icon svg={<Icons.GitBranch />} />}
             >
               Fork from this message
             </MenuItem>
@@ -100,7 +100,7 @@ export function MessageRewindActions({
           {canCopyTraceId ? (
             <MenuItem
               id="copy-trace-id"
-              leadingContent={<Icon svg={<Icons.IDOutline />} />}
+              leadingContent={<Icon svg={<Icons.ID />} />}
             >
               Copy trace ID
             </MenuItem>

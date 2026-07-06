@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from secrets import token_hex
-from typing import Any, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 import pandas as pd
 import pytest
@@ -20,9 +20,11 @@ class TestDatasetIntegration:
     """Integration tests for dataset operations against a real Phoenix server."""
 
     @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("as_generator", [False, True])
     async def test_create_and_get_dataset(
         self,
         is_async: bool,
+        as_generator: bool,
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
@@ -31,13 +33,24 @@ class TestDatasetIntegration:
 
         unique_name = f"test_dataset_{token_hex(4)}"
 
+        inputs: Iterable[Mapping[str, Any]] = [
+            {"text": "What is 2+2?"},
+            {"text": "What is the capital of France?"},
+        ]
+        outputs: Iterable[Mapping[str, Any]] = [{"answer": "4"}, {"answer": "Paris"}]
+        metadata: Iterable[Mapping[str, Any]] = [{"category": "math"}, {"category": "geography"}]
+        if as_generator:
+            inputs = (x for x in inputs)
+            outputs = (x for x in outputs)
+            metadata = (x for x in metadata)
+
         # Create dataset with JSON data
         dataset = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.create_dataset(
                 name=unique_name,
-                inputs=[{"text": "What is 2+2?"}, {"text": "What is the capital of France?"}],
-                outputs=[{"answer": "4"}, {"answer": "Paris"}],
-                metadata=[{"category": "math"}, {"category": "geography"}],
+                inputs=inputs,
+                outputs=outputs,
+                metadata=metadata,
                 dataset_description="A test dataset for integration testing",
             )
         )
@@ -60,9 +73,11 @@ class TestDatasetIntegration:
         assert len(retrieved) == 2
 
     @pytest.mark.parametrize("is_async", [True, False])
+    @pytest.mark.parametrize("as_generator", [False, True])
     async def test_add_examples_to_dataset(
         self,
         is_async: bool,
+        as_generator: bool,
         _app: _AppInfo,
     ) -> None:
         api_key = _app.admin_secret
@@ -82,12 +97,17 @@ class TestDatasetIntegration:
 
         assert len(dataset) == 1
 
-        # Add more examples
+        inputs: Iterable[Mapping[str, Any]] = [{"text": "Goodbye"}, {"text": "Thanks"}]
+        outputs: Iterable[Mapping[str, Any]] = [{"response": "Bye"}, {"response": "You're welcome"}]
+        if as_generator:
+            inputs = (x for x in inputs)
+            outputs = (x for x in outputs)
+
         updated = await _await_or_return(
             Client(base_url=_app.base_url, api_key=api_key).datasets.add_examples_to_dataset(
                 dataset=dataset,  # Pass the dataset object
-                inputs=[{"text": "Goodbye"}, {"text": "Thanks"}],
-                outputs=[{"response": "Bye"}, {"response": "You're welcome"}],
+                inputs=inputs,
+                outputs=outputs,
             )
         )
 

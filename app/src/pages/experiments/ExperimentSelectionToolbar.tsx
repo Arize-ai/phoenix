@@ -111,7 +111,7 @@ export function ExperimentSelectionToolbar(
                 onPress={onClearSelection}
                 aria-label="Clear selection"
               >
-                <Icon svg={<Icons.CloseOutline />} />
+                <Icon svg={<Icons.Close />} />
               </IconButton>
               <Text>{`${selectedExperiments.length} experiment${isPlural ? "s" : ""} selected`}</Text>
             </Flex>
@@ -129,7 +129,7 @@ export function ExperimentSelectionToolbar(
               const queryParams = `?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`;
               navigate(`/datasets/${datasetId}/compare${queryParams}`);
             }}
-            leadingVisual={<Icon svg={<Icons.ArrowCompareOutline />} />}
+            leadingVisual={<Icon svg={<Icons.ArrowCompare />} />}
           >
             Compare
           </Button>
@@ -139,11 +139,7 @@ export function ExperimentSelectionToolbar(
             leadingVisual={
               <Icon
                 svg={
-                  isDeletingExperiments ? (
-                    <Icons.LoadingOutline />
-                  ) : (
-                    <Icons.TrashOutline />
-                  )
+                  isDeletingExperiments ? <Icons.Loading /> : <Icons.Trash />
                 }
               />
             }

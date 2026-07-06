@@ -179,7 +179,7 @@ function SearchField({
               className="search-field__clear"
               data-empty={renderProps.isEmpty || undefined}
             >
-              <Icon svg={<Icons.CloseOutline />} />
+              <Icon svg={<Icons.Close />} />
             </Button>
           )}
         </>

@@ -11,7 +11,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import tuple_
 from sqlalchemy.sql.functions import percentile_cont
 from strawberry import ID, UNSET, lazy
-from strawberry.relay import Connection, Edge, Node, NodeID, PageInfo
+from strawberry.relay import Connection, Edge, GlobalID, Node, NodeID, PageInfo
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -29,10 +29,12 @@ from phoenix.server.api.input_types.SpanSort import SpanColumn, SpanSort, SpanSo
 from phoenix.server.api.input_types.TimeBinConfig import TimeBinConfig, TimeBinScale
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
+from phoenix.server.api.types.AnnotationNameCount import AnnotationNameCount
 from phoenix.server.api.types.AnnotationSummary import AnnotationSummary
 from phoenix.server.api.types.CostBreakdown import CostBreakdown
 from phoenix.server.api.types.DocumentEvaluationSummary import DocumentEvaluationSummary
 from phoenix.server.api.types.GenerativeModel import GenerativeModel
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
     Cursor,
@@ -128,6 +130,15 @@ def _sort_token_count_details(details: list["TraceTokenCountDetailsTimeSeriesEnt
             detail.token_type,
         )
     )
+
+
+async def _annotation_name_counts(
+    info: Info[Context, None], stmt: Select[Any]
+) -> list[AnnotationNameCount]:
+    """Run a ``(name, count)`` aggregation query and map it to ``AnnotationNameCount``."""
+    async with info.context.db.read() as session:
+        result = (await session.execute(stmt)).all()
+    return [AnnotationNameCount(name=name, count=count) for name, count in result]
 
 
 @strawberry.type
@@ -392,11 +403,14 @@ class Project(Node):
 
     @strawberry.field
     async def trace(self, trace_id: ID, info: Info[Context, None]) -> Optional[Trace]:
-        stmt = (
-            select(models.Trace)
-            .where(models.Trace.trace_id == str(trace_id))
-            .where(models.Trace.project_rowid == self.id)
-        )
+        stmt = select(models.Trace).where(models.Trace.project_rowid == self.id)
+        try:
+            trace_rowid = from_global_id_with_expected_type(
+                GlobalID.from_id(str(trace_id)), Trace.__name__
+            )
+            stmt = stmt.where(models.Trace.id == trace_rowid)
+        except ValueError:
+            stmt = stmt.where(models.Trace.trace_id == str(trace_id))
         async with info.context.db.read() as session:
             if (trace := await session.scalar(stmt)) is None:
                 return None
@@ -659,6 +673,64 @@ class Project(Node):
         )
         async with info.context.db.read() as session:
             return list(await session.scalars(stmt))
+
+    @strawberry.field(
+        description="Span annotation names along with the number of span annotations "
+        "that have been added for each name in this project."
+    )  # type: ignore
+    async def span_annotation_name_counts(
+        self,
+        info: Info[Context, None],
+    ) -> list[AnnotationNameCount]:
+        stmt = (
+            select(models.SpanAnnotation.name, func.count(models.SpanAnnotation.id))
+            .join(models.Span, models.SpanAnnotation.span_rowid == models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == self.id)
+            .group_by(models.SpanAnnotation.name)
+            .order_by(models.SpanAnnotation.name)
+        )
+        return await _annotation_name_counts(info, stmt)
+
+    @strawberry.field(
+        description="Trace annotation names along with the number of trace annotations "
+        "that have been added for each name in this project."
+    )  # type: ignore
+    async def trace_annotation_name_counts(
+        self,
+        info: Info[Context, None],
+    ) -> list[AnnotationNameCount]:
+        stmt = (
+            select(models.TraceAnnotation.name, func.count(models.TraceAnnotation.id))
+            .join(models.Trace, models.TraceAnnotation.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == self.id)
+            .group_by(models.TraceAnnotation.name)
+            .order_by(models.TraceAnnotation.name)
+        )
+        return await _annotation_name_counts(info, stmt)
+
+    @strawberry.field(
+        description="Session annotation names along with the number of session annotations "
+        "that have been added for each name in this project."
+    )  # type: ignore
+    async def session_annotation_name_counts(
+        self,
+        info: Info[Context, None],
+    ) -> list[AnnotationNameCount]:
+        stmt = (
+            select(
+                models.ProjectSessionAnnotation.name,
+                func.count(models.ProjectSessionAnnotation.id),
+            )
+            .join(
+                models.ProjectSession,
+                models.ProjectSessionAnnotation.project_session_id == models.ProjectSession.id,
+            )
+            .where(models.ProjectSession.project_id == self.id)
+            .group_by(models.ProjectSessionAnnotation.name)
+            .order_by(models.ProjectSessionAnnotation.name)
+        )
+        return await _annotation_name_counts(info, stmt)
 
     @strawberry.field(
         description="Names of available document evaluations.",

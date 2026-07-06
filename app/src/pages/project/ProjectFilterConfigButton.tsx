@@ -30,7 +30,7 @@ export function ProjectFilterConfigButton() {
       <Button
         size="M"
         aria-label="Filter Configuration"
-        leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Options />} />}
       />
       <Popover>
         <PopoverArrow />

@@ -1022,7 +1022,13 @@ class Query:
             if backend_type not in SANDBOX_BACKEND_TYPES:
                 raise NotFound(f"Unknown sandbox backend type: {backend_type}")
             return SandboxProvider(id=backend_type)
-        node_id = int(global_id.node_id)
+        try:
+            node_id = int(global_id.node_id)
+        except ValueError:
+            raise BadRequest(
+                f"Invalid node id: {id}. The id of a {type_name} node must be an integer, "
+                f"but got: {global_id.node_id}"
+            ) from None
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
         if type_name == Project.__name__:

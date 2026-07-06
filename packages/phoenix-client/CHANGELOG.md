@@ -1,5 +1,33 @@
 # Changelog
 
+## [2.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.10.0...arize-phoenix-client-v2.11.0) (2026-06-30)
+
+
+### Features
+
+* **ui:** add annotation summary to project settings ([#13850](https://github.com/Arize-ai/phoenix/issues/13850)) ([05582a1](https://github.com/Arize-ai/phoenix/commit/05582a132f5400bdaf7451c0e954df286ee09a81))
+
+
+### Bug Fixes
+
+* preserve generator inputs in create_dataset and add_examples_to_dataset ([#13791](https://github.com/Arize-ai/phoenix/issues/13791)) ([c629b70](https://github.com/Arize-ai/phoenix/commit/c629b70cd4771918f0b185261793683b16739419))
+
+
+### Documentation
+
+* **phoenix-client:** correct create_evaluator 2-tuple scorer docs ([#13939](https://github.com/Arize-ai/phoenix/issues/13939)) ([f123759](https://github.com/Arize-ai/phoenix/commit/f123759e80d729102a584759d6f7c2d07fa7b044))
+
+## [2.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.9.0...arize-phoenix-client-v2.10.0) (2026-06-26)
+
+
+### Features
+
+* add direct server agent endpoint ([#13896](https://github.com/Arize-ai/phoenix/issues/13896)) ([6e93f93](https://github.com/Arize-ai/phoenix/commit/6e93f93d0f1c608b2f3f612f9cf9f5abc792cf1e))
+* **agents:** Add session context ([#13727](https://github.com/Arize-ai/phoenix/issues/13727)) ([031975c](https://github.com/Arize-ai/phoenix/commit/031975ccbe60e50967d8f192b6dfe6ca6de1daa7))
+* **agents:** experiment editing & eval skills ([#13704](https://github.com/Arize-ai/phoenix/issues/13704)) ([50b376e](https://github.com/Arize-ai/phoenix/commit/50b376e1d833e69bff2ae4a5e0251d68f33e3af4))
+* **phoenix-client:** add pytest plugin for eval CI ([#13874](https://github.com/Arize-ai/phoenix/issues/13874)) ([6ebe82c](https://github.com/Arize-ai/phoenix/commit/6ebe82cb900d90fdd1fd6d6afc82bf8e76ec82ea))
+* **pxi:** add prompt route contexts ([#13834](https://github.com/Arize-ai/phoenix/issues/13834)) ([4524f82](https://github.com/Arize-ai/phoenix/commit/4524f829eea23afb016c8c77e30cd5066a11957f))
+
 ## [2.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.8.0...arize-phoenix-client-v2.9.0) (2026-06-11)
 
 

@@ -41,9 +41,14 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
+  parseSetSpansFilterInput,
+  SET_SPANS_FILTER_TOOL_NAME,
+} from "@phoenix/agent/tools/spansFilter";
 import { ADD_SPANS_TO_DATASET_TOOL_NAME } from "@phoenix/agent/tools/spansToDataset";
 import { Icon, Icons } from "@phoenix/components";
 import type { Variant } from "@phoenix/components/core/types";
+import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import {
   AddDatasetExamplesToolDetails,
@@ -120,7 +125,8 @@ import {
   getSavePromptToolPreview,
   SavePromptToolDetails,
 } from "./SavePromptToolDetails";
-import { getScrollableParent, useScrollAnchor } from "./scrollAnchor";
+import { getScrollableParent } from "./scrollAnchor";
+import { ToolExecutionSummary } from "./ToolExecutionSummary";
 import {
   TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
@@ -130,7 +136,12 @@ import {
   ToolPartStatus,
 } from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
-import { formatToolState, isToolUIPart } from "./toolPartTypes";
+import {
+  formatToolState,
+  isToolUIPart,
+  stringifyToolValue,
+} from "./toolPartTypes";
+import { useToolDisclosure } from "./useToolDisclosure";
 import {
   formatWritePromptToolsState,
   getWritePromptToolsToolPreview,
@@ -177,12 +188,12 @@ export const toolPartCSS = css`
     display: none;
   }
 
-  &[open] summary {
+  &[open] > summary {
     border-bottom: 1px solid var(--tool-call-body-border-color);
   }
 
   /* Rotate chevron when open */
-  &[open] .tool-part__chevron {
+  &[open] > summary .tool-part__chevron {
     transform: rotate(0deg);
   }
 
@@ -196,6 +207,17 @@ export const toolPartCSS = css`
     overflow-x: auto;
     padding-top: var(--global-dimension-size-125);
     padding-bottom: var(--global-dimension-size-75);
+  }
+
+  .tool-part__subagent-message {
+    font-family: var(--ac-global-font-family-sans);
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+    padding: 0 var(--global-dimension-size-250) var(--global-dimension-size-125);
+  }
+
+  .tool-part__subagent-message > .tool-part {
+    margin-top: var(--global-dimension-size-100);
   }
 
   .tool-part__line {
@@ -406,7 +428,7 @@ export const toolPartCSS = css`
     overflow: visible;
     transition: border-color 150ms ease;
 
-    summary {
+    > summary {
       background: none;
     }
 
@@ -427,19 +449,19 @@ export const toolPartCSS = css`
       transition: none;
     }
 
-    summary {
+    > summary {
       border-bottom: none;
     }
 
-    .tool-part__summary {
+    > summary .tool-part__summary {
       font-size: var(--global-font-size-s);
     }
 
-    .tool-part__title-text {
+    > summary .tool-part__title-text {
       color: var(--tool-call-quiet-color);
     }
 
-    .tool-part__body {
+    > div > .tool-part__body {
       background: none;
     }
   }
@@ -495,6 +517,47 @@ function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
   scrollParent.scrollBy({ top: delta, behavior: "smooth" });
 }
 
+/**
+ * Renders the right-hand status for a single tool call. Completed / failed /
+ * running map to the compact {@link ToolExecutionSummary} (icon only — a single
+ * call has no meaningful count). `approval-requested` ("Awaiting approval") and
+ * `output-denied` ("Denied") have no clean icon in that system, so they keep
+ * their text label.
+ */
+function renderToolPartStatus(
+  state: ToolInvocationPart["state"],
+  stateLabel: string,
+  statusVariant: StatusVariant | undefined
+) {
+  switch (state) {
+    case "output-available":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary completed />
+        </span>
+      );
+    case "output-error":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary failed />
+        </span>
+      );
+    case "input-streaming":
+    case "input-available":
+    case "approval-responded":
+      return (
+        <span className="tool-part__status">
+          <ToolExecutionSummary running />
+        </span>
+      );
+    case "approval-requested":
+    case "output-denied":
+      return (
+        <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
+      );
+  }
+}
+
 function ToolInvocationPartDetails({
   part,
   defaultOpen,
@@ -504,11 +567,8 @@ function ToolInvocationPartDetails({
 }) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
-  const detailsRef = useRef<HTMLDetailsElement>(null);
   const hasAutoOpenedRef = useRef(false);
-  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const [isHeaderActive, setIsHeaderActive] = useState(false);
-  const scrollAnchor = useScrollAnchor();
   const {
     preview,
     stateLabel,
@@ -518,8 +578,14 @@ function ToolInvocationPartDetails({
     variant,
     quietLabel,
   } = getToolPresentation(toolName, part);
-  const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
-  const isRenderedOpen = manualOpen ?? defaultOpen ?? shouldAutoOpen;
+  const shouldAutoOpen = shouldAutoOpenToolPart(part);
+  const {
+    ref: detailsRef,
+    isOpen: isRenderedOpen,
+    toggle,
+  } = useToolDisclosure<HTMLDetailsElement>({
+    defaultOpen: defaultOpen ?? shouldAutoOpen,
+  });
 
   useEffect(() => {
     if (!shouldAutoOpen || hasAutoOpenedRef.current) {
@@ -534,10 +600,14 @@ function ToolInvocationPartDetails({
         scrollElementIntoViewWithinScrollParent(detailsRef.current);
       }
     });
-  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
+  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount, detailsRef]);
 
   const isQuiet = variant === "quiet";
   const showQuietSummary = isQuiet && !isRenderedOpen;
+  const statusState =
+    part.state === "output-available" && part.preliminary === true
+      ? "input-available"
+      : part.state;
 
   return (
     <details
@@ -558,13 +628,7 @@ function ToolInvocationPartDetails({
           // natively can race the auto-open/manual override state during tool
           // streaming updates and make the disclosure feel stuck.
           event.preventDefault();
-
-          // Record the tool's position before it grows/shrinks, flip the open
-          // state, then restore the header to the same spot once the DOM has
-          // updated so opening a tool doesn't jump the transcript.
-          scrollAnchor.capture(detailsRef.current);
-          setManualOpen(!isRenderedOpen);
-          requestAnimationFrame(() => scrollAnchor.restore(detailsRef.current));
+          toggle();
         }}
       >
         <div className="tool-part__summary">
@@ -575,7 +639,7 @@ function ToolInvocationPartDetails({
                 className="tool-part__chevron"
               />
               <Icon
-                svg={icon ?? <Icons.WrenchOutline />}
+                svg={icon ?? <Icons.Wrench />}
                 className="tool-part__tool-icon"
               />
             </span>
@@ -595,11 +659,9 @@ function ToolInvocationPartDetails({
           {showQuietSummary ? null : preview ? (
             <span className="tool-part__preview">{preview}</span>
           ) : null}
-          {showQuietSummary ? null : (
-            <ToolPartStatus variant={statusVariant}>
-              {stateLabel}
-            </ToolPartStatus>
-          )}
+          {showQuietSummary
+            ? null
+            : renderToolPartStatus(statusState, stateLabel, statusVariant)}
         </div>
       </summary>
       <div>{details}</div>
@@ -607,18 +669,19 @@ function ToolInvocationPartDetails({
   );
 }
 
-export function shouldAutoOpenToolPart(
-  part: ToolInvocationPart,
-  preview: string
-): boolean {
+function shouldAutoOpenToolPart(part: ToolInvocationPart): boolean {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   if (uiBehavior?.autoOpen !== true) {
     return false;
   }
-  // Avoid opening an empty shell while tool arguments are still absent. Once the
-  // preview can be derived from arguments, the expanded details have context.
-  return preview !== "" || part.state !== "input-streaming";
+  // Stay collapsed while arguments are still streaming in. Auto-open tools
+  // build their expanded body from a pending client-action that only exists
+  // once the input is complete (`input-available`), so opening mid-stream
+  // shows an empty shell even though the collapsed preview is already
+  // derivable. The collapsed row still surfaces the preview and a running
+  // spinner until the input finishes, then auto-opens with real content.
+  return part.state !== "input-streaming";
 }
 
 export function getToolPartPreview(part: ToolInvocationPart): string {
@@ -808,6 +871,119 @@ function GenericToolDetails({ part }: { part: ToolInvocationPart }) {
   );
 }
 
+type CallSubagentOutput = {
+  summary: string;
+  messageParts: MessagePart[];
+};
+
+function CallSubagentToolDetails({ part }: { part: ToolInvocationPart }) {
+  const output =
+    part.state === "output-available"
+      ? parseCallSubagentOutput(part.output)
+      : null;
+  if (!output) {
+    return <GenericToolDetails part={part} />;
+  }
+
+  return (
+    <div className="tool-part__body">
+      {output.summary ? (
+        <>
+          <ToolPartLabel>Summary</ToolPartLabel>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{output.summary}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
+        </>
+      ) : null}
+      <ToolPartLabel>Subagent</ToolPartLabel>
+      <div className="tool-part__subagent-message">
+        {output.messageParts.map((messagePart, index) => (
+          <CallSubagentMessagePart
+            key={`${messagePart.type}-${index}`}
+            part={messagePart}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CallSubagentMessagePart({ part }: { part: MessagePart }) {
+  if (part.type === "text") {
+    if (part.text.trim().length === 0) {
+      return null;
+    }
+    return (
+      <MarkdownBlock mode="markdown" renderMode="streaming" margin="none">
+        {part.text}
+      </MarkdownBlock>
+    );
+  }
+  if (part.type === "reasoning") {
+    if (part.text.trim().length === 0) {
+      return null;
+    }
+    return (
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{part.text}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
+    );
+  }
+  if (part.type === "step-start") {
+    return null;
+  }
+  if (isToolUIPart(part)) {
+    return <ToolPart part={part} />;
+  }
+  const value = stringifyToolValue(part);
+  if (value.trim().length === 0) {
+    return null;
+  }
+  return (
+    <ToolPartExpandableSection>
+      <ToolPartCodeBlock>{value}</ToolPartCodeBlock>
+    </ToolPartExpandableSection>
+  );
+}
+
+function parseCallSubagentOutput(output: unknown): CallSubagentOutput | null {
+  if (typeof output !== "object" || output === null || Array.isArray(output)) {
+    return null;
+  }
+  const outputRecord = output as Record<string, unknown>;
+  const message = outputRecord.message;
+  if (
+    typeof message !== "object" ||
+    message === null ||
+    Array.isArray(message)
+  ) {
+    return null;
+  }
+  const messageRecord = message as Record<string, unknown>;
+  const parts = messageRecord.parts;
+  if (!isMessagePartArray(parts)) {
+    return null;
+  }
+  const summary = outputRecord.summary;
+  return {
+    summary: typeof summary === "string" ? summary : "",
+    messageParts: parts,
+  };
+}
+
+function isMessagePartArray(value: unknown): value is MessagePart[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (part): part is MessagePart =>
+        typeof part === "object" &&
+        part !== null &&
+        "type" in part &&
+        typeof (part as { type?: unknown }).type === "string"
+    )
+  );
+}
+
 /**
  * Extracts the `name` argument the main agent passed to `call_subagent`, used
  * as the collapsed-row summary. Returns "" when the input is not yet available.
@@ -821,6 +997,23 @@ function getCallSubagentName(part: ToolInvocationPart): string {
     }
   }
   return "";
+}
+
+/**
+ * Builds the collapsed-row preview for `set_spans_filter`. Shows the span
+ * filter DSL condition, annotated with the root/all-spans scope. When the
+ * condition is empty the call only resets scope, so we surface that instead.
+ */
+function getSetSpansFilterToolPreview(part: ToolInvocationPart): string {
+  const parsed = parseSetSpansFilterInput(part.input);
+  if (!parsed) {
+    return "";
+  }
+  const condition = parsed.condition.trim();
+  if (!condition) {
+    return parsed.rootSpansOnly ? "Root spans only" : "All spans";
+  }
+  return parsed.rootSpansOnly ? `${condition} · root spans` : condition;
 }
 
 function getToolPresentation(
@@ -843,6 +1036,7 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <BashToolDetails part={part} />,
+        icon: <Icons.Console />,
       };
     case "ask_user": {
       const stateLabel = formatAskUserState(part.state, part);
@@ -969,6 +1163,7 @@ function getToolPresentation(
         preview: getBatchSpanAnnotateToolPreview(part),
         stateLabel: formatBatchSpanAnnotateState(part),
         statusVariant,
+        icon: <Icons.Edit2 />,
         details: <BatchSpanAnnotateToolDetails part={part} />,
       };
     case PATCH_EXPERIMENT_TOOL_NAME:
@@ -999,55 +1194,42 @@ function getToolPresentation(
         stateLabel: formatToolState(part.state),
         statusVariant,
         details: <LoadSkillToolDetails part={part} />,
-        icon: <Icons.GraduationCapOutline />,
+        icon: <Icons.GraduationCap />,
         variant: part.state === "output-available" ? "quiet" : "default",
         quietLabel: skillName ? `Loaded skill ${skillName}` : "Loaded skill",
       };
     }
     case NATIVE_WEB_SEARCH_TOOL_NAME:
-    case NATIVE_WEB_FETCH_TOOL_NAME: {
-      const inputStr = JSON.stringify(part.input, null, 2);
-      const outputStr =
-        part.state === "output-available"
-          ? JSON.stringify(part.output, null, 2)
-          : "";
-      const errorStr = part.errorText ?? "";
+    case NATIVE_WEB_FETCH_TOOL_NAME:
       return {
         preview: getNativeWebToolPreview(toolName, part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        details: (
-          <div className="tool-part__body">
-            <ToolPartLabel>Input</ToolPartLabel>
-            <ToolPartExpandableSection>
-              <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
-            </ToolPartExpandableSection>
-            {part.state === "output-available" ? (
-              <>
-                <ToolPartLabel>Output</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-            {part.state === "output-error" ? (
-              <>
-                <ToolPartLabel variant="danger">Error</ToolPartLabel>
-                <ToolPartExpandableSection>
-                  <ToolPartCodeBlock>{errorStr}</ToolPartCodeBlock>
-                </ToolPartExpandableSection>
-              </>
-            ) : null}
-          </div>
-        ),
+        icon:
+          toolName === NATIVE_WEB_SEARCH_TOOL_NAME ? (
+            <Icons.Globe />
+          ) : undefined,
+        // Native web tools have no bespoke renderer — fall back to the generic
+        // input/output/error JSON view.
+        details: <GenericToolDetails part={part} />,
       };
-    }
     case CALL_SUBAGENT_TOOL_NAME:
       return {
         preview: getCallSubagentName(part),
+        stateLabel:
+          part.state === "output-available" && part.preliminary === true
+            ? "Running"
+            : formatToolState(part.state),
+        statusVariant,
+        icon: <Icons.Split />,
+        details: <CallSubagentToolDetails part={part} />,
+      };
+    case SET_SPANS_FILTER_TOOL_NAME:
+      return {
+        preview: getSetSpansFilterToolPreview(part),
         stateLabel: formatToolState(part.state),
         statusVariant,
-        icon: <Icons.SplitOutline />,
+        icon: <Icons.Funnel />,
         details: <GenericToolDetails part={part} />,
       };
     default: {

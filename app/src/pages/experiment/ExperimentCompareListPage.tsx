@@ -533,7 +533,7 @@ export function ExperimentCompareListPage({
                   flex: none;
                 `}
               >
-                <Icon svg={<Icons.ExpandOutline />} />
+                <Icon svg={<Icons.Expand />} />
               </IconButton>
               <Tooltip>
                 <TooltipArrow />

@@ -1,7 +1,7 @@
 import { css, keyframes } from "@emotion/react";
 
 import { Icon } from "./Icon";
-import { RecordOutline } from "./Icons";
+import { Record } from "./Icons";
 
 const recordingPulse = keyframes`
   0%, 100% {
@@ -28,7 +28,7 @@ export interface RecordIconProps {
 export const RecordIcon = ({ isActive = false }: RecordIconProps) => {
   return (
     <Icon
-      svg={<RecordOutline />}
+      svg={<Record />}
       css={recordIconCSS}
       data-active={isActive || undefined}
     />

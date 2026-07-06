@@ -57,7 +57,7 @@ export function DatasetLabelConfigButton(props: DatasetLabelConfigButtonProps) {
       <Button
         variant={variant}
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         aria-label="Configure dataset labels"
       >
         Label
@@ -199,6 +199,7 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
+                aria-label="Back to labels"
                 leadingVisual={<Icon svg={<Icons.ChevronLeftSmall />} />}
                 onPress={() => setMode("apply")}
               />
@@ -209,7 +210,8 @@ function DatasetLabelList({
               <Button
                 variant="quiet"
                 size="S"
-                leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+                aria-label="Create new label"
+                leadingVisual={<Icon svg={<Icons.Plus />} />}
                 onPress={() => setMode("create")}
               />
             ) : undefined

@@ -8,6 +8,7 @@
 - [User Guide](https://arize.com/docs/phoenix/user-guide): End-to-end workflows for development, production, and optimization
 - [Production Guide](https://arize.com/docs/phoenix/production-guide): Deploy Phoenix in production with best practices for scale and reliability
 - [Environments](https://arize.com/docs/phoenix/environments): Configure Phoenix across development, staging, and production environments
+- [PXI Agent](https://arize.com/docs/phoenix/pxi): Hand investigations to Phoenix Intelligence, the built-in AI agent that inspects traces, iterates prompts, and runs experiments
 
 ## Quick Start
 
@@ -178,6 +179,7 @@
 - [Dataset Evaluators](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/how-to-dataset-evaluators): Attach evaluators to datasets for automatic scoring
 - [Repetitions](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/repetitions): Run multiple iterations for statistical confidence
 - [Splits](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits): Organize datasets into train/test/validation splits
+- [Eval CI with pytest](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest): Run LLM evals as pytest tests, record them as Phoenix experiments, and gate CI on the pytest exit code with arize-phoenix-client[pytest]
 
 
 - [How to: Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets): Datasets are critical assets for building robust prompts, evals, fine-tuning,
@@ -393,6 +395,23 @@
 - [Annotations Concepts](https://arize.com/docs/phoenix/tracing/concepts-tracing/annotations-concepts): Understand how scores, labels, and feedback attach to traces as quality signals
 - [Translating Conventions](https://arize.com/docs/phoenix/tracing/concepts-tracing/translating-conventions): Map framework-specific conventions to Phoenix's trace structure
 - [Tracing FAQs](https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing): Troubleshoot trace collection, local vs remote setup, and common configuration issues
+
+### OpenTelemetry & OpenInference
+
+- [OTel & OpenInference Overview](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview): How Phoenix tracing builds on the OpenTelemetry and OpenInference open standards
+- [Signals, Spans, Traces, and Sessions](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals): Understand the data shapes OpenTelemetry produces and how they form a trace tree
+- [Tracing Resource](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource): Set service name, environment, and attributes that route spans to your project
+- [Exporter and OTLP](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter): Ship spans out of your app over OTLP via gRPC or HTTP
+- [Span Processor](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor): Choose between BatchSpanProcessor and SimpleSpanProcessor and tune span batching
+- [Tracer Provider and Tracer](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider): Configure the central OpenTelemetry tracing object and handle shutdown on Lambda and Node.js
+- [phoenix.otel Helpers](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers): Collapse OpenTelemetry setup into one register() call with arize-phoenix-otel
+- [OpenInference Semantic Conventions](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions): Standardized span attribute names that make AI trace data portable across tools and languages
+- [OpenInference Span Kinds](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds): The eleven span kinds — LLM, Tool, Agent, Chain, Retriever — and their canonical attributes
+- [Instrumentation Approaches](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches): Compare auto, manual, and hybrid instrumentation and the custom span processor pattern
+- [OpenInference Context Managers](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers): Attach session IDs, user IDs, metadata, tags, and prompt templates to spans in scope
+- [Context Propagation](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation): Carry trace context across async boundaries, threads, and microservices
+- [Trace Sampling](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling): Reduce telemetry volume with head and tail sampling without losing visibility
+- [OpenTelemetry Collector](https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector): Receive, process, and export spans through an optional intermediate collector service
 
 ### Prompts
 
@@ -649,11 +668,14 @@
 - [Experiment with a Customer Support Agent](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent): This guide shows you how to create and evaluate agents with Phoenix to improve performance
 - [Prompt Template Iteration for a Summarization Service](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/summarization): Imagine you're deploying a service for your media company's summarization model that condenses daily news
 - [Text2SQL Experiments](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/text2sql): Building effective text-to-SQL systems requires rigorous evaluation and systematic experimentation. In this
+- [Why Public Benchmarks Lie: Building Your Own Eval Harness](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness): A model that wins on MMLU can lose on your task. Build a domain-specific harness and compare models fairly on your own data and metric.
 - [Code Readability Evaluation](https://arize.com/docs/phoenix/cookbook/evaluation/code-readability-evaluation): >-
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/evaluation/cookbooks): Use Phoenix Evals to evaluate your application for faithfulness, toxicity, relevance of retrieved documents
 - [Creating a Custom LLM Evaluator with a Benchmark Dataset](https://arize.com/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset): Learn how to build a custom LLM-as-a-Judge evaluator by creating a benchmark dataset tailored to your use
 - [Evaluate a Talk-to-Your-Data Agent](https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent): Evaluate a Talk-to-Your-Data Agent
 - [Trace-level Evaluation: Beyond Input/Output Checks](https://arize.com/docs/phoenix/cookbook/evaluation/trace-level-evaluation): Evaluate an agent's intermediate reasoning, tool selection, and decision path — not just its final answer.
+- [Session-level Evaluation: Scoring the Whole Conversation](https://arize.com/docs/phoenix/cookbook/evaluation/session-level-evaluation): Evaluate a multi-turn session as a whole - coherence, goal completion, and user frustration that turn-by-turn checks miss.
+- [Designing Realtime Guardrails: Input, Output, and the Cost of Blocking](https://arize.com/docs/phoenix/cookbook/guardrails/designing-realtime-guardrails): Decide what to guard at input vs. output, trade latency against coverage, and layer guardrails without blocking real users.
 - [Evaluate RAG](https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-rag): Building a RAG pipeline and evaluating it with Phoenix Evals
 - [OpenAI Agents SDK Cookbook](https://arize.com/docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook): This guide shows you how to create and evaluate agents with Phoenix to improve performance
 - [Relevance Classification Evaluation](https://arize.com/docs/phoenix/cookbook/evaluation/relevance-classification-evaluation): Evaluate the relevance of documents retrieved by RAG applications using Phoenix's evaluation framework
@@ -668,7 +690,8 @@
 - [Optimizing Prompts for LLM Classification - Prompt Learning](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-learning-optimizing-prompts-for-classification): Using Prompt Learning to boost accuracy on a classification dataset
 - [Prompt Optimization Techniques](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization): This tutorial will use Phoenix to compare the performance of different prompt optimization techniques
 - [ReAct Prompting](https://arize.com/docs/phoenix/cookbook/prompt-engineering/react-prompting): **ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking
-- [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): >-
+- [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): Build and trace an agentic RAG system using LlamaIndex's ReAct agent with vector and SQL query tools
+- [OpenInference Best Practices](https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices): Enrich auto-instrumented traces with LLM, tool, agent, chain, and session attributes using OpenInference span kinds
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/tracing/cookbooks): Trace through the execution of your LLM application to understand its internal structure and to troubleshoot
 - [Generating Synthetic Datasets for LLM Evaluators & Agents](https://arize.com/docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents): Learn different strategies for dataset generation and show how they can be used to run experiments and test
 - [Product Recommendation Agent: Google Agent Engine & LangGraph](https://arize.com/docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph): This notebook is adapted from Google's \"Building and Deploying a LangGraph Application with Agent Engine in
@@ -690,16 +713,7 @@
 
 ### 2026
 
-- [01.05.2026 Appended Messages for Playground Experiments](https://arize.com/docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments): Add suffix messages to Playground experiment runs for A/B testing prompt endings
 - [01.17.2026 Phoenix CLI: Terminal Access for AI Coding Assistants](https://arize.com/docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging): Install px CLI to query traces, spans, and experiments from the terminal
-- [01.21.2026 CLI Datasets, Experiments & Annotations](https://arize.com/docs/phoenix/release-notes/01-2026/01-21-2026-cli-datasets-experiments-annotations): Manage datasets, run experiments, and write annotations from the command line with px
-- [01.21.2026 Create Datasets from Traces with Span Associations](https://arize.com/docs/phoenix/release-notes/01-2026/01-21-2026-create-datasets-from-traces): Build datasets from existing spans using arize-phoenix-client with span-to-example associations
-- [01.22.2026 CLI Prompt Commands](https://arize.com/docs/phoenix/release-notes/01-2026/01-22-2026-cli-prompt-commands): List, pull, and pipe Phoenix prompts to AI assistants from the terminal with px prompts
-- [02.01.2026 Tool Selection and Tool Invocation Evaluators](https://arize.com/docs/phoenix/release-notes/02-2026/02-01-2026-tool-selection-and-tool-invocation-evaluators): New pre-built evals for scoring tool selection and argument quality in Python and TypeScript
-- [02.10.2026 Claude Opus 4.6 Model Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-10-2026-claude-opus-4-6-model-support): Use claude-opus-4-6 in the Playground with extended thinking and accurate cost tracking
-- [02.11.2026 Custom Providers for Playground and Prompts](https://arize.com/docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers): Store OpenAI, Azure, Anthropic, Bedrock, and Google credentials server-side and reuse across Playground
-- [02.12.2026 OpenAI Responses API Type Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-12-2026-openai-responses-api-support): Switch between Chat Completions and Responses API per model in Playground and custom providers
-- [02.12.2026 Dataset Evaluators](https://arize.com/docs/phoenix/release-notes/02-2026/02-12-2026-dataset-evaluators): Attach evaluators to datasets so they auto-run server-side on every Playground experiment
 - [Phoenix 13.0](https://arize.com/docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0): Dataset Evaluators, custom model providers, OpenAI Responses API support, and major Playground and experiment
 - [02.27.2026 Sessions API and CLI Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api): Query sessions via REST API and CLI with filtering, sorting, and pagination support
 - [03.05.2026 SDK Session Retrieval](https://arize.com/docs/phoenix/release-notes/03-2026/03-05-2026-sdk-session-retrieval): Get and list sessions programmatically from Python and TypeScript
@@ -734,6 +748,12 @@
 - [05.13.2026 Playground Thinking Controls for Anthropic and Google](https://arize.com/docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls): Configure Anthropic extended thinking and Google thinking in the Playground — token budgets, effort levels, and display toggles
 - [05.15.2026 OTel GenAI Semantic Convention Auto-Conversion](https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion): Phoenix auto-converts gen_ai.* OTel attributes to OpenInference at ingest — OTel-native traces render with full message I/O and token counts without code changes
 - [05.15.2026 Session Trace Feedback and ATIF v1.7](https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif): Thumbs-up/down feedback toolbar on session turns; ATIF v1.7 trajectory upload with embedded subagents and deterministic dispatch steps
+- [05.21.2026 Code Evaluators](https://arize.com/docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators): Write Python or TypeScript evaluate() functions in the UI and run them server-side on every experiment
+- [05.27.2026 Drag-to-Zoom on Project Metric Charts](https://arize.com/docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom): Click and drag across any project metric chart or spans sparkline to zoom into a time window
+- [06.02.2026 Introducing PXI](https://arize.com/docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent): Phoenix Intelligence, the built-in AI engineering agent, debuts in beta in arize-phoenix 17.0.0+
+- [06.10.2026 PXI Agent Update](https://arize.com/docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update): PXI gains a skills menu, parallel subagents, playground orchestration, evaluator authoring, and dataset management
+- [06.11.2026 Time Range Selector and PXI Slash Commands](https://arize.com/docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands): Search presets and type free-form durations in the time range selector; PXI adds local slash commands
+- [06.16.2026 Time Range, Metrics, and Sharing Upgrades](https://arize.com/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing): Pick ranges from a pan/zoom calendar, share trace URLs, and view annotation metrics in arize-phoenix 17.5.0+
 
 ### 2025
 

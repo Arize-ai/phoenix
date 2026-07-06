@@ -59,6 +59,19 @@ class TraceAnnotationMutationMixin:
             trace_rowids.append(trace_rowid)
 
         async with info.context.db() as session:
+            existing_trace_rowids = set(
+                await session.scalars(
+                    select(models.Trace.id).where(models.Trace.id.in_(set(trace_rowids)))
+                )
+            )
+            missing_trace_ids = [
+                str(annotation_input.trace_id)
+                for trace_rowid, annotation_input in zip(trace_rowids, input)
+                if trace_rowid not in existing_trace_rowids
+            ]
+            if missing_trace_ids:
+                raise NotFound(f"Could not find traces with IDs: {missing_trace_ids}")
+
             for idx, (trace_rowid, annotation_input) in enumerate(zip(trace_rowids, input)):
                 resolved_identifier = ""
                 if isinstance(annotation_input.identifier, str):

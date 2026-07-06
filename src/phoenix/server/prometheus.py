@@ -3,9 +3,10 @@ import sys
 import time
 from functools import lru_cache
 from threading import Thread
-from typing import Optional
+from typing import Optional, Sequence
 
 import psutil
+from fastapi.routing import APIRoute, Mount, _IncludedRouter
 from prometheus_client import (
     Counter,
     Gauge,
@@ -13,10 +14,12 @@ from prometheus_client import (
     Summary,
     start_http_server,
 )
+from starlette.applications import Starlette
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.routing import Match
+from starlette.routing import BaseRoute, Match
+from starlette.types import Scope
 
 REQUESTS_PROCESSING_TIME = Summary(
     name="starlette_requests_processing_time_seconds_summary",
@@ -162,18 +165,36 @@ ONLINE_EVAL_INGEST_SPANS_PER_SECOND = Gauge(
 )
 
 
+def _join_paths(prefix: str, path: str) -> str:
+    if not prefix:
+        return path
+    return f"{prefix.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _resolve_route_path(routes: Sequence[BaseRoute], scope: Scope) -> Optional[str]:
+    """Resolve the templated path of the route matching ``scope``."""
+    for route in routes:
+        match, _ = route.matches(scope)
+        if match is not Match.FULL:
+            continue
+        if isinstance(route, _IncludedRouter):
+            prefix = route.include_context.prefix or ""
+            stripped_path = scope["path"][len(prefix) :]
+            sub_scope = {**scope, "path": stripped_path} if prefix else scope
+            sub_path = _resolve_route_path(route.original_router.routes, sub_scope)
+            if sub_path is not None:
+                return _join_paths(prefix, sub_path)
+            continue
+        if isinstance(route, (APIRoute, Mount)):
+            return route.path
+    return None
+
+
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        for route in request.app.routes:
-            match, _ = route.matches(request.scope)
-            if match is Match.FULL:
-                # FastAPI 0.137+ mounts included routers as _IncludedRouter
-                # entries that match without carrying a path template; skip
-                # per-route metrics for those instead of raising on .path.
-                if (path := getattr(route, "path", None)) is None:
-                    return await call_next(request)
-                break
-        else:
+        assert isinstance(request.app, Starlette)
+        path = _resolve_route_path(request.app.routes, request.scope)
+        if path is None:
             return await call_next(request)
         method = request.method
         start_time = time.perf_counter()

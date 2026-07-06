@@ -131,6 +131,7 @@ export function buildAgentChatRequestBody({
     messageId,
     ingestTraces: traceRecording.ingestTraces,
     exportRemoteTraces: traceRecording.exportRemoteTraces,
+    attachUserId: observability.attachUserId,
     editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,

@@ -221,7 +221,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
       />
       <ControlButton
         label="Zoom out"
-        icon={<Icons.MinusOutline />}
+        icon={<Icons.Minus />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
         onPress={() => applyChange(zoomTimeRangeOut({ value }))}
@@ -236,9 +236,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
             isSelected={isLive}
             isDisabled={isDisabled}
             leadingVisual={
-              <Icon
-                svg={isLive ? <Icons.PauseOutline /> : <Icons.PlayOutline />}
-              />
+              <Icon svg={isLive ? <Icons.Pause /> : <Icons.Play />} />
             }
             onChange={onIsLiveChange}
           />
@@ -247,7 +245,7 @@ export function TimeRangeControls(props: TimeRangeControlsProps) {
       )}
       <ControlButton
         label="Zoom in"
-        icon={<Icons.PlusOutline />}
+        icon={<Icons.Plus />}
         size={size}
         isDisabled={isDisabled || !hasWindow}
         onPress={() => applyChange(zoomTimeRangeIn({ value }))}

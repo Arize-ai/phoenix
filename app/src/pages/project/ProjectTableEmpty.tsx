@@ -73,7 +73,7 @@ export function ProjectTableEmpty({ projectName }: { projectName: string }) {
               <DialogTrigger>
                 <Button
                   variant="default"
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                 >
                   Get Started
                 </Button>

@@ -35,7 +35,7 @@ export function NewDatasetButton({
       <Button
         variant="primary"
         size="M"
-        leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
         aria-label="Create a new dataset"
         onPress={() => {
           setError(null);

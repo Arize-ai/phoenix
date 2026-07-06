@@ -844,11 +844,7 @@ function ExperimentJobStatusIcon({
     return (
       <TooltipTrigger>
         <TriggerWrap>
-          <Icon
-            svg={<Icons.CloseCircleOutline />}
-            color="danger"
-            aria-label="error"
-          />
+          <Icon svg={<Icons.CloseCircle />} color="danger" aria-label="error" />
         </TriggerWrap>
         <RichTooltip>
           <RichTooltipTitle>Experiment Error</RichTooltipTitle>

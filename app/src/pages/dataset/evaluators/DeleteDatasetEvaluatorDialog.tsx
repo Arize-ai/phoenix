@@ -161,11 +161,7 @@ export function DeleteDatasetEvaluatorDialog({
                   leadingVisual={
                     <Icon
                       svg={
-                        isCommittingDelete ? (
-                          <Icons.LoadingOutline />
-                        ) : (
-                          <Icons.TrashOutline />
-                        )
+                        isCommittingDelete ? <Icons.Loading /> : <Icons.Trash />
                       }
                     />
                   }

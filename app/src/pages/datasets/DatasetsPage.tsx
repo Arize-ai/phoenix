@@ -4,6 +4,7 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { DebouncedSearch, Flex, Loading, View } from "@phoenix/components";
 import { CanModify } from "@phoenix/components/auth";
 import { DatasetLabelFilterButton } from "@phoenix/components/dataset/DatasetLabelFilterButton";
+import { useLabelFilterSearchParams } from "@phoenix/hooks";
 
 import type { DatasetsPageQuery } from "./__generated__/DatasetsPageQuery.graphql";
 import { CreateDatasetButton } from "./CreateDatasetButton";
@@ -36,7 +37,9 @@ export function DatasetsPageContent() {
   }, [setFetchKey]);
 
   const [filter, setFilter] = useState<string>("");
-  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  // The label filter is persisted to the URL so it can be shared and survive
+  // reloads.
+  const [selectedLabelIds, setSelectedLabelIds] = useLabelFilterSearchParams();
   return (
     <Flex direction="column" height="100%">
       <View
@@ -73,6 +76,7 @@ export function DatasetsPageContent() {
         query={data}
         filter={filter}
         labelFilter={selectedLabelIds}
+        onLabelFilterChange={setSelectedLabelIds}
       />
     </Flex>
   );

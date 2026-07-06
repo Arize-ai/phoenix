@@ -27,7 +27,7 @@ npm install \
 `@arizeai/phoenix-otel` combines Phoenix registration with OpenInference authoring APIs:
 
 - Phoenix registration: `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()`
-- OpenInference wrappers: `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`
+- OpenInference wrappers: `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `traceLLM()`, `traceRetriever()`, `traceReranker()`, `traceEmbedding()`, `traceGuardrail()`, `traceEvaluator()`, `tracePrompt()`
 - decorators and context propagation: `observe()`, `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`
 - attribute builders: `getLLMAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getToolAttributes()`, `getMetadataAttributes()`, `getInputAttributes()`, `getOutputAttributes()`, `defaultProcessInput()`, `defaultProcessOutput()`
 - redaction and safety helpers: `OITracer`, `withSafety`, `safelyJSONStringify`, `safelyJSONParse`
@@ -233,7 +233,7 @@ await provider.shutdown();
 | Category | Exports |
 |----------|---------|
 | **Registration** | `register()`, `attachGlobalTracerProvider()`, `detachGlobalTracerProvider()`, `createNoOpProvider()` |
-| **Tracing helpers** | `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `observe()` |
+| **Tracing helpers** | `withSpan()`, `traceChain()`, `traceAgent()`, `traceTool()`, `traceLLM()`, `traceRetriever()`, `traceReranker()`, `traceEmbedding()`, `traceGuardrail()`, `traceEvaluator()`, `tracePrompt()`, `observe()` |
 | **Context attributes** | `setSession()`, `setUser()`, `setMetadata()`, `setTags()`, `setPromptTemplate()`, `setAttributes()`, `getAttributesFromContext()` |
 | **Attribute builders** | `getLLMAttributes()`, `getToolAttributes()`, `getRetrieverAttributes()`, `getEmbeddingAttributes()`, `getMetadataAttributes()` |
 | **Redaction and safety** | `OITracer`, `withSafety()`, `safelyJSONStringify()`, `safelyJSONParse()` |
@@ -243,7 +243,7 @@ await provider.shutdown();
 
 ## Where To Start
 
-- [Tracing helpers](./tracing-helpers) for wrapping functions with `withSpan`, `traceChain`, `traceAgent`, `traceTool`, and `observe`
+- [Tracing helpers](./tracing-helpers) for wrapping functions with `withSpan`, the span-kind wrappers (`traceChain`, `traceAgent`, `traceTool`, `traceLLM`, `traceRetriever`, `traceReranker`, `traceEmbedding`, `traceGuardrail`, `traceEvaluator`, `tracePrompt`), and `observe`
 - [Context attributes](./context-attributes) for propagating sessions, users, metadata, tags, prompt templates, and manual context propagation
 - [Manual spans](./manual-spans) for raw OpenTelemetry spans, attribute builders, `OITracer`, and utility helpers
 
