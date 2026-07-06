@@ -118,6 +118,14 @@ class TraceDataSweeper(DaemonTask):
           or a trace INSERT's KEY SHARE on the parent) is skipped this sweep
           and reconsidered next hour. SQLite serializes writers, so the race
           cannot occur there.
+
+        A narrower race remains if the sweeper commits after ingestion selects
+        an old orphaned session but before ingestion flushes its trace. In that
+        case the single span insert fails inside the bulk inserter's per-span
+        savepoint, is logged and metered, and the batch continues. We accept
+        that tradeoff here because it is the same pre-existing race carried by
+        explicit session/project deletes; a retry in the ingestion path would
+        address all such deletes together.
         """
         cutoff = self._now() - _ORPHAN_SESSION_GRACE_PERIOD
         total_deleted = 0
