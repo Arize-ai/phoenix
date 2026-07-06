@@ -1,9 +1,10 @@
+import warnings
 from datetime import datetime, timezone
 
 import pytest
 from pydantic_ai import RunUsage
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SAWarning
 
 import phoenix.server.api.routers.agents as agents_router
 from phoenix.db import models
@@ -136,6 +137,54 @@ async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFact
     assert persisted_browser_span is not None
     assert persisted_browser_span.cumulative_llm_token_count_prompt == 3
     assert persisted_browser_span.cumulative_llm_token_count_completion == 5
+
+
+async def test_persist_db_traces_merge_with_session_does_not_warn(db: DbSessionFactory) -> None:
+    """Merging backend spans into an ingested browser trace must not associate
+    transient Trace objects with the persistent ProjectSession, which triggers
+    SAWarning: "Object of type <Trace> not in session, add operation along
+    'ProjectSession.traces' will not proceed" on every autoflush."""
+    trace_id = "cc1221e156495558c48e177a21f84891"
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    async with db() as session:
+        project = models.Project(name="pxi_dev")
+        session.add(project)
+        await session.flush()
+        project_id = project.id
+        existing_trace = models.Trace(
+            project_rowid=project_id,
+            trace_id=trace_id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(existing_trace)
+
+    backend_trace = _build_backend_trace(
+        project_id=project_id, trace_id=trace_id, span_id="span-session-1"
+    )
+    backend_trace.project_session = models.ProjectSession(
+        session_id="pxi-session-1",
+        project_id=project_id,
+        start_time=now,
+        end_time=now,
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", SAWarning)
+        async with db() as session:
+            await _persist_db_traces(session=session, db_traces=[backend_trace])
+            await session.flush()
+
+    async with db() as session:
+        persisted_trace = await session.scalar(
+            select(models.Trace).where(models.Trace.trace_id == trace_id)
+        )
+        assert persisted_trace is not None
+        project_session = await session.scalar(
+            select(models.ProjectSession).where(models.ProjectSession.session_id == "pxi-session-1")
+        )
+        assert project_session is not None
+        assert persisted_trace.project_session_rowid == project_session.id
 
 
 class _FakeEventQueue:

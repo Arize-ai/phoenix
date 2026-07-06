@@ -437,14 +437,6 @@ async def _persist_db_traces(
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
     persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
-    for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
-            continue
-        # Replace the transient ProjectSession (built by Tracer) with the
-        # persistent one loaded from the upsert, so SQLAlchemy resolves the FK
-        # from the relationship and doesn't try to cascade-insert a duplicate.
-        db_trace.project_session = persistent_by_session_id[project_session.session_id]
 
     existing_traces_by_trace_id = {
         trace.trace_id: trace
@@ -467,20 +459,32 @@ async def _persist_db_traces(
     traces_to_insert: list[models.Trace] = []
     spans_to_insert: list[models.Span] = []
     for db_trace in db_traces:
+        # Resolve the transient ProjectSession (built by Tracer) to the
+        # persistent one loaded from the upsert, but only associate it with
+        # traces that are actually inserted: putting a transient Trace into a
+        # persistent ProjectSession.traces collection without adding it to the
+        # session makes every autoflush warn that the add "will not proceed".
+        persistent_project_session = (
+            persistent_by_session_id[db_trace.project_session.session_id]
+            if db_trace.project_session is not None
+            else None
+        )
         db_trace.spans = [
             db_span for db_span in db_trace.spans if db_span.span_id not in existing_span_ids
         ]
         existing_trace = existing_traces_by_trace_id.get(db_trace.trace_id)
         if existing_trace is None:
             if db_trace.spans:
+                if persistent_project_session is not None:
+                    db_trace.project_session = persistent_project_session
                 traces_to_insert.append(db_trace)
             continue
         if db_trace.start_time < existing_trace.start_time:
             existing_trace.start_time = db_trace.start_time
         if existing_trace.end_time < db_trace.end_time:
             existing_trace.end_time = db_trace.end_time
-        if existing_trace.project_session_rowid is None and db_trace.project_session is not None:
-            existing_trace.project_session = db_trace.project_session
+        if existing_trace.project_session_rowid is None and persistent_project_session is not None:
+            existing_trace.project_session = persistent_project_session
         if existing_trace.project_session is not None:
             if db_trace.start_time < existing_trace.project_session.start_time:
                 existing_trace.project_session.start_time = db_trace.start_time
