@@ -9,6 +9,8 @@ inside the window). A cleanup migration drops the unused single-column `ix_proje
 
 The cleanup migration also drops six other redundant single-column indexes whose lookups are served by existing unique indexes: `ix_project_annotation_configs_project_id`, `ix_prompts_prompt_labels_prompt_label_id`, `ix_token_prices_model_id`, `ix_dataset_examples_dataset_id`, `ix_dataset_examples_external_id`, and `ix_dataset_evaluators_dataset_id`.
 
+The index migration additionally creates four foreign-key indexes on the experiment log tables so that experiment/dataset deletions no longer trigger sequential scans: `ix_experiment_logs_experiment_id`, `ix_experiment_eval_logs_experiment_run_id`, `ix_experiment_eval_logs_dataset_evaluator_id`, and `ix_experiment_task_logs_dataset_example_id`.
+
 **Rolling deployments:** both migrations honor `PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true` (see [v12.x to v13.0.0](#v12x-to-v1300) below) for the index drops and the composite build. The `project_sessions` table holds one row per session, so the build is quick; index pre-creation is typically unnecessary. If a prior concurrent build of the composite failed and left an INVALID index behind, the index migration fails with recovery instructions (drop the invalid index with `DROP INDEX CONCURRENTLY IF EXISTS ix_project_sessions_project_id_end_time` and rerun).
 
 ## v16.x to v17.0.0

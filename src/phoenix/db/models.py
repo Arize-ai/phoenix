@@ -1902,8 +1902,11 @@ class ExperimentLog(HasId):
     """
 
     __tablename__ = "experiment_logs"
+    # Plain index (alongside the partial ERROR index below): serves the runner's
+    # bulk DELETE by experiment_id and the FK cascade when experiments are deleted.
     experiment_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_jobs.id", ondelete="CASCADE"),
+        index=True,
     )
     occurred_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     category: Mapped[ExperimentLogCategory] = mapped_column(
@@ -1952,8 +1955,11 @@ class ExperimentTaskLog(ExperimentLog):
         server_default="TASK",
         nullable=False,
     )
+    # Indexed for the ON DELETE CASCADE from dataset_examples: without it, each
+    # deleted example triggers a full scan of this table.
     dataset_example_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_examples.id", ondelete="CASCADE"),
+        index=True,
     )
     repetition_number: Mapped[int] = mapped_column()
 
@@ -1979,11 +1985,16 @@ class ExperimentEvalLog(ExperimentLog):
         server_default="EVAL",
         nullable=False,
     )
+    # Both FKs indexed for their ON DELETE CASCADEs: experiment deletion cascades
+    # here once per experiment_run, and evaluator deletion once per dataset
+    # evaluator — unindexed, each cascade delete is a full scan of this table.
     experiment_run_id: Mapped[int] = mapped_column(
         ForeignKey("experiment_runs.id", ondelete="CASCADE"),
+        index=True,
     )
     dataset_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("dataset_evaluators.id", ondelete="CASCADE"),
+        index=True,
     )
 
     __mapper_args__ = {

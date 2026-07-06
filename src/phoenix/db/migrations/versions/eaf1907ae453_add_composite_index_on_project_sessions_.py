@@ -9,6 +9,13 @@ interval-overlap filter relies on. The superseded single-column
 ``ix_project_sessions_end_time`` index is dropped by the preceding cleanup
 migration.
 
+Also adds four FK indexes on the experiment log tables whose delete paths
+currently run as sequential scans: experiment_logs.experiment_id (the runner's
+bulk DELETE and the cascade from experiment deletion — the existing partial
+ERROR index cannot serve either), experiment_eval_logs.experiment_run_id and
+.dataset_evaluator_id, and experiment_task_logs.dataset_example_id (all
+ON DELETE CASCADE targets that fire once per deleted parent row).
+
 CONCURRENTLY support (opt-in via PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true):
 
   CREATE INDEX CONCURRENTLY cannot run inside a transaction, but Alembic's
@@ -88,6 +95,21 @@ def _assert_index_is_valid(index_name: str) -> None:
         )
 
 
+# (index_name, table_name, [columns]) for the FK indexes on the experiment log
+# tables, whose delete paths (bulk DELETEs and ON DELETE CASCADEs) otherwise run
+# as sequential scans.
+_LOG_TABLE_FK_INDEXES: list[tuple[str, str, list[str]]] = [
+    ("ix_experiment_logs_experiment_id", "experiment_logs", ["experiment_id"]),
+    ("ix_experiment_eval_logs_experiment_run_id", "experiment_eval_logs", ["experiment_run_id"]),
+    (
+        "ix_experiment_eval_logs_dataset_evaluator_id",
+        "experiment_eval_logs",
+        ["dataset_evaluator_id"],
+    ),
+    ("ix_experiment_task_logs_dataset_example_id", "experiment_task_logs", ["dataset_example_id"]),
+]
+
+
 def upgrade() -> None:
     concurrently = _use_concurrently()
     if concurrently:
@@ -98,9 +120,19 @@ def upgrade() -> None:
             "ix_project_sessions_project_id_end_time "
             "ON project_sessions (project_id, end_time DESC)"
         )
-        # Refuse to stamp this migration successful while the index is INVALID — a
-        # failed concurrent build satisfies IF NOT EXISTS above.
+        for index_name, table_name, columns in _LOG_TABLE_FK_INDEXES:
+            op.create_index(
+                index_name,
+                table_name,
+                columns,
+                if_not_exists=True,
+                postgresql_concurrently=concurrently,
+            )
+        # Refuse to stamp this migration successful while any created index is
+        # INVALID — a failed concurrent build satisfies IF NOT EXISTS above.
         _assert_index_is_valid("ix_project_sessions_project_id_end_time")
+        for index_name, _, _ in _LOG_TABLE_FK_INDEXES:
+            _assert_index_is_valid(index_name)
     finally:
         if concurrently:
             _disable_autocommit()
@@ -117,6 +149,13 @@ def downgrade() -> None:
             if_exists=True,
             postgresql_concurrently=concurrently,
         )
+        for index_name, table_name, _ in _LOG_TABLE_FK_INDEXES:
+            op.drop_index(
+                index_name,
+                table_name=table_name,
+                if_exists=True,
+                postgresql_concurrently=concurrently,
+            )
     finally:
         if concurrently:
             _disable_autocommit()

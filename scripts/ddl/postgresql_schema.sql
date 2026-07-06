@@ -885,6 +885,8 @@ CREATE TABLE public.experiment_logs (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_experiment_logs_experiment_id ON public.experiment_logs
+    USING btree (experiment_id);
 CREATE INDEX ix_experiment_logs_experiment_id_occurred_at_errors ON public.experiment_logs
     USING btree (experiment_id, occurred_at DESC) WHERE ((level)::text = 'ERROR'::text);
 
@@ -946,6 +948,11 @@ CREATE TABLE public.experiment_eval_logs (
         REFERENCES public.experiment_runs (id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_eval_logs_dataset_evaluator_id ON public.experiment_eval_logs
+    USING btree (dataset_evaluator_id);
+CREATE INDEX ix_experiment_eval_logs_experiment_run_id ON public.experiment_eval_logs
+    USING btree (experiment_run_id);
 
 
 -- Table: experiment_run_annotations
@@ -1031,6 +1038,9 @@ CREATE TABLE public.experiment_task_logs (
         REFERENCES public.dataset_examples (id)
         ON DELETE CASCADE
 );
+
+CREATE INDEX ix_experiment_task_logs_dataset_example_id ON public.experiment_task_logs
+    USING btree (dataset_example_id);
 
 
 -- Table: experiments_dataset_examples
