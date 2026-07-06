@@ -461,7 +461,9 @@ class Query:
                 .scalar_subquery()
             )
             projects_query = projects_query.order_by(
-                end_time_subq.desc() if sort.dir is SortDir.desc else end_time_subq.asc()
+                end_time_subq.desc().nullslast()
+                if sort.dir is SortDir.desc
+                else end_time_subq.asc().nullsfirst()
             )
         elif sort:
             sort_col = getattr(models.Project, sort.col.value)
