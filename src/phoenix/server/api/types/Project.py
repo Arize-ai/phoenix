@@ -553,16 +553,11 @@ class Project(Node):
                 )
         stmt = select(table).filter_by(project_id=self.id)
         if time_range:
-            # A session spans [start_time, end_time]; it belongs to the window iff the
-            # two intervals overlap, i.e. the session had activity inside the window.
             if time_range.start:
                 stmt = stmt.where(time_range.start <= table.end_time)
             if time_range.end:
                 stmt = stmt.where(table.start_time < time_range.end)
         if filter_io_substring:
-            # The substring may match anywhere in the session, including traces outside
-            # the window — the subquery scopes sessions by the same interval overlap as
-            # the filter above, bounding the substring scan to the window's sessions.
             filtered_session_rowids = get_filtered_session_rowids_subquery(
                 session_filter_condition=filter_io_substring,
                 project_rowids=[self.id],
