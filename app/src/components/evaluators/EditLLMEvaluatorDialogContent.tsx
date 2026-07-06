@@ -11,8 +11,11 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
+import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
@@ -128,8 +131,14 @@ export const EditLLMEvaluatorDialogContent = ({
         )}
         <LLMEvaluatorInputVariablesProvider>
           <EvaluatorForm
-            leftPanelExtra={formLeftPanelExtra}
-            rightPanel={formRightPanel}
+            left={
+              <>
+                <EvaluatorNameAndDescriptionFields />
+                {formLeftPanelExtra}
+                <LLMEvaluatorForm />
+              </>
+            }
+            right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
           />
         </LLMEvaluatorInputVariablesProvider>
       </fieldset>

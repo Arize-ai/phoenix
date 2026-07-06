@@ -2,24 +2,11 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { useShallow } from "zustand/react/shallow";
 
-import { Flex, View } from "@phoenix/components";
-import { CodeEvaluatorForm } from "@phoenix/components/evaluators/CodeEvaluatorForm";
-import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
-import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
-import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
-import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
-import { EvaluatorOutputPreview } from "@phoenix/components/evaluators/EvaluatorOutputPreview";
 import { EvaluatorPlaygroundProvider } from "@phoenix/components/evaluators/EvaluatorPlaygroundProvider";
-import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import {
-  DEFAULT_STORE_VALUES,
-  type EvaluatorStore,
-} from "@phoenix/store/evaluatorStore";
+import { DEFAULT_STORE_VALUES } from "@phoenix/store/evaluatorStore";
 import type { ClassificationEvaluatorAnnotationConfig } from "@phoenix/types";
 import type {
   EvaluatorInputMapping as EvaluatorInputMappingType,
@@ -95,42 +82,31 @@ export const EvaluatorFormProvider = ({
   );
 };
 
-const evaluatorFormSelector = (state: EvaluatorStore) => ({
-  evaluatorKind: state.evaluator.kind,
-  isBuiltin: state.evaluator.isBuiltin,
-});
-
 /**
- * A form for configuring evaluators.
- * Depends on the EvaluatorFormProvider to provide the react-hook-form instance for the evaluator form and new
- * default playground state for the evaluator chat template.
+ * The two-panel resizable layout for configuring evaluators. Callers provide
+ * the content of each panel.
  *
  * @example
  * ```tsx
- * const form = useEvaluatorForm();
- * return (
- *   <EvaluatorFormProvider form={form}>
- *     <EvaluatorForm />
- *   </EvaluatorFormProvider>
- * );
+ * <EvaluatorForm
+ *   left={<LLMEvaluatorForm />}
+ *   right={<EvaluatorDatasetTestPanel />}
+ * />
  * ```
  */
 export const EvaluatorForm = ({
-  leftPanelExtra,
-  rightPanel,
+  left,
+  right,
 }: {
   /**
-   * Optional section rendered in the left panel below the name/description row.
+   * The content of the left (configuration) panel.
    */
-  leftPanelExtra?: ReactNode;
+  left: ReactNode;
   /**
-   * Replaces the right (test) panel. Defaults to the dataset test panel.
+   * The content of the right (test) panel.
    */
-  rightPanel?: ReactNode;
+  right: ReactNode;
 }) => {
-  const { evaluatorKind } = useEvaluatorStore(
-    useShallow(evaluatorFormSelector)
-  );
   return (
     <Group orientation="horizontal" style={{ flex: 1, minHeight: 0 }}>
       <Panel
@@ -144,20 +120,7 @@ export const EvaluatorForm = ({
           box-sizing: border-box;
         `}
       >
-        <View marginBottom="size-200" flex="none">
-          <Flex
-            direction="row"
-            alignItems="baseline"
-            width="100%"
-            gap="size-100"
-          >
-            <EvaluatorNameInput />
-            <EvaluatorDescriptionInput />
-          </Flex>
-        </View>
-        {leftPanelExtra}
-        {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
-        {evaluatorKind === "BUILTIN" && <CodeEvaluatorForm />}
+        {left}
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel
@@ -171,27 +134,11 @@ export const EvaluatorForm = ({
           box-sizing: border-box;
         `}
       >
-        {rightPanel ?? <DatasetTestPanel />}
+        {right}
       </Panel>
     </Group>
   );
 };
-
-/**
- * The default right panel: test an evaluator against dataset examples.
- * Requires `dataset` to be set in the evaluator store.
- */
-const DatasetTestPanel = () => (
-  <Flex direction="column" gap="size-200">
-    <View paddingX="size-200">
-      <Flex direction="column" gap="size-100">
-        <EvaluatorOutputPreview />
-        <EvaluatorExampleDataset />
-      </Flex>
-    </View>
-    <EvaluatorInputPreview />
-  </Flex>
-);
 
 const panelStyle = {
   height: "100%",
