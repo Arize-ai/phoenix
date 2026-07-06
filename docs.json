@@ -1194,6 +1194,7 @@
             "group": "Tracing",
             "icon": "telescope",
             "pages": [
+              "docs/phoenix/cookbook/tracing/identify-high-signal-traces",
               "docs/phoenix/cookbook/tracing/agentic-rag-tracing",
               "docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents",
               "docs/phoenix/cookbook/tracing/structured-data-extraction",
