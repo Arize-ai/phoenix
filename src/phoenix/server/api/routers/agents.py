@@ -490,7 +490,10 @@ async def _persist_db_traces(
                 existing_trace.project_session.start_time = db_trace.start_time
             if existing_trace.project_session.end_time < db_trace.end_time:
                 existing_trace.project_session.end_time = db_trace.end_time
-        for db_span in db_trace.spans:
+        # Copy before iterating: assigning `db_span.trace` back-populates
+        # `Trace.spans`, removing the span from `db_trace.spans` mid-iteration
+        # and silently skipping every other span in the batch.
+        for db_span in list(db_trace.spans):
             db_span.trace = existing_trace
             if db_span.span_cost is not None:
                 db_span.span_cost.trace = existing_trace
