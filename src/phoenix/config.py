@@ -255,6 +255,11 @@ Note: CONCURRENTLY does not speed up the migration — it is roughly 2-3x slower
 instance still blocks on startup until the build completes. For very large tables, consider
 pre-creating indexes manually before upgrading instead. See MIGRATION.md for details.
 
+Warning: concurrent index builds are non-transactional. If the process crashes or PostgreSQL
+aborts the build, an INVALID index may remain and future IF NOT EXISTS migrations may skip it
+by name. Operators may need to drop the invalid index manually and rerun or recreate it
+concurrently.
+
 Defaults to False. Ignored for SQLite.
 """
 ENV_PHOENIX_DATABASE_ALLOCATED_STORAGE_CAPACITY_GIBIBYTES = (

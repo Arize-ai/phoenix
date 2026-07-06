@@ -108,8 +108,6 @@ CREATE TABLE public.project_annotation_configs (
 
 CREATE INDEX ix_project_annotation_configs_annotation_config_id ON public.project_annotation_configs
     USING btree (annotation_config_id);
-CREATE INDEX ix_project_annotation_configs_project_id ON public.project_annotation_configs
-    USING btree (project_id);
 
 
 -- Table: project_sessions
@@ -129,8 +127,8 @@ CREATE TABLE public.project_sessions (
         ON DELETE CASCADE
 );
 
-CREATE INDEX ix_project_sessions_end_time ON public.project_sessions
-    USING btree (end_time);
+CREATE INDEX ix_project_sessions_project_id_end_time ON public.project_sessions
+    USING btree (project_id, end_time DESC);
 CREATE INDEX ix_project_sessions_project_id_start_time ON public.project_sessions
     USING btree (project_id, start_time DESC);
 
@@ -194,8 +192,6 @@ CREATE TABLE public.prompts_prompt_labels (
 
 CREATE INDEX ix_prompts_prompt_labels_prompt_id ON public.prompts_prompt_labels
     USING btree (prompt_id);
-CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_labels
-    USING btree (prompt_label_id);
 
 
 -- Table: token_prices
@@ -215,9 +211,6 @@ CREATE TABLE public.token_prices (
         REFERENCES public.generative_models (id)
         ON DELETE CASCADE
 );
-
-CREATE INDEX ix_token_prices_model_id ON public.token_prices
-    USING btree (model_id);
 
 
 -- Table: traces
@@ -525,10 +518,6 @@ CREATE TABLE public.dataset_examples (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_examples_dataset_id ON public.dataset_examples
-    USING btree (dataset_id);
-CREATE INDEX ix_dataset_examples_external_id ON public.dataset_examples
-    USING btree (external_id);
 CREATE INDEX ix_dataset_examples_span_rowid ON public.dataset_examples
     USING btree (span_rowid);
 
@@ -766,8 +755,6 @@ CREATE TABLE public.dataset_evaluators (
         ON DELETE SET NULL
 );
 
-CREATE INDEX ix_dataset_evaluators_dataset_id ON public.dataset_evaluators
-    USING btree (dataset_id);
 CREATE INDEX ix_dataset_evaluators_evaluator_id ON public.dataset_evaluators
     USING btree (evaluator_id);
 CREATE INDEX ix_dataset_evaluators_project_id ON public.dataset_evaluators

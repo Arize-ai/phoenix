@@ -736,7 +736,7 @@ class ProjectSession(HasId):
         nullable=False,
     )
     start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
-    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
@@ -1420,14 +1420,13 @@ class DatasetExample(HasId):
     __tablename__ = "dataset_examples"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     span_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("spans.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
-    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    external_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     __table_args__ = (
@@ -2341,7 +2340,6 @@ class TokenPrice(HasId):
     model_id: Mapped[int] = mapped_column(
         ForeignKey("generative_models.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     token_type: Mapped[str]
     is_prompt: Mapped[bool]
@@ -2423,7 +2421,6 @@ class PromptPromptLabel(HasId):
     __tablename__ = "prompts_prompt_labels"
     prompt_label_id: Mapped[int] = mapped_column(
         ForeignKey("prompt_labels.id", ondelete="CASCADE"),
-        index=True,
         nullable=False,
     )
     prompt_id: Mapped[int] = mapped_column(
@@ -2563,7 +2560,7 @@ class AnnotationConfig(HasId):
 class ProjectAnnotationConfig(HasId):
     __tablename__ = "project_annotation_configs"
     project_id: Mapped[int] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     annotation_config_id: Mapped[int] = mapped_column(
         ForeignKey("annotation_configs.id", ondelete="CASCADE"), nullable=False, index=True
@@ -2972,7 +2969,6 @@ class DatasetEvaluators(HasId):
     __tablename__ = "dataset_evaluators"
     dataset_id: Mapped[int] = mapped_column(
         ForeignKey("datasets.id", ondelete="CASCADE"),
-        index=True,
     )
     # Unified evaluator_id FK - works for all evaluator types (LLM, CODE, BUILTIN)
     evaluator_id: Mapped[int] = mapped_column(

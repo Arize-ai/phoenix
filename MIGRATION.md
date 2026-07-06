@@ -1,5 +1,16 @@
 # Migrations
 
+## v17.x to v18.0.0
+
+### DB Index for Sessions Time Range
+
+The sessions time-range filter now uses interval-overlap semantics (a session is included if and only if it had activity
+inside the window). A cleanup migration drops the unused single-column `ix_project_sessions_end_time` index, and the following migration creates the composite index `ix_project_sessions_project_id_end_time` on `project_sessions (project_id, end_time DESC)`.
+
+The cleanup migration also drops six other redundant single-column indexes whose lookups are served by existing unique indexes: `ix_project_annotation_configs_project_id`, `ix_prompts_prompt_labels_prompt_label_id`, `ix_token_prices_model_id`, `ix_dataset_examples_dataset_id`, `ix_dataset_examples_external_id`, and `ix_dataset_evaluators_dataset_id`.
+
+**Rolling deployments:** both migrations honor `PHOENIX_MIGRATE_INDEX_CONCURRENTLY=true` (see [v12.x to v13.0.0](#v12x-to-v1300) below) for the index drops and the composite build. The `project_sessions` table holds one row per session, so the build is quick; index pre-creation is typically unnecessary. If a prior concurrent build of the composite failed and left an INVALID index behind, the index migration fails with recovery instructions (drop the invalid index with `DROP INDEX CONCURRENTLY IF EXISTS ix_project_sessions_project_id_end_time` and rerun).
+
 ## v16.x to v17.0.0
 
 ### Agent assistant (PXI)
