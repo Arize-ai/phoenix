@@ -1,45 +1,28 @@
 import { css } from "@emotion/react";
-import { startTransition, useEffect, useState } from "react";
 
 import {
+  DebouncedSearch,
   Flex,
   Icon,
   IconButton,
   Icons,
-  Input,
-  SearchField,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
-import { SearchIcon } from "@phoenix/components/core/field";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 
 import { useTraceTree } from "./TraceTreeContext";
 import { COMPACT_BREAKPOINT } from "./traceTreeStyles";
 
-const TRACE_TREE_SEARCH_DEBOUNCE_MS = 200;
-
 export function TraceTreeToolbar() {
-  const [searchValue, setSearchValue] = useState("");
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
   const setShowMetricsInTraceTree = usePreferencesContext(
     (state) => state.setShowMetricsInTraceTree
   );
-  const { isCollapsed, setIsCollapsed, setSearchQuery } = useTraceTree();
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      startTransition(() => {
-        setSearchQuery(searchValue.trim());
-      });
-    }, TRACE_TREE_SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [searchValue, setSearchQuery]);
+  const { isCollapsed, searchQuery, setIsCollapsed, setSearchQuery } =
+    useTraceTree();
 
   return (
     <div
@@ -99,15 +82,13 @@ export function TraceTreeToolbar() {
         width="100%"
       >
         <div className="trace-tree-toolbar__search">
-          <SearchField
+          <DebouncedSearch
             aria-label="Search trace tree"
-            onChange={setSearchValue}
-            value={searchValue}
+            defaultValue={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search trace"
             variant="quiet"
-          >
-            <SearchIcon />
-            <Input placeholder="Search trace" />
-          </SearchField>
+          />
         </div>
         <Flex direction="row" gap="size-100" className="trace-tree-controls">
           <TooltipTrigger>
@@ -115,9 +96,7 @@ export function TraceTreeToolbar() {
               size="S"
               aria-label={isCollapsed ? "Expand all" : "Collapse all"}
               onPress={() => {
-                startTransition(() => {
-                  setIsCollapsed(!isCollapsed);
-                });
+                setIsCollapsed(!isCollapsed);
               }}
             >
               <Icon

@@ -1,11 +1,11 @@
-import type { Dispatch, PropsWithChildren, SetStateAction } from "react";
-import { createContext, useContext, useState } from "react";
+import type { PropsWithChildren } from "react";
+import { createContext, startTransition, useContext, useState } from "react";
 
 export type TraceTreeContextType = {
   isCollapsed: boolean;
-  setIsCollapsed: Dispatch<SetStateAction<boolean>>;
+  setIsCollapsed: (isCollapsed: boolean) => void;
   searchQuery: string;
-  setSearchQuery: Dispatch<SetStateAction<string>>;
+  setSearchQuery: (searchQuery: string) => void;
 };
 
 export const TraceTreeContext = createContext<TraceTreeContextType | null>(
@@ -21,8 +21,20 @@ export function useTraceTree() {
 }
 
 export function TraceTreeProvider(props: PropsWithChildren) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [isCollapsed, setIsCollapsedState] = useState(false);
+  const [searchQuery, setSearchQueryState] = useState("");
+
+  const setIsCollapsed = (isCollapsed: boolean) => {
+    startTransition(() => {
+      setIsCollapsedState(isCollapsed);
+    });
+  };
+
+  const setSearchQuery = (searchQuery: string) => {
+    startTransition(() => {
+      setSearchQueryState(searchQuery.trim());
+    });
+  };
 
   return (
     <TraceTreeContext.Provider
