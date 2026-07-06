@@ -17,7 +17,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -109,7 +109,7 @@ def _total_scored(datasets: list[Any]) -> int:
 
 def _resolve_policy(
     policy: dict[str, Any], dataset: str, evaluator: str, split: str
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     override = (
         policy["overrides"].get(dataset, {}).get(evaluator, {}).get(split)
         if isinstance(policy.get("overrides"), dict)
@@ -154,7 +154,7 @@ def _load_policy(path: Path) -> dict[str, Any]:
     return {"splits": raw.get("splits") or {}, "overrides": raw.get("overrides") or {}}
 
 
-def _parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Gate a PXI eval results artifact against per-(evaluator, split) thresholds."
     )
@@ -168,7 +168,7 @@ def _parse_args(argv: Optional[list[str]]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     artifact_path = Path(args.artifact)
     if not artifact_path.exists():

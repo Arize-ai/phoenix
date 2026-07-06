@@ -9,7 +9,7 @@
 # pass-rate falls below it) or `gating: false` (the split is recorded but never
 # gates).
 #
-# Calibration (see work item pxi-eval-ci-hardening):
+# Calibration:
 # The regression overrides below are re-anchored on TWO post-quarantine
 # baselines -- CI runs 28801811562 (pre-quarantine, schema 1) and 28807005470
 # (post-quarantine, schema 2) -- because per-cell pass rates wobble by ~1
@@ -131,7 +131,7 @@ overrides:
         min_pass_rate: 0.88
   experiment_observations:
     # The two examples that deterministically failed these evaluators were
-    # quarantined regression -> dev (work item pxi-eval-ci-hardening, task-5).
+    # quarantined regression -> dev.
     # They are the parked known-failing examples: on a full-collection run they
     # are scored in dev and still fail, which would breach the dev default of
     # 0.8 (0/2). Mark them non-gating so both `-m regression` PR runs and full

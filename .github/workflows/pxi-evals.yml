@@ -231,6 +231,6 @@ jobs:
         with:
           name: pxi-eval-reports-${{ github.run_id }}
           path: |
-            ${{ github.workspace }}/pxi-eval-results.json
+            ${{ env.PXI_EVAL_RESULTS_PATH }}
             ${{ runner.temp }}/pxi-eval-reports/
           if-no-files-found: ignore
