@@ -1,0 +1,1062 @@
+dataset_name: context_pruning_type_a_50k
+description: 'Context-pruning Type A history-independent tasks across nested depths.
+  Depth slice: 50k.'
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- tool_call_count_within_limit
+examples:
+- id: type-a-01-set_spans_filter--llm-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me only LLM spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-02-set_spans_filter--tool-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter the table to tool spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'TOOL'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--tool-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-03-set_spans_filter--error-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans that errored.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: status_code == 'ERROR'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--error-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-04-set_spans_filter--slow-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show slow spans taking at least five seconds.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - latency_ms
+          - '5000'
+          not_contains:
+          - 'latency_ms < '
+          - 'latency_ms <= '
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--slow-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-05-set_spans_filter--slow-llm-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show slow LLM calls taking at least five seconds.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - span_kind == 'LLM'
+          - latency_ms >= 5000
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--slow-llm-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-06-set_spans_filter--trace-id-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--trace-id
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-07-set_spans_filter--span-name-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans named retrieve_documents.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: name == 'retrieve_documents'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--span-name
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-08-set_spans_filter--input-substring-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans where the input mentions refund policy.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - refund policy
+          - in input.value
+          not_contains:
+          - .contains(
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--input-substring
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-09-set_spans_filter--annotation-label-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans marked hallucinated by the Hallucination annotation.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: annotations['Hallucination'].label == 'hallucinated'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--annotation-label
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-10-set_spans_filter--reset-filter-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Clear the span filter and return to the default root spans view.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: ''
+        rootSpansOnly: true
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--reset-filter
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-11-set_spans_filter--chain-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to the chain spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'CHAIN'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--chain-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-12-set_spans_filter--agent-root-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me top-level agent traces only.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+      - condition: span_kind == 'AGENT'
+        rootSpansOnly: true
+      - condition: ''
+        rootSpansOnly: true
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--agent-root-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-13-set_spans_filter--embedding-spans-lowercase-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: just embeddings pls
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'EMBEDDING'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--embedding-spans-lowercase
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-14-set_spans_filter--status-ok-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show only successful spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: status_code == 'OK'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--status-ok-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-15-set_spans_filter--status-unset-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: show me spans that have no status set
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: status_code == 'UNSET'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--status-unset-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-16-set_spans_filter--high-prompt-tokens-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: find LLM calls that used more than 10k prompt tokens
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - span_kind == 'LLM'
+          - llm.token_count.prompt
+          - '10000'
+          not_contains:
+          - 'llm.token_count.prompt < '
+          - 'llm.token_count.prompt <= '
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--high-prompt-tokens
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-17-set_spans_filter--cumulative-tokens-roots-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show traces that burned over 50k tokens in total.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - cumulative_token_count.total
+          - '50000'
+          not_contains:
+          - 'cumulative_token_count.total < '
+          - 'cumulative_token_count.total <= '
+        rootSpansOnly: true
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--cumulative-tokens-roots
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-18-set_spans_filter--start-after-timestamp-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to spans that started at or after 2025-01-15T00:00:00Z.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: start_time >= '2025-01-15T00:00:00Z'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--start-after-timestamp
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-19-set_spans_filter--span-by-id-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter the spans table to span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--span-by-id
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-20-set_spans_filter--children-of-parent-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: parent_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--children-of-parent
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-21-set_spans_filter--annotation-score-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans where the Helpfulness annotation scored above 0.8.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - annotations['Helpfulness'].score
+          - '0.8'
+          not_contains:
+          - 'annotations[''Helpfulness''].score < '
+          - 'annotations[''Helpfulness''].score <= '
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--annotation-score
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-22-set_spans_filter--output-substring-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans whose response mentions error code 502.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - '502'
+          - output.value
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--output-substring
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-23-set_spans_filter--metadata-access-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to spans tagged with environment 'prod' in metadata.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: metadata['environment'] == 'prod'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--metadata-access
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-24-set_spans_filter--agent-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me agent spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'AGENT'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--agent-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-25-set_spans_filter--retriever-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to retriever spans only.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'RETRIEVER'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--retriever-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-26-set_spans_filter--not-llm-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me everything that's not an LLM call.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind != 'LLM'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--not-llm-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-27-set_spans_filter--fast-spans-under-100ms-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to spans under 100ms latency.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - latency_ms
+          - '100'
+          not_contains:
+          - 'latency_ms > '
+          - 'latency_ms >= '
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--fast-spans-under-100ms
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-28-set_spans_filter--llm-or-tool-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me LLM or tool calls.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - LLM
+          - TOOL
+          not_contains:
+          - '!='
+          - not_in
+          - not in
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-or-tool-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-29-set_spans_filter--high-completion-tokens-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Find LLM calls that produced more than 2000 completion tokens.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - span_kind == 'LLM'
+          - llm.token_count.completion
+          - '2000'
+          not_contains:
+          - 'llm.token_count.completion < '
+          - 'llm.token_count.completion <= '
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--high-completion-tokens
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-30-set_spans_filter--ended-before-timestamp-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans that ended before 2025-01-15T12:00:00Z.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: end_time < '2025-01-15T12:00:00Z'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--ended-before-timestamp
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-31-set_spans_filter--status-message-substring-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Filter to spans whose status message mentions 'timeout'.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - timeout
+          - status_message
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--status-message-substring
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-32-set_spans_filter--attribute-path-access-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show spans where attribute 'user.id' equals 'alice'.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: attributes['user.id'] == 'alice'
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--attribute-path-access
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-33-set_spans_filter--three-clause-conjunction-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show errored LLM calls slower than 3 seconds.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - span_kind == 'LLM'
+          - status_code == 'ERROR'
+          - latency_ms
+          - '3000'
+          not_contains:
+          - 'latency_ms < '
+          - 'latency_ms <= '
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--three-clause-conjunction
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-34-set_spans_filter--ambiguous-fast-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: show me fast spans
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - latency_ms
+          not_contains:
+          - 'latency_ms > '
+          - 'latency_ms >= '
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--ambiguous-fast-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-35-set_spans_filter--ambiguous-tools-or-retrievers-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: show me tool or retriever spans only
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - TOOL
+          - RETRIEVER
+          not_contains:
+          - '!='
+          - not_in
+          - not in
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--ambiguous-tools-or-retrievers
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-36-set_spans_filter--ambiguous-not-tool-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: show me everything except tool calls
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind != 'TOOL'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--ambiguous-not-tool-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-37-set_spans_filter--negative-greeting-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: hey, what's up?
+  expected:
+    tools:
+      forbidden:
+      - set_spans_filter
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--negative-greeting
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-38-set_spans_filter--negative-capabilities-question-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: what can you do?
+  expected:
+    tools:
+      forbidden:
+      - set_spans_filter
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--negative-capabilities-question
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-39-set_spans_filter--negative-thanks-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: thanks!
+  expected:
+    tools:
+      forbidden:
+      - set_spans_filter
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--negative-thanks
+      depth_tokens: 50000
+      seed: 20260703
+- id: type-a-40-set_spans_filter--negative-time-range-intent-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show me only the last hour.
+  expected:
+    tools:
+      required: []
+      forbidden:
+      - set_spans_filter
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--negative-time-range-intent
+      depth_tokens: 50000
+      seed: 20260703

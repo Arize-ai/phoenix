@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from types import SimpleNamespace
+
 import pytest
 from pydantic_ai.messages import (
     ModelRequest,
@@ -11,9 +14,13 @@ from pydantic_ai.messages import (
 )
 
 from evals.pxi.harness.agent_task import (
+    _apply_harness_context_policy,
     _build_contexts,
     _build_run_inputs,
     _materialize_messages,
+    _result_usage,
+    agent_task_output,
+    run_pxi_example,
 )
 
 
@@ -136,6 +143,53 @@ class TestBuildRunInputs:
         with pytest.raises(ValueError, match="non-empty string content"):
             _build_run_inputs({"messages": [{"role": "user", "content": ""}]})
 
+    @pytest.mark.asyncio
+    async def test_harness_context_policy_preflights_primed_user_history(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _, history = _build_run_inputs(
+            {
+                "messages": [
+                    {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {"id": "t1", "name": "bash", "args": {"command": "cat large"}}
+                        ],
+                    },
+                    {
+                        "role": "tool",
+                        "tool_call_id": "t1",
+                        "name": "bash",
+                        "content": "large output " * 100,
+                    },
+                    {"role": "user", "content": "Remember cohort token cohort-user-text."},
+                    {"role": "user", "content": "Filter to the remembered cohort."},
+                ]
+            }
+        )
+        assert history is not None
+        monkeypatch.setenv(
+            "PHOENIX_AGENTS_ASSISTANT_CONTEXT_POLICY",
+            "p3:threshold=0,trailing_tokens=2000,max_summary_tokens=100",
+        )
+
+        transformed = await _apply_harness_context_policy(
+            history,
+            model=SimpleNamespace(system="anthropic", model_name="claude-test"),  # type: ignore[arg-type]
+        )
+
+        assert transformed.usage == {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+        assert all(
+            not any(isinstance(part, ToolReturnPart) for part in message.parts)
+            for message in transformed.messages
+            if isinstance(message, ModelRequest)
+        )
+
 
 class TestMaterializeMessages:
     def test_builds_primed_bash_tool_call_and_return(self) -> None:
@@ -254,3 +308,126 @@ class TestMaterializeMessages:
     def test_rejects_unknown_roles(self) -> None:
         with pytest.raises(ValueError, match="role must be user, assistant, or tool"):
             _materialize_messages([{"role": "system", "content": "x"}])
+
+
+class _FakeResult:
+    output = "fallback assistant text"
+    usage: object | None
+
+    def __init__(self) -> None:
+        self.usage = None
+        self._messages = [
+            {
+                "parts": [
+                    {
+                        "part_kind": "text",
+                        "content": "assistant text from message",
+                    }
+                ]
+            }
+        ]
+
+    def new_messages_json(self) -> str:
+        return json.dumps(self._messages)
+
+
+class TestAgentTaskOutput:
+    def test_result_usage_supports_property_and_method_shapes(self) -> None:
+        property_usage = SimpleNamespace(input_tokens=1)
+        method_usage = SimpleNamespace(input_tokens=2)
+
+        assert _result_usage(SimpleNamespace(usage=property_usage)) is property_usage  # type: ignore[arg-type]
+        assert _result_usage(SimpleNamespace(usage=lambda: method_usage)) is method_usage  # type: ignore[arg-type]
+
+    def test_includes_usage_and_latency(self) -> None:
+        output = agent_task_output(
+            _FakeResult(),  # type: ignore[arg-type]
+            usage=SimpleNamespace(
+                input_tokens=11,
+                output_tokens=7,
+                cache_read_tokens=5,
+                cache_write_tokens=3,
+            ),
+            policy_usage={
+                "input_tokens": 13,
+                "output_tokens": 2,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 9,
+            },
+            latency_ms=1234,
+        )
+
+        assert output["assistant_text"] == "assistant text from message"
+        assert output["usage"] == {
+            "input_tokens": 11,
+            "output_tokens": 7,
+            "cache_read_tokens": 5,
+            "cache_write_tokens": 3,
+        }
+        assert output["policy_usage"] == {
+            "input_tokens": 13,
+            "output_tokens": 2,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 9,
+        }
+        assert output["latency_ms"] == 1234
+
+    @pytest.mark.asyncio
+    async def test_error_path_includes_zero_usage_and_latency(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def fail_build_model() -> object:
+            raise RuntimeError("missing key")
+
+        monkeypatch.setattr("evals.pxi.harness.agent_task._build_model", fail_build_model)
+
+        output = await run_pxi_example({"messages": [{"role": "user", "content": "hi"}]})
+
+        assert output["error"] == "RuntimeError: missing key"
+        assert output["usage"] == {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+        assert output["policy_usage"] == {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_write_tokens": 0,
+        }
+        assert output["latency_ms"] == 0
+
+    @pytest.mark.asyncio
+    async def test_run_uses_deterministic_model_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        captured: dict[str, object] = {}
+
+        async def build_model() -> object:
+            return object()
+
+        class FakeAgent:
+            async def run(self, *args: object, **kwargs: object) -> _FakeResult:
+                captured["args"] = args
+                captured["kwargs"] = kwargs
+                result = _FakeResult()
+                result.usage = SimpleNamespace(
+                    input_tokens=1,
+                    output_tokens=2,
+                    cache_read_tokens=3,
+                    cache_write_tokens=4,
+                )
+                return result
+
+        def build_agent(**_: object) -> FakeAgent:
+            return FakeAgent()
+
+        monkeypatch.setattr("evals.pxi.harness.agent_task._build_model", build_model)
+        monkeypatch.setattr("evals.pxi.harness.agent_task.build_agent", build_agent)
+
+        output = await run_pxi_example({"messages": [{"role": "user", "content": "hi"}]})
+
+        assert output["assistant_text"] == "assistant text from message"
+        model_settings = captured["kwargs"]["model_settings"]  # type: ignore[index]
+        assert model_settings == {"temperature": 0.0}

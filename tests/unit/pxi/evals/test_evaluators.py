@@ -14,6 +14,8 @@ import pytest
 from evals.pxi.evaluators.links import evaluate_in_app_links
 from evals.pxi.evaluators.text import evaluate_assistant_text_substrings
 from evals.pxi.evaluators.tools import (
+    evaluate_hallucinated_recall,
+    evaluate_redundant_refetch_count,
     evaluate_tool_call_args,
     evaluate_tools_called,
 )
@@ -171,6 +173,60 @@ def _output_with_args(name: str, args: dict[str, Any]) -> dict[str, Any]:
             }
         ]
     }
+
+
+class TestContextPruningFailureModes:
+    def test_redundant_refetch_count_fails_on_reissued_cleared_call(self) -> None:
+        output = _output_with_args("bash", {"command": "cat    /tmp/a.json"})
+        expected = {
+            "refetch": {
+                "cleared_tool_calls": [
+                    {"tool_name": "bash", "args": {"command": "cat /tmp/a.json"}}
+                ],
+                "max_refetches": 0,
+            }
+        }
+
+        result = evaluate_redundant_refetch_count(output, expected)
+
+        assert result["score"] == 0.0
+        assert result["metadata"]["redundant_refetch_count"] == 1
+
+    def test_redundant_refetch_count_passes_without_expectation(self) -> None:
+        result = evaluate_redundant_refetch_count(_output_with_args("bash", {}), {})
+
+        assert result["score"] == 1.0
+
+    def test_hallucinated_recall_fails_on_wrong_cohort_token(self) -> None:
+        output = _output_with_args(
+            "set_spans_filter",
+            {"condition": "cohort-filter-tool-result-p50-99"},
+        )
+        expected = {
+            "tool_call_args": {
+                "set_spans_filter": {
+                    "condition": {"contains_all": ["cohort-filter-tool-result-p50-01"]}
+                }
+            }
+        }
+
+        result = evaluate_hallucinated_recall(output, expected)
+
+        assert result["score"] == 0.0
+        assert result["metadata"]["hallucinated_needles"] == ["cohort-filter-tool-result-p50-99"]
+
+    def test_hallucinated_recall_passes_on_true_needle(self) -> None:
+        output = _output_with_args(
+            "set_spans_filter",
+            {"condition": "cohort-filter-tool-result-p50-01"},
+        )
+        expected = {
+            "recall": {"true_needles": ["cohort-filter-tool-result-p50-01"]},
+        }
+
+        result = evaluate_hallucinated_recall(output, expected)
+
+        assert result["score"] == 1.0
 
 
 def _link_output(assistant_text: str | None) -> dict[str, Any]:

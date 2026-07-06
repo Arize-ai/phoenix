@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import os
 import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from time import monotonic
 from typing import Any, Literal, cast
 
 from pydantic_ai.agent import AgentRunResult
@@ -18,6 +20,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import Model as PydanticAIModel
+from pydantic_ai.settings import ModelSettings
 
 from phoenix.config import (
     get_env_allow_external_resources,
@@ -25,6 +28,14 @@ from phoenix.config import (
 )
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
+from phoenix.server.agents.capabilities.context_policy import (
+    ENV_CONTEXT_POLICY,
+    ContextPolicyApplication,
+    ContextPolicyConfig,
+    apply_context_policy_async,
+    parse_context_policy,
+    zero_usage,
+)
 from phoenix.server.agents.context import (
     ChatContext,
     ProjectContext,
@@ -42,6 +53,7 @@ from phoenix.server.agents.types import AgentDependencies, AgentOutput
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
 DEFAULT_PROJECT_NODE_ID = "UHJvamVjdDox"
+DEFAULT_MODEL_SETTINGS = ModelSettings(temperature=0.0)
 ENV_ASSISTANT_PROVIDER = "PHOENIX_AGENTS_ASSISTANT_PROVIDER"
 ENV_ASSISTANT_MODEL = "PHOENIX_AGENTS_ASSISTANT_MODEL"
 ENV_ASSISTANT_OPENAI_API_TYPE = "PHOENIX_AGENTS_ASSISTANT_OPENAI_API_TYPE"
@@ -197,7 +209,12 @@ def _build_run_inputs(
     - **Last entry is ``role: assistant``.** Rejected: nothing remains for
       the agent to do.
     """
-    raw_messages = input.get("messages")
+    from evals.pxi.experiments.context_pruning.corpus_builder import (
+        expand_context_pruning_prefix,
+    )
+
+    expanded_input = expand_context_pruning_prefix(input)
+    raw_messages = expanded_input.get("messages")
     if not isinstance(raw_messages, list) or not raw_messages:
         raise ValueError("PXI eval input.messages must be a non-empty list")
     if not isinstance(raw_messages[-1], dict):
@@ -219,6 +236,31 @@ def _build_run_inputs(
         "PXI eval input.messages must end with a user turn (new prompt) or a tool "
         f"return (mid-loop continuation); got role={last_role!r}"
     )
+
+
+@contextmanager
+def _without_context_policy() -> Any:
+    previous = os.environ.pop(ENV_CONTEXT_POLICY, None)
+    try:
+        yield
+    finally:
+        if previous is not None:
+            os.environ[ENV_CONTEXT_POLICY] = previous
+
+
+async def _apply_harness_context_policy(
+    message_history: list[ModelMessage] | None,
+    *,
+    model: PydanticAIModel,
+) -> ContextPolicyApplication:
+    config = parse_context_policy(os.getenv(ENV_CONTEXT_POLICY))
+    if config is None or message_history is None:
+        return ContextPolicyApplication(messages=message_history or [], usage=zero_usage())
+    return await apply_context_policy_async(message_history, config, model)
+
+
+def _should_disable_agent_context_policy(config: ContextPolicyConfig | None) -> bool:
+    return config is not None and config.name != "anthropic_context_editing"
 
 
 def _materialize_messages(raw_messages: list[Any]) -> list[ModelMessage]:
@@ -413,7 +455,28 @@ def _assistant_text_from_messages(messages: list[dict[str, Any]]) -> str | None:
     return "\n".join(text_parts) if text_parts else None
 
 
-def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
+def _zero_usage() -> dict[str, int]:
+    return zero_usage()
+
+
+def _serialize_usage(usage: Any) -> dict[str, int]:
+    if isinstance(usage, dict):
+        return {key: int(usage.get(key, 0) or 0) for key in _zero_usage()}
+    return {key: int(getattr(usage, key, 0) or 0) for key in _zero_usage()}
+
+
+def _result_usage(result: AgentRunResult[AgentOutput]) -> Any:
+    usage = getattr(result, "usage", None)
+    return usage() if callable(usage) else usage
+
+
+def agent_task_output(
+    result: AgentRunResult[AgentOutput],
+    *,
+    usage: Any | None = None,
+    policy_usage: dict[str, int] | None = None,
+    latency_ms: int = 0,
+) -> dict[str, Any]:
     output = result.output
     messages = _serialize_new_messages(result)
     assistant_text = _assistant_text_from_messages(messages)
@@ -424,6 +487,11 @@ def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
         "assistant_text": assistant_text,
         "messages": messages,
         "raw_output_type": type(output).__name__,
+        "usage": _serialize_usage(usage) if usage is not None else _zero_usage(),
+        "policy_usage": _serialize_usage(policy_usage)
+        if policy_usage is not None
+        else _zero_usage(),
+        "latency_ms": latency_ms,
     }
 
 
@@ -498,14 +566,29 @@ async def run_pxi_example(
     """
     try:
         user_prompt, message_history = _build_run_inputs(input)
+        config = parse_context_policy(os.getenv(ENV_CONTEXT_POLICY))
         model = await _build_model()
-        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        applied_policy = await _apply_harness_context_policy(message_history, model=model)
+        resolved_message_history = applied_policy.messages if message_history is not None else None
+        if _should_disable_agent_context_policy(config):
+            with _without_context_policy():
+                agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        else:
+            agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        started_at = monotonic()
         result = await agent.run(
             user_prompt,
             deps=_build_dependencies(input),
-            message_history=message_history,
+            message_history=resolved_message_history,
+            model_settings=DEFAULT_MODEL_SETTINGS,
         )
-        output = agent_task_output(result)
+        latency_ms = round((monotonic() - started_at) * 1000)
+        output = agent_task_output(
+            result,
+            usage=_result_usage(result),
+            policy_usage=applied_policy.usage,
+            latency_ms=latency_ms,
+        )
     except Exception as exc:
         message = str(exc)
         if len(message) > _MAX_ERROR_MESSAGE_LEN:
@@ -515,6 +598,9 @@ async def run_pxi_example(
             "messages": [],
             "raw_output_type": type(exc).__name__,
             "error": f"{type(exc).__name__}: {message}" if message else type(exc).__name__,
+            "usage": _zero_usage(),
+            "policy_usage": _zero_usage(),
+            "latency_ms": 0,
         }
     payload = output
     if stable_example_id is not None:

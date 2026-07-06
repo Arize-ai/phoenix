@@ -1,0 +1,405 @@
+dataset_name: context_pruning_pilot
+description: Seeded context-pruning pilot tasks for P0/P1 policy checks.
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- tool_call_count_within_limit
+examples:
+- id: pilot-type-a-01-set_spans_filter--llm-spans-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: &id001
+    - role: user
+      content: Show me only LLM spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-spans
+      depth_tokens: 5000
+      seed: 20260703
+- id: pilot-type-a-01-set_spans_filter--llm-spans-25000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 25000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: *id001
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-spans
+      depth_tokens: 25000
+      seed: 20260703
+- id: pilot-type-a-01-set_spans_filter--llm-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: *id001
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: pilot-type-a-01-set_spans_filter--llm-spans-100000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 100000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: *id001
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-spans
+      depth_tokens: 100000
+      seed: 20260703
+- id: pilot-type-a-01-set_spans_filter--llm-spans-150000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 150000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: *id001
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--llm-spans
+      depth_tokens: 150000
+      seed: 20260703
+- id: pilot-type-a-02-set_spans_filter--tool-spans-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: &id002
+    - role: user
+      content: Filter the table to tool spans.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'TOOL'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--tool-spans
+      depth_tokens: 5000
+      seed: 20260703
+- id: pilot-type-a-02-set_spans_filter--tool-spans-25000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 25000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: *id002
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'TOOL'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--tool-spans
+      depth_tokens: 25000
+      seed: 20260703
+- id: pilot-type-a-02-set_spans_filter--tool-spans-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages: *id002
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'TOOL'
+        rootSpansOnly: false
+  metadata:
+    context_pruning:
+      task_type: A
+      source_id: set_spans_filter--tool-spans
+      depth_tokens: 50000
+      seed: 20260703
+- id: pilot-type-b-01-filter-tool_result-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      carrier: tool_result
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      depth_tokens: 5000
+      seed: 20260703
+- id: pilot-type-b-01-filter-tool_result-p10-25000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 25000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      carrier: tool_result
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      depth_tokens: 25000
+      seed: 20260703
+- id: pilot-type-b-01-filter-tool_result-p10-50000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 50000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      carrier: tool_result
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      depth_tokens: 50000
+      seed: 20260703
+- id: pilot-type-b-01-filter-tool_result-p10-100000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 100000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      carrier: tool_result
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      depth_tokens: 100000
+      seed: 20260703
+- id: pilot-type-b-01-filter-tool_result-p10-150000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 150000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      carrier: tool_result
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      depth_tokens: 150000
+      seed: 20260703
+- id: pilot-type-b-02-filter-tool_result-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p50-02'
+      carrier: tool_result
+      position: p50
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p50-02'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p50
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p50-02'
+      depth_tokens: 5000
+      seed: 20260703

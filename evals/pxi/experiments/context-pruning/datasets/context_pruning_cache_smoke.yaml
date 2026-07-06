@@ -1,0 +1,50 @@
+dataset_name: context_pruning_cache_smoke
+description: Two identical dev examples for validating prompt-cache usage capture.
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- tool_call_count_within_limit
+examples:
+- id: cache-smoke-1
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show only LLM spans.
+  expected: &id001
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: cache_smoke
+      depth_tokens: 5000
+      seed: 20260703
+- id: cache-smoke-2
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+    messages:
+    - role: user
+      content: Show only LLM spans.
+  expected: *id001
+  metadata:
+    context_pruning:
+      task_type: cache_smoke
+      depth_tokens: 5000
+      seed: 20260703

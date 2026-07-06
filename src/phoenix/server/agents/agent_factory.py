@@ -20,6 +20,7 @@ from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPCapability,
     SkillsCapability,
     build_anthropic_prompt_cache_capability,
+    build_context_policy_capability,
     get_context_capability_function,
 )
 from phoenix.server.agents.capabilities.skills import SkillsToolset
@@ -106,6 +107,8 @@ def build_agent(
     ]
     if (prompt_cache := build_anthropic_prompt_cache_capability(model)) is not None:
         capabilities.append(prompt_cache)
+    if (context_policy := build_context_policy_capability(model)) is not None:
+        capabilities.append(context_policy)
     if docs_mcp_server is not None:
         capabilities.append(
             MintlifyDocsMCPCapability[AgentDependencies](

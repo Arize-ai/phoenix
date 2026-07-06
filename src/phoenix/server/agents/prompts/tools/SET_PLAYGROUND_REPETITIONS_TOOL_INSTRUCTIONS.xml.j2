@@ -8,6 +8,6 @@
     - Set repetitions before calling `run_playground`; changing repetitions after a run starts is not allowed.
     - Use repetitions to build confidence because LLM outputs are nondeterministic. Do not claim a prompt is reliable based on one successful run.
     - After a repeated run finishes, inspect every repetition with `read_playground_output` before summarizing confidence or recommending that the user save the prompt.
-    - Keep the requested value between 1 and 30. If the user asks for more than 30, explain that the playground supports up to 30 repetitions.
+    - Keep the requested value between 1 and 30. If the user asks for more than 30, explain that the playground supports up to 30 repetitions. Do not clamp the request to 30, do not call this tool, and do not run the playground until the user chooses a supported count.
   </guidelines>
 </tool>

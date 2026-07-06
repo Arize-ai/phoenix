@@ -1,0 +1,1268 @@
+dataset_name: context_pruning_type_b_5k
+description: 'Context-pruning Type B needle tasks across carriers, positions, and
+  depths. Depth slice: 5k.'
+evaluators:
+- correct_tools_called
+- tool_call_args_match
+- tool_call_count_within_limit
+examples:
+- id: type-b-01-filter-tool_result-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      carrier: tool_result
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p10-01'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-02-filter-tool_result-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p50-02'
+      carrier: tool_result
+      position: p50
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p50-02'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p50
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p50-02'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-03-filter-tool_result-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p90-03'
+      carrier: tool_result
+      position: p90
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-tool-result-p90-03'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p90
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-tool-result-p90-03'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-04-filter-user_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-user-text-p10-04'
+      carrier: user_text
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-user-text-p10-04'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-user-text-p10-04'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-05-filter-user_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-user-text-p50-05'
+      carrier: user_text
+      position: p50
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-user-text-p50-05'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p50
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-user-text-p50-05'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-06-filter-user_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-user-text-p90-06'
+      carrier: user_text
+      position: p90
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-user-text-p90-06'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p90
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-user-text-p90-06'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-07-filter-assistant_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p10-07'
+      carrier: assistant_text
+      position: p10
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p10-07'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p10
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p10-07'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-08-filter-assistant_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p50-08'
+      carrier: assistant_text
+      position: p50
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p50-08'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p50
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p50-08'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-09-filter-assistant_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p90-09'
+      carrier: assistant_text
+      position: p90
+      archetype: filter
+    messages:
+    - role: user
+      content: Use the earlier established cohort filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p90-09'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p90
+      archetype: filter
+      needle: attributes['experiment.cohort'] == 'cohort-filter-assistant-text-p90-09'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-10-time_window-tool_result-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-10T09:30:00Z'
+      carrier: tool_result
+      position: p10
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-10T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: time_window
+      needle: '2026-07-10T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-11-time_window-tool_result-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-11T09:30:00Z'
+      carrier: tool_result
+      position: p50
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-11T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p50
+      archetype: time_window
+      needle: '2026-07-11T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-12-time_window-tool_result-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-12T09:30:00Z'
+      carrier: tool_result
+      position: p90
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-12T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p90
+      archetype: time_window
+      needle: '2026-07-12T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-13-time_window-user_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-13T09:30:00Z'
+      carrier: user_text
+      position: p10
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-13T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p10
+      archetype: time_window
+      needle: '2026-07-13T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-14-time_window-user_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-14T09:30:00Z'
+      carrier: user_text
+      position: p50
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-14T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p50
+      archetype: time_window
+      needle: '2026-07-14T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-15-time_window-user_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-15T09:30:00Z'
+      carrier: user_text
+      position: p90
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-15T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p90
+      archetype: time_window
+      needle: '2026-07-15T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-16-time_window-assistant_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-16T09:30:00Z'
+      carrier: assistant_text
+      position: p10
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-16T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p10
+      archetype: time_window
+      needle: '2026-07-16T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-17-time_window-assistant_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-17T09:30:00Z'
+      carrier: assistant_text
+      position: p50
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-17T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p50
+      archetype: time_window
+      needle: '2026-07-17T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-18-time_window-assistant_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: '2026-07-18T09:30:00Z'
+      carrier: assistant_text
+      position: p90
+      archetype: time_window
+    messages:
+    - role: user
+      content: Use the earlier established investigation start time now.
+  expected:
+    tools:
+      required:
+      - set_time_range
+    tool_call_args:
+      set_time_range:
+        startTime:
+          contains_all:
+          - '2026-07-18T09:30:00Z'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p90
+      archetype: time_window
+      needle: '2026-07-18T09:30:00Z'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-19-trace_id-tool_result-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-tool-result-p10-19'
+      carrier: tool_result
+      position: p10
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-tool-result-p10-19'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-tool-result-p10-19'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-20-trace_id-tool_result-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-tool-result-p50-20'
+      carrier: tool_result
+      position: p50
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-tool-result-p50-20'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p50
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-tool-result-p50-20'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-21-trace_id-tool_result-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-tool-result-p90-21'
+      carrier: tool_result
+      position: p90
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-tool-result-p90-21'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p90
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-tool-result-p90-21'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-22-trace_id-user_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-user-text-p10-22'
+      carrier: user_text
+      position: p10
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-user-text-p10-22'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p10
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-user-text-p10-22'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-23-trace_id-user_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-user-text-p50-23'
+      carrier: user_text
+      position: p50
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-user-text-p50-23'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p50
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-user-text-p50-23'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-24-trace_id-user_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-user-text-p90-24'
+      carrier: user_text
+      position: p90
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-user-text-p90-24'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p90
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-user-text-p90-24'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-25-trace_id-assistant_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-assistant-text-p10-25'
+      carrier: assistant_text
+      position: p10
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-assistant-text-p10-25'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p10
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-assistant-text-p10-25'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-26-trace_id-assistant_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-assistant-text-p50-26'
+      carrier: assistant_text
+      position: p50
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-assistant-text-p50-26'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p50
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-assistant-text-p50-26'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-27-trace_id-assistant_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: trace_id == 'trace-trace_id-assistant-text-p90-27'
+      carrier: assistant_text
+      position: p90
+      archetype: trace_id
+    messages:
+    - role: user
+      content: Use the earlier established outlier trace filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - trace_id == 'trace-trace_id-assistant-text-p90-27'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p90
+      archetype: trace_id
+      needle: trace_id == 'trace-trace_id-assistant-text-p90-27'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-28-model_constraint-tool_result-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-tool-result-p10-28'
+      carrier: tool_result
+      position: p10
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-tool-result-p10-28'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p10
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-tool-result-p10-28'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-29-model_constraint-tool_result-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-tool-result-p50-29'
+      carrier: tool_result
+      position: p50
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-tool-result-p50-29'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p50
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-tool-result-p50-29'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-30-model_constraint-tool_result-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-tool-result-p90-30'
+      carrier: tool_result
+      position: p90
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-tool-result-p90-30'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: tool_result
+      position: p90
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-tool-result-p90-30'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-31-model_constraint-user_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-user-text-p10-31'
+      carrier: user_text
+      position: p10
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-user-text-p10-31'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p10
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-user-text-p10-31'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-32-model_constraint-user_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-user-text-p50-32'
+      carrier: user_text
+      position: p50
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-user-text-p50-32'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p50
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-user-text-p50-32'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-33-model_constraint-user_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-user-text-p90-33'
+      carrier: user_text
+      position: p90
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-user-text-p90-33'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: user_text
+      position: p90
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-user-text-p90-33'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-34-model_constraint-assistant_text-p10-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-assistant-text-p10-34'
+      carrier: assistant_text
+      position: p10
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-assistant-text-p10-34'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p10
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-assistant-text-p10-34'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-35-model_constraint-assistant_text-p50-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-assistant-text-p50-35'
+      carrier: assistant_text
+      position: p50
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-assistant-text-p50-35'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p50
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-assistant-text-p50-35'
+      depth_tokens: 5000
+      seed: 20260703
+- id: type-b-36-model_constraint-assistant_text-p90-5000
+  splits:
+  - dev
+  input:
+    context_pruning_prefix:
+      seed: 20260703
+      depth_tokens: 5000
+      composition: fallback-60-tool-25-assistant-15-user
+      needle: llm.model_name == 'model-model_constraint-assistant-text-p90-36'
+      carrier: assistant_text
+      position: p90
+      archetype: model_constraint
+    messages:
+    - role: user
+      content: Use the earlier established model constraint filter expression now.
+  expected:
+    tools:
+      required:
+      - set_spans_filter
+    tool_call_args:
+      set_spans_filter:
+        condition:
+          contains_all:
+          - llm.model_name == 'model-model_constraint-assistant-text-p90-36'
+    budgets:
+      max_tool_calls: 1
+  metadata:
+    context_pruning:
+      task_type: B
+      carrier: assistant_text
+      position: p90
+      archetype: model_constraint
+      needle: llm.model_name == 'model-model_constraint-assistant-text-p90-36'
+      depth_tokens: 5000
+      seed: 20260703

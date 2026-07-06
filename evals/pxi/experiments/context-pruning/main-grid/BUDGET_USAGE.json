@@ -1,0 +1,93 @@
+{
+  "cell_count": 4,
+  "cells": [
+    {
+      "anthropic_opus_4_6_cost_usd": 15.39540575,
+      "cache_read_ratio": 0.7362021873067188,
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "error_runs": 0,
+      "experiment_id": 21,
+      "experiment_name": "context-pruning-budget-context_pruning_type_b_50k-p0",
+      "mean_latency_ms": 4864,
+      "median_latency_ms": 4280,
+      "p95_latency_ms": 9578,
+      "policy": "p0",
+      "runs": 108,
+      "successful_runs": 108,
+      "task_type": "type_b",
+      "usage": {
+        "cache_read_tokens": 5512294,
+        "cache_write_tokens": 1974851,
+        "input_tokens": 7487473,
+        "output_tokens": 11792
+      }
+    },
+    {
+      "anthropic_opus_4_6_cost_usd": 4.20748075,
+      "cache_read_ratio": 0.843908231732855,
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "error_runs": 0,
+      "experiment_id": 22,
+      "experiment_name": "context-pruning-budget-context_pruning_type_b_50k-p1",
+      "mean_latency_ms": 5298,
+      "median_latency_ms": 4659,
+      "p95_latency_ms": 9014,
+      "policy": "p1",
+      "runs": 108,
+      "successful_runs": 108,
+      "task_type": "type_b",
+      "usage": {
+        "cache_read_tokens": 2337349,
+        "cache_write_tokens": 431993,
+        "input_tokens": 2769672,
+        "output_tokens": 13488
+      }
+    },
+    {
+      "anthropic_opus_4_6_cost_usd": 1.96390625,
+      "cache_read_ratio": 0.9766362170875873,
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "error_runs": 0,
+      "experiment_id": 23,
+      "experiment_name": "context-pruning-budget-context_pruning_type_b_50k-p3",
+      "mean_latency_ms": 7276,
+      "median_latency_ms": 5909,
+      "p95_latency_ms": 17487,
+      "policy": "p3",
+      "runs": 108,
+      "successful_runs": 108,
+      "task_type": "type_b",
+      "usage": {
+        "cache_read_tokens": 2044710,
+        "cache_write_tokens": 48561,
+        "input_tokens": 2093625,
+        "output_tokens": 25451
+      }
+    },
+    {
+      "anthropic_opus_4_6_cost_usd": 1.56005275,
+      "cache_read_ratio": 0.9837288934989193,
+      "dataset": "context_pruning_type_b_50k",
+      "depth": "50k",
+      "error_runs": 0,
+      "experiment_id": 24,
+      "experiment_name": "context-pruning-budget-context_pruning_type_b_50k-p5",
+      "mean_latency_ms": 6761,
+      "median_latency_ms": 6231,
+      "p95_latency_ms": 13806,
+      "policy": "p5",
+      "runs": 108,
+      "successful_runs": 108,
+      "task_type": "type_b",
+      "usage": {
+        "cache_read_tokens": 1643568,
+        "cache_write_tokens": 26855,
+        "input_tokens": 1670753,
+        "output_tokens": 22751
+      }
+    }
+  ]
+}
