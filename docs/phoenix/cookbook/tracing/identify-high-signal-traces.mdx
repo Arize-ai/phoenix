@@ -238,8 +238,9 @@ Hard failures are queryable with zero setup. Phoenix records span status, except
 </Tab>
 <Tab title="CLI (px)" icon="terminal">
 ```bash
-# Find traces with errors in the last hour
-px trace list --last-n-minutes 60 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
+# Find traces with errors in the last hour (--limit defaults to 10, newest-first,
+# so raise it or you'll only scan the 10 most recent traces once volume climbs)
+px trace list --last-n-minutes 60 --limit 200 --format raw --no-progress | jq '.[] | select(.status == "ERROR")'
 
 # List all errored spans
 px span list --status-code ERROR --limit 20
@@ -270,18 +271,17 @@ From the terminal, or programmatically for latency-tail analysis:
 
 <Tabs>
 <Tab title="UI" icon="window-maximize">
-  Go to your [project's dashboard](http://localhost:6006/dashboards/). In the "Trace Latency" Panel, find suspiciously fast traces (ascending by duration) by clicking everything but "P99".
-
-  *Use the CLI to find suspiciously slow traces.*
+  Go to your [project's dashboard](http://localhost:6006/dashboards/). The "Trace Latency" panel plots the percentile lines (P50 through P99) over time, so you can read **both tails** at a glance: watch the **P99** line for the slow tail, and the **P50** dipping toward zero for the suspiciously fast tail. Toggle individual percentiles in the legend to isolate the tail you're reading. The dashboard tells you *when* a tail moved; use the CLI or Python tabs to pull the actual outlier traces to read.
 </Tab>
 
 <Tab title="CLI" icon="terminal">
 ```bash
+# Fetch a wide window (--limit defaults to 10), then sort and slice the extremes.
 # Find the slowest traces (descending by duration)
-px trace list --format raw --no-progress | jq 'sort_by(-.duration) | .[0:10]'
+px trace list --limit 200 --format raw --no-progress | jq 'sort_by(-.duration) | .[0:10]'
 
 # Find suspiciously fast traces (ascending by duration)
-px trace list --format raw --no-progress | jq 'sort_by(.duration) | .[0:10]'
+px trace list --limit 200 --format raw --no-progress | jq 'sort_by(.duration) | .[0:10]'
 ```
 </Tab>
 <Tab title="Python" icon="python">
@@ -683,7 +683,7 @@ px span list --attribute llm.model_name:gpt-4o-mini --limit 50 --format raw --no
 px span list --attribute session.id:sess-001 --limit 50
 ```
 
-To build a *reusable* review set that you can annotate in the UI, hand to a teammate, or run experiments against, proportionally sample in Python and load it into a **Phoenix dataset** rather than a local file. Save the following script as `sample.py` and run it frome the terminal with `python sample.py`.
+To build a *reusable* review set that you can annotate in the UI, hand to a teammate, or run experiments against, proportionally sample in Python and load it into a **Phoenix dataset** rather than a local file. Save the following script as `sample.py` and run it from the terminal with `python sample.py`.
 
 ```python
 from phoenix.client import Client
@@ -737,7 +737,7 @@ The pipeline below has four stages, each doing one job:
 3. **Cluster** with [HDBSCAN](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.HDBSCAN.html), which finds the dense regions of that space and calls each one a cluster. Unlike [k-means](https://en.wikipedia.org/wiki/K-means_clustering), it doesn't make you guess the number of clusters before you've seen the data, and it doesn't force every point into a group: inputs that fit nowhere get labeled noise (`-1`). Don't discard them. An input that resembles nothing else in your traffic is your novelty signal, found for free.
 4. **Label** each cluster with an LLM using representative examples, because "cluster 3" tells you nothing until you know it means "billing-dispute questions."
 
-Steps 5 and 6 in the code put the clusters to work: cross-reference them against failure signals, then build the review sample.
+The code below adds two more steps that put the clusters to work: cross-referencing them against failure signals, then building the review sample.
 
 <Callout icon="sparkles" color="#3b82f6">
     [BERTopic](https://maartengr.github.io/BERTopic/) packages this exact pipeline if you'd rather not assemble it yourself.
@@ -856,7 +856,7 @@ print(f"Novelty sample: {min(20, len(noise))} spans")
 # and plot (x, y, cluster, status) with your favorite plotting library
 ```
 
-5. Fun the script with
+5. Run the script with
 
 ```bash
 python pipeline.py
@@ -893,7 +893,7 @@ async function main() {
   fs.writeFileSync("spans_for_clustering.json", JSON.stringify(inputs, null, 2));
 
   console.log(
-    "Exported spans to spans_for_clustering.jso. Next: cluster with Python, then rejoin"
+    "Exported spans to spans_for_clustering.json. Next: cluster with Python, then rejoin"
   );
 }
 
