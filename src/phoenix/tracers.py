@@ -216,7 +216,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         for trace_id in db_spans_by_trace_id:
             db_spans = db_spans_by_trace_id[trace_id]
             db_span_costs = db_span_costs_by_trace_id[trace_id]
-            for db_span, count in zip(db_spans, _get_cumulative_counts(db_spans)):
+            for db_span, count in zip(db_spans, get_cumulative_counts(db_spans)):
                 db_span.cumulative_error_count = count.errors
                 db_span.cumulative_llm_token_count_prompt = count.prompt_tokens
                 db_span.cumulative_llm_token_count_completion = count.completion_tokens
@@ -367,7 +367,7 @@ class CumulativeCount:
     completion_tokens: int
 
 
-def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
+def get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]:
     """
     Computes cumulative counts.
 

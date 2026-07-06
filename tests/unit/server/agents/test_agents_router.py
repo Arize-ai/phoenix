@@ -1,15 +1,20 @@
 from datetime import datetime, timezone
 
+import pytest
 from pydantic_ai import RunUsage
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
+import phoenix.server.api.routers.agents as agents_router
 from phoenix.db import models
 from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _build_turn_complete_chunk,
     _get_span_context,
+    _persist_backend_traces_with_retry,
     _persist_db_traces,
 )
+from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import extract_otel_context
 
@@ -131,3 +136,114 @@ async def test_persist_db_traces_merges_existing_browser_trace(db: DbSessionFact
     assert persisted_browser_span is not None
     assert persisted_browser_span.cumulative_llm_token_count_prompt == 3
     assert persisted_browser_span.cumulative_llm_token_count_completion == 5
+
+
+class _FakeEventQueue:
+    def __init__(self) -> None:
+        self.events: list[DmlEvent] = []
+
+    def put(self, item: DmlEvent) -> None:
+        self.events.append(item)
+
+
+def _build_backend_trace(*, project_id: int, trace_id: str, span_id: str) -> models.Trace:
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    backend_span = models.Span(
+        span_id=span_id,
+        parent_id=None,
+        name="pxi.turn",
+        span_kind="AGENT",
+        start_time=now,
+        end_time=now,
+        attributes={},
+        events=[],
+        status_code="OK",
+        status_message="",
+        cumulative_error_count=0,
+        cumulative_llm_token_count_prompt=0,
+        cumulative_llm_token_count_completion=0,
+        llm_token_count_prompt=0,
+        llm_token_count_completion=0,
+    )
+    return models.Trace(
+        project_rowid=project_id,
+        trace_id=trace_id,
+        start_time=now,
+        end_time=now,
+        spans=[backend_span],
+        span_costs=[],
+    )
+
+
+async def test_persist_backend_traces_retries_on_concurrent_insert_race(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    trace_id = "aa1221e156495558c48e177a21f84891"
+    async with db() as session:
+        project = models.Project(name="pxi_dev")
+        session.add(project)
+        await session.flush()
+        project_id = project.id
+
+    persist_attempts = 0
+    real_persist_db_traces = agents_router._persist_db_traces
+
+    async def persist_failing_once(
+        *, session: object, db_traces: list[models.Trace]
+    ) -> tuple[int, ...]:
+        nonlocal persist_attempts
+        persist_attempts += 1
+        if persist_attempts == 1:
+            raise IntegrityError("INSERT INTO traces", {}, Exception("duplicate key"))
+        return await real_persist_db_traces(session=session, db_traces=db_traces)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(agents_router, "_persist_db_traces", persist_failing_once)
+    event_queue = _FakeEventQueue()
+
+    await _persist_backend_traces_with_retry(
+        db=db,
+        event_queue=event_queue,
+        get_db_traces=lambda: [
+            _build_backend_trace(project_id=project_id, trace_id=trace_id, span_id="span-1")
+        ],
+    )
+
+    assert persist_attempts == 2
+    assert event_queue.events == [SpanInsertEvent((project_id,))]
+    async with db() as session:
+        num_traces = await session.scalar(
+            select(func.count()).select_from(models.Trace).where(models.Trace.trace_id == trace_id)
+        )
+    assert num_traces == 1
+
+
+async def test_persist_backend_traces_raises_after_exhausting_retries(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with db() as session:
+        project = models.Project(name="pxi_dev")
+        session.add(project)
+        await session.flush()
+        project_id = project.id
+
+    async def persist_always_failing(
+        *, session: object, db_traces: list[models.Trace]
+    ) -> tuple[int, ...]:
+        raise IntegrityError("INSERT INTO traces", {}, Exception("duplicate key"))
+
+    monkeypatch.setattr(agents_router, "_persist_db_traces", persist_always_failing)
+    event_queue = _FakeEventQueue()
+
+    with pytest.raises(IntegrityError):
+        await _persist_backend_traces_with_retry(
+            db=db,
+            event_queue=event_queue,
+            get_db_traces=lambda: [
+                _build_backend_trace(
+                    project_id=project_id,
+                    trace_id="bb1221e156495558c48e177a21f84891",
+                    span_id="span-2",
+                )
+            ],
+        )
+    assert event_queue.events == []

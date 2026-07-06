@@ -40,7 +40,9 @@ from pydantic_ai.usage import RunUsage
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
@@ -96,9 +98,9 @@ from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import (
     Tracer,
-    _get_cumulative_counts,
     detached_otel_context,
     extract_otel_context,
+    get_cumulative_counts,
 )
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
@@ -509,6 +511,37 @@ async def _persist_db_traces_and_emit_event(
         event_queue.put(SpanInsertEvent(project_ids))
 
 
+async def _persist_backend_traces_with_retry(
+    *,
+    db: DbSessionFactory,
+    event_queue: CanPutItem[DmlEvent],
+    get_db_traces: Callable[[], list[models.Trace]],
+    max_attempts: int = 2,
+) -> None:
+    """Persist flushed backend traces, retrying on concurrent-insert races.
+
+    ``_persist_db_traces`` does a read-check-insert, so a concurrent flush of
+    the same trace (e.g. the stream's ``finally`` block overlapping with
+    ``_on_complete``) can insert a row between our read and our insert and
+    raise an integrity error. ``get_db_traces`` must rebuild fresh ORM objects
+    on each call (the tracer buffer is not drained), so the retry re-reads the
+    now-committed rows and takes the merge path instead of colliding.
+    """
+    for attempt in range(max_attempts):
+        db_traces = get_db_traces()
+        if not db_traces:
+            return
+        try:
+            await _persist_db_traces_and_emit_event(
+                db=db, event_queue=event_queue, db_traces=db_traces
+            )
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            if attempt == max_attempts - 1:
+                raise
+            continue
+        return
+
+
 async def _refresh_cumulative_span_counts(
     *,
     session: AsyncSession,
@@ -521,7 +554,7 @@ async def _refresh_cumulative_span_counts(
             select(models.Span).join(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
         )
     )
-    counts = _get_cumulative_counts(spans)
+    counts = get_cumulative_counts(spans)
     for span, count in zip(spans, counts):
         span.cumulative_error_count = count.errors
         span.cumulative_llm_token_count_prompt = count.prompt_tokens
@@ -1106,15 +1139,19 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 is_backend_trace_flushed = True
                 return True
             tracer.tracer_provider.force_flush()
-            is_backend_trace_flushed = True
             if ingest_traces:
                 project_id = await _ensure_project_exists(request.app.state.db, project_name)
-                db_traces = tracer.get_db_traces(project_id=project_id)
-                await _persist_db_traces_and_emit_event(
+                await _persist_backend_traces_with_retry(
                     db=request.app.state.db,
                     event_queue=request.state.event_queue,
-                    db_traces=db_traces,
+                    get_db_traces=lambda: tracer.get_db_traces(project_id=project_id),
                 )
+            # Only mark flushed after persistence succeeds so that a failure in
+            # `_on_complete` is retried by the stream's `finally` block. The
+            # tracer buffer is not drained by `get_db_traces`, and
+            # `_persist_db_traces` dedups already-persisted traces/spans, so
+            # the retry is safe.
+            is_backend_trace_flushed = True
             return True
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

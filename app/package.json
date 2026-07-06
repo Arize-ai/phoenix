@@ -64,7 +64,6 @@
     "@lezer/highlight": "^1.2.3",
     "@lezer/lr": "^1.4.10",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/context-zone": "^2.8.0",
     "@opentelemetry/core": "^2.8.0",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.219.0",
     "@opentelemetry/sdk-trace-base": "^2.8.0",

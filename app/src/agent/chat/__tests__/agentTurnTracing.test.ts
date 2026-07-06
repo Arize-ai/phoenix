@@ -1,5 +1,6 @@
 import { ExportResultCode } from "@opentelemetry/core";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
+import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -48,6 +49,7 @@ describe("createAgentTurnTracer", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("does not inject trace context when PXI trace recording is disabled", async () => {
@@ -117,6 +119,25 @@ describe("createAgentTurnTracer", () => {
     expect(getTraceId(secondTraceparent ?? "")).not.toEqual(
       getTraceId(firstTraceparent ?? "")
     );
+  });
+
+  it("resolves endTurn even when the span flush rejects", async () => {
+    const forceFlushSpy = vi
+      .spyOn(WebTracerProvider.prototype, "forceFlush")
+      .mockRejectedValue(new Error("exporter unavailable"));
+    const tracer = createAgentTurnTracer({
+      sessionId: "session-1",
+      fetch: createMockFetch(),
+      getAgentsConfig: () => agentsConfig,
+      getObservability: () => observability,
+    });
+
+    tracer.startTurn("submit-message");
+
+    // A rejected flush must not propagate: turn finalization in useAgentChat
+    // persists session state after endTurn and must never be blocked.
+    await expect(tracer.endTurn()).resolves.toBeUndefined();
+    expect(forceFlushSpy).toHaveBeenCalled();
   });
 
   it("exports only locally ingested PXI browser spans by project", async () => {

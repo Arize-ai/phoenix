@@ -12,12 +12,14 @@ import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
-  shouldKeepTurnOpenForPendingToolOutput,
-  shouldSendAutomaticallyAfterToolOutput,
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
+import {
+  PXI_TURN_COMPLETE_DATA_TYPE,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -43,11 +45,6 @@ import {
 } from "./useGenerateSessionSummary";
 
 type AgentTurnTracer = ReturnType<typeof createAgentTurnTracer>;
-
-type PendingFinish = {
-  finalMessages: AgentUIMessage[] | undefined;
-  message: AgentUIMessage;
-};
 
 const turnTracersByChat = new WeakMap<Chat<AgentUIMessage>, AgentTurnTracer>();
 
@@ -111,58 +108,29 @@ export function useAgentChat({
               getAgentsConfig: () => store.getState().agentsConfig,
               getObservability: () => store.getState().observability,
             });
-            let pendingFinish: PendingFinish | null = null;
-            let hasReceivedBackendTurnComplete = false;
-            let hasReachedTerminalSendDecision = false;
-            const finalizePendingFinish = () => {
-              if (pendingFinish == null) {
-                return;
-              }
-              const { finalMessages, message } = pendingFinish;
-              pendingFinish = null;
-              const usage = message.metadata?.usage;
-              if (usage != null) {
-                store.getState().setSessionUsage(sessionId, {
-                  ...usage.tokens,
-                  ...(usage.promptDetails
-                    ? { promptDetails: usage.promptDetails }
-                    : {}),
-                });
-              }
-              // Finalized history is mirrored into the durable store so idle
-              // runtimes can be reclaimed and later reconstructed from state.
-              if (finalMessages) {
-                store.getState().setSessionMessages(sessionId, finalMessages);
-                generateSummary({
-                  sessionId,
-                  modelSelection: modelSelectionRef.current,
-                });
-              }
-            };
-            const completePendingTurnIfReady = async () => {
-              if (
-                pendingFinish == null ||
-                !hasReceivedBackendTurnComplete ||
-                !hasReachedTerminalSendDecision
-              ) {
-                return;
-              }
-              await turnTracer.endTurn();
-              finalizePendingFinish();
-            };
-            const updateTerminalSendDecision = (messages: AgentUIMessage[]) => {
-              const shouldSendAutomatically =
-                shouldSendAutomaticallyAfterToolOutput({ messages });
-              if (
-                !shouldKeepTurnOpenForPendingToolOutput({
-                  messages,
-                  shouldSendAutomatically,
-                }) &&
-                !shouldSendAutomatically
-              ) {
-                hasReachedTerminalSendDecision = true;
-              }
-            };
+            const turnCompletionGate = createTurnCompletionGate({
+              endTurn: (error) => turnTracer.endTurn(error),
+              finalize: ({ finalMessages, message }) => {
+                const usage = message.metadata?.usage;
+                if (usage != null) {
+                  store.getState().setSessionUsage(sessionId, {
+                    ...usage.tokens,
+                    ...(usage.promptDetails
+                      ? { promptDetails: usage.promptDetails }
+                      : {}),
+                  });
+                }
+                // Finalized history is mirrored into the durable store so idle
+                // runtimes can be reclaimed and later reconstructed from state.
+                if (finalMessages) {
+                  store.getState().setSessionMessages(sessionId, finalMessages);
+                  generateSummary({
+                    sessionId,
+                    modelSelection: modelSelectionRef.current,
+                  });
+                }
+              },
+            });
             const chat = new Chat<AgentUIMessage>({
               id: sessionId,
               messages: initialMessages,
@@ -176,10 +144,11 @@ export function useAgentChat({
                   trigger,
                   messageId,
                 }) => {
+                  // The gate may flush a stale finished turn (ending its
+                  // trace) before the tracer opens a span for this one.
+                  turnCompletionGate.beginTurn();
                   turnTracer.startTurn(trigger);
                   turnTracer.setTurnInput(getLastUserText(messages));
-                  hasReceivedBackendTurnComplete = false;
-                  hasReachedTerminalSendDecision = false;
                   return {
                     body: buildAgentChatRequestBody({
                       body,
@@ -222,39 +191,20 @@ export function useAgentChat({
                     }),
                 });
               },
-              sendAutomaticallyWhen: async (options) => {
-                const shouldSendAutomatically =
-                  shouldSendAutomaticallyAfterToolOutput(options);
-                if (
-                  shouldKeepTurnOpenForPendingToolOutput({
-                    messages: options.messages,
-                    shouldSendAutomatically,
-                  })
-                ) {
-                  return false;
-                }
-                if (!shouldSendAutomatically) {
-                  hasReachedTerminalSendDecision = true;
-                  await completePendingTurnIfReady();
-                }
-                return shouldSendAutomatically;
-              },
+              sendAutomaticallyWhen: ({ messages }) =>
+                turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
               onError: (error) => {
-                pendingFinish = null;
-                void turnTracer.endTurn(error);
+                turnCompletionGate.fail(error);
               },
               onData: (dataPart) => {
-                if (dataPart.type !== "data-pxi-turn-complete") {
+                if (dataPart.type !== PXI_TURN_COMPLETE_DATA_TYPE) {
                   return;
                 }
-                hasReceivedBackendTurnComplete = true;
-                void completePendingTurnIfReady();
+                turnCompletionGate.handleBackendTurnComplete();
               },
               onFinish: ({ messages: finalMessages, message }) => {
-                pendingFinish = { finalMessages, message };
                 turnTracer.setTurnOutput(getMessageText(message));
-                updateTerminalSendDecision(finalMessages);
-                void completePendingTurnIfReady();
+                turnCompletionGate.handleFinish({ finalMessages, message });
               },
             });
             turnTracersByChat.set(chat, turnTracer);

@@ -7,7 +7,6 @@ import {
   type Context,
   type Span,
 } from "@opentelemetry/api";
-import { ZoneContextManager } from "@opentelemetry/context-zone";
 import {
   ExportResultCode,
   W3CTraceContextPropagator,
@@ -81,6 +80,8 @@ let isProviderRegistered = false;
 let webTracerProvider: WebTracerProvider | null = null;
 
 const DEFAULT_FORCE_FLUSH_TIMEOUT_MS = 5_000;
+
+const PXI_TRACER_NAME = "phoenix-ui.pxi";
 
 function getPxiLocalSpanAttributes(
   span: ReadableSpan
@@ -203,9 +204,16 @@ function ensureWebTracerProviderRegistered() {
   const provider = new WebTracerProvider({
     spanProcessors: [new SimpleSpanProcessor(new PxiRootSpanExporter())],
   });
-  provider.register({
-    contextManager: new ZoneContextManager(),
-  });
+  // The default StackContextManager is sufficient: every span created here is
+  // parented explicitly (see `traceToolCall` / `startTurn`) and trace-context
+  // injection uses the explicit turn context, so ambient context does not need
+  // to survive across awaits. This deliberately avoids ZoneContextManager,
+  // whose Zone.js dependency monkey-patches every async primitive app-wide.
+  //
+  // This module owns the global OTel registration (tracer provider and
+  // propagator) for the Phoenix UI; any future browser instrumentation should
+  // reuse this provider rather than registering its own.
+  provider.register();
   propagation.setGlobalPropagator(new W3CTraceContextPropagator());
   webTracerProvider = provider;
   isProviderRegistered = true;
@@ -248,7 +256,10 @@ async function forceFlushBrowserSpans(timeoutMs: number): Promise<void> {
     return;
   }
   await Promise.race([
-    webTracerProvider.forceFlush(),
+    // Tracing is best-effort: a failed flush must never reject, since callers
+    // (e.g. turn finalization in useAgentChat) persist session state after
+    // ending the turn and must not be blocked by exporter failures.
+    webTracerProvider.forceFlush().catch(() => undefined),
     new Promise<void>((resolve) => {
       setTimeout(resolve, timeoutMs);
     }),
@@ -287,7 +298,7 @@ export function createAgentTurnTracer({
     }
 
     ensureWebTracerProviderRegistered();
-    const tracer = trace.getTracer("phoenix-ui.pxi");
+    const tracer = trace.getTracer(PXI_TRACER_NAME);
     const span = tracer.startSpan("pxi.turn", {
       kind: SpanKind.CLIENT,
       attributes: {
@@ -404,7 +415,7 @@ export function createAgentTurnTracer({
       return execute(() => undefined);
     }
 
-    const tracer = trace.getTracer("phoenix-ui.pxi");
+    const tracer = trace.getTracer(PXI_TRACER_NAME);
     const span = tracer.startSpan(
       toolCall.toolName,
       {
