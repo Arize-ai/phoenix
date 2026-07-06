@@ -45,6 +45,26 @@ function createMockFetch() {
   );
 }
 
+function createReadableSpan({
+  name,
+  traceId,
+  attributes = {},
+}: {
+  name: string;
+  traceId: string;
+  attributes?: ReadableSpan["attributes"];
+}): ReadableSpan {
+  return {
+    name,
+    attributes,
+    spanContext: () => ({
+      traceId,
+      spanId: `${traceId.slice(0, 15)}0`,
+      traceFlags: 1,
+    }),
+  } as unknown as ReadableSpan;
+}
+
 describe("createAgentTurnTracer", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -140,8 +160,12 @@ describe("createAgentTurnTracer", () => {
     expect(forceFlushSpy).toHaveBeenCalled();
   });
 
-  it("exports only locally ingested PXI browser spans by project", async () => {
+  it("exports only PXI browser spans with registered projects by project", async () => {
     const exportedSpansByProjectName = new Map<string, ReadableSpan[]>();
+    const projectNameByTraceId = new Map([
+      ["trace-local", "assistant_agent"],
+      ["trace-other", "other_agent"],
+    ]);
     const createExporter = vi.fn((projectName: string): SpanExporter => {
       return {
         export(spans, resultCallback) {
@@ -151,46 +175,56 @@ describe("createAgentTurnTracer", () => {
         shutdown: async () => undefined,
       };
     });
-    const exporter = new PxiRootSpanExporter(createExporter);
+    const exporter = new PxiRootSpanExporter(
+      createExporter,
+      (span) => projectNameByTraceId.get(span.spanContext().traceId) ?? null
+    );
     const resultCallback = vi.fn();
 
-    const localRootSpan = {
+    const localRootSpan = createReadableSpan({
       name: "pxi.turn",
-      attributes: {
-        "phoenix.agent.ingest_traces": true,
-        "phoenix.agent.project_name": "assistant_agent",
-      },
-    } as unknown as ReadableSpan;
-    const remoteOnlyRootSpan = {
+      traceId: "trace-local",
+    });
+    const unregisteredRootSpan = createReadableSpan({
       name: "pxi.turn",
-      attributes: {
-        "phoenix.agent.ingest_traces": false,
-        "phoenix.agent.project_name": "remote_agent",
-      },
-    } as unknown as ReadableSpan;
-    const localToolSpan = {
+      traceId: "trace-unregistered",
+    });
+    const localToolSpan = createReadableSpan({
       name: "bash",
+      traceId: "trace-local",
       attributes: {
-        "phoenix.agent.ingest_traces": true,
-        "phoenix.agent.project_name": "assistant_agent",
         "openinference.span.kind": "TOOL",
       },
-    } as unknown as ReadableSpan;
-    const unrelatedSpan = {
+    });
+    const otherProjectSpan = createReadableSpan({
+      name: "pxi.turn",
+      traceId: "trace-other",
+    });
+    const unrelatedSpan = createReadableSpan({
       name: "click",
-      attributes: {},
-    } as unknown as ReadableSpan;
+      traceId: "trace-unrelated",
+    });
 
     exporter.export(
-      [localRootSpan, remoteOnlyRootSpan, localToolSpan, unrelatedSpan],
+      [
+        localRootSpan,
+        unregisteredRootSpan,
+        localToolSpan,
+        otherProjectSpan,
+        unrelatedSpan,
+      ],
       resultCallback
     );
 
-    expect(createExporter).toHaveBeenCalledOnce();
+    expect(createExporter).toHaveBeenCalledTimes(2);
     expect(createExporter).toHaveBeenCalledWith("assistant_agent");
+    expect(createExporter).toHaveBeenCalledWith("other_agent");
     expect(exportedSpansByProjectName.get("assistant_agent")).toEqual([
       localRootSpan,
       localToolSpan,
+    ]);
+    expect(exportedSpansByProjectName.get("other_agent")).toEqual([
+      otherProjectSpan,
     ]);
     expect(resultCallback).toHaveBeenCalledWith({
       code: ExportResultCode.SUCCESS,
@@ -198,23 +232,19 @@ describe("createAgentTurnTracer", () => {
   });
 
   it("reports failed project exports even without an exporter error object", () => {
-    const exporter = new PxiRootSpanExporter(() => ({
-      export(_spans, resultCallback) {
-        resultCallback({ code: ExportResultCode.FAILED });
-      },
-      shutdown: async () => undefined,
-    }));
+    const exporter = new PxiRootSpanExporter(
+      () => ({
+        export(_spans, resultCallback) {
+          resultCallback({ code: ExportResultCode.FAILED });
+        },
+        shutdown: async () => undefined,
+      }),
+      () => "assistant_agent"
+    );
     const resultCallback = vi.fn();
 
     exporter.export(
-      [
-        {
-          attributes: {
-            "phoenix.agent.ingest_traces": true,
-            "phoenix.agent.project_name": "assistant_agent",
-          },
-        } as unknown as ReadableSpan,
-      ],
+      [createReadableSpan({ name: "pxi.turn", traceId: "trace-local" })],
       resultCallback
     );
 

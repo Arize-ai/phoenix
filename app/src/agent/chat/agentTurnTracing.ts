@@ -18,6 +18,11 @@ import {
   type SpanExporter,
 } from "@opentelemetry/sdk-trace-base";
 import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
+import {
+  MimeType,
+  OpenInferenceSpanKind,
+  SemanticConventions,
+} from "@arizeai/openinference-semantic-conventions";
 
 import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
 import type {
@@ -29,8 +34,7 @@ import { prependBasename } from "@phoenix/utils/routingUtils";
 type AgentTurnTrace = {
   span: Span;
   context: Context;
-  projectName: string;
-  ingestTraces: boolean;
+  traceId: string;
 };
 
 type AgentToolCallTraceInput = {
@@ -51,12 +55,8 @@ type ToolOutputTraceInput = {
   errorText?: string;
 };
 
-type PxiRootSpanAttributes = {
-  "phoenix.agent.ingest_traces": boolean;
-  "phoenix.agent.project_name": string;
-};
-
 type CreateLocalTraceExporter = (projectName: string) => SpanExporter;
+type GetProjectNameForSpan = (span: ReadableSpan) => string | null;
 
 type AgentTurnTracingOptions = {
   sessionId: string;
@@ -82,34 +82,30 @@ let webTracerProvider: WebTracerProvider | null = null;
 const DEFAULT_FORCE_FLUSH_TIMEOUT_MS = 5_000;
 
 const PXI_TRACER_NAME = "phoenix-ui.pxi";
+const pxiProjectNameByTraceId = new Map<string, string>();
 
-function getPxiLocalSpanAttributes(
-  span: ReadableSpan
-): PxiRootSpanAttributes | null {
-  const ingestTraces = span.attributes["phoenix.agent.ingest_traces"];
-  const projectName = span.attributes["phoenix.agent.project_name"];
-  if (typeof ingestTraces !== "boolean" || typeof projectName !== "string") {
-    return null;
-  }
-  return {
-    "phoenix.agent.ingest_traces": ingestTraces,
-    "phoenix.agent.project_name": projectName,
-  };
+const createDefaultLocalTraceExporter: CreateLocalTraceExporter = (
+  projectName
+) =>
+  new OTLPTraceExporter({
+    url: prependBasename("/v1/traces"),
+    headers: {
+      "x-project-name": projectName,
+    },
+  });
+
+function getPxiProjectNameForSpan(span: ReadableSpan): string | null {
+  return pxiProjectNameByTraceId.get(span.spanContext().traceId) ?? null;
 }
 
 export class PxiRootSpanExporter implements SpanExporter {
   private exportersByProjectName = new Map<string, SpanExporter>();
 
   constructor(
-    private createLocalTraceExporter: CreateLocalTraceExporter = (
-      projectName
-    ) =>
-      new OTLPTraceExporter({
-        url: prependBasename("/v1/traces"),
-        headers: {
-          "x-project-name": projectName,
-        },
-      })
+    private createLocalTraceExporter: CreateLocalTraceExporter =
+      createDefaultLocalTraceExporter,
+    private getProjectNameForSpan: GetProjectNameForSpan =
+      getPxiProjectNameForSpan
   ) {}
 
   export(
@@ -118,11 +114,10 @@ export class PxiRootSpanExporter implements SpanExporter {
   ): void {
     const spansByProjectName = new Map<string, ReadableSpan[]>();
     for (const span of spans) {
-      const attributes = getPxiLocalSpanAttributes(span);
-      if (!attributes?.["phoenix.agent.ingest_traces"]) {
+      const projectName = this.getProjectNameForSpan(span);
+      if (!projectName) {
         continue;
       }
-      const projectName = attributes["phoenix.agent.project_name"];
       const projectSpans = spansByProjectName.get(projectName) ?? [];
       projectSpans.push(span);
       spansByProjectName.set(projectName, projectSpans);
@@ -283,7 +278,7 @@ export function createAgentTurnTracer({
   let activeTurnTrace: AgentTurnTrace | null = null;
   const activeToolSpansByToolCallId = new Map<string, Span>();
 
-  function startTurn(trigger: "submit-message" | "regenerate-message") {
+  function startTurn(_trigger: "submit-message" | "regenerate-message") {
     if (activeTurnTrace) {
       return;
     }
@@ -302,18 +297,17 @@ export function createAgentTurnTracer({
     const span = tracer.startSpan("pxi.turn", {
       kind: SpanKind.CLIENT,
       attributes: {
-        "openinference.span.kind": "AGENT",
-        "phoenix.agent.session_id": sessionId,
-        "phoenix.agent.trigger": trigger,
-        "phoenix.agent.project_name": agentsConfig.assistantProjectName,
-        "phoenix.agent.ingest_traces": traceRecording.ingestTraces,
+        [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+          OpenInferenceSpanKind.AGENT,
+        [SemanticConventions.SESSION_ID]: sessionId,
       },
     });
+    const traceId = span.spanContext().traceId;
+    pxiProjectNameByTraceId.set(traceId, agentsConfig.assistantProjectName);
     activeTurnTrace = {
       span,
       context: trace.setSpan(context.active(), span),
-      projectName: agentsConfig.assistantProjectName,
-      ingestTraces: traceRecording.ingestTraces,
+      traceId,
     };
   }
 
@@ -321,6 +315,7 @@ export function createAgentTurnTracer({
     if (!activeTurnTrace) {
       return;
     }
+    const traceId = activeTurnTrace.traceId;
     if (error instanceof Error) {
       activeTurnTrace.span.recordException(error);
       activeTurnTrace.span.setStatus({
@@ -339,7 +334,11 @@ export function createAgentTurnTracer({
     activeToolSpansByToolCallId.clear();
     activeTurnTrace.span.end();
     activeTurnTrace = null;
-    await forceFlushBrowserSpans(forceFlushTimeoutMs);
+    try {
+      await forceFlushBrowserSpans(forceFlushTimeoutMs);
+    } finally {
+      pxiProjectNameByTraceId.delete(traceId);
+    }
   }
 
   function setTurnInput(input: unknown) {
@@ -347,8 +346,8 @@ export function createAgentTurnTracer({
       return;
     }
     activeTurnTrace.span.setAttributes({
-      "input.value": stringifyAttributeValue(input),
-      "input.mime_type": "text/plain",
+      [SemanticConventions.INPUT_VALUE]: stringifyAttributeValue(input),
+      [SemanticConventions.INPUT_MIME_TYPE]: MimeType.TEXT,
     });
   }
 
@@ -357,8 +356,8 @@ export function createAgentTurnTracer({
       return;
     }
     activeTurnTrace.span.setAttributes({
-      "output.value": stringifyAttributeValue(output),
-      "output.mime_type": "text/plain",
+      [SemanticConventions.OUTPUT_VALUE]: stringifyAttributeValue(output),
+      [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.TEXT,
     });
   }
 
@@ -372,14 +371,16 @@ export function createAgentTurnTracer({
     }
     if (output.output !== undefined) {
       span.setAttributes({
-        "output.value": stringifyAttributeValue(output.output),
-        "output.mime_type": "application/json",
+        [SemanticConventions.OUTPUT_VALUE]: stringifyAttributeValue(
+          output.output
+        ),
+        [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.JSON,
       });
     }
     if (output.errorText) {
       span.setAttributes({
-        "output.value": output.errorText,
-        "output.mime_type": "text/plain",
+        [SemanticConventions.OUTPUT_VALUE]: output.errorText,
+        [SemanticConventions.OUTPUT_MIME_TYPE]: MimeType.TEXT,
       });
       span.setStatus({
         code: SpanStatusCode.ERROR,
@@ -421,14 +422,15 @@ export function createAgentTurnTracer({
       {
         kind: SpanKind.CLIENT,
         attributes: {
-          "openinference.span.kind": "TOOL",
-          "tool.name": toolCall.toolName,
-          "tool_call.id": toolCall.toolCallId,
-          "input.value": stringifyAttributeValue(toolCall.input),
-          "input.mime_type": "application/json",
-          "phoenix.agent.session_id": sessionId,
-          "phoenix.agent.project_name": turnTrace.projectName,
-          "phoenix.agent.ingest_traces": turnTrace.ingestTraces,
+          [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+            OpenInferenceSpanKind.TOOL,
+          [SemanticConventions.TOOL_NAME]: toolCall.toolName,
+          [SemanticConventions.TOOL_CALL_ID]: toolCall.toolCallId,
+          [SemanticConventions.INPUT_VALUE]: stringifyAttributeValue(
+            toolCall.input
+          ),
+          [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
+          [SemanticConventions.SESSION_ID]: sessionId,
         },
       },
       turnTrace.context
