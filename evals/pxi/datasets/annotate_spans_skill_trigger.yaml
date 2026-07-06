@@ -1,0 +1,235 @@
+dataset_name: annotate_spans_skill_trigger
+description: >-
+  PXI server-side eval suite for the annotate-spans skill trigger correctness.
+  Tests whether the agent calls load_skill(skill_name="annotate-spans") when the
+  user wants to record structured feedback on spans/traces — annotate, label,
+  score, review — or asks how to annotate or build a feedback taxonomy (positive
+  cases), and correctly avoids triggering it for pure analysis with no intent to
+  save feedback, latency/cost statistics, trace filtering, and prompt authoring
+  that route to a sibling skill or no skill (negative cases). annotate-spans is
+  always available (it is in the base skill list), so positives use the default
+  project context.
+  NOTE: authored from the skill spec without a live model run. Examples sit in
+  the `dev` split until a maintainer validates them against the live PXI agent
+  (requires model credentials) and promotes the passing ones to `regression`.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - forbidden_tool_call_args_match
+
+examples:
+
+  # ===== Positive triggers: annotate-spans skill should fire =====
+
+  - id: annotate-relevance
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: Annotate these spans with whether the answer was relevant to the question.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      category: write_annotations
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Explicit request to record structured feedback with a named
+          dimension — core annotate-spans use. Awaiting live regression run.
+
+  - id: label-failing-traces
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: Label the failing traces so I can filter on them later.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      category: write_annotations
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Labeling for later filtering is the annotate-spans "filterable"
+          rationale. Awaiting live run.
+
+  - id: how-to-annotate-hallucinations
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: How should I annotate my traces to keep track of hallucinations?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      category: coaching
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          "How do I annotate" coaching request — Mode A of the skill. Awaiting
+          live run.
+
+  - id: build-failure-taxonomy
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: Help me build a failure taxonomy I can review my traces against.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      category: taxonomy_design
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 1
+        notes: >-
+          Feedback-taxonomy design is named in the skill description. Medium
+          because taxonomy work can start in debug-trace to surface failure
+          modes first; the review/label framing routes it here. Awaiting live
+          run.
+
+  - id: score-and-save-feedback
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: Score these responses pass or fail and save the feedback on the spans.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      category: write_annotations
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Explicit score + persist feedback — batch_span_annotate territory.
+          Awaiting live run.
+
+  # ===== Negative triggers: annotate-spans skill should NOT fire =====
+  # Uses forbidden_tool_call_args so a legitimate load_skill for the correct
+  # sibling skill in the same turn does not fail the example.
+
+  - id: negative-debug-traces
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: What's going wrong with my agent?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      negative: true
+      category: negative_pure_analysis
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Pure diagnosis with no intent to save feedback routes to debug-trace.
+          The skill description excludes this explicitly. Awaiting live run.
+
+  - id: negative-average-latency
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: What's the average latency of my spans?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      negative: true
+      category: negative_statistics
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Latency statistic answerable with a direct read; the skill excludes
+          latency/cost stats. Awaiting live run.
+
+  - id: negative-filter-errors
+    splits: [dev]
+    input:
+      messages:
+        - role: user
+          content: Show me only traces with errors.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      negative: true
+      category: negative_filter
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Trace filter intent maps to set_spans_filter, not annotation.
+          Awaiting live run.
+
+  - id: negative-rewrite-prompt
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Make this prompt clearer and shorter.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: annotate-spans
+    metadata:
+      negative: true
+      category: negative_prompt_authoring
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Prompt authoring routes to playground; the skill excludes prompt
+          authoring explicitly. Awaiting live run.

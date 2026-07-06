@@ -1,0 +1,293 @@
+dataset_name: datasets_skill_trigger
+description: >-
+  PXI server-side eval suite for the datasets skill trigger correctness.
+  Tests whether the agent calls load_skill(skill_name="datasets") when the
+  user, with a dataset mounted, asks a conceptual/judgment question about the
+  dataset itself — what a dataset is, how splits work, what a saved output
+  "means" (golden vs. baseline/reference), row consistency, or aligning a
+  dataset's fields with a prompt's variables (positive cases) — and correctly
+  avoids triggering it for running/comparing experiments, evaluator authoring,
+  prompt iteration, closed-form reads, and trace diagnosis that route to a
+  sibling skill or no skill (negative cases). Every positive carries a dataset
+  context, because the datasets skill is gated into the catalog on
+  dataset-context presence; without it load_skill cannot resolve the name.
+  NOTE: authored from the skill spec without a live model run. Examples sit in
+  the `dev` split until a maintainer validates them against the live PXI agent
+  (requires model credentials) and promotes the passing ones to `regression`.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - forbidden_tool_call_args_match
+
+examples:
+
+  # ===== Positive triggers: datasets skill should fire =====
+
+  - id: what-does-output-mean
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: What does the output saved on this row actually mean — is it the correct answer?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      category: output_provenance
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Golden-vs-baseline output-provenance question — the central judgment
+          the datasets skill teaches. Lead-annotated from the skill spec;
+          awaiting a live regression run.
+
+  - id: how-do-splits-work
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: How do the train and test splits work here, and is it OK to tune on the test split?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      category: splits_semantics
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Split-semantics + held-out-test judgment, directly covered by the
+          skill's Splits section. Lead-annotated; awaiting live validation.
+
+  - id: what-is-this-dataset
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: I'm new to this — what even is this dataset and what am I looking at?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      category: dataset_concept
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 1
+        notes: >-
+          Conceptual "what is a dataset" question. Medium because the agent
+          could also answer definitionally without loading the skill; the
+          skill's reasoning guidance is the intended route. Awaiting live run.
+
+  - id: prompt-variable-binding
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: My prompt has a {{customer_message}} variable but the run comes back empty. Help me understand why.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      category: field_variable_alignment
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 1
+        notes: >-
+          Field-to-template-variable binding failure — the skill's "matching a
+          dataset to the prompt" section names the empty-output symptom exactly.
+          Sits near playground; the ask is to understand the dataset binding,
+          not to author a prompt. Awaiting live validation.
+
+  - id: row-shape-consistency
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Some rows have a "question" field and others have "prompt". Is that a problem?
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      category: row_consistency
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 1
+        notes: >-
+          Row-shape consistency judgment from the skill's "keep rows uniform"
+          guidance. Lead-annotated; awaiting live run.
+
+  # ===== Negative triggers: datasets skill should NOT fire =====
+  # Uses forbidden_tool_call_args so a legitimate load_skill for the correct
+  # sibling skill in the same turn does not fail the example.
+
+  - id: negative-example-count
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: How many examples are in this dataset?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      negative: true
+      category: negative_closed_form_read
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Closed-form count answerable with a direct phoenix-gql read; needs no
+          dataset-reasoning methodology. Mirrors the experiments suite's
+          negative-tell-me-about-dataset. Awaiting live run.
+
+  - id: negative-run-experiment
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Run my prompt over this dataset and tell me how it does.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      negative: true
+      category: negative_experiment_run
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Dataset-backed experiment run routes to experiments, not the datasets
+          reasoning skill, even though both surface on a mounted dataset.
+          Awaiting live run.
+
+  - id: negative-author-evaluator
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Write an evaluator that scores whether the answer is correct on this dataset.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      negative: true
+      category: negative_evaluator_authoring
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Authoring a scorer routes to evaluators, not datasets. Awaiting live
+          run.
+
+  - id: negative-rewrite-prompt
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Rewrite this system prompt to be more concise.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      negative: true
+      category: negative_prompt_iteration
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Pure prompt rewrite routes to playground, not datasets. Awaiting live
+          run.
+
+  - id: negative-debug-traces
+    splits: [dev]
+    input:
+      contexts:
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: What's going wrong with my agent's traces?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: datasets
+    metadata:
+      negative: true
+      category: negative_trace_diagnosis
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Cross-trace failure diagnosis routes to debug-trace. Dataset presence
+          must not pull the datasets skill onto a diagnosis ask. Awaiting live
+          run.

@@ -1,0 +1,302 @@
+dataset_name: playground_skill_trigger
+description: >-
+  PXI server-side eval suite for the playground skill trigger correctness.
+  Tests whether the agent calls load_skill(skill_name="playground") when the
+  user, with a playground instance mounted, asks to author, edit, run, compare,
+  or save a prompt, or to add/refine a function tool (positive cases), and
+  correctly avoids triggering it for experiment-results interpretation,
+  evaluator authoring, dataset-concept questions, and trace diagnosis that route
+  to a sibling skill (negative cases). Every positive carries a playground
+  context, because the playground skill is gated into the catalog on
+  playground-context presence; without it load_skill cannot resolve the name.
+  NOTE: authored from the skill spec without a live model run. Examples sit in
+  the `dev` split until a maintainer validates them against the live PXI agent
+  (requires model credentials) and promotes the passing ones to `regression`.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - forbidden_tool_call_args_match
+
+examples:
+
+  # ===== Positive triggers: playground skill should fire =====
+
+  - id: rewrite-prompt-concise
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Rewrite this system prompt to be more concise.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      category: single_shot_rewrite
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Single-shot prompt rewrite — the skill description names this as a
+          load trigger explicitly ("including single-shot prompt rewrites").
+          Awaiting live regression run.
+
+  - id: add-output-format
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Add an instruction so the model always replies with JSON matching my schema.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      category: prompt_edit
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Prompt edit to the mounted instance (output contract). Playground
+          authoring mechanics. Awaiting live run.
+
+  - id: add-function-tool
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Give the model a get_weather function it can call from this prompt.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      category: function_tool_authoring
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Function-tool authoring on the playground instance — covered by the
+          skill's "author, refine, or remove a function tool" workflow.
+          Awaiting live run.
+
+  - id: run-and-see-output
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Try running this prompt and show me what it produces.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      category: run_playground
+      difficulty: obvious
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Manual run of the mounted prompt (no dataset loop). Playground
+          run/read mechanics. Awaiting live run.
+
+  - id: create-comparison-variant
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: Make a second version so I can compare two phrasings side by side.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      category: add_instance
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Adding/cloning a comparison instance — the skill's variant-comparison
+          mechanic. Manual comparison, no dataset-scored experiment. Awaiting
+          live run.
+
+  - id: save-prompt
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: This looks good — save it.
+    expected:
+      tools:
+        required: [load_skill]
+      tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      category: save_prompt
+      difficulty: moderate
+      polarity: positive
+      annotation:
+        agreement: medium
+        n_opinions: 1
+        notes: >-
+          Save request maps to the playground save_prompt mechanic. Medium
+          because a terse "save it" leans on mounted-context to disambiguate.
+          Awaiting live run.
+
+  # ===== Negative triggers: playground skill should NOT fire =====
+  # Uses forbidden_tool_call_args so a legitimate load_skill for the correct
+  # sibling skill in the same turn does not fail the example.
+
+  - id: negative-compare-experiments
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Which of my two experiment runs scored higher overall?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      negative: true
+      category: negative_experiment_comparison
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Interpreting/comparing experiment results routes to experiments, not
+          playground — the new "Do NOT trigger" boundary on the playground
+          skill. Awaiting live run.
+
+  - id: negative-author-judge
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+        - type: llm_evaluator
+      messages:
+        - role: user
+          content: Write a judge that scores whether the answer is grounded in the context.
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      negative: true
+      category: negative_evaluator_authoring
+      difficulty: moderate
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Evaluator authoring routes to evaluators, not playground, even with a
+          playground instance mounted. Awaiting live run.
+
+  - id: negative-debug-traces
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+      messages:
+        - role: user
+          content: What's going wrong with my agent?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      negative: true
+      category: negative_trace_diagnosis
+      difficulty: obvious
+      polarity: negative
+      annotation:
+        agreement: high
+        n_opinions: 1
+        notes: >-
+          Cross-trace diagnosis routes to debug-trace. Awaiting live run.
+
+  - id: negative-dataset-output-meaning
+    splits: [dev]
+    input:
+      contexts:
+        - type: playground
+          instances:
+            - instanceId: 101
+        - type: dataset
+          datasetNodeId: RGF0YXNldDox
+      messages:
+        - role: user
+          content: What does a saved output on a dataset row actually mean?
+    expected:
+      forbidden_tool_call_args:
+        load_skill:
+          skill_name: playground
+    metadata:
+      negative: true
+      category: negative_dataset_concept
+      difficulty: tricky
+      polarity: negative
+      annotation:
+        agreement: medium
+        n_opinions: 1
+        notes: >-
+          Dataset output-provenance question routes to the datasets skill, not
+          playground. Tricky because a playground instance is mounted, but the
+          ask is conceptual about the dataset. Awaiting live run.
