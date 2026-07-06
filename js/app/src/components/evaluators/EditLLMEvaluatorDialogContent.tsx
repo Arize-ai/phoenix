@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -13,8 +13,11 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import { EvaluatorDatasetTestPanel } from "@phoenix/components/evaluators/EvaluatorDatasetTestPanel";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
+import { EvaluatorNameAndDescriptionFields } from "@phoenix/components/evaluators/EvaluatorNameAndDescriptionFields";
+import { LLMEvaluatorForm } from "@phoenix/components/evaluators/LLMEvaluatorForm";
 import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
@@ -24,6 +27,8 @@ export const EditLLMEvaluatorDialogContent = ({
   mode,
   error,
   evaluatorNodeId,
+  formLeftPanelExtra,
+  formRightPanel,
 }: {
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
@@ -31,6 +36,14 @@ export const EditLLMEvaluatorDialogContent = ({
   mode: "create" | "update";
   error?: string;
   evaluatorNodeId?: string | null;
+  /**
+   * Optional section rendered in the form's left panel below name/description.
+   */
+  formLeftPanelExtra?: ReactNode;
+  /**
+   * Replaces the form's right (test) panel.
+   */
+  formRightPanel?: ReactNode;
 }) => {
   const store = useEvaluatorStoreInstance();
 
@@ -111,7 +124,16 @@ export const EditLLMEvaluatorDialogContent = ({
           </Alert>
         )}
         <LLMEvaluatorInputVariablesProvider>
-          <EvaluatorForm />
+          <EvaluatorForm
+            left={
+              <>
+                <EvaluatorNameAndDescriptionFields />
+                {formLeftPanelExtra}
+                <LLMEvaluatorForm />
+              </>
+            }
+            right={formRightPanel ?? <EvaluatorDatasetTestPanel />}
+          />
         </LLMEvaluatorInputVariablesProvider>
       </fieldset>
       <DialogFooter>
