@@ -90,7 +90,7 @@ export function DBUsagePieChart({
               fill={
                 x.tableName === REMAINING_TEXT
                   ? "var(--global-color-gray-200)"
-                  : getCategoryChartColor(index, categoryColors)
+                  : getCategoryChartColor({ index, colors: categoryColors })
               }
             />
           ))}

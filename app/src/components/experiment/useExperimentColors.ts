@@ -12,7 +12,8 @@ export function useExperimentColors() {
   const colors = useCategoryChartColors();
 
   const getExperimentColor = useCallback(
-    (experimentIndex: number) => getCategoryChartColor(experimentIndex, colors),
+    (experimentIndex: number) =>
+      getCategoryChartColor({ index: experimentIndex, colors }),
     [colors]
   );
 
