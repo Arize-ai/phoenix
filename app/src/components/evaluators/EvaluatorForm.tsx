@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { useShallow } from "zustand/react/shallow";
@@ -115,7 +115,19 @@ const evaluatorFormSelector = (state: EvaluatorStore) => ({
  * );
  * ```
  */
-export const EvaluatorForm = () => {
+export const EvaluatorForm = ({
+  leftPanelExtra,
+  rightPanel,
+}: {
+  /**
+   * Optional section rendered in the left panel below the name/description row.
+   */
+  leftPanelExtra?: ReactNode;
+  /**
+   * Replaces the right (test) panel. Defaults to the dataset test panel.
+   */
+  rightPanel?: ReactNode;
+}) => {
   const { evaluatorKind } = useEvaluatorStore(
     useShallow(evaluatorFormSelector)
   );
@@ -143,6 +155,7 @@ export const EvaluatorForm = () => {
             <EvaluatorDescriptionInput />
           </Flex>
         </View>
+        {leftPanelExtra}
         {evaluatorKind === "LLM" && <LLMEvaluatorForm />}
         {evaluatorKind === "BUILTIN" && <CodeEvaluatorForm />}
       </Panel>
@@ -158,19 +171,27 @@ export const EvaluatorForm = () => {
           box-sizing: border-box;
         `}
       >
-        <Flex direction="column" gap="size-200">
-          <View paddingX="size-200">
-            <Flex direction="column" gap="size-100">
-              <EvaluatorOutputPreview />
-              <EvaluatorExampleDataset />
-            </Flex>
-          </View>
-          <EvaluatorInputPreview />
-        </Flex>
+        {rightPanel ?? <DatasetTestPanel />}
       </Panel>
     </Group>
   );
 };
+
+/**
+ * The default right panel: test an evaluator against dataset examples.
+ * Requires `dataset` to be set in the evaluator store.
+ */
+const DatasetTestPanel = () => (
+  <Flex direction="column" gap="size-200">
+    <View paddingX="size-200">
+      <Flex direction="column" gap="size-100">
+        <EvaluatorOutputPreview />
+        <EvaluatorExampleDataset />
+      </Flex>
+    </View>
+    <EvaluatorInputPreview />
+  </Flex>
+);
 
 const panelStyle = {
   height: "100%",

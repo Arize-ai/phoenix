@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
@@ -22,6 +22,8 @@ export const EditLLMEvaluatorDialogContent = ({
   mode,
   error,
   evaluatorNodeId,
+  formLeftPanelExtra,
+  formRightPanel,
 }: {
   onClose: () => void;
   onSubmit: () => Promise<EvaluatorSubmitResult>;
@@ -29,6 +31,14 @@ export const EditLLMEvaluatorDialogContent = ({
   mode: "create" | "update";
   error?: string;
   evaluatorNodeId?: string | null;
+  /**
+   * Optional section rendered in the form's left panel below name/description.
+   */
+  formLeftPanelExtra?: ReactNode;
+  /**
+   * Replaces the form's right (test) panel.
+   */
+  formRightPanel?: ReactNode;
 }) => {
   const store = useEvaluatorStoreInstance();
 
@@ -117,7 +127,10 @@ export const EditLLMEvaluatorDialogContent = ({
           </Alert>
         )}
         <LLMEvaluatorInputVariablesProvider>
-          <EvaluatorForm />
+          <EvaluatorForm
+            leftPanelExtra={formLeftPanelExtra}
+            rightPanel={formRightPanel}
+          />
         </LLMEvaluatorInputVariablesProvider>
       </fieldset>
     </DialogContent>
