@@ -235,7 +235,7 @@ export function ProjectsPageContent({
 
   useInterval(() => refetch({}), PROJECTS_POLL_INTERVAL_MS);
 
-  const projects = projectsData?.projects.edges.map((p) => p.project);
+  const projects = projectsData?.projects?.edges?.map((p) => p.project);
 
   const projectsContainerRef = useRef<HTMLDivElement>(null);
   const fetchMoreOnBottomReached = useCallback(
