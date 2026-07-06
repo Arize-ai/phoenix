@@ -1,6 +1,11 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
+import {
+  DefaultChatTransport,
+  getToolName,
+  isTextUIPart,
+  isToolUIPart,
+} from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
 import { createAgentTurnTracer } from "@phoenix/agent/chat/agentTurnTracing";
@@ -528,11 +533,7 @@ function getLastUserText(messages: AgentUIMessage[]): string | null {
 }
 
 function getMessageText(message: AgentUIMessage): string | null {
-  const text = message.parts
-    .filter((part) => part.type === "text")
-    .map((part) => part.text)
-    .join("\n")
-    .trim();
+  const text = message.parts.findLast(isTextUIPart)?.text.trim();
   return text || null;
 }
 
