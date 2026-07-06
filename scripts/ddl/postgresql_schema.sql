@@ -283,8 +283,14 @@ CREATE TABLE public.spans (
         ON DELETE CASCADE
 );
 
+CREATE INDEX ix_cumulative_llm_token_count_total ON public.spans
+    USING btree (((cumulative_llm_token_count_prompt + cumulative_llm_token_count_completion)));
+CREATE INDEX ix_latency ON public.spans
+    USING btree (((end_time - start_time)));
 CREATE INDEX ix_spans_parent_id ON public.spans
     USING btree (parent_id);
+CREATE INDEX ix_spans_session_id ON public.spans
+    USING btree ((((attributes #>> '{session,id}'::text[]))::character varying)) WHERE (((attributes #>> '{session,id}'::text[]))::character varying IS NOT NULL);
 CREATE INDEX ix_spans_start_time ON public.spans
     USING btree (start_time);
 CREATE INDEX ix_spans_trace_rowid ON public.spans
