@@ -29,7 +29,6 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
-    DataChunk,
     MessageMetadataChunk,
     ProviderMetadata,
     StartChunk,
@@ -40,9 +39,7 @@ from pydantic_ai.usage import RunUsage
 from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
-from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from starlette.requests import Request
 from starlette.responses import Response
 from strawberry.relay import GlobalID
@@ -180,14 +177,6 @@ class AssistantMessageMetadata(_CamelModel):
     session_id: str
     trace: AssistantMessageMetadataTraceIds | None = None
     usage: AssistantMessageMetadataUsage | None = None
-
-
-class AssistantTurnCompleteData(_CamelModel):
-    """Custom data part payload emitted after backend tracing has flushed."""
-
-    session_id: str
-    trace: AssistantMessageMetadataTraceIds | None = None
-    backend_trace_flushed: bool
 
 
 class AssistantMetadataUIMessage(UIMessage):
@@ -393,32 +382,6 @@ def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
     return usage_payload
 
 
-def _build_turn_complete_chunk(
-    *,
-    span_context: SpanContext | None,
-    session_id: str,
-    backend_trace_flushed: bool,
-) -> DataChunk:
-    """Build the terminal Vercel custom data part for a backend chat stream."""
-    trace_ids = (
-        AssistantMessageMetadataTraceIds(
-            trace_id=format_trace_id(span_context.trace_id),
-            root_span_id=format_span_id(span_context.span_id),
-        )
-        if span_context is not None
-        else None
-    )
-    return DataChunk(
-        type="data-pxi-turn-complete",
-        data=AssistantTurnCompleteData(
-            session_id=session_id,
-            trace=trace_ids,
-            backend_trace_flushed=backend_trace_flushed,
-        ).model_dump(by_alias=True),
-        transient=True,
-    )
-
-
 def _get_span_context(context: Context | None) -> SpanContext | None:
     if context is None:
         return None
@@ -516,37 +479,6 @@ async def _persist_db_traces_and_emit_event(
         project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
     if project_ids:
         event_queue.put(SpanInsertEvent(project_ids))
-
-
-async def _persist_backend_traces_with_retry(
-    *,
-    db: DbSessionFactory,
-    event_queue: CanPutItem[DmlEvent],
-    get_db_traces: Callable[[], list[models.Trace]],
-    max_attempts: int = 2,
-) -> None:
-    """Persist flushed backend traces, retrying on concurrent-insert races.
-
-    ``_persist_db_traces`` does a read-check-insert, so a concurrent flush of
-    the same trace (e.g. the stream's ``finally`` block overlapping with
-    ``_on_complete``) can insert a row between our read and our insert and
-    raise an integrity error. ``get_db_traces`` must rebuild fresh ORM objects
-    on each call (the tracer buffer is not drained), so the retry re-reads the
-    now-committed rows and takes the merge path instead of colliding.
-    """
-    for attempt in range(max_attempts):
-        db_traces = get_db_traces()
-        if not db_traces:
-            return
-        try:
-            await _persist_db_traces_and_emit_event(
-                db=db, event_queue=event_queue, db_traces=db_traces
-            )
-        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
-            if attempt == max_attempts - 1:
-                raise
-            continue
-        return
 
 
 async def _refresh_cumulative_span_counts(
@@ -1148,16 +1080,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             tracer.tracer_provider.force_flush()
             if ingest_traces:
                 project_id = await _ensure_project_exists(request.app.state.db, project_name)
-                await _persist_backend_traces_with_retry(
+                db_traces = tracer.get_db_traces(project_id=project_id)
+                await _persist_db_traces_and_emit_event(
                     db=request.app.state.db,
                     event_queue=request.state.event_queue,
-                    get_db_traces=lambda: tracer.get_db_traces(project_id=project_id),
+                    db_traces=db_traces,
                 )
-            # Only mark flushed after persistence succeeds so that a failure in
-            # `_on_complete` is retried by the stream's `finally` block. The
-            # tracer buffer is not drained by `get_db_traces`, and
-            # `_persist_db_traces` dedups already-persisted traces/spans, so
-            # the retry is safe.
             is_backend_trace_flushed = True
             return True
 
@@ -1173,12 +1101,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 usage=result.usage,
             )
             _log_run_complete(result)
-            backend_trace_flushed = await _flush_and_persist_backend_traces()
-            yield _build_turn_complete_chunk(
-                span_context=span_context,
-                session_id=session_id,
-                backend_trace_flushed=backend_trace_flushed,
-            )
+            await _flush_and_persist_backend_traces()
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             nonlocal request_parent_span_context

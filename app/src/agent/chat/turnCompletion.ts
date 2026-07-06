@@ -10,27 +10,17 @@ export type TurnFinish = {
 };
 
 /**
- * How long to wait for the backend's `data-pxi-turn-complete` part after the
- * turn is otherwise finished before finalizing anyway. The fallback trades
- * degraded trace linkage for a guarantee that chat history is never lost to a
- * truncated stream or a backend that skipped its completion chunk.
- */
-export const DEFAULT_BACKEND_TURN_COMPLETE_FALLBACK_MS = 10_000;
-
-/**
  * Coordinates when one PXI logical turn is complete.
  *
  * A turn is finalized (messages mirrored to the durable store, browser trace
  * ended) only when all of the following hold:
  * 1. the AI SDK reported `onFinish` for the last HTTP response,
  * 2. no further automatic sends or pending client tool outputs will extend
- *    the turn (the "terminal send decision"), and
- * 3. the backend confirmed its trace flush via the turn-complete data part —
- *    or the fallback timeout elapsed waiting for it.
+ *    the turn (the "terminal send decision").
  *
- * The AI SDK invokes `onFinish`, `onData`, and `sendAutomaticallyWhen` in
- * orderings that vary by stream shape, so each handler records its fact and
- * completion is attempted after every one of them.
+ * The AI SDK invokes `onFinish` and `sendAutomaticallyWhen` in orderings that
+ * vary by stream shape, so each handler records its fact and completion is
+ * attempted after both.
  */
 export function createTurnCompletionGate({
   endTurn,
@@ -38,7 +28,6 @@ export function createTurnCompletionGate({
   getShouldSendAutomatically = (messages) =>
     shouldSendAutomaticallyAfterToolOutput({ messages }),
   getShouldKeepTurnOpen = shouldKeepTurnOpenForPendingToolOutput,
-  backendTurnCompleteFallbackMs = DEFAULT_BACKEND_TURN_COMPLETE_FALLBACK_MS,
 }: {
   /** Ends the browser-side turn trace. Must not reject. */
   endTurn: (error?: unknown) => Promise<void>;
@@ -51,45 +40,16 @@ export function createTurnCompletionGate({
     messages: AgentUIMessage[];
     shouldSendAutomatically: boolean;
   }) => boolean;
-  /** Fallback wait for the backend turn-complete part before finalizing. */
-  backendTurnCompleteFallbackMs?: number;
 }) {
   let pendingFinish: TurnFinish | null = null;
-  let hasReceivedBackendTurnComplete = false;
   let hasReachedTerminalSendDecision = false;
-  let fallbackTimeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  const clearBackendCompleteFallback = () => {
-    if (fallbackTimeoutId != null) {
-      clearTimeout(fallbackTimeoutId);
-      fallbackTimeoutId = null;
-    }
-  };
-
-  const armBackendCompleteFallback = () => {
-    if (fallbackTimeoutId != null) {
-      return;
-    }
-    fallbackTimeoutId = setTimeout(() => {
-      fallbackTimeoutId = null;
-      // Degraded path: proceed without backend confirmation so a truncated
-      // stream can never strand the turn's history outside the durable store.
-      hasReceivedBackendTurnComplete = true;
-      void completeIfReady();
-    }, backendTurnCompleteFallbackMs);
-  };
 
   const completeIfReady = async () => {
     if (pendingFinish == null || !hasReachedTerminalSendDecision) {
       return;
     }
-    if (!hasReceivedBackendTurnComplete) {
-      armBackendCompleteFallback();
-      return;
-    }
-    clearBackendCompleteFallback();
-    // Take the finish before awaiting so concurrent invocations (onData and
-    // onFinish both attempt completion) finalize exactly once.
+    // Take the finish before awaiting so concurrent invocations finalize
+    // exactly once.
     const finish = pendingFinish;
     pendingFinish = null;
     try {
@@ -102,17 +62,12 @@ export function createTurnCompletionGate({
   };
 
   /**
-   * Called before each outgoing HTTP request of a turn. Resets per-request
-   * facts and, when a previous turn finished but its backend confirmation
-   * never arrived, flushes it immediately so history is not lost.
+   * Called before each outgoing HTTP request of a turn. Resets per-request facts.
    */
   const beginTurn = () => {
-    clearBackendCompleteFallback();
     if (pendingFinish != null && hasReachedTerminalSendDecision) {
-      hasReceivedBackendTurnComplete = true;
       void completeIfReady();
     }
-    hasReceivedBackendTurnComplete = false;
     hasReachedTerminalSendDecision = false;
   };
 
@@ -131,12 +86,6 @@ export function createTurnCompletionGate({
       await completeIfReady();
     }
     return shouldSendAutomatically;
-  };
-
-  /** Wire to receipt of the backend's turn-complete data part. */
-  const handleBackendTurnComplete = () => {
-    hasReceivedBackendTurnComplete = true;
-    void completeIfReady();
   };
 
   /** Wire to the AI SDK Chat's `onFinish`. */
@@ -164,7 +113,6 @@ export function createTurnCompletionGate({
 
   /** Wire to the AI SDK Chat's `onError`. Abandons the pending finish. */
   const fail = (error: unknown) => {
-    clearBackendCompleteFallback();
     pendingFinish = null;
     endTurn(error).catch(() => undefined);
   };
@@ -172,7 +120,6 @@ export function createTurnCompletionGate({
   return {
     beginTurn,
     handleSendAutomaticallyWhen,
-    handleBackendTurnComplete,
     handleFinish,
     fail,
   };

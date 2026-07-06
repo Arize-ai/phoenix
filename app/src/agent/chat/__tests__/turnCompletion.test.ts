@@ -1,8 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createTurnCompletionGate,
-  DEFAULT_BACKEND_TURN_COMPLETE_FALLBACK_MS,
   type TurnFinish,
 } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -42,19 +41,10 @@ async function flushMicrotasks() {
 }
 
 describe("createTurnCompletionGate", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("finalizes once finish, backend complete, and terminal decision all hold", async () => {
+  it("finalizes once finish and terminal decision hold", async () => {
     const { gate, endTurn, finalize } = createGate();
 
     gate.beginTurn();
-    gate.handleBackendTurnComplete();
     gate.handleFinish(finish);
     await flushMicrotasks();
 
@@ -63,26 +53,14 @@ describe("createTurnCompletionGate", () => {
     expect(finalize).toHaveBeenCalledWith(finish);
   });
 
-  it("finalizes when the backend turn-complete part arrives after finish", async () => {
+  it("finalizes exactly once when finish and send decision both attempt completion", async () => {
     const { gate, finalize } = createGate();
 
     gate.beginTurn();
     gate.handleFinish(finish);
-    await flushMicrotasks();
-    expect(finalize).not.toHaveBeenCalled();
-
-    gate.handleBackendTurnComplete();
-    await flushMicrotasks();
-    expect(finalize).toHaveBeenCalledTimes(1);
-  });
-
-  it("finalizes exactly once when finish and backend complete race", async () => {
-    const { gate, finalize } = createGate();
-
-    gate.beginTurn();
-    gate.handleFinish(finish);
-    gate.handleBackendTurnComplete();
-    gate.handleBackendTurnComplete();
+    await expect(
+      gate.handleSendAutomaticallyWhen({ messages: [assistantMessage] })
+    ).resolves.toBe(false);
     await flushMicrotasks();
 
     expect(finalize).toHaveBeenCalledTimes(1);
@@ -92,7 +70,6 @@ describe("createTurnCompletionGate", () => {
     const { gate, finalize } = createGate({ shouldSendAutomatically: true });
 
     gate.beginTurn();
-    gate.handleBackendTurnComplete();
     gate.handleFinish(finish);
     await expect(
       gate.handleSendAutomaticallyWhen({ messages: [assistantMessage] })
@@ -106,7 +83,6 @@ describe("createTurnCompletionGate", () => {
     const { gate, finalize } = createGate({ shouldKeepTurnOpen: true });
 
     gate.beginTurn();
-    gate.handleBackendTurnComplete();
     gate.handleFinish(finish);
     await expect(
       gate.handleSendAutomaticallyWhen({ messages: [assistantMessage] })
@@ -128,7 +104,6 @@ describe("createTurnCompletionGate", () => {
     });
 
     gate.beginTurn();
-    gate.handleBackendTurnComplete();
     gate.handleFinish(finish);
     await flushMicrotasks();
     expect(finalize).not.toHaveBeenCalled();
@@ -142,68 +117,19 @@ describe("createTurnCompletionGate", () => {
     expect(finalize).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to finalizing when the backend turn-complete part never arrives", async () => {
-    const { gate, endTurn, finalize } = createGate();
-
-    gate.beginTurn();
-    gate.handleFinish(finish);
-    await flushMicrotasks();
-    expect(finalize).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(
-      DEFAULT_BACKEND_TURN_COMPLETE_FALLBACK_MS
-    );
-
-    expect(endTurn).toHaveBeenCalledTimes(1);
-    expect(finalize).toHaveBeenCalledTimes(1);
-    expect(finalize).toHaveBeenCalledWith(finish);
-  });
-
-  it("does not double-finalize when the backend part arrives before the fallback fires", async () => {
-    const { gate, finalize } = createGate();
-
-    gate.beginTurn();
-    gate.handleFinish(finish);
-    await flushMicrotasks();
-    gate.handleBackendTurnComplete();
-    await flushMicrotasks();
-    expect(finalize).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(
-      DEFAULT_BACKEND_TURN_COMPLETE_FALLBACK_MS * 2
-    );
-    expect(finalize).toHaveBeenCalledTimes(1);
-  });
-
   it("abandons the pending finish on error and ends the turn with it", async () => {
-    const { gate, endTurn, finalize } = createGate();
+    const { gate, endTurn, finalize } = createGate({
+      shouldKeepTurnOpen: true,
+    });
     const error = new Error("stream failed");
 
     gate.beginTurn();
     gate.handleFinish(finish);
     gate.fail(error);
-    await vi.advanceTimersByTimeAsync(
-      DEFAULT_BACKEND_TURN_COMPLETE_FALLBACK_MS * 2
-    );
+    await flushMicrotasks();
 
     expect(endTurn).toHaveBeenCalledWith(error);
     expect(finalize).not.toHaveBeenCalled();
-  });
-
-  it("flushes a stale terminal finish when a new turn begins", async () => {
-    const { gate, finalize } = createGate();
-
-    gate.beginTurn();
-    gate.handleFinish(finish);
-    await flushMicrotasks();
-    expect(finalize).not.toHaveBeenCalled();
-
-    // User sends the next message before the fallback fired.
-    gate.beginTurn();
-    await flushMicrotasks();
-
-    expect(finalize).toHaveBeenCalledTimes(1);
-    expect(finalize).toHaveBeenCalledWith(finish);
   });
 
   it("does not flush an intermediate finish when an automatic send extends the turn", async () => {
@@ -234,7 +160,6 @@ describe("createTurnCompletionGate", () => {
     });
 
     gate.beginTurn();
-    gate.handleBackendTurnComplete();
     gate.handleFinish(finish);
     await flushMicrotasks();
 

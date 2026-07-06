@@ -16,10 +16,7 @@ import {
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
-import {
-  PXI_TURN_COMPLETE_DATA_TYPE,
-  type AgentUIMessage,
-} from "@phoenix/agent/chat/types";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -195,12 +192,6 @@ export function useAgentChat({
                 turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
               onError: (error) => {
                 turnCompletionGate.fail(error);
-              },
-              onData: (dataPart) => {
-                if (dataPart.type !== PXI_TURN_COMPLETE_DATA_TYPE) {
-                  return;
-                }
-                turnCompletionGate.handleBackendTurnComplete();
               },
               onFinish: ({ messages: finalMessages, message }) => {
                 turnTracer.setTurnOutput(getMessageText(message));
