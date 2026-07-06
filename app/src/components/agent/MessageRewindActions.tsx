@@ -17,7 +17,7 @@ import type {
 } from "./MessageRewindDialog";
 
 /**
- * Rewind (and, when session storage is enabled, fork) controls rendered under a
+ * Rewind (and, when session storage is enabled, branch) controls rendered under a
  * user or assistant message. These are uncommon, mostly-destructive actions, so
  * they are tucked behind a single "more actions" overflow button rather than
  * sitting inline next to the everyday copy/feedback controls.
@@ -33,7 +33,7 @@ import type {
  * `showRewind` gates the rewind item. Callers set it to `false` for the last
  * assistant turn, where rewinding to that response is a no-op — there is nothing
  * after it to truncate and the chat has settled, so no pending tool calls remain
- * to clear. Fork stays available there because it branches a separate session.
+ * to clear. Branch stays available there because it creates a separate session.
  * When neither item would render, the whole control is omitted.
  */
 export function MessageRewindActions({
@@ -94,7 +94,7 @@ export function MessageRewindActions({
               id="fork"
               leadingContent={<Icon svg={<Icons.GitBranch />} />}
             >
-              Fork from this message
+              Branch from this message
             </MenuItem>
           ) : null}
           {canCopyTraceId ? (
