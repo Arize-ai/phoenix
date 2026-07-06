@@ -81,21 +81,21 @@
   "dependencies": {
     "@arizeai/openinference-core": "^2.4.0",
     "@opentelemetry/api": "^1.9.1",
-    "ai": "^6.0.211",
+    "ai": "^6.0.219",
     "jsonpath-plus": "^10.4.0",
     "mustache": "^4.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@ai-sdk/google": "^3.0.84",
-    "@ai-sdk/openai": "^3.0.75",
-    "@arizeai/openinference-instrumentation-openai": "^4.1.4",
-    "@opentelemetry/sdk-trace-node": "^2.8.0",
+    "@ai-sdk/google": "^3.0.88",
+    "@ai-sdk/openai": "^3.0.80",
+    "@arizeai/openinference-instrumentation-openai": "^4.1.5",
+    "@opentelemetry/sdk-trace-node": "^2.9.0",
     "@types/mustache": "^4.2.6",
     "@types/node": "^25.9.4",
     "msw": "^2.14.6",
     "nock": "^14.0.16",
-    "tsx": "^4.22.4",
+    "tsx": "^4.22.5",
     "typedoc": "^0.28.19",
     "vitest": "^4.1.9"
   },
