@@ -21,7 +21,7 @@ from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPri
 
 RESULTS_PATH_ENV = "PXI_EVAL_RESULTS_PATH"
 DEFAULT_RESULTS_PATH = "pxi-eval-results.json"
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 RECORD_PROPERTY_KEY = "pxi_eval"
 
 # Per-process buffers. Under xdist the controller's ``pytest_runtest_logreport``
@@ -141,6 +141,10 @@ def _build_artifact(exitstatus: int, recording: dict[str, Any]) -> dict[str, Any
             )
         datasets_out.append({"dataset": dataset_name, "evaluators": evaluators_out})
 
+    # Report arrival order on the xdist controller is not deterministic; sort the
+    # raw rows by their canonical form so artifact diffs stay stable across replays.
+    rows_out = sorted(_rows, key=lambda row: json.dumps(row, sort_keys=True))
+
     return {
         "schema_version": SCHEMA_VERSION,
         "session": {
@@ -151,4 +155,5 @@ def _build_artifact(exitstatus: int, recording: dict[str, Any]) -> dict[str, Any
         },
         "recording": recording,
         "datasets": datasets_out,
+        "rows": rows_out,
     }

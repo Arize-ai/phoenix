@@ -2,7 +2,8 @@
 
 Reads ``pxi-eval-results.json`` (written by ``conftest.py``) and decides
 pass/fail. It fails closed: a missing, malformed, partial, or dirty-session
-artifact, or any ``(evaluator, split)`` datapoint with no matching threshold
+artifact, a session that scored fewer evaluator rows than it completed
+examples, or any ``(evaluator, split)`` datapoint with no matching threshold
 policy, exits nonzero before any pass-rate comparison. Only a structurally
 complete, clean-session artifact proceeds to the per-(evaluator, split)
 pass-rate check.
@@ -33,8 +34,8 @@ def _validate_artifact(artifact: Any) -> list[str]:
         return ["artifact is not a JSON object"]
 
     errors: list[str] = []
-    if artifact.get("schema_version") != 2:
-        errors.append(f"unexpected schema_version {artifact.get('schema_version')!r} (want 2)")
+    if artifact.get("schema_version") != 3:
+        errors.append(f"unexpected schema_version {artifact.get('schema_version')!r} (want 3)")
 
     session = artifact.get("session")
     if not isinstance(session, dict):
@@ -55,8 +56,21 @@ def _validate_artifact(artifact: Any) -> list[str]:
         errors.append(
             f"only {session['completed']}/{session['collected']} collected items completed"
         )
-    if not isinstance(artifact.get("datasets"), list):
+    datasets = artifact.get("datasets")
+    if not isinstance(datasets, list):
         errors.append("missing 'datasets' list")
+    elif session["completed"] > 0:
+        # Every completed example scores >= 1 evaluator row, so fewer scored
+        # rows than completed examples means evaluations silently dropped (an
+        # id-rewrite bug that skips scoring, say). The per-split pass-rate check
+        # can't catch it -- an empty or short datasets list has nothing to fail.
+        total_scored = _total_scored(datasets)
+        if total_scored < session["completed"]:
+            errors.append(
+                f"only {total_scored} evaluator row(s) scored for "
+                f"{session['completed']} completed example(s); expected at least "
+                f"one row per completed example"
+            )
 
     recording = artifact.get("recording")
     if not isinstance(recording, dict):
@@ -71,6 +85,26 @@ def _validate_artifact(artifact: Any) -> list[str]:
             detail = recording.get("error") or "no experiment was bootstrapped"
             errors.append(f"recording was expected but did not happen: {detail}")
     return errors
+
+
+def _total_scored(datasets: list[Any]) -> int:
+    """Sum ``scored`` over every (dataset, evaluator, split) in the aggregate.
+
+    Tolerates a malformed entry by skipping it: a dropped or non-integer count
+    lowers the total, which fails the shortfall check closed rather than raising.
+    """
+    total = 0
+    for dataset in datasets:
+        evaluators = dataset.get("evaluators") if isinstance(dataset, dict) else None
+        for evaluator in evaluators or []:
+            splits = evaluator.get("splits") if isinstance(evaluator, dict) else None
+            if not isinstance(splits, dict):
+                continue
+            for stats in splits.values():
+                scored = stats.get("scored") if isinstance(stats, dict) else None
+                if isinstance(scored, int):
+                    total += scored
+    return total
 
 
 def _resolve_policy(

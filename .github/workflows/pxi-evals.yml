@@ -185,7 +185,16 @@ jobs:
             cat "${report_md}"
             echo "::${stop_token}::"
             echo "::endgroup::"
-            echo "::error title=PXI eval gate failed::The PXI eval gate failed. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+            # gate.py exits 2 when it could not measure a pass rate at all
+            # (missing/invalid/partial artifact, dirty session, or recording not
+            # bootstrapped) and 1 only when a pass rate was measured and breached
+            # a threshold. Keep the two annotations distinct so a "couldn't
+            # measure" run doesn't read as a regression to hunt for.
+            if [[ "${gate_rc}" -eq 2 ]]; then
+              echo "::error title=PXI eval could not be measured::The PXI eval gate could not measure a pass rate (exit 2): the results artifact was missing, invalid, partial, from a dirty session, or recording was not bootstrapped. This is not a measured regression. Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+            else
+              echo "::error title=PXI eval gate failed: regression measured::The PXI eval gate measured a pass-rate regression (exit 1). Expand 'PXI EVAL REPORT (agent-readable)' above, or fetch it with: gh run view ${GITHUB_RUN_ID} --log-failed"
+            fi
           fi
 
           # Step summary (humans). GitHub caps the whole summary at 1 MiB; embed
@@ -197,8 +206,10 @@ jobs:
             echo ""
             if [[ "${gate_rc}" -eq 0 ]]; then
               echo "**Result: ✅ gate passed**"
+            elif [[ "${gate_rc}" -eq 2 ]]; then
+              echo "**Result: ⚠️ gate could not measure (invalid or missing artifact)**"
             else
-              echo "**Result: ❌ gate failed**"
+              echo "**Result: ❌ gate failed: regression measured**"
             fi
             echo ""
             if [[ "${report_bytes}" -lt "${summary_embed_budget}" ]]; then

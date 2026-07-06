@@ -14,12 +14,12 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from phoenix.client.pytest import evaluate, log_output
 
 from evals.pxi.evaluators import EVALUATORS_BY_NAME
 from evals.pxi.harness.agent_task import run_pxi_example
 from evals.pxi.harness.datasets import DATASETS_DIR, load_dataset
 from evals.pxi.harness.reporting import PASSING_SCORE
+from phoenix.client.pytest import evaluate, log_output
 
 
 @dataclass(frozen=True)
@@ -103,28 +103,37 @@ async def test_pxi_eval(
     )
     log_output(result)
     nodeid = request.node.nodeid
+    # run_pxi_example never raises: a provider or setup failure comes back as a
+    # truthy ``error`` string with unassessable output. Scoring that empty
+    # output would make an infrastructure error indistinguishable from a real
+    # regression, so skip evaluation and emit one placeholder row per evaluator
+    # (score None, passed False). Emitting one row per evaluator keeps the
+    # aggregate ``scored`` denominator identical to the scored path.
+    task_error = result.get("error")
     for evaluator_name in case.evaluator_names:
-        eval_result = evaluate(
-            EVALUATORS_BY_NAME[evaluator_name],
-            output=result,
-            expected=case.expected,
-            input=case.input,
-        )
-        score = _result_score(eval_result)
-        # Same passing rule reporting.py applies to Phoenix annotations, so the
-        # gate and the Phoenix UI agree on which evaluations passed.
-        passed = score is not None and score >= PASSING_SCORE
-        record_property(
-            "pxi_eval",
-            json.dumps(
-                {
-                    "dataset": case.dataset_name,
-                    "example_id": case.example_id,
-                    "nodeid": nodeid,
-                    "evaluator": evaluator_name,
-                    "split": case.split,
-                    "score": score,
-                    "passed": passed,
-                }
-            ),
-        )
+        if task_error:
+            score = None
+            passed = False
+        else:
+            eval_result = evaluate(
+                EVALUATORS_BY_NAME[evaluator_name],
+                output=result,
+                expected=case.expected,
+                input=case.input,
+            )
+            score = _result_score(eval_result)
+            # Same passing rule reporting.py applies to Phoenix annotations, so
+            # the gate and the Phoenix UI agree on which evaluations passed.
+            passed = score is not None and score >= PASSING_SCORE
+        row = {
+            "dataset": case.dataset_name,
+            "example_id": case.example_id,
+            "nodeid": nodeid,
+            "evaluator": evaluator_name,
+            "split": case.split,
+            "score": score,
+            "passed": passed,
+        }
+        if task_error:
+            row["task_error"] = task_error
+        record_property("pxi_eval", json.dumps(row))

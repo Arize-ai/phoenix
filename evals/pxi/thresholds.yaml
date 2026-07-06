@@ -24,6 +24,17 @@
 # Cells perfect across BOTH runs keep the strict 1.0 default (a miss there is
 # more likely a real regression than flake). The two experiment_observations
 # evaluators are clean post-quarantine (4/4) and also keep the 1.0 default.
+#
+# Interim status: these sub-1.0 regression overrides are a stopgap for
+# single-attempt LLM nondeterminism (the ~1-example run-to-run wobble described
+# above), not the intended end state. The target is a strict 1.0 regression
+# default plus confirm-on-retry: re-run only the failing nodeids once and red the
+# gate only if the miss reproduces. The per-example rows now recorded in
+# pxi-eval-results.json give a retry step the exact failing nodeids that makes
+# this cheap. Ratchet these overrides back to 1.0 once confirm-on-retry is in
+# place. The two experiment_observations dev quarantines below are independent of
+# that ratchet: those examples fail deterministically across runs (a real agent
+# deficiency, not flake), so they stay quarantined under either threshold design.
 
 # Default policy per split, applied to every (evaluator, split) unless an
 # override matches first.
