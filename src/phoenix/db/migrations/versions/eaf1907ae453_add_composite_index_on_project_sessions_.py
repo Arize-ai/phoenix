@@ -15,6 +15,10 @@ Restructures indexes in one migration:
   .experiment_run_id and .dataset_evaluator_id, and experiment_task_logs
   .dataset_example_id (all ON DELETE CASCADE targets that fire once per
   deleted parent row).
+- Creates ``user_id`` indexes on the seven tables whose ``ON DELETE SET NULL``
+  FK to users was unindexed (the four annotation tables, datasets,
+  dataset_versions, and experiments), so a user deletion no longer sequential-
+  scans each of them.
 - Drops seven redundant single-column indexes: six whose lookups are served by
   the leading columns of existing unique indexes, plus the unused
   ``ix_project_sessions_end_time`` (superseded by the composite created above;
@@ -65,6 +69,20 @@ _LOG_TABLE_FK_INDEXES: list[tuple[str, str, list[str]]] = [
         ["dataset_evaluator_id"],
     ),
     ("ix_experiment_task_logs_dataset_example_id", "experiment_task_logs", ["dataset_example_id"]),
+]
+
+# (index_name, table_name, [columns]) for the previously unindexed
+# ON DELETE SET NULL user_id FKs: a user deletion runs one
+# UPDATE ... SET user_id = NULL ... WHERE user_id = :id per table, which is a
+# sequential scan without these (the annotation tables can be large).
+_USER_ID_FK_INDEXES: list[tuple[str, str, list[str]]] = [
+    ("ix_span_annotations_user_id", "span_annotations", ["user_id"]),
+    ("ix_trace_annotations_user_id", "trace_annotations", ["user_id"]),
+    ("ix_document_annotations_user_id", "document_annotations", ["user_id"]),
+    ("ix_project_session_annotations_user_id", "project_session_annotations", ["user_id"]),
+    ("ix_datasets_user_id", "datasets", ["user_id"]),
+    ("ix_dataset_versions_user_id", "dataset_versions", ["user_id"]),
+    ("ix_experiments_user_id", "experiments", ["user_id"]),
 ]
 
 # (index_name, table_name, [columns]) for every redundant single-column index
@@ -143,7 +161,7 @@ def upgrade() -> None:
             "ix_project_sessions_project_id_end_time "
             "ON project_sessions (project_id, end_time DESC)"
         )
-        for index_name, table_name, columns in _LOG_TABLE_FK_INDEXES:
+        for index_name, table_name, columns in _LOG_TABLE_FK_INDEXES + _USER_ID_FK_INDEXES:
             op.create_index(
                 index_name,
                 table_name,
@@ -155,7 +173,7 @@ def upgrade() -> None:
         # created index is INVALID — a failed concurrent build satisfies
         # IF NOT EXISTS above.
         _assert_index_is_valid("ix_project_sessions_project_id_end_time")
-        for index_name, _, _ in _LOG_TABLE_FK_INDEXES:
+        for index_name, _, _ in _LOG_TABLE_FK_INDEXES + _USER_ID_FK_INDEXES:
             _assert_index_is_valid(index_name)
         for index_name, table_name, _ in _REDUNDANT_INDEXES:
             op.drop_index(
@@ -192,7 +210,7 @@ def downgrade() -> None:
             if_exists=True,
             postgresql_concurrently=concurrently,
         )
-        for index_name, table_name, _ in _LOG_TABLE_FK_INDEXES:
+        for index_name, table_name, _ in _LOG_TABLE_FK_INDEXES + _USER_ID_FK_INDEXES:
             op.drop_index(
                 index_name,
                 table_name=table_name,

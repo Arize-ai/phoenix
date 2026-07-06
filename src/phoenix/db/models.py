@@ -1165,7 +1165,9 @@ class SpanAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     span: Mapped["Span"] = relationship(back_populates="span_annotations")
     user: Mapped[Optional["User"]] = relationship("User")
@@ -1205,7 +1207,9 @@ class TraceAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1243,7 +1247,9 @@ class DocumentAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     span: Mapped["Span"] = relationship(back_populates="document_annotations")
 
@@ -1284,7 +1290,9 @@ class ProjectSessionAnnotation(HasId):
     source: Mapped[Literal["API", "APP"]] = mapped_column(
         CheckConstraint("source IN ('API', 'APP')", name="valid_source"),
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -1304,7 +1312,9 @@ class Dataset(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     user: Mapped[Optional["User"]] = relationship("User")
     experiment_tags: Mapped[list["ExperimentTag"]] = relationship(
         "ExperimentTag", back_populates="dataset"
@@ -1412,7 +1422,9 @@ class DatasetVersion(HasId):
     description: Mapped[Optional[str]]
     metadata_: Mapped[dict[str, Any]] = mapped_column("metadata")
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     user: Mapped[Optional["User"]] = relationship("User")
 
 
@@ -1551,7 +1563,9 @@ class Experiment(HasId):
         server_default=sa.false(),
     )
     project_name: Mapped[Optional[str]] = mapped_column(index=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
