@@ -1181,10 +1181,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             )
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            nonlocal request_parent_span_context
+            parent_context = extract_otel_context(dict(request.headers))
+            request_parent_span_context = _get_span_context(parent_context)
             try:
-                parent_context = extract_otel_context(dict(request.headers))
-                nonlocal request_parent_span_context
-                request_parent_span_context = _get_span_context(parent_context)
                 with (
                     detached_otel_context(parent_context),
                     using_session(session_id=session_id),
@@ -1295,8 +1295,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         history = VercelAIAdapter.load_messages(body.messages)
+        parent_context = extract_otel_context(dict(request.headers))
         try:
-            parent_context = extract_otel_context(dict(request.headers))
             with (
                 detached_otel_context(parent_context),
                 using_metadata({"session_id": session_id}),
