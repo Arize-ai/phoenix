@@ -1,6 +1,7 @@
 ---
 name: playground
-description: Author, edit, or iterate on prompts in the Phoenix prompt playground, including running experiments over a dataset. Load before any playground tool call, including single-shot prompt rewrites.
+description: >
+  Author, edit, or iterate on prompts in the Phoenix prompt playground, including setting up and starting a run over a dataset. Load before any playground tool call, including single-shot prompt rewrites. Do NOT trigger on: (1) interpreting or comparing dataset-backed experiment results, or the run-and-compare methodology itself (use `experiments`), (2) designing or refining an evaluator's logic or rubric (use `evaluators`), (3) cross-trace failure diagnosis (use `debug-trace`).
 summary: Author, edit, run, compare, and improve prompts in the Phoenix playground.
 ---
 

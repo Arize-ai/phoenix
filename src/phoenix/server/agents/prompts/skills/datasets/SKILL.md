@@ -1,7 +1,7 @@
 ---
 name: datasets
 description: >
-  Understand what a Phoenix dataset is and reason well about its examples, outputs, splits, and how it feeds evaluators and experiments. Load this whenever a dataset is in view or the user asks what a dataset is, how splits work, what an output "means", or how datasets relate to experiments and evals. This skill governs the judgment; any tool descriptions govern the mechanics.
+  Understand what a Phoenix dataset is and reason well about its examples, outputs, splits, and how it feeds evaluators and experiments. Load when the user asks what a dataset is, how splits work, what a saved output "means" (golden vs. baseline/reference), how to keep rows consistent, or how to align a dataset's fields with a prompt's variables. Do NOT trigger on: (1) running or comparing dataset-backed experiments (use `experiments`), (2) authoring or refining an evaluator (use `evaluators`), (3) prompt authoring in the playground (use `playground`), (4) closed-form reads answerable with a direct query, e.g. "how many examples are in this dataset" (no skill needed). This skill governs the judgment; any tool descriptions govern the mechanics.
 summary: Reason well about Phoenix datasets — examples, outputs, splits, labels — and how they feed evaluators and experiments.
 ---
 
