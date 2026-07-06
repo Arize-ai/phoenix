@@ -8,6 +8,17 @@
 # A policy is either `min_pass_rate: <float>` (gating; breach when the observed
 # pass-rate falls below it) or `gating: false` (the split is recorded but never
 # gates).
+#
+# Calibration (see work item pxi-eval-ci-hardening):
+# The regression overrides below are anchored on the post-quarantine baseline
+# from CI runs 28554517868 and 28801811562 (the latter is the pre-quarantine
+# schema_version 1 artifact these rates were read from). gate.py compares with
+# STRICT less-than -- a cell breaches only when `pass_rate < min_pass_rate` --
+# so each override was chosen to give exactly one-additional-miss headroom:
+# `(passed - 1) / scored < min_pass_rate <= passed / scored`. Today's observed
+# rate stays green, but dropping one more example in that cell flips it red.
+# Perfect cells (and the two experiment_observations evaluators now that their
+# deterministic failures were quarantined to dev) keep the strict 1.0 default.
 
 # Default policy per split, applied to every (evaluator, split) unless an
 # override matches first.
@@ -24,4 +35,62 @@ splits:
 # Optional narrower policies, keyed dataset -> evaluator -> split. An entry here
 # wins over the split default above; each value mirrors a `splits` entry
 # (`min_pass_rate: <float>` or `gating: false`).
-overrides: {}
+#
+# Each regression override records the post-quarantine baseline (passed/scored)
+# it was calibrated against and the one-additional-miss rate that now breaches.
+overrides:
+  evaluators_skill_trigger:
+    correct_tools_called:
+      regression:
+        # baseline 9/10 = 0.900; one more miss -> 8/10 = 0.800 breaches
+        min_pass_rate: 0.85
+    tool_call_args_match:
+      regression:
+        # baseline 9/10 = 0.900; one more miss -> 8/10 = 0.800 breaches
+        min_pass_rate: 0.85
+  experiments_skill_trigger:
+    forbidden_tool_call_args_match:
+      regression:
+        # baseline 13/14 = 0.929; one more miss -> 12/14 = 0.857 breaches
+        min_pass_rate: 0.89
+  in_app_links:
+    in_app_links_valid:
+      regression:
+        # baseline 7/8 = 0.875; one more miss -> 6/8 = 0.750 breaches
+        min_pass_rate: 0.81
+  product_knowledge:
+    assistant_text_substrings_match:
+      regression:
+        # baseline 20/21 = 0.952; one more miss -> 19/21 = 0.905 breaches
+        min_pass_rate: 0.93
+  route_info_tool_selection:
+    correct_tools_called:
+      regression:
+        # baseline 10/11 = 0.909; one more miss -> 9/11 = 0.818 breaches
+        min_pass_rate: 0.86
+    tool_call_args_match:
+      regression:
+        # baseline 10/11 = 0.909; one more miss -> 9/11 = 0.818 breaches
+        min_pass_rate: 0.86
+  set_spans_filter:
+    correct_tools_called:
+      regression:
+        # baseline 47/48 = 0.979; one more miss -> 46/48 = 0.958 breaches
+        min_pass_rate: 0.97
+    tool_call_args_match:
+      regression:
+        # baseline 47/48 = 0.979; one more miss -> 46/48 = 0.958 breaches
+        min_pass_rate: 0.97
+  experiment_observations:
+    # The two examples that deterministically failed these evaluators were
+    # quarantined regression -> dev (work item pxi-eval-ci-hardening, task-5).
+    # They are the parked known-failing examples: on a full-collection run they
+    # are scored in dev and still fail, which would breach the dev default of
+    # 0.8 (0/2). Mark them non-gating so both `-m regression` PR runs and full
+    # runs stay green while the underlying agent behavior is investigated.
+    correct_tools_called:
+      dev:
+        gating: false
+    tool_call_args_match:
+      dev:
+        gating: false

@@ -33,8 +33,8 @@ def _validate_artifact(artifact: Any) -> list[str]:
         return ["artifact is not a JSON object"]
 
     errors: list[str] = []
-    if artifact.get("schema_version") != 1:
-        errors.append(f"unexpected schema_version {artifact.get('schema_version')!r} (want 1)")
+    if artifact.get("schema_version") != 2:
+        errors.append(f"unexpected schema_version {artifact.get('schema_version')!r} (want 2)")
 
     session = artifact.get("session")
     if not isinstance(session, dict):
@@ -57,6 +57,19 @@ def _validate_artifact(artifact: Any) -> list[str]:
         )
     if not isinstance(artifact.get("datasets"), list):
         errors.append("missing 'datasets' list")
+
+    recording = artifact.get("recording")
+    if not isinstance(recording, dict):
+        errors.append("missing or malformed 'recording' block")
+    else:
+        for key in ("expected", "bootstrapped"):
+            if not isinstance(recording.get(key), bool):
+                errors.append(f"recording.{key} is missing or not a boolean")
+        # A green gate must mean results reached Phoenix. When a key was present the plugin was
+        # meant to record, but bootstrap failure degrades to a warning there, so assert it here.
+        if recording.get("expected") and not recording.get("bootstrapped"):
+            detail = recording.get("error") or "no experiment was bootstrapped"
+            errors.append(f"recording was expected but did not happen: {detail}")
     return errors
 
 

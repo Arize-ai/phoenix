@@ -160,7 +160,10 @@ The gate also **fails closed on an incomplete run**: a missing, malformed, or
 partial `pxi-eval-results.json` (collection/setup errors, fewer completed items
 than collected, or a nonzero pytest session status) exits nonzero before any
 threshold is compared, so "the gate passed" always means "a complete run
-passed".
+passed". When `PHOENIX_API_KEY` is set (i.e. CI), it additionally fails closed
+if the plugin recorded nothing — bootstrap failure degrades to a warning in the
+plugin, so without this a green gate could mean "recorded nothing to Phoenix".
+Local runs with no key skip this check, since recording is optional there.
 
 ### Regression gate vs. full-collection sync
 

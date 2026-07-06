@@ -17,10 +17,11 @@ from typing import Any, AsyncIterator
 import pytest_asyncio
 
 from evals.pxi.harness.agent_task import build_shared_docs_mcp_server
+from phoenix.client.pytest.plugin import _get_state  # pyright: ignore[reportPrivateUsage]
 
 RESULTS_PATH_ENV = "PXI_EVAL_RESULTS_PATH"
 DEFAULT_RESULTS_PATH = "pxi-eval-results.json"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 RECORD_PROPERTY_KEY = "pxi_eval"
 
 # Per-process buffers. Under xdist the controller's ``pytest_runtest_logreport``
@@ -68,16 +69,40 @@ def pytest_sessionfinish(session: Any, exitstatus: Any) -> None:
     # Workers post their reports to the controller, which owns the single write.
     if hasattr(session.config, "workerinput"):
         return
-    artifact = _build_artifact(int(exitstatus))
+    artifact = _build_artifact(int(exitstatus), _recording_status(session.config))
     path = Path(os.environ.get(RESULTS_PATH_ENV, DEFAULT_RESULTS_PATH))
     path.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
+
+
+def _recording_status(config: Any) -> dict[str, Any]:
+    """Recording-health block for the artifact, read from the phoenix-client plugin's suite state.
+
+    The plugin degrades an experiment-bootstrap failure to a warning and keeps running, so a
+    session can finish green having recorded nothing to Phoenix. ``gate.py`` fails closed on that
+    only when recording was *expected*: a ``PHOENIX_API_KEY`` is set and tracking is on. No key
+    means local dev where recording is optional, so ``expected`` is False and the gate skips it.
+    ``bootstrapped`` is true only when every collected dataset got an experiment and no bootstrap
+    error was recorded -- partial recording is still a failure.
+    """
+    state = _get_state(config)
+    if state is None:
+        return {"expected": False, "bootstrapped": False, "experiments": 0, "error": None}
+    groups = state.groups
+    experiments = sum(1 for g in groups.values() if g.experiment_id is not None)
+    error = state.bootstrap_error
+    return {
+        "expected": bool(os.environ.get("PHOENIX_API_KEY")) and not state.config.offline,
+        "bootstrapped": error is None and len(groups) > 0 and experiments == len(groups),
+        "experiments": experiments,
+        "error": repr(error) if error is not None else None,
+    }
 
 
 def _pass_rate(passed: int, scored: int) -> float:
     return passed / scored if scored else 0.0
 
 
-def _build_artifact(exitstatus: int) -> dict[str, Any]:
+def _build_artifact(exitstatus: int, recording: dict[str, Any]) -> dict[str, Any]:
     # dataset -> evaluator -> split -> {scored, passed}
     grouped: dict[str, dict[str, dict[str, dict[str, int]]]] = {}
     for row in _rows:
@@ -124,5 +149,6 @@ def _build_artifact(exitstatus: int) -> dict[str, Any]:
             "completed": _health["completed"],
             "errors": _health["errors"],
         },
+        "recording": recording,
         "datasets": datasets_out,
     }

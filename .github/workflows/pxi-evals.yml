@@ -61,18 +61,35 @@ jobs:
           phoenix_url="${PHOENIX_COLLECTOR_ENDPOINT:-http://localhost:6006}"
           phoenix_url="${phoenix_url%/}"
           echo "Checking Phoenix connectivity at ${phoenix_url}..."
+          reachable=0
           for attempt in 1 2 3; do
             if curl -sf --max-time 5 "${phoenix_url}/healthz" > /dev/null 2>&1; then
               echo "Phoenix reachable (attempt ${attempt})"
-              exit 0
+              reachable=1
+              break
             fi
             if [[ "${attempt}" -lt 3 ]]; then
               echo "Phoenix not reachable (attempt ${attempt}/3), retrying in 10s..." >&2
               sleep 10
             fi
           done
-          echo "::error::Phoenix unavailable at ${phoenix_url} after 3 attempts — aborting. Check PHOENIX_COLLECTOR_ENDPOINT."
-          exit 1
+          if [[ "${reachable}" -ne 1 ]]; then
+            echo "::error::Phoenix unavailable at ${phoenix_url} after 3 attempts — aborting. Check PHOENIX_COLLECTOR_ENDPOINT."
+            exit 1
+          fi
+
+          # healthz proves liveness but not auth: a wrong/rotated PHOENIX_API_KEY
+          # would still go green here and record nothing. Hit an authenticated v1
+          # endpoint and fail closed on any non-2xx so a bad key fails in seconds.
+          auth_status="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+            -H "Authorization: Bearer ${PHOENIX_API_KEY:-}" \
+            "${phoenix_url}/v1/projects?limit=1")"
+          if [[ "${auth_status}" =~ ^2 ]]; then
+            echo "Phoenix API key accepted (GET /v1/projects -> ${auth_status})"
+          else
+            echo "::error::Phoenix rejected the API key (GET /v1/projects -> HTTP ${auth_status}). Check PHOENIX_API_KEY."
+            exit 1
+          fi
       - name: Run PXI eval suite
         shell: bash
         env:
@@ -90,10 +107,10 @@ jobs:
           set +e
           if [[ "${PXI_RUN_MODE}" == "full" ]]; then
             echo "Run mode: full collection — prune-syncs the Phoenix dataset (no split filter)."
-            uv run pytest evals/pxi -c evals/pxi/pytest.ini
+            uv run pytest evals/pxi -c evals/pxi/pytest.ini -n auto
           else
             echo "Run mode: regression — gated regression split (append-sync only)."
-            uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression
+            uv run pytest evals/pxi -c evals/pxi/pytest.ini -m regression -n auto
           fi
           pytest_rc=$?
           set -e
