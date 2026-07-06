@@ -1,15 +1,32 @@
 import type { ISpanItem } from "./types";
 
+/**
+ * Tree node used by trace tree renderers.
+ *
+ * @typeParam TSpan - Span shape stored in the tree. Must include the span
+ * fields needed by the caller, and is commonly constrained to `ISpanItem`.
+ */
 export type SpanTreeNode<TSpan> = {
+  /** Span represented by this node. */
   span: TSpan;
+
+  /** Child spans whose `parentId` points to this node's `spanId`. */
   children: SpanTreeNode<TSpan>[];
 };
 
 /**
  * Compare two ISO 8601 timestamp strings with sub-millisecond precision.
  *
- * Handles timestamps with different timezone offsets by using Date for conversion.
- * Preserves sub-millisecond precision by comparing fractional seconds as floats.
+ * @remarks
+ * JavaScript `Date` normalizes timezone offsets but only preserves millisecond
+ * precision. When two timestamps normalize to the same millisecond, this
+ * comparator falls back to fractional-second comparison so traces with
+ * microsecond/nanosecond timestamps render in their original order.
+ *
+ * @param a - First ISO 8601 timestamp string.
+ * @param b - Second ISO 8601 timestamp string.
+ * @returns `-1` when `a` is earlier, `1` when `a` is later, and `0` when the
+ * timestamps are equal at their represented precision.
  */
 export function compareTimestamps(a: string, b: string): number {
   const dateA = new Date(a);
@@ -26,8 +43,20 @@ export function compareTimestamps(a: string, b: string): number {
 }
 
 /**
- * Create a span tree from a list of spans
- * @param spans
+ * Creates a chronologically sorted tree from a flat list of spans.
+ *
+ * @remarks
+ * Parent/child relationships are built from `spanId` and `parentId`. Spans with
+ * `parentId === null` become roots. Spans whose parent is absent from the input
+ * are also treated as roots so partially loaded traces still render instead of
+ * dropping orphaned spans.
+ *
+ * Root spans and each node's children are sorted by `startTime` using
+ * {@link compareTimestamps}, preserving sub-millisecond ordering.
+ *
+ * @typeParam TSpan - Span item type retained on each tree node.
+ * @param spans - Flat span list from a single trace or trace-like collection.
+ * @returns Root span nodes, each with recursively populated `children`.
  */
 export function createSpanTree<TSpan extends ISpanItem>(
   spans: TSpan[]
@@ -65,12 +94,34 @@ export function createSpanTree<TSpan extends ISpanItem>(
   return rootSpans;
 }
 
+/**
+ * Checks whether a span should be included for a normalized search query.
+ *
+ * @param span - Span to inspect.
+ * @param normalizedQuery - Lowercase, trimmed search query.
+ * @returns `true` when the query appears in the span name, kind, status, Relay
+ * node id, or OpenTelemetry span id.
+ */
 function spanMatchesSearchQuery(span: ISpanItem, normalizedQuery: string) {
   return [span.name, span.spanKind, span.statusCode, span.id, span.spanId].some(
     (value) => value.toLowerCase().includes(normalizedQuery)
   );
 }
 
+/**
+ * Filters a single span tree node while retaining matching descendants.
+ *
+ * @remarks
+ * A node is retained when it directly matches the query or when at least one of
+ * its descendants matches. In the descendant case, the returned node preserves
+ * ancestor context but contains only the filtered child branches.
+ *
+ * @typeParam TSpan - Span item type retained on each tree node.
+ * @param node - Node to filter.
+ * @param normalizedQuery - Lowercase, trimmed search query.
+ * @returns A filtered copy of `node`, or `null` when neither it nor any
+ * descendant matches.
+ */
 function filterSpanTreeNode<TSpan extends ISpanItem>(
   node: SpanTreeNode<TSpan>,
   normalizedQuery: string
@@ -90,6 +141,17 @@ function filterSpanTreeNode<TSpan extends ISpanItem>(
 
 /**
  * Filter a span tree to matching spans while preserving ancestor context.
+ *
+ * @remarks
+ * Search is case-insensitive and matches span name, kind, status, Relay node
+ * id, and OpenTelemetry span id. Ancestors of matching spans are kept so the UI
+ * can show how a matching span fits into the trace. Empty or whitespace-only
+ * queries return the original tree reference to avoid unnecessary re-rendering.
+ *
+ * @typeParam TSpan - Span item type retained on each tree node.
+ * @param spanTree - Root nodes to filter.
+ * @param searchQuery - Raw search text from the trace tree search field.
+ * @returns Filtered root nodes. Returns `spanTree` unchanged for an empty query.
  */
 export function filterSpanTree<TSpan extends ISpanItem>(
   spanTree: SpanTreeNode<TSpan>[],
