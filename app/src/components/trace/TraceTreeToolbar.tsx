@@ -81,11 +81,11 @@ export function TraceTreeToolbar() {
         .trace-tree-toolbar__search .search-field__icon {
           left: var(--global-dimension-static-size-100);
           color: var(--global-text-color-500);
-          font-size: var(--global-font-size-s);
+          font-size: var(--global-font-size-l);
         }
         .trace-tree-toolbar__search .search-field__icon ~ .react-aria-Input {
           padding-left: calc(
-            var(--global-dimension-static-size-200) + var(--global-font-size-s)
+            var(--global-dimension-static-size-200) + var(--global-font-size-l)
           ) !important;
         }
       `}
