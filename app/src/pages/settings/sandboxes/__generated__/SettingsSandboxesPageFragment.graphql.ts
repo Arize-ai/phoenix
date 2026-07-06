@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<09387a4534ce7e7309c5f4cc9ee2fdb1>>
+ * @generated SignedSource<<8117136b5c124d3dcda758affc7302ec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type InternetAccessChoice = "ALLOW" | "DENY";
-export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
+export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";

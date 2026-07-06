@@ -51,10 +51,7 @@ export const WithActions = {
   args: {
     title: "Dashboards",
     extra: (
-      <Button
-        variant="primary"
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-      >
+      <Button variant="primary" leadingVisual={<Icon svg={<Icons.Plus />} />}>
         Create Dashboard
       </Button>
     ),
@@ -79,7 +76,7 @@ export const Complete = {
     subTitle: "Run and compare experiments on your datasets",
     extra: (
       <Flex direction="row" gap="size-100" alignItems="center">
-        <Button leadingVisual={<Icon svg={<Icons.DownloadOutline />} />} />
+        <Button leadingVisual={<Icon svg={<Icons.Download />} />} />
         <Button variant="primary">Run Experiment</Button>
       </Flex>
     ),

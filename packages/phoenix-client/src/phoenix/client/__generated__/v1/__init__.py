@@ -52,6 +52,17 @@ class CategoricalAnnotationValue(TypedDict):
     score: NotRequired[float]
 
 
+class CodeEvaluatorContext(TypedDict):
+    type: Literal["code_evaluator"]
+    evaluatorNodeId: NotRequired[str]
+
+
+class CreateDatasetLabelRequestBody(TypedDict):
+    name: str
+    color: str
+    description: NotRequired[str]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -107,6 +118,12 @@ class Dataset(TypedDict):
     example_count: int
 
 
+class DatasetContext(TypedDict):
+    type: Literal["dataset"]
+    datasetNodeId: str
+    datasetVersionNodeId: NotRequired[str]
+
+
 class DatasetExample(TypedDict):
     id: str
     node_id: str
@@ -114,6 +131,13 @@ class DatasetExample(TypedDict):
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]
     updated_at: str
+
+
+class DatasetLabel(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
 
 
 class DatasetVersion(TypedDict):
@@ -141,6 +165,8 @@ class Experiment(TypedDict):
     id: str
     dataset_id: str
     dataset_version_id: str
+    name: str
+    description: Optional[str]
     repetitions: int
     metadata: Mapping[str, Any]
     project_name: Optional[str]
@@ -176,6 +202,15 @@ class FileUIPart(TypedDict):
     url: str
     filename: NotRequired[str]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class GetDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
+class GetDatasetLabelsResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+    next_cursor: Optional[str]
 
 
 class GetDatasetResponseBody(TypedDict):
@@ -246,6 +281,10 @@ class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
 
 
+class ListDatasetLabelsForDatasetResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+
+
 class ListDatasetVersionsResponseBody(TypedDict):
     data: Sequence[DatasetVersion]
     next_cursor: Optional[str]
@@ -264,6 +303,11 @@ class ListExperimentRunsResponseBody(TypedDict):
 class ListExperimentsResponseBody(TypedDict):
     data: Sequence[Experiment]
     next_cursor: Optional[str]
+
+
+class LlmEvaluatorContext(TypedDict):
+    type: Literal["llm_evaluator"]
+    evaluatorNodeId: NotRequired[str]
 
 
 class LocalUserData(TypedDict):
@@ -302,9 +346,38 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
-class PlaygroundContext(TypedDict):
-    type: Literal["playground"]
-    instanceIds: Sequence[int]
+class PlaygroundBuiltinModelContext(TypedDict):
+    type: Literal["builtin"]
+    provider: str
+    modelName: str
+
+
+class PlaygroundCustomProviderModelContext(TypedDict):
+    type: Literal["custom"]
+    customProviderId: str
+    customProviderName: str
+    provider: str
+    modelName: str
+
+
+class PlaygroundEvaluatorContext(TypedDict):
+    datasetEvaluatorId: str
+    name: str
+    kind: Literal["LLM", "CODE", "BUILTIN"]
+    isBuiltin: bool
+    isApplied: bool
+
+
+class PlaygroundExperimentScaffoldContext(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    hasMetadata: NotRequired[bool]
+
+
+class PlaygroundInstanceContext(TypedDict):
+    instanceId: int
+    model: NotRequired[Union[PlaygroundBuiltinModelContext, PlaygroundCustomProviderModelContext]]
+    experimentId: NotRequired[str]
 
 
 class Project(TypedDict):
@@ -381,6 +454,11 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
     extra_body: NotRequired[Mapping[str, Any]]
+
+
+class PromptContext(TypedDict):
+    type: Literal["prompt"]
+    promptNodeId: str
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -534,6 +612,12 @@ class PromptToolRaw(TypedDict):
     raw: Mapping[str, Any]
 
 
+class PromptVersionContext(TypedDict):
+    type: Literal["prompt_version"]
+    promptNodeId: str
+    promptVersionNodeId: str
+
+
 class PromptVersionTag(TypedDict):
     name: str
     id: str
@@ -598,6 +682,12 @@ class SessionAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SessionContext(TypedDict):
+    type: Literal["session"]
+    projectNodeId: str
+    sessionNodeId: str
+
+
 class SessionNoteData(TypedDict):
     session_id: str
     note: str
@@ -609,6 +699,18 @@ class SessionTraceData(TypedDict):
     trace_id: str
     start_time: str
     end_time: str
+
+
+class SetDatasetLabelsForDatasetResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+
+
+class SetDatasetLabelsRequestBody(TypedDict):
+    dataset_label_ids: NotRequired[Sequence[str]]
+
+
+class SetProjectAnnotationConfigsRequestBody(TypedDict):
+    annotation_config_ids: Sequence[str]
 
 
 class SourceDocumentUIPart(TypedDict):
@@ -681,6 +783,11 @@ class StepStartUIPart(TypedDict):
     type: Literal["step-start"]
 
 
+class SubagentsContext(TypedDict):
+    type: Literal["subagents"]
+    enabled: bool
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
@@ -706,6 +813,7 @@ class ToolApprovalResponded(TypedDict):
 class ToolApprovalRespondedPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -722,6 +830,7 @@ class ToolCallFunction(TypedDict):
 class ToolInputAvailablePart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -732,6 +841,7 @@ class ToolInputAvailablePart(TypedDict):
 class ToolInputStreamingPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -742,6 +852,7 @@ class ToolInputStreamingPart(TypedDict):
 class ToolOutputAvailablePart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     output: NotRequired[Any]
@@ -754,6 +865,7 @@ class ToolOutputAvailablePart(TypedDict):
 class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -765,6 +877,7 @@ class ToolOutputErrorPart(TypedDict):
     type: str
     toolCallId: str
     errorText: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     rawInput: NotRequired[Any]
@@ -828,6 +941,26 @@ class TraceSpanData(TypedDict):
     status_code: str
     start_time: str
     end_time: str
+
+
+class UpdateDatasetLabelRequestBody(TypedDict):
+    name: NotRequired[str]
+    color: NotRequired[str]
+    description: NotRequired[str]
+
+
+class UpdateDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
+class UpdateExperimentRequestBody(TypedDict):
+    name: NotRequired[str]
+    description: NotRequired[str]
+    metadata: NotRequired[Mapping[str, Any]]
+
+
+class UpdateExperimentResponseBody(TypedDict):
+    data: Experiment
 
 
 class UpdateProjectRequestBody(TypedDict):
@@ -894,6 +1027,10 @@ class FieldSummarizeResponse(TypedDict):
 
 class ToolCallProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
+
+
+class AddDatasetLabelToDatasetResponseBody(TypedDict):
+    data: DatasetLabel
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -991,6 +1128,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     upper_bound: NotRequired[float]
 
 
+class CreateDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
 class CreateExperimentResponseBody(TypedDict):
     data: Experiment
 
@@ -1041,7 +1182,9 @@ class DynamicToolApprovalRequestedPart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1051,7 +1194,9 @@ class DynamicToolApprovalRespondedPart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1061,7 +1206,9 @@ class DynamicToolInputAvailablePart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1070,8 +1217,10 @@ class DynamicToolInputStreamingPart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1082,7 +1231,9 @@ class DynamicToolOutputAvailablePart(TypedDict):
     toolCallId: str
     input: Any
     output: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     preliminary: NotRequired[bool]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1093,7 +1244,9 @@ class DynamicToolOutputDeniedPart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1104,7 +1257,9 @@ class DynamicToolOutputErrorPart(TypedDict):
     toolCallId: str
     input: Any
     errorText: str
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1151,6 +1306,13 @@ class GetIncompleteExperimentRunsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class GetProjectAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
+
+
 class GetProjectResponseBody(TypedDict):
     data: Project
 
@@ -1181,6 +1343,15 @@ class GetViewerResponseBody(TypedDict):
 
 class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
+
+
+class PlaygroundContext(TypedDict):
+    type: Literal["playground"]
+    recordExperiments: NotRequired[bool]
+    repetitions: NotRequired[int]
+    nextExperimentScaffold: NotRequired[PlaygroundExperimentScaffoldContext]
+    instances: NotRequired[Sequence[PlaygroundInstanceContext]]
+    evaluators: NotRequired[Sequence[PlaygroundEvaluatorContext]]
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):
@@ -1310,6 +1481,13 @@ class SessionData(TypedDict):
     token_count_total: NotRequired[int]
 
 
+class SetProjectAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
+
+
 class Span(TypedDict):
     name: str
     context: SpanContext
@@ -1332,6 +1510,7 @@ class SpansResponseBody(TypedDict):
 class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1401,6 +1580,11 @@ class FieldSummarizeRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+
+
+class AssignAnnotationConfigToProjectResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
 class AssistantMessageMetadata(TypedDict):
@@ -1448,19 +1632,29 @@ class ChatRegenerateMessage(TypedDict):
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
                 AppContext,
                 ProjectContext,
                 TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
+                SubagentsContext,
             ]
         ]
     ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1470,19 +1664,29 @@ class ChatSubmitMessage(TypedDict):
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
                 AppContext,
                 ProjectContext,
                 TraceContext,
+                SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
+                CodeEvaluatorContext,
+                LlmEvaluatorContext,
+                DatasetContext,
                 GraphQLContext,
                 WebAccessContext,
+                SubagentsContext,
             ]
         ]
     ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
+    requestedSkills: NotRequired[Sequence[str]]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):

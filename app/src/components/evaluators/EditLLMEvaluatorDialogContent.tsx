@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/llmEvaluatorDraft";
 import { Alert } from "@phoenix/components/core/alert";
 import { Button } from "@phoenix/components/core/button";
 import {
@@ -11,35 +13,57 @@ import {
 } from "@phoenix/components/core/dialog";
 import { EvaluatorForm } from "@phoenix/components/evaluators/EvaluatorForm";
 import { LLMEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/LLMEvaluatorInputVariablesProvider";
+import { useLlmEvaluatorDraftRegistration } from "@phoenix/components/evaluators/useLlmEvaluatorDraftRegistration";
 import { useEvaluatorStoreInstance } from "@phoenix/contexts/EvaluatorContext";
 
-/**
- * Embed this DialogContent component within a DatasetEvaluatorSlideover or an EvaluatorSlideover.
- * The mutation code is agnostic towards evaluator mutation, therefor this component can be used for both.
- */
 export const EditLLMEvaluatorDialogContent = ({
   onSubmit,
   isSubmitting,
   mode,
   error,
+  evaluatorNodeId,
 }: {
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: () => Promise<EvaluatorSubmitResult>;
   isSubmitting: boolean;
   mode: "create" | "update";
   error?: string;
+  evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
+
+  useAdvertiseAgentContext(
+    useMemo(
+      () => ({
+        type: "llm_evaluator" as const,
+        evaluatorNodeId: evaluatorNodeId ?? null,
+      }),
+      [evaluatorNodeId]
+    )
+  );
+
   const [showValidationError, setShowValidationError] = useState(false);
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
     const isValid = await store.getState().validateAll();
     if (!isValid) {
       setShowValidationError(true);
-      return;
+      return {
+        ok: false,
+        error: "Please fix the highlighted errors before submitting.",
+      };
     }
     setShowValidationError(false);
-    onSubmit();
+    return onSubmit();
   };
+
+  const handleSubmitRef = useRef(handleSubmit);
+  handleSubmitRef.current = handleSubmit;
+
+  useLlmEvaluatorDraftRegistration({
+    mode,
+    evaluatorNodeId,
+    handleSubmitRef,
+  });
   return (
     <DialogContent>
       <DialogHeader>

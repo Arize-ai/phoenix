@@ -52,10 +52,28 @@ export function agentContextKey(context: AgentContext): string {
       return "app";
     case "playground":
       return "playground";
+    case "code_evaluator":
+      return context.evaluatorNodeId
+        ? `code_evaluator:${context.evaluatorNodeId}`
+        : "code_evaluator:create";
+    case "llm_evaluator":
+      return context.evaluatorNodeId
+        ? `llm_evaluator:${context.evaluatorNodeId}`
+        : "llm_evaluator:create";
+    case "dataset":
+      return context.datasetVersionNodeId
+        ? `dataset:${context.datasetNodeId}:${context.datasetVersionNodeId}`
+        : `dataset:${context.datasetNodeId}`;
     case "project":
       return `project:${context.projectNodeId}`;
     case "trace":
       return `trace:${context.projectNodeId}:${context.otelTraceId}`;
+    case "session":
+      return `session:${context.projectNodeId}:${context.sessionNodeId}`;
+    case "prompt":
+      return `prompt:${context.promptNodeId}`;
+    case "prompt_version":
+      return `prompt_version:${context.promptNodeId}:${context.promptVersionNodeId}`;
     case "span": {
       const project = context.projectNodeId ?? "";
       const span = context.spanNodeId
@@ -67,5 +85,7 @@ export function agentContextKey(context: AgentContext): string {
       return "graphql";
     case "web_access":
       return "web_access";
+    case "subagents":
+      return "subagents";
   }
 }

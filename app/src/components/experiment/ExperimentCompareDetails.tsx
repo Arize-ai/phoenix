@@ -14,6 +14,7 @@ import {
   CopyToClipboardButton,
   Dialog,
   DialogTrigger,
+  DisclosureArrow,
   Empty,
   Flex,
   Heading,
@@ -709,13 +710,9 @@ function ExperimentSidebarItem({
             onPress={() => setIsCollapsed(!isCollapsed)}
             css={css`
               flex: none;
-              .icon-wrap {
-                transform: ${isCollapsed ? "rotate(0deg)" : "rotate(90deg)"};
-                transition: all 0.1s ease-in-out;
-              }
             `}
           >
-            <Icon svg={<Icons.ChevronRight />} />
+            <DisclosureArrow isExpanded={!isCollapsed} />
           </IconButton>
         )}
         <Checkbox
@@ -842,11 +839,9 @@ function ExperimentRepetitionsSidebarItems({
                 minHeight={30}
                 css={css`
                   overflow: hidden;
-                  color: ${
-                    repetitionDidNotRun
-                      ? "var(--global-color-gray-500)"
-                      : "inherit"
-                  };
+                  color: ${repetitionDidNotRun
+                    ? "var(--global-color-gray-500)"
+                    : "inherit"};
                 `}
               >
                 <Text>repetition&nbsp;{repetition.repetitionNumber}</Text>
@@ -1034,7 +1029,7 @@ export function ExperimentItem({
           </Heading>
           {includeRepetitions && (
             <>
-              <Icon svg={<Icons.ChevronRight />} />
+              <Icon svg={<Icons.ChevronRightSmall />} />
               <Heading weight="heavy" level={3}>
                 repetition&nbsp;{experimentRepetition.repetitionNumber}
               </Heading>
@@ -1231,7 +1226,8 @@ function ExperimentRunAnnotationButton({
       css={[
         css`
           cursor: pointer;
-          padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+          padding: var(--global-dimension-size-50)
+            var(--global-dimension-size-100);
           border-radius: var(--global-rounding-small);
           width: 100%;
           display: grid;

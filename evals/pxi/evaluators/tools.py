@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
 
 from phoenix.evals import create_evaluator
@@ -56,6 +55,10 @@ def _expected_tools(expected: Any) -> dict[str, Any]:
 
 def _expected_tool_call_args(expected: Any) -> dict[str, Any]:
     return _as_dict(_as_dict(expected).get("tool_call_args", {}))
+
+
+def _expected_budgets(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("budgets", {}))
 
 
 def _failure(explanation: str, *, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -128,6 +131,32 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     return {"score": 1.0, "label": "correct"}
 
 
+def evaluate_tool_call_count(output: Any, expected: Any) -> dict[str, Any]:
+    """Evaluate the number of tool calls against ``expected.budgets.max_tool_calls``.
+
+    Missing budget expectations pass so the evaluator can be enabled for a
+    whole dataset while only scoring examples that opt into a budget.
+    """
+    max_tool_calls = _expected_budgets(expected).get("max_tool_calls")
+    if max_tool_calls is None:
+        return _success()
+    if not isinstance(max_tool_calls, int) or max_tool_calls < 0:
+        return _failure(
+            "Expected budgets.max_tool_calls must be a non-negative integer",
+            metadata={"max_tool_calls": max_tool_calls},
+        )
+
+    observed_names = [
+        name for call in tool_calls_from_output(output) if (name := _tool_name(call)) is not None
+    ]
+    if len(observed_names) <= max_tool_calls:
+        return _success()
+    return _failure(
+        f"Expected at most {max_tool_calls} tool calls, observed {len(observed_names)}",
+        metadata={"observed_tools": observed_names, "max_tool_calls": max_tool_calls},
+    )
+
+
 @create_evaluator(name="correct_tools_called", kind="code")
 def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     """Phoenix evaluator entrypoint for tool-selection correctness.
@@ -140,79 +169,255 @@ def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     return evaluate_tools_called(output, expected)
 
 
-# Matches ``<field> IN('A', 'B', ...)`` or ``<field> in ('A', 'B', ...)``.
-# Used by _normalize_arg_value to fold the SQL membership form into the same
-# representation as an OR-chain so both forms compare equal.
-_IN_EXPR_RE = re.compile(r"^(\S+)\s+[Ii][Nn]\s*\(([^)]+)\)\s*$")
+@create_evaluator(name="tool_call_count_within_limit", kind="code")
+def tool_call_count_within_limit(output: Any, expected: Any) -> dict[str, Any]:
+    """Phoenix evaluator entrypoint for per-example tool-call budgets."""
+    return evaluate_tool_call_count(output, expected)
 
 
-def _normalize_arg_value(value: Any) -> Any:
-    """Make string values that look like SQL boolean conjunctions,
-    disjunctions, or membership tests invariant to clause/member ordering.
+def _string_list(value: Any) -> list[str] | None:
+    if value is None:
+        return []
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value
+    return None
 
-    Phoenix tool arg values like ``"span_kind == 'LLM' and latency_ms >= 5000"``
-    are semantically equivalent regardless of clause order; the same holds for
-    ``"span_kind == 'TOOL' or span_kind == 'CHAIN'"``. Models also sometimes
-    emit a SQL-style membership form such as ``"span_kind IN('LLM', 'TOOL')"``
-    which is semantically identical to the OR chain. The evaluator compares
-    strings exactly otherwise, so without normalization a model that emits
-    clauses in a different order from the dataset (or picks an equivalent
-    membership rewrite) would silently fail.
 
-    Normalization rules (applied in priority order):
+def _bash_commands(output: Any) -> list[str]:
+    commands: list[str] = []
+    for call in tool_calls_from_output(output):
+        if _tool_name(call) != "bash":
+            continue
+        command = _tool_args(call).get("command")
+        if isinstance(command, str):
+            commands.append(command)
+    return commands
 
-    1. ``X IN('A', 'B', ...)`` / ``X in ('A', 'B', ...)`` (2+ quoted values):
-       expand to ``("OR", frozenset({"X == 'A'", "X == 'B'", ...}))``.
-       This makes the membership form compare equal to the equivalent OR chain.
-    2. Pure ``and``-joined: split on `` and ``, return ``("AND", frozenset(...))``.
-    3. Pure ``or``-joined: split on `` or ``, return ``("OR", frozenset(...))``.
-    4. Mixed (both ``and`` and ``or`` appear): return the raw string. Splitting
-       naively would lose precedence; dataset authors who care about a specific
-       mixed-operator form should pin it exactly.
-    5. Everything else: return the value unchanged.
 
-    The tagged tuples guarantee an AND-set never compares equal to an OR-set
-    over the same clauses — those expressions are not semantically equivalent.
+def _bash_command_expectations(expected: Any) -> list[dict[str, Any]] | None:
+    raw = _as_dict(expected).get("bash_command")
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        return [raw]
+    if isinstance(raw, list) and all(isinstance(item, dict) for item in raw):
+        return raw
+    return None
+
+
+def evaluate_bash_command_substrings(output: Any, expected: Any) -> dict[str, Any]:
+    """Match bash commands by required and forbidden substrings.
+
+    The expectation can be either a single object or a list of acceptable
+    variants:
+
+    ``expected.bash_command: {contains: [...], not_contains: [...]}``
+
+    A run passes if any observed bash command satisfies any variant. This is
+    intentionally coarser than exact command matching because command flags,
+    quoting, and JSON tooling are legitimate implementation details.
     """
-    if not isinstance(value, str):
+    variants = _bash_command_expectations(expected)
+    if variants is None:
+        return _failure("Expected bash_command must be an object or list of objects")
+    if not variants:
+        return _success()
+
+    malformed: list[dict[str, Any]] = []
+    normalized_variants: list[dict[str, list[str]]] = []
+    for index, variant in enumerate(variants):
+        contains = _string_list(variant.get("contains"))
+        not_contains = _string_list(variant.get("not_contains"))
+        if contains is None or not_contains is None:
+            malformed.append({"index": index, "variant": variant})
+            continue
+        normalized_variants.append({"contains": contains, "not_contains": not_contains})
+    if malformed:
+        return _failure(
+            "Expected bash_command contains/not_contains must be lists of strings",
+            metadata={"malformed": malformed},
+        )
+
+    commands = _bash_commands(output)
+    if not commands:
+        return _failure("Expected a bash tool call, observed none")
+
+    for command in commands:
+        for variant in normalized_variants:
+            if all(text in command for text in variant["contains"]) and not any(
+                text in command for text in variant["not_contains"]
+            ):
+                return _success()
+    return _failure(
+        "No bash command matched expected substrings",
+        metadata={"observed_commands": commands, "expected_variants": normalized_variants},
+    )
+
+
+@create_evaluator(name="bash_command_substrings_match", kind="code")
+def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
+    """Phoenix evaluator entrypoint for coarse bash command-shape matching."""
+    return evaluate_bash_command_substrings(output, expected)
+
+
+# Matcher vocabulary recognized inside ``expected.tool_call_args[tool][key]``.
+# When the expected value is a dict whose top-level keys are ALL in this set,
+# it's treated as a matcher object instead of a literal; otherwise the dict is
+# compared by equality (so a tool that legitimately takes a dict-shaped arg
+# whose keys overlap a matcher name still works, as long as some non-matcher
+# key is present).
+#
+# Matchers (any may combine in one matcher dict; all must pass):
+# - ``equals: <value>`` -- explicit equality, same as a bare literal.
+# - ``contains_all: [<substr>, ...]`` -- observed must be a string containing
+#   every substring. The primary tool for asserting clause membership in
+#   commutative DSL expressions ("filter mentions ``start_time`` AND
+#   ``2026-04-03``") without pinning clause order.
+# - ``contains_any: [<substr>, ...]`` -- observed must be a string containing
+#   at least one substring. Useful when several phrasings are acceptable.
+# - ``not_contains: [<substr>, ...]`` -- observed must be a string containing
+#   none of the substrings.
+# - ``any: true`` -- the key must be present in observed args; value is free.
+# - ``non_empty: true`` -- the key must be present and contain non-whitespace text.
+# - ``absent: true`` -- the key must not be present in observed args.
+# - ``empty_or_absent: true`` -- the key is omitted OR present as an empty
+#   collection (``[]``, ``""``, ``{}``). Use for args where omitting and
+#   passing an empty value are semantically equivalent, e.g. ``tags`` (the save
+#   tool treats an omitted ``tags`` and ``tags: []`` identically), so the agent
+#   may legitimately produce either form.
+# - ``has_keys: [<key>, ...]`` -- observed must be a dict containing every
+#   listed key (presence only -- values are not checked, and nesting below the
+#   top level is not inspected). For object-valued args where the agent fills
+#   in free-form values but the set of keys is the contract, e.g. an experiment
+#   ``metadata`` object that must carry ``observations`` while preserving the
+#   scaffold keys an earlier write left behind.
+_MATCHER_KEYS: frozenset[str] = frozenset(
+    {
+        "equals",
+        "contains_all",
+        "contains_any",
+        "not_contains",
+        "any",
+        "non_empty",
+        "absent",
+        "empty_or_absent",
+        "has_keys",
+    }
+)
+# Sentinel meaning "the key was not present at all in the observed call args."
+# Distinct from a literal ``None`` value so the ``any`` matcher (presence-only
+# check) can tell absence from a key whose value happens to be ``None``.
+_MISSING: Any = object()
+
+
+def _is_matcher_dict(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and bool(value)
+        and all(isinstance(k, str) and k in _MATCHER_KEYS for k in value)
+    )
+
+
+def _string_list_or_none(value: Any) -> list[str] | None:
+    """Return ``value`` if it's a list of strings, else ``None`` for schema errors."""
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
         return value
-
-    # Rule 1: SQL IN() membership form.
-    m = _IN_EXPR_RE.match(value)
-    if m:
-        field, raw_args = m.group(1), m.group(2)
-        quoted_values = re.findall(r"'([^']*)'", raw_args)
-        if len(quoted_values) >= 2:
-            clauses = frozenset(f"{field} == '{v}'" for v in quoted_values)
-            return ("OR", clauses)
-
-    has_and = " and " in value
-    has_or = " or " in value
-    if has_and and has_or:
-        return value
-    if has_and:
-        clauses = frozenset(clause.strip() for clause in value.split(" and ") if clause.strip())
-        return ("AND", clauses)
-    if has_or:
-        clauses = frozenset(clause.strip() for clause in value.split(" or ") if clause.strip())
-        return ("OR", clauses)
-    return value
+    return None
 
 
-# Tools that have their own specialized arg-match evaluator with
-# tool-specific value semantics. The generic ``tool_call_args_match``
-# evaluator skips these so we don't double-score (and so a tool whose
-# args have semantic equivalences -- like the Phoenix span-filter DSL
-# -- isn't held to a stricter exact-string standard by the generic eval).
-_TOOLS_WITH_SPECIALIZED_ARG_EVALUATORS: frozenset[str] = frozenset({"set_spans_filter"})
+def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
+    """Validate a matcher dict; return an error string if malformed."""
+    if "any" in matcher and matcher["any"] is not True:
+        return "matcher 'any' must be true"
+    if "non_empty" in matcher and matcher["non_empty"] is not True:
+        return "matcher 'non_empty' must be true"
+    if "absent" in matcher:
+        if matcher["absent"] is not True:
+            return "matcher 'absent' must be true"
+        if len(matcher) > 1:
+            return "matcher 'absent' cannot be combined with other matchers"
+    if "empty_or_absent" in matcher:
+        if matcher["empty_or_absent"] is not True:
+            return "matcher 'empty_or_absent' must be true"
+        if len(matcher) > 1:
+            return "matcher 'empty_or_absent' cannot be combined with other matchers"
+    for key in ("contains_all", "contains_any", "not_contains", "has_keys"):
+        if key in matcher and _string_list_or_none(matcher[key]) is None:
+            return f"matcher {key!r} must be a list of strings"
+    return None
 
 
-def _values_match_exact(observed: Any, expected_value: Any) -> bool:
-    return bool(observed == expected_value)
+def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
+    """Apply a matcher dict to one observed value. Caller has already
+    validated the matcher with :func:`_matcher_value_error`.
+
+    ``observed`` is the literal value pulled from the call's args, or the
+    ``_MISSING`` sentinel if the key wasn't present at all.
+    """
+    if "any" in matcher:
+        if observed is _MISSING:
+            return False
+        # All other matcher keys still apply if combined with ``any``.
+    if "absent" in matcher:
+        return observed is _MISSING
+    if "empty_or_absent" in matcher:
+        return observed is _MISSING or (
+            isinstance(observed, (list, str, dict)) and len(observed) == 0
+        )
+    if "non_empty" in matcher:
+        if not isinstance(observed, str) or not observed.strip():
+            return False
+    if "equals" in matcher and observed != matcher["equals"]:
+        return False
+    if "has_keys" in matcher:
+        if not isinstance(observed, dict):
+            return False
+        if not all(wanted in observed for wanted in matcher["has_keys"]):
+            return False
+    if "contains_all" in matcher:
+        if not isinstance(observed, str):
+            return False
+        if not all(needle in observed for needle in matcher["contains_all"]):
+            return False
+    if "contains_any" in matcher:
+        if not isinstance(observed, str):
+            return False
+        if not any(needle in observed for needle in matcher["contains_any"]):
+            return False
+    if "not_contains" in matcher:
+        if not isinstance(observed, str):
+            return False
+        if any(needle in observed for needle in matcher["not_contains"]):
+            return False
+    return True
 
 
-def _values_match_with_dsl_normalization(observed: Any, expected_value: Any) -> bool:
-    return bool(_normalize_arg_value(observed) == _normalize_arg_value(expected_value))
+def _pair_passes(observed_args: dict[str, Any], key: str, expected_value: Any) -> bool:
+    """Check one ``(key, expected_value)`` pair against a call's observed args.
+
+    Literal values (strings, numbers, lists, non-matcher dicts) use equality;
+    matcher dicts use :func:`_matcher_passes` and can express
+    presence-only / substring / negation semantics on string args.
+    """
+    if _is_matcher_dict(expected_value):
+        observed = observed_args[key] if key in observed_args else _MISSING
+        return _matcher_passes(observed, expected_value)
+    return bool(observed_args.get(key) == expected_value)
+
+
+def _matcher_validation_failures(variants: list[dict[str, Any]]) -> dict[str, str]:
+    """Return ``{key: error_message}`` for any malformed matcher in ``variants``.
+
+    Empty dict means all matcher dicts in the expected variants are well-formed.
+    """
+    failures: dict[str, str] = {}
+    for variant in variants:
+        for key, expected_value in variant.items():
+            if _is_matcher_dict(expected_value):
+                reason = _matcher_value_error(expected_value)
+                if reason:
+                    failures[key] = reason
+    return failures
 
 
 def _expected_arg_variants(expected_for_tool: Any) -> list[dict[str, Any]]:
@@ -251,29 +456,22 @@ def _invalid_arg_expectation_reason(expected_for_tool: Any) -> str | None:
     return "expected tool arguments must be an object or a non-empty list of objects"
 
 
-def _evaluate_args_for_tools(
-    output: Any,
-    expected: Any,
-    *,
-    tool_predicate: Any,
-    value_comparator: Any,
-) -> dict[str, Any]:
-    """Shared subset/any-of arg matcher used by both arg evaluators.
+def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
+    """Pure-Python implementation of :func:`tool_call_args_match`.
 
-    ``tool_predicate`` filters which tool names from ``expected.tool_call_args``
-    this evaluator is responsible for. ``value_comparator`` decides whether
-    an observed value matches an expected value for a single ``(key, value)``
-    pair -- exact equality for the generic evaluator, DSL-normalized
-    equality for the ``set_spans_filter``-specific evaluator.
+    Iterates each ``(tool_name, expected_args)`` pair in
+    ``expected.tool_call_args`` and checks at least one observed call to that
+    tool satisfies one of the acceptable arg variants. Per-pair semantics are
+    delegated to :func:`_pair_passes` so literal values use equality and
+    matcher dicts (``contains_all``, ``any``, etc.) use matcher semantics.
 
     Matching is permissive in three ways:
 
     1. **Subset match per call.** Extra observed arg keys are ignored.
-    2. **Any-of match across multiple calls.** If a tool fires multiple
-       times in one turn, ANY call may satisfy the expectation.
+    2. **Any-of match across multiple calls.** If a tool fires multiple times
+       in one turn, ANY call may satisfy the expectation.
     3. **Variant match across expected shapes.** If the dataset declares a
-       list of acceptable arg dicts for a tool, ANY variant passing is
-       enough. See :func:`_expected_arg_variants`.
+       list of acceptable arg dicts for a tool, ANY variant passing is enough.
     """
     expected_args_by_tool = _expected_tool_call_args(expected)
     observed_calls = tool_calls_from_output(output)
@@ -281,8 +479,6 @@ def _evaluate_args_for_tools(
 
     for tool_name, expected_for_tool in expected_args_by_tool.items():
         if not isinstance(tool_name, str):
-            continue
-        if not tool_predicate(tool_name):
             continue
         invalid_reason = _invalid_arg_expectation_reason(expected_for_tool)
         if invalid_reason:
@@ -292,15 +488,20 @@ def _evaluate_args_for_tools(
             }
             continue
         variants = _expected_arg_variants(expected_for_tool)
+        matcher_errors = _matcher_validation_failures(variants)
+        if matcher_errors:
+            failures[tool_name] = {
+                "reason": "expected arg matcher is malformed",
+                "matcher_errors": matcher_errors,
+            }
+            continue
         matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
         if not matching_calls:
             failures[tool_name] = {"reason": "tool was not called"}
             continue
         # Pass if ANY (variant, call) pair satisfies the subset check.
         if any(
-            all(
-                value_comparator(_tool_args(call).get(key), value) for key, value in variant.items()
-            )
+            all(_pair_passes(_tool_args(call), key, value) for key, value in variant.items())
             for variant in variants
             for call in matching_calls
         ):
@@ -315,39 +516,80 @@ def _evaluate_args_for_tools(
     return _success()
 
 
-def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
-    """Pure-Python implementation of :func:`tool_call_args_match`.
+def evaluate_forbidden_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
+    """Fail if any observed tool call matches a forbidden tool+args combination.
 
-    Scoped to tools that do NOT have a specialized arg-match evaluator
-    (see ``_TOOLS_WITH_SPECIALIZED_ARG_EVALUATORS``). Uses exact value
-    comparison.
+    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}``.
+    For each listed tool, fails if ANY observed call to that tool has ALL the
+    specified key-value pairs in its args (subset match, same as
+    :func:`evaluate_tool_call_args`). Passes vacuously when the section is
+    absent or empty.
+
+    This is the inverse of :func:`evaluate_tool_call_args`: instead of
+    asserting a call DID happen with certain args, it asserts a call did NOT.
+    The primary use case is checking that a specific skill was not triggered --
+    e.g. ``forbidden_tool_call_args: {load_skill: {skill_name: debug-trace}}``
+    -- without forbidding *all* ``load_skill`` calls (the agent may legitimately
+    load a different skill in the same turn).
     """
-    return _evaluate_args_for_tools(
-        output,
-        expected,
-        tool_predicate=lambda name: name not in _TOOLS_WITH_SPECIALIZED_ARG_EVALUATORS,
-        value_comparator=_values_match_exact,
-    )
+    forbidden_args_by_tool = _as_dict(_as_dict(expected).get("forbidden_tool_call_args", {}))
+    if not forbidden_args_by_tool:
+        return _success()
+
+    observed_calls = tool_calls_from_output(output)
+    violations: dict[str, Any] = {}
+
+    for tool_name, forbidden_for_tool in forbidden_args_by_tool.items():
+        if not isinstance(tool_name, str):
+            continue
+        if not isinstance(forbidden_for_tool, dict):
+            violations[tool_name] = {
+                "reason": "forbidden_tool_call_args entry must be an object",
+                "value": forbidden_for_tool,
+            }
+            continue
+        matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
+        for call in matching_calls:
+            call_args = _tool_args(call)
+            if all(
+                _pair_passes(call_args, key, value) for key, value in forbidden_for_tool.items()
+            ):
+                violations[tool_name] = {
+                    "forbidden_args": dict(forbidden_for_tool),
+                    "observed_args": dict(call_args),
+                }
+                break
+
+    if violations:
+        return _failure(
+            "Forbidden tool+args combination was called",
+            metadata={"violations": violations},
+        )
+    return _success()
 
 
-def evaluate_set_spans_filter_args(output: Any, expected: Any) -> dict[str, Any]:
-    """Pure-Python implementation of :func:`set_spans_filter_args_match`.
+@create_evaluator(name="forbidden_tool_call_args_match", kind="code")
+def forbidden_tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
+    """Evaluator entrypoint: assert a specific tool+args combination was NOT called.
 
-    Scoped to the ``set_spans_filter`` tool only. Applies Phoenix span-filter
-    DSL normalization to string values so semantically-equivalent
-    ``condition`` rewrites (clause reordering under ``and`` or ``or``) match.
+    Reads ``expected.forbidden_tool_call_args[tool_name] -> {key: value}``.
+    Fails if any observed call to the named tool matches ALL specified arg
+    pairs. Passes vacuously when the section is absent.
+
+    Use this instead of (or alongside) ``expected.tools.forbidden`` when the
+    tool may legitimately be called with *different* args in the same turn --
+    the canonical case being ``load_skill``, which can be called for multiple
+    skills and where only one specific ``skill_name`` value should be
+    forbidden.
+
+    See :func:`evaluate_forbidden_tool_call_args` for full semantics.
     """
-    return _evaluate_args_for_tools(
-        output,
-        expected,
-        tool_predicate=lambda name: name == "set_spans_filter",
-        value_comparator=_values_match_with_dsl_normalization,
-    )
+    return evaluate_forbidden_tool_call_args(output, expected)
 
 
 @create_evaluator(name="tool_call_args_match", kind="code")
 def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
-    """Generic tool-call arg matcher with exact value comparison.
+    """Generic tool-call arg matcher used by every PXI dataset.
 
     The expected shape is
     ``expected.tool_call_args[tool_name] -> {key: value}`` (a single
@@ -364,29 +606,21 @@ def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     - **Variant match across expected shapes.** When the dataset declares a
       list of variants, ANY variant matching ANY observed call passes.
 
-    Values are compared with ``==``. This evaluator skips tools that have
-    their own specialized arg-match evaluator (e.g. ``set_spans_filter``)
-    so that tool-specific semantic equivalence isn't undercut by a stricter
-    exact-string check.
+    Per-value semantics:
+
+    - Literal values compare with ``==``.
+    - A dict whose top-level keys are all in the matcher vocabulary
+      (``equals``, ``contains_all``, ``contains_any``, ``not_contains``,
+      ``any``, ``non_empty``, ``absent``, ``empty_or_absent``, ``has_keys``) is
+      treated as a matcher object. Matchers cover the cases where exact equality
+      is too strict -- commutative DSL clauses ("filter must mention both
+      ``start_time`` and ``2026-04-03`` in any order"), free-form values
+      (``{any: true}`` asserts presence only), required string content
+      (``{non_empty: true}`` rejects blank text), absent values
+      (``{absent: true}`` asserts the key was omitted), omitted-or-empty values
+      (``{empty_or_absent: true}`` accepts a missing key or an empty
+      collection), negative constraints (``not_contains``), and required keys on
+      an object-valued arg (``{has_keys: [...]}`` asserts a dict carries every
+      listed key without pinning its values).
     """
     return evaluate_tool_call_args(output, expected)
-
-
-@create_evaluator(name="set_spans_filter_args_match", kind="code")
-def set_spans_filter_args_match(output: Any, expected: Any) -> dict[str, Any]:
-    """Arg matcher specialized for the ``set_spans_filter`` tool.
-
-    The Phoenix span-filter DSL has commutative boolean operators: clauses
-    joined by ``and`` (or ``or``) are semantically equivalent regardless of
-    order, and a model run can plausibly emit either order. This evaluator
-    applies :func:`_normalize_arg_value` to both expected and observed
-    values so clause reordering under a pure-``and`` or pure-``or``
-    expression does not produce a spurious failure. Mixed ``and``/``or``
-    expressions fall back to exact-string comparison because precedence
-    matters and we don't parse the DSL here.
-
-    Subset / any-of / variant semantics are identical to
-    ``tool_call_args_match`` -- see that docstring for details. Scoped to
-    the ``set_spans_filter`` tool only.
-    """
-    return evaluate_set_spans_filter_args(output, expected)

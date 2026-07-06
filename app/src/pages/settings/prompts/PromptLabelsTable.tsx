@@ -8,8 +8,10 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, Token } from "@phoenix/components";
-import { TableEmpty } from "@phoenix/components/table";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
+import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { DeletePromptLabelButton } from "@phoenix/pages/settings/prompts/DeletePromptLabelButton";
 
 import type { PromptLabelsTableFragment$key } from "./__generated__/PromptLabelsTableFragment.graphql";
@@ -32,6 +34,7 @@ export function PromptLabelsTable({
               name
               description
               color
+              usageCount
             }
           }
         }
@@ -41,7 +44,7 @@ export function PromptLabelsTable({
   );
   const tableData = useMemo(
     () => data.promptLabels.edges.map((edge) => edge.node),
-    [data]
+    [data.promptLabels.edges]
   );
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
@@ -61,6 +64,11 @@ export function PromptLabelsTable({
       {
         header: "description",
         accessorKey: "description",
+      },
+      {
+        header: "usage count",
+        accessorKey: "usageCount",
+        cell: IntCell,
       },
       {
         header: "",
@@ -97,7 +105,12 @@ export function PromptLabelsTable({
       })}
     </tbody>
   ) : (
-    <TableEmpty />
+    <TableEmptyWrap>
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="label" />}
+        description="No prompt labels"
+      />
+    </TableEmptyWrap>
   );
   return (
     <table css={tableCSS}>

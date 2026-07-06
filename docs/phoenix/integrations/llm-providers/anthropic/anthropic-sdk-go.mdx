@@ -1,0 +1,133 @@
+---
+title: "Anthropic SDK Go"
+description: Instrument and observe Anthropic calls in Go
+---
+
+This module provides instrumentation for the [Anthropic Go SDK (`anthropics/anthropic-sdk-go`)](https://github.com/anthropics/anthropic-sdk-go) using the [`openinference-instrumentation-anthropic`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go) Go package, exporting OpenInference LLM spans to Phoenix. Requires `anthropic-sdk-go` v1.43+ (which introduced `option.Middleware`).
+
+## Install
+
+```bash
+go get github.com/anthropics/anthropic-sdk-go
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk
+```
+
+## Setup
+
+Configure an OTLP/HTTP exporter pointed at Phoenix. Create `tracing.go`:
+
+```go expandable
+package main
+
+import (
+	"context"
+	"os"
+	"strings"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+)
+
+func phoenixTraceEndpoint(endpoint string) string {
+	endpoint = strings.TrimRight(endpoint, "/")
+	if strings.HasSuffix(endpoint, "/v1/traces") {
+		return endpoint
+	}
+	return endpoint + "/v1/traces"
+}
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	// Default: self-hosted Phoenix on localhost.
+	// For Phoenix Cloud, set PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint("localhost:6006"),
+		otlptracehttp.WithURLPath("/v1/traces"),
+		otlptracehttp.WithInsecure(),
+	}
+	if endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"); endpoint != "" {
+		opts = []otlptracehttp.Option{
+			otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
+			otlptracehttp.WithHeaders(map[string]string{
+				"Authorization": "Bearer " + os.Getenv("PHOENIX_API_KEY"),
+			}),
+		}
+	}
+
+	exporter, err := otlptracehttp.New(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	res, _ := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceName("anthropic-go-app"),
+	))
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+	return tp, nil
+}
+```
+
+## Run Anthropic
+
+Pass `anthropicotel.Middleware` to the client via `option.WithMiddleware`. Session and user identifiers are stored on the Go context and applied to every LLM span descended from it.
+
+```go expandable
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
+	"go.opentelemetry.io/otel"
+
+	"github.com/Arize-ai/openinference/go/openinference-instrumentation"
+	anthropicotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go"
+)
+
+func main() {
+	ctx := context.Background()
+	tp, _ := initTracer(ctx)
+	defer tp.Shutdown(ctx)
+
+	client := anthropic.NewClient(
+		option.WithMiddleware(anthropicotel.Middleware(otel.Tracer("anthropic-go-app"))),
+	)
+
+	ctx = instrumentation.WithSession(ctx, "session-abc")
+	ctx = instrumentation.WithUser(ctx, "user-xyz")
+
+	resp, _ := client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.ModelClaudeHaiku4_5,
+		MaxTokens: 1024,
+		Messages: []anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock("Write a haiku about recursion.")),
+		},
+	})
+	for _, block := range resp.Content {
+		fmt.Println(block)
+	}
+}
+```
+
+To redact sensitive data, set `OPENINFERENCE_HIDE_INPUTS=true` or `OPENINFERENCE_HIDE_OUTPUTS=true`. See the [openinference Go README](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go) for the full env-var matrix and the in-code `WithTraceConfig` override.
+
+## Observe
+
+After setting up instrumentation and running your Anthropic application, traces will appear in the Phoenix UI for visualization and analysis.
+
+## Resources
+
+* [OpenInference Go package for Anthropic](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go)
+
+* [Anthropic Go SDK](https://github.com/anthropics/anthropic-sdk-go)

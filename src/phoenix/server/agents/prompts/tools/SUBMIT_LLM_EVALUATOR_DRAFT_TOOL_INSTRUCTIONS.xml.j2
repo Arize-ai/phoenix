@@ -1,0 +1,12 @@
+<tool name="submit_llm_evaluator_draft">
+  <description>Persist the open LLM-evaluator draft through the form's validated save path — the same create/patch mutation the Create or Update button runs. This is the terminal save; draft edits made with `edit_llm_evaluator_draft` never persist on their own.</description>
+  <when_to_use>
+    - When auto-accept is on (edit_permission is bypass) and the draft is populated and valid: call this to commit the evaluator instead of waiting for, or asking for, a manual button click.
+    - After you have read the draft (and, when a model provider is available, previewed it with `test_llm_evaluator_draft`) and are confident it is complete.
+  </when_to_use>
+  <guidelines>
+    - In bypass mode this commits immediately and returns the persisted evaluator's id and name (acceptedBy "auto"). Report the saved evaluator only from this success result.
+    - In manual approval mode this persists nothing and returns an awaiting-user payload directing the user to click Create or Update. Do not claim the evaluator was saved.
+    - A validation, missing-prerequisite, or server error is returned as an actionable error. Treat it as a failed save — never report success — fix the draft and call this again.
+  </guidelines>
+</tool>

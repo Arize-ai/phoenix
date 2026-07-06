@@ -1,0 +1,151 @@
+---
+title: "Gemini Go SDK"
+description: Instrument Gemini calls in Go using OpenTelemetry GenAI conventions
+---
+
+The [Google GenAI Go SDK (`google.golang.org/genai`)](https://github.com/googleapis/go-genai) does not emit OpenTelemetry spans natively, and there is no OpenInference Go instrumentor for it today. The pattern below wraps each Gemini call in a manual span and sets [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) attributes. Phoenix ingests these spans directly — see [Translating Semantic Conventions](/docs/phoenix/tracing/concepts-tracing/translating-conventions) for context.
+
+## Install
+
+```bash
+go get google.golang.org/genai
+go get go.opentelemetry.io/otel
+go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+go get go.opentelemetry.io/otel/sdk
+go get go.opentelemetry.io/otel/semconv/v1.32.0
+```
+
+## Setup
+
+Configure an OTLP/HTTP exporter pointed at Phoenix. Create `tracing.go`:
+
+```go expandable
+package main
+
+import (
+	"context"
+	"os"
+	"strings"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.32.0"
+)
+
+func phoenixTraceEndpoint(endpoint string) string {
+	endpoint = strings.TrimRight(endpoint, "/")
+	if strings.HasSuffix(endpoint, "/v1/traces") {
+		return endpoint
+	}
+	return endpoint + "/v1/traces"
+}
+
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	// Default: self-hosted Phoenix on localhost.
+	// For Phoenix Cloud, set PHOENIX_COLLECTOR_ENDPOINT and PHOENIX_API_KEY.
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint("localhost:6006"),
+		otlptracehttp.WithURLPath("/v1/traces"),
+		otlptracehttp.WithInsecure(),
+	}
+	if endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"); endpoint != "" {
+		opts = []otlptracehttp.Option{
+			otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
+			otlptracehttp.WithHeaders(map[string]string{
+				"Authorization": "Bearer " + os.Getenv("PHOENIX_API_KEY"),
+			}),
+		}
+	}
+
+	exporter, err := otlptracehttp.New(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	res, _ := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceName("gemini-go-app"),
+	))
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+	return tp, nil
+}
+```
+
+## Run Gemini
+
+Wrap each Gemini call in a span and set `gen_ai.*` attributes using OpenTelemetry semantic-convention helpers where available.
+
+```go expandable
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.32.0"
+	"go.opentelemetry.io/otel/trace"
+
+	"google.golang.org/genai"
+)
+
+const modelName = "gemini-2.0-flash"
+
+func main() {
+	ctx := context.Background()
+	tp, _ := initTracer(ctx)
+	defer tp.Shutdown(ctx)
+
+	client, _ := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  os.Getenv("GEMINI_API_KEY"),
+		Backend: genai.BackendGeminiAPI,
+	})
+	tracer := otel.Tracer("gemini-go-app")
+
+	prompt := "Write a haiku about recursion."
+
+	ctx, span := tracer.Start(ctx, "gemini.generate_content",
+		trace.WithAttributes(
+			attribute.String("gen_ai.system", "gemini"),
+			attribute.String("gen_ai.operation.name", "chat"),
+			semconv.GenAIRequestModel(modelName),
+		),
+	)
+	defer span.End()
+
+	resp, err := client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), nil)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return
+	}
+
+	span.SetAttributes(semconv.GenAIResponseModel(modelName))
+	if usage := resp.UsageMetadata; usage != nil {
+		span.SetAttributes(
+			semconv.GenAIUsageInputTokens(int(usage.PromptTokenCount)),
+			semconv.GenAIUsageOutputTokens(int(usage.CandidatesTokenCount)),
+		)
+	}
+	fmt.Println(resp.Text())
+}
+```
+
+## Observe
+
+After running your application, Gemini calls will appear in the Phoenix UI for visualization and analysis. Spans are queryable by `gen_ai.*` attributes; Phoenix UI features that key off OpenInference attributes are reduced, since this flow emits GenAI conventions rather than OpenInference. For Go SDKs with native OpenInference instrumentation, see [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go).
+
+## Resources
+
+* [Google GenAI Go SDK](https://github.com/googleapis/go-genai)
+
+* [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+
+* [Translating Semantic Conventions](/docs/phoenix/tracing/concepts-tracing/translating-conventions)

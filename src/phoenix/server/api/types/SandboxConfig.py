@@ -86,7 +86,6 @@ class InternetAccessMode(Enum):
 
     NONE = "none"
     BOOLEAN = "boolean"
-    ALLOWLIST = "allowlist"
 
 
 @strawberry.enum

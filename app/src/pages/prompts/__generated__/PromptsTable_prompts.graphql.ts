@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e93685810b01465b956606350eb59b2>>
+ * @generated SignedSource<<d45c3777d024568d40476a068d77db8c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,6 +9,7 @@
 // @ts-nocheck
 
 import { ReaderFragment } from 'relay-runtime';
+export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 import { FragmentRefs } from "relay-runtime";
 export type PromptsTable_prompts$data = {
   readonly prompts: {
@@ -24,7 +25,16 @@ export type PromptsTable_prompts$data = {
         readonly name: string;
         readonly version: {
           readonly createdAt: string;
+          readonly id: string;
+          readonly modelName: string;
+          readonly modelProvider: ModelProvider;
         };
+        readonly versionCount: number;
+        readonly versionTags: ReadonlyArray<{
+          readonly id: string;
+          readonly name: string;
+          readonly promptVersionId: string;
+        }>;
       };
     }>;
   };
@@ -155,11 +165,53 @@ return {
                   "name": "version",
                   "plural": false,
                   "selections": [
+                    (v1/*: any*/),
                     {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
                       "name": "createdAt",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "modelName",
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "modelProvider",
+                      "storageKey": null
+                    }
+                  ],
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "versionCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptVersionTag",
+                  "kind": "LinkedField",
+                  "name": "versionTags",
+                  "plural": true,
+                  "selections": [
+                    (v1/*: any*/),
+                    (v2/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "promptVersionId",
                       "storageKey": null
                     }
                   ],
@@ -250,6 +302,6 @@ return {
 };
 })();
 
-(node as any).hash = "33daede08f0acc18f45f19692993314f";
+(node as any).hash = "b5fb70bb7de99fce33aaeac3b119d898";
 
 export default node;

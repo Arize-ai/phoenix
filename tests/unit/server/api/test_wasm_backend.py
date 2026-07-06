@@ -504,14 +504,14 @@ class TestWASMAdapterProbeBinary:
             return_value=fake_path,
         ):
             with patch(
-                "urllib.request.urlretrieve", side_effect=AssertionError("network used")
-            ) as mock_retrieve:
+                "urllib.request.urlopen", side_effect=AssertionError("network used")
+            ) as mock_urlopen:
                 probe = WASMAdapter.probe_binary()
         assert isinstance(probe, WASMBinaryProbe)
         assert probe.available is True
         assert probe.detail is None
         assert probe.path == fake_path
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
     def test_probe_returns_env_var_set_but_missing_detail(
         self, monkeypatch: pytest.MonkeyPatch
@@ -523,15 +523,15 @@ class TestWASMAdapterProbeBinary:
             return_value=None,
         ):
             with patch(
-                "urllib.request.urlretrieve", side_effect=AssertionError("network used")
-            ) as mock_retrieve:
+                "urllib.request.urlopen", side_effect=AssertionError("network used")
+            ) as mock_urlopen:
                 probe = WASMAdapter.probe_binary()
         assert probe.available is False
         assert probe.path is None
         assert probe.detail == (
             f"PHOENIX_WASM_BINARY_PATH={env_path} is set but the file does not exist."
         )
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
     def test_probe_returns_unset_no_cache_detail(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
@@ -540,13 +540,13 @@ class TestWASMAdapterProbeBinary:
             return_value=None,
         ):
             with patch(
-                "urllib.request.urlretrieve", side_effect=AssertionError("network used")
-            ) as mock_retrieve:
+                "urllib.request.urlopen", side_effect=AssertionError("network used")
+            ) as mock_urlopen:
                 probe = WASMAdapter.probe_binary()
         assert probe.available is False
         assert probe.path is None
         assert probe.detail == "WASM binary not present locally; will download on first use."
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
     def test_probe_returns_no_local_storage_detail(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
@@ -559,14 +559,14 @@ class TestWASMAdapterProbeBinary:
                 return_value=True,
             ):
                 with patch(
-                    "urllib.request.urlretrieve",
+                    "urllib.request.urlopen",
                     side_effect=AssertionError("network used"),
-                ) as mock_retrieve:
+                ) as mock_urlopen:
                     probe = WASMAdapter.probe_binary()
         assert probe.available is False
         assert probe.path is None
         assert probe.detail == "No-local-storage mode: set PHOENIX_WORKING_DIR to enable WASM."
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
     def test_probe_does_not_invoke_real_resolver_network_path(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -576,11 +576,11 @@ class TestWASMAdapterProbeBinary:
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         empty_cache = tmp_path / "cache"
         with patch(
-            "urllib.request.urlretrieve", side_effect=AssertionError("network used")
-        ) as mock_retrieve:
+            "urllib.request.urlopen", side_effect=AssertionError("network used")
+        ) as mock_urlopen:
             resolved = _download.resolve_wasm_binary_if_present(wasm_dir=empty_cache)
         assert resolved is None, "resolver must report no binary when env unset and cache empty"
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
         assert not empty_cache.exists(), "probe must not create the cache directory"
 
 
@@ -703,13 +703,13 @@ class TestSandboxBackendsResolverWASMStatus:
                 return_value=None,
             ):
                 with patch(
-                    "urllib.request.urlretrieve",
+                    "urllib.request.urlopen",
                     side_effect=AssertionError("network used"),
-                ) as mock_retrieve:
+                ) as mock_urlopen:
                     await get_sandbox_backend_info(
                         secrets=_empty_secrets_context(),
                     )
-        mock_retrieve.assert_not_called()
+        mock_urlopen.assert_not_called()
 
 
 class TestRunWasmMemoryLimit:

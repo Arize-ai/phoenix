@@ -1,0 +1,33 @@
+<tool name="write_prompt_tools">
+  <description>Create, update, and/or delete function tools on a playground prompt instance in a single atomic batch. The batch is proposed as an accept/reject diff the user reviews before it is applied (the same approval flow as `edit_prompt_instance`); if the user has auto-approve on, it is applied immediately. Either way the tool output reports whether the change was accepted, auto-approved, or rejected — do not assume it landed until you see an `accepted` status.</description>
+  <when_to_use>
+    - The user asks to add, edit, refine, or remove one or more function/tools the model can call from a playground prompt.
+    - You've inferred from the prompt and the task that specific function tools would help and want to propose them concretely. Batch all the changes you intend to make — creates, updates, and deletes — into one call.
+  </when_to_use>
+  <preflight>
+    - Always call `read_prompt_tools` first to obtain the latest `revision` and existing tool `id`s.
+    - Pass that `revision` back as `expectedRevision`. If the tool list changed since the read, the whole batch is rejected; re-read and retry.
+  </preflight>
+  <semantics>
+    - `tools` is an array. Each entry is one function tool to create or update; they are applied atomically in the order given against the single `expectedRevision`.
+    - Omit an entry's `id` (or pass null) to create a new function tool. The runtime assigns the id.
+    - Pass an existing `id` from `read_prompt_tools` in an entry to update that tool. Only fields present in the entry are changed; absent fields are left untouched (patch semantics). `name` is always required even when patching.
+    - `deleteToolIds` is a list of tool ids to remove. Unlike writes, deletes MAY target raw vendor tools as well as function tools — removing a tool needs no knowledge of its shape, so this is the one way to drop a vendor `web_search`/`computer_use` tool via PXI. Provide at least one of `tools` or `deleteToolIds`.
+    - The batch is all-or-nothing. It is rejected (and nothing is applied) if any entry references a missing id, a `tools` entry targets a raw tool, or the same id appears in both `tools` and `deleteToolIds`. The error explains which; fix it and resend with a fresh `revision`.
+    - Deleting the tool that is the prompt's forced tool choice (tool_choice = specific function) is allowed: the tool choice is automatically reset to auto (zero-or-more) as part of the same batch, and the result reports `resetToolChoiceFrom` with that tool's name. Call this out to the user, since it changes how the model selects tools at run time.
+    - Renaming the tool that is the prompt's forced tool choice is allowed: the forced tool choice automatically follows the rename so it keeps pointing at the same tool, and the result reports `renamedToolChoiceTo` with the new name. Mention this to the user as well.
+    - An entry's `id` and every `deleteToolIds` id must come from the most recent `read_prompt_tools` snapshot — you cannot reference an id created earlier in the same batch (ids are assigned by the runtime).
+    - `parameters` is a JSON Schema object. The typical shape is `{"type":"object","properties":{...},"required":[...]}`. Keep parameter names lowercase snake_case to match common provider conventions unless the user specifies otherwise.
+    - Only emit `strict: true` if the user asks for strict mode. Strict mode rejects schemas that are not fully constrained on some providers; the safe default is to leave it unset.
+  </semantics>
+  <invariants>
+    - This tool writes function tools only — it cannot create or edit raw vendor tools (`web_search`, `computer_use`, etc., surfaced with `kind: "raw"` by `read_prompt_tools`); point the user at the playground's tool editor to author those. It CAN delete them via `deleteToolIds`.
+    - Prefer one batch call over several sequential calls. Each successful write or delete changes the `revision`, so issuing a second call without re-reading will be rejected; batching creates, updates, and deletes together avoids that round-trip entirely.
+  </invariants>
+  <guidelines>
+    - Before adding a tool, check whether one with the same `name` already exists in the read snapshot. If yes, update it by `id` rather than creating a duplicate.
+    - The proposed batch is shown to the user as a before/after diff they accept or reject. If the output comes back `rejected`, do not retry the same batch — ask the user what they'd like changed.
+    - After the change is accepted, briefly summarize what changed in plain English (which tools were created, updated, or deleted) so the user knows what to look for in the tool editor.
+    - If the user describes tools but the design isn't fully specified (e.g., parameter types, required fields), propose a concrete schema; do not stop to ask unless something is genuinely ambiguous.
+  </guidelines>
+</tool>

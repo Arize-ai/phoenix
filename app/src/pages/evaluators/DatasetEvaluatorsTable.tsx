@@ -22,6 +22,11 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import {
+  CompactEmptyState,
+  EmptyState,
+  EmptyStateGraphic,
+} from "@phoenix/components/core/empty";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
@@ -105,7 +110,7 @@ const evaluatorColumnCSS = css`
   flex: 1;
 `;
 
-const EmptyState = ({
+const DatasetEvaluatorsEmpty = ({
   builtInEvaluators,
   onSelectLLMEvaluatorTemplate,
   onSelectCodeEvaluator,
@@ -124,18 +129,11 @@ const EmptyState = ({
   if (hasActiveFilter) {
     return (
       <TableEmptyWrap>
-        <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          gap="size-300"
-          maxWidth="700px"
-          margin="var(--global-dimension-size-300) auto"
-        >
-          <Text size="S" fontStyle="italic" color="text-500">
-            No evaluators found that match the given filter.
-          </Text>
-        </Flex>
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Scale />} />}
+          description="No evaluators"
+          isFiltered
+        />
       </TableEmptyWrap>
     );
   }
@@ -151,9 +149,10 @@ const EmptyState = ({
         maxWidth="700px"
         margin="var(--global-dimension-size-300) auto"
       >
-        <Text size="S" fontStyle="italic" color="text-500">
-          No evaluators added to this dataset
-        </Text>
+        <EmptyState
+          graphic={<EmptyStateGraphic variant="evaluator" />}
+          description="No evaluators added to this dataset"
+        />
         <Flex direction="row" gap="size-125">
           {/* LLM Evaluator Templates */}
           <div css={evaluatorColumnCSS}>
@@ -605,9 +604,9 @@ export const DatasetEvaluatorsTable = ({
                             className="sort-icon"
                             svg={
                               header.column.getIsSorted() === "asc" ? (
-                                <Icons.ArrowUpFilled />
+                                <Icons.CaretUpFilled />
                               ) : (
-                                <Icons.ArrowDownFilled />
+                                <Icons.CaretDownFilled />
                               )
                             }
                           />
@@ -630,7 +629,7 @@ export const DatasetEvaluatorsTable = ({
           ))}
         </thead>
         {isEmpty ? (
-          <EmptyState
+          <DatasetEvaluatorsEmpty
             builtInEvaluators={builtInEvaluators}
             onSelectLLMEvaluatorTemplate={onSelectLLMEvaluatorTemplate}
             onSelectCodeEvaluator={onSelectCodeEvaluator}

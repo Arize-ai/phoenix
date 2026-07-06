@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9d6564468f6e301bfc3869ec1a338f33>>
+ * @generated SignedSource<<bc0038ed43ff83947a00a28becb9ee25>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type DatasetLabelsTableFragment$data = {
         readonly description: string | null;
         readonly id: string;
         readonly name: string;
+        readonly usageCount: number;
       };
     }>;
   };
@@ -107,6 +108,13 @@ const node: ReaderFragment = {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
+                  "name": "usageCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
                   "name": "__typename",
                   "storageKey": null
                 }
@@ -156,6 +164,6 @@ const node: ReaderFragment = {
   "abstractKey": null
 };
 
-(node as any).hash = "e22f9050d93574e15367cc63e355f3ce";
+(node as any).hash = "7b71c80184a20b85f4b3ab75b87ee583";
 
 export default node;

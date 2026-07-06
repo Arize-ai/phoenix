@@ -25,25 +25,25 @@ describe("agent FAB positioning", () => {
     expect(
       getFabPinnedPosition({ placement: "top-start", bounds, size })
     ).toEqual({
-      x: 136,
+      x: 124,
       y: 104,
     });
     expect(
       getFabPinnedPosition({ placement: "top-end", bounds, size })
     ).toEqual({
-      x: 906,
+      x: 918,
       y: 104,
     });
     expect(
       getFabPinnedPosition({ placement: "bottom-start", bounds, size })
     ).toEqual({
-      x: 136,
+      x: 124,
       y: 620,
     });
     expect(
       getFabPinnedPosition({ placement: "bottom-end", bounds, size })
     ).toEqual({
-      x: 906,
+      x: 918,
       y: 620,
     });
   });
@@ -87,7 +87,7 @@ describe("agent FAB positioning", () => {
         size,
       })
     ).toEqual({
-      x: 136,
+      x: 124,
       y: 620,
     });
   });

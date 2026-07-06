@@ -1,56 +1,99 @@
 import { css, keyframes } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import {
+  useCallback,
   type CSSProperties,
   type ReactNode,
+  useEffect,
+  useMemo,
   useRef,
+  useLayoutEffect,
   type PropsWithChildren,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
+import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
 import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
-import {
-  PromptInput,
-  PromptInputActions,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputTools,
-} from "@phoenix/components/ai/prompt-input";
+import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useTheme } from "@phoenix/contexts";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
 
+import { AgentChatInput } from "./AgentChatInput";
 import { AgentConsentGate } from "./AgentConsentGate";
-import { AgentContextPills } from "./AgentContextPills";
+import {
+  AgentEditPermissionMenu,
+  getNextEditPermissionMode,
+} from "./AgentEditPermissionMenu";
 import {
   AgentModelCredentialForm,
   useAgentModelCredentialStatus,
 } from "./AgentModelCredentialForm";
-import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
-import { AssistantMessage, UserMessage } from "./ChatMessage";
+import {
+  AssistantMessage,
+  type MessageRewindRequest,
+  UserMessage,
+} from "./ChatMessage";
+import { ChatScrollContext } from "./ChatScrollContext";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
+import {
+  MessageRewindConfirmation,
+  type MessageRewindMode,
+  type MessageRewindRole,
+} from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
+import { isToolUIPart } from "./toolPartTypes";
 import { useAgentChat } from "./useAgentChat";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
+
+/**
+ * Keeps the trailing Thinking indicator visible for the initial request wait
+ * and while the latest assistant turn ends in a tool call.
+ */
+function shouldShowThinkingIndicator({
+  status,
+  messages,
+}: {
+  status: ChatStatus;
+  messages: AgentUIMessage[];
+}): boolean {
+  if (status === "submitted") {
+    return true;
+  }
+  if (status !== "streaming") {
+    return false;
+  }
+
+  const latestMessage = messages.at(-1);
+  if (latestMessage?.role !== "assistant") {
+    return false;
+  }
+
+  const latestRelevantPart = latestMessage.parts.findLast(
+    (part) => part.type !== "text" || part.text.trim() !== ""
+  );
+  return latestRelevantPart != null && isToolUIPart(latestRelevantPart);
+}
 
 function createPendingElicitationDraft(
   toolCallId: string
@@ -95,20 +138,28 @@ const chatCSS = css`
   overflow: visible;
   position: relative;
 
-  .chat__children {
+  .chat__input-meta {
+    box-sizing: border-box;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: var(--global-dimension-static-size-100);
+    /* Match the prompt input footer's horizontal inset so the permission
+       selector and token usage line up with the tools/submit row above. */
     padding: var(--global-dimension-size-100) 0;
   }
 
-  &:has(.chat__children > *) {
+  &:has(.chat__input-meta) {
     .chat__input {
-      /* Remove bottom padding from chat input when children are present. */
+      /* Remove bottom padding when metadata is rendered below the prompt. */
       padding-bottom: 0;
     }
+  }
+
+  .chat__children {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .chat__scroll-frame {
@@ -148,8 +199,8 @@ const chatCSS = css`
 
   .chat__empty-action {
     opacity: 0;
-    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay, 700ms)
-      forwards;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out
+      var(--chat-empty-action-delay, 700ms) forwards;
   }
 
   .chat__messages {
@@ -161,8 +212,7 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200)
-      var(--chat-sidebar-inset);
+    padding: var(--global-dimension-size-200) var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }
@@ -195,6 +245,10 @@ const chatCSS = css`
 
   .chat__loading {
     color: var(--global-text-color-300);
+  }
+
+  .chat__edit-permissions {
+    flex: none;
   }
 
   .chat__error {
@@ -231,10 +285,13 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    rewindToMessage,
+    forkFromMessage,
   } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
 
   return (
     <ChatView
+      sessionId={sessionId}
       messages={messages}
       sendMessage={sendMessage}
       stop={stop}
@@ -243,6 +300,8 @@ export function Chat({
       pendingElicitation={pendingElicitation}
       handleElicitationSubmit={handleElicitationSubmit}
       handleElicitationCancel={handleElicitationCancel}
+      rewindToMessage={rewindToMessage}
+      forkFromMessage={forkFromMessage}
       modelMenuValue={modelMenuValue}
       onModelChange={onModelChange}
       emptyStateSubtext={emptyStateSubtext}
@@ -258,6 +317,7 @@ export function Chat({
  * controller path that keeps streaming alive while the panel is hidden.
  */
 export function ChatView({
+  sessionId,
   messages,
   sendMessage,
   stop,
@@ -266,36 +326,105 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
+  rewindToMessage,
+  forkFromMessage,
   modelMenuValue,
   onModelChange,
   children,
   emptyStateSubtext,
   emptyStateQuickActions,
+  autoFocusInput = false,
 }: PropsWithChildren<{
+  sessionId?: string | null;
   messages: AgentUIMessage[];
-  sendMessage: (message: { text: string }) => void;
+  sendMessage: (
+    message: { text: string },
+    options?: { body?: Record<string, unknown> }
+  ) => void;
   stop: () => Promise<void>;
   status: ChatStatus;
   error: Error | undefined;
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
+  /**
+   * Truncates the active session at a message; returns user text to restore.
+   * Absent on read-only surfaces, which hides the rewind/fork controls.
+   */
+  rewindToMessage?: (messageId: string) => string | null;
+  /** Branches a new session from a message; absent hides the fork control. */
+  forkFromMessage?: (messageId: string) => string | null;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
+  autoFocusInput?: boolean;
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
-    initial: "instant",
-  });
+  const { contentRef, scrollRef, scrollToBottom, stopScroll } =
+    useStickToBottom({
+      initial: "instant",
+      resize: "instant",
+    });
+  const chatScrollContextValue = useMemo(() => ({ stopScroll }), [stopScroll]);
+  const handleScrollRef = useCallback(
+    (element: HTMLElement | null) => {
+      scrollRef(element);
+      if (!element) {
+        return;
+      }
+      // Align restored chat history before first paint; useStickToBottom handles later
+      // resize/follow behavior once its observers are attached.
+      element.scrollTop = element.scrollHeight - element.clientHeight;
+    },
+    [scrollRef]
+  );
+  const store = useAgentStore();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [inputValue, setInputValue] = useState("");
+  const draftInput = useAgentContext((state) =>
+    sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
+  );
+  const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
-  const hasAcknowledgedConsent = useAgentContext(
-    (state) => state.observability.hasAcknowledgedConsent
+  const hasAcknowledgedConsent = useAgentContext((state) =>
+    hasAcknowledgedCurrentTraceConsent({
+      agentsConfig: state.agentsConfig,
+      observability: state.observability,
+    })
   );
+  const editPermissionMode = useAgentContext(
+    (state) => state.permissions.edits
+  );
+  const setPermissions = useAgentContext((state) => state.setPermissions);
+  const createSession = useAgentContext((state) => state.createSession);
+
+  const setSessionDraftInput = (input: string | null) => {
+    if (!sessionId) {
+      return;
+    }
+    setDraftInput(sessionId, input);
+  };
+
+  // Send any message staged for this session (e.g. carried past `/clear` from
+  // the previous session) as soon as the view mounts. Consuming is atomic, so
+  // re-runs and concurrent views are no-ops after the first send.
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    const pending = store.getState().consumePendingMessage(sessionId);
+    if (!pending) {
+      return;
+    }
+    sendMessage(
+      { text: pending.text },
+      pending.requestedSkills.length > 0
+        ? { body: { requestedSkills: pending.requestedSkills } }
+        : undefined
+    );
+  }, [sessionId, sendMessage, store]);
+
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
@@ -304,16 +433,110 @@ export function ChatView({
     status === "submitted" || status === "streaming";
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
+  const showThinkingIndicator = shouldShowThinkingIndicator({
+    status,
+    messages,
+  });
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
       ? createPendingElicitationDraft(pendingElicitation.toolCallId)
       : elicitationDraft;
+  const canToggleEditPermission = hasAcknowledgedConsent && !pendingElicitation;
+
+  const toggleEditPermission = () => {
+    setPermissions({ edits: getNextEditPermissionMode(editPermissionMode) });
+  };
+
+  useHotkeys(
+    "ctrl+t",
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleEditPermission();
+    },
+    {
+      enabled: canToggleEditPermission,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    },
+    [canToggleEditPermission, editPermissionMode, setPermissions]
+  );
+
+  // Quick actions track the agent contexts the assistant is advertising for the current
+  // route, so the empty state suggests what the assistant can actually do here
+  // (e.g. run/enhance prompts on the playground). An explicit prop still wins
+  // for callers that want a fixed set.
+  const contextualQuickActions = useAgentQuickActions();
+  const quickActions = emptyStateQuickActions ?? contextualQuickActions;
 
   const handleQuickAction = (prompt: string) => {
-    setInputValue(prompt);
+    setSessionDraftInput(prompt);
     textareaRef.current?.focus();
   };
+
+  // Pending rewind/fork confirmation, shown inline in place of the prompt
+  // input. Panel-local because the confirmation is an inline surface, not a
+  // modal — a modal would flip the global open-modal observer and re-parent
+  // this panel between its docked/floating layouts, tearing the surface down.
+  const [rewindRequest, setRewindRequest] = useState<{
+    mode: MessageRewindMode;
+    messageId: string;
+    role: MessageRewindRole;
+  } | null>(null);
+
+  // Rewind/fork mutate or branch finalized history, so they are only offered
+  // once the chat has settled — never mid-request.
+  const onRewindRequest = useMemo<MessageRewindRequest | undefined>(() => {
+    if (status !== "ready" || !rewindToMessage) {
+      return undefined;
+    }
+    return (request) => setRewindRequest(request);
+  }, [status, rewindToMessage]);
+
+  const handleConfirmRewind = () => {
+    if (!rewindRequest) {
+      return;
+    }
+    const { mode, messageId } = rewindRequest;
+    setRewindRequest(null);
+    if (mode === "fork") {
+      // Forking switches the active session, which remounts this view; the
+      // forked session receives restored text through draftInputBySessionId.
+      forkFromMessage?.(messageId);
+    } else {
+      const restoredInput = rewindToMessage?.(messageId);
+      if (restoredInput != null) {
+        setSessionDraftInput(restoredInput);
+        textareaRef.current?.focus();
+      }
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (
+      !autoFocusInput ||
+      !hasAcknowledgedConsent ||
+      pendingElicitation ||
+      rewindRequest
+    ) {
+      return;
+    }
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.focus();
+    const cursorPosition = textarea.value.length;
+    textarea.setSelectionRange(cursorPosition, cursorPosition);
+  }, [
+    autoFocusInput,
+    hasAcknowledgedConsent,
+    pendingElicitation,
+    rewindRequest,
+  ]);
 
   return (
     <ElicitationDraftProvider draft={resolvedElicitationDraft}>
@@ -327,50 +550,77 @@ export function ChatView({
         }
       >
         <ChatLantern isVisible={showsEmptyState} />
-        <div className="chat__scroll-frame">
-          <div className="chat__scroll" ref={scrollRef}>
-            <div className="chat__messages" ref={contentRef}>
-              {showsEmptyState && (
-                <ChatEmptyState
-                  key={theme}
-                  subtext={emptyStateSubtext}
-                  quickActions={emptyStateQuickActions}
-                  onQuickAction={handleQuickAction}
-                >
-                  {missingCredentialsProvider ? (
-                    <AgentModelCredentialForm
-                      modelName={modelMenuValue.modelName}
-                      onCredentialsUpdated={refreshCredentialStatus}
-                      provider={missingCredentialsProvider}
+        <ChatScrollContext.Provider value={chatScrollContextValue}>
+          <div className="chat__scroll-frame">
+            <div className="chat__scroll" ref={handleScrollRef}>
+              <div className="chat__messages" ref={contentRef}>
+                {showsEmptyState && (
+                  <ChatEmptyState
+                    key={theme}
+                    subtext={emptyStateSubtext}
+                    quickActions={quickActions}
+                    onQuickAction={handleQuickAction}
+                  >
+                    {missingCredentialsProvider ? (
+                      <AgentModelCredentialForm
+                        modelName={modelMenuValue.modelName}
+                        onCredentialsUpdated={refreshCredentialStatus}
+                        provider={missingCredentialsProvider}
+                      />
+                    ) : undefined}
+                  </ChatEmptyState>
+                )}
+                {messages.map((message, index) => {
+                  if (message.role === "user") {
+                    return (
+                      <UserMessage
+                        key={message.id}
+                        message={message}
+                        onRewindRequest={onRewindRequest}
+                      />
+                    );
+                  }
+                  // Only the last assistant message can still be streaming — hide
+                  // its actions until the chat reports it is settled.
+                  const isLast = index === messages.length - 1;
+                  const showActions = !isLast || status === "ready";
+                  // Pin the most recent assistant turn's toolbar so its actions
+                  // stay visible; other turns reveal their toolbars on hover to
+                  // cut down on stacked-toolbar clutter.
+                  const pinToolbar = isLast && status === "ready";
+                  // Rewinding to the last assistant turn is a no-op: nothing
+                  // follows it to truncate and, once settled, it has no pending
+                  // tool calls to clear. Hide the rewind control there.
+                  return (
+                    <AssistantMessage
+                      key={message.id}
+                      message={message}
+                      showActions={showActions}
+                      pinToolbar={pinToolbar}
+                      onRewindRequest={onRewindRequest}
+                      allowRewind={!isLast}
                     />
-                  ) : undefined}
-                </ChatEmptyState>
-              )}
-              {messages.map((message, index) => {
-                if (message.role === "user") {
-                  return <UserMessage key={message.id} parts={message.parts} />;
-                }
-                // Only the last assistant message can still be streaming — hide
-                // its actions until the chat reports it is settled.
-                const isLast = index === messages.length - 1;
-                const showActions = !isLast || status === "ready";
-                return (
-                  <AssistantMessage
-                    key={message.id}
-                    message={message}
-                    showActions={showActions}
-                  />
-                );
-              })}
-              {status === "submitted" && <Loading />}
-              {error && <ErrorMessage error={error} />}
+                  );
+                })}
+                {showThinkingIndicator && <Loading />}
+                {error && <ErrorMessage error={error} />}
+              </div>
             </div>
           </div>
-        </div>
+        </ChatScrollContext.Provider>
         <div className="chat__input">
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <AgentConsentGate />
+            </PromptInput>
+          ) : rewindRequest ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <MessageRewindConfirmation
+                mode={rewindRequest.mode}
+                role={rewindRequest.role}
+                onConfirm={handleConfirmRewind}
+                onCancel={() => setRewindRequest(null)}
+              />
             </PromptInput>
           ) : pendingElicitation ? (
             <PromptInput status={status} isDisabled mode="elicitation">
@@ -403,47 +653,57 @@ export function ChatView({
               />
             </PromptInput>
           ) : (
-            <PromptInput
-              onSubmit={(text) => {
-                void scrollToBottom();
-                sendMessage({ text });
-              }}
+            <AgentChatInput
               status={status}
-              value={inputValue}
-              onValueChange={setInputValue}
-            >
-              <AgentContextPills />
-              <PromptInputBody>
-                <PromptInputTextarea
-                  ref={textareaRef}
-                  placeholder="Send a message..."
-                />
-              </PromptInputBody>
-              <PromptInputFooter>
-                <PromptInputTools>
-                  <AgentModelMenu
-                    value={modelMenuValue}
-                    onChange={onModelChange}
-                    placement="top start"
-                    shouldFlip
-                    variant="quiet"
-                  />
-                </PromptInputTools>
-
-                <PromptInputActions>
-                  <PromptInputSubmit
-                    isDisabled={
-                      isSendDisabledForMissingCredentials || undefined
+              value={draftInput}
+              onValueChange={setSessionDraftInput}
+              onSubmit={({ text, requestedSkills, commandNames }) => {
+                if (commandNames.length > 0) {
+                  runPromptCommands(
+                    { commandNames, text, requestedSkills },
+                    {
+                      createSession,
+                      setPendingMessage: store.getState().setPendingMessage,
                     }
-                    onPress={() => {
-                      void stop();
-                    }}
-                  />
-                </PromptInputActions>
-              </PromptInputFooter>
-            </PromptInput>
+                  );
+                  return;
+                }
+                // Command tokens are stripped before this point, so a
+                // commands-only submit has nothing left to send.
+                if (!text) {
+                  return;
+                }
+                void scrollToBottom();
+                sendMessage(
+                  { text },
+                  requestedSkills.length > 0
+                    ? { body: { requestedSkills } }
+                    : undefined
+                );
+              }}
+              textareaRef={textareaRef}
+              modelMenuValue={modelMenuValue}
+              onModelChange={onModelChange}
+              isSubmitDisabled={isSendDisabledForMissingCredentials}
+              onStop={() => {
+                void stop();
+              }}
+            />
           )}
-          {children ? <div className="chat__children">{children}</div> : null}
+          {canToggleEditPermission ? (
+            <div className="chat__input-meta">
+              <div className="chat__edit-permissions">
+                <AgentEditPermissionMenu />
+              </div>
+              {children ? (
+                <div className="chat__children">{children}</div>
+              ) : null}
+            </div>
+          ) : children ? (
+            <div className="chat__input-meta">
+              <div className="chat__children">{children}</div>
+            </div>
+          ) : null}
         </div>
       </div>
     </ElicitationDraftProvider>
@@ -454,7 +714,6 @@ const loadingCSS = css`
   display: inline-flex;
   align-items: center;
   gap: var(--global-dimension-size-100);
-  color: var(--global-text-color-700);
 `;
 
 /** Loading affordance shown while the assistant response is pending. */
@@ -462,7 +721,7 @@ function Loading() {
   return (
     <div css={loadingCSS}>
       <PxiGlyph animation="wave-hold" size={12} />
-      <Shimmer size="S" weight="heavy">
+      <Shimmer size="S" color="text-500" fontStyle="italic">
         Thinking...
       </Shimmer>
     </div>

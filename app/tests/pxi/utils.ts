@@ -1,8 +1,6 @@
-import type { APIRequestContext } from "@playwright/test";
+import type { APIResponse } from "@playwright/test";
 
-export async function expectOK(
-  response: Awaited<ReturnType<APIRequestContext["get"]>>
-) {
+export async function expectOK(response: APIResponse) {
   if (!response.ok()) {
     throw new Error(
       `Phoenix API request failed: ${response.status()} ${await response.text()}`

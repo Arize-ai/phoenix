@@ -5,11 +5,18 @@ FROM node:22-slim
 
 WORKDIR /app
 
+# Skip pnpm 11's auto deps-status check before every script run. The CMD
+# invokes `pnpm run` / `pnpm exec`, which would otherwise re-run
+# `pnpm install --production` on every container start — wasted work in a
+# dev container where node_modules is already populated at build time
+# and shielded from the host bind-mount via an anonymous volume.
+ENV PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN=false
+
 # Install pnpm
 RUN npm i -g corepack && corepack enable
 
 # Copy package files for dependency installation
-COPY ./app/package.json ./app/pnpm-lock.yaml ./
+COPY ./app/package.json ./app/pnpm-lock.yaml ./app/pnpm-workspace.yaml ./
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile

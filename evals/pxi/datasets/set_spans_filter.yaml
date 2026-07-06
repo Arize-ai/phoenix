@@ -2,826 +2,970 @@ dataset_name: set_spans_filter
 description: PXI server-side eval suite for deferred set_spans_filter tool calls.
 evaluators:
   - correct_tools_called
-  - set_spans_filter_args_match
+  - tool_call_args_match
+  - tool_call_count_within_limit
 examples:
   - id: llm-spans
     splits: [regression]
     input:
-      query: Show me only LLM spans.
+      messages:
+        - role: user
+          content: Show me only LLM spans.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'LLM'
           rootSpansOnly: false
     metadata:
-      category: span_kind
       annotation:
         agreement: high
         n_opinions: 3
   - id: tool-spans
     splits: [regression]
     input:
-      query: Filter the table to tool spans.
+      messages:
+        - role: user
+          content: Filter the table to tool spans.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'TOOL'
           rootSpansOnly: false
     metadata:
-      category: span_kind
       annotation:
         agreement: high
         n_opinions: 3
   - id: error-spans
     splits: [regression]
     input:
-      query: Show spans that errored.
+      messages:
+        - role: user
+          content: Show spans that errored.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: status_code == 'ERROR'
           rootSpansOnly: false
     metadata:
-      category: status
       annotation:
         agreement: high
         n_opinions: 3
   - id: slow-spans
+    # "at least five seconds" pins the 5000ms threshold but the operator
+    # form (>=, >) and whitespace are model choices. ``contains_all``
+    # checks the substantive content; ``not_contains`` catches a
+    # plausible inverted-threshold failure mode (``latency_ms < 5000``).
     splits: [regression]
     input:
-      query: Show slow spans taking at least five seconds.
+      messages:
+        - role: user
+          content: Show slow spans taking at least five seconds.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: latency_ms >= 5000
+          condition:
+            contains_all: ["latency_ms", "5000"]
+            not_contains: ["latency_ms < ", "latency_ms <= "]
     metadata:
-      category: latency
       annotation:
         agreement: high
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Latency filter doesn't target nested spans per spec; rootSpansOnly is not mandated. Both A and B omit it (B fully, A explicitly). Omitting follows
-          the schema 'unsure → omit' rule. Existing block pinned rootSpansOnly: false."
   - id: slow-llm-spans
+    # Multi-clause AND: ``contains_all`` is order-invariant so the model
+    # can emit clauses in either order. Both clauses must appear.
     splits: [regression]
     input:
-      query: Show slow LLM calls taking at least five seconds.
+      messages:
+        - role: user
+          content: Show slow LLM calls taking at least five seconds.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: span_kind == 'LLM' and latency_ms >= 5000
+          condition:
+            contains_all: ["span_kind == 'LLM'", "latency_ms >= 5000"]
           rootSpansOnly: false
     metadata:
-      category: latency
       annotation:
         agreement: high
         n_opinions: 3
   - id: trace-id
     splits: [regression]
     input:
-      query: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
+      messages:
+        - role: user
+          content: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
     metadata:
-      category: trace
       annotation:
         agreement: high
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: trace_id filter does not target nested spans specifically; rootSpansOnly not mandated by spec. Both A and B omit it. Existing pinned rootSpansOnly:
-          false."
   - id: span-name
     splits: [regression]
     input:
-      query: Show spans named retrieve_documents.
+      messages:
+        - role: user
+          content: Show spans named retrieve_documents.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: name == 'retrieve_documents'
           rootSpansOnly: false
     metadata:
-      category: name
       annotation:
         agreement: high
         n_opinions: 3
   - id: input-substring
+    # The Phoenix DSL only supports Python's ``in`` operator for substring
+    # matching (``'<needle>' in input.value``); the parser maps it to a
+    # ``TextContains`` call. There is no ``.contains()`` form. This matcher
+    # pins the DSL's ``in input.value`` form while allowing quote/spacing drift.
     splits: [regression]
     input:
-      query: Show spans where the input mentions refund policy.
+      messages:
+        - role: user
+          content: Show spans where the input mentions refund policy.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: "'refund policy' in input.value"
+          condition:
+            contains_all: ["refund policy", "in input.value"]
+            not_contains: [".contains("]
           rootSpansOnly: false
     metadata:
-      category: input
       annotation:
         agreement: high
         n_opinions: 3
   - id: annotation-label
     splits: [regression]
     input:
-      query: Show spans marked hallucinated by the Hallucination annotation.
+      messages:
+        - role: user
+          content: Show spans marked hallucinated by the Hallucination annotation.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: annotations['Hallucination'].label == 'hallucinated'
           rootSpansOnly: false
     metadata:
-      category: annotation
       annotation:
         agreement: high
         n_opinions: 3
   - id: reset-filter
     splits: [regression]
     input:
-      query: Clear the span filter and return to the default root spans view.
+      messages:
+        - role: user
+          content: Clear the span filter and return to the default root spans view.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: ''
+          condition: ""
           rootSpansOnly: true
     metadata:
-      category: reset
       annotation:
         agreement: high
         n_opinions: 3
   - id: chain-spans
     splits: [regression]
     input:
-      query: Filter to the chain spans.
+      messages:
+        - role: user
+          content: Filter to the chain spans.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'CHAIN'
     metadata:
-      category: span_kind
       annotation:
         agreement: high
         n_opinions: 3
   - id: agent-root-spans
+    # Genuinely ambiguous: "top-level agent traces" can resolve to either
+    # filtering by AGENT span_kind (with root-only) or just showing root
+    # spans (with no filter). Accept either via variants.
     splits: [regression]
     input:
-      query: Show me top-level agent traces only.
+      messages:
+        - role: user
+          content: Show me top-level agent traces only.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           - condition: span_kind == 'AGENT'
             rootSpansOnly: true
-          - condition: ''
+          - condition: ""
             rootSpansOnly: true
     metadata:
-      category: ambiguity
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Query is intentionally ambiguous (author intent polarity=ambiguous). Candidate A's variant list captures both reasonable shapes; B's single shape
-          is one of those variants. Existing block omitted tool_call_args entirely; we pin variants sinc"
   - id: embedding-spans-lowercase
     splits: [regression]
     input:
-      query: just embeddings pls
+      messages:
+        - role: user
+          content: just embeddings pls
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'EMBEDDING'
           rootSpansOnly: false
     metadata:
-      category: span_kind
       annotation:
         agreement: high
         n_opinions: 3
   - id: status-ok-spans
     splits: [regression]
     input:
-      query: Show only successful spans.
+      messages:
+        - role: user
+          content: Show only successful spans.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: status_code == 'OK'
           rootSpansOnly: false
     metadata:
-      category: status
       annotation:
         agreement: high
         n_opinions: 3
   - id: status-unset-spans
     splits: [regression]
     input:
-      query: show me spans that have no status set
+      messages:
+        - role: user
+          content: show me spans that have no status set
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: status_code == 'UNSET'
           rootSpansOnly: false
     metadata:
-      category: status
       annotation:
         agreement: high
         n_opinions: 3
   - id: high-prompt-tokens
     splits: [regression]
     input:
-      query: find LLM calls that used more than 10k prompt tokens
+      messages:
+        - role: user
+          content: find LLM calls that used more than 10k prompt tokens
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: span_kind == 'LLM' and llm.token_count.prompt > 10000
+          condition:
+            contains_all: ["span_kind == 'LLM'", "llm.token_count.prompt", "10000"]
+            not_contains: ["llm.token_count.prompt < ", "llm.token_count.prompt <= "]
           rootSpansOnly: false
     metadata:
-      category: tokens
       annotation:
         agreement: high
         n_opinions: 3
   - id: cumulative-tokens-roots
     splits: [regression]
     input:
-      query: Show traces that burned over 50k tokens in total.
+      messages:
+        - role: user
+          content: Show traces that burned over 50k tokens in total.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: cumulative_token_count.total > 50000
+          condition:
+            contains_all: ["cumulative_token_count.total", "50000"]
+            not_contains: ["cumulative_token_count.total < ", "cumulative_token_count.total <= "]
           rootSpansOnly: true
     metadata:
-      category: tokens
       annotation:
         agreement: high
         n_opinions: 3
   - id: start-after-timestamp
+    # Prompt names a UTC timestamp explicitly, so the model should emit the
+    # exact string. Literal expectation pins the canonical form.
     splits: [regression]
     input:
-      query: Filter to spans that started at or after 2025-01-15T00:00:00Z.
+      messages:
+        - role: user
+          content: Filter to spans that started at or after 2025-01-15T00:00:00Z.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: start_time >= '2025-01-15T00:00:00Z'
     metadata:
-      category: datetime
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Timestamp filter doesn't target nested spans per spec; rootSpansOnly not mandated. A omits, B pins via exact_match and also forbids set_time_range.
-          Per orchestrator rules, exact_match is omitted for positive cases and forbidden is only used"
-  # Original query "Show me span <id>" was unstable: the agent
-  # sometimes called bash + phoenix-gql to look up a single span by ID
-  # rather than filtering the table. Re-phrased to make filter intent
-  # explicit ("filter the spans table to span <id>"). See triage notes.
+  # Original query "Show me span <id>" was unstable: the agent sometimes
+  # called bash + phoenix-gql to look up a single span by ID rather than
+  # filtering the table. Re-phrased to lock filter intent.
   - id: span-by-id
     splits: [regression]
     input:
-      query: Filter the spans table to span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+      messages:
+        - role: user
+          content: Filter the spans table to span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
     metadata:
-      category: identifier
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: |
-          Backfill orchestrator change: dropped rootSpansOnly per
-          omit-if-unsure rule (span_id query doesn't determine root vs
-          nested scope).
-      triage:
-        category: dataset_annotation
-        notes: |
-          Original query "Show me span <id>" caused non-determinism:
-          some runs the agent called set_spans_filter, other runs it
-          called bash + phoenix-gql to fetch the span directly. Both
-          interpretations are defensible. Re-phrased with "Filter the
-          spans table to <id>" to lock filter intent. Original kept
-          here for audit.
   - id: children-of-parent
     splits: [regression]
     input:
-      query: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+      messages:
+        - role: user
+          content: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: parent_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
           rootSpansOnly: false
     metadata:
-      category: identifier
       annotation:
         agreement: high
         n_opinions: 3
   - id: annotation-score
     splits: [regression]
     input:
-      query: Show spans where the Helpfulness annotation scored above 0.8.
+      messages:
+        - role: user
+          content: Show spans where the Helpfulness annotation scored above 0.8.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: annotations['Helpfulness'].score > 0.8
+          condition:
+            contains_all: ["annotations['Helpfulness'].score", "0.8"]
+            not_contains: ["annotations['Helpfulness'].score < ", "annotations['Helpfulness'].score <= "]
           rootSpansOnly: false
     metadata:
-      category: annotation
       annotation:
         agreement: high
         n_opinions: 3
   - id: output-substring
     splits: [regression]
     input:
-      query: Show spans whose response mentions error code 502.
+      messages:
+        - role: user
+          content: Show spans whose response mentions error code 502.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          - condition: "'error code 502' in output.value"
-            rootSpansOnly: false
-          - condition: "'502' in output.value"
-            rootSpansOnly: false
+          condition:
+            contains_all: ["502", "output.value"]
+          rootSpansOnly: false
     metadata:
-      category: output
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Existing pinned the full phrase only; candidates A/B pinned just '502'. Both are reasonable substring choices for \"mentions error code 502\" so
-          kept as variants."
   - id: metadata-access
     splits: [regression]
     input:
-      query: Filter to spans tagged with environment 'prod' in metadata.
+      messages:
+        - role: user
+          content: Filter to spans tagged with environment 'prod' in metadata.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: metadata['environment'] == 'prod'
     metadata:
-      category: attribute
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Metadata filter doesn't target a non-CHAIN/AGENT span_kind; rootSpansOnly is not mandated by spec. Majority (A and C-template) omit it, so omitting
-          matches the schema rule \"omit rootSpansOnly when query doesn't determine it\"."
   - id: agent-spans
     splits: [regression]
     input:
-      query: Show me agent spans.
+      messages:
+        - role: user
+          content: Show me agent spans.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'AGENT'
     metadata:
-      category: span_kind
       annotation:
         agreement: high
         n_opinions: 3
   - id: retriever-spans
     splits: [regression]
     input:
-      query: Filter to retriever spans only.
+      messages:
+        - role: user
+          content: Filter to retriever spans only.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind == 'RETRIEVER'
           rootSpansOnly: false
     metadata:
-      category: span_kind
       annotation:
         agreement: high
         n_opinions: 3
   - id: not-llm-spans
     splits: [regression]
     input:
-      query: Show me everything that's not an LLM call.
+      messages:
+        - role: user
+          content: Show me everything that's not an LLM call.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind != 'LLM'
     metadata:
-      category: operator
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: rootSpansOnly genuinely ambiguous; 2/3 opinions omit it. Orchestrator followed majority.
   - id: fast-spans-under-100ms
+    # "under 100ms" pins the threshold; the operator (<, <=) and whitespace
+    # are free. ``not_contains`` rules out the inverted ``latency_ms >`` form.
     splits: [regression]
     input:
-      query: Filter to spans under 100ms latency.
+      messages:
+        - role: user
+          content: Filter to spans under 100ms latency.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: latency_ms < 100
+          condition:
+            contains_all: ["latency_ms", "100"]
+            not_contains: ["latency_ms > ", "latency_ms >= "]
     metadata:
-      category: latency
       annotation:
         agreement: high
         n_opinions: 3
   - id: llm-or-tool-spans
+    # OR semantics: ``contains_all`` of just the literal values matches both
+    # ``span_kind == 'LLM' or span_kind == 'TOOL'`` and the equivalent
+    # ``span_kind in ('LLM', 'TOOL')`` form the parser accepts.
     splits: [regression]
     input:
-      query: Show me LLM or tool calls.
+      messages:
+        - role: user
+          content: Show me LLM or tool calls.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: span_kind == 'LLM' or span_kind == 'TOOL'
+          condition:
+            contains_all: ["LLM", "TOOL"]
+            not_contains: ["!=", "not_in", "not in"]
           rootSpansOnly: false
     metadata:
-      category: combination
       annotation:
         agreement: high
         n_opinions: 3
   - id: high-completion-tokens
     splits: [regression]
     input:
-      query: Find LLM calls that produced more than 2000 completion tokens.
+      messages:
+        - role: user
+          content: Find LLM calls that produced more than 2000 completion tokens.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: span_kind == 'LLM' and llm.token_count.completion > 2000
+          condition:
+            contains_all: ["span_kind == 'LLM'", "llm.token_count.completion", "2000"]
+            not_contains: ["llm.token_count.completion < ", "llm.token_count.completion <= "]
           rootSpansOnly: false
     metadata:
-      category: tokens
       annotation:
         agreement: high
         n_opinions: 3
   - id: ended-before-timestamp
     splits: [regression]
     input:
-      query: Show spans that ended before 2025-01-15T12:00:00Z.
+      messages:
+        - role: user
+          content: Show spans that ended before 2025-01-15T12:00:00Z.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: end_time < '2025-01-15T12:00:00Z'
     metadata:
-      category: datetime
       annotation:
         agreement: high
         n_opinions: 3
   - id: status-message-substring
     splits: [regression]
     input:
-      query: Filter to spans whose status message mentions 'timeout'.
+      messages:
+        - role: user
+          content: Filter to spans whose status message mentions 'timeout'.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: "'timeout' in status_message"
+          condition:
+            contains_all: ["timeout", "status_message"]
           rootSpansOnly: false
     metadata:
-      category: status
       annotation:
         agreement: high
         n_opinions: 3
   - id: attribute-path-access
     splits: [regression]
     input:
-      query: Show spans where attribute 'user.id' equals 'alice'.
+      messages:
+        - role: user
+          content: Show spans where attribute 'user.id' equals 'alice'.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: attributes['user.id'] == 'alice'
     metadata:
-      category: attribute
       annotation:
         agreement: high
         n_opinions: 3
   - id: three-clause-conjunction
     splits: [regression]
     input:
-      query: Show errored LLM calls slower than 3 seconds.
+      messages:
+        - role: user
+          content: Show errored LLM calls slower than 3 seconds.
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          condition: span_kind == 'LLM' and status_code == 'ERROR' and latency_ms > 3000
+          condition:
+            contains_all: ["span_kind == 'LLM'", "status_code == 'ERROR'", "latency_ms", "3000"]
+            not_contains: ["latency_ms < ", "latency_ms <= "]
           rootSpansOnly: false
     metadata:
-      category: combination
       annotation:
         agreement: high
         n_opinions: 3
   - id: ambiguous-fast-spans
+    # Genuinely ambiguous threshold ("fast" without a number). We require
+    # set_spans_filter is called but do not pin a specific threshold; any
+    # downward-bounded latency clause counts.
     splits: [regression]
     input:
-      query: show me fast spans
+      messages:
+        - role: user
+          content: show me fast spans
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition:
+            contains_all: ["latency_ms"]
+            not_contains: ["latency_ms > ", "latency_ms >= "]
     metadata:
-      category: ambiguity
       annotation:
         agreement: low
         n_opinions: 3
-        notes: Backfill annotation diverged (no clear majority); existing expected kept.
   - id: ambiguous-tools-or-retrievers
     splits: [regression]
     input:
-      query: tools or retrievers only
+      messages:
+        - role: user
+          content: show me tool or retriever spans only
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
-          - condition: span_kind == 'TOOL' or span_kind == 'RETRIEVER'
-            rootSpansOnly: false
-          - condition: span_kind in ('TOOL', 'RETRIEVER')
-            rootSpansOnly: false
+          condition:
+            contains_all: ["TOOL", "RETRIEVER"]
+            not_contains: ["!=", "not_in", "not in"]
+          rootSpansOnly: false
     metadata:
-      category: ambiguity
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Pinning to TOOL or RETRIEVER (non-CHAIN/AGENT kinds) mandates rootSpansOnly false. Kept two natural arg variants; dropped Candidate A's narrower-only
-          single-kind variants since query asks for both."
+  # Original bare fragment "everything except tool calls" sometimes read as
+  # a description rather than a filter request. Re-phrased imperatively.
   - id: ambiguous-not-tool-spans
     splits: [regression]
     input:
-      query: show me everything except tool calls
+      messages:
+        - role: user
+          content: show me everything except tool calls
     expected:
       tools:
-        required:
-          - set_spans_filter
+        required: [set_spans_filter]
       tool_call_args:
         set_spans_filter:
           condition: span_kind != 'TOOL'
           rootSpansOnly: false
     metadata:
-      category: ambiguity
-      triage:
-        category: dataset_annotation
-        notes: "Bare fragment failed first run because the agent read the\nquery as a description, not a filter request. Re-phrased\nwith an imperative; original query kept in this note for\naudit: \"everything
-          except tool calls\".\n"
       annotation:
         agreement: high
         n_opinions: 3
-        notes: "Backfill applied orchestrator's expected: Filtering away TOOL spans still operates on non-CHAIN/AGENT scope of interest; spec's pairing rule applies, so rootSpansOnly false."
   - id: negative-greeting
     splits: [regression]
     input:
-      query: hey, what's up?
+      messages:
+        - role: user
+          content: hey, what's up?
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
-        exact_match: true
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_chitchat
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this pure-negative chitchat case.
   - id: negative-capabilities-question
     splits: [regression]
     input:
-      query: what can you do?
+      messages:
+        - role: user
+          content: what can you do?
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
-        exact_match: true
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_chitchat
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this pure-negative chitchat case.
   - id: negative-thanks
     splits: [regression]
     input:
-      query: thanks!
+      messages:
+        - role: user
+          content: thanks!
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
-        exact_match: true
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_chitchat
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this pure-negative chitchat case.
   - id: negative-time-range-intent
+    # Wrong-tool case: "last hour" is a time-range intent, not a span filter.
+    # We do NOT require any specific tool be called (the eval harness may
+    # not run set_time_range), only that set_spans_filter is NOT called.
     splits: [regression]
     input:
-      query: Show me only the last hour.
+      messages:
+        - role: user
+          content: Show me only the last hour.
     expected:
       tools:
-        required:
-          - set_time_range
-        forbidden:
-          - set_spans_filter
+        required: []
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_wrong_tool
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
   - id: negative-clone-prompt-intent
     splits: [regression]
     input:
-      query: Clone the current prompt please.
+      messages:
+        - role: user
+          content: Clone the current prompt please.
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_wrong_tool
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
   - id: negative-how-to-question
     splits: [regression]
     input:
-      query: How do I create a new dataset?
+      messages:
+        - role: user
+          content: How do I create a new dataset?
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_docs_query
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
   - id: negative-summarize-ask
     splits: [regression]
     input:
-      query: Summarize what we see in the spans table right now.
+      messages:
+        - role: user
+          content: Summarize what we see in the spans table right now.
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_analysis
+      negative: true
       annotation:
         agreement: medium
         n_opinions: 3
   - id: negative-diagnosis-question
     splits: [regression]
     input:
-      query: Is there a problem with my project?
+      messages:
+        - role: user
+          content: Is there a problem with my project?
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_analysis
+      negative: true
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: >-
-          set_spans_filter must not be called for this open-ended diagnosis
-          question. exact_match removed: agent may call phoenix-gql or other
-          diagnostic tools to investigate — that is out of scope for this
-          evaluator, which only guards set_spans_filter misuse.
   - id: negative-definitional-question
     splits: [regression]
     input:
-      query: Explain what span kinds mean.
+      messages:
+        - role: user
+          content: Explain what span kinds mean.
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_definitional
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
   - id: negative-debug-advice
     splits: [regression]
     input:
-      query: I think my agent is too slow, what should I do?
+      messages:
+        - role: user
+          content: I think my agent is too slow, what should I do?
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_analysis
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
   - id: negative-average-latency
     splits: [regression]
     input:
-      query: what's the average latency?
+      messages:
+        - role: user
+          content: what's the average latency?
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_analysis
+      negative: true
       annotation:
         agreement: medium
         n_opinions: 3
   - id: negative-delete-trace
     splits: [regression]
     input:
-      query: delete this trace
+      messages:
+        - role: user
+          content: delete this trace
     expected:
       tools:
-        required: []
-        forbidden:
-          - set_spans_filter
+        forbidden: [set_spans_filter]
     metadata:
-      category: negative_destructive
+      negative: true
       annotation:
         agreement: high
         n_opinions: 3
+  # ----- contextual dev examples (primed page state / tool history) -----
+  - id: contextual-latest-root-traces
+    # Primes a prior bash tool call + return so the agent enters mid-loop
+    # already knowing the latest traces in the project are from 2026-04-03.
+    splits: [dev]
+    input:
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T14:43:38-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: "span_kind == 'LLM'"
+          rootSpansOnly: false
+      messages:
+        - role: user
+          content: Show me only the latest traces in this project.
+        - role: assistant
+          tool_calls:
+            - id: t1
+              name: bash
+              args:
+                command: >-
+                  phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project
+                  { spans(first: 5, rootSpansOnly: true, sort: {col: startTime,
+                  dir: desc}) { edges { node { startTime } } } } } }'
+        - role: tool
+          tool_call_id: t1
+          name: bash
+          content: |
+            {"data":{"node":{"spans":{"edges":[
+              {"node":{"startTime":"2026-04-03T18:42:11Z"}},
+              {"node":{"startTime":"2026-04-03T18:41:58Z"}},
+              {"node":{"startTime":"2026-04-03T17:55:02Z"}},
+              {"node":{"startTime":"2026-04-03T17:12:30Z"}},
+              {"node":{"startTime":"2026-04-03T16:48:14Z"}}
+            ]}}}}
+    expected:
+      tools:
+        required: [set_spans_filter]
+        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
+      tool_call_args:
+        set_spans_filter:
+          condition:
+            contains_all: ["start_time", "2026-04-03"]
+      budgets:
+        max_tool_calls: 1
+    metadata:
+      source_trace: 22a9b76db9443f91d27887c0bab55481
+  - id: contextual-slow-llm-from-distribution
+    # Tests data-informed threshold selection. The user says "slow" without
+    # a number, so the agent must use the primed bash output (LLM latency
+    # percentiles) to pick a threshold. We require the condition mention
+    # ``latency_ms`` and ``span_kind == 'LLM'``, reject inverted operators,
+    # and require the chosen threshold be one of the higher-percentile
+    # values (p90=1840, p95=3210, p99=8420) -- picking p50 (=312) fails.
+    splits: [dev]
+    input:
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T15:02:00-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
+          rootSpansOnly: false
+      messages:
+        - role: user
+          content: Show me only the slow LLM calls in this project.
+        - role: assistant
+          tool_calls:
+            - id: t1
+              name: bash
+              args:
+                command: >-
+                  phoenix-gql '{ node(id: "UHJvamVjdDoxMg==") { ... on Project {
+                  p50: spanLatencyMsQuantile(probability: 0.5, filterCondition:
+                  "span_kind == ''LLM''") p90: spanLatencyMsQuantile(probability:
+                  0.9, filterCondition: "span_kind == ''LLM''") p95:
+                  spanLatencyMsQuantile(probability: 0.95, filterCondition:
+                  "span_kind == ''LLM''") p99: spanLatencyMsQuantile(probability:
+                  0.99, filterCondition: "span_kind == ''LLM''") } } }'
+        - role: tool
+          tool_call_id: t1
+          name: bash
+          content: |
+            {"data":{"node":{
+              "p50": 312,
+              "p90": 1840,
+              "p95": 3210,
+              "p99": 8420
+            }}}
+    expected:
+      tools:
+        required: [set_spans_filter]
+        forbidden: [ask_user, query_docs_filesystem_phoenix, search_phoenix]
+      tool_call_args:
+        set_spans_filter:
+          condition:
+            contains_all: ["latency_ms", "span_kind == 'LLM'"]
+            contains_any: ["1840", "3210", "8420"]
+            not_contains: ["latency_ms < ", "latency_ms <= "]
+      budgets:
+        max_tool_calls: 1
+    metadata:
+      source_trace: 22a9b76db9443f91d27887c0bab55481
+  - id: contextual-keep-filter-switch-root-spans
+    splits: [dev]
+    input:
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T14:45:12-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: "status_code == 'ERROR'"
+          rootSpansOnly: false
+      messages:
+        - role: user
+          content: Keep the error filter, but only show root spans.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
+      tool_call_args:
+        set_spans_filter:
+          condition: status_code == 'ERROR'
+          rootSpansOnly: true
+      budgets:
+        max_tool_calls: 1
+    metadata: {}

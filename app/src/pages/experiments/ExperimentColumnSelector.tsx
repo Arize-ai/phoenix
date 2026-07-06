@@ -10,7 +10,6 @@ import {
   Icon,
   Icons,
   Popover,
-  SelectChevronUpDownIcon,
   View,
 } from "@phoenix/components";
 
@@ -29,7 +28,7 @@ export function ExperimentColumnSelector<T extends object>(
 ) {
   return (
     <DialogTrigger>
-      <Button trailingVisual={<SelectChevronUpDownIcon />}>
+      <Button>
         <Flex alignItems="center" gap="size-100">
           <Icon svg={<Icons.Column />} />
           Columns

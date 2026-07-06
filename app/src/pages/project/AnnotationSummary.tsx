@@ -12,7 +12,6 @@ import {
   Flex,
   RichTooltip,
   Text,
-  Token,
   TooltipTrigger,
   TriggerWrap,
   View,
@@ -27,6 +26,7 @@ import {
 import type {
   ComponentSize,
   SizingProps,
+  TextSize,
 } from "@phoenix/components/core/types";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { useTimeRange } from "@phoenix/components/datetime";
@@ -97,7 +97,6 @@ function AnnotationSummaryValue(props: {
   project: AnnotationSummaryValueFragment$key;
 }) {
   const { project, annotationName, filterCondition } = props;
-  const { fetchKey } = useStreamState();
   const [data, refetch] = useRefetchableFragment<
     AnnotationSummaryQuery,
     AnnotationSummaryValueFragment$key
@@ -149,29 +148,71 @@ function AnnotationSummaryValue(props: {
     project
   );
 
-  const refetchAnnotationSummary = useEffectEvent(() => {
+  useRefetchOnStreamAdvance(() => {
     startTransition(() => {
       refetch({ filterCondition }, { fetchPolicy: "store-and-network" });
     });
   });
 
-  // Refetch the annotation summary when streaming data advances.
-  useEffect(() => {
-    refetchAnnotationSummary();
-  }, [fetchKey]);
+  return (
+    <AnnotationSummaryValueView
+      name={annotationName}
+      summary={data?.spanAnnotationSummary}
+      annotationConfigs={data?.annotationConfigs}
+    />
+  );
+}
 
+/**
+ * Refetch an annotation summary whenever streaming data advances. Shared by the
+ * span- and trace-level summary components so the stream-refetch wiring lives in
+ * one place.
+ */
+export function useRefetchOnStreamAdvance(refetch: () => void) {
+  const { fetchKey } = useStreamState();
+  const onStreamAdvance = useEffectEvent(refetch);
+  useEffect(() => {
+    onStreamAdvance();
+  }, [fetchKey]);
+}
+
+type AnnotationSummaryData = {
+  meanScore?: number | null;
+  count?: number | null;
+  scoreCount?: number | null;
+  labelCount?: number | null;
+  labelFractions?: readonly { label: string; fraction: number }[];
+};
+
+/**
+ * Renders a {@link SummaryValue} from a project annotation summary, resolving the
+ * matching annotation config by name. Shared by the span- and trace-level
+ * summary components, which differ only in which GraphQL summary field they read.
+ */
+export function AnnotationSummaryValueView({
+  name,
+  summary,
+  annotationConfigs,
+}: {
+  name: string;
+  summary?: AnnotationSummaryData | null;
+  annotationConfigs?: {
+    readonly edges: readonly {
+      readonly node: { readonly name?: string | null };
+    }[];
+  } | null;
+}) {
   return (
     <SummaryValue
-      name={annotationName}
-      meanScore={data?.spanAnnotationSummary?.meanScore}
-      labelFractions={data?.spanAnnotationSummary?.labelFractions}
-      count={data?.spanAnnotationSummary?.count}
-      scoreCount={data?.spanAnnotationSummary?.scoreCount}
-      labelCount={data?.spanAnnotationSummary?.labelCount}
+      name={name}
+      meanScore={summary?.meanScore}
+      labelFractions={summary?.labelFractions}
+      count={summary?.count}
+      scoreCount={summary?.scoreCount}
+      labelCount={summary?.labelCount}
       annotationConfig={
-        data?.annotationConfigs?.edges.find(
-          (edge) => edge.node.name === annotationName
-        )?.node as AnnotationConfig | undefined
+        annotationConfigs?.edges.find((edge) => edge.node.name === name)
+          ?.node as AnnotationConfig | undefined
       }
     />
   );
@@ -384,12 +425,7 @@ export function SummaryValuePreview({
   const chartDimensions = SizesMap[size].chart;
   const pieDimensions = SizesMap[size].pie;
   return (
-    <Flex
-      direction="row"
-      alignItems="center"
-      justifyContent="space-between"
-      gap="size-100"
-    >
+    <Flex direction="row" alignItems="center" gap="size-100">
       {hasLabelFractions ? (
         <PieChart {...chartDimensions}>
           <Pie
@@ -417,42 +453,66 @@ export function SummaryValuePreview({
           </Pie>
         </PieChart>
       ) : null}
-      <MeanScore
-        fallback={meanScoreFallback}
-        value={meanScore}
-        size={size === "S" ? size : "L"}
-      />
+      {hasMeanScore ? (
+        <MeanScore
+          fallback={meanScoreFallback}
+          value={meanScore}
+          size={size === "S" ? size : "L"}
+        />
+      ) : (
+        // When there is no mean score, a "--" mean score next to the pie chart
+        // is hard to parse. Show the most common labels instead, matching the
+        // text size of the mean score it replaces.
+        <SummaryValueLabelPreview
+          labelFractions={labelFractions ?? []}
+          size={size === "S" ? "S" : "L"}
+        />
+      )}
     </Flex>
   );
 }
 
+const MAX_VISIBLE_LABELS = 2;
+
 export function SummaryValueLabelPreview({
   labelFractions,
+  size = "M",
 }: {
   labelFractions: readonly { label: string; fraction: number }[];
+  /**
+   * The text size for the labels. Defaults to "M" for use in compact contexts
+   * such as table cells.
+   */
+  size?: TextSize;
 }) {
-  const largestFraction = labelFractions.reduce((max, current) => {
-    return Math.max(max, current.fraction);
-  }, 0);
-  const largestFractionLabel = labelFractions.find(
-    (fraction) => fraction.fraction === largestFraction
-  )?.label;
-  const totalCount = labelFractions.length - 1;
-  const hasMoreThanOneLabel = totalCount > 0;
-  if (!largestFractionLabel) {
+  if (labelFractions.length === 0) {
     return null;
   }
+  const sortedLabels = [...labelFractions].sort(
+    (a, b) => b.fraction - a.fraction
+  );
+  const visibleLabels = sortedLabels.slice(0, MAX_VISIBLE_LABELS);
+  const remainingCount = sortedLabels.length - visibleLabels.length;
   return (
     <Flex
       direction="row"
-      alignItems="center"
-      gap="size-50"
-      maxWidth={hasMoreThanOneLabel ? "80%" : "99%"}
+      alignItems="baseline"
+      gap="size-100"
+      minWidth={0}
+      maxWidth="100%"
     >
-      <Token style={{ maxWidth: "100%" }}>
-        <Truncate maxWidth="100%">{largestFractionLabel}</Truncate>
-      </Token>
-      {hasMoreThanOneLabel && <Token>+ {totalCount}</Token>}
+      <Truncate maxWidth="100%">
+        <Text size={size}>
+          {visibleLabels.map((entry) => entry.label).join(", ")}
+        </Text>
+      </Truncate>
+      {remainingCount > 0 && (
+        <Text
+          color="text-700"
+          size="S"
+          flex="none"
+        >{`+ ${remainingCount} more`}</Text>
+      )}
     </Flex>
   );
 }
@@ -477,13 +537,18 @@ export function SummaryValueBreakdown({
   const colors = useAnnotationSummaryChartColors(annotationName);
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
+  // Only surface coverage when some — but not all — values are present. A count
+  // of 0 means the annotation simply isn't scored/labeled, so "0 of N" would be
+  // misleading rather than informative.
   const isScorePartial =
     typeof scoreCount === "number" &&
     typeof count === "number" &&
+    scoreCount > 0 &&
     scoreCount < count;
   const isLabelPartial =
     typeof labelCount === "number" &&
     typeof count === "number" &&
+    labelCount > 0 &&
     labelCount < count;
   const hasCoverage = isScorePartial || isLabelPartial;
   return (

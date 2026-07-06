@@ -11,14 +11,20 @@ export type EmptyStateQuickAction = {
   prompt: string;
 };
 
-const DEFAULT_QUICK_ACTIONS: EmptyStateQuickAction[] = [
+/**
+ * Fallback quick actions shown when the assistant has no page-specific context to draw
+ * suggestions from (e.g. on a route that advertises no agent context). When a
+ * page does advertise context, {@link useAgentQuickActions} supplies a tailored
+ * set instead.
+ */
+export const DEFAULT_QUICK_ACTIONS: EmptyStateQuickAction[] = [
   {
-    icon: <Icons.BulbOutline />,
+    icon: <Icons.Bulb />,
     label: "How do I use Phoenix?",
     prompt: "How do I use Phoenix?",
   },
   {
-    icon: <Icons.BookOutline />,
+    icon: <Icons.Book />,
     label: "Explain a concept",
     prompt: "Explain a Phoenix concept to me.",
   },
@@ -69,7 +75,10 @@ const actionCSS = css`
 
   &:hover {
     background: var(--global-color-gray-100);
-    border-color: var(--global-border-color-hover, var(--global-color-gray-300));
+    border-color: var(
+      --global-border-color-hover,
+      var(--global-color-gray-300)
+    );
     color: var(--global-text-color-900);
   }
 

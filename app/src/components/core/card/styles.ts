@@ -2,14 +2,9 @@ import { css } from "@emotion/react";
 import type { CSSProperties } from "react";
 
 export const cardCSS = (style?: CSSProperties) => css`
-  ${
-    style?.borderColor
-      ? `--global-card-border-color: ${style.borderColor};`
-      : ""
-  }
-  --collapsible-card-animation-duration: 200ms;
-  --collapsible-card-icon-size: var(--global-dimension-size-300);
-
+  ${style?.borderColor
+    ? `--global-card-border-color: ${style.borderColor};`
+    : ""}
   display: flex;
   flex-direction: column;
   color: var(--global-text-color-900);
@@ -30,18 +25,7 @@ export const cardCSS = (style?: CSSProperties) => css`
     transition: background-color 0.2s ease-in-out;
 
     & .card__collapse-toggle-icon {
-      width: var(--collapsible-card-icon-size);
-      height: var(--collapsible-card-icon-size);
-      font-size: 1.3em;
-      color: inherit;
-      display: flex;
       margin-right: var(--global-dimension-static-size-100);
-      transition: transform ease var(--collapsible-card-animation-duration);
-
-      & svg {
-        height: var(--collapsible-card-icon-size);
-        width: var(--collapsible-card-icon-size);
-      }
     }
 
     & .card__title {
@@ -99,9 +83,6 @@ export const cardCSS = (style?: CSSProperties) => css`
   &[data-collapsed="true"] {
     & .card__body {
       display: none !important;
-    }
-    & .card__collapse-toggle-icon {
-      transform: rotate(-90deg);
     }
   }
 `;

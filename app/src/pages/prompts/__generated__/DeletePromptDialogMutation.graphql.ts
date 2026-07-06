@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a7476295d22857c2bba427ce5e638e32>>
+ * @generated SignedSource<<695b50d684088cc7f7aa83081fc4b323>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -168,6 +168,7 @@ return {
                             "name": "version",
                             "plural": false,
                             "selections": [
+                              (v3/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -175,7 +176,47 @@ return {
                                 "name": "createdAt",
                                 "storageKey": null
                               },
-                              (v3/*: any*/)
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "modelName",
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "modelProvider",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "versionCount",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "versionTags",
+                            "plural": true,
+                            "selections": [
+                              (v3/*: any*/),
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "promptVersionId",
+                                "storageKey": null
+                              }
                             ],
                             "storageKey": null
                           },
@@ -280,12 +321,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f37f369f2b729a5193d63006fe1ac7e2",
+    "cacheID": "39d8a2aa1c6e3f060dfd6855744d2a22",
     "id": null,
     "metadata": {},
     "name": "DeletePromptDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptDialogMutation(\n  $promptId: ID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeletePromptDialogMutation(\n  $promptId: ID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

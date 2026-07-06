@@ -105,6 +105,73 @@ async def test_experiment_resolver_returns_is_ephemeral(
     assert response.data == {"experiment": {"isEphemeral": expected_is_ephemeral}}
 
 
+@pytest.fixture
+async def experiments_with_baseline_tag(
+    db: DbSessionFactory,
+    empty_dataset: Any,
+) -> None:
+    async with db() as session:
+        session.add_all(
+            [
+                models.Experiment(
+                    id=910,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="baseline",
+                    repetitions=1,
+                    metadata_={},
+                ),
+                models.Experiment(
+                    id=911,
+                    dataset_id=1,
+                    dataset_version_id=1,
+                    name="candidate",
+                    repetitions=1,
+                    metadata_={},
+                ),
+                models.ExperimentTag(
+                    experiment_id=910,
+                    dataset_id=1,
+                    name="baseline",
+                    description=None,
+                ),
+            ]
+        )
+        await session.flush()
+
+
+async def test_experiment_resolver_returns_is_baseline(
+    gql_client: AsyncGraphQLClient,
+    experiments_with_baseline_tag: Any,
+) -> None:
+    query = """
+      query ($baselineExperimentId: ID!, $candidateExperimentId: ID!) {
+        baselineExperiment: node(id: $baselineExperimentId) {
+          ... on Experiment {
+            isBaseline
+          }
+        }
+        candidateExperiment: node(id: $candidateExperimentId) {
+          ... on Experiment {
+            isBaseline
+          }
+        }
+      }
+    """
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "baselineExperimentId": str(GlobalID(type_name=Experiment.__name__, node_id=str(910))),
+            "candidateExperimentId": str(GlobalID(type_name=Experiment.__name__, node_id=str(911))),
+        },
+    )
+    assert not response.errors
+    assert response.data == {
+        "baselineExperiment": {"isBaseline": True},
+        "candidateExperiment": {"isBaseline": False},
+    }
+
+
 @pytest.mark.parametrize(
     ("variables", "expected_run_ids", "expected_has_next_page", "expected_end_cursor"),
     [

@@ -77,6 +77,28 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+type AgentAssistantEnabled {
+  enabled: Boolean!
+}
+
+type AgentSkill {
+  """
+  The unique skill identifier used to load the skill (e.g. 'debug-trace').
+  """
+  name: String!
+
+  """The model-facing trigger guidance shown to the assistant."""
+  description: String!
+
+  """The summary for this skill."""
+  summary: String!
+}
+
+type AgentTraceRecording {
+  allowLocalTraces: Boolean!
+  allowRemoteExport: Boolean!
+}
+
 type AgentsConfig {
   """
   The collector endpoint used by the server-side agents to export traces. Resolved from the PHOENIX_AGENTS_COLLECTOR_ENDPOINT environment variable.
@@ -92,6 +114,21 @@ type AgentsConfig {
   Whether PXI can expose native web search and web fetch capabilities. False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS is true.
   """
   webAccessEnabled: Boolean!
+
+  """
+  Admin ceiling for the agent assistant feature. Sourced from the `agent.assistant.enabled` system setting. When False, agent chat is disabled for the entire workspace regardless of individual user preferences.
+  """
+  assistantEnabled: Boolean!
+
+  """
+  Admin ceiling for persisting PXI traces in this Phoenix instance. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on local trace recording for themselves.
+  """
+  allowLocalTraces: Boolean!
+
+  """
+  Admin ceiling for exporting PXI traces to the remote collector. Sourced from the `agent.assistant.trace_recording` system setting. When False, users cannot turn on remote trace export for themselves.
+  """
+  allowRemoteExport: Boolean!
 }
 
 interface Annotation {
@@ -176,6 +213,26 @@ input AnnotationFilterCondition {
   userIds: [ID]
 }
 
+type AnnotationNameCount {
+  name: String!
+  count: Int!
+}
+
+type AnnotationScoreTimeSeries {
+  data: [AnnotationScoreTimeSeriesDataPoint!]!
+  names: [String!]!
+}
+
+type AnnotationScoreTimeSeriesDataPoint {
+  timestamp: DateTime!
+  scoresWithLabels: [AnnotationScoreWithLabel!]!
+}
+
+type AnnotationScoreWithLabel {
+  label: String!
+  score: Float!
+}
+
 enum AnnotationSource {
   API
   APP
@@ -189,6 +246,11 @@ type AnnotationSummary {
   meanScore: Float
   scoreCount: Int!
   labelCount: Int!
+}
+
+enum AnnotationTimeRangeField {
+  ANNOTATION_CREATED_AT
+  SOURCE_START_TIME
 }
 
 enum AnnotationType {
@@ -279,6 +341,23 @@ enum AuthMethod {
   LOCAL
   OAUTH2
   LDAP
+}
+
+"""
+Inputs that determine which assistant skills are available given the current state of the UI.
+"""
+input AvailableAgentSkillsInput {
+  """Whether a playground instance is mounted in the current UI context."""
+  hasPlaygroundContext: Boolean! = false
+
+  """Whether a dataset is mounted in the current UI context."""
+  hasDatasetContext: Boolean! = false
+
+  """Whether an LLM evaluator is mounted in the current UI context."""
+  hasLlmEvaluatorContext: Boolean! = false
+
+  """Whether a code evaluator is mounted in the current UI context."""
+  hasCodeEvaluatorContext: Boolean! = false
 }
 
 type AzureADTokenProvider {
@@ -628,8 +707,8 @@ input CreateCodeEvaluatorInput {
   name: Identifier!
   sourceCode: String!
   language: Language!
+  sandboxConfigId: ID!
   description: String = null
-  sandboxConfigId: ID = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
 }
@@ -872,7 +951,20 @@ type Dataset implements Node {
   Number of examples in a specific version if version is specified, or in the latest version if version is not specified.
   """
   exampleCount(datasetVersionId: ID, splitIds: [ID!]): Int!
-  examples(datasetVersionId: ID, splitIds: [ID!], first: Int = 50, last: Int, after: String, before: String, filter: String): DatasetExampleConnection!
+  examples(
+    datasetVersionId: ID
+    splitIds: [ID!]
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+    filter: String
+
+    """
+    When provided, return only the examples with the given IDs — a membership lookup that avoids paging the whole connection.
+    """
+    filterIds: [ID!]
+  ): DatasetExampleConnection!
   splits: [DatasetSplit!]!
 
   """
@@ -1050,6 +1142,9 @@ type DatasetLabel implements Node {
   name: String!
   description: String
   color: String!
+
+  """The number of datasets that this label is applied to."""
+  usageCount: Int!
 }
 
 """A connection to a list of items."""
@@ -1221,6 +1316,11 @@ input DeleteDatasetExamplesInput {
   exampleIds: [ID!]!
   datasetVersionDescription: String
   datasetVersionMetadata: JSON
+
+  """
+  When provided, every deleted example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
+  """
+  datasetId: ID
 }
 
 input DeleteDatasetInput {
@@ -1264,6 +1364,26 @@ input DeleteModelMutationInput {
 type DeleteModelMutationPayload {
   model: GenerativeModel!
   query: Query!
+}
+
+type DeleteProjectAnnotationsByNamePayload {
+  deletedAnnotationCount: Int!
+  query: Query!
+}
+
+input DeleteProjectAnnotationsInput {
+  projectId: ID!
+  annotationName: String!
+
+  """
+  If provided, only annotations whose timestamp falls within this range are deleted. The end of the range is right-exclusive.
+  """
+  timeRange: TimeRange
+
+  """
+  Which timestamp the time range is applied against. Defaults to the annotation's own creation time.
+  """
+  timeRangeField: AnnotationTimeRangeField! = ANNOTATION_CREATED_AT
 }
 
 input DeleteProjectTraceRetentionPolicyInput {
@@ -1577,6 +1697,7 @@ type Experiment implements Node {
   datasetVersion: DatasetVersion!
   dataset: Dataset!
   metadata: JSON!
+  isBaseline: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
 
@@ -2174,7 +2295,6 @@ input InternetAccessInput {
 enum InternetAccessMode {
   NONE
   BOOLEAN
-  ALLOWLIST
 }
 
 """
@@ -2277,6 +2397,11 @@ type Mutation {
   patchDatasetSplit(input: PatchDatasetSplitInput!): DatasetSplitMutationPayload!
   deleteDatasetSplits(input: DeleteDatasetSplitInput!): DeleteDatasetSplitsMutationPayload!
   setDatasetExampleSplits(input: SetDatasetExampleSplitsInput!): SetDatasetExampleSplitsMutationPayload!
+
+  """
+  Batch form of setDatasetExampleSplits: replaces the split membership of every listed example in a single transaction, so a failure on any example leaves no partial assignment.
+  """
+  setDatasetExamplesSplits(input: SetDatasetExamplesSplitsInput!): SetDatasetExamplesSplitsMutationPayload!
   createDatasetSplitWithExamples(input: CreateDatasetSplitWithExamplesInput!): DatasetSplitMutationPayloadWithExamples!
   createDocumentAnnotations(input: [CreateDocumentAnnotationInput!]!): DocumentAnnotationMutationPayload!
   patchDocumentAnnotations(input: [PatchAnnotationInput!]!): DocumentAnnotationMutationPayload!
@@ -2299,6 +2424,8 @@ type Mutation {
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
   reinstateExperiment(experimentId: ID!): ReinstateExperimentPayload!
+  patchExperiment(input: PatchExperimentInput!): PatchExperimentPayload!
+  setExperimentBaseline(experimentId: ID!, baseline: Boolean!): SetExperimentBaselinePayload!
   deleteExperiments(input: DeleteExperimentsInput!): ExperimentMutationPayload!
   createGenerativeModelCustomProvider(input: CreateGenerativeModelCustomProviderMutationInput!): CreateGenerativeModelCustomProviderMutationPayload!
   patchGenerativeModelCustomProvider(input: PatchGenerativeModelCustomProviderMutationInput!): PatchGenerativeModelCustomProviderMutationPayload!
@@ -2307,6 +2434,21 @@ type Mutation {
   createModel(input: CreateModelMutationInput!): CreateModelMutationPayload!
   updateModel(input: UpdateModelMutationInput!): UpdateModelMutationPayload!
   deleteModel(input: DeleteModelMutationInput!): DeleteModelMutationPayload!
+
+  """
+  Delete every span annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSpanAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every trace annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectTraceAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
+
+  """
+  Delete every session annotation with the given name in a project, optionally restricted to a time range. Admin only when auth is enabled.
+  """
+  deleteProjectSessionAnnotations(input: DeleteProjectAnnotationsInput!): DeleteProjectAnnotationsByNamePayload!
   createProject(input: CreateProjectInput!): ProjectMutationPayload!
   deleteProject(id: ID!): Query!
   clearProject(input: ClearProjectInput!): Query!
@@ -2335,6 +2477,8 @@ type Mutation {
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
   patchSpanAnnotations(input: [PatchAnnotationInput!]!): SpanAnnotationMutationPayload!
   deleteSpanAnnotations(input: DeleteAnnotationsInput!): SpanAnnotationMutationPayload!
+  setAgentAssistantEnabled(input: SetAgentAssistantEnabledInput!): AgentAssistantEnabled!
+  setAgentTraceRecording(input: SetAgentTraceRecordingInput!): AgentTraceRecording!
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
@@ -2463,6 +2607,11 @@ input PatchDatasetExamplesInput {
   patches: [DatasetExamplePatch!]!
   versionDescription: String
   versionMetadata: JSON
+
+  """
+  When provided, every patched example must belong to this dataset or the whole mutation is rejected — lets callers scope the write to the dataset they believe they are editing.
+  """
+  datasetId: ID
 }
 
 input PatchDatasetInput {
@@ -2478,6 +2627,17 @@ input PatchDatasetSplitInput {
   description: String
   color: String
   metadata: JSON
+}
+
+input PatchExperimentInput {
+  experimentId: ID!
+  name: String
+  description: String
+  metadata: JSON
+}
+
+type PatchExperimentPayload {
+  experiment: Experiment!
 }
 
 input PatchGenerativeModelCustomProviderMutationInput {
@@ -2591,6 +2751,21 @@ type Project implements Node {
   """
   sessionAnnotationNames: [String!]!
 
+  """
+  Span annotation names along with the number of span annotations that have been added for each name in this project.
+  """
+  spanAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Trace annotation names along with the number of trace annotations that have been added for each name in this project.
+  """
+  traceAnnotationNameCounts: [AnnotationNameCount!]!
+
+  """
+  Session annotation names along with the number of session annotations that have been added for each name in this project.
+  """
+  sessionAnnotationNameCounts: [AnnotationNameCount!]!
+
   """Names of available document evaluations."""
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
@@ -2608,7 +2783,9 @@ type Project implements Node {
   traceLatencyMsPercentileTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceLatencyPercentileTimeSeries!
   traceTokenCountTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCountTimeSeries!
   traceTokenCostTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): TraceTokenCostTimeSeries!
-  spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): SpanAnnotationScoreTimeSeries!
+  spanAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  traceAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
+  sessionAnnotationScoreTimeSeries(timeRange: TimeRange!, timeBinConfig: TimeBinConfig): AnnotationScoreTimeSeries!
   topModelsByCost(timeRange: TimeRange!): [GenerativeModel!]!
   topModelsByTokenCount(timeRange: TimeRange!): [GenerativeModel!]!
 }
@@ -2835,6 +3012,7 @@ type Prompt implements Node {
   metadata: JSON!
   createdAt: DateTime!
   version(versionId: ID = null, tagName: Identifier = null): PromptVersion!
+  versionCount: Int!
   versionTags: [PromptVersionTag!]!
   promptVersions(first: Int = 50, last: Int, after: String, before: String): PromptVersionConnection!
   sourcePrompt: Prompt
@@ -3000,9 +3178,12 @@ input PromptInvocationParametersInput @oneOf {
 type PromptLabel implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  name: Identifier!
+  name: String!
   description: String
   color: String
+
+  """The number of prompts that this label is applied to."""
+  usageCount: Int!
 }
 
 type PromptLabelAssociationMutationPayload {
@@ -3293,8 +3474,28 @@ type Query {
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
-  datasetLabels(first: Int = 50, last: Int, after: String, before: String): DatasetLabelConnection!
-  datasetSplits(first: Int = 50, last: Int, after: String, before: String): DatasetSplitConnection!
+  datasetLabels(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+
+    """
+    When provided, return only labels whose name exactly matches one of the given names — a lookup that avoids paging through the entire instance-wide vocabulary.
+    """
+    names: [String!]
+  ): DatasetLabelConnection!
+  datasetSplits(
+    first: Int = 50
+    last: Int
+    after: String
+    before: String
+
+    """
+    When provided, return only splits whose name exactly matches one of the given names — a lookup that avoids paging through the entire instance-wide vocabulary.
+    """
+    names: [String!]
+  ): DatasetSplitConnection!
   builtInEvaluators: [BuiltInEvaluator!]!
   evaluators(first: Int = 50, last: Int, after: String, before: String, sort: EvaluatorSort, filter: EvaluatorFilter): EvaluatorConnection!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
@@ -3309,6 +3510,9 @@ type Query {
   dbTableStats: [DbTableStats!]!
   serverStatus: ServerStatus!
   agentsConfig: AgentsConfig!
+
+  """The assistant skills available given the supplied UI context."""
+  availableAgentSkills(input: AvailableAgentSkillsInput): [AgentSkill!]!
   validateRegularExpression(regex: String!): ValidationResult!
   getSpanByOtelId(spanId: String!): Span
   getTraceByOtelId(traceId: String!): Trace
@@ -3518,6 +3722,15 @@ type ServerStatus {
   insufficientStorage: Boolean!
 }
 
+input SetAgentAssistantEnabledInput {
+  enabled: Boolean!
+}
+
+input SetAgentTraceRecordingInput {
+  allowLocalTraces: Boolean!
+  allowRemoteExport: Boolean!
+}
+
 input SetDatasetExampleSplitsInput {
   exampleId: ID!
   datasetSplitIds: [ID!]!
@@ -3528,6 +3741,21 @@ type SetDatasetExampleSplitsMutationPayload {
   example: DatasetExample!
 }
 
+input SetDatasetExamplesSplitsInput {
+  exampleIds: [ID!]!
+  datasetSplitIds: [ID!]!
+
+  """
+  When provided, every example must belong to this dataset or the whole mutation is rejected — lets callers scope a batch write to the dataset they believe they are editing.
+  """
+  datasetId: ID
+}
+
+type SetDatasetExamplesSplitsMutationPayload {
+  query: Query!
+  examples: [DatasetExample!]!
+}
+
 input SetDatasetLabelsInput {
   datasetId: ID!
   datasetLabelIds: [ID!]!
@@ -3536,6 +3764,11 @@ input SetDatasetLabelsInput {
 type SetDatasetLabelsMutationPayload {
   query: Query!
   dataset: Dataset!
+}
+
+type SetExperimentBaselinePayload {
+  experiment: Experiment!
+  previousBaselineExperiment: Experiment
 }
 
 input SetPromptLabelsInput {
@@ -3587,9 +3820,25 @@ type Span implements Node {
   """Metadata as a JSON string"""
   metadata: String
   numDocuments: Int
+
+  """
+  Total LLM token count for this span only (prompt plus completion). Typically populated on LLM spans.
+  """
   tokenCountTotal: Int
+
+  """
+  Prompt token count for this span only. Typically populated on LLM spans.
+  """
   tokenCountPrompt: Int
+
+  """
+  Completion token count for this span only. Typically populated on LLM spans.
+  """
   tokenCountCompletion: Int
+
+  """
+  Breakdown of this span's prompt tokens by kind (e.g., cache reads, cache writes, audio). These counts are a decomposition of `tokenCountPrompt`, not additive on top of it, and are typically used for cost analysis.
+  """
   tokenPromptDetails: TokenCountPromptDetails!
   input: SpanIOValue
   output: SpanIOValue
@@ -3601,12 +3850,12 @@ type Span implements Node {
   cumulativeTokenCountTotal: Float
 
   """
-  Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
+  Cumulative prompt token count from self and all descendant spans (children, grandchildren, etc.)
   """
   cumulativeTokenCountPrompt: Float
 
   """
-  Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  Cumulative completion token count from self and all descendant spans (children, grandchildren, etc.)
   """
   cumulativeTokenCountCompletion: Float
 
@@ -3715,21 +3964,6 @@ enum SpanAnnotationColumn {
 type SpanAnnotationMutationPayload {
   spanAnnotations: [SpanAnnotation!]!
   query: Query!
-}
-
-type SpanAnnotationScoreTimeSeries {
-  data: [SpanAnnotationScoreTimeSeriesDataPoint!]!
-  names: [String!]!
-}
-
-type SpanAnnotationScoreTimeSeriesDataPoint {
-  timestamp: DateTime!
-  scoresWithLabels: [SpanAnnotationScoreWithLabel!]!
-}
-
-type SpanAnnotationScoreWithLabel {
-  label: String!
-  score: Float!
 }
 
 """The sort key and direction for SpanAnnotation connections"""
@@ -3949,9 +4183,17 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
+"""
+Breakdown of an LLM span's prompt tokens by kind. These counts are a decomposition of the span's prompt token count, not additive on top of it, and are typically used for cost analysis.
+"""
 type TokenCountPromptDetails {
+  """Prompt tokens served from the provider's prompt cache."""
   cacheRead: Int
+
+  """Prompt tokens written into the provider's prompt cache."""
   cacheWrite: Int
+
+  """Prompt tokens that were audio tokens."""
   audio: Int
 }
 
@@ -4197,6 +4439,11 @@ type TraceTokenCostTimeSeriesDataPoint {
   totalCost: Float
 }
 
+type TraceTokenCountDetailsTimeSeriesEntry {
+  tokenType: String!
+  tokenCount: Float
+}
+
 type TraceTokenCountTimeSeries {
   data: [TraceTokenCountTimeSeriesDataPoint!]!
 }
@@ -4206,6 +4453,8 @@ type TraceTokenCountTimeSeriesDataPoint {
   promptTokenCount: Float
   completionTokenCount: Float
   totalTokenCount: Float
+  promptTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
+  completionTokenCountDetails: [TraceTokenCountDetailsTimeSeriesEntry!]!
 }
 
 type UnparsableConfig {
@@ -4285,7 +4534,6 @@ type UpdateModelMutationPayload {
 
 input UpdateSandboxConfigInput {
   id: ID!
-  name: Identifier
   description: String
   config: SandboxConfigVariantInput
   timeout: Int

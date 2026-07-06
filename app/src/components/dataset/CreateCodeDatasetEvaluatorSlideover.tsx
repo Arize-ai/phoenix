@@ -1,8 +1,16 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
+import type { EvaluatorSubmitResult } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
@@ -39,7 +47,6 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
 } & ModalOverlayProps) => {
   const isDirtyRef = useRef(false);
 
-  // Reset dirty state when slideover opens
   useEffect(() => {
     if (isOpen) {
       isDirtyRef.current = false;
@@ -142,59 +149,70 @@ const CreateCodeEvaluatorDialog = ({
     data.sandboxBackends
   );
   const [createCodeEvaluator, isCreatingCodeEvaluator] =
-    useMutation<CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation>(graphql`
-      mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(
-        $input: CreateCodeEvaluatorInput!
-      ) {
-        createCodeEvaluator(input: $input) {
-          evaluator {
-            id
+    useMutation<CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation>(
+      graphql`
+        mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(
+          $input: CreateCodeEvaluatorInput!
+        ) {
+          createCodeEvaluator(input: $input) {
+            evaluator {
+              id
+              name
+            }
           }
         }
-      }
-    `);
+      `
+    );
   const [createDatasetCodeEvaluator, isCreatingDatasetCodeEvaluator] =
-    useMutation<CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation>(graphql`
-      mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(
-        $input: CreateDatasetCodeEvaluatorInput!
-        $connectionIds: [ID!]!
-      ) {
-        createDatasetCodeEvaluator(input: $input) {
-          evaluator
-            @appendNode(
-              connections: $connectionIds
-              edgeTypeName: "DatasetEvaluatorEdge"
-            ) {
-            id
-            ...PlaygroundDatasetSection_evaluator
-            ...DatasetEvaluatorsTable_row
+    useMutation<CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation>(
+      graphql`
+        mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(
+          $input: CreateDatasetCodeEvaluatorInput!
+          $connectionIds: [ID!]!
+        ) {
+          createDatasetCodeEvaluator(input: $input) {
+            evaluator
+              @appendNode(
+                connections: $connectionIds
+                edgeTypeName: "DatasetEvaluatorEdge"
+              ) {
+              id
+              ...PlaygroundDatasetSection_evaluator
+              ...DatasetEvaluatorsTable_row
+            }
           }
         }
-      }
-    `);
-  const initialState: EvaluatorStoreProps = {
-    evaluator: {
-      globalName: "",
-      name: "",
-      description: "",
-      inputMapping: {
-        literalMapping: {},
-        pathMapping: {},
+      `
+    );
+  const initialState: EvaluatorStoreProps = useMemo(() => {
+    return {
+      evaluator: {
+        globalName: "",
+        name: "",
+        description: "",
+        inputMapping: {
+          literalMapping: {},
+          pathMapping: {},
+        },
+        kind: "CODE",
+        isBuiltin: false,
+        includeExplanation: false,
       },
-      kind: "CODE",
-      isBuiltin: false,
-      includeExplanation: false,
-    },
-    outputConfigs: [createDefaultFreeformOutputConfig("")],
-    dataset: {
-      readonly: true,
-      id: datasetId,
-      selectedExampleId: null,
-      selectedSplitIds: [],
-    },
-    evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
-    showPromptPreview: false,
-  };
+      outputConfigs: [createDefaultFreeformOutputConfig("")],
+      dataset: {
+        readonly: true,
+        id: datasetId,
+        selectedExampleId: null,
+        selectedSplitIds: [],
+      },
+      evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
+      showPromptPreview: false,
+    };
+  }, [datasetId]);
+
+  const initialLanguage = "PYTHON";
+  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON");
+  const initialSandboxConfigId: string | null = null;
 
   const onSubmit = (
     store: EvaluatorStoreInstance,
@@ -203,7 +221,7 @@ const CreateCodeEvaluatorDialog = ({
       sourceCode: string;
       sandboxConfigId?: string | null;
     }
-  ) => {
+  ): Promise<EvaluatorSubmitResult> => {
     setError(undefined);
     const {
       evaluator: { globalName, name, description, inputMapping },
@@ -212,59 +230,67 @@ const CreateCodeEvaluatorDialog = ({
     const normalizedName = (globalName || name).trim();
     const normalizedDescription = description.trim() || undefined;
     invariant(normalizedName, "evaluator name is required");
+    invariant(
+      payload.sandboxConfigId,
+      "sandbox config is required to create a code evaluator"
+    );
+    const sandboxConfigId = payload.sandboxConfigId;
 
-    createCodeEvaluator({
-      variables: {
-        input: {
-          name: normalizedName,
-          description: normalizedDescription,
-          sourceCode: payload.sourceCode,
-          language: payload.language,
-          sandboxConfigId: payload.sandboxConfigId,
-          outputConfigs: buildOutputConfigsInput(outputConfigs),
-          inputMapping,
-        },
-      },
-      onCompleted: (response) => {
-        const evaluatorId = response.createCodeEvaluator.evaluator.id;
-        createDatasetCodeEvaluator({
-          variables: {
-            input: {
-              datasetId,
-              evaluatorId,
-              name: normalizedName,
-              description: normalizedDescription,
-              outputConfigs: buildOutputConfigsInput(outputConfigs),
-              inputMapping,
-            },
-            connectionIds: updateConnectionIds ?? [],
-          },
-          onCompleted: (datasetResponse) => {
-            const createdId =
-              datasetResponse.createDatasetCodeEvaluator.evaluator.id;
-            onEvaluatorCreated?.(createdId);
-            notifySuccess({
-              title: "Evaluator created",
-              message: "The code evaluator has been added to the dataset.",
-            });
-            onDirtyChange?.(false);
-            onClose();
-          },
-          onError: (mutationError) => {
-            setError(
-              getErrorMessagesFromRelayMutationError(mutationError)?.join(
-                "\n"
-              ) ?? mutationError.message
-            );
-          },
-        });
-      },
-      onError: (mutationError) => {
-        setError(
+    return new Promise<EvaluatorSubmitResult>((resolve) => {
+      const fail = (mutationError: Error) => {
+        const flattened =
           getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
-            mutationError.message
-        );
-      },
+          mutationError.message;
+        setError(flattened);
+        resolve({ ok: false, error: flattened });
+      };
+      createCodeEvaluator({
+        variables: {
+          input: {
+            name: normalizedName,
+            description: normalizedDescription,
+            sourceCode: payload.sourceCode,
+            language: payload.language,
+            sandboxConfigId,
+            outputConfigs: buildOutputConfigsInput(outputConfigs),
+            inputMapping,
+          },
+        },
+        onCompleted: (response) => {
+          const createdEvaluator = response.createCodeEvaluator.evaluator;
+          createDatasetCodeEvaluator({
+            variables: {
+              input: {
+                datasetId,
+                evaluatorId: createdEvaluator.id,
+                name: normalizedName,
+                description: normalizedDescription,
+                outputConfigs: buildOutputConfigsInput(outputConfigs),
+                inputMapping,
+              },
+              connectionIds: updateConnectionIds ?? [],
+            },
+            onCompleted: (datasetResponse) => {
+              const createdId =
+                datasetResponse.createDatasetCodeEvaluator.evaluator.id;
+              onEvaluatorCreated?.(createdId);
+              notifySuccess({
+                title: "Evaluator created",
+                message: "The code evaluator has been added to the dataset.",
+              });
+              onDirtyChange?.(false);
+              onClose();
+              resolve({
+                ok: true,
+                acceptedBy: "user",
+                evaluator: { id: createdId, name: normalizedName },
+              });
+            },
+            onError: fail,
+          });
+        },
+        onError: fail,
+      });
     });
   };
 
@@ -280,10 +306,10 @@ const CreateCodeEvaluatorDialog = ({
           }
           mode="create"
           error={error}
-          initialLanguage="PYTHON"
-          initialSourceCode={getDefaultCodeEvaluatorSource("PYTHON")}
+          initialLanguage={initialLanguage}
+          initialSourceCode={initialSourceCode}
           sandboxConfigs={sandboxConfigs}
-          initialSandboxConfigId={null}
+          initialSandboxConfigId={initialSandboxConfigId}
         />
       )}
     </EvaluatorStoreProvider>

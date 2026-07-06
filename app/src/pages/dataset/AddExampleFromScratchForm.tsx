@@ -61,7 +61,9 @@ export function AddExampleFromScratchForm(
   const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddExampleFromScratchFormMutation>(
     graphql`
-      mutation AddExampleFromScratchFormMutation($input: AddExamplesToDatasetInput!) {
+      mutation AddExampleFromScratchFormMutation(
+        $input: AddExamplesToDatasetInput!
+      ) {
         addExamplesToDataset(input: $input) {
           __typename
         }
@@ -308,7 +310,7 @@ export function AddExampleFromScratchForm(
             size="S"
             isDisabled={!isValid || isCommitting}
             leadingVisual={
-              isCommitting ? <Icon svg={<Icons.LoadingOutline />} /> : null
+              isCommitting ? <Icon svg={<Icons.Loading />} /> : null
             }
             trailingVisual={
               <Keyboard>

@@ -12,7 +12,8 @@ import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCr
 const credentialFormCSS = css`
   box-sizing: border-box;
   width: 100%;
-  border: var(--global-border-size-thin) solid var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   background: var(--global-background-color-default);
   padding: var(--global-dimension-size-200);
@@ -88,7 +89,7 @@ export function AgentModelCredentialForm({
     >
       <Flex direction="column" gap="size-150">
         <Flex direction="row" alignItems="center" gap="size-100">
-          <Icon color="danger" svg={<Icons.AlertTriangleOutline />} />
+          <Icon color="danger" svg={<Icons.AlertTriangle />} />
           <Text weight="heavy">
             {provider.name} credentials are not configured
           </Text>
@@ -97,7 +98,7 @@ export function AgentModelCredentialForm({
           <>
             <Text size="XS" color="text-700">
               Add server-side credentials for {modelName} to use this model with
-              PXI.
+              the assistant.
             </Text>
             <ProviderServerCredentialsPanel
               provider={provider}
@@ -107,7 +108,7 @@ export function AgentModelCredentialForm({
         ) : (
           <Text size="XS" color="text-700">
             Contact an administrator to configure {provider.name} credentials
-            before using {modelName} with PXI.
+            before using {modelName} with the assistant.
           </Text>
         )}
       </Flex>

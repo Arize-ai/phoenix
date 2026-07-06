@@ -7,6 +7,9 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 13 * * *"
+  # zizmor: ignore[dangerous-triggers] This workflow_run path intentionally
+  # smoke-tests the package published by the trusted publish workflow. It does
+  # not checkout workflow_run artifacts or run code from the triggering commit.
   workflow_run:
     workflows:
       - Publish Python packages

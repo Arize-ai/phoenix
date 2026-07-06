@@ -2,7 +2,7 @@ import json
 import re
 from collections import defaultdict
 from datetime import datetime
-from typing import Any, Iterable, Iterator, Literal, Optional
+from typing import Annotated, Any, Iterable, Iterator, Literal, Optional
 from typing import cast as type_cast
 
 import strawberry
@@ -55,6 +55,7 @@ from phoenix.server.api.helpers.playground_clients import (
 )
 from phoenix.server.api.helpers.playground_registry import PLAYGROUND_CLIENT_REGISTRY
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.input_types.AvailableAgentSkillsInput import AvailableAgentSkillsInput
 from phoenix.server.api.input_types.DatasetFilter import DatasetFilter
 from phoenix.server.api.input_types.DatasetSort import DatasetSort
 from phoenix.server.api.input_types.EvaluatorFilter import EvaluatorFilter
@@ -67,6 +68,7 @@ from phoenix.server.api.input_types.PromptFilter import PromptFilter
 from phoenix.server.api.input_types.PromptTemplateOptions import PromptTemplateOptions
 from phoenix.server.api.input_types.PromptVersionInput import PromptChatTemplateInput
 from phoenix.server.api.types.AgentsConfig import AgentsConfig
+from phoenix.server.api.types.AgentSkill import AgentSkill
 from phoenix.server.api.types.AnnotationConfig import AnnotationConfig, to_gql_annotation_config
 from phoenix.server.api.types.ClassificationEvaluatorConfig import ClassificationEvaluatorConfig
 from phoenix.server.api.types.Dataset import Dataset
@@ -454,7 +456,7 @@ class Query:
             # The end_time comes from the Trace model, and we need to get the max end_time for
             # each project
             end_time_subq = (
-                select(func.max(models.Trace.end_time))
+                select(func.max(models.Trace.start_time))
                 .where(models.Trace.project_rowid == models.Project.id)
                 .scalar_subquery()
             )
@@ -1019,8 +1021,14 @@ class Query:
             backend_type = global_id.node_id
             if backend_type not in SANDBOX_BACKEND_TYPES:
                 raise NotFound(f"Unknown sandbox backend type: {backend_type}")
-            return SandboxProvider(id=type_cast(models.SandboxBackendType, backend_type))
-        node_id = int(global_id.node_id)
+            return SandboxProvider(id=backend_type)
+        try:
+            node_id = int(global_id.node_id)
+        except ValueError:
+            raise BadRequest(
+                f"Invalid node id: {id}. The id of a {type_name} node must be an integer, "
+                f"but got: {global_id.node_id}"
+            ) from None
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
         if type_name == Project.__name__:
@@ -1111,15 +1119,16 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
-        stmt = select(models.Prompt)
+        stmt = select(models.Prompt).order_by(
+            models.Prompt.created_at.desc(),
+            models.Prompt.id.desc(),
+        )
         if filter:
             column = getattr(models.Prompt, filter.col.value)
             # Cast Identifier columns to String for ilike operations
             if filter.col.value == "name":
                 column = cast(column, String)
-            stmt = stmt.where(column.ilike(f"%{filter.value}%")).order_by(
-                models.Prompt.updated_at.desc()
-            )
+            stmt = stmt.where(column.ilike(f"%{filter.value}%"))
         if labelIds:
             stmt = stmt.join(models.PromptPromptLabel).where(
                 models.PromptPromptLabel.prompt_label_id.in_(
@@ -1174,6 +1183,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only labels whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetLabel]:
         args = ConnectionArgs(
             first=first,
@@ -1181,10 +1198,13 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetLabel.name.in_(names))
         async with info.context.db.read() as session:
-            dataset_labels = await session.scalars(
-                select(models.DatasetLabel).order_by(models.DatasetLabel.name.asc())
-            )
+            dataset_labels = await session.scalars(stmt)
         data = [
             DatasetLabel(id=dataset_label.id, db_record=dataset_label)
             for dataset_label in dataset_labels
@@ -1199,6 +1219,14 @@ class Query:
         last: Optional[int] = UNSET,
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
+        names: Annotated[
+            Optional[list[str]],
+            strawberry.argument(
+                description="When provided, return only splits whose name exactly "
+                "matches one of the given names — a lookup that avoids paging "
+                "through the entire instance-wide vocabulary."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetSplit]:
         args = ConnectionArgs(
             first=first,
@@ -1206,8 +1234,13 @@ class Query:
             last=last,
             before=before if isinstance(before, CursorString) else None,
         )
+        stmt = select(models.DatasetSplit)
+        if names:
+            # Exact-match lookup so callers can resolve names to ids without
+            # paging through the entire instance-wide vocabulary.
+            stmt = stmt.where(models.DatasetSplit.name.in_(names))
         async with info.context.db.read() as session:
-            splits = await session.stream_scalars(select(models.DatasetSplit))
+            splits = await session.stream_scalars(stmt)
             data = [DatasetSplit(id=split.id, db_record=split) async for split in splits]
             return connection_from_list(
                 data=data,
@@ -1481,12 +1514,45 @@ class Query:
         )
 
     @strawberry.field
-    def agents_config(self) -> AgentsConfig:
+    def agents_config(self, info: Info[Context, None]) -> AgentsConfig:
+        agent_assistant_enabled = info.context.settings.agent_assistant_enabled
+        trace_recording = info.context.settings.agent_trace_recording
         return AgentsConfig(
             collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
             assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
             web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
+            assistant_enabled=agent_assistant_enabled.enabled,
+            allow_local_traces=trace_recording.allow_local_traces,
+            allow_remote_export=trace_recording.allow_remote_export,
         )
+
+    @strawberry.field(description="The assistant skills available given the supplied UI context.")  # type: ignore
+    def available_agent_skills(
+        self,
+        info: Info[Context, None],
+        input: Optional[AvailableAgentSkillsInput] = UNSET,
+    ) -> list[AgentSkill]:
+        from phoenix.server.agents.skills import get_skills
+
+        resolved_input = input if input is not UNSET and input is not None else None
+        skills = get_skills(
+            has_playground_context=bool(resolved_input and resolved_input.has_playground_context),
+            has_dataset_context=bool(resolved_input and resolved_input.has_dataset_context),
+            has_llm_evaluator_context=bool(
+                resolved_input and resolved_input.has_llm_evaluator_context
+            ),
+            has_code_evaluator_context=bool(
+                resolved_input and resolved_input.has_code_evaluator_context
+            ),
+        )
+        return [
+            AgentSkill(
+                name=skill.name,
+                description=skill.description,
+                summary=skill.summary,
+            )
+            for skill in skills
+        ]
 
     @strawberry.field
     def validate_regular_expression(self, regex: str) -> ValidationResult:

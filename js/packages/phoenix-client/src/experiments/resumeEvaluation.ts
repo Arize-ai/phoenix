@@ -29,6 +29,7 @@ import { ensureString } from "../utils/ensureString";
 import { toObjectHeaders } from "../utils/toObjectHeaders";
 import { getExperimentInfo } from "./getExperimentInfo.js";
 import { getExperimentEvaluators } from "./helpers";
+import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import { logEvalResumeSummary, PROGRESS_PREFIX } from "./logging";
 import { cleanupOwnedTracerProvider } from "./tracing";
 
@@ -729,7 +730,7 @@ async function runSingleEvaluation({
         ...objectAsAttributes({
           experiment_id: experimentId,
           experiment_run_id: experimentRun.id,
-          dataset_example_id: datasetExample.nodeId,
+          dataset_example_id: getExampleGlobalId(datasetExample),
         }),
       });
 

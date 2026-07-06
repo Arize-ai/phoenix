@@ -43,6 +43,7 @@ import {
 } from "@phoenix/components/core/tooltip";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import {
+  BaselineExperimentBadge,
   ExperimentStatus,
   ExperimentTokenCount,
   SequenceNumberToken,
@@ -52,17 +53,22 @@ import { ExperimentTokenCosts } from "@phoenix/components/experiment/ExperimentT
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import {
   CompactJSONCell,
+  createRowSelectionColumn,
   IntCell,
   LoadMoreRow,
 } from "@phoenix/components/table";
 import { CellWithControlsWrap } from "@phoenix/components/table/CellWithControlsWrap";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
 import {
   getCommonPinningStyles,
   selectableTableCSS,
 } from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { usePersistedState } from "@phoenix/hooks";
@@ -130,9 +136,13 @@ const TableBody = <T extends { id: string }>({
                 <td
                   key={cell.id}
                   style={{
+                    ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                    ...getCommonPinningStyles(cell.column),
+                    userSelect:
+                      cell.column.id === CHECKBOX_COLUMN_ID
+                        ? "none"
+                        : undefined,
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -190,6 +200,7 @@ export function ExperimentsTable({
                 name
                 sequenceNumber
                 description
+                isBaseline
                 createdAt
                 metadata
                 errorRate
@@ -302,31 +313,17 @@ export function ExperimentsTable({
   );
 
   type TableRow = (typeof tableData)[number];
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
 
   const baseColumns: ColumnDef<TableRow>[] = [
-    {
-      id: "select",
+    createRowSelectionColumn<TableRow>({
+      selectRow,
+      size: 50,
+      minSize: 50,
       maxSize: 50,
-      header: ({ table }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: table.getIsAllRowsSelected(),
-            isIndeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.toggleAllRowsSelected,
-          }}
-        />
-      ),
-      cell: ({ row }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: row.getIsSelected(),
-            isDisabled: !row.getCanSelect(),
-            isIndeterminate: row.getIsSomeSelected(),
-            onChange: row.toggleSelected,
-          }}
-        />
-      ),
-    },
+    }),
     {
       header: "id",
       id: "id",
@@ -353,6 +350,7 @@ export function ExperimentsTable({
         const experimentId = row.original.id;
         const sequenceNumber = row.original.sequenceNumber;
         const jobStatus = row.original.job?.status;
+        const isBaseline = row.original.isBaseline;
         return (
           <Flex direction="row" gap="size-100" alignItems="center">
             <SequenceNumberToken sequenceNumber={sequenceNumber} />
@@ -366,6 +364,11 @@ export function ExperimentsTable({
               experimentId={experimentId}
               datasetId={data.id}
             />
+            {isBaseline ? (
+              <span style={{ marginInlineStart: "auto" }}>
+                <BaselineExperimentBadge size="M" />
+              </span>
+            ) : null}
           </Flex>
         );
       },
@@ -613,6 +616,8 @@ export function ExperimentsTable({
               <ExperimentActionMenu
                 projectId={project?.id || null}
                 experimentId={row.original.id}
+                canSetBaseline
+                isBaseline={row.original.isBaseline}
                 metadata={metadata}
                 jobStatus={row.original.job?.status ?? null}
                 size="S"
@@ -636,6 +641,7 @@ export function ExperimentsTable({
       columnSizing,
       columnVisibility,
       columnPinning: {
+        ...CHECKBOX_COLUMN_PINNING,
         right: ["actions"],
       },
     },
@@ -752,8 +758,8 @@ export function ExperimentsTable({
                     colSpan={header.colSpan}
                     key={header.id}
                     style={{
-                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
                       ...getCommonPinningStyles(header.column),
+                      width: `calc(var(--header-${makeSafeColumnId(header.id)}-size) * 1px)`,
                     }}
                     align={header.column.columnDef?.meta?.textAlign}
                   >
@@ -844,11 +850,7 @@ function ExperimentJobStatusIcon({
     return (
       <TooltipTrigger>
         <TriggerWrap>
-          <Icon
-            svg={<Icons.CloseCircleOutline />}
-            color="danger"
-            aria-label="error"
-          />
+          <Icon svg={<Icons.CloseCircle />} color="danger" aria-label="error" />
         </TriggerWrap>
         <RichTooltip>
           <RichTooltipTitle>Experiment Error</RichTooltipTitle>

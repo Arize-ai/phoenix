@@ -1,10 +1,12 @@
 import {
   getBashToolCommandDisplayResult,
   getBashToolInput,
+  getBashToolSummary,
 } from "@phoenix/agent/tools/bash";
 
 import {
   ToolPartCodeBlock,
+  ToolPartExpandableSection,
   ToolPartLabel,
   ToolPartMeta,
 } from "./ToolPartPrimitives";
@@ -15,8 +17,11 @@ import { stringifyToolValue } from "./toolPartTypes";
  * Returns the preview text for the collapsed bash tool summary.
  */
 export function getBashToolPreview(part: ToolInvocationPart): string {
-  const input = getBashToolInput(part.input);
-  const command = input?.command ?? stringifyToolValue(part.input);
+  const summary = getBashToolSummary(part.input);
+  if (summary) {
+    return summary;
+  }
+  const command = getBashToolInput(part.input)?.command;
   return command ? command.split("\n")[0] : "";
 }
 
@@ -40,13 +45,17 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
   return (
     <div className="tool-part__body">
       <ToolPartLabel>Command</ToolPartLabel>
-      <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
+      <ToolPartExpandableSection>
+        <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
+      </ToolPartExpandableSection>
       {part.state === "output-available" ? (
         <>
           {stdout ? (
             <>
               <ToolPartLabel>Output</ToolPartLabel>
-              <ToolPartCodeBlock>{stdout}</ToolPartCodeBlock>
+              <ToolPartExpandableSection>
+                <ToolPartCodeBlock>{stdout}</ToolPartCodeBlock>
+              </ToolPartExpandableSection>
             </>
           ) : null}
           <ToolPartMeta items={metaItems} />
@@ -55,7 +64,9 @@ export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
       {part.state === "output-error" ? (
         <>
           <ToolPartLabel variant="danger">Error</ToolPartLabel>
-          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          <ToolPartExpandableSection>
+            <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+          </ToolPartExpandableSection>
         </>
       ) : null}
     </div>

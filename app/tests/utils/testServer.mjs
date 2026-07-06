@@ -19,6 +19,13 @@ process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 // The rate-limit.spec.ts test will re-enable it for its specific test
 process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
 
+// Enable Prometheus so the PrometheusMiddleware is mounted on every request
+// during the e2e suite. This produces metrics on :9090 and, crucially, gives
+// the suite real coverage of the metrics code path — e.g. the FastAPI 0.137
+// `_IncludedRouter` route-resolution regression that PrometheusMiddleware hit
+// only surfaces when the middleware actually runs against included routers.
+process.env["PHOENIX_ENABLE_PROMETHEUS"] = "True";
+
 // Fake credentials for hosted sandbox providers so they advertise
 // `status=AVAILABLE` (instead of `MISSING_CREDENTIALS`) and surface in the
 // New Sandbox Config dropdown — which now filters out unavailable/disabled
@@ -49,8 +56,13 @@ if (!fs.existsSync(wasmCachedBinary)) {
 }
 
 if (process.env["PXI_E2E"] === "true") {
-  process.env["PHOENIX_DANGEROUSLY_ENABLE_AGENTS"] = "True";
   process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "True";
+} else {
+  // The PXI assistant is enabled by default, which renders a floating action
+  // button that overlaps and intercepts clicks in unrelated specs. Disable it
+  // for the standard e2e suite; PXI specs run with PXI_E2E=true and rely on the
+  // assistant being enabled.
+  process.env["PHOENIX_DISABLE_AGENT_ASSISTANT"] = "True";
 }
 
 console.log("Phoenix test server starting...");

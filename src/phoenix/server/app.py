@@ -37,9 +37,10 @@ from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
 from pydantic import SecretStr
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.authentication import UnauthenticatedUser
 from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
@@ -51,7 +52,7 @@ from starlette.responses import JSONResponse, PlainTextResponse, RedirectRespons
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
-from strawberry.extensions import SchemaExtension
+from strawberry.extensions import MaxAliasesLimiter, QueryDepthLimiter, SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from typing_extensions import TypeAlias, override
 
@@ -63,15 +64,16 @@ from phoenix.config import (
     get_env_allow_external_resources,
     get_env_allowed_providers,
     get_env_csrf_trusted_origins,
-    get_env_dangerously_enable_agents,
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_database_usage_insertion_blocking_threshold_percentage,
+    get_env_disable_agent_assistant,
     get_env_fastapi_middleware_paths,
     get_env_gql_extension_paths,
     get_env_grpc_interceptor_paths,
     get_env_grpc_port,
     get_env_host,
     get_env_max_spans_queue_size,
+    get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
@@ -84,108 +86,24 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
-from phoenix.server.api.context import Context, DataLoaders
-from phoenix.server.api.dataloaders import (
-    AnnotationConfigsByProjectDataLoader,
-    AnnotationSummaryDataLoader,
-    AverageExperimentRepeatedRunGroupLatencyDataLoader,
-    AverageExperimentRunLatencyDataLoader,
-    CacheForDataLoaders,
-    CodeEvaluatorVersionCountDataLoader,
-    CodeEvaluatorVersionSequenceNumberDataLoader,
-    DatasetDatasetSplitsDataLoader,
-    DatasetEvaluatorsByEvaluatorDataLoader,
-    DatasetEvaluatorsByIdDataLoader,
-    DatasetEvaluatorsDataLoader,
-    DatasetExampleRevisionsDataLoader,
-    DatasetExamplesAndVersionsByExperimentRunDataLoader,
-    DatasetExampleSpansDataLoader,
-    DatasetExampleSplitsDataLoader,
-    DatasetsByEvaluatorDataLoader,
-    DocumentEvaluationsDataLoader,
-    DocumentEvaluationSummaryDataLoader,
-    DocumentRetrievalMetricsDataLoader,
-    EvaluatorByIdDataLoader,
-    ExperimentAnnotationSummaryDataLoader,
-    ExperimentDatasetSplitsDataLoader,
-    ExperimentErrorRatesDataLoader,
-    ExperimentExpectedRunCountsDataLoader,
-    ExperimentJobsDataLoader,
-    ExperimentRepeatedRunGroupAnnotationSummariesDataLoader,
-    ExperimentRepeatedRunGroupsDataLoader,
-    ExperimentRunAnnotations,
-    ExperimentRunCountsDataLoader,
-    ExperimentRunsByExperimentAndExampleDataLoader,
-    ExperimentSequenceNumberDataLoader,
-    LastExperimentErrorsDataLoader,
-    LastUsedTimesByGenerativeModelIdDataLoader,
-    LatencyMsQuantileDataLoader,
-    LatestCodeEvaluatorVersionDataLoader,
-    LatestPromptVersionIdDataLoader,
-    MinStartOrMaxEndTimeDataLoader,
-    NumChildSpansDataLoader,
-    NumSpansPerTraceDataLoader,
-    ProjectByNameDataLoader,
-    ProjectHasTracesDataLoader,
-    ProjectIdsByTraceRetentionPolicyIdDataLoader,
-    PromptVersionDataLoader,
-    PromptVersionSequenceNumberDataLoader,
-    RecordCountDataLoader,
-    SandboxConfigsByProviderDataLoader,
-    SandboxProviderDataLoader,
-    SecretsDataLoader,
-    SessionAnnotationsBySessionDataLoader,
-    SessionIODataLoader,
-    SessionNumTracesDataLoader,
-    SessionNumTracesWithErrorDataLoader,
-    SessionTokenUsagesDataLoader,
-    SessionTraceLatencyMsQuantileDataLoader,
-    SpanAnnotationsDataLoader,
-    SpanByIdDataLoader,
-    SpanCostBySpanDataLoader,
-    SpanCostDetailsBySpanCostDataLoader,
-    SpanCostDetailSummaryEntriesByGenerativeModelDataLoader,
-    SpanCostDetailSummaryEntriesByProjectSessionDataLoader,
-    SpanCostDetailSummaryEntriesBySpanDataLoader,
-    SpanCostDetailSummaryEntriesByTraceDataLoader,
-    SpanCostSummaryByExperimentDataLoader,
-    SpanCostSummaryByExperimentRepeatedRunGroupDataLoader,
-    SpanCostSummaryByExperimentRunDataLoader,
-    SpanCostSummaryByGenerativeModelDataLoader,
-    SpanCostSummaryByProjectDataLoader,
-    SpanCostSummaryByProjectSessionDataLoader,
-    SpanCostSummaryByTraceDataLoader,
-    SpanDatasetExamplesDataLoader,
-    SpanDescendantsDataLoader,
-    SpanProjectsDataLoader,
-    TableFieldsDataLoader,
-    TokenCountDataLoader,
-    TokenPricesByModelDataLoader,
-    TraceAnnotationsByTraceDataLoader,
-    TraceByTraceIdsDataLoader,
-    TraceErrorCountDataLoader,
-    TraceErrorsByTypeDataLoader,
-    TraceRetentionPolicyIdByProjectIdDataLoader,
-    TraceRootSpansDataLoader,
-    TraceSpanCountsByKindDataLoader,
-    UserRolesDataLoader,
-    UsersDataLoader,
-)
-from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
+from phoenix.server.api.context import Context, build_context
+from phoenix.server.api.dataloaders import CacheForDataLoaders
 from phoenix.server.api.routers import (
     create_agents_router,
     create_auth_router,
     create_v1_router,
     oauth2_router,
 )
+from phoenix.server.api.routers.auth_md import router as auth_md_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
-from phoenix.server.bearer_auth import BearerTokenAuthBackend, is_authenticated
+from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
 from phoenix.server.daemons.db_disk_usage_monitor import DbDiskUsageMonitor
 from phoenix.server.daemons.experiment_runner import ExperimentRunner
 from phoenix.server.daemons.experiment_sweeper import ExperimentSweeper
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.daemons.system_settings import SystemSettings
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.email.types import EmailSender
@@ -199,6 +117,7 @@ from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.settings.registry import SETTINGS_REGISTRY
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -308,6 +227,10 @@ class AppConfig(NamedTuple):
     """ Whether the database has a threshold for usage """
     allow_external_resources: bool = True
     """ Whether to allow external resources like Google Fonts in the web interface """
+    agent_assistant_disabled: bool = False
+    """ Whether the agent assistant feature is disabled at the deployment level"""
+    agent_bash_disabled: bool = False
+    """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -372,6 +295,8 @@ class Static(StaticFiles):
                     "support_email": self._app_config.support_email,
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
+                    "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
+                    "agent_bash_disabled": self._app_config.agent_bash_disabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -439,7 +364,7 @@ def user_fastapi_middlewares() -> list[Middleware]:
     return middlewares
 
 
-def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]:
+def user_gql_extensions() -> list[type[SchemaExtension]]:
     paths = get_env_gql_extension_paths()
     extensions = []
     for file_path, object_name in paths:
@@ -650,6 +575,7 @@ def _lifespan(
     experiment_sweeper: ExperimentSweeper,
     span_cost_calculator: SpanCostCalculator,
     generative_model_store: GenerativeModelStore,
+    system_settings: SystemSettings,
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
@@ -664,7 +590,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
-    docs_mcp_server: Optional[MCPServerStreamableHTTP] = None,
+    docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -673,6 +599,7 @@ def _lifespan(
             if isinstance((res := callback()), Awaitable):
                 await res
         db.lock = asyncio.Lock() if db.dialect is SupportedSQLDialect.SQLITE else None
+        await system_settings.bootstrap()
         async with AsyncExitStack() as stack:
             (
                 enqueue_annotations,
@@ -702,6 +629,7 @@ def _lifespan(
             await stack.enter_async_context(experiment_sweeper)
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
+            await stack.enter_async_context(system_settings)
             await stack.enter_async_context(db_disk_usage_monitor)
             # ``sandbox_session_manager`` must enter before ``experiment_runner``
             # so ``AsyncExitStack`` tears them down in reverse and the runner
@@ -711,7 +639,17 @@ def _lifespan(
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
             if docs_mcp_server is not None:
-                await stack.enter_async_context(docs_mcp_server)
+                # The docs MCP server connects to an external host during
+                # startup. Never let its initialization (which can hang until a
+                # deadline when egress is blocked) abort server startup; degrade
+                # to the assistant running without docs tools instead.
+                try:
+                    await stack.enter_async_context(docs_mcp_server)
+                except Exception:
+                    logger.warning(
+                        "Failed to initialize docs MCP server; continuing without docs capability.",
+                        exc_info=True,
+                    )
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -758,6 +696,7 @@ def create_graphql_router(
     *,
     graphql_schema: strawberry.Schema,
     db: DbSessionFactory,
+    system_settings: SystemSettings,
     last_updated_at: CanGetLastUpdatedAt,
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
@@ -794,211 +733,26 @@ def create_graphql_router(
     allowed_provider_names = get_env_allowed_providers()
 
     def get_context() -> Context:
-        return Context(
+        return build_context(
             db=db,
-            allowed_provider_names=allowed_provider_names,
-            last_updated_at=last_updated_at,
-            event_queue=event_queue,
-            data_loaders=DataLoaders(
-                annotation_configs_by_project=AnnotationConfigsByProjectDataLoader(db),
-                average_experiment_repeated_run_group_latency=AverageExperimentRepeatedRunGroupLatencyDataLoader(
-                    db
-                ),
-                average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
-                code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
-                code_evaluator_version_count=CodeEvaluatorVersionCountDataLoader(db),
-                code_evaluator_version_sequence_number=CodeEvaluatorVersionSequenceNumberDataLoader(
-                    db
-                ),
-                dataset_evaluator_fields=TableFieldsDataLoader(db, models.DatasetEvaluators),
-                dataset_evaluators_by_evaluator=DatasetEvaluatorsByEvaluatorDataLoader(db),
-                dataset_evaluators_by_id=DatasetEvaluatorsByIdDataLoader(db),
-                dataset_evaluators=DatasetEvaluatorsDataLoader(db),
-                datasets_by_evaluator=DatasetsByEvaluatorDataLoader(db),
-                dataset_dataset_splits=DatasetDatasetSplitsDataLoader(db),
-                dataset_example_fields=TableFieldsDataLoader(db, models.DatasetExample),
-                dataset_example_revisions=DatasetExampleRevisionsDataLoader(db),
-                dataset_example_spans=DatasetExampleSpansDataLoader(db),
-                dataset_examples_and_versions_by_experiment_run=DatasetExamplesAndVersionsByExperimentRunDataLoader(
-                    db
-                ),
-                dataset_example_splits=DatasetExampleSplitsDataLoader(db),
-                dataset_fields=TableFieldsDataLoader(db, models.Dataset),
-                dataset_split_fields=TableFieldsDataLoader(db, models.DatasetSplit),
-                dataset_version_fields=TableFieldsDataLoader(db, models.DatasetVersion),
-                dataset_labels=DatasetLabelsDataLoader(db),
-                dataset_label_fields=TableFieldsDataLoader(db, models.DatasetLabel),
-                document_evaluation_summaries=DocumentEvaluationSummaryDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.document_evaluation_summary
-                        if cache_for_dataloaders
-                        else None
-                    ),
-                ),
-                document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
-                document_evaluations=DocumentEvaluationsDataLoader(db),
-                document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
-                evaluator_by_id=EvaluatorByIdDataLoader(db),
-                annotation_summaries=AnnotationSummaryDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.annotation_summary if cache_for_dataloaders else None
-                    ),
-                ),
-                experiment_annotation_summaries=ExperimentAnnotationSummaryDataLoader(db),
-                experiment_dataset_splits=ExperimentDatasetSplitsDataLoader(db),
-                experiment_error_rates=ExperimentErrorRatesDataLoader(db),
-                experiment_job_fields=TableFieldsDataLoader(db, models.ExperimentJob),
-                experiment_jobs=ExperimentJobsDataLoader(db),
-                experiment_expected_run_counts=ExperimentExpectedRunCountsDataLoader(db),
-                last_experiment_errors=LastExperimentErrorsDataLoader(db),
-                experiment_fields=TableFieldsDataLoader(db, models.Experiment),
-                experiment_repeated_run_group_annotation_summaries=ExperimentRepeatedRunGroupAnnotationSummariesDataLoader(
-                    db
-                ),
-                experiment_repeated_run_groups=ExperimentRepeatedRunGroupsDataLoader(db),
-                experiment_run_annotation_fields=TableFieldsDataLoader(
-                    db, models.ExperimentRunAnnotation
-                ),
-                experiment_run_annotations=ExperimentRunAnnotations(db),
-                experiment_run_counts=ExperimentRunCountsDataLoader(db),
-                experiment_run_fields=TableFieldsDataLoader(db, models.ExperimentRun),
-                experiment_runs_by_experiment_and_example=ExperimentRunsByExperimentAndExampleDataLoader(
-                    db
-                ),
-                experiment_sequence_number=ExperimentSequenceNumberDataLoader(db),
-                generative_model_fields=TableFieldsDataLoader(db, models.GenerativeModel),
-                generative_model_custom_provider_fields=TableFieldsDataLoader(
-                    db, models.GenerativeModelCustomProvider
-                ),
-                last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
-                    db
-                ),
-                latency_ms_quantile=LatencyMsQuantileDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.latency_ms_quantile if cache_for_dataloaders else None
-                    ),
-                ),
-                llm_evaluator_fields=TableFieldsDataLoader(db, models.LLMEvaluator),
-                min_start_or_max_end_times=MinStartOrMaxEndTimeDataLoader(
-                    db,
-                    cache_map=(
-                        cache_for_dataloaders.min_start_or_max_end_time
-                        if cache_for_dataloaders
-                        else None
-                    ),
-                ),
-                num_child_spans=NumChildSpansDataLoader(db),
-                num_spans_per_trace=NumSpansPerTraceDataLoader(db),
-                project_fields=TableFieldsDataLoader(db, models.Project),
-                projects_by_trace_retention_policy_id=ProjectIdsByTraceRetentionPolicyIdDataLoader(
-                    db
-                ),
-                prompt_fields=TableFieldsDataLoader(db, models.Prompt),
-                prompt_label_fields=TableFieldsDataLoader(db, models.PromptLabel),
-                prompt_versions=PromptVersionDataLoader(db),
-                prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
-                prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
-                latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
-                latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
-                project_session_annotation_fields=TableFieldsDataLoader(
-                    db, models.ProjectSessionAnnotation
-                ),
-                project_session_fields=TableFieldsDataLoader(db, models.ProjectSession),
-                record_counts=RecordCountDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
-                ),
-                sandbox_configs_by_provider=SandboxConfigsByProviderDataLoader(db),
-                sandbox_provider=SandboxProviderDataLoader(db),
-                secret_fields=TableFieldsDataLoader(db, models.Secret),
-                secrets=SecretsDataLoader(db),
-                session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
-                session_first_inputs=SessionIODataLoader(db, "first_input"),
-                session_last_outputs=SessionIODataLoader(db, "last_output"),
-                session_num_traces=SessionNumTracesDataLoader(db),
-                session_num_traces_with_error=SessionNumTracesWithErrorDataLoader(db),
-                session_token_usages=SessionTokenUsagesDataLoader(db),
-                session_trace_latency_ms_quantile=SessionTraceLatencyMsQuantileDataLoader(db),
-                span_annotation_fields=TableFieldsDataLoader(db, models.SpanAnnotation),
-                span_annotations=SpanAnnotationsDataLoader(db),
-                span_fields=TableFieldsDataLoader(db, models.Span),
-                span_by_id=SpanByIdDataLoader(db),
-                span_cost_by_span=SpanCostBySpanDataLoader(db),
-                span_cost_detail_summary_entries_by_generative_model=SpanCostDetailSummaryEntriesByGenerativeModelDataLoader(
-                    db
-                ),
-                span_cost_detail_summary_entries_by_project_session=SpanCostDetailSummaryEntriesByProjectSessionDataLoader(
-                    db
-                ),
-                span_cost_detail_summary_entries_by_span=SpanCostDetailSummaryEntriesBySpanDataLoader(
-                    db
-                ),
-                span_cost_detail_summary_entries_by_trace=SpanCostDetailSummaryEntriesByTraceDataLoader(
-                    db
-                ),
-                span_cost_details_by_span_cost=SpanCostDetailsBySpanCostDataLoader(db),
-                span_cost_detail_fields=TableFieldsDataLoader(db, models.SpanCostDetail),
-                span_cost_fields=TableFieldsDataLoader(db, models.SpanCost),
-                span_cost_summary_by_experiment=SpanCostSummaryByExperimentDataLoader(db),
-                span_cost_summary_by_experiment_repeated_run_group=SpanCostSummaryByExperimentRepeatedRunGroupDataLoader(
-                    db
-                ),
-                span_cost_summary_by_experiment_run=SpanCostSummaryByExperimentRunDataLoader(db),
-                span_cost_summary_by_generative_model=SpanCostSummaryByGenerativeModelDataLoader(
-                    db
-                ),
-                span_cost_summary_by_project=SpanCostSummaryByProjectDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.token_cost if cache_for_dataloaders else None,
-                ),
-                span_cost_summary_by_project_session=SpanCostSummaryByProjectSessionDataLoader(db),
-                span_cost_summary_by_trace=SpanCostSummaryByTraceDataLoader(db),
-                span_dataset_examples=SpanDatasetExamplesDataLoader(db),
-                span_descendants=SpanDescendantsDataLoader(db),
-                span_projects=SpanProjectsDataLoader(db),
-                token_counts=TokenCountDataLoader(
-                    db,
-                    cache_map=cache_for_dataloaders.token_count if cache_for_dataloaders else None,
-                ),
-                token_prices_by_model=TokenPricesByModelDataLoader(db),
-                trace_annotation_fields=TableFieldsDataLoader(db, models.TraceAnnotation),
-                trace_annotations_by_trace=TraceAnnotationsByTraceDataLoader(db),
-                trace_by_trace_ids=TraceByTraceIdsDataLoader(db),
-                trace_error_count=TraceErrorCountDataLoader(db),
-                trace_errors_by_type=TraceErrorsByTypeDataLoader(db),
-                trace_fields=TableFieldsDataLoader(db, models.Trace),
-                trace_span_counts_by_kind=TraceSpanCountsByKindDataLoader(db),
-                trace_retention_policy_id_by_project_id=TraceRetentionPolicyIdByProjectIdDataLoader(
-                    db
-                ),
-                project_trace_retention_policy_fields=TableFieldsDataLoader(
-                    db, models.ProjectTraceRetentionPolicy
-                ),
-                trace_root_spans=TraceRootSpansDataLoader(db),
-                project_by_name=ProjectByNameDataLoader(db),
-                project_has_traces=ProjectHasTracesDataLoader(db),
-                users=UsersDataLoader(db),
-                user_api_key_fields=TableFieldsDataLoader(db, models.ApiKey),
-                user_fields=TableFieldsDataLoader(db, models.User),
-                user_roles=UserRolesDataLoader(db),
-            ),
-            cache_for_dataloaders=cache_for_dataloaders,
-            read_only=read_only,
-            auth_enabled=authentication_enabled,
-            secret=secret,
-            token_store=token_store,
-            email_sender=email_sender,
+            settings=system_settings,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
             encrypt=encrypt,
             decrypt=decrypt,
+            cache_for_dataloaders=cache_for_dataloaders,
+            last_updated_at=last_updated_at,
+            event_queue=event_queue,
+            allowed_provider_names=allowed_provider_names,
+            read_only=read_only,
+            auth_enabled=authentication_enabled,
+            secret=secret,
+            token_store=token_store,
+            email_sender=email_sender,
         )
 
-    return GraphQLRouter(
+    router = GraphQLRouter(
         graphql_schema,
         graphql_ide="graphiql",
         context_getter=get_context,
@@ -1007,6 +761,7 @@ def create_graphql_router(
         dependencies=(Depends(is_authenticated),) if authentication_enabled else (),
         subscription_protocols=[],
     )
+    return router
 
 
 def instrument_engine_if_enabled(engine: AsyncEngine) -> list[Callable[[], None]]:
@@ -1029,7 +784,14 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     response instead of a JSON response. For the original source code, see
     https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
     """
-    headers = getattr(exc, "headers", None)
+    headers = dict(getattr(exc, "headers", None) or {})
+    if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
+        base_url = str(request.base_url).rstrip("/")
+        prm_url = f"{base_url}/.well-known/oauth-protected-resource"
+        headers.setdefault(
+            "WWW-Authenticate",
+            f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
+        )
     if not is_body_allowed_for_status_code(exc.status_code):
         return Response(status_code=exc.status_code, headers=headers)
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
@@ -1156,6 +918,7 @@ def create_app(
     )
     experiment_sweeper = ExperimentSweeper(db)
     generative_model_store = GenerativeModelStore(db)
+    system_settings = SystemSettings(db=db, registry=SETTINGS_REGISTRY)
     span_cost_calculator = SpanCostCalculator(db, generative_model_store)
     bulk_inserter = bulk_inserter_factory(
         db,
@@ -1165,7 +928,10 @@ def create_app(
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
     tracer_provider = None
-    graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
+    graphql_schema_extensions: list[Union[type[SchemaExtension], Callable[[], SchemaExtension]]] = [
+        lambda: QueryDepthLimiter(max_depth=20),
+        lambda: MaxAliasesLimiter(max_alias_count=50),
+    ]
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():
@@ -1195,9 +961,11 @@ def create_app(
         tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
         sandbox_session_manager=sandbox_session_manager,
     )
+    graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
-        graphql_schema=build_graphql_schema(graphql_schema_extensions),
+        system_settings=system_settings,
+        graphql_schema=graphql_schema,
         authentication_enabled=authentication_enabled,
         last_updated_at=last_updated_at,
         event_queue=dml_event_handler,
@@ -1220,7 +988,7 @@ def create_app(
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     docs_mcp_server = (
         MintlifyDocsMCPServer()
-        if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
+        if not get_env_disable_agent_assistant() and get_env_allow_external_resources()
         else None
     )
     app = FastAPI(
@@ -1237,6 +1005,7 @@ def create_app(
             experiment_sweeper=experiment_sweeper,
             span_cost_calculator=span_cost_calculator,
             generative_model_store=generative_model_store,
+            system_settings=system_settings,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
@@ -1260,17 +1029,22 @@ def create_app(
         },
     )
     app.include_router(create_v1_router(authentication_enabled))
-    if get_env_dangerously_enable_agents():
+    if not get_env_disable_agent_assistant():
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
+    app.include_router(auth_md_router)
     if authentication_enabled:
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
 
-    def _v1_only_openapi() -> dict[str, Any]:
-        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+    def _openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI.
+
+        In production, only routes under ``/v1`` are included. In dev mode,
+        agent routes (``/agents``) are also exposed so they appear in Swagger UI.
+        """
         if app.openapi_schema:
             return app.openapi_schema
         schema = get_openapi(
@@ -1281,13 +1055,14 @@ def create_app(
             routes=app.routes,
             separate_input_output_schemas=False,
         )
+        prefixes = ("/v1", "/agents") if dev else ("/v1",)
         schema["paths"] = {
-            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+            path: ops for path, ops in schema["paths"].items() if path.startswith(prefixes)
         }
         app.openapi_schema = schema
         return schema
 
-    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
+    app.openapi = _openapi  # type: ignore[method-assign]
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1333,6 +1108,8 @@ def create_app(
                         and get_env_database_usage_insertion_blocking_threshold_percentage()
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
+                    agent_assistant_disabled=get_env_disable_agent_assistant(),
+                    agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),
@@ -1351,6 +1128,7 @@ def create_app(
 
         app.state.ldap_authenticator = LDAPAuthenticator(ldap_config)
     app.state.db = db
+    app.state.system_settings = system_settings
     app.state.email_sender = email_sender
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
@@ -1359,6 +1137,25 @@ def create_app(
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
+    app.state.graphql_schema = graphql_schema
+    app.state.build_graphql_context = _get_build_graphql_context_function(
+        db=db,
+        system_settings=system_settings,
+        span_cost_calculator=span_cost_calculator,
+        experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
+        encrypt=encryption_service.encrypt,
+        decrypt=encryption_service.decrypt,
+        cache_for_dataloaders=cache_for_dataloaders,
+        last_updated_at=last_updated_at,
+        event_queue=dml_event_handler,
+        allowed_provider_names=get_env_allowed_providers(),
+        read_only=read_only,
+        authentication_enabled=authentication_enabled,
+        secret=secret,
+        token_store=token_store,
+        email_sender=email_sender,
+    )
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
@@ -1408,6 +1205,57 @@ def _add_get_token_store_method(*, app: FastAPI, token_store: Optional[JwtStore]
 
     app.state.get_token_store = MethodType(get_token_store, app.state)
     return app
+
+
+def _get_build_graphql_context_function(
+    *,
+    db: DbSessionFactory,
+    system_settings: SystemSettings,
+    span_cost_calculator: SpanCostCalculator,
+    experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
+    encrypt: Callable[[bytes], bytes],
+    decrypt: Callable[[bytes], bytes],
+    cache_for_dataloaders: Optional[CacheForDataLoaders],
+    last_updated_at: CanGetLastUpdatedAt,
+    event_queue: CanPutItem[DmlEvent],
+    allowed_provider_names: Optional[frozenset[str]],
+    read_only: bool,
+    authentication_enabled: bool,
+    secret: Optional[SecretStr],
+    token_store: Optional[TokenStore],
+    email_sender: Optional[EmailSender],
+) -> Callable[[Optional[PhoenixUser]], Context]:
+    """Factory for creating GraphQL context."""
+
+    def build_graphql_context(user: Optional[PhoenixUser] = None) -> Context:
+        request = Request(
+            {
+                "type": "http",
+                "user": user if user is not None else UnauthenticatedUser(),
+            }
+        )
+        return build_context(
+            db=db,
+            settings=system_settings,
+            span_cost_calculator=span_cost_calculator,
+            experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
+            encrypt=encrypt,
+            decrypt=decrypt,
+            cache_for_dataloaders=cache_for_dataloaders,
+            last_updated_at=last_updated_at,
+            event_queue=event_queue,
+            allowed_provider_names=allowed_provider_names,
+            read_only=read_only,
+            auth_enabled=authentication_enabled,
+            secret=secret,
+            token_store=token_store,
+            email_sender=email_sender,
+            request=request,
+        )
+
+    return build_graphql_context
 
 
 def _warn_if_missing_aioboto3() -> None:

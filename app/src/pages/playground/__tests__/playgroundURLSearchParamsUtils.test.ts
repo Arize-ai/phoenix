@@ -1,6 +1,7 @@
 import type { PromptParam } from "../playgroundURLSearchParamsUtils";
 import {
   parsePromptParams,
+  resolvePlaygroundDatasetId,
   setPromptParams,
 } from "../playgroundURLSearchParamsUtils";
 
@@ -163,5 +164,41 @@ describe("setPromptParams", () => {
     const searchParams = new URLSearchParams("datasetId=DS1");
     const changed = setPromptParams({ searchParams, prompts: [] });
     expect(changed).toBe(false);
+  });
+});
+
+describe("resolvePlaygroundDatasetId", () => {
+  it("outside experiment mode: prefers the URL datasetId over the store copy", () => {
+    const searchParams = new URLSearchParams("datasetId=ds-url");
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
+    ).toBe("ds-url");
+  });
+
+  it("outside experiment mode: is URL-primary — returns null when the URL has no datasetId even if the store has one", () => {
+    // The page store is never re-synced from the URL, so the helper must NOT fall
+    // back to a (possibly stale) store value here; that would keep the page wrongly
+    // in dataset mode after a back/forward nav that clears the URL datasetId. The
+    // post-load_dataset race fallback lives at the imperative tool call site instead.
+    const searchParams = new URLSearchParams();
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: "ds-store" })
+    ).toBeNull();
+  });
+
+  it("in experiment mode: resolves from the store, ignoring the URL datasetId", () => {
+    const searchParams = new URLSearchParams(
+      "experimentId=exp-1&datasetId=ds-url"
+    );
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: "ds-store" })
+    ).toBe("ds-store");
+  });
+
+  it("in experiment mode: returns null when the store datasetId is null", () => {
+    const searchParams = new URLSearchParams("experimentId=exp-1");
+    expect(
+      resolvePlaygroundDatasetId({ searchParams, storeDatasetId: null })
+    ).toBeNull();
   });
 });

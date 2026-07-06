@@ -14,6 +14,17 @@ export type CanonicalToolChoice = {
 };
 
 /**
+ * Name/description/metadata applied to the experiments produced by the next
+ * dataset-backed run; an absent field falls back to the server default
+ * (generated name, no description, empty metadata).
+ */
+export type ExperimentScaffold = {
+  name?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+};
+
+/**
  * Provider-agnostic canonical response format stored on ModelConfig.
  * Matches the GraphQL PromptResponseFormatJSONSchemaInput wire type.
  */
@@ -229,6 +240,7 @@ export type PlaygroundRepetition = {
   output: ChatMessage[] | string | null;
   toolCalls: Record<ToolCallId, PartialOutputToolCall>;
   spanId: string | null;
+  traceId?: string | null;
   error: PlaygroundError | null;
   status: PlaygroundRepetitionStatus;
 };
@@ -365,6 +377,13 @@ export interface PlaygroundProps {
    * @default true
    */
   recordExperiments: boolean;
+  /**
+   * Name/description/metadata to apply to the experiments created by the next
+   * dataset-backed run. Applied identically to every comparison instance and
+   * cleared once the run consumes it.
+   * @default null
+   */
+  nextExperimentScaffold: ExperimentScaffold | null;
 }
 
 export const PlaygroundStateByDatasetIdSchema = z.record(
@@ -463,6 +482,13 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   externallyUpdatedMessageRevisionById: Record<number, number>;
 
   /**
+   * Per-tool revision bumped only by external programmatic edits (e.g. PXI's
+   * write_prompt_tools) that need to reset the uncontrolled tool editor. Normal
+   * typing in the editor does not update it.
+   */
+  externallyUpdatedToolRevisionById: Record<number, number>;
+
+  /**
    * A map of instance id to whether the instance is dirty
    */
   dirtyInstances: Record<number, boolean>;
@@ -544,6 +570,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     dirty: boolean | null;
   }) => void;
   /**
+   * Bump the external-update revision for the given tool ids so their
+   * uncontrolled editors remount and pick up programmatic changes. Call only
+   * for external edits (e.g. PXI writes), never for local typing.
+   */
+  markToolsExternallyUpdated: (toolIds: number[]) => void;
+  /**
    * Replace the canonical invocation config for a model wholesale. Used for
    * bulk hydration (saved prompt loads, span replay).
    */
@@ -623,6 +655,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setVariableValue: (key: string, value: string) => void;
   /**
+   * Set multiple variable values in the input
+   */
+  setVariableValues: (values: { key: string; value: string }[]) => void;
+  /**
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
@@ -634,6 +670,15 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * set whether to record experiments
    */
   setRecordExperiments: (recordExperiments: boolean) => void;
+  /**
+   * Stage the name/description/metadata for the experiments created by the next
+   * dataset-backed run. Passing null clears any staged scaffold.
+   */
+  setNextExperimentScaffold: (
+    nextExperimentScaffold: ExperimentScaffold | null
+  ) => void;
+  /** Return the staged scaffold and clear it. */
+  consumeNextExperimentScaffold: () => ExperimentScaffold | null;
   /**
    * Set the max concurrency for experiment execution
    */
@@ -709,6 +754,14 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     instanceId: number,
     repetitionNumber: number,
     spanId: string
+  ) => void;
+  /**
+   * Set the trace id for a repetition
+   */
+  setRepetitionTraceId: (
+    instanceId: number,
+    repetitionNumber: number,
+    traceId: string
   ) => void;
   /**
    * Set the status for a repetition

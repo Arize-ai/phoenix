@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Any, Iterable, Iterator, Optional, Union
+from typing import Any, Callable, Iterable, Iterator, Optional, Union
 
 import strawberry
 from pydantic import SecretStr
@@ -31,7 +31,9 @@ from phoenix.server.api.types.SecretString import secret_string_scalar_definitio
 
 
 def build_graphql_schema(
-    extensions: Optional[Iterable[Union[type[SchemaExtension], SchemaExtension]]] = None,
+    extensions: Optional[
+        Iterable[Union[type[SchemaExtension], Callable[[], SchemaExtension]]]
+    ] = None,
 ) -> strawberry.Schema:
     """
     Builds a strawberry schema.

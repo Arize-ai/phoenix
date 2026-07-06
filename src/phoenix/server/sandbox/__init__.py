@@ -61,7 +61,8 @@ class AdapterMetadata:
     supports_dependencies: bool = False
     hosting_type: Literal["local", "hosted"] = "hosted"
     supports_env_vars: bool = False
-    internet_access_capability: Literal["none", "boolean", "allowlist"] = "none"
+    internet_access_capability: Literal["none", "boolean"] = "none"
+    auto_seedable: bool = False
 
     @classmethod
     def from_cls(cls, adapter_cls: type[SandboxAdapter[Any, Any, Any]]) -> "AdapterMetadata":
@@ -73,6 +74,15 @@ class AdapterMetadata:
         supports_env_vars = issubclass(config_model, SupportsEnvVars)
         supports_internet_access = issubclass(config_model, SupportsInternetAccess)
         supports_dependencies = issubclass(config_model, SupportsDependencies)
+        internet_access_capability: Literal["none", "boolean"] = (
+            "boolean" if supports_internet_access else "none"
+        )
+        auto_seedable = (
+            (not supports_env_vars)
+            and (internet_access_capability == "none")
+            and (not supports_dependencies)
+            and (adapter_cls.hosting_type == "local")
+        )
         return cls(
             display_name=adapter_cls.display_name,
             supported_languages=supported_languages,
@@ -80,7 +90,8 @@ class AdapterMetadata:
             supports_dependencies=supports_dependencies,
             hosting_type=adapter_cls.hosting_type,
             supports_env_vars=supports_env_vars,
-            internet_access_capability="boolean" if supports_internet_access else "none",
+            internet_access_capability=internet_access_capability,
+            auto_seedable=auto_seedable,
         )
 
 
@@ -136,9 +147,7 @@ class _AllowlistGatedAdapterRegistry(
         return sum(1 for v in self._adapters.values() if v.backend_type in allowed)
 
     def __contains__(self, key: object) -> bool:
-        return key in self._adapters and self._allowed(
-            self._adapters[cast(SandboxBackendType, key)]
-        )
+        return key in self._adapters and self._allowed(self._adapters[key])
 
 
 _SANDBOX_ADAPTERS: MutableMapping[SandboxBackendType, SandboxAdapter[Any, Any, Any]] = (

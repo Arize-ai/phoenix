@@ -126,7 +126,7 @@ export function ComboBoxItem(props: ListBoxItemProps) {
             {children}
             {isSelected && (
               <Icon
-                svg={<Icons.CheckmarkOutline />}
+                svg={<Icons.Checkmark />}
                 className="menu-item__selected-checkmark"
               />
             )}

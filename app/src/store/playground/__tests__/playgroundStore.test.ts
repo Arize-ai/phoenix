@@ -1,3 +1,4 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -13,6 +14,8 @@ import {
   getInitialInstances,
 } from "../playgroundStore";
 import type { CanonicalResponseFormat, InitialPlaygroundState } from "../types";
+
+installTestStorage();
 
 const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
   type: "json_schema",
@@ -347,6 +350,27 @@ describe("setRepetitionSpanId", () => {
     store.getState().setRepetitionSpanId(instanceId, 1, "span-abc-123");
     expect(store.getState().instances[0].repetitions[1]!.spanId).toBe(
       "span-abc-123"
+    );
+  });
+});
+
+describe("setRepetitionTraceId", () => {
+  it("should set repetition trace id", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+      datasetId: null,
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    expect(store.getState().instances[0].repetitions[1]!.traceId).toBe(
+      undefined
+    );
+
+    store.getState().setRepetitionTraceId(instanceId, 1, "trace-abc-123");
+    expect(store.getState().instances[0].repetitions[1]!.traceId).toBe(
+      "trace-abc-123"
     );
   });
 });
@@ -1031,6 +1055,26 @@ describe("updateModelSupportedInvocationParameters", () => {
     store.getState().deleteResponseFormat({ instanceId });
 
     expect(store.getState().instances[0].model.responseFormat).toBeUndefined();
+  });
+});
+
+describe("setVariableValues", () => {
+  it("should set multiple variable values without clearing existing values", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+
+    store.getState().setVariableValue("question", "old question");
+    store.getState().setVariableValues([
+      { key: "question", value: "new question" },
+      { key: "answer", value: "new answer" },
+    ]);
+
+    expect(store.getState().input.variablesValueCache).toEqual({
+      question: "new question",
+      answer: "new answer",
+    });
   });
 });
 

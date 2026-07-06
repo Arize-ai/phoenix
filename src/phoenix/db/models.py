@@ -184,6 +184,10 @@ GenerativeModelSDK: TypeAlias = Literal[
 ExperimentStatus: TypeAlias = Literal["RUNNING", "COMPLETED", "STOPPED", "ERROR"]
 ExperimentLogCategory: TypeAlias = Literal["TASK", "EVAL", "EXPERIMENT"]
 ExperimentLogLevel: TypeAlias = Literal["ERROR", "WARN", "INFO"]
+SystemSettingKey: TypeAlias = Literal[
+    "agent.assistant.trace_recording",
+    "agent.assistant.enabled",
+]
 
 
 class JSONB(JSON):
@@ -545,7 +549,11 @@ class _RegexStr(TypeDecorator[re.Pattern[str]]):
         return re.compile(value)
 
 
-_HEX_COLOR_PATTERN = re.compile(r"^#([0-9a-f]{6})$")
+# Regex for a lowercase six-digit hex color (e.g. '#00cc88'). Shared with API
+# request validation (see `HexColor` in `phoenix.server.api.routers.v1.utils`)
+# so invalid colors are rejected before reaching the database.
+HEX_COLOR_REGEX = r"^#([0-9a-f]{6})$"
+_HEX_COLOR_PATTERN = re.compile(HEX_COLOR_REGEX)
 
 
 class _HexColor(TypeDecorator[str]):
@@ -730,14 +738,20 @@ class ProjectSession(HasId):
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, nullable=False)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True, nullable=False)
     traces: Mapped[list["Trace"]] = relationship(
         "Trace",
         back_populates="project_session",
         uselist=True,
+    )
+    __table_args__ = (
+        Index(
+            "ix_project_sessions_project_id_start_time",
+            "project_id",
+            text("start_time DESC"),
+        ),
     )
 
 
@@ -746,14 +760,13 @@ class Trace(HasId):
     project_rowid: Mapped[int] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True,
     )
     trace_id: Mapped[str]
     project_session_rowid: Mapped[Optional[int]] = mapped_column(
         ForeignKey("project_sessions.id", ondelete="CASCADE"),
         index=True,
     )
-    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp, index=True)
+    start_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
     end_time: Mapped[datetime] = mapped_column(UtcTimeStamp)
 
     @hybrid_property
@@ -792,6 +805,11 @@ class Trace(HasId):
     __table_args__ = (
         UniqueConstraint(
             "trace_id",
+        ),
+        Index(
+            "ix_traces_project_rowid_start_time",
+            "project_rowid",
+            text("start_time DESC"),
         ),
     )
 
@@ -2098,6 +2116,25 @@ class User(HasId):
     )
 
 
+class SystemSetting(Base):
+    """Server-wide key/value settings (JSON object per key)."""
+
+    __tablename__ = "system_settings"
+
+    key: Mapped[SystemSettingKey] = mapped_column(primary_key=True)
+    value: Mapped[dict[str, Any]] = mapped_column(JsonDict, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp,
+        server_default=func.now(),
+        onupdate=func.now(),
+        index=True,
+    )
+    updated_by: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
 class LocalUser(User):
     __mapper_args__ = {
         "polymorphic_identity": "LOCAL",
@@ -2266,6 +2303,7 @@ class GenerativeModel(HasId):
         UtcTimeStamp,
         server_default=func.now(),
         onupdate=func.now(),
+        index=True,
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(UtcTimeStamp)
 

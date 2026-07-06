@@ -1,4 +1,4 @@
-import type { ChatStatus } from "ai";
+import { isTextUIPart, type ChatStatus } from "ai";
 import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
@@ -13,8 +13,19 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
+import type { PendingDatasetWrite } from "@phoenix/agent/shared/pendingDatasetWrite";
+import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
+import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
-import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
+import type { PendingLlmEvaluatorEdit } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import type { PendingPatchExperiment } from "@phoenix/agent/tools/patchExperiment";
+import type { PendingLoadDataset } from "@phoenix/agent/tools/playgroundLoadDataset";
+import type {
+  PendingPromptEdit,
+  PendingPromptInstanceRemoval,
+} from "@phoenix/agent/tools/playgroundPrompt";
+import type { PendingPromptToolWrite } from "@phoenix/agent/tools/playgroundPromptTools";
+import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
@@ -26,17 +37,6 @@ import type { ModelConfig } from "./playground/types";
  * - "pinned": docked to the side of the viewport
  */
 export type AgentPosition = "detached" | "pinned";
-
-/**
- * Which surface currently hosts the agent chat panel.
- * - "docked": the resizable panel in the main layout
- * - "trace": the embedded panel inside a trace slideover
- *
- * When a surface mounts it claims the active location; the Layout uses this
- * to decide whether to render the docked panel (only when no other surface
- * has claimed the location).
- */
-export type AgentPanelLocation = "docked" | "trace";
 
 /** Pinned corner for the global PXI floating action button. */
 export type AgentFabPlacement =
@@ -53,21 +53,42 @@ export type AgentServerConfig = {
   assistantProjectName: string;
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
+  assistantEnabled: boolean;
+  allowLocalTraces: boolean;
+  allowRemoteExport: boolean;
 };
 
-/**
- * Per-user PXI observability preferences persisted in local storage.
- *
- * These settings control where PXI traces are sent for the current browser
- * user and whether the one-time consent gate has been acknowledged.
- */
+export type AgentTraceConsentSettings = Pick<
+  AgentServerConfig,
+  "allowLocalTraces" | "allowRemoteExport"
+>;
+
+export type AgentTraceRecordingSettings = {
+  ingestTraces: boolean;
+  exportRemoteTraces: boolean;
+};
+
 export type AgentObservabilitySettings = {
   /** Whether PXI traces should be persisted in the current Phoenix instance. */
   storeLocalTraces: boolean;
   /** Whether PXI traces should also be exported to a remote collector. */
   exportRemoteTraces: boolean;
-  /** Whether the user has acknowledged the PXI consent gate. */
-  hasAcknowledgedConsent: boolean;
+  /**
+   * Whether the authenticated Phoenix user's email should be attached to PXI
+   * traces as the OpenInference `user.id` attribute. Defaults to false so
+   * user attribution is opt-in. The backend only honours this flag for
+   * authenticated PhoenixUser requests — the browser cannot supply an
+   * arbitrary user value.
+   */
+  attachUserId: boolean;
+  acknowledgedTraceConsent: AgentTraceConsentSettings | null;
+};
+
+export type AgentEditPermissionMode = "manual" | "bypass";
+
+export type AgentPermissions = {
+  /** How user-visible edit approvals should be resolved. */
+  edits: AgentEditPermissionMode;
 };
 
 /**
@@ -86,6 +107,16 @@ export type AgentSessionUsage = {
     };
   };
   // this can be extended with cost in the future
+};
+
+/**
+ * A message staged for a session whose chat view has not mounted yet, sent
+ * automatically on mount. Carries the submit-time skill parse along with the
+ * text so the request body matches what an interactive send would produce.
+ */
+export type PendingAgentMessage = {
+  text: string;
+  requestedSkills: string[];
 };
 
 /**
@@ -118,15 +149,104 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
   webAccessEnabled: false,
+  assistantEnabled: false,
+  allowLocalTraces: false,
+  allowRemoteExport: false,
 };
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
   storeLocalTraces: true,
   exportRemoteTraces: false,
-  hasAcknowledgedConsent: false,
+  attachUserId: false,
+  acknowledgedTraceConsent: null,
+};
+
+const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
+  edits: "manual",
 };
 
 const MAX_STORED_AGENT_SESSIONS = 3;
+
+/** Prefix applied to a forked session's summary to denote its origin. */
+const FORK_SUMMARY_PREFIX = "(fork) ";
+
+/** Max length for a derived (non-LLM) fork summary before truncation. */
+const FORK_SUMMARY_MAX_LENGTH = 50;
+
+/**
+ * Builds the summary for a session forked from `source`. Reuses the source's
+ * LLM-generated summary when available, otherwise derives a short label from
+ * its first user message, then prefixes it with `(fork)`. Seeding a non-empty
+ * summary here also prevents the async summarizer from overwriting it.
+ */
+function buildForkSummary(source: AgentSession): string {
+  let base = source.shortSummary.trim();
+  if (!base) {
+    const firstUserMessage = source.messages.find(
+      (message) => message.role === "user"
+    );
+    const text = firstUserMessage?.parts
+      .filter(isTextUIPart)
+      .map((part) => part.text)
+      .join(" ")
+      .trim();
+    base = text
+      ? text.length > FORK_SUMMARY_MAX_LENGTH
+        ? `${text.slice(0, FORK_SUMMARY_MAX_LENGTH)}...`
+        : text
+      : "";
+  }
+  // Avoid stacking "(fork) (fork) ..." when forking a fork.
+  if (base.startsWith(FORK_SUMMARY_PREFIX)) {
+    return base;
+  }
+  return base ? `${FORK_SUMMARY_PREFIX}${base}` : FORK_SUMMARY_PREFIX.trim();
+}
+
+export function getCurrentTraceConsentSettings(
+  agentsConfig: AgentServerConfig
+): AgentTraceConsentSettings {
+  return {
+    allowLocalTraces: agentsConfig.allowLocalTraces,
+    allowRemoteExport:
+      Boolean(agentsConfig.collectorEndpoint) && agentsConfig.allowRemoteExport,
+  };
+}
+
+export function hasAcknowledgedCurrentTraceConsent({
+  agentsConfig,
+  observability,
+}: {
+  agentsConfig: AgentServerConfig;
+  observability: AgentObservabilitySettings;
+}): boolean {
+  const acknowledgedTraceConsent = observability.acknowledgedTraceConsent;
+  if (!acknowledgedTraceConsent) {
+    return false;
+  }
+  const currentTraceConsent = getCurrentTraceConsentSettings(agentsConfig);
+  return (
+    (!currentTraceConsent.allowLocalTraces ||
+      acknowledgedTraceConsent.allowLocalTraces) &&
+    (!currentTraceConsent.allowRemoteExport ||
+      acknowledgedTraceConsent.allowRemoteExport)
+  );
+}
+
+export function getEffectiveTraceRecordingSettings({
+  agentsConfig,
+  observability,
+}: {
+  agentsConfig: AgentServerConfig;
+  observability: AgentObservabilitySettings;
+}): AgentTraceRecordingSettings {
+  const ceiling = getCurrentTraceConsentSettings(agentsConfig);
+  return {
+    ingestTraces: ceiling.allowLocalTraces && observability.storeLocalTraces,
+    exportRemoteTraces:
+      ceiling.allowRemoteExport && observability.exportRemoteTraces,
+  };
+}
 
 /**
  * Serializable properties that define the agent's state.
@@ -139,13 +259,6 @@ export interface AgentProps {
   position: AgentPosition;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /**
-   * Which surface currently hosts the agent chat panel.
-   * Defaults to "docked". Set to "trace" when a trace slideover mounts its
-   * own embedded chat panel, which suppresses the docked panel in Layout.
-   * This field is ephemeral and not persisted.
-   */
-  activePanelLocation: AgentPanelLocation;
   /** Ordered list of session IDs. */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
@@ -158,6 +271,8 @@ export interface AgentProps {
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
   observability: AgentObservabilitySettings;
+  /** Per-user permissions for approval-gated tool actions. */
+  permissions: AgentPermissions;
   /** Typed runtime capabilities that influence tool and session behavior. */
   capabilities: AgentCapabilities;
 }
@@ -171,9 +286,13 @@ export interface AgentState extends AgentProps {
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
-  setActivePanelLocation: (location: AgentPanelLocation) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
+  forkSession: (params: {
+    sourceSessionId: string;
+    messages: AgentUIMessage[];
+    restoredInput?: string | null;
+  }) => string | null;
   setActiveSession: (sessionId: string | null) => void;
   updateSessionSummary: (sessionId: string, summary: string) => void;
   updateSessionModelConfig: (
@@ -185,6 +304,15 @@ export interface AgentState extends AgentProps {
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
+  setPermissions: (patch: Partial<AgentPermissions>) => void;
+  setAgentsConfig: (
+    patch: Partial<
+      Pick<
+        AgentServerConfig,
+        "assistantEnabled" | "allowLocalTraces" | "allowRemoteExport"
+      >
+    >
+  ) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
   setCapability: (params: {
@@ -206,6 +334,29 @@ export interface AgentState extends AgentProps {
   ) => void;
   chatStatusBySessionId: Record<string, ChatStatus>;
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
+
+  /**
+   * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
+   * out of local-storage persistence, but survives remounts while the app is
+   * alive so moving the panel between docked and floating layouts does not
+   * clear the composer.
+   */
+  draftInputBySessionId: Record<string, string>;
+  setDraftInput: (sessionId: string, input: string | null) => void;
+
+  /**
+   * A message staged to be sent as soon as a session's chat view mounts. Used
+   * by local prompt commands (e.g. `/clear fix this`): the command creates a
+   * fresh session, and the rest of the submitted message is carried over and
+   * sent there. A consumed pending message is sent immediately rather than
+   * placed in the textarea. Ephemeral and consumed once by the view on mount.
+   */
+  pendingMessageBySessionId: Record<string, PendingAgentMessage>;
+  setPendingMessage: (
+    sessionId: string,
+    message: PendingAgentMessage | null
+  ) => void;
+  consumePendingMessage: (sessionId: string) => PendingAgentMessage | null;
   setSessionUsage: (
     sessionId: string,
     newUsage: {
@@ -245,15 +396,126 @@ export interface AgentState extends AgentProps {
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
 
-  // -- Prompt edit approvals advertised by edit_prompt_instance tool calls --
-  // TODO(pending-tool-rehydration): Replace this edit_prompt_instance-specific state
-  // with a generic pending tool state map keyed by toolCallId. The tool
-  // registry should own each tool's serializer and runtime rebinder.
+  // -- Approval-gated tool proposals advertised by agent tool calls --
+  // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
+  // generic pending tool state map keyed by toolCallId. The tool registry
+  // should own each tool's serializer and runtime rebinder.
   pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
   ) => void;
+  pendingPromptInstanceRemovalsByToolCallId: Partial<
+    Record<string, PendingPromptInstanceRemoval>
+  >;
+  setPendingPromptInstanceRemoval: (
+    toolCallId: string,
+    removal: PendingPromptInstanceRemoval | null
+  ) => void;
+  pendingBatchSpanAnnotatesByToolCallId: Partial<
+    Record<string, PendingBatchSpanAnnotate>
+  >;
+  setPendingBatchSpanAnnotate: (
+    toolCallId: string,
+    annotation: PendingBatchSpanAnnotate | null
+  ) => void;
+  pendingDatasetWritesByToolCallId: Partial<
+    Record<string, PendingDatasetWrite>
+  >;
+  setPendingDatasetWrite: (
+    toolCallId: string,
+    pending: PendingDatasetWrite | null
+  ) => void;
+  pendingPatchExperimentsByToolCallId: Partial<
+    Record<string, PendingPatchExperiment>
+  >;
+  setPendingPatchExperiment: (
+    toolCallId: string,
+    patch: PendingPatchExperiment | null
+  ) => void;
+  pendingPromptToolWritesByToolCallId: Partial<
+    Record<string, PendingPromptToolWrite>
+  >;
+  setPendingPromptToolWrite: (
+    toolCallId: string,
+    write: PendingPromptToolWrite | null
+  ) => void;
+  pendingSavePromptsByToolCallId: Partial<Record<string, PendingSavePrompt>>;
+  setPendingSavePrompt: (
+    toolCallId: string,
+    pendingSave: PendingSavePrompt | null
+  ) => void;
+
+  // -- Code-evaluator draft edit approvals advertised by edit_code_evaluator_draft tool calls --
+  pendingCodeEvaluatorEditsByToolCallId: Partial<
+    Record<string, PendingCodeEvaluatorEdit>
+  >;
+  setPendingCodeEvaluatorEdit: (
+    toolCallId: string,
+    edit: PendingCodeEvaluatorEdit | null
+  ) => void;
+
+  // -- LLM-evaluator draft edit approvals advertised by edit_llm_evaluator_draft tool calls --
+  pendingLlmEvaluatorEditsByToolCallId: Partial<
+    Record<string, PendingLlmEvaluatorEdit>
+  >;
+  setPendingLlmEvaluatorEdit: (
+    toolCallId: string,
+    edit: PendingLlmEvaluatorEdit | null
+  ) => void;
+  pendingLoadDatasetsByToolCallId: Partial<Record<string, PendingLoadDataset>>;
+  setPendingLoadDataset: (
+    toolCallId: string,
+    pendingLoad: PendingLoadDataset | null
+  ) => void;
+}
+
+function normalizeAgentCapabilities({
+  capabilities,
+  defaultCapabilities = createDefaultAgentCapabilities(),
+}: {
+  capabilities: unknown;
+  defaultCapabilities?: AgentCapabilities;
+}): AgentCapabilities {
+  if (!capabilities || typeof capabilities !== "object") {
+    return { ...defaultCapabilities };
+  }
+  const persistedCapabilities = capabilities as Partial<
+    Record<AgentCapabilityKey, unknown>
+  >;
+  return Object.fromEntries(
+    (Object.keys(defaultCapabilities) as AgentCapabilityKey[]).map((key) => {
+      const persistedValue = persistedCapabilities[key];
+      return [
+        key,
+        typeof persistedValue === "boolean"
+          ? persistedValue
+          : defaultCapabilities[key],
+      ];
+    })
+  ) as AgentCapabilities;
+}
+
+function mergeAgentPersistedState(
+  persistedState: unknown,
+  currentState: AgentState
+): AgentState {
+  if (!persistedState || typeof persistedState !== "object") {
+    return currentState;
+  }
+  const persisted = persistedState as Partial<AgentState>;
+  return {
+    ...currentState,
+    ...persisted,
+    observability: {
+      ...currentState.observability,
+      ...persisted.observability,
+    },
+    capabilities: normalizeAgentCapabilities({
+      capabilities: persisted.capabilities,
+      defaultCapabilities: currentState.capabilities,
+    }),
+  };
 }
 
 /**
@@ -288,6 +550,29 @@ function pruneSessionScopedRecord<T>({
   );
 }
 
+function pruneToolCallRecordBySession<T extends { sessionId: string }>({
+  record,
+  retainedSessionIds,
+}: {
+  record: Partial<Record<string, T>>;
+  retainedSessionIds: Set<string>;
+}): Partial<Record<string, T>> {
+  return Object.fromEntries(
+    Object.entries(record).filter(
+      ([, value]) => value != null && retainedSessionIds.has(value.sessionId)
+    )
+  );
+}
+
+function removeToolCallRecordForSession<T extends { sessionId: string }>(
+  record: Partial<Record<string, T>>,
+  sessionId: string
+): Partial<Record<string, T>> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
+  );
+}
+
 /**
  * Builds the persisted session-state patch after creating, pruning, or clearing
  * retained sessions, keeping sessionMap and related per-session UI state aligned.
@@ -307,6 +592,9 @@ function buildSessionRetentionPatch({
   | "sessionMap"
   | "pendingElicitationBySessionId"
   | "chatStatusBySessionId"
+  | "draftInputBySessionId"
+  | "pendingMessageBySessionId"
+  | "pendingPatchExperimentsByToolCallId"
 > {
   const retainedSessionIdSet = new Set(retainedSessionIds);
   return {
@@ -324,15 +612,57 @@ function buildSessionRetentionPatch({
       record: state.chatStatusBySessionId,
       retainedSessionIds: retainedSessionIdSet,
     }),
+    draftInputBySessionId: pruneSessionScopedRecord({
+      record: state.draftInputBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    pendingMessageBySessionId: pruneSessionScopedRecord({
+      record: state.pendingMessageBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    pendingPatchExperimentsByToolCallId: pruneToolCallRecordBySession({
+      record: state.pendingPatchExperimentsByToolCallId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
   };
+}
+
+/**
+ * Base local-storage key for the persisted assistant state. Used verbatim for
+ * single-tenant deployments and as a prefix when scoping by root path.
+ */
+const BASE_ASSISTANT_STORAGE_KEY = "arize-phoenix-assistant";
+
+/**
+ * Resolves the local-storage key for the persisted assistant state, scoped to
+ * the deployment's root path.
+ *
+ * `localStorage` is origin-scoped and path-blind. In multi-tenant deployments
+ * (e.g. Phoenix Cloud) many workspaces are served from distinct root paths on
+ * the SAME browser origin, so a single shared key would let one workspace's
+ * chat history load in another. Scoping by the root-path basename aligns this
+ * with the per-deployment isolation boundary already enforced server-side by
+ * PHOENIX_COOKIES_PATH (which is set to the same root path).
+ *
+ * Deployments without a root path (the common single-tenant case, e.g. OSS)
+ * use the base key unchanged so existing history is preserved on upgrade.
+ * Under a root path the new scoped key simply leaves the old unscoped blob
+ * untouched; nothing reads it once the key changes.
+ */
+export function resolveAssistantStorageKey(): string {
+  const basename = (window.Config?.basename ?? "").replace(/\/+$/, "");
+  return basename
+    ? `${BASE_ASSISTANT_STORAGE_KEY}:${basename}`
+    : BASE_ASSISTANT_STORAGE_KEY;
 }
 
 /**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
- * persist (to local storage under "arize-phoenix-agent"). The `isOpen`
- * property is excluded from persistence so the panel always starts closed.
+ * persist (to local storage under a per-deployment key derived from the root
+ * path; see {@link resolveAssistantStorageKey}). The `isOpen` property is
+ * excluded from persistence so the panel always starts closed.
  *
  * @param initialProps - Optional overrides for the default store properties.
  */
@@ -340,21 +670,30 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   const agentStore: StateCreator<
     AgentState,
     [["zustand/devtools", unknown]]
-  > = (set) => ({
+  > = (set, get) => ({
     isOpen: false,
     position: "pinned",
     fabPlacement: "bottom-end",
-    activePanelLocation: "docked",
     sessions: [],
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
+    permissions: DEFAULT_AGENT_PERMISSIONS,
     capabilities: createDefaultAgentCapabilities(),
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
+    pendingPromptInstanceRemovalsByToolCallId: {},
+    pendingBatchSpanAnnotatesByToolCallId: {},
+    pendingDatasetWritesByToolCallId: {},
+    pendingPatchExperimentsByToolCallId: {},
+    pendingPromptToolWritesByToolCallId: {},
+    pendingSavePromptsByToolCallId: {},
+    pendingCodeEvaluatorEditsByToolCallId: {},
+    pendingLlmEvaluatorEditsByToolCallId: {},
+    pendingLoadDatasetsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -368,11 +707,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setFabPlacement: (fabPlacement) => {
       set({ fabPlacement }, false, { type: "setFabPlacement" });
-    },
-    setActivePanelLocation: (location) => {
-      set({ activePanelLocation: location }, false, {
-        type: "setActivePanelLocation",
-      });
     },
     createSession: () => {
       const sessionId = generateUUID();
@@ -411,6 +745,49 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
       return sessionId;
     },
+    forkSession: ({ sourceSessionId, messages, restoredInput }) => {
+      const sessionId = generateUUID();
+      let created = false;
+      set(
+        (state) => {
+          const source = state.sessionMap[sourceSessionId];
+          if (!source) return state;
+          created = true;
+          const session: AgentSession = {
+            id: sessionId,
+            shortSummary: buildForkSummary(source),
+            messages,
+            // Carry over the source session's context and model so the fork
+            // continues the same conversation under the same configuration.
+            context: [...source.context],
+            modelConfig: { ...source.modelConfig },
+            createdAt: Date.now(),
+          };
+          // Forking always retains the source session alongside the new one;
+          // the standard retention rule then trims to the most recent few.
+          const nextSessionIds = [...state.sessions, sessionId].slice(
+            -MAX_STORED_AGENT_SESSIONS
+          );
+          const draftInputBySessionId = restoredInput
+            ? { ...state.draftInputBySessionId, [sessionId]: restoredInput }
+            : state.draftInputBySessionId;
+          return {
+            ...buildSessionRetentionPatch({
+              state: {
+                ...state,
+                sessionMap: { ...state.sessionMap, [sessionId]: session },
+                draftInputBySessionId,
+              },
+              retainedSessionIds: nextSessionIds,
+              activeSessionId: sessionId,
+            }),
+          };
+        },
+        false,
+        { type: "forkSession" }
+      );
+      return created ? sessionId : null;
+    },
     deleteSession: (sessionId) => {
       set(
         (state) => {
@@ -424,6 +801,17 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           delete newPendingElicitationBySessionId[sessionId];
           const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
           delete newChatStatusBySessionId[sessionId];
+          const newDraftInputBySessionId = { ...state.draftInputBySessionId };
+          delete newDraftInputBySessionId[sessionId];
+          const newPendingMessageBySessionId = {
+            ...state.pendingMessageBySessionId,
+          };
+          delete newPendingMessageBySessionId[sessionId];
+          const newPendingPatchExperimentsByToolCallId =
+            removeToolCallRecordForSession(
+              state.pendingPatchExperimentsByToolCallId,
+              sessionId
+            );
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
@@ -435,6 +823,10 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             activeSessionId: newActiveSessionId,
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
+            draftInputBySessionId: newDraftInputBySessionId,
+            pendingMessageBySessionId: newPendingMessageBySessionId,
+            pendingPatchExperimentsByToolCallId:
+              newPendingPatchExperimentsByToolCallId,
           };
         },
         false,
@@ -547,12 +939,32 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setObservability" }
       );
     },
+    setPermissions: (patch) => {
+      set(
+        (state) => ({
+          permissions: { ...state.permissions, ...patch },
+        }),
+        false,
+        { type: "setPermissions" }
+      );
+    },
+    setAgentsConfig: (patch) => {
+      set(
+        (state) => ({
+          agentsConfig: { ...state.agentsConfig, ...patch },
+        }),
+        false,
+        { type: "setAgentsConfig" }
+      );
+    },
     acknowledgeConsent: () => {
       set(
         (state) => ({
           observability: {
             ...state.observability,
-            hasAcknowledgedConsent: true,
+            acknowledgedTraceConsent: getCurrentTraceConsentSettings(
+              state.agentsConfig
+            ),
           },
         }),
         false,
@@ -567,6 +979,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           sessionMap: {},
           pendingElicitationBySessionId: {},
           chatStatusBySessionId: {},
+          draftInputBySessionId: {},
+          pendingMessageBySessionId: {},
+          pendingPatchExperimentsByToolCallId: {},
         },
         false,
         { type: "clearAllSessions" }
@@ -611,6 +1026,58 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         false,
         { type: "setPendingElicitation" }
       );
+    },
+
+    draftInputBySessionId: {},
+    setDraftInput: (sessionId, input) => {
+      set(
+        (state) => {
+          const next = { ...state.draftInputBySessionId };
+          if (input) {
+            next[sessionId] = input;
+          } else {
+            delete next[sessionId];
+          }
+          return { draftInputBySessionId: next };
+        },
+        false,
+        { type: "setDraftInput" }
+      );
+    },
+
+    pendingMessageBySessionId: {},
+    setPendingMessage: (sessionId, message) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingMessageBySessionId };
+          if (message) {
+            next[sessionId] = message;
+          } else {
+            delete next[sessionId];
+          }
+          return { pendingMessageBySessionId: next };
+        },
+        false,
+        { type: "setPendingMessage" }
+      );
+    },
+    consumePendingMessage: (sessionId) => {
+      const message = get().pendingMessageBySessionId[sessionId] ?? null;
+      if (message != null) {
+        set(
+          (state) => {
+            if (!(sessionId in state.pendingMessageBySessionId)) {
+              return state;
+            }
+            const next = { ...state.pendingMessageBySessionId };
+            delete next[sessionId];
+            return { pendingMessageBySessionId: next };
+          },
+          false,
+          { type: "consumePendingMessage" }
+        );
+      }
+      return message;
     },
 
     chatStatusBySessionId: {},
@@ -759,71 +1226,155 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingPromptInstanceRemoval: (toolCallId, removal) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPromptInstanceRemovalsByToolCallId };
+          if (removal) {
+            next[toolCallId] = removal;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPromptInstanceRemovalsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPromptInstanceRemoval" }
+      );
+    },
+
+    setPendingDatasetWrite: (toolCallId, pending) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingDatasetWritesByToolCallId };
+          if (pending) {
+            next[toolCallId] = pending;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingDatasetWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingDatasetWrite" }
+      );
+    },
+    setPendingBatchSpanAnnotate: (toolCallId, annotation) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingBatchSpanAnnotatesByToolCallId };
+          if (annotation) {
+            next[toolCallId] = annotation;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingBatchSpanAnnotatesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingBatchSpanAnnotate" }
+      );
+    },
+
+    setPendingPatchExperiment: (toolCallId, patch) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPatchExperimentsByToolCallId };
+          if (patch) {
+            next[toolCallId] = patch;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPatchExperimentsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPatchExperiment" }
+      );
+    },
+
+    setPendingPromptToolWrite: (toolCallId, write) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPromptToolWritesByToolCallId };
+          if (write) {
+            next[toolCallId] = write;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPromptToolWritesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPromptToolWrite" }
+      );
+    },
+
+    setPendingSavePrompt: (toolCallId, pendingSave) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingSavePromptsByToolCallId };
+          if (pendingSave) {
+            next[toolCallId] = pendingSave;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingSavePromptsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingSavePrompt" }
+      );
+    },
+
+    setPendingCodeEvaluatorEdit: (toolCallId, edit) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingCodeEvaluatorEditsByToolCallId };
+          if (edit) {
+            next[toolCallId] = edit;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingCodeEvaluatorEditsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingCodeEvaluatorEdit" }
+      );
+    },
+
+    setPendingLlmEvaluatorEdit: (toolCallId, edit) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingLlmEvaluatorEditsByToolCallId };
+          if (edit) {
+            next[toolCallId] = edit;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingLlmEvaluatorEditsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingLlmEvaluatorEdit" }
+      );
+    },
+    setPendingLoadDataset: (toolCallId, pendingLoad) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingLoadDatasetsByToolCallId };
+          if (pendingLoad) {
+            next[toolCallId] = pendingLoad;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingLoadDatasetsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingLoadDataset" }
+      );
+    },
+
     ...initialProps,
   });
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
-      name: "arize-phoenix-agent",
-      version: 8,
-      migrate: (persisted, version) => {
-        const state = persisted as Partial<AgentProps> & {
-          capabilities?: Partial<AgentCapabilities>;
-          observability?: Partial<AgentObservabilitySettings>;
-          debug?: {
-            retainInactiveBashSessions?: boolean;
-            dangerouslyEnableMutations?: boolean;
-          };
-        };
-        const migratedSessionMap: Record<string, AgentSession> = {};
-
-        for (const [sessionId, session] of Object.entries(
-          state.sessionMap ?? {}
-        )) {
-          migratedSessionMap[sessionId] = {
-            ...session,
-            createdAt: (session as AgentSession).createdAt ?? 0,
-          };
-        }
-
-        const migratedCapabilities = {
-          ...createDefaultAgentCapabilities(),
-          ...(state.capabilities ?? {}),
-          ...(version <= 2
-            ? {
-                "bash.retainInactiveSessions":
-                  state.debug?.retainInactiveBashSessions ??
-                  state.capabilities?.["bash.retainInactiveSessions"] ??
-                  false,
-                "graphql.mutations":
-                  state.debug?.dangerouslyEnableMutations ??
-                  state.capabilities?.["graphql.mutations"] ??
-                  false,
-              }
-            : {}),
-        };
-
-        return {
-          ...state,
-          // `position` existed before it was wired into the UI, but the
-          // visible behavior was always the pinned side panel. Treat pre-v8
-          // persisted values as pinned so the new floating mode is opt-in.
-          position:
-            version <= 7
-              ? "pinned"
-              : state.position === "detached"
-                ? "detached"
-                : "pinned",
-          fabPlacement: state.fabPlacement ?? "bottom-end",
-          sessionMap: migratedSessionMap,
-          observability: {
-            ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
-            ...(state.observability ?? {}),
-          },
-          capabilities: migratedCapabilities,
-          pendingPromptEditsByToolCallId: {},
-        } as AgentState;
-      },
+      name: resolveAssistantStorageKey(),
+      version: 0,
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,
@@ -833,10 +1384,57 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
+        permissions: state.permissions,
         capabilities: state.capabilities,
       }),
+      merge: mergeAgentPersistedState,
     })
   );
 };
 
 export type AgentStore = ReturnType<typeof createAgentStore>;
+
+export async function waitForRegisteredClientActions({
+  agentStore,
+  names,
+  timeoutMs = 5000,
+}: {
+  agentStore: AgentStore;
+  names: readonly string[];
+  timeoutMs?: number;
+}): Promise<boolean> {
+  const hasAllActions = (
+    registeredClientActions: Record<string, AgentClientAction>
+  ) => names.every((name) => name in registeredClientActions);
+
+  if (hasAllActions(agentStore.getState().registeredClientActions)) {
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    let isSettled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const settle = (isReady: boolean) => {
+      if (isSettled) return;
+      isSettled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      unsubscribe();
+      resolve(isReady);
+    };
+
+    const unsubscribe = agentStore.subscribe((state) => {
+      if (hasAllActions(state.registeredClientActions)) {
+        settle(true);
+      }
+    });
+
+    timeoutId = setTimeout(() => settle(false), timeoutMs);
+
+    if (hasAllActions(agentStore.getState().registeredClientActions)) {
+      settle(true);
+    }
+  });
+}

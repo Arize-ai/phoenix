@@ -137,8 +137,10 @@ const darkThemeThinkingGlowCSS = css`
   &[data-theme="dark"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 2px 1px rgba(248, 242, 255, 0.78),
-      0 0 4px 2px rgba(154, 102, 255, 0.68), 0 0 8px 4px rgba(52, 128, 255, 0.52),
-      0 0 13px 5px rgba(198, 72, 255, 0.4), 0 0 17px 6px rgba(44, 216, 255, 0.26);
+      0 0 4px 2px rgba(154, 102, 255, 0.68),
+      0 0 8px 4px rgba(52, 128, 255, 0.52),
+      0 0 13px 5px rgba(198, 72, 255, 0.4),
+      0 0 17px 6px rgba(44, 216, 255, 0.26);
     --agent-chat-widget-glow-outer-strong:
       0 0 3px 2px rgba(250, 244, 255, 0.88),
       0 0 7px 3px rgba(160, 108, 255, 0.82),
@@ -152,7 +154,8 @@ const lightThemeThinkingGlowCSS = css`
   &[data-theme="light"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 3px 1px rgba(245, 249, 255, 0.88),
-      0 0 5px 2px rgba(199, 190, 242, 0.56), 0 0 9px 4px rgba(88, 152, 255, 0.54),
+      0 0 5px 2px rgba(199, 190, 242, 0.56),
+      0 0 9px 4px rgba(88, 152, 255, 0.54),
       0 0 14px 5px rgba(200, 150, 236, 0.23),
       0 0 20px 7px rgba(116, 212, 255, 0.17);
     --agent-chat-widget-glow-outer-strong:
@@ -330,7 +333,8 @@ const entranceHoverWipeCSS = css`
       animation: ${hoverWipe} 2400ms linear 1;
     }
 
-    &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer::before {
+    &[data-entrance-animation="true"]
+      .agent-chat-widget__hover-shimmer::before {
       animation:
         ${ringBreathe} 2400ms ease-in-out 1,
         ${hoverRingOpacity} 2400ms linear 1;
@@ -374,7 +378,7 @@ export interface AgentChatWidgetButtonProps extends Omit<
 export function AgentChatWidgetButton({
   ref,
   isStreaming = false,
-  ariaLabel = "Open agent chat",
+  ariaLabel = "Open assistant",
   isDragHandle = false,
   glyphAnimation = "wave-reveal",
   ...buttonProps

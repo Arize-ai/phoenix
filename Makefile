@@ -16,6 +16,7 @@ JS_DIR := js
 SCHEMAS_DIR := schemas
 PACKAGES_DIR := packages
 PHOENIX_CLIENT_GENERATED := packages/phoenix-client/src/phoenix/client/__generated__
+GH_COMMENT_WATCH_DIR := scripts/gh-comment-watch
 
 # Colors for output
 CYAN := \033[0;36m
@@ -33,10 +34,11 @@ NC := \033[0m # No Color
 	graphql schema-graphql relay-build \
 	openapi schema-openapi schema-generative-ui codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
-	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test test-python test-frontend test-ts test-helm test-jcs doctest typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
+	gh-comment-watch \
 	clean clean-all
 
 help: ## Show this help message
@@ -73,6 +75,7 @@ help: ## Show this help message
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
 	@echo -e "  test-helm              - Run Helm chart tests"
+	@echo -e "  doctest                - Run doctests across all modules in src/ (override with MODULES=...)"
 	@echo -e "  typecheck              - Type check all code (Python + frontend + TypeScript)"
 	@echo -e "  typecheck-python       - Type check Python only"
 	@echo -e "  typecheck-python-ty    - Type check Python with ty (verify expected errors only)"
@@ -96,6 +99,7 @@ help: ## Show this help message
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
 	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
+	@echo -e "  gh-comment-watch       - Start the GitHub comment watcher"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -236,6 +240,15 @@ test-python: ## Run Python tests (unit + integration)
 	@$(TOX) run -q -e unit_tests -- -n auto
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(TOX) run -q -e integration_tests
+
+# Run doctests across all modules under src/ by default; override on the command
+# line, e.g. `make doctest MODULES="src/phoenix/foo.py src/phoenix/bar.py"`.
+DOCTEST_MODULES ?= src/phoenix
+
+doctest: ## Run doctests across all modules in src/ (override with MODULES=...)
+	@echo -e "$(CYAN)Running doctests on $(or $(MODULES),$(DOCTEST_MODULES))...$(NC)"
+	@$(UV) run pytest --doctest-modules $(or $(MODULES),$(DOCTEST_MODULES))
+	@echo -e "$(GREEN)✓ Doctests passed$(NC)"
 
 test-frontend: ## Run frontend tests (app/)
 	@echo -e "$(CYAN)Running frontend tests...$(NC)"
@@ -402,6 +415,10 @@ dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, defau
 dev-mock-llm: ## Start the mock LLM server
 	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
 	cd scripts/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
+
+gh-comment-watch: ## Start the GitHub comment watcher
+	@echo -e "$(CYAN)Starting GH Comment Watch...$(NC)"
+	cd $(GH_COMMENT_WATCH_DIR) && $(PNPM) start
 
 #=============================================================================
 # Cleanup

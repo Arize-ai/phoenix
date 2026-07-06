@@ -1,8 +1,11 @@
 import { Suspense } from "react";
 
 import {
+  CopyToClipboardButton,
   Dialog,
   DialogCloseButton,
+  Flex,
+  IDBadge,
   LinkButton,
   Loading,
 } from "@phoenix/components";
@@ -27,11 +30,19 @@ export function TraceDetailsDialog({
     <Dialog>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
+            <DialogTitle>{title}</DialogTitle>
+            <IDBadge id={traceId} />
+            <CopyToClipboardButton
+              size="S"
+              text={traceId}
+              tooltipText="Copy Trace ID"
+            />
+          </Flex>
           <DialogTitleExtra>
             <LinkButton
               size="S"
-              to={`/projects/${projectId}/traces/${traceId}`}
+              to={`/projects/${projectId}/traces/${encodeURIComponent(traceId)}`}
             >
               View Trace in Project
             </LinkButton>

@@ -14,7 +14,9 @@ import {
   AnnotationLabel,
   AnnotationTooltip,
 } from "@phoenix/components/annotation";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
@@ -26,19 +28,12 @@ const PAGE_SIZE = 100;
 
 export function ExampleExperimentsTableEmpty() {
   return (
-    <tbody className="is-empty">
-      <tr>
-        <td
-          colSpan={100}
-          css={css`
-            text-align: center;
-            padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
-          `}
-        >
-          No experiments have been run for this example.
-        </td>
-      </tr>
-    </tbody>
+    <TableEmptyWrap>
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="experiment" />}
+        description="No experiments have been run for this example"
+      />
+    </TableEmptyWrap>
   );
 }
 
@@ -172,7 +167,7 @@ export function ExampleExperimentRunsTable({
                     annotation.trace && (
                       <View paddingTop="size-100">
                         <div css={annotationTooltipExtraCSS}>
-                          <Icon svg={<Icons.InfoOutline />} />
+                          <Icon svg={<Icons.Info />} />
                           <span>Click to view evaluator trace</span>
                         </div>
                       </View>
@@ -185,7 +180,7 @@ export function ExampleExperimentRunsTable({
                     onClick={() => {
                       if (annotation.trace) {
                         navigate(
-                          `/projects/${annotation.trace.projectId}/traces/${annotation.trace.traceId}`
+                          `/projects/${annotation.trace.projectId}/traces/${encodeURIComponent(annotation.trace.traceId)}`
                         );
                       }
                     }}
@@ -208,7 +203,7 @@ export function ExampleExperimentRunsTable({
               leadingVisual={<Icon svg={<Icons.Trace />} />}
               onPress={() => {
                 navigate(
-                  `/projects/${trace.projectId}/traces/${trace.traceId}`
+                  `/projects/${trace.projectId}/traces/${encodeURIComponent(trace.traceId)}`
                 );
               }}
               aria-label="view trace"

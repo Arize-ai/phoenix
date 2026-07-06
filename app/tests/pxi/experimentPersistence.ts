@@ -72,6 +72,16 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI ingest-traces smoke test: confirms chat + summary traces persist locally.",
   },
+  routeLinkSmoke: {
+    id: "pxi-route-link-smoke:data-retention-policy-v1",
+    prompt:
+      "Link me to where I can configure data retention policy in Phoenix.",
+    expectedOutput:
+      "PXI calls get_route_info and answers with a root-relative /settings/data markdown link.",
+    experimentNamePrefix: "pxi-e2e-route-link-smoke",
+    experimentDescription:
+      "PXI route-info smoke test: get_route_info tool selection and internal link generation.",
+  },
 } as const;
 
 type PxiExperimentExample =

@@ -1,11 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
-import {
-  garbageCollectBashToolRuntimes,
-  refreshAgentSessionContext,
-  useCurrentAgentPageContext,
-  type AgentPageContext,
-} from "@phoenix/agent/tools/bash";
+import { garbageCollectBashToolRuntimes } from "@phoenix/agent/tools/bash";
 import type { paths } from "@phoenix/api/__generated__/v1";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
@@ -19,66 +14,11 @@ const CHAT_PATH_TEMPLATE =
 const ASSISTANT_AGENT_ID = "assistant";
 
 /**
- * Snapshot of the values that were current the last time the bash tool's
- * `/phoenix` context files were regenerated. Compared against the live
- * page context to decide whether a navigation-triggered refresh is needed.
- */
-type PreviousRefreshSnapshot = {
-  pathname: string;
-  search: string;
-  sessionId: string | null;
-};
-
-/** Captures the current page context + session into a comparable snapshot. */
-function createRefreshSnapshot({
-  pageContext,
-  sessionId,
-}: {
-  pageContext: AgentPageContext;
-  sessionId: string | null;
-}): PreviousRefreshSnapshot {
-  return {
-    pathname: pageContext.pathname,
-    search: pageContext.search,
-    sessionId,
-  };
-}
-
-/**
- * Returns `true` if the page context has changed in a way that warrants
- * regenerating the bash tool's `/phoenix` context files, comparing
- * the current state against the last refresh snapshot.
- *
- * A new or different session always triggers a refresh. Within the same
- * session, a change in pathname or search params triggers a refresh.
- */
-function shouldRefreshContext({
-  previousRefresh,
-  pageContext,
-  sessionId,
-}: {
-  previousRefresh: PreviousRefreshSnapshot | null;
-  pageContext: AgentPageContext;
-  sessionId: string | null;
-}): boolean {
-  if (previousRefresh === null || previousRefresh.sessionId !== sessionId) {
-    return true;
-  }
-
-  return (
-    previousRefresh.pathname !== pageContext.pathname ||
-    previousRefresh.search !== pageContext.search
-  );
-}
-
-/**
  * Encapsulates the non-visual state and side effects that drive
  * {@link AgentChatPanel}.
  *
  * Responsibilities:
  * - Creates a session automatically when the panel opens
- * - Refreshes the bash tool's `/phoenix` context files on navigation
- *   (races are resolved via a monotonic request ID)
  * - Garbage-collects bash runtimes for sessions that are no longer active
  * - Derives the chat API URL and model menu value from the store
  *
@@ -115,25 +55,6 @@ export function useAgentChatPanelState() {
     // Reverse so newest sessions appear first
     return sessions.reverse();
   }, [sessionIds, sessionMap]);
-  const previousRefreshRef = useRef<PreviousRefreshSnapshot | null>(null);
-  const latestRefreshRequestIdRef = useRef(0);
-  const pageContext = useCurrentAgentPageContext();
-  const autoRefreshPageContext = useMemo<AgentPageContext>(
-    () => ({
-      pathname: pageContext.pathname,
-      search: pageContext.search,
-      params: pageContext.params,
-      searchParams: pageContext.searchParams,
-      routeMatches: pageContext.routeMatches,
-    }),
-    [
-      pageContext.pathname,
-      pageContext.search,
-      pageContext.params,
-      pageContext.searchParams,
-      pageContext.routeMatches,
-    ]
-  );
 
   useEffect(() => {
     if (isOpen && activeSessionId === null) {
@@ -142,9 +63,9 @@ export function useAgentChatPanelState() {
   }, [isOpen, activeSessionId, createSession]);
 
   // Garbage-collect bash runtimes for sessions that are no longer active.
-  // Eagerly evicts inactive runtimes so stale `/phoenix` context files don't
-  // survive session churn. Capability state keeps this runtime policy distinct
-  // from session/chat state and leaves room for future UI surfaces.
+  // Eagerly evicts inactive runtimes so stale runtimes don't survive session
+  // churn. Capability state keeps this runtime policy distinct from
+  // session/chat state and leaves room for future UI surfaces.
   useEffect(() => {
     const syncBashRuntimeRegistry = () => {
       const state = store.getState();
@@ -210,56 +131,6 @@ export function useAgentChatPanelState() {
     ).replace("{session_id}", encodeURIComponent(activeSessionId));
     return prependBasename(path);
   }, [activeSessionId]);
-
-  const refreshSessionContext = useCallback(
-    async ({
-      pageContext,
-      sessionId,
-    }: {
-      pageContext: AgentPageContext;
-      sessionId: string | null;
-    }) => {
-      const refreshRequestId = ++latestRefreshRequestIdRef.current;
-      const refreshSnapshot = createRefreshSnapshot({
-        pageContext,
-        sessionId,
-      });
-
-      await refreshAgentSessionContext({
-        sessionId,
-        pageContext,
-        refreshReason: "navigation",
-        canReplacePhoenixContext: () =>
-          latestRefreshRequestIdRef.current === refreshRequestId,
-      });
-
-      if (latestRefreshRequestIdRef.current === refreshRequestId) {
-        previousRefreshRef.current = refreshSnapshot;
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (!isOpen || activeSessionId === null) {
-      return;
-    }
-
-    const needsRefresh = shouldRefreshContext({
-      previousRefresh: previousRefreshRef.current,
-      pageContext: autoRefreshPageContext,
-      sessionId: activeSessionId,
-    });
-
-    if (!needsRefresh) {
-      return;
-    }
-
-    void refreshSessionContext({
-      pageContext: autoRefreshPageContext,
-      sessionId: activeSessionId,
-    });
-  }, [activeSessionId, autoRefreshPageContext, isOpen, refreshSessionContext]);
 
   const closePanel = useCallback(() => {
     setIsOpen(false);

@@ -33,7 +33,7 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.314.3",
+  "strawberry-graphql==0.319.0",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -57,14 +57,15 @@ dependencies = [
   "sqlean.py>=3.45.1,<3.50; platform_system == 'Windows'",  # no Windows wheels for >=3.50; Windows + 3.14 will fail at install (no cp314 wheels exist)
   "cachetools",
   "python-multipart",  # see https://www.starlette.io/#dependencies
-  "arize-phoenix-evals>=2.11.0",
+  "arize-phoenix-evals>=3.1.0",
   "arize-phoenix-otel>=0.16.1",
-  "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
+  "fastapi>=0.137.0",  # 0.137 keeps included routers as a lazy _IncludedRouter tree; older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=1.95.0",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=2.0.0,<3",
+  "bashkit>=0.10.0",
   "authlib>=1.7.0",
   "joserfc",
-  "arize-phoenix-client>=2.4.0",
+  "arize-phoenix-client>=2.11.0",
   "email-validator",
   "python-dateutil",
   "prometheus_client",
@@ -104,10 +105,11 @@ dev = [
   "httpx",
   "jsonpath-ng",
   "ldap3",
-  "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
+  "litellm>=1.83.14",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise. Minor cap dropped: dev/test-only dep guarded by exclude-newer (fresh-release supply-chain) + override-dependencies (transitive pins)
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
-  "mypy==1.19.1",
+  "wasmtime>=15.0",  # bundled in dev so the local WASM sandbox runs without an extra opt-in; the [wasm] extra still gates production installs
+  "mypy==2.1.0",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
@@ -145,7 +147,7 @@ dev = [
   "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx>=0.22.0",
-  "strawberry-graphql[opentelemetry]==0.314.3",
+  "strawberry-graphql[opentelemetry]==0.319.0",
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -225,7 +227,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy==0.62b1",
   "opentelemetry-instrumentation-grpc==0.62b1",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.314.3",
+  "strawberry-graphql[opentelemetry]==0.319.0",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "types-aiobotocore-bedrock-runtime>=3.6.0",
@@ -298,9 +300,13 @@ addopts = [
   "-rA",
   "--import-mode=importlib",
   "--doctest-modules",
+  # Alembic's env.py runs migration context at import time and isn't importable
+  # standalone, which breaks --doctest-modules collection.
+  "--ignore=src/phoenix/db/migrations/env.py",
   "--new-first",
   "--showlocals",
 ]
+doctest_optionflags = ["NORMALIZE_WHITESPACE"]
 testpaths = [
   "tests",
 ]

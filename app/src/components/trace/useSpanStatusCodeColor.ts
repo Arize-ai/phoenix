@@ -12,7 +12,6 @@ export function useSpanStatusCodeColor(
 
     case "ERROR":
       return "danger";
-      break;
     case "UNSET":
       return "gray-500";
     default:

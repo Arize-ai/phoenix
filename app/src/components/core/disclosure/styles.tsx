@@ -70,10 +70,11 @@ export const disclosureCSS = css`
     > svg,
     > i {
       rotate: 90deg;
-      transition: rotate 200ms;
+      transition: rotate 200ms ease-in-out;
       width: 1em;
       height: 1em;
       fill: currentColor;
+      color: var(--global-text-color-500);
     }
 
     &[data-arrow-position="start"] {

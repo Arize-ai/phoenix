@@ -6,52 +6,108 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [opened, assigned]
+    # No `assigned` here: the action only honors assigned events via its
+    # assignee_trigger input (unset for us); its @claude body/title check
+    # applies only to `opened`, so an assigned run would always no-op.
+    types: [opened]
   pull_request_review:
     types: [submitted]
 
+# Serialize @claude runs per issue/PR. A single review submitted with several
+# inline @claude comments fires one pull_request_review_comment event per
+# comment — i.e. multiple concurrent runs — and with file edits enabled they
+# would otherwise race on the same branch. issue.number covers issue_comment /
+# issues events; pull_request.number covers the review events. cancel-in-progress
+# is false so each queued @claude still runs, one at a time, rather than being
+# dropped.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   claude:
+    # Gate on an explicit allowlist of GitHub usernames rather than
+    # author_association: the latter only reflects PUBLIC org membership and
+    # direct collaborator status, so it misclassifies private members and
+    # team-mediated access. github.actor is always the user who triggered the
+    # event, so this checks the right principal for every event type, and
+    # `contains` compares case-insensitively. Add a username here to let someone
+    # invoke @claude. (This is a coarse pre-filter; the action independently
+    # verifies the actor's repo write permission before doing anything.)
     if: |
       (
         (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
         (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
         (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
         (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-      ) && (
-        github.event.sender.login == github.repository_owner ||
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) ||
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association) ||
-        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
-      )
+      ) && contains(fromJSON('[
+        "anticorrelator", "axiomofjoy", "cephalization", "ehutt", "jimbobbennett",
+        "mikeldking", "Nancy-Chauhan", "PatriciaArnedo", "rickarize", "RogerHYang",
+        "seldo", "yfrigui2"
+      ]'), github.actor)
     runs-on: ubuntu-latest
+    # Bound the interactive run so a hung/looping agent can't hold the runner
+    # indefinitely — which, with the queue concurrency above, would also block
+    # every later @claude on this PR. Higher than the read-only workflows since
+    # @claude may be asked to implement larger changes.
+    timeout-minutes: 60
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-      id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      # Writes to PRs/issues and pushes from Claude go through the App token
+      # minted by the OIDC exchange below — the workflow GITHUB_TOKEN is only
+      # used for the initial checkout and the github_ci MCP server.
+      contents: read
+      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
+      actions: read # Used by the action's github_ci MCP server (workflow token, not app token) to read CI results on PRs
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install subprocess isolation deps
+        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
+        # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
+        # user namespaces it relies on by default. Mirrors the upstream action's
+        # install step (which only runs when allowed_non_write_users is set).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@094bd24d575e7b30ac1576024817bf1a97c81262 # v1.0.80
+        uses: anthropics/claude-code-action@0f97b95b6536c26e5f6bd90faec370d41695beca # v1.0.144
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          # This is an optional setting that allows Claude to read CI results on PRs
+          # Surface the full Claude SDK message stream in the step log (denied-tool
+          # details, tool calls, reasoning) instead of the sanitized summary. Inputs
+          # are public repo/PR/issue content, and GitHub masks registered secrets.
+          # Note: logs are public.
+          show_full_output: 'true'
+
+          # Request actions:read on the Claude App token. The non-empty
+          # additional_permissions input also makes the action request its
+          # DEFAULT_PERMISSIONS (contents/pull_requests/issues: write), which tag
+          # mode needs for comments and branch pushes. The github_ci MCP server
+          # uses the workflow GITHUB_TOKEN instead, enabled by job permissions above.
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+          # Enable the file-editing tools. In tag mode the action omits
+          # Edit/Write from its auto-generated --allowedTools and relies
+          # on `--permission-mode acceptEdits` to allow edits inside the workspace.
+          # The headless SDK has no interactive approval handler, so any tool that
+          # is neither on the allowlist nor covered by the permission mode falls
+          # through to "ask" and is auto-denied — meaning if acceptEdits is not in
+          # effect, Claude cannot write files and can only post a suggested diff.
+          # Listing the edit tools explicitly guarantees they are allowed
+          # independent of permission mode; the action merges them with its own
+          # git/Read/Grep tools.
+          claude_args: '--allowedTools Edit,Write'
 

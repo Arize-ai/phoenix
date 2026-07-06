@@ -2,8 +2,10 @@ import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
 /**
- * For the workflow to add, edit, or remove a PXI tool, see
- * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
+ * For the workflow to add, edit, or remove a PXI tool, see the `defineTool` /
+ * `defineClientActionTool` helpers in
+ * `@phoenix/agent/extensions/registry` and the registry aggregator in
+ * `@phoenix/agent/extensions/toolRegistry`.
  */
 import {
   handleRegisteredAgentToolCall,

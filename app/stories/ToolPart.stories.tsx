@@ -1,11 +1,15 @@
 import { css } from "@emotion/react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { useEffect, useRef } from "react";
+import { useState } from "react";
 
 import {
   DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   DOCS_SEARCH_TOOL_NAME,
 } from "@phoenix/agent/tools/docs";
+import {
+  SAVE_PROMPT_TOOL_NAME,
+  type PendingSavePrompt,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
@@ -14,6 +18,8 @@ import {
   ToolPart,
   type ToolPartType,
 } from "@phoenix/components/agent/ToolPart";
+import { AgentContext } from "@phoenix/contexts/AgentContext";
+import { createAgentStore } from "@phoenix/store/agentStore";
 
 const containerCSS = css`
   max-width: 780px;
@@ -37,19 +43,41 @@ const storyNoteCSS = css`
   }
 `;
 
-function OpenByDefault({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    ref.current?.querySelector("details")?.setAttribute("open", "");
-  }, []);
-  return <div ref={ref}>{children}</div>;
-}
-
 function withElicitationDraft(draft: PendingElicitationDraft) {
   return (Story: () => React.ReactNode) => (
     <ElicitationDraftProvider draft={draft}>
       <Story />
     </ElicitationDraftProvider>
+  );
+}
+
+function AgentStoreStoryProvider({
+  children,
+  pendingSave,
+}: {
+  children: React.ReactNode;
+  pendingSave?: PendingSavePrompt;
+}) {
+  const [store] = useState(() => {
+    const store = createAgentStore();
+    if (pendingSave) {
+      store
+        .getState()
+        .setPendingSavePrompt(pendingSave.toolCallId, pendingSave);
+    }
+    return store;
+  });
+
+  return (
+    <AgentContext.Provider value={store}>{children}</AgentContext.Provider>
+  );
+}
+
+function withAgentStore(pendingSave?: PendingSavePrompt) {
+  return (Story: () => React.ReactNode) => (
+    <AgentStoreStoryProvider pendingSave={pendingSave}>
+      <Story />
+    </AgentStoreStoryProvider>
   );
 }
 
@@ -449,19 +477,155 @@ const docsFileSystemQueryRunningPart = makePart({
 });
 
 // ---------------------------------------------------------------------------
+// Save prompt tool mocks
+// ---------------------------------------------------------------------------
+
+const savePromptApprovalInput = {
+  instanceId: 0,
+  description:
+    "Tighten routing instructions so billing questions go to the payments specialist.",
+  tags: ["staging"],
+};
+
+const savePromptAwaitingApprovalPart = makePart({
+  toolName: SAVE_PROMPT_TOOL_NAME,
+  toolCallId: "save-prompt-approval-update",
+  state: "input-available",
+  input: savePromptApprovalInput,
+});
+
+const pendingSavePromptApproval = {
+  toolCallId: "save-prompt-approval-update",
+  sessionId: "session-playground-demo",
+  input: savePromptApprovalInput,
+  preview: {
+    mode: "update",
+    instanceId: 0,
+    label: "Customer support router",
+    promptId: "UHJvbXB0OjEyMw",
+    promptName: "support_router",
+    description: savePromptApprovalInput.description,
+    tags: savePromptApprovalInput.tags,
+    dirtyBeforeSave: true,
+  },
+  accept: async () => undefined,
+  reject: async () => undefined,
+} satisfies PendingSavePrompt;
+
+const savePromptCreateInput = {
+  instanceId: 1,
+  name: "refund_policy_assistant",
+  description: "Capture the refund-policy answer pattern from the playground.",
+  tags: ["candidate", "qa"],
+};
+
+const savePromptCreateApprovalPart = makePart({
+  toolName: SAVE_PROMPT_TOOL_NAME,
+  toolCallId: "save-prompt-approval-create",
+  state: "input-available",
+  input: savePromptCreateInput,
+});
+
+const pendingSavePromptCreateApproval = {
+  toolCallId: "save-prompt-approval-create",
+  sessionId: "session-playground-demo",
+  input: savePromptCreateInput,
+  preview: {
+    mode: "create",
+    instanceId: 1,
+    label: "Refund policy draft",
+    promptId: null,
+    promptName: "refund_policy_assistant",
+    description: savePromptCreateInput.description,
+    tags: savePromptCreateInput.tags,
+    dirtyBeforeSave: true,
+  },
+  accept: async () => undefined,
+  reject: async () => undefined,
+} satisfies PendingSavePrompt;
+
+const savePromptAcceptedPart = makePart({
+  toolName: SAVE_PROMPT_TOOL_NAME,
+  toolCallId: "save-prompt-accepted",
+  state: "output-available",
+  input: savePromptApprovalInput,
+  output: {
+    status: "saved",
+    mode: "update",
+    instanceId: 0,
+    label: "Customer support router",
+    promptId: "UHJvbXB0OjEyMw",
+    promptName: "support_router",
+    promptVersionId: "UHJvbXB0VmVyc2lvbjo0NTY",
+    tag: "staging",
+    dirtyBeforeSave: true,
+    approvalStatus: "accepted",
+    acceptedBy: "user",
+    message: "New prompt version saved from playground instance.",
+  },
+});
+
+const savePromptCreatedAutoApprovedPart = makePart({
+  toolName: SAVE_PROMPT_TOOL_NAME,
+  toolCallId: "save-prompt-created-auto-approved",
+  state: "output-available",
+  input: savePromptCreateInput,
+  output: {
+    status: "saved",
+    mode: "create",
+    instanceId: 1,
+    label: "Refund policy draft",
+    promptId: "UHJvbXB0Ojc4OQ",
+    promptName: "refund_policy_assistant",
+    promptVersionId: "UHJvbXB0VmVyc2lvbjo3OTA",
+    tag: "candidate",
+    dirtyBeforeSave: true,
+    approvalStatus: "accepted",
+    acceptedBy: "auto",
+    message: "Prompt created from playground instance.",
+  },
+});
+
+const savePromptRejectedPart = makePart({
+  toolName: SAVE_PROMPT_TOOL_NAME,
+  toolCallId: "save-prompt-rejected",
+  state: "output-available",
+  input: savePromptApprovalInput,
+  output: {
+    status: "rejected",
+    message: "User rejected the proposed prompt save.",
+  },
+});
+
+const savePromptErrorPart = makePart({
+  toolName: SAVE_PROMPT_TOOL_NAME,
+  toolCallId: "save-prompt-error",
+  state: "output-error",
+  input: {
+    instanceId: 3,
+    description: "Save the current judge prompt after updating edge cases.",
+  },
+  errorText:
+    "Cannot save prompt because playground instance 3 is no longer mounted.",
+});
+
+// ---------------------------------------------------------------------------
 // ToolPart stories
 // ---------------------------------------------------------------------------
 
 const toolPartMeta = {
   title: "Agent/ToolPart",
   component: ToolPart,
+  // Rolldown can emit one-character helper exports in this large story module.
+  excludeStories: /^[A-Za-z_$]$/,
+  // Open by default so the expanded body is visible; individual stories can
+  // override with `defaultOpen: false`.
+  args: { defaultOpen: true },
   decorators: [
     (Story) => (
-      <OpenByDefault>
-        <div css={containerCSS}>
-          <Story />
-        </div>
-      </OpenByDefault>
+      <div css={containerCSS}>
+        <Story />
+      </div>
     ),
   ],
   parameters: {
@@ -613,4 +777,146 @@ export const DocsFileSystemQuery: Story = {
 /** A docs filesystem query tool currently running. */
 export const DocsFileSystemQueryRunning: Story = {
   args: { part: docsFileSystemQueryRunningPart },
+};
+
+/** A save_prompt tool waiting for approval before saving a new version. */
+export const SavePromptAwaitingApproval: Story = {
+  args: { part: savePromptAwaitingApprovalPart },
+  decorators: [withAgentStore(pendingSavePromptApproval)],
+};
+
+/** A save_prompt tool waiting for approval before creating a new prompt. */
+export const SavePromptCreateApproval: Story = {
+  args: { part: savePromptCreateApprovalPart },
+  decorators: [withAgentStore(pendingSavePromptCreateApproval)],
+};
+
+/** A save_prompt tool after the user accepted and a version was saved. */
+export const SavePromptAccepted: Story = {
+  args: { part: savePromptAcceptedPart },
+  decorators: [withAgentStore()],
+};
+
+/** A save_prompt tool after bypass mode auto-approved prompt creation. */
+export const SavePromptCreatedAutoApproved: Story = {
+  args: { part: savePromptCreatedAutoApprovedPart },
+  decorators: [withAgentStore()],
+};
+
+/** A save_prompt tool after the user rejected the proposed save. */
+export const SavePromptRejected: Story = {
+  args: { part: savePromptRejectedPart },
+  decorators: [withAgentStore()],
+};
+
+/** A save_prompt tool that failed before a save could be proposed. */
+export const SavePromptError: Story = {
+  args: { part: savePromptErrorPart },
+  decorators: [withAgentStore()],
+};
+
+const loadSkillRunningPart = makePart({
+  toolName: "load_skill",
+  state: "input-available",
+  input: { skill_name: "phoenix-frontend" },
+});
+
+const loadSkillCompletedPart = makePart({
+  toolName: "load_skill",
+  state: "output-available",
+  input: { skill_name: "phoenix-frontend" },
+  output:
+    "# Phoenix Frontend Development Guide\n\nThis skill provides guidance for working with the Phoenix frontend codebase...\n\n## Key Concepts\n\n- Components live in `src/components`\n- Use Emotion for styling\n- Follow the design system tokens",
+});
+
+const loadSkillErrorPart = makePart({
+  toolName: "load_skill",
+  state: "output-error",
+  input: { skill_name: "unknown-skill" },
+  errorText: "Skill 'unknown-skill' not found in the skill registry.",
+});
+
+/** A load_skill tool currently running (shows standard chrome). */
+export const LoadSkillRunning: Story = {
+  args: { part: loadSkillRunningPart },
+};
+
+/**
+ * A completed load_skill tool collapsed (quiet variant).
+ * Shows minimal chrome with just "Loaded skill phoenix-frontend" label.
+ */
+export const LoadSkillCollapsed: Story = {
+  args: { part: loadSkillCompletedPart, defaultOpen: false },
+  render: (args) => (
+    <>
+      <ToolPartStoryNote title="Collapsed State">
+        When collapsed, the quiet variant shows minimal chrome with a subdued
+        label. Click to expand and see the quiet-expanded variant with the
+        lefthand border style.
+      </ToolPartStoryNote>
+      <ToolPart {...args} />
+    </>
+  ),
+};
+
+/**
+ * A completed load_skill tool expanded (quiet-expanded variant).
+ * Shows lefthand line style like tool groups instead of full chrome.
+ */
+export const LoadSkillExpanded: Story = {
+  args: { part: loadSkillCompletedPart },
+};
+
+/** A load_skill tool that failed to find the skill. */
+export const LoadSkillError: Story = {
+  args: { part: loadSkillErrorPart },
+};
+
+// ---------------------------------------------------------------------------
+// call_subagent tool mocks
+// ---------------------------------------------------------------------------
+
+const callSubagentRunningPart = makePart({
+  toolName: "call_subagent",
+  state: "input-available",
+  input: {
+    name: "server",
+    task: "Investigate why the GraphQL spans resolver returns duplicate edges.",
+  },
+});
+
+const callSubagentCompletedPart = makePart({
+  toolName: "call_subagent",
+  state: "output-available",
+  input: {
+    name: "server",
+    task: "Investigate why the GraphQL spans resolver returns duplicate edges.",
+  },
+  output:
+    "The duplicate edges come from a missing DISTINCT clause in the spans dataloader join. Adding `.distinct()` to the SQLAlchemy query before pagination resolves it.",
+});
+
+const callSubagentErrorPart = makePart({
+  toolName: "call_subagent",
+  state: "output-error",
+  input: {
+    name: "unknown-agent",
+    task: "Do something with an agent that does not exist.",
+  },
+  errorText: "Subagent 'unknown-agent' is not registered.",
+});
+
+/** A call_subagent tool currently delegating to a subagent (summary = name). */
+export const CallSubagentRunning: Story = {
+  args: { part: callSubagentRunningPart },
+};
+
+/** A call_subagent tool that completed with the subagent's result. */
+export const CallSubagentCompleted: Story = {
+  args: { part: callSubagentCompletedPart },
+};
+
+/** A call_subagent tool that failed because the subagent was not found. */
+export const CallSubagentError: Story = {
+  args: { part: callSubagentErrorPart },
 };

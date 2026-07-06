@@ -16,6 +16,7 @@ import {
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import invariant from "tiny-invariant";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { Alert, Flex, Loading, View } from "@phoenix/components";
 import {
   ExperimentNameWithColorSwatch,
@@ -84,6 +85,14 @@ export function ExperimentComparePage() {
 
   const { datasetId } = useParams();
   invariant(datasetId != null, "datasetId is required");
+  const advertisedDatasetContext = useMemo(
+    () => ({
+      type: "dataset" as const,
+      datasetNodeId: datasetId,
+    }),
+    [datasetId]
+  );
+  useAdvertiseAgentContext(advertisedDatasetContext);
   const [searchParams] = useSearchParams();
   const { baseExperimentId = undefined, compareExperimentIds } = useMemo(() => {
     const [baseExperimentId = undefined, ...compareExperimentIds] =
@@ -321,6 +330,7 @@ export function SelectedCompareExperiments({
                     id
                     sequenceNumber
                     name
+                    isBaseline
                   }
                 }
               }
@@ -352,6 +362,7 @@ export function SelectedCompareExperiments({
           key={experiment.id}
           color={getExperimentColor(experimentIndex)}
           name={experiment.name}
+          isBaseline={experiment.isBaseline}
         />
       ))}
     </Flex>

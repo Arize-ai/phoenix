@@ -1,8 +1,9 @@
 // --- Bash tool ---
-export { getBashToolInput } from "./bashToolSchema";
+export { BASH_TOOL_NAME } from "./constants";
+export { bashAgentTool } from "./bashAgentTool";
+export { getBashToolInput, getBashToolSummary } from "./bashToolSchema";
 export {
   applyBashToolFilesystemPolicy,
-  BASH_TOOL_READONLY_ROOT,
   BASH_TOOL_WORKSPACE_ROOT,
 } from "./bashToolFilesystemPolicy";
 export {
@@ -27,11 +28,3 @@ export type {
   BashToolCommandResult,
   BashToolRuntime,
 } from "./bashToolTypes";
-
-// --- Page context (drives the /phoenix virtual filesystem) ---
-export { useCurrentAgentPageContext } from "./context/pageContext";
-export { refreshAgentSessionContext } from "./context/refreshAgentContext";
-export type {
-  AgentContextRefreshReason,
-  AgentPageContext,
-} from "./context/pageContextTypes";

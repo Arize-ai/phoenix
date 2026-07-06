@@ -43,6 +43,89 @@ export const chatMessageRoleToPromptMessageRole = (
   }
 };
 
+const promptVersionToInstanceFragment = graphql`
+  fragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion
+  @inline {
+    id
+    modelName
+    modelProvider
+    invocationParameters {
+      ...PromptInvocationParametersReadableFragment
+    }
+    customProvider {
+      id
+      name
+    }
+    responseFormat {
+      jsonSchema {
+        name
+        description
+        schema
+        strict
+      }
+    }
+    template {
+      __typename
+      ... on PromptChatTemplate {
+        messages {
+          role
+          content {
+            __typename
+            ... on TextContentPart {
+              text {
+                text
+              }
+            }
+            ... on ToolCallContentPart {
+              toolCall {
+                toolCallId
+                toolCall {
+                  name
+                  arguments
+                }
+              }
+            }
+            ... on ToolResultContentPart {
+              toolResult {
+                toolCallId
+                result
+              }
+            }
+          }
+        }
+      }
+      ... on PromptStringTemplate {
+        template
+      }
+    }
+    tools {
+      tools {
+        __typename
+        ... on PromptToolFunction {
+          function {
+            name
+            description
+            parameters
+            strict
+          }
+        }
+        ... on PromptToolRaw {
+          raw
+        }
+      }
+      toolChoice {
+        type
+        functionName
+      }
+      disableParallelToolCalls
+    }
+  }
+`;
+
+export const readPlaygroundPromptVersion = (
+  promptVersionRef: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key
+) => readInlineData(promptVersionToInstanceFragment, promptVersionRef);
+
 /**
  * Converts a prompt version to a playground instance.
  *
@@ -63,87 +146,7 @@ export const promptVersionToInstance = ({
   promptVersionRef: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key;
   promptVersionTag: string | null;
 }) => {
-  const promptVersion = readInlineData(
-    graphql`
-      fragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion
-      @inline {
-        id
-        modelName
-        modelProvider
-        invocationParameters {
-          ...PromptInvocationParametersReadableFragment
-        }
-        customProvider {
-          id
-          name
-        }
-        responseFormat {
-          jsonSchema {
-            name
-            description
-            schema
-            strict
-          }
-        }
-        template {
-          __typename
-          ... on PromptChatTemplate {
-            messages {
-              role
-              content {
-                __typename
-                ... on TextContentPart {
-                  text {
-                    text
-                  }
-                }
-                ... on ToolCallContentPart {
-                  toolCall {
-                    toolCallId
-                    toolCall {
-                      name
-                      arguments
-                    }
-                  }
-                }
-                ... on ToolResultContentPart {
-                  toolResult {
-                    toolCallId
-                    result
-                  }
-                }
-              }
-            }
-          }
-          ... on PromptStringTemplate {
-            template
-          }
-        }
-        tools {
-          tools {
-            __typename
-            ... on PromptToolFunction {
-              function {
-                name
-                description
-                parameters
-                strict
-              }
-            }
-            ... on PromptToolRaw {
-              raw
-            }
-          }
-          toolChoice {
-            type
-            functionName
-          }
-          disableParallelToolCalls
-        }
-      }
-    `,
-    promptVersionRef
-  );
+  const promptVersion = readPlaygroundPromptVersion(promptVersionRef);
   const newInstance = {
     ...DEFAULT_INSTANCE_PARAMS(),
     prompt: {

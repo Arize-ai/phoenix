@@ -1,18 +1,20 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
+import { SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME } from "@phoenix/agent/tools/playgroundExperimentRecording";
+import { SET_PLAYGROUND_REPETITIONS_TOOL_NAME } from "@phoenix/agent/tools/playgroundRepetitions";
 import {
-  getAgentToolUIBehavior,
-  handleRegisteredAgentToolCall,
-  SET_TIME_RANGE_TOOL_NAME,
-} from "@phoenix/agent/extensions/toolRegistry";
-import {
-  CLONE_PROMPT_INSTANCE_TOOL_NAME,
-  EDIT_PROMPT_TOOL_NAME,
-} from "@phoenix/agent/tools/playgroundPrompt";
+  createSavePromptClientAction,
+  SAVE_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
+import { createPlaygroundStore } from "@phoenix/store/playground";
+
+installTestStorage();
 
 describe("toolRegistry", () => {
   beforeEach(() => {
-    localStorage.removeItem("arize-phoenix-agent");
+    localStorage.removeItem("arize-phoenix-assistant");
   });
 
   it("skips server-executed tools without producing output", async () => {
@@ -57,32 +59,6 @@ describe("toolRegistry", () => {
     });
 
     expect(addToolOutput).not.toHaveBeenCalled();
-  });
-
-  it("returns an error output for unknown tools", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-1",
-        toolName: "not-a-real-tool",
-        input: {},
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(addToolOutput).toHaveBeenCalledTimes(1);
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-error",
-        tool: "not-a-real-tool",
-        toolCallId: "tool-call-1",
-        errorText: expect.any(String),
-      })
-    );
   });
 
   it("returns an error output for invalid tool input", async () => {
@@ -171,58 +147,260 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("dispatches set_time_range to the registered client action", async () => {
+  it("requires approval before dispatching save_prompt to the registered client action", async () => {
     const store = createAgentStore();
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi.fn().mockResolvedValue({ ok: true, output: "updated" });
-    store.getState().registerClientAction(SET_TIME_RANGE_TOOL_NAME, action);
+    const savePrompt = vi.fn().mockResolvedValue({
+      ok: true,
+      output: { status: "saved", promptId: "prompt-id" },
+    });
+    const action = createSavePromptClientAction({
+      playgroundStore,
+      setPendingSavePrompt: store.getState().setPendingSavePrompt,
+      savePrompt,
+    });
+    store.getState().registerClientAction(SAVE_PROMPT_TOOL_NAME, action);
+
+    const input = { description: "Improve instructions" };
 
     await handleRegisteredAgentToolCall({
       toolCall: {
-        toolCallId: "tool-call-5",
-        toolName: SET_TIME_RANGE_TOOL_NAME,
-        input: { timeRangeKey: "1h" },
+        toolCallId: "tool-call-save-prompt",
+        toolName: SAVE_PROMPT_TOOL_NAME,
+        input,
       },
       sessionId: "session-1",
       addToolOutput,
       agentStore: store,
     });
 
-    expect(action).toHaveBeenCalledWith({ timeRangeKey: "1h" });
+    expect(savePrompt).not.toHaveBeenCalled();
+    expect(addToolOutput).not.toHaveBeenCalled();
+    const pendingSave =
+      store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"];
+    expect(pendingSave).toEqual(
+      expect.objectContaining({
+        toolCallId: "tool-call-save-prompt",
+        sessionId: "session-1",
+        input,
+        preview: expect.objectContaining({
+          description: "Improve instructions",
+          tags: [],
+        }),
+      })
+    );
+
+    await pendingSave?.accept?.();
+
+    expect(savePrompt).toHaveBeenCalledWith({
+      playgroundStore,
+      input,
+    });
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",
-        tool: SET_TIME_RANGE_TOOL_NAME,
-        output: "updated",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        output: expect.objectContaining({
+          status: "saved",
+          promptId: "prompt-id",
+          approvalStatus: "accepted",
+          acceptedBy: "user",
+        }),
+      })
+    );
+    expect(
+      store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"]
+    ).toBeUndefined();
+  });
+
+  it("dispatches set_playground_experiment_recording to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: true, output: "recording updated" });
+    store
+      .getState()
+      .registerClientAction(
+        SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        action
+      );
+
+    const input = { recordExperiments: true };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-experiment-recording",
+        toolName: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith(input);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        output: "recording updated",
       })
     );
   });
 
-  it("dispatches clone_prompt_instance to the registered client action", async () => {
+  it("dispatches set_playground_repetitions to the registered client action", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi.fn().mockResolvedValue({ ok: true, output: "cloned" });
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: true, output: "repetitions updated" });
     store
       .getState()
-      .registerClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME, action);
+      .registerClientAction(SET_PLAYGROUND_REPETITIONS_TOOL_NAME, action);
+
+    const input = { repetitions: 4 };
 
     await handleRegisteredAgentToolCall({
       toolCall: {
-        toolCallId: "tool-call-6",
-        toolName: CLONE_PROMPT_INSTANCE_TOOL_NAME,
-        input: { instanceId: 0 },
+        toolCallId: "tool-call-set-playground-repetitions",
+        toolName: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        input,
       },
       sessionId: "session-1",
       addToolOutput,
       agentStore: store,
     });
 
-    expect(action).toHaveBeenCalledWith({ instanceId: 0 });
+    expect(action).toHaveBeenCalledWith(input);
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",
-        tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
-        output: "cloned",
+        tool: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        output: "repetitions updated",
+      })
+    );
+  });
+
+  it("surfaces set_playground_experiment_recording client action errors", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: "already running" });
+    store
+      .getState()
+      .registerClientAction(
+        SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        action
+      );
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-experiment-recording-error",
+        toolName: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        input: { recordExperiments: true },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: SET_PLAYGROUND_EXPERIMENT_RECORDING_TOOL_NAME,
+        errorText: "already running",
+      })
+    );
+  });
+
+  it("surfaces set_playground_repetitions client action errors", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: "already running" });
+    store
+      .getState()
+      .registerClientAction(SET_PLAYGROUND_REPETITIONS_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-repetitions-error",
+        toolName: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        input: { repetitions: 4 },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: SET_PLAYGROUND_REPETITIONS_TOOL_NAME,
+        errorText: "already running",
+      })
+    );
+  });
+
+  it("auto-approves save_prompt only when edit approvals are bypassed", async () => {
+    const store = createAgentStore();
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const savePrompt = vi.fn().mockResolvedValue({
+      ok: true,
+      output: { status: "saved", promptId: "prompt-id" },
+    });
+    const action = createSavePromptClientAction({
+      playgroundStore,
+      setPendingSavePrompt: store.getState().setPendingSavePrompt,
+      shouldAutoAccept: () => store.getState().permissions.edits === "bypass",
+      savePrompt,
+    });
+    store.getState().registerClientAction(SAVE_PROMPT_TOOL_NAME, action);
+    store.getState().setPermissions({ edits: "bypass" });
+
+    const input = { description: "Improve instructions" };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-save-prompt-bypass",
+        toolName: SAVE_PROMPT_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(savePrompt).toHaveBeenCalledWith({
+      playgroundStore,
+      input,
+    });
+    expect(
+      store.getState().pendingSavePromptsByToolCallId[
+        "tool-call-save-prompt-bypass"
+      ]
+    ).toBeUndefined();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        output: expect.objectContaining({
+          status: "saved",
+          promptId: "prompt-id",
+          approvalStatus: "accepted",
+          acceptedBy: "auto",
+        }),
       })
     );
   });
@@ -441,12 +619,5 @@ describe("toolRegistry", () => {
         tool: GENERATIVE_UI_TOOL_NAME,
       })
     );
-  });
-
-  it("declares edit_prompt_instance as an auto-focused tool", () => {
-    expect(getAgentToolUIBehavior(EDIT_PROMPT_TOOL_NAME)).toEqual({
-      autoOpen: true,
-      scrollIntoViewOnMount: true,
-    });
   });
 });

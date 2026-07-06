@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b236257d5e752f094aab5cdf6a8090f3>>
+ * @generated SignedSource<<c3b7ff4ceca244befbfc6ce358cb9c8a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -151,6 +151,7 @@ return {
                     "name": "version",
                     "plural": false,
                     "selections": [
+                      (v2/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -158,7 +159,47 @@ return {
                         "name": "createdAt",
                         "storageKey": null
                       },
-                      (v2/*: any*/)
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelName",
+                        "storageKey": null
+                      },
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "modelProvider",
+                        "storageKey": null
+                      }
+                    ],
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "versionCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "PromptVersionTag",
+                    "kind": "LinkedField",
+                    "name": "versionTags",
+                    "plural": true,
+                    "selections": [
+                      (v2/*: any*/),
+                      (v3/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "promptVersionId",
+                        "storageKey": null
+                      }
                     ],
                     "storageKey": null
                   },
@@ -257,16 +298,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c742220ba8617113856418d1b6fb0c13",
+    "cacheID": "200e422ae60402f476b34c8b1e4d53b4",
     "id": null,
     "metadata": {},
     "name": "PromptsTablePromptsQuery",
     "operationKind": "query",
-    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n  $labelIds: [ID!] = null\n) {\n  ...PromptsTable_prompts_2FeKoo\n}\n\nfragment PromptsTable_prompts_2FeKoo on Query {\n  prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query PromptsTablePromptsQuery(\n  $after: String = null\n  $filter: PromptFilter = null\n  $first: Int = 100\n  $labelIds: [ID!] = null\n) {\n  ...PromptsTable_prompts_2FeKoo\n}\n\nfragment PromptsTable_prompts_2FeKoo on Query {\n  prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "33daede08f0acc18f45f19692993314f";
+(node as any).hash = "b5fb70bb7de99fce33aaeac3b119d898";
 
 export default node;

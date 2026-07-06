@@ -41,6 +41,18 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
         rootSpansOnly: context.rootSpansOnly ?? existing.rootSpansOnly,
       });
     }
+    if (existing.type === "playground" && context.type === "playground") {
+      // Two surfaces contribute one playground context: Playground.tsx owns the instances, PlaygroundDatasetSection the evaluator roster.
+      byKey.set(key, {
+        type: "playground",
+        instances: context.instances?.length
+          ? context.instances
+          : existing.instances,
+        evaluators: context.evaluators?.length
+          ? context.evaluators
+          : existing.evaluators,
+      });
+    }
   };
 
   for (const context of state.routeContexts) {
@@ -51,4 +63,18 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
   }
 
   return order.map((key) => byKey.get(key) as AgentContext);
+}
+
+/**
+ * Return the active context of a given `type` (e.g. `"dataset"`, `"span"`), or
+ * `undefined` if none is in scope. Narrows to the matching context variant.
+ */
+export function getActiveContext<T extends AgentContext["type"]>(
+  state: AgentState,
+  type: T
+): Extract<AgentContext, { type: T }> | undefined {
+  return selectActiveContexts(state).find(
+    (context): context is Extract<AgentContext, { type: T }> =>
+      context.type === type
+  );
 }

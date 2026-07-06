@@ -5,7 +5,6 @@ import {
   type PopoverProps,
   SubmenuTrigger,
 } from "react-aria-components";
-import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Autocomplete,
@@ -29,15 +28,19 @@ import {
 } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
+import {
+  applyBedrockModelPrefix,
+  getProviderKeyForGenerativeModelSDK,
+} from "@phoenix/components/generative/modelProviderUtils";
+import {
+  type CustomProviderInfo,
+  type GenerativeProviderKey,
+  type ModelProviderInfo,
+  useModelMenuData,
+} from "@phoenix/components/generative/useModelMenuData";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
-
-import type {
-  GenerativeModelSDK,
-  GenerativeProviderKey,
-  ModelMenuQuery,
-} from "./__generated__/ModelMenuQuery.graphql";
 
 const menuWidthCSS = css`
   min-width: 350px;
@@ -58,45 +61,6 @@ export type ModelMenuValue = {
    * Reference to custom provider if using one
    */
   customProvider?: CustomProviderRef;
-};
-
-export type CustomProviderInfo = {
-  id: string;
-  name: string;
-  sdk: GenerativeModelSDK;
-  modelNames: readonly string[];
-};
-
-export type ModelProviderInfo = {
-  readonly key: GenerativeProviderKey;
-  readonly name: string;
-  readonly dependenciesInstalled: boolean;
-};
-
-export function getModelsByProvider(
-  playgroundModels: readonly {
-    readonly name: string;
-    readonly providerKey: string;
-  }[]
-): Map<string, string[]> {
-  const grouped = new Map<string, string[]>();
-  for (const model of playgroundModels) {
-    const existing = grouped.get(model.providerKey) ?? [];
-    existing.push(model.name);
-    grouped.set(model.providerKey, existing);
-  }
-  return grouped;
-}
-
-/**
- * Maps GenerativeModelSDK to GenerativeProviderKey for icon display
- */
-const SDK_TO_PROVIDER_KEY: Record<GenerativeModelSDK, GenerativeProviderKey> = {
-  OPENAI: "OPENAI",
-  AZURE_OPENAI: "AZURE_OPENAI",
-  ANTHROPIC: "ANTHROPIC",
-  AWS_BEDROCK: "AWS",
-  GOOGLE_GENAI: "GOOGLE",
 };
 
 /**
@@ -178,13 +142,6 @@ function decodeMenuKey(key: string): ModelInfo | null {
  * Prepends an AWS Bedrock cross-region inference prefix to a model name.
  * Idempotent: returns the name unchanged if it already starts with "{prefix}.".
  */
-function applyBedrockPrefix(modelName: string, prefix: string): string {
-  const prefixDot = `${prefix}.`;
-  return modelName.startsWith(prefixDot)
-    ? modelName
-    : `${prefixDot}${modelName}`;
-}
-
 export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   value?: ModelMenuValue | null;
   onChange?: (model: ModelMenuValue) => void;
@@ -217,7 +174,10 @@ export function ModelMenu({
       if (model.provider === "AWS" && awsBedrockModelPrefix) {
         onChange?.({
           ...model,
-          modelName: applyBedrockPrefix(model.modelName, awsBedrockModelPrefix),
+          modelName: applyBedrockModelPrefix({
+            modelName: model.modelName,
+            prefix: awsBedrockModelPrefix,
+          }),
         });
       } else {
         onChange?.(model);
@@ -225,64 +185,8 @@ export function ModelMenu({
     },
     [onChange, awsBedrockModelPrefix]
   );
-  const data = useLazyLoadQuery<ModelMenuQuery>(
-    graphql`
-      query ModelMenuQuery {
-        generativeModelCustomProviders {
-          edges {
-            node {
-              id
-              name
-              sdk
-              modelNames
-            }
-          }
-        }
-        modelProviders {
-          key
-          name
-          dependenciesInstalled
-        }
-        playgroundModels {
-          name
-          providerKey
-        }
-      }
-    `,
-    {},
-    { fetchPolicy: "store-and-network" }
-  );
-
-  // Group models by provider
-  const modelsByProvider = useMemo(
-    () => getModelsByProvider(data.playgroundModels),
-    [data.playgroundModels]
-  );
-
-  // Create a map of provider key to provider info for quick lookup
-  const providerInfoMap = useMemo(() => {
-    const map = new Map<
-      string,
-      { name: string; dependenciesInstalled: boolean }
-    >();
-    for (const provider of data.modelProviders) {
-      map.set(provider.key, {
-        name: provider.name,
-        dependenciesInstalled: provider.dependenciesInstalled,
-      });
-    }
-    return map;
-  }, [data.modelProviders]);
-
-  // Extract custom providers from the connection
-  const customProviders = useMemo((): CustomProviderInfo[] => {
-    return data.generativeModelCustomProviders.edges.map((edge) => ({
-      id: edge.node.id,
-      name: edge.node.name,
-      sdk: edge.node.sdk,
-      modelNames: edge.node.modelNames,
-    }));
-  }, [data.generativeModelCustomProviders]);
+  const { customProviders, data, modelsByProvider, providerInfoMap } =
+    useModelMenuData();
 
   // Filter models when searching (built-in providers)
   const filteredModelsByProvider = useMemo(() => {
@@ -393,7 +297,7 @@ export function ModelMenu({
           <LinkButton
             size="S"
             variant="quiet"
-            leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Settings />} />}
             to="/settings/providers"
           >
             Configure AI Providers
@@ -429,7 +333,10 @@ function ModelsByProviderMenu({
   );
   const displayModelName = (providerKey: string, modelName: string) =>
     providerKey === "AWS" && awsBedrockModelPrefix
-      ? applyBedrockPrefix(modelName, awsBedrockModelPrefix)
+      ? applyBedrockModelPrefix({
+          modelName,
+          prefix: awsBedrockModelPrefix,
+        })
       : modelName;
 
   const handleModelSelect = (
@@ -466,7 +373,9 @@ function ModelsByProviderMenu({
               (p) => p.id === modelInfo.customProviderId
             );
             if (customProvider) {
-              const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+              const providerKey = getProviderKeyForGenerativeModelSDK(
+                customProvider.sdk
+              );
               handleModelSelect(providerKey, modelInfo.modelName, {
                 id: customProvider.id,
                 name: customProvider.name,
@@ -486,7 +395,9 @@ function ModelsByProviderMenu({
         <>
           {/* Custom providers */}
           {customProviders.map((customProvider) => {
-            const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+            const providerKey = getProviderKeyForGenerativeModelSDK(
+              customProvider.sdk
+            );
             return (
               <MenuSection key={`custom-${customProvider.id}`}>
                 <MenuSectionTitle title={customProvider.name} />
@@ -604,7 +515,9 @@ export function ProviderModelMenuItems({
     <>
       {/* Custom providers */}
       {customProviders.map((customProvider) => {
-        const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+        const providerKey = getProviderKeyForGenerativeModelSDK(
+          customProvider.sdk
+        );
         return (
           <SubmenuTrigger key={`custom-${customProvider.id}`}>
             <MenuItem
@@ -689,7 +602,10 @@ function ProviderModelsSubmenu({
   );
   const displayModelName = (name: string) =>
     providerKey === "AWS" && awsBedrockModelPrefix
-      ? applyBedrockPrefix(name, awsBedrockModelPrefix)
+      ? applyBedrockModelPrefix({
+          modelName: name,
+          prefix: awsBedrockModelPrefix,
+        })
       : name;
 
   // Build the list of models, adding the search value as a custom option if needed

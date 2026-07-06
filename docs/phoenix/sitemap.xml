@@ -57,6 +57,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/pxi</loc>
+    <lastmod>2026-05-28T01:36:38+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial</loc>
     <lastmod>2026-02-08T18:56:43+00:00</lastmod>
   </url>
@@ -409,6 +413,14 @@
     <lastmod>2026-02-26T23:02:15+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/integrations/pytest</loc>
+    <lastmod>2026-06-27T16:31:23+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/integrations/vitest-jest</loc>
+    <lastmod>2026-06-27T16:31:23+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/tutorial/defining-the-dataset</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -471,6 +483,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/splits</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/eval-ci-with-pytest</loc>
+    <lastmod>2026-06-26T03:13:19+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/prompt-engineering/tutorial</loc>
@@ -621,6 +637,62 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/overview</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/phoenix-otel-helpers</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/instrumentation-approaches</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-propagation</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/sampling</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/tracing/concepts-tracing/faqs-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -769,12 +841,20 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go</loc>
+    <lastmod>2026-06-02T15:33:22+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk</loc>
+    <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/groq</loc>
@@ -815,6 +895,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk</loc>
+    <lastmod>2026-06-02T15:33:22+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/llm-providers/openrouter</loc>
@@ -867,6 +951,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/openai-agents</loc>
+    <lastmod>2026-06-11T17:45:13+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai</loc>
@@ -1221,6 +1309,22 @@
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-vitest</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-jest</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-client/ci-evals-annotations</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-evals</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1235,6 +1339,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/llm-evaluators</loc>
     <lastmod>2026-04-02T04:06:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/classification-metrics</loc>
+    <lastmod>2026-07-02T22:17:19+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-evals/templates</loc>
@@ -1303,6 +1411,22 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/delete-an-annotation-configuration</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/list-annotation-configurations-assigned-to-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/assign-an-annotation-configuration-to-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/unassign-an-annotation-configuration-from-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotation-configs/replace-the-set-of-annotation-configurations-assigned-to-a-project</loc>
+    <lastmod>2026-07-03T02:58:45+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids</loc>
@@ -1705,10 +1829,6 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
-    <loc>https://arize.com/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/creating-a-custom-llm-evaluator-with-a-benchmark-dataset</loc>
-    <lastmod>2026-01-27T22:36:31+00:00</lastmod>
-  </url>
-  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/human-in-the-loop-workflows-annotations/aligning-llm-evals-with-human-annotations-typescript</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1735,6 +1855,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/product-recommendation-agent-google-agent-engine-and-langgraph</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/cookbooks</loc>
@@ -1769,12 +1893,24 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/creating-a-custom-llm-evaluator-with-a-benchmark-dataset</loc>
+    <lastmod>2026-06-12T00:32:16+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/openai-agents-sdk-cookbook</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-an-agent</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/trace-level-evaluation</loc>
+    <lastmod>2026-06-11T04:55:25+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/evaluation/session-level-evaluation</loc>
+    <lastmod>2026-06-12T00:00:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/evaluation/evaluate-rag</loc>
@@ -1797,6 +1933,14 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/guardrails/jailbreak-and-prompt-injection-defense</loc>
+    <lastmod>2026-06-12T16:31:09+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/guardrails/designing-realtime-guardrails</loc>
+    <lastmod>2026-06-11T04:55:25+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1817,12 +1961,44 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/building-your-own-eval-harness</loc>
+    <lastmod>2026-06-11T00:00:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/cookbooks</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary</loc>
+    <lastmod>2026-07-01T19:55:05+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-26-2026-eval-ci-pytest-vitest-jest</loc>
+    <lastmod>2026-06-27T16:31:23+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-24-2026-annotations-labels-and-pxi-server-tools</loc>
+    <lastmod>2026-06-24T18:23:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-16-2026-time-range-metrics-and-sharing</loc>
+    <lastmod>2026-06-17T18:42:14+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-11-2026-time-range-and-pxi-slash-commands</loc>
+    <lastmod>2026-06-11T21:46:23+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-10-2026-pxi-agent-update</loc>
+    <lastmod>2026-06-11T21:46:23+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/06-2026/06-02-2026-pxi-agent</loc>
+    <lastmod>2026-06-03T18:41:47+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom</loc>

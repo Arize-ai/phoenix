@@ -57,6 +57,8 @@ const dateFieldCSS = css`
 
     &[data-type="literal"] {
       padding: 0;
+      /* Preserve the locale separator (e.g. ", ") that flex would collapse. */
+      white-space: pre;
     }
 
     &[data-placeholder] {

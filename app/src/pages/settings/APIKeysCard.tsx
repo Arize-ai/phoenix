@@ -73,7 +73,11 @@ export function APIKeysCard() {
         $expiresAt: DateTime = null
       ) {
         createSystemApiKey(
-          input: { name: $name, description: $description, expiresAt: $expiresAt }
+          input: {
+            name: $name
+            description: $description
+            expiresAt: $expiresAt
+          }
         ) {
           jwt
           query {
@@ -120,7 +124,7 @@ export function APIKeysCard() {
             <Button
               size="S"
               onPress={() => setShowCreateAPIKeyDialog(true)}
-              leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+              leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
             >
               System Key
             </Button>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0c734f09681b53406a880165aa829ae2>>
+ * @generated SignedSource<<a0014f5a552171d0bb92e608098976c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,7 +17,6 @@ export type UpdateSandboxConfigInput = {
   description?: string | null;
   enabled?: boolean | null;
   id: string;
-  name?: string | null;
   timeout?: number | null;
 };
 export type SandboxConfigVariantInput = {

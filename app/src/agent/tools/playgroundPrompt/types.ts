@@ -1,14 +1,18 @@
 import type { z } from "zod";
 
+import type { ApprovalSource } from "@phoenix/agent/tools/approval";
 import type { ChatMessage, PlaygroundStore } from "@phoenix/store/playground";
 
 import type {
+  addPromptInstanceInputSchema,
   clonePromptInstanceInputSchema,
   editPromptActionContextSchema,
   editPromptInputSchema,
   editPromptOperationSchema,
   PromptEditToolOutputSender,
   readPromptInputSchema,
+  removePromptInstanceInputSchema,
+  removePromptInstanceOutputSchema,
 } from "./schemas";
 
 export type { PromptEditToolOutputSender } from "./schemas";
@@ -19,6 +23,18 @@ export type ReadPromptInput = z.output<typeof readPromptInputSchema>;
 
 export type ClonePromptInstanceInput = z.output<
   typeof clonePromptInstanceInputSchema
+>;
+
+export type AddPromptInstanceInput = z.output<
+  typeof addPromptInstanceInputSchema
+>;
+
+export type RemovePromptInstanceInput = z.output<
+  typeof removePromptInstanceInputSchema
+>;
+
+export type RemovePromptInstanceOutput = z.output<
+  typeof removePromptInstanceOutputSchema
 >;
 
 export type PromptMessageSnapshot = {
@@ -77,6 +93,22 @@ export type MaterializedEditPromptOperation =
   | DeletePromptMessageOperation
   | ReorderPromptMessagesOperation;
 
+/**
+ * GitHub-style summary of an applied prompt edit, persisted onto the tool
+ * output so the accepted result can be rendered after the live before/after
+ * snapshots have been cleared from the store.
+ */
+export type PromptEditSummary = {
+  /** Zero-based instance position used to render the A/B/C… badge. */
+  instanceIndex: number;
+  /** Human-readable instance label (e.g. the prompt name). */
+  instanceLabel: string;
+  /** Count of added lines in the diff. */
+  additions: number;
+  /** Count of removed lines in the diff. */
+  deletions: number;
+};
+
 export type PendingPromptEdit = {
   toolCallId: string;
   /** Agent session that owns the unresolved edit_prompt_instance tool call. */
@@ -86,7 +118,18 @@ export type PendingPromptEdit = {
   before: PromptSnapshot;
   after: PromptSnapshot;
   operations: MaterializedEditPromptOperation[];
-  accept?: () => Promise<void>;
+  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
+  reject?: () => Promise<void>;
+  cancel?: () => Promise<void>;
+};
+
+export type PendingPromptInstanceRemoval = {
+  toolCallId: string;
+  /** Agent session that owns the unresolved remove_prompt_instance tool call. */
+  sessionId: string;
+  instanceId: number;
+  label: string;
+  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
   reject?: () => Promise<void>;
   cancel?: () => Promise<void>;
 };
@@ -105,6 +148,16 @@ export type BindPendingPromptEditOptions = {
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
+  ) => void;
+};
+
+export type BindPendingPromptInstanceRemovalOptions = {
+  pendingRemoval: PendingPromptInstanceRemoval;
+  playgroundStore: PlaygroundStore;
+  addToolOutput: PromptEditToolOutputSender;
+  setPendingPromptInstanceRemoval: (
+    toolCallId: string,
+    removal: PendingPromptInstanceRemoval | null
   ) => void;
 };
 

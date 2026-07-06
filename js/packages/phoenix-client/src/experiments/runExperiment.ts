@@ -47,6 +47,7 @@ import {
 } from "../utils/urlUtils";
 import { getExperimentInfo } from "./getExperimentInfo";
 import { getExperimentEvaluators } from "./helpers";
+import { getExampleGlobalId } from "./helpers/getExampleGlobalId";
 import {
   logEvalSummary,
   logLinks,
@@ -485,7 +486,7 @@ function runTaskWithExamples({
         id: localId(), // initialized with local id, will be replaced with server-assigned id when dry run is false
         traceId,
         experimentId,
-        datasetExampleId: example.id,
+        datasetExampleId: getExampleGlobalId(example),
         startTime: new Date(),
         endTime: new Date(), // will get replaced with actual end time
         output: null,
@@ -509,7 +510,7 @@ function runTaskWithExamples({
             },
           },
           body: {
-            dataset_example_id: example.nodeId,
+            dataset_example_id: getExampleGlobalId(example),
             output: thisRun.output,
             repetition_number: repetitionNumber,
             start_time: thisRun.startTime.toISOString(),
@@ -681,9 +682,11 @@ export async function evaluateExperiment({
     type EvaluationId = string;
     const evaluationRuns: Record<EvaluationId, ExperimentEvaluationRun> = {};
 
+    // Index examples by node GlobalID, matching how runs record
+    // datasetExampleId.
     const examplesById: Record<string, Example> = {};
     for (const example of dataset.examples) {
-      examplesById[example.id] = example;
+      examplesById[getExampleGlobalId(example)] = example;
     }
 
     const onEvaluationComplete = (run: ExperimentEvaluationRun) => {

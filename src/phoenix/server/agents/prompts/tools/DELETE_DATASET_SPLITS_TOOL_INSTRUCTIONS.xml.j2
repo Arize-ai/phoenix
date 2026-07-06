@@ -1,0 +1,12 @@
+<tool name="delete_dataset_splits">
+  <description>Delete splits, identified by name. This removes the split entirely (across the instance); the dataset's rows themselves are not deleted, only their membership in these splits.</description>
+  <when_to_use>
+    - The user asks to delete or remove one or more splits.
+  </when_to_use>
+  <preflight>
+    - Get the split names from list_splits. Do not guess names.
+  </preflight>
+  <rules>
+    - Propose the deletion by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and deletes only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+  </rules>
+</tool>

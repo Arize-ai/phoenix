@@ -8,13 +8,13 @@ import {
   Icons,
   Input,
   Menu,
-  MenuEmpty,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
   SearchField,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 
 import type { DatasetSelectorPopoverContent_datasets$key } from "./__generated__/DatasetSelectorPopoverContent_datasets.graphql";
@@ -92,7 +92,7 @@ function DatasetsList(props: {
         <MenuHeaderTitle
           trailingContent={
             <IconButton size="S" onPress={onCreateNewDataset}>
-              <Icon svg={<Icons.PlusOutline />} />
+              <Icon svg={<Icons.Plus />} />
             </IconButton>
           }
         >
@@ -112,7 +112,12 @@ function DatasetsList(props: {
         aria-label="datasets"
         items={items}
         selectionMode="single"
-        renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
+        renderEmptyState={() => (
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Database />} />}
+            description="No datasets"
+          />
+        )}
         onSelectionChange={(selection) => {
           if (typeof selection === "object") {
             const selectedDatasetIds = Array.from(selection);

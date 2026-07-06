@@ -1,6 +1,6 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   EDIT_PROMPT_TOOL_NAME,
@@ -8,8 +8,23 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
+vi.mock("@phoenix/components/code", () => ({
+  CodeBlock: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  CodeWrap: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/code/JSONEditor", () => ({
+  JSONEditor: () => null,
+}));
+
+vi.mock("@phoenix/components/markdown", () => ({
+  MarkdownBlock: ({ children }: { children?: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
+
 import { getToolPartPreview, ToolPart } from "../ToolPart";
-import { ToolPartGroup } from "../ToolPartGroup";
 import type { ToolInvocationPart } from "../toolPartTypes";
 
 let container: HTMLDivElement;
@@ -70,16 +85,6 @@ function renderToolPart(part: ToolInvocationPart) {
     root.render(
       <AgentProvider>
         <ToolPart part={part} />
-      </AgentProvider>
-    );
-  });
-}
-
-function renderToolPartGroup(parts: ToolInvocationPart[]) {
-  act(() => {
-    root.render(
-      <AgentProvider>
-        <ToolPartGroup parts={parts} />
       </AgentProvider>
     );
   });
@@ -193,46 +198,67 @@ describe("tool disclosure controls", () => {
     ).toBe(false);
   });
 
-  it("allows manually collapsing and expanding an auto-open tool group", () => {
-    renderToolPartGroup([
-      createToolPart({ toolCallId: "tool-call-1" }),
-      createToolPart({ toolCallId: "tool-call-2" }),
-      createAutoOpenToolPart({ toolCallId: "tool-call-3" }),
-    ]);
-    const header = container.querySelector(".tool-pool__header");
+  it("stays collapsed while an auto-open tool's input is still streaming", () => {
+    // The expanded body is built from a pending client-action that only exists
+    // once the input is complete, so opening mid-stream would show an empty
+    // shell. Auto-open should wait for the input to finish streaming.
+    renderToolPart(createAutoOpenToolPart({ state: "input-streaming" }));
 
-    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(false);
 
-    click(header);
-    expect(container.querySelector(".tool-pool__body")).toBeNull();
+    // Once the input completes, the part auto-opens with real content.
+    renderToolPart(createAutoOpenToolPart({ state: "input-available" }));
 
-    click(header);
-    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(true);
   });
 
-  it("keeps an auto-open tool group collapsed after streaming updates", () => {
-    const initialParts = [
-      createToolPart({ toolCallId: "tool-call-1" }),
-      createToolPart({ toolCallId: "tool-call-2" }),
-      createAutoOpenToolPart({ toolCallId: "tool-call-3" }),
-    ];
-    renderToolPartGroup(initialParts);
-    const header = container.querySelector(".tool-pool__header");
+  it("does not render empty subagent message parts under nested tools", () => {
+    renderToolPart(
+      createToolPart({
+        type: "tool-call_subagent",
+        toolCallId: "tool-call-subagent",
+        input: { name: "Phoenix data", task: "Summarize latency" },
+        output: {
+          summary: "Done",
+          message: {
+            id: "subagent-message",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-bash",
+                toolCallId: "tool-call-bash",
+                state: "output-available",
+                input: { command: "echo hi" },
+                output: "hi",
+              },
+              {
+                type: "reasoning",
+                text: "",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "   ",
+                state: "done",
+              },
+              {
+                type: "text",
+                text: "Visible answer",
+                state: "done",
+              },
+            ],
+          },
+        },
+      })
+    );
 
-    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+    click(container.querySelector("summary"));
 
-    click(header);
-    expect(container.querySelector(".tool-pool__body")).toBeNull();
-
-    renderToolPartGroup([
-      ...initialParts.slice(0, 2),
-      createAutoOpenToolPart({
-        toolCallId: "tool-call-3",
-        state: "output-available",
-        output: { ok: true },
-      }),
-    ]);
-
-    expect(container.querySelector(".tool-pool__body")).toBeNull();
+    expect(container.textContent).toContain("Visible answer");
+    expect(container.textContent).not.toContain("(empty)");
   });
 });

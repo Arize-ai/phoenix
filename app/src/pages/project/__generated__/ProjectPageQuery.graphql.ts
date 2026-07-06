@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4014015c4649f623e7f7ef8ac96a24b9>>
+ * @generated SignedSource<<ade5f64efc505f5f612b9bd5b525c48f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,7 @@ export type ProjectPageQuery$variables = {
 };
 export type ProjectPageQuery$data = {
   readonly project: {
-    readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project" | "StreamToggle_data">;
+    readonly " $fragmentSpreads": FragmentRefs<"ProjectStats_project" | "ProjectTimeRangeControls_data">;
   };
 };
 export type ProjectPageQuery = {
@@ -91,7 +91,7 @@ return {
               {
                 "args": null,
                 "kind": "FragmentSpread",
-                "name": "StreamToggle_data"
+                "name": "ProjectTimeRangeControls_data"
               }
             ],
             "type": "Project",
@@ -242,16 +242,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d2ceed800a251dd00827f1f0c94223d0",
+    "cacheID": "1bf378cde90c188de27f484c754e0bab",
     "id": null,
     "metadata": {},
     "name": "ProjectPageQuery",
     "operationKind": "query",
-    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectStats_project\n      ...StreamToggle_data\n    }\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment StreamToggle_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
+    "text": "query ProjectPageQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      ...ProjectStats_project\n      ...ProjectTimeRangeControls_data\n    }\n    id\n  }\n}\n\nfragment ProjectStats_project on Project {\n  timeRangeTraceCount: traceCount(timeRange: $timeRange)\n  costSummary(timeRange: $timeRange) {\n    total {\n      cost\n    }\n    prompt {\n      cost\n    }\n    completion {\n      cost\n    }\n  }\n  latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)\n  latencyMsP99: latencyMsQuantile(probability: 0.99, timeRange: $timeRange)\n  spanAnnotationNames\n  documentEvaluationNames\n  id\n}\n\nfragment ProjectTimeRangeControls_data on Project {\n  streamingLastUpdatedAt\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "30878d78c8f1aa980cb72fce40ab5b03";
+(node as any).hash = "2e3a897c38827a7d1840f89802bf05b9";
 
 export default node;

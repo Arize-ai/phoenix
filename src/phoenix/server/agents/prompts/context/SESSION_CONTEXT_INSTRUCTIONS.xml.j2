@@ -1,0 +1,6 @@
+<phoenix_session_context>
+  <description>The session the user is currently viewing.</description>
+  <project_node_id format="phoenix_node_id">{{ session.project_node_id }}</project_node_id>
+  <session_node_id format="phoenix_node_id">{{ session.session_node_id }}</session_node_id>
+  <guidance>Use this session context to answer questions about the session's traces, turns, spans, and metadata. If a phoenix_trace_context is also present, it is the currently selected trace within this session.</guidance>
+</phoenix_session_context>

@@ -202,7 +202,7 @@ def load_json_strings(key_values: Iterable[tuple[str, Any]]) -> Iterator[tuple[s
             except Exception:
                 yield key, value
             else:
-                if dict_value:
+                if dict_value is not None:
                     yield key, dict_value
         else:
             yield key, value
@@ -256,7 +256,7 @@ class _Trie(defaultdict[Union[str, int], "_Trie"]):
 
     def add_branch(self, branch: Union[str, int]) -> "_Trie":
         if branch in self.indices:
-            self.indices.discard(cast(int, branch))
+            self.indices.discard(branch)
         self.branches.add(branch)
         return self[branch]
 

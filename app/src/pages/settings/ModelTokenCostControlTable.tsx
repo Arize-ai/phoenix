@@ -131,7 +131,7 @@ export function ModelTokenCostControlTable({
               </td>
               <td>
                 <Button
-                  leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.Trash />} />}
                   onPress={() => {
                     onRemove(index);
                   }}

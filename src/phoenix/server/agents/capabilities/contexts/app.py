@@ -21,7 +21,10 @@ class AppContextCapability(AbstractDynamicCapability[AgentDependencies]):
             app_context = ctx.deps.contexts.app
             if app_context is None:
                 return None
-            return instructions.render(app=app_context)
+            return instructions.render(
+                app=app_context,
+                edit_permission=ctx.deps.edit_permission,
+            )
 
         return _instructions
 

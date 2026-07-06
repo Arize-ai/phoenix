@@ -125,7 +125,10 @@ const heroCSS = css`
 
 const glyphCSS = css`
   position: absolute;
-  top: var(--hero-glyph-top-offset, calc(-1 * var(--global-dimension-size-700)));
+  top: var(
+    --hero-glyph-top-offset,
+    calc(-1 * var(--global-dimension-size-700))
+  );
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;

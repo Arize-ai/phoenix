@@ -344,8 +344,6 @@ function getInternetAccessLabel(
   switch (internetAccess) {
     case "BOOLEAN":
       return "Configurable";
-    case "ALLOWLIST":
-      return "Allowlist";
     case "NONE":
       return "Not supported";
     default:
@@ -539,7 +537,7 @@ export function CodeDatasetEvaluatorDetails({
         <Card
           title={
             <Flex direction="row" gap="size-100" alignItems="center">
-              <Icon svg={<Icons.HardDriveOutline />} />
+              <Icon svg={<Icons.HardDrive />} />
               <span>Sandbox</span>
             </Flex>
           }
@@ -549,7 +547,7 @@ export function CodeDatasetEvaluatorDetails({
                 size="S"
                 to="/settings/sandboxes"
                 aria-label="Configure sandboxes"
-                leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+                leadingVisual={<Icon svg={<Icons.Settings />} />}
               />
             ) : undefined
           }

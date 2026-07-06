@@ -178,54 +178,13 @@ class Dataset(Node):
                 except Exception:
                     raise BadRequest(f"Invalid split ID: {split_id}")
 
-        revision_ids = (
-            select(func.max(models.DatasetExampleRevision.id))
-            .join(models.DatasetExample)
-            .where(models.DatasetExample.dataset_id == dataset_id)
-            .group_by(models.DatasetExampleRevision.dataset_example_id)
+        return await info.context.data_loaders.dataset_example_counts.load(
+            (
+                dataset_id,
+                version_id,
+                tuple(sorted(set(split_rowids))) if split_rowids else (),
+            )
         )
-        if version_id:
-            version_id_subquery = (
-                select(models.DatasetVersion.id)
-                .where(models.DatasetVersion.dataset_id == dataset_id)
-                .where(models.DatasetVersion.id == version_id)
-                .scalar_subquery()
-            )
-            revision_ids = revision_ids.where(
-                models.DatasetExampleRevision.dataset_version_id <= version_id_subquery
-            )
-
-        # Build the count query
-        if split_rowids:
-            # When filtering by splits, count distinct examples that belong to those splits
-            stmt = (
-                select(count(models.DatasetExample.id.distinct()))
-                .join(
-                    models.DatasetExampleRevision,
-                    onclause=(
-                        models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id
-                    ),
-                )
-                .join(
-                    models.DatasetSplitDatasetExample,
-                    onclause=(
-                        models.DatasetExample.id
-                        == models.DatasetSplitDatasetExample.dataset_example_id
-                    ),
-                )
-                .where(models.DatasetExampleRevision.id.in_(revision_ids))
-                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-                .where(models.DatasetSplitDatasetExample.dataset_split_id.in_(split_rowids))
-            )
-        else:
-            stmt = (
-                select(count(models.DatasetExampleRevision.id))
-                .where(models.DatasetExampleRevision.id.in_(revision_ids))
-                .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-            )
-
-        async with info.context.db.read() as session:
-            return (await session.scalar(stmt)) or 0
 
     @strawberry.field
     async def examples(
@@ -238,6 +197,14 @@ class Dataset(Node):
         after: Optional[CursorString] = UNSET,
         before: Optional[CursorString] = UNSET,
         filter: Optional[str] = UNSET,
+        # filter_ids is a stopgap until a query DSL is implemented
+        filter_ids: Annotated[
+            Optional[list[GlobalID]],
+            strawberry.argument(
+                description="When provided, return only the examples with the given "
+                "IDs — a membership lookup that avoids paging the whole connection."
+            ),
+        ] = UNSET,
     ) -> Connection[DatasetExample]:
         args = ConnectionArgs(
             first=first,
@@ -267,12 +234,31 @@ class Dataset(Node):
                 except Exception:
                     raise BadRequest(f"Invalid split ID: {split_id}")
 
+        # Parse filter IDs if provided
+        filter_rowids: Optional[list[int]] = None
+        if filter_ids:
+            filter_rowids = []
+            for filter_id in filter_ids:
+                try:
+                    filter_rowids.append(
+                        from_global_id_with_expected_type(
+                            global_id=filter_id,
+                            expected_type_name=DatasetExample.__name__,
+                        )
+                    )
+                except ValueError:
+                    raise BadRequest(f"Invalid filter ID: {filter_id}")
+
         revision_ids = (
             select(func.max(models.DatasetExampleRevision.id))
             .join(models.DatasetExample)
             .where(models.DatasetExample.dataset_id == dataset_id)
             .group_by(models.DatasetExampleRevision.dataset_example_id)
         )
+        if filter_rowids is not None:
+            # Restrict the latest-revision aggregation to the requested rows so
+            # an id-membership lookup doesn't aggregate the whole dataset.
+            revision_ids = revision_ids.where(models.DatasetExample.id.in_(filter_rowids))
         if version_id:
             version_id_subquery = (
                 select(models.DatasetVersion.id)
@@ -322,6 +308,9 @@ class Dataset(Node):
                 func.cast(models.DatasetExampleRevision.metadata_, Text).ilike(f"%{filter}%"),
             )
             query = query.where(filter_condition)
+
+        if filter_rowids is not None:
+            query = query.where(models.DatasetExample.id.in_(filter_rowids))
 
         async with info.context.db.read() as session:
             dataset_examples = [

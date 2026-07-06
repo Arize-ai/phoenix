@@ -8,7 +8,7 @@ import type {
 } from "react-resizable-panels";
 import { Panel, Separator } from "react-resizable-panels";
 
-import { Icon, Icons } from "@phoenix/components";
+import { DisclosureArrow } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 
 /**
@@ -60,23 +60,23 @@ export function TitledPanel({
           css={css(
             compactResizeHandleCSS,
             css`
-                border-radius: var(--global-rounding-small);
-                opacity: 1;
-                background-color: unset;
-                &[data-bordered="true"] {
-                  background-color: var(--global-border-color-default);
-                }
-                &[aria-orientation="horizontal"] {
-                  height: 1px;
-                }
-                &:hover,
-                &:focus,
-                &:active,
-                &:focus-visible {
-                  // Make hover target bigger
-                  background-color: var(--global-color-primary);
-                }
-              `
+              border-radius: var(--global-rounding-small);
+              opacity: 1;
+              background-color: unset;
+              &[data-bordered="true"] {
+                background-color: var(--global-border-color-default);
+              }
+              &[aria-orientation="horizontal"] {
+                height: 1px;
+              }
+              &:hover,
+              &:focus,
+              &:active,
+              &:focus-visible {
+                // Make hover target bigger
+                background-color: var(--global-color-primary);
+              }
+            `
           )}
         />
       )}
@@ -155,18 +155,7 @@ export const PanelTitle = ({
       css={panelTitleCSS}
       disabled={collapsed === undefined || disabled}
     >
-      {collapsed !== undefined && (
-        <Icon
-          data-collapsed={collapsed}
-          svg={<Icons.ArrowIosDownwardOutline />}
-          css={css`
-            transition: transform 0.2s ease-in-out;
-            &[data-collapsed="true"] {
-              transform: rotate(-90deg);
-            }
-          `}
-        />
-      )}
+      {collapsed !== undefined && <DisclosureArrow isExpanded={!collapsed} />}
       {children}
     </button>
   );

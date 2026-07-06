@@ -19,8 +19,12 @@ import {
 
 import { Flex, Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
+  defaultLegendProps,
+  useInteractiveLegend,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
 import { SequenceNumberToken } from "@phoenix/components/experiment/SequenceNumberToken";
@@ -162,12 +166,22 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
     return colorMap;
   }, [scoreKeys, theme]);
 
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
+
   // Memoize yDomain calculation
   const yDomain = useMemo(() => {
+    const visibleScoreKeys = scoreKeys.filter(
+      (scoreKey) => !hiddenDataKeys.has(scoreKey)
+    );
+    if (visibleScoreKeys.length === 0) {
+      return undefined;
+    }
+
     let minScore = Infinity;
     let maxScore = -Infinity;
     for (const dataPoint of chartData) {
-      for (const scoreKey of scoreKeys) {
+      for (const scoreKey of visibleScoreKeys) {
         const scoreValue = dataPoint[scoreKey as keyof typeof dataPoint];
         if (typeof scoreValue === "number") {
           if (scoreValue < minScore) minScore = scoreValue;
@@ -175,83 +189,102 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
         }
       }
     }
+    if (minScore === Infinity || maxScore === -Infinity) {
+      return undefined;
+    }
     // If the min score is 0 and the max score is 1, return [0, 1] for consistency
     return minScore >= 0 && maxScore <= 1 ? [0, 1] : undefined;
-  }, [chartData, scoreKeys]);
+  }, [chartData, hiddenDataKeys, scoreKeys]);
+  const hasData = chartData.some((dataPoint) => {
+    return Object.entries(dataPoint).some(
+      ([key, value]) => key !== "iteration" && typeof value === "number"
+    );
+  });
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
-        data={chartData}
-        margin={chartMargins}
-        syncId="dimensionDetails"
-      >
-        <defs>
-          <linearGradient id="latencyBarColor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={gray300} stopOpacity={0.3} />
-            <stop offset="95%" stopColor={gray300} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid
-          strokeDasharray="4 4"
-          stroke="var(--global-color-gray-500)"
-          strokeOpacity={0.5}
-        />
-        <XAxis
-          dataKey="iteration"
-          tick={{ fontSize: 12, fill: "var(--global-text-color-700)" }}
-        />
-        <YAxis
-          stroke="var(--global-color-gray-500)"
-          label={{
-            value: "Score",
-            angle: -90,
-            position: "insideLeft",
-            style: {
-              textAnchor: "middle",
-              fill: "var(--global-text-color-900)",
-            },
-          }}
-          style={{ fill: "var(--global-text-color-700)" }}
-          domain={yDomain}
-        />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          stroke="var(--global-color-gray-500)"
-          label={{
-            value: "avg latency",
-            angle: 90,
-            position: "insideRight",
-            style: {
-              textAnchor: "middle",
-              fill: "var(--global-text-color-900)",
-            },
-          }}
-          style={{ fill: "var(--global-text-color-700)" }}
-          tickFormatter={latencyFormatter}
-        />
-
-        <Bar
-          yAxisId="right"
-          dataKey="avgLatency"
-          fill="url(#latencyBarColor)"
-          spacing={3}
-        />
-        {scoreKeys.map((key) => (
-          <Line
-            key={key}
-            type="monotone"
-            dataKey={key}
-            stroke={lineColors[key]}
-            strokeWidth={2}
-            dot={{ r: 3 }}
-            activeDot={{ r: 5 }}
-            yAxisId={0}
+    <ChartEmptyStateOverlay isEmpty={!hasData}>
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart
+          data={chartData}
+          margin={chartMargins}
+          syncId="dimensionDetails"
+        >
+          <defs>
+            <linearGradient id="latencyBarColor" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={gray300} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={gray300} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid
+            strokeDasharray="4 4"
+            stroke="var(--global-color-gray-500)"
+            strokeOpacity={0.5}
           />
-        ))}
-        <Tooltip content={TooltipContent} />
-      </ComposedChart>
-    </ResponsiveContainer>
+          <XAxis
+            dataKey="iteration"
+            tick={{ fontSize: 12, fill: "var(--global-text-color-700)" }}
+          />
+          <YAxis
+            stroke="var(--global-color-gray-500)"
+            label={{
+              value: "Score",
+              angle: -90,
+              position: "insideLeft",
+              style: {
+                textAnchor: "middle",
+                fill: "var(--global-text-color-900)",
+              },
+            }}
+            style={{ fill: "var(--global-text-color-700)" }}
+            domain={yDomain}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            stroke="var(--global-color-gray-500)"
+            label={{
+              value: "avg latency",
+              angle: 90,
+              position: "insideRight",
+              style: {
+                textAnchor: "middle",
+                fill: "var(--global-text-color-900)",
+              },
+            }}
+            style={{ fill: "var(--global-text-color-700)" }}
+            tickFormatter={latencyFormatter}
+          />
+
+          <Bar
+            yAxisId="right"
+            dataKey="avgLatency"
+            fill="url(#latencyBarColor)"
+            hide={isDataKeyHidden("avgLatency")}
+            name="avg latency"
+            spacing={3}
+          />
+          {scoreKeys.map((key) => (
+            <Line
+              key={key}
+              type="monotone"
+              dataKey={key}
+              stroke={lineColors[key]}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              hide={isDataKeyHidden(key)}
+              yAxisId={0}
+            />
+          ))}
+          <InteractiveLegend
+            {...defaultLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconSize={8}
+            onToggleDataKey={toggleDataKey}
+          />
+          <Tooltip content={TooltipContent} />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartEmptyStateOverlay>
   );
 }

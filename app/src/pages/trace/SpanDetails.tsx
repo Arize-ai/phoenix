@@ -302,7 +302,7 @@ export function SpanDetails({
               >
                 <LinkButton
                   variant={span.spanKind !== "llm" ? "default" : "primary"}
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   isDisabled={span.spanKind !== "llm"}
                   to={`/playground/spans/${span.id}`}
                   size="S"
@@ -329,7 +329,7 @@ export function SpanDetails({
                       }
                     }
                   }}
-                  leadingVisual={<Icon svg={<Icons.Edit2Outline />} />}
+                  leadingVisual={<Icon svg={<Icons.Edit2 />} />}
                   trailingVisual={
                     !isCondensedView &&
                     !isAnnotatingSpans && (
@@ -391,7 +391,7 @@ export function SpanDetails({
             </LazyTabPanel>
 
             <LazyTabPanel id="events">
-              <View overflow="auto">
+              <View height="100%" overflow="auto">
                 <Suspense fallback={<Loading />}>
                   <SpanEventsList spanId={span.id} />
                 </Suspense>
@@ -460,7 +460,7 @@ function AddSpanToDatasetButton({
       <Button
         variant="default"
         size="S"
-        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Database />} />}
       >
         {buttonText}
       </Button>
@@ -1413,7 +1413,8 @@ function LLMMessage({ message }: { message: AttributeMessage }) {
                       css={
                         idx === 0
                           ? css`
-                              border-top: 1px solid var(--global-border-color-default);
+                              border-top: 1px solid
+                                var(--global-border-color-default);
                             `
                           : null
                       }

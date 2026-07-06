@@ -2,14 +2,19 @@ import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
-import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
+import {
+  getEffectiveTraceRecordingSettings,
+  type AgentObservabilitySettings,
+  type AgentPermissions,
+  type AgentServerConfig,
+} from "@phoenix/store/agentStore";
 import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
 import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
   /** Existing request body from the AI SDK transport, if any. */
-  body: Record<string, unknown> | undefined;
+  body: Partial<BuildAgentChatRequestBodyResult> | undefined;
   /** Chat identifier used by the transport for this conversation. */
   id: string;
   /** Full UI message history sent with the request. */
@@ -22,8 +27,9 @@ type BuildAgentChatRequestBodyOptions = {
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
   observability: AgentObservabilitySettings;
-  /** Whether a remote collector is configured for this Phoenix instance. */
-  hasRemoteCollector: boolean;
+  agentsConfig: AgentServerConfig;
+  /** Per-user PXI approval permission settings for this request. */
+  permissions: AgentPermissions;
   /** Typed page and mounted UI contexts for the current turn. */
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
@@ -31,6 +37,11 @@ type BuildAgentChatRequestBodyOptions = {
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
+
+export type AgentChatRequestBodyPatch = Pick<
+  BuildAgentChatRequestBodyResult,
+  "requestedSkills"
+>;
 
 /**
  * Build request-only browser clock context for resolving relative time phrases.
@@ -58,7 +69,7 @@ function buildCurrentAppContext(): AgentContext {
 function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "graphql",
-    mutationsEnabled: capabilities["graphql.mutations"],
+    mutationsEnabled: capabilities["graphql.mutations"] ?? false,
   };
 }
 
@@ -70,7 +81,17 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
 function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
   return {
     type: "web_access",
-    enabled: capabilities["web.access"],
+    enabled: capabilities["web.access"] ?? false,
+  };
+}
+
+/**
+ * Build subagents context from the current capability snapshot.
+ */
+function buildSubagentsContext(capabilities: AgentCapabilities): AgentContext {
+  return {
+    type: "subagents",
+    enabled: capabilities["subagents.enabled"] ?? false,
   };
 }
 
@@ -86,14 +107,20 @@ export function buildAgentChatRequestBody({
   messageId,
   capabilities,
   observability,
-  hasRemoteCollector,
+  agentsConfig,
+  permissions,
   contexts,
   modelSelection,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
+  const traceRecording = getEffectiveTraceRecordingSettings({
+    agentsConfig,
+    observability,
+  });
   const requestContexts = [
     buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
     buildWebAccessContext(capabilities),
+    buildSubagentsContext(capabilities),
     ...contexts,
   ];
   return {
@@ -102,8 +129,10 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    ingestTraces: observability.storeLocalTraces,
-    exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
+    ingestTraces: traceRecording.ingestTraces,
+    exportRemoteTraces: traceRecording.exportRemoteTraces,
+    attachUserId: observability.attachUserId,
+    editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
   };

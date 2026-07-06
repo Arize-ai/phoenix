@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import strawberry
 from openinference.semconv.trace import (
@@ -64,16 +64,21 @@ class DatasetMutationMixin:
         description = input.description if input.description is not UNSET else None
         metadata = input.metadata
         async with info.context.db() as session:
-            dataset = await session.scalar(
-                insert(models.Dataset)
-                .values(
-                    name=name,
-                    description=description,
-                    metadata_=metadata,
-                    user_id=info.context.user_id,
+            try:
+                dataset = await session.scalar(
+                    insert(models.Dataset)
+                    .values(
+                        name=name,
+                        description=description,
+                        metadata_=metadata,
+                        user_id=info.context.user_id,
+                    )
+                    .returning(models.Dataset)
                 )
-                .returning(models.Dataset)
-            )
+            except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+                # ``name`` is the only unique constraint on ``datasets``, so an
+                # integrity error here means that name is already taken.
+                raise Conflict(f"A dataset named {name!r} already exists.")
             assert dataset is not None
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
@@ -464,6 +469,7 @@ class DatasetMutationMixin:
             if len(set(ds.id for ds in datasets)) > 1:
                 raise BadRequest("Examples must come from the same dataset.")
             dataset = datasets[0]
+            _check_dataset_scope(dataset, input.dataset_id)
 
             revision_ids = (
                 select(func.max(models.DatasetExampleRevision.id))
@@ -552,6 +558,7 @@ class DatasetMutationMixin:
                 raise ValueError("Examples not found")
 
             dataset = datasets[0]
+            _check_dataset_scope(dataset, input.dataset_id)
 
             dataset_version_rowid = await session.scalar(
                 insert(models.DatasetVersion)
@@ -598,6 +605,24 @@ class DatasetMutationMixin:
             )
         info.context.event_queue.put(DatasetInsertEvent((dataset.id,)))
         return DatasetMutationPayload(dataset=Dataset(id=dataset.id, db_record=dataset))
+
+
+def _check_dataset_scope(dataset: models.Dataset, dataset_gid: Optional[GlobalID]) -> None:
+    """When the caller scoped the write to a dataset, reject the mutation if
+    the examples' owning dataset is a different one — guards against stale or
+    mistyped example ids silently editing another dataset."""
+    if not dataset_gid:
+        return
+    try:
+        expected_dataset_id = from_global_id_with_expected_type(
+            global_id=dataset_gid, expected_type_name=Dataset.__name__
+        )
+    except ValueError:
+        raise BadRequest(f"Invalid dataset ID: {dataset_gid}")
+    if dataset.id != expected_dataset_id:
+        raise BadRequest(
+            f"The examples belong to dataset '{dataset.name}', not the specified dataset."
+        )
 
 
 def _span_attribute(semconv: str) -> Any:

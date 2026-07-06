@@ -1,13 +1,12 @@
 import { css } from "@emotion/react";
-import { Tooltip, TooltipTrigger } from "react-aria-components";
 
 import {
   Icon,
   Icons,
-  Text,
   ToggleButton,
   ToggleButtonGroup,
-  View,
+  Tooltip,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { usePreferencesContext } from "@phoenix/contexts";
 import type { ProjectViewMode } from "@phoenix/store/preferencesStore";
@@ -39,35 +38,17 @@ export const ProjectViewModeToggle = () => {
         <ToggleButton
           id="grid"
           aria-label="Grid view"
-          leadingVisual={<Icon svg={<Icons.Grid />} />}
+          leadingVisual={<Icon svg={<Icons.GridFilled />} />}
         />
-        <Tooltip offset={10}>
-          <View
-            padding="size-100"
-            borderColor="default"
-            borderWidth="thin"
-            borderRadius="small"
-          >
-            <Text>View projects in a grid</Text>
-          </View>
-        </Tooltip>
+        <Tooltip>View projects in a grid</Tooltip>
       </TooltipTrigger>
       <TooltipTrigger delay={100}>
         <ToggleButton
           id="table"
           aria-label="Table view"
-          leadingVisual={<Icon svg={<Icons.ListOutline />} />}
+          leadingVisual={<Icon svg={<Icons.List />} />}
         />
-        <Tooltip offset={10}>
-          <View
-            padding="size-100"
-            borderColor="default"
-            borderWidth="thin"
-            borderRadius="small"
-          >
-            <Text>View projects in a table</Text>
-          </View>
-        </Tooltip>
+        <Tooltip>View projects in a table</Tooltip>
       </TooltipTrigger>
     </ToggleButtonGroup>
   );

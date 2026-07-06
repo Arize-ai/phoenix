@@ -1,6 +1,9 @@
 import type { UIMatch } from "react-router";
 
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 
 import type { AgentContext } from "./agentContextTypes";
 
@@ -22,7 +25,7 @@ function collectRouteParams(matches: UIMatch[]): Record<string, string> {
  * route and URL.
  *
  * Route params are flattened across all matched routes, and contexts are
- * emitted in natural containment order: project → trace → span. The selected
+ * emitted in natural containment order: project → trace/session → span. The selected
  * span search param (from the spans table) takes precedence over a `spanId`
  * in the route, since it reflects the user's most recent selection.
  *
@@ -38,20 +41,45 @@ export function deriveRouteContexts(
 
   // The `:projectId` route segment carries a Phoenix relay node ID; the
   // `:traceId` segment carries an OpenTelemetry hex trace ID; the
-  // `:spanId` segment (used by /playground/spans/:spanId) carries an OTel
-  // hex span ID, while the `?selectedSpanNodeId=` search param carries a
-  // relay node ID. See agentContextTypes.ts for the format conventions.
+  // `:spanId` segment (used by /playground/spans/:spanId) carries a Phoenix
+  // relay node ID, as does the `?selectedSpanNodeId=` search param. See
+  // agentContextTypes.ts for the format conventions.
   const projectNodeId = params["projectId"];
   const otelTraceId = params["traceId"];
-  const routeOtelSpanId = params["spanId"];
+  const sessionNodeId = params["sessionId"];
+  const promptNodeId = params["promptId"];
+  const promptVersionNodeId = params["versionId"];
+  const routeSpanNodeId = params["spanId"];
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
+  const activeOtelTraceId = otelTraceId ?? selectedTraceId;
 
   if (projectNodeId) {
     contexts.push({ type: "project", projectNodeId });
   }
 
-  if (projectNodeId && otelTraceId) {
-    contexts.push({ type: "trace", projectNodeId, otelTraceId });
+  if (projectNodeId && activeOtelTraceId) {
+    contexts.push({
+      type: "trace",
+      projectNodeId,
+      otelTraceId: activeOtelTraceId,
+    });
+  }
+
+  if (projectNodeId && sessionNodeId) {
+    contexts.push({ type: "session", projectNodeId, sessionNodeId });
+  }
+
+  if (promptNodeId) {
+    contexts.push({ type: "prompt", promptNodeId });
+  }
+
+  if (promptNodeId && promptVersionNodeId) {
+    contexts.push({
+      type: "prompt_version",
+      promptNodeId,
+      promptVersionNodeId,
+    });
   }
 
   if (selectedSpanNodeId) {
@@ -60,11 +88,11 @@ export function deriveRouteContexts(
         ? { type: "span", projectNodeId, spanNodeId: selectedSpanNodeId }
         : { type: "span", spanNodeId: selectedSpanNodeId }
     );
-  } else if (routeOtelSpanId) {
+  } else if (routeSpanNodeId) {
     contexts.push(
       projectNodeId
-        ? { type: "span", projectNodeId, otelSpanId: routeOtelSpanId }
-        : { type: "span", otelSpanId: routeOtelSpanId }
+        ? { type: "span", projectNodeId, spanNodeId: routeSpanNodeId }
+        : { type: "span", spanNodeId: routeSpanNodeId }
     );
   }
 

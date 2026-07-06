@@ -43,7 +43,7 @@ export function OAuth2Login({
     <form
       ref={ref}
       action={prependBasename(
-        `/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${returnUrl}` : ""}`
+        `/oauth2/${idpName}/login${returnUrl ? `?returnUrl=${encodeURIComponent(returnUrl)}` : ""}`
       )}
       method="post"
       css={loginCSS}

@@ -91,4 +91,33 @@ Below is an example of how to set these values in code using our OpenAI Python a
 
   </Tab>
 
+  <Tab title="Go" icon="golang">
+
+    Use `instrumentation.TraceConfig` and pass it to the provider instrumentor via `WithTraceConfig`. Setting a value in code fully replaces the env-derived config for that instrumentor — matching the Python and JS precedence rules.
+
+    ```go
+    import (
+        "github.com/openai/openai-go"
+        "github.com/openai/openai-go/option"
+        "go.opentelemetry.io/otel"
+
+        "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+        openaiotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go"
+    )
+
+    client := openai.NewClient(
+        option.WithAPIKey(apiKey),
+        option.WithMiddleware(openaiotel.Middleware(
+            otel.Tracer("my-app"),
+            openaiotel.WithTraceConfig(instrumentation.TraceConfig{
+                HideInputs: true,
+            }),
+        )),
+    )
+    ```
+
+    The Anthropic Go instrumentor uses the same shape: `option.WithMiddleware(anthropicotel.Middleware(otel.Tracer(...), anthropicotel.WithTraceConfig(instrumentation.TraceConfig{...})))`. See [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) for full setup.
+
+  </Tab>
+
 </Tabs>

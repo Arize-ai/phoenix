@@ -110,7 +110,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
           ref={triggerRef}
           size={buttonSize}
           variant={buttonVariant}
-          leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
+          leadingVisual={<Icon svg={<Icons.MoreHorizontal />} />}
         />
         <Popover>
           <Dialog>
@@ -129,7 +129,7 @@ export function SpanAnnotationActionMenu(props: SpanAnnotationActionMenuProps) {
                     justifyContent="start"
                     alignItems="center"
                   >
-                    <Icon svg={<Icons.TrashOutline />} />
+                    <Icon svg={<Icons.Trash />} />
                     <Text>Delete</Text>
                   </Flex>
                 </ListBoxItem>

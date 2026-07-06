@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cf07b76c65dd3d29b8b588edc6e9018d>>
+ * @generated SignedSource<<b6336f61a6dce03a815948dffbe85a23>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,7 @@ export type LLMSpanErrorsTimeSeriesQuery$data = {
       readonly data: ReadonlyArray<{
         readonly errorCount: number | null;
         readonly timestamp: string;
+        readonly totalCount: number | null;
       }>;
     };
   };
@@ -115,6 +116,13 @@ v5 = {
               "kind": "ScalarField",
               "name": "errorCount",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -194,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "1b8e901b031f21828f03593299119bb0",
+    "cacheID": "b2136c06843da2c50b9931973559090d",
     "id": null,
     "metadata": {},
     "name": "LLMSpanErrorsTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query LLMSpanErrorsTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          errorCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query LLMSpanErrorsTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          errorCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b865d5f1114d973668d82efdedc53b21";
+(node as any).hash = "96279ea8d5777c899d98e30c09a87b58";
 
 export default node;

@@ -24,11 +24,11 @@ const timeRangeFormatter = createTimeRangeFormatter({
 
 export default meta;
 
-const Template: StoryFn<TimeRangeSelectorProps> = (args) => {
-  const [timeRange, setTimeRange] = useState<OpenTimeRangeWithKey>({
-    timeRangeKey: "7d",
-    start: new Date("2024-01-15T10:00:00Z"),
-  });
+const Template: StoryFn<
+  TimeRangeSelectorProps & { initialValue: OpenTimeRangeWithKey }
+> = ({ initialValue, ...args }) => {
+  const [timeRange, setTimeRange] =
+    useState<OpenTimeRangeWithKey>(initialValue);
   return (
     <PreferencesProvider>
       <span>{timeRangeFormatter(timeRange)}</span>
@@ -41,7 +41,56 @@ const Template: StoryFn<TimeRangeSelectorProps> = (args) => {
   );
 };
 
-export const Default = {
+/**
+ * The default state shows an open-ended preset. The leading badge surfaces the
+ * preset shorthand and the end reads as the current time.
+ */
+export const Preset = {
   render: Template,
-  args: {},
+  args: {
+    initialValue: {
+      timeRangeKey: "7d",
+      start: new Date("2024-01-15T10:00:00Z"),
+    },
+  },
+};
+
+/**
+ * A custom, closed range. Editing either date inline forks a preset into this
+ * state automatically.
+ */
+export const Custom = {
+  render: Template,
+  args: {
+    initialValue: {
+      timeRangeKey: "custom",
+      start: new Date("2024-01-15T10:00:00Z"),
+      end: new Date("2024-01-22T18:30:00Z"),
+    },
+  },
+};
+
+/**
+ * Any duration typed into the preset search (e.g. "25m") becomes an ad-hoc
+ * open-ended last-N range with a spelled-out label.
+ */
+export const ArbitraryDuration = {
+  render: Template,
+  args: {
+    initialValue: {
+      timeRangeKey: "25m",
+      start: new Date("2024-01-15T10:00:00Z"),
+    },
+  },
+};
+
+export const Disabled = {
+  render: Template,
+  args: {
+    isDisabled: true,
+    initialValue: {
+      timeRangeKey: "1h",
+      start: new Date("2024-01-15T10:00:00Z"),
+    },
+  },
 };

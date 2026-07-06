@@ -37,15 +37,10 @@
     "@types/mailparser": "^3.4.6",
     "@types/node": "^25.3.1",
     "@types/smtp-server": "^3.5.12",
-    "oxfmt": "^0.35.0",
-    "oxlint": "^1.48.0",
+    "oxfmt": "^0.51.0",
+    "oxlint": "~1.66.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.29.3",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  }
+  "packageManager": "pnpm@11.3.0"
 }

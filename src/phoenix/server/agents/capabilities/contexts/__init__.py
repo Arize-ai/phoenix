@@ -5,11 +5,23 @@ from pydantic_ai.capabilities import AbstractCapability, CapabilityFunc, Combine
 
 from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.capabilities.contexts.app import AppContextCapability
+from phoenix.server.agents.capabilities.contexts.code_evaluator import (
+    CodeEvaluatorContextCapability,
+)
+from phoenix.server.agents.capabilities.contexts.dataset import DatasetContextCapability
 from phoenix.server.agents.capabilities.contexts.graphql_mutations import (
     GraphQLMutationsCapability,
 )
+from phoenix.server.agents.capabilities.contexts.llm_evaluator import (
+    LlmEvaluatorContextCapability,
+)
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
+from phoenix.server.agents.capabilities.contexts.prompt import (
+    PromptContextCapability,
+    PromptVersionContextCapability,
+)
+from phoenix.server.agents.capabilities.contexts.session import SessionContextCapability
 from phoenix.server.agents.capabilities.contexts.span import SpanContextCapability
 from phoenix.server.agents.capabilities.contexts.trace import TraceContextCapability
 from phoenix.server.agents.prompts import AgentPrompts
@@ -31,8 +43,14 @@ def get_context_capability_function(
         AppContextCapability(instructions=prompts.app_context),
         ProjectContextCapability(instructions=prompts.project_context),
         TraceContextCapability(instructions=prompts.trace_context),
+        SessionContextCapability(instructions=prompts.session_context),
+        PromptContextCapability(instructions=prompts.prompt_context),
+        PromptVersionContextCapability(instructions=prompts.prompt_version_context),
         SpanContextCapability(instructions=prompts.span_context),
         PlaygroundContextCapability(instructions=prompts.playground_context),
+        CodeEvaluatorContextCapability(instructions=prompts.code_evaluator_context),
+        LlmEvaluatorContextCapability(instructions=prompts.llm_evaluator_context),
+        DatasetContextCapability(instructions=prompts.dataset_context),
         GraphQLMutationsCapability(instructions=prompts.graphql_mutations),
     ]
 
@@ -45,9 +63,15 @@ def get_context_capability_function(
 
 __all__ = [
     "AppContextCapability",
+    "CodeEvaluatorContextCapability",
+    "DatasetContextCapability",
     "GraphQLMutationsCapability",
+    "LlmEvaluatorContextCapability",
     "PlaygroundContextCapability",
+    "PromptContextCapability",
+    "PromptVersionContextCapability",
     "ProjectContextCapability",
+    "SessionContextCapability",
     "SpanContextCapability",
     "TraceContextCapability",
     "get_context_capability_function",

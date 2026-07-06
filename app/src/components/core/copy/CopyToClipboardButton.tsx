@@ -58,7 +58,7 @@ export function CopyToClipboardButton(props: CopyToClipboardButtonProps) {
           leadingVisual={
             <Icon
               color={isCopied ? "success" : "inherit"}
-              svgKey={isCopied ? "Checkmark" : "DuplicateOutline"}
+              svgKey={isCopied ? "Checkmark" : "Duplicate"}
             />
           }
           onPress={onPress}

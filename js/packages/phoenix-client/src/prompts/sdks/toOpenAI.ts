@@ -23,17 +23,18 @@ export type {
   ResponseFormatJSONSchema,
 };
 
-export type ToOpenAIParams<V extends Variables> = toSDKParamsBase<V>;
+export type ToOpenAIParams<PromptVariables extends Variables> =
+  toSDKParamsBase<PromptVariables>;
 
 /**
  * Convert a Phoenix prompt to OpenAI client sdk's chat completion parameters
  *
  * @returns The converted chat completion parameters
  */
-export const toOpenAI = <V extends Variables = Variables>({
+export const toOpenAI = <PromptVariables extends Variables = Variables>({
   prompt,
   variables,
-}: ToOpenAIParams<V>): ChatCompletionCreateParams | null => {
+}: ToOpenAIParams<PromptVariables>): ChatCompletionCreateParams | null => {
   try {
     let invocationParameters: Partial<ChatCompletionCreateParams>;
     switch (prompt.invocation_parameters.type) {

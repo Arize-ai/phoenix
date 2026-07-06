@@ -12,9 +12,8 @@ from typing import Any
 import pytest
 
 from evals.pxi.evaluators.links import evaluate_in_app_links
+from evals.pxi.evaluators.text import evaluate_assistant_text_substrings
 from evals.pxi.evaluators.tools import (
-    _normalize_arg_value,
-    evaluate_set_spans_filter_args,
     evaluate_tool_call_args,
     evaluate_tools_called,
 )
@@ -182,7 +181,19 @@ def _link_expected(*required: str) -> dict[str, Any]:
     return {"tools": {"required": []}, "links": {"required_in_app": list(required)}}
 
 
+def _route_info_before_links_expected() -> dict[str, Any]:
+    return {"links": {"route_info_before_in_app_links": True}}
+
+
 class TestInAppLinksValid:
+    def test_no_link_expectations_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output={"messages": []},
+            expected={"links": {}},
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+
     def test_required_root_relative_markdown_link_passes(self) -> None:
         result = evaluate_in_app_links(
             output=_link_output("Open [Agent settings](/settings/agents)."),
@@ -231,531 +242,56 @@ class TestInAppLinksValid:
         assert result["label"] == "fail"
         assert result["metadata"]["bare_urls"] == ["http://localhost:6006/settings/agents."]
 
-
-class TestNormalizeArgValue:
-    def test_passes_non_strings_through(self) -> None:
-        assert _normalize_arg_value(True) is True
-        assert _normalize_arg_value(5) == 5
-        assert _normalize_arg_value(None) is None
-
-    def test_passes_strings_without_and_through(self) -> None:
-        assert _normalize_arg_value("span_kind == 'LLM'") == "span_kind == 'LLM'"
-        assert _normalize_arg_value("") == ""
-
-    def test_normalizes_and_conjunction_to_tagged_set(self) -> None:
-        result = _normalize_arg_value("span_kind == 'LLM' and latency_ms >= 5000")
-        assert result == ("AND", frozenset({"span_kind == 'LLM'", "latency_ms >= 5000"}))
-
-    def test_conjunction_order_does_not_matter(self) -> None:
-        a = _normalize_arg_value("span_kind == 'LLM' and latency_ms >= 5000")
-        b = _normalize_arg_value("latency_ms >= 5000 and span_kind == 'LLM'")
-        assert a == b
-
-    def test_normalizes_or_conjunction_to_tagged_set(self) -> None:
-        result = _normalize_arg_value("span_kind == 'TOOL' or span_kind == 'CHAIN'")
-        assert result == ("OR", frozenset({"span_kind == 'TOOL'", "span_kind == 'CHAIN'"}))
-
-    def test_or_clause_order_does_not_matter(self) -> None:
-        a = _normalize_arg_value("span_kind == 'TOOL' or span_kind == 'CHAIN'")
-        b = _normalize_arg_value("span_kind == 'CHAIN' or span_kind == 'TOOL'")
-        assert a == b
-
-    def test_and_and_or_do_not_compare_equal_for_same_clauses(self) -> None:
-        # AND and OR over the same set of clauses are NOT semantically
-        # equivalent. The tagged-tuple form prevents accidental equality.
-        a = _normalize_arg_value("x == 1 and y == 2")
-        o = _normalize_arg_value("x == 1 or y == 2")
-        assert a != o
-
-    def test_mixed_and_or_returns_raw_string(self) -> None:
-        # Splitting a mixed-operator expression without parsing would lose
-        # precedence; treat it as opaque.
-        raw = "a == 1 and b == 2 or c == 3"
-        assert _normalize_arg_value(raw) == raw
-
-    # ---------------- IN() membership form ----------------
-
-    def test_normalizes_uppercase_in_to_or_set(self) -> None:
-        result = _normalize_arg_value("span_kind IN('LLM','TOOL')")
-        assert result == ("OR", frozenset({"span_kind == 'LLM'", "span_kind == 'TOOL'"}))
-
-    def test_normalizes_lowercase_in_to_or_set(self) -> None:
-        result = _normalize_arg_value("span_kind in ('TOOL', 'RETRIEVER')")
-        assert result == ("OR", frozenset({"span_kind == 'TOOL'", "span_kind == 'RETRIEVER'"}))
-
-    def test_in_clause_order_does_not_matter(self) -> None:
-        a = _normalize_arg_value("span_kind IN('LLM','TOOL')")
-        b = _normalize_arg_value("span_kind IN('TOOL','LLM')")
-        assert a == b
-
-    def test_in_matches_equivalent_or_form(self) -> None:
-        # Core regression case: IN() form should compare equal to the OR chain
-        # that means the same thing, so dataset authors don't have to enumerate
-        # both equivalent spellings.
-        in_form = _normalize_arg_value("span_kind IN('LLM','TOOL')")
-        or_form = _normalize_arg_value("span_kind == 'LLM' or span_kind == 'TOOL'")
-        assert in_form == or_form
-
-    def test_in_uppercase_matches_lowercase_in_form(self) -> None:
-        # Uppercase IN (agent output) should match lowercase in (dataset entry).
-        upper = _normalize_arg_value("span_kind IN('TOOL','RETRIEVER')")
-        lower = _normalize_arg_value("span_kind in ('TOOL', 'RETRIEVER')")
-        assert upper == lower
-
-    def test_in_with_three_members_normalizes(self) -> None:
-        result = _normalize_arg_value("span_kind IN('LLM','TOOL','CHAIN')")
-        assert result == (
-            "OR",
-            frozenset({"span_kind == 'LLM'", "span_kind == 'TOOL'", "span_kind == 'CHAIN'"}),
-        )
-
-    def test_single_value_in_not_normalized(self) -> None:
-        # A single-member IN has no OR equivalent in the dataset; leave as-is
-        # to avoid creating a tagged-tuple that silently mismatches a bare
-        # equality string.
-        raw = "span_kind IN('LLM')"
-        assert _normalize_arg_value(raw) == raw
-
-
-class TestSetSpansFilterArgsMatch:
-    """Tests for the specialized ``set_spans_filter`` arg evaluator.
-
-    Covers the DSL semantic equivalences (clause reordering under pure
-    ``and`` or pure ``or``) that this evaluator owns, alongside the same
-    subset / any-of / JSON-string-decoding behavior as the generic
-    evaluator.
-    """
-
-    def _expected(self, **per_tool: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
-        return {"tool_call_args": per_tool}
-
-    def test_passes_when_all_expected_keys_match(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter", {"condition": "span_kind == 'LLM'", "rootSpansOnly": False}
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-        )
-        assert result["score"] == 1.0
-        assert result["label"] == "pass"
-
-    def test_reads_args_from_pydantic_ai_messages(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter", {"condition": "span_kind == 'LLM'", "rootSpansOnly": False}
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_decodes_args_when_serialized_as_json_string(self) -> None:
-        # Pydantic AI emits tool-call args as a JSON string over some
-        # transports. The evaluator must decode the string before matching;
-        # otherwise every arg-pin example silently fails with observed={}.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                '{"condition": "span_kind == \'LLM\'", "rootSpansOnly": false}',  # type: ignore[arg-type]
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-        )
-        assert result["score"] == 1.0
-        assert result["label"] == "pass"
-
-    def test_treats_malformed_json_string_args_as_empty(self) -> None:
-        # If the string isn't valid JSON, fall back to {} rather than raising.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                "not-json-at-all",  # type: ignore[arg-type]
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'"},
-            ),
-        )
-        assert result["score"] == 0.0
-        assert result["label"] == "fail"
-
-    def test_subset_match_allows_extra_observed_keys(self) -> None:
-        # Observed call carries an extra arg the dataset doesn't mention.
-        # Documented behavior: subset match passes.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False, "limit": 100},
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'"},
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_fails_when_value_differs(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter", {"condition": "span_kind == 'LLM'", "rootSpansOnly": True}
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-        )
-        assert result["label"] == "fail"
-        assert "set_spans_filter" in result["metadata"]
-
-    def test_fails_when_tool_not_called(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output(),
-            expected=self._expected(set_spans_filter={"condition": ""}),
-        )
-        assert result["label"] == "fail"
-        assert result["metadata"]["set_spans_filter"]["reason"] == "tool was not called"
-
-    def test_and_conjunction_order_does_not_fail(self) -> None:
-        # Composite condition emitted in opposite order from the dataset
-        # should still pass — this is exactly the ``slow-llm-spans``
-        # scenario flagged in review.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "latency_ms >= 5000 and span_kind == 'LLM'",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_any_of_match_across_multiple_calls(self) -> None:
-        # When a tool is called twice, the check passes if ANY call
-        # satisfies the expected pairs.
-        result = evaluate_set_spans_filter_args(
+    def test_in_app_link_before_route_info_fails(self) -> None:
+        result = evaluate_in_app_links(
             output={
                 "messages": [
                     {
-                        "kind": "response",
                         "parts": [
                             {
-                                "part_kind": "tool-call",
-                                "tool_name": "set_spans_filter",
-                                "args": {"condition": "wrong"},
+                                "part_kind": "text",
+                                "content": "Try [Playground](/playground/datasets/abc).",
                             },
                             {
                                 "part_kind": "tool-call",
-                                "tool_name": "set_spans_filter",
-                                "args": {"condition": "right"},
+                                "tool_name": "get_route_info",
+                                "args": {},
                             },
-                        ],
+                        ]
                     }
                 ]
             },
-            expected=self._expected(set_spans_filter={"condition": "right"}),
+            expected=_route_info_before_links_expected(),
         )
-        assert result["label"] == "pass"
-
-    # ---------------- DSL equivalence: what IS considered equivalent ----------------
-
-    def test_and_clause_reorder_passes(self) -> None:
-        # Pure AND: clause order does not change semantics.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "latency_ms >= 5000 and span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_or_clause_reorder_passes(self) -> None:
-        # Pure OR: clause order does not change semantics.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "span_kind == 'CHAIN' or span_kind == 'TOOL'",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'TOOL' or span_kind == 'CHAIN'",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_three_clause_and_reorder_passes(self) -> None:
-        # Reordering still passes when there are more than two clauses.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": (
-                        "latency_ms >= 5000 and status_code == 'ERROR' and span_kind == 'LLM'"
-                    ),
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": (
-                        "span_kind == 'LLM' and latency_ms >= 5000 and status_code == 'ERROR'"
-                    ),
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "pass"
-
-    # ---------------- DSL equivalence: what is NOT considered equivalent ----------------
-
-    def test_and_does_not_match_or_with_same_clauses(self) -> None:
-        # AND and OR over the same clauses are different semantics.
-        # The tagged-tuple normalization keeps them disjoint.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "span_kind == 'LLM' or latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
+        assert result["score"] == 0.0
         assert result["label"] == "fail"
+        assert result["metadata"]["observed_in_app_hrefs_before_get_route_info"] == [
+            "/playground/datasets/abc"
+        ]
 
-    def test_or_does_not_match_and_with_same_clauses(self) -> None:
-        # Symmetric: expecting OR does not accept AND.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' or latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "fail"
-
-    def test_missing_clause_fails(self) -> None:
-        # Same operator, but observed is missing one of the expected clauses.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "fail"
-
-    def test_extra_clause_fails(self) -> None:
-        # Same operator, but observed adds an unexpected clause.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-        )
-        assert result["label"] == "fail"
-
-    def test_mixed_and_or_requires_exact_match(self) -> None:
-        # Mixed-operator expressions are not normalized (precedence matters).
-        # Matching is exact, so a different ordering does NOT pass.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "b == 2 and a == 1 or c == 3",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "a == 1 and b == 2 or c == 3",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "fail"
-
-    def test_mixed_and_or_passes_when_exact(self) -> None:
-        # Same mixed expression exactly: passes via the raw-string fallback.
-        condition = "a == 1 and b == 2 or c == 3"
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": condition, "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": condition, "rootSpansOnly": False}
-            ),
-        )
-        assert result["label"] == "pass"
-
-    # ---------------- IN() membership form (llm-or-tool-spans regression) ----------------
-
-    def test_in_form_matches_or_dataset_entry(self) -> None:
-        # Regression: agent emits IN('LLM','TOOL'), dataset pins the OR chain.
-        # This is the llm-or-tool-spans failure mode.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind IN('LLM','TOOL')", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' or span_kind == 'TOOL'",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_uppercase_in_matches_lowercase_in_variant(self) -> None:
-        # Regression: ambiguous-tools-or-retrievers — agent emits uppercase IN,
-        # dataset variant uses lowercase in.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind IN('TOOL','RETRIEVER')", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter=[
+    def test_in_app_link_after_route_info_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output={
+                "messages": [
                     {
-                        "condition": "span_kind == 'TOOL' or span_kind == 'RETRIEVER'",
-                        "rootSpansOnly": False,
-                    },
-                    {
-                        "condition": "span_kind in ('TOOL', 'RETRIEVER')",
-                        "rootSpansOnly": False,
-                    },
-                ],
-            ),
+                        "parts": [
+                            {
+                                "part_kind": "tool-call",
+                                "tool_name": "get_route_info",
+                                "args": {},
+                            },
+                            {
+                                "part_kind": "text",
+                                "content": "Use [Playground](/playground?datasetId=abc).",
+                            },
+                        ]
+                    }
+                ]
+            },
+            expected=_route_info_before_links_expected(),
         )
+        assert result["score"] == 1.0
         assert result["label"] == "pass"
-
-    def test_in_form_with_reversed_member_order_matches(self) -> None:
-        # Member order in IN() should not matter, same as OR clause order.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind IN('TOOL','LLM')", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter={
-                    "condition": "span_kind == 'LLM' or span_kind == 'TOOL'",
-                    "rootSpansOnly": False,
-                }
-            ),
-        )
-        assert result["label"] == "pass"
-
-    # ---------------- Variant-list pattern ----------------
-
-    def test_variant_list_passes_when_any_variant_matches(self) -> None:
-        # The set_spans_filter-specific evaluator uses the shared variant
-        # matcher, while still applying DSL normalization within each variant.
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {
-                    "condition": "latency_ms >= 5000 and span_kind == 'LLM'",
-                    "rootSpansOnly": False,
-                },
-            ),
-            expected=self._expected(
-                set_spans_filter=[
-                    {"condition": "status_code == 'ERROR'", "rootSpansOnly": False},
-                    {
-                        "condition": "span_kind == 'LLM' and latency_ms >= 5000",
-                        "rootSpansOnly": False,
-                    },
-                ],
-            ),
-        )
-        assert result["label"] == "pass"
-
-    def test_variant_list_fails_when_no_variant_matches(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind == 'TOOL'", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter=[
-                    {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-                    {"condition": "status_code == 'ERROR'", "rootSpansOnly": False},
-                ],
-            ),
-        )
-        assert result["label"] == "fail"
-        assert isinstance(result["metadata"]["set_spans_filter"]["expected"], list)
-
-    def test_empty_variant_list_fails(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-            expected=self._expected(set_spans_filter=[]),
-        )
-        assert result["label"] == "fail"
-        assert "non-empty list" in result["metadata"]["set_spans_filter"]["reason"]
-
-    def test_malformed_variant_list_fails(self) -> None:
-        result = evaluate_set_spans_filter_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter=[
-                    {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-                    "not-a-dict",  # type: ignore[list-item]
-                ],
-            ),
-        )
-        assert result["label"] == "fail"
-        assert "invalid indices: 1" in result["metadata"]["set_spans_filter"]["reason"]
 
 
 class TestToolCallArgsMatch:
@@ -811,22 +347,6 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
-    def test_skips_set_spans_filter(self) -> None:
-        # set_spans_filter has its own specialized evaluator; the generic
-        # one must not score it, even when the observed call would mismatch
-        # under exact comparison. With set_spans_filter as the only pinned
-        # tool, the generic evaluator has nothing to score and returns pass.
-        result = evaluate_tool_call_args(
-            output=_output_with_args(
-                "set_spans_filter",
-                {"condition": "completely wrong", "rootSpansOnly": False},
-            ),
-            expected=self._expected(
-                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
-            ),
-        )
-        assert result["label"] == "pass"
-
     def test_does_not_normalize_and_reorder_for_generic_tools(self) -> None:
         # The generic evaluator does NOT apply DSL normalization. If a
         # future generic tool happens to have an arg containing ``and``,
@@ -836,6 +356,36 @@ class TestToolCallArgsMatch:
             expected=self._expected(set_time_range={"note": "a and b"}),
         )
         assert result["label"] == "fail"
+
+    def test_absent_matcher_passes_when_arg_is_omitted(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("save_prompt", {"instanceId": 1}),
+            expected=self._expected(
+                save_prompt={
+                    "instanceId": 1,
+                    "promptId": {"absent": True},
+                    "name": {"absent": True},
+                }
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_absent_matcher_fails_when_arg_is_present(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("save_prompt", {"instanceId": 1, "promptId": "UHJvbXB0OjE="}),
+            expected=self._expected(save_prompt={"promptId": {"absent": True}}),
+        )
+        assert result["label"] == "fail"
+
+    def test_absent_matcher_cannot_be_combined_with_other_matchers(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("save_prompt", {}),
+            expected=self._expected(save_prompt={"promptId": {"absent": True, "any": True}}),
+        )
+        assert result["label"] == "fail"
+        assert (
+            "cannot be combined" in result["metadata"]["save_prompt"]["matcher_errors"]["promptId"]
+        )
 
     # ---------------- Variant-list pattern ----------------
 
@@ -929,3 +479,137 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "fail"
         assert "must be an object" in result["metadata"]["set_time_range"]["reason"]
+
+
+def _text_output(text: str | None) -> dict[str, Any]:
+    return {"assistant_text": text, "messages": []}
+
+
+def _text_expected(expectation: Any) -> dict[str, Any]:
+    return {"assistant_text": expectation}
+
+
+class TestAssistantTextSubstringsMatch:
+    def test_no_expectations_passes(self) -> None:
+        result = evaluate_assistant_text_substrings(output=_text_output("anything"), expected={})
+        assert result["label"] == "pass"
+
+    def test_contains_all_passes_case_insensitively(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("A turn corresponds to a single TRACE in the session."),
+            expected=_text_expected({"contains_all": ["trace", "session"]}),
+        )
+        assert result["label"] == "pass"
+
+    def test_contains_all_fails_when_substring_missing(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("A turn is part of a session."),
+            expected=_text_expected({"contains_all": ["trace"]}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["missing_required"] == ["trace"]
+
+    def test_any_of_group_passes_when_one_alternative_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Cost comes from model prices times token counts."),
+            expected=_text_expected({"contains_all": [["pricing", "model prices"], "token"]}),
+        )
+        assert result["label"] == "pass"
+
+    def test_any_of_group_fails_when_no_alternative_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Cost is computed from token counts."),
+            expected=_text_expected({"contains_all": [["pricing", "model prices"]]}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["missing_required"] == [
+            ["pricing", "model prices"]
+        ]
+
+    def test_contains_any_passes_when_one_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Annotator kinds are HUMAN, LLM, and CODE."),
+            expected=_text_expected({"contains_any": ["human", "llm"]}),
+        )
+        assert result["label"] == "pass"
+
+    def test_contains_any_fails_when_none_match(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Annotations carry a label and a score."),
+            expected=_text_expected({"contains_any": ["human", "llm"]}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["missing_any_of"] == ["human", "llm"]
+
+    def test_not_contains_fails_when_forbidden_present(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("Just set the llm.cost.total attribute on your spans."),
+            expected=_text_expected(
+                {"contains_all": ["token"], "not_contains": ["set the llm.cost"]}
+            ),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["variant_failures"][0]["matched_forbidden"] == [
+            "set the llm.cost"
+        ]
+
+    def test_variant_list_passes_when_any_variant_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("An experiment runs over a dataset version."),
+            expected=_text_expected(
+                [
+                    {"contains_all": ["snapshot"]},
+                    {"contains_all": ["dataset version"]},
+                ]
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_variant_list_fails_when_no_variant_matches(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("An experiment is a kind of test."),
+            expected=_text_expected(
+                [
+                    {"contains_all": ["snapshot"]},
+                    {"contains_all": ["dataset version"]},
+                ]
+            ),
+        )
+        assert result["label"] == "fail"
+        assert len(result["metadata"]["variant_failures"]) == 2
+
+    def test_missing_assistant_text_fails(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output(None),
+            expected=_text_expected({"contains_all": ["trace"]}),
+        )
+        assert result["label"] == "fail"
+        assert "did not include text" in result["explanation"]
+
+    def test_blank_assistant_text_fails(self) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("   \n"),
+            expected=_text_expected({"contains_all": ["trace"]}),
+        )
+        assert result["label"] == "fail"
+
+    @pytest.mark.parametrize(
+        "expectation",
+        [
+            "not-a-dict",
+            [],
+            ["not-a-dict"],
+            {"unknown_key": ["x"]},
+            {},
+            {"contains_all": "not-a-list"},
+            {"contains_all": [[]]},
+            {"contains_all": [123]},
+            {"not_contains": [123]},
+        ],
+    )
+    def test_malformed_expectation_fails(self, expectation: Any) -> None:
+        result = evaluate_assistant_text_substrings(
+            output=_text_output("some text"),
+            expected=_text_expected(expectation),
+        )
+        assert result["label"] == "fail"

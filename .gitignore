@@ -92,3 +92,6 @@ helm/charts/*.tgz
 .mypy_cache
 .hypothesis
 .claude/worktrees/
+
+# WebAssembly binaries
+wasm/*.wasm

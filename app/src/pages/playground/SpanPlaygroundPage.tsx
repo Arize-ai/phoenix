@@ -74,10 +74,10 @@ function SpanPlaygroundBanners({
           }}
           extra={
             <Button
-              leadingVisual={<Icon svg={<Icons.ArrowBack />} />}
+              leadingVisual={<Icon svg={<Icons.ArrowLeft />} />}
               onPress={() => {
                 navigate(
-                  `/projects/${span.project.id}/traces/${span.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`
+                  `/projects/${span.project.id}/traces/${encodeURIComponent(span.trace.traceId)}?${SELECTED_SPAN_NODE_ID_PARAM}=${encodeURIComponent(span.id)}`
                 );
               }}
             >

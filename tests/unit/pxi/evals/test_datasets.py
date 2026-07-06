@@ -277,12 +277,83 @@ examples:
         dataset = load_dataset("set_spans_filter")
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
-        assert all(example["splits"] == ["regression"] for example in dataset.examples)
+        assert any(example["splits"] == ["regression"] for example in dataset.examples)
         assert "correct_tools_called" in dataset.evaluators
 
     def test_loads_in_app_links_dataset(self) -> None:
         dataset = load_dataset("in_app_links")
         assert dataset.dataset_name == "in_app_links"
-        assert len(dataset.examples) == 4
+        assert len(dataset.examples) == 8
         assert "in_app_links_valid" in dataset.evaluators
-        assert any(example["id"] == "dataset-resource-link" for example in dataset.examples)
+        assert any(
+            example["id"] == "route-info-dataset-experiments-link" for example in dataset.examples
+        )
+
+    def test_loads_route_info_tool_selection_dataset(self) -> None:
+        dataset = load_dataset("route_info_tool_selection")
+        assert dataset.dataset_name == "route_info_tool_selection"
+        assert len(dataset.examples) == 11
+        assert "correct_tools_called" in dataset.evaluators
+        assert "in_app_links_valid" in dataset.evaluators
+        assert "tool_call_args_match" in dataset.evaluators
+
+    def test_loads_playground_experiment_recording_dataset(self) -> None:
+        dataset = load_dataset("playground_experiment_recording")
+        assert dataset.dataset_name == "playground_experiment_recording"
+        assert len(dataset.examples) == 6
+        assert dataset.evaluators == [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ]
+        assert any(example["id"] == "record-next-run" for example in dataset.examples)
+        assert any(example["id"] == "save-prompt-not-run" for example in dataset.examples)
+
+    def test_loads_experiment_observations_dataset(self) -> None:
+        dataset = load_dataset("experiment_observations")
+        assert dataset.dataset_name == "experiment_observations"
+        assert len(dataset.examples) == 6
+        assert dataset.evaluators == [
+            "correct_tools_called",
+            "tool_call_args_match",
+            "tool_call_count_within_limit",
+        ]
+        # The preservation case must assert the scaffold keys survive a
+        # whole-metadata replace alongside the appended observations.
+        preserve = next(
+            e for e in dataset.examples if e["id"] == "preserve-scaffold-when-appending"
+        )
+        has_keys = preserve["expected"]["tool_call_args"]["patch_experiment"]["metadata"][
+            "has_keys"
+        ]
+        assert set(has_keys) == {
+            "observations",
+            "hypothesis",
+            "changed_variable",
+            "baseline_experiment_id",
+        }
+
+    def test_save_prompt_dataset_requires_descriptions_for_save_calls(self) -> None:
+        dataset = load_dataset("save_prompt")
+        assert dataset.dataset_name == "save_prompt"
+        assert "tool_call_args_match" in dataset.evaluators
+        for example in dataset.examples:
+            expected = example["expected"]
+            save_prompt_args = expected.get("tool_call_args", {}).get("save_prompt")
+            if save_prompt_args is None:
+                continue
+            # `save_prompt` may be a single arg-matcher dict or a list of
+            # independently-acceptable variants; every variant must require a
+            # non-empty description.
+            variants = (
+                save_prompt_args if isinstance(save_prompt_args, list) else [save_prompt_args]
+            )
+            for variant in variants:
+                description = variant.get("description")
+                assert description is not None, (
+                    f"{example['id']} must assert save_prompt.description"
+                )
+                assert isinstance(description, dict)
+                assert description.get("non_empty") is True, (
+                    f"{example['id']} must reject empty save_prompt.description"
+                )

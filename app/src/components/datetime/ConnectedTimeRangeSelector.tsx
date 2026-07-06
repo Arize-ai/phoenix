@@ -1,25 +1,14 @@
-import { startTransition, useCallback } from "react";
-
 import type { ComponentSize } from "@phoenix/components/core/types";
 
 import { useTimeRange } from "./TimeRangeContext";
 import { TimeRangeSelector } from "./TimeRangeSelector";
-import type { OpenTimeRangeWithKey } from "./types";
 
 export function ConnectedTimeRangeSelector({
   size = "S",
 }: {
   size?: ComponentSize;
 }) {
-  const { timeRange, setTimeRange: _setTimeRange } = useTimeRange();
-  const setTimeRange = useCallback(
-    (timeRange: OpenTimeRangeWithKey) => {
-      startTransition(() => {
-        _setTimeRange(timeRange);
-      });
-    },
-    [_setTimeRange]
-  );
+  const { timeRange, setTimeRange } = useTimeRange();
   return (
     <TimeRangeSelector value={timeRange} onChange={setTimeRange} size={size} />
   );

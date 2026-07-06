@@ -1,0 +1,78 @@
+---
+title: "OpenInference Semantic Conventions"
+sidebarTitle: "Semantic conventions"
+description: "Standardized attribute names that make AI trace data portable across tools, languages, and platforms — and how OpenInference compares to the still-evolving GenAI conventions."
+keywords: ['semantic conventions', 'OpenInference', 'GenAI', 'attribute names', 'standardization', 'interoperability']
+---
+
+> *"Standardized naming schemes and attribute definitions for telemetry data across services, languages, and platforms."*
+
+A **semantic convention** is an agreement about what to call things. Without conventions, every team invents their own attribute names — one calls it `prompt`, another `input.text`, another `messages[0].content` — and tools that try to read all of those have to maintain mappings for every variant.
+
+OpenInference defines the canonical attribute names for AI/LLM telemetry. Phoenix uses these conventions to render spans in the UI, and any OTel-compatible backend that understands OpenInference can do the same.
+
+# Why Semantic Conventions Matter
+
+Three concrete benefits, all of which compound as your stack grows:
+
+| | What it gives you |
+| :--- | :--- |
+| **Consistency** | One name for each concept across services, languages, and platforms. Same key in Python, JS, and Go. |
+| **Interoperability** | Tools and backends understand your data without custom mapping. Switching backends or layering on new tools doesn't require re-instrumenting. |
+| **Best practices** | The conventions encode *what* to trace, not just *how*. They are an opinionated answer to "which attributes should I set on an LLM span?" |
+
+Two examples of OpenInference attribute names:
+
+```
+llm.token_count.total
+llm.input_messages
+```
+
+If you set `llm.input_messages` on a span, Phoenix knows it's the chat history. So does any other OpenInference-aware backend. So does anyone reading your trace export six months from now.
+
+# OpenInference vs GenAI
+
+The GenAI observability space currently has two semantic convention standards. They overlap in what they describe but differ in maturity and governance.
+
+| | OpenInference | GenAI |
+| :--- | :--- | :--- |
+| **Maintained by** | Arize | OpenTelemetry community |
+| **Status** | Stable | Still in development; not on a stable release |
+| **Stability guarantees** | Conventions are stable across releases. Breaking changes are versioned. | Conventions are subject to change at any time, with explicit guidance about version transitions and opt-in for newer experimental revisions. |
+| **Attribute prefix** | Domain-specific prefixes: `llm.*`, `tool.*`, `agent.*`, `retriever.*`, etc. | Generally prefixed `gen_ai.*` |
+| **Instrumentation libraries** | Extensive — auto-instrumentors for most popular AI frameworks. | Smaller surface area today; instrumentors are still landing. |
+| **Phoenix support** | First-class. Phoenix reads these directly. | Spans tagged with `gen_ai.*` attributes still arrive at Phoenix, but won't get the same UI treatment as OpenInference-tagged spans. |
+
+For new instrumentation today, use OpenInference. Over time the two conventions are expected to converge as the GenAI spec stabilizes — when that happens, the OpenInference auto-instrumentors will pick up the change so your application code doesn't have to.
+
+# The Authoritative Source
+
+OpenInference is open-source. The canonical attribute lists, span kind enums, MIME type values, and LLM provider/system enums live in the OpenInference repository — language-specific implementations track these definitions exactly.
+
+<CardGroup cols={2}>
+  <Card title="Python Semantic Conventions" href="https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py" icon="python" />
+  <Card title="TS Semantic Conventions" href="https://github.com/Arize-ai/openinference/blob/main/js/packages/openinference-semantic-conventions/src/trace/SemanticConventions.ts" icon="js" />
+</CardGroup>
+
+When in doubt about an exact attribute name, those files are the source of truth.
+
+# What's Covered in OpenInference
+
+The conventions cover four broad categories:
+
+| Category | Examples | Where to read more |
+| :--- | :--- | :--- |
+| **Span kinds** | `LLM`, `TOOL`, `AGENT`, `CHAIN`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `GUARDRAIL`, `EVALUATOR`, `PROMPT`, `UNKNOWN` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) |
+| **Per-kind attributes** | `llm.input_messages`, `tool.parameters`, `agent.name`, `retrieval.documents` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) |
+| **Common attributes** | `input.value`, `output.value`, `input.mime_type`, `output.mime_type`, `metadata`, `session.id`, `user.id`, `tag.tags` | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds#common-attributes-across-all-kinds) |
+| **Enums** | LLM providers (`openai`, `anthropic`, `cohere`, ...), MIME types (`text/plain`, `application/json`), span kind values (ALL CAPS) | [Span Kinds](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds) and the [canonical source](https://github.com/Arize-ai/openinference/blob/main/python/openinference-semantic-conventions/src/openinference/semconv/trace/__init__.py) |
+
+The next page walks through the span-kind catalog in detail.
+
+---
+
+## Next step
+
+Span kinds are the most important convention OpenInference adds — they determine how spans render in the Phoenix UI and which attributes are expected:
+
+<Card title="Next: OpenInference Span Kinds" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-kinds" />

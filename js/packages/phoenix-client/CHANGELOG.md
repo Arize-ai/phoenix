@@ -1,5 +1,39 @@
 # @arizeai/phoenix-client
 
+## 6.12.0
+
+### Minor Changes
+
+- 7947440: Add `logSpans` to `@arizeai/phoenix-client/spans`, mirroring the Python client's `log_spans` API. It submits spans directly to a project using Phoenix's simplified span structure (the same shape returned by `getSpans`), without requiring OpenTelemetry. Throws a new `SpanCreationError` with `invalidSpans`/`duplicateSpans` details if any span in the request is invalid or a duplicate.
+
+## 6.11.2
+
+### Patch Changes
+
+- 7afa183: Fix `PHOENIX_TEST_TRACKING=false` not reliably disabling recording in vitest/jest eval suites. The flag is now read robustly (tolerating surrounding quotes and whitespace) and latches off for the whole process the first time it is seen disabled, so one suite can no longer re-enable recording for the others by mutating the environment mid-run. The run and annotation upload paths also honor the flag directly as a safeguard.
+
+## 6.11.1
+
+### Patch Changes
+
+- a027ada: Rename the CI eval testing env var `PHOENIX_TEST_TRACING` to `PHOENIX_TEST_TRACKING` so it matches the internal "tracking" terminology (`isTrackingEnabled`, `SuiteState.trackingDisabled`). The behavior is unchanged: set `PHOENIX_TEST_TRACKING=false` to run a suite locally without syncing datasets, experiments, runs, or annotations to Phoenix.
+
+  **Beta breaking change:** if you adopted the beta testing API in 6.11.0 and set `PHOENIX_TEST_TRACING=false`, update it to `PHOENIX_TEST_TRACKING=false`. The old name is no longer read.
+
+## 6.11.0
+
+### Minor Changes
+
+- 7efabf6: **Beta:** Add a vitest/jest-based CI eval testing API to `@arizeai/phoenix-client`. New `./vitest`, `./vitest/reporter`, `./jest`, and `./jest/reporter` entrypoints expose a Phoenix reporter (scoreboard + results table), acceptance-criteria support with an optimization `direction` ("maximize"/"minimize"), and tracing that records runs back to Phoenix. `jest` and `vitest` are added as optional peer dependencies.
+
+  This API is in beta and may change in a future release.
+
+## 6.10.1
+
+### Patch Changes
+
+- 0347f22: Fix `evaluateExperiment` failing to match experiment runs to dataset examples when the dataset was uploaded with custom example ids. Runs now consistently identify examples by node GlobalID in `datasetExampleId` — previously runs created in-process recorded the custom example id while runs fetched from the server recorded the GlobalID — and the evaluation example lookup is keyed by the GlobalID to match. Run recording also falls back to the example `id` field on servers that predate node ids (where that field carries the GlobalID), instead of posting an empty `dataset_example_id`.
+
 ## 6.10.0
 
 ### Minor Changes

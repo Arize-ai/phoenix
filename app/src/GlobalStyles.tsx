@@ -599,7 +599,7 @@ export const darkThemeCSS = css`
     --global-color-success-700: rgba(var(--global-color-success-rgb), 0.7);
     --global-color-success-500: rgba(var(--global-color-success-rgb), 0.5);
     --global-color-success-100: rgba(var(--global-color-success-rgb), 0.1);
-    --global-color-warning-rgb: var(--global-color-yellow-800-rgb);
+    --global-color-warning-rgb: var(--global-color-orange-1000-rgb);
     --global-color-warning: rgb(var(--global-color-warning-rgb));
     --global-color-warning-900: rgba(var(--global-color-warning-rgb), 0.9);
     --global-color-warning-700: rgba(var(--global-color-warning-rgb), 0.7);
@@ -868,11 +868,11 @@ export const lightThemeCSS = css`
     --global-color-success-700: rgba(0, 143, 93, 0.7);
     --global-color-success-500: rgba(0, 143, 93, 0.5);
     --global-color-success-100: rgba(0, 143, 93, 0.1);
-    // yellow-800: #9b7800
-    --global-color-warning: var(--global-color-yellow-800);
-    --global-color-warning-900: rgba(155, 120, 0, 0.9);
-    --global-color-warning-700: rgba(155, 120, 0, 0.7);
-    --global-color-warning-500: rgba(155, 120, 0, 0.5);
+    // orange-700: #e46f00
+    --global-color-warning: var(--global-color-orange-700);
+    --global-color-warning-900: rgba(228, 111, 0, 0.9);
+    --global-color-warning-700: rgba(228, 111, 0, 0.7);
+    --global-color-warning-500: rgba(228, 111, 0, 0.5);
     // orange-600: #f68511
     --global-color-severe: var(--global-color-orange-600);
     --global-color-severe-900: rgba(246, 133, 17, 0.9);
@@ -928,19 +928,29 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --highlight-foreground: var(--global-text-color-900);
     --highlight-background: var(--global-color-primary-100);
+    /* The actively-edited field: white text on a strong brand blue, used to
+       mark the segment the user is currently editing (e.g. a focused date
+       segment). The blue ramp is inverted between themes (blue-500 is a dark
+       blue in dark mode but a pale tint in light mode), so each theme picks
+       the step that keeps white text legible rather than pinning a single
+       ramp value. */
+    --field-editing-foreground: var(--global-static-color-white-900);
+    --field-editing-background: ${theme === "dark"
+      ? "var(--global-color-blue-500)"
+      : "var(--global-color-blue-900)"};
     --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
     --focus-ring-offset: var(--global-dimension-static-size-25);
 
     --text-color-placeholder: var(--global-color-gray-400);
 
-    --global-overlay-shadow-color: ${
-      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.1)"
-    };
+    --global-overlay-shadow-color: ${theme === "dark"
+      ? "rgba(0, 0, 0, 0.8)"
+      : "rgba(0, 0, 0, 0.1)"};
 
-    --global-overlay-backdrop-color: ${
-      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.4)"
-    };
+    --global-overlay-backdrop-color: ${theme === "dark"
+      ? "rgba(0, 0, 0, 0.8)"
+      : "rgba(0, 0, 0, 0.4)"};
   }
 `;
 
@@ -966,6 +976,7 @@ const menuCSS = (theme: Theme) => css`
       --global-dimension-static-size-300
     );
     --global-menu-item-gap: var(--global-dimension-static-size-50);
+    --global-menu-item-content-gap: var(--global-dimension-static-size-100);
   }
 `;
 
@@ -1008,9 +1019,9 @@ const checkboxCSS = (theme: Theme) => css`
 const disclosureCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-disclosure-background-color-active: ${
-      theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"
-    };
+    --global-disclosure-background-color-active: ${theme === "dark"
+      ? "rgba(255, 255, 255, 0.07)"
+      : "rgba(0, 0, 0, 0.03)"};
   }
 `;
 
@@ -1027,16 +1038,12 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
-    --global-card-header-background-color: ${
-      theme === "light"
-        ? "var(--global-color-gray-100)"
-        : "var(--global-color-gray-75)"
-    };
-    --global-card-header-background-color-hover: ${
-      theme === "light"
-        ? "var(--global-color-gray-200)"
-        : "var(--global-color-gray-100)"
-    };
+    --global-card-header-background-color: ${theme === "light"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-75)"};
+    --global-card-header-background-color-hover: ${theme === "light"
+      ? "var(--global-color-gray-200)"
+      : "var(--global-color-gray-100)"};
   }
 `;
 
@@ -1057,6 +1064,7 @@ const toolCallCSS = (theme: Theme) => css`
     --tool-call-title-color: var(--global-text-color-700);
     --tool-call-secondary-color: var(--global-text-color-400);
     --tool-call-error-color: var(--global-color-danger-700);
+    --tool-call-quiet-color: var(--global-text-color-500);
   }
 `;
 
@@ -1140,7 +1148,7 @@ const resizeHandleCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --global-resize-handle-background-color: var(--global-border-color-default);
-    --global-resize-handle-indicator-color-hover: var(--global-color-primary);
+    --global-resize-handle-indicator-color-hover: var(--global-color-gray-600);
   }
 `;
 
@@ -1271,7 +1279,7 @@ const appGlobalStylesCSS = css`
     font-size: var(--global-font-size-s);
   }
   body {
-    background-color: var(--global-color-gray-75);
+    background-color: var(--global-color-gray-100);
 
     margin: 0;
     overflow: hidden;
@@ -1380,19 +1388,36 @@ const codeMirrorOverridesCSS = css`
   .cm-gutters {
     background-color: var(--code-mirror-gutters-background-color) !important;
   }
+  /* Keep fold arrows subtle so they read as secondary to the code */
+  .cm-foldGutter .cm-gutterElement {
+    color: var(--global-text-color-300);
+    transition: color 200ms ease-in-out;
+    &:hover {
+      color: var(--global-text-color-900);
+    }
+  }
 `;
 
 const chartCSS = css`
   .theme {
-    --chart-cartesian-grid-stroke-color: var(--global-color-gray-300);
+    --chart-cartesian-grid-stroke-color: rgba(
+      var(--global-color-gray-500-rgb),
+      0.24
+    );
     --chart-axis-stroke-color: var(--global-color-gray-300);
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
     --chart-time-range-brush-fill-color: var(--global-color-primary-100);
+    --chart-empty-state-overlay-background-color: rgba(
+      var(--global-color-gray-75-rgb),
+      0.84
+    );
+    --chart-empty-state-text-color: var(--global-text-color-500);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
+    --chart-empty-state-text-color: var(--global-text-color-700);
   }
   .theme--light {
     --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.02);

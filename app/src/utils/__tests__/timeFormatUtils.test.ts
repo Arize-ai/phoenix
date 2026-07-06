@@ -154,19 +154,19 @@ describe("timeFormatUtils", () => {
         name: "complete range",
         start: new Date("2023-09-04T10:00:00Z"),
         end: new Date("2023-09-04T15:00:00Z"),
-        expected: "09/04/2023, 10:00:00 AM - 09/04/2023, 03:00:00 PM",
+        expected: "09/04/2023, 10:00 AM - 09/04/2023, 03:00 PM",
       },
       {
         name: "open-ended range with only start",
         start: new Date("2023-09-04T10:00:00Z"),
         end: null,
-        expected: "From 09/04/2023, 10:00:00 AM",
+        expected: "From 09/04/2023, 10:00 AM",
       },
       {
         name: "open-ended range with only end",
         start: null,
         end: new Date("2023-09-04T15:00:00Z"),
-        expected: "Until 09/04/2023, 03:00:00 PM",
+        expected: "Until 09/04/2023, 03:00 PM",
       },
       {
         name: "unbounded range",

@@ -77,7 +77,9 @@ function ServerCredentials({
   const secretsData =
     useLazyLoadQuery<ProviderServerCredentialsPanelSecretsQuery>(
       graphql`
-        query ProviderServerCredentialsPanelSecretsQuery($secretKeys: [String!]!) {
+        query ProviderServerCredentialsPanelSecretsQuery(
+          $secretKeys: [String!]!
+        ) {
           secrets(keys: $secretKeys) {
             edges {
               node {

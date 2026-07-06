@@ -1,0 +1,131 @@
+---
+title: "The phoenix.otel Helpers"
+sidebarTitle: "phoenix.otel helpers"
+description: "The arize-phoenix-otel SDK collapses raw OpenTelemetry setup into a single register() call, with auto-instrumentation discovery and Phoenix-aware defaults."
+keywords: ['phoenix.otel', 'register', 'auto_instrument', 'PHOENIX_API_KEY', 'PHOENIX_COLLECTOR_ENDPOINT', 'PHOENIX_PROJECT_NAME']
+---
+
+The previous four pages — [Resource](/docs/phoenix/tracing/concepts-tracing/otel-openinference/resource), [Exporter](/docs/phoenix/tracing/concepts-tracing/otel-openinference/exporter), [Span Processor](/docs/phoenix/tracing/concepts-tracing/otel-openinference/span-processor), and [Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider) — walked through the OpenTelemetry tracing components one by one. Wiring them up by hand in every application is verbose. The `phoenix.otel` SDK collapses all of it into a single function call — and adds a few Phoenix-specific capabilities on top.
+
+For the practical how-to of installing and using these helpers, see [Set up tracing](/docs/phoenix/tracing/how-to-tracing). This page covers what they do under the hood.
+
+# Appreciate the Simplicity
+
+Configuring tracing with raw OpenTelemetry — Resource, Exporter, Span Processor, Tracer Provider — looks like this:
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+def init_phoenix_tracing():
+    resource = Resource.create({
+        "openinference.project.name": "my-project",
+    })
+    otlp_exporter = OTLPSpanExporter(
+        endpoint="http://localhost:6006/v1/traces",
+    )
+    span_processor = BatchSpanProcessor(otlp_exporter)
+
+    tracer_provider = TracerProvider(resource=resource)
+    tracer_provider.add_span_processor(span_processor)
+    trace.set_tracer_provider(tracer_provider)
+
+    return tracer_provider.get_tracer("my-project")
+```
+
+The Phoenix `register()` helper replaces all of that:
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(project_name="my-project")
+```
+
+Same outcome — Resource, Exporter, Span Processor, Tracer Provider all wired up — in much less code.
+
+# What `register()` Does Under the Hood
+
+The convenience function handles four things for you. Each one has additional capabilities specific to OpenInference and Phoenix compared to the standard OTel SDK:
+
+| Component returned by `register()` | What it adds beyond standard OTel |
+| :--- | :--- |
+| **Tracer Provider** | A Phoenix-aware provider with sensible defaults. Combined with the OpenInference instrumentation libraries, it makes the [OpenInference context managers](/docs/phoenix/tracing/concepts-tracing/otel-openinference/context-managers) (`using_session`, `using_user`, `using_metadata`, etc.) attach attributes to spans automatically. |
+| **Span Processor** | Configured and pre-attached. `SimpleSpanProcessor` by default, `BatchSpanProcessor` when you pass `batch=True`. |
+| **Span Exporter** | Auto-detects gRPC or HTTP from the endpoint URL and configures the matching OTLP exporter. If `api_key` is set, it adds the `Authorization: Bearer <key>` header for you. |
+| **Resource** | Sets the project name automatically from your `project_name` argument (or the `PHOENIX_PROJECT_NAME` environment variable). |
+
+# Auto-instrumentation
+
+`register()` has an `auto_instrument=True` option that automatically calls `.instrument()` on every OpenInference auto-instrumentor installed in your environment.
+
+```python
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="my-project",
+    auto_instrument=True,
+)
+```
+
+That single call replaces manually doing `OpenAIInstrumentor().instrument(...)`, `LangChainInstrumentor().instrument(...)`, and so on for every installed instrumentor. Just `pip install` the instrumentors you want active, and `auto_instrument=True` finds them at runtime.
+
+For the full set of installable instrumentors, see the [OpenInference repository](https://github.com/Arize-ai/openinference).
+
+# Configuration
+
+`register()` reads from environment variables when arguments aren't passed:
+
+| Argument | Environment variable | Notes |
+| :--- | :--- | :--- |
+| `project_name` | `PHOENIX_PROJECT_NAME` | Name of the project in Phoenix. Defaults to `"default"`. |
+| `endpoint` | `PHOENIX_COLLECTOR_ENDPOINT` | The collector endpoint. Defaults to `http://localhost:6006`. |
+| `api_key` | `PHOENIX_API_KEY` | Optional for local Phoenix. Required for Phoenix Cloud or any authenticated instance — added as a Bearer token header. |
+| `headers` | `PHOENIX_CLIENT_HEADERS` | Additional headers for the OTLP request (e.g. tenant identifiers). |
+
+The full signature:
+
+```python
+register(
+    *,
+    endpoint: Optional[str] = None,
+    project_name: Optional[str] = None,
+    batch: bool = False,
+    set_global_tracer_provider: bool = True,
+    headers: Optional[Dict[str, str]] = None,
+    protocol: Optional[Literal["http/protobuf", "grpc"]] = None,
+    verbose: bool = True,
+    auto_instrument: bool = False,
+    api_key: Optional[str] = None,
+)
+```
+
+All arguments are keyword-only.
+
+# Multi-project routing
+
+Phoenix is typically deployed as one instance per environment, and each application sends all of its traces to a single project. If you need to route traces from one application to multiple projects, the options are:
+
+1. **Multiple `register()` calls** with different `project_name` values and `set_global_tracer_provider=False` on all but one. You then have to track which tracer provider to use where in your code.
+1. **OpenTelemetry Collector with a routing connector** — let the application send all spans to the Collector, then route to different Phoenix projects (or different backends entirely) based on span attributes. See [OpenTelemetry Collector](/docs/phoenix/tracing/concepts-tracing/otel-openinference/otel-collector).
+
+For the common case — single app, single project — one `register()` call is everything you need.
+
+# When to Use Which
+
+| Use case | Recommended approach |
+| :--- | :--- |
+| Single project, simple app | `register(...)` |
+| Single project + auto-instrument every installed library | `register(project_name=..., auto_instrument=True)` |
+| Multiple projects from one app | Multiple `register()` calls, or an OTel Collector routing connector |
+| Maximum control, custom processor pipeline | Raw OTel — see [Tracer Provider](/docs/phoenix/tracing/concepts-tracing/otel-openinference/tracer-provider) |
+
+---
+
+## Next step
+
+You've covered every component on the OTel side. Time to learn what OpenInference adds on top — starting with the semantic conventions that make AI traces meaningful:
+
+<Card title="Next: OpenInference Semantic Conventions" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/semantic-conventions" />

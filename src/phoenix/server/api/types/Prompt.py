@@ -111,48 +111,45 @@ class Prompt(Node):
         version_id: Optional[GlobalID] = None,
         tag_name: Optional[Identifier] = None,
     ) -> PromptVersion:
-        async with info.context.db.read() as session:
-            if version_id:
-                v_id = from_global_id_with_expected_type(version_id, PromptVersion.__name__)
+        if version_id:
+            v_id = from_global_id_with_expected_type(version_id, PromptVersion.__name__)
+            async with info.context.db.read() as session:
                 version = await session.scalar(
                     select(models.PromptVersion).where(
                         models.PromptVersion.id == v_id,
                         models.PromptVersion.prompt_id == self.id,
                     )
                 )
-                if not version:
-                    raise NotFound(f"Prompt version not found: {version_id}")
-            elif tag_name:
+            if not version:
+                raise NotFound(f"Prompt version not found: {version_id}")
+            return to_gql_prompt_version(version)
+        if tag_name:
+            async with info.context.db.read() as session:
                 version = await session.scalar(
                     select(models.PromptVersion)
                     .where(models.PromptVersion.prompt_id == self.id)
                     .join_from(models.PromptVersion, models.PromptVersionTag)
                     .where(models.PromptVersionTag.name == tag_name)
                 )
-                if not version:
-                    raise NotFound(f"This prompt has no associated versions by tag {tag_name}")
-            else:
-                stmt = (
-                    select(models.PromptVersion)
-                    .where(models.PromptVersion.prompt_id == self.id)
-                    .order_by(models.PromptVersion.id.desc())
-                    .limit(1)
-                )
-                version = await session.scalar(stmt)
-                if not version:
-                    raise NotFound("This prompt has no associated versions")
+            if not version:
+                raise NotFound(f"This prompt has no associated versions by tag {tag_name}")
             return to_gql_prompt_version(version)
+        latest_version_id = await info.context.data_loaders.latest_prompt_version_ids.load(self.id)
+        if latest_version_id is None:
+            raise NotFound("This prompt has no associated versions")
+        version = await info.context.data_loaders.prompt_versions.load(latest_version_id)
+        if not version:
+            raise NotFound("This prompt has no associated versions")
+        return to_gql_prompt_version(version)
+
+    @strawberry.field
+    async def version_count(self, info: Info[Context, None]) -> int:
+        return await info.context.data_loaders.prompt_version_counts.load(self.id)
 
     @strawberry.field
     async def version_tags(self, info: Info[Context, None]) -> list[PromptVersionTag]:
-        async with info.context.db.read() as session:
-            stmt = select(models.PromptVersionTag).where(
-                models.PromptVersionTag.prompt_id == self.id
-            )
-            return [
-                PromptVersionTag(id=tag.id, db_record=tag)
-                async for tag in await session.stream_scalars(stmt)
-            ]
+        tags = await info.context.data_loaders.prompt_version_tags_by_prompt.load(self.id)
+        return [PromptVersionTag(id=tag.id, db_record=tag) for tag in tags]
 
     @strawberry.field
     async def prompt_versions(
@@ -200,10 +197,5 @@ class Prompt(Node):
 
     @strawberry.field
     async def labels(self, info: Info[Context, None]) -> list["PromptLabel"]:
-        async with info.context.db.read() as session:
-            labels = await session.scalars(
-                select(models.PromptLabel)
-                .join(models.PromptPromptLabel)
-                .where(models.PromptPromptLabel.prompt_id == self.id)
-            )
-            return [PromptLabel(id=label.id, db_record=label) for label in labels]
+        labels = await info.context.data_loaders.prompt_labels_by_prompt.load(self.id)
+        return [PromptLabel(id=label.id, db_record=label) for label in labels]

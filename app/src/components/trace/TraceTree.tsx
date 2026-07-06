@@ -2,7 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import { DisclosureArrow, Flex } from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -322,11 +322,9 @@ function SpanTreeEdgeConnector({
       css={css`
         position: absolute;
         border-left: 1px solid
-          ${
-            isError
-              ? "var(--global-color-danger)"
-              : "var(--global-color-gray-300)"
-          };
+          ${isError
+            ? "var(--global-color-danger)"
+            : "var(--global-color-gray-300)"};
         z-index: ${isError ? 1 : 0};
         top: 0;
         left: ${nestingLevel * NESTING_INDENT + 29}px;
@@ -399,15 +397,11 @@ const collapseButtonCSS = css`
   cursor: pointer;
   color: var(--global-text-color-900);
   border-radius: 4px;
-  transition: transform 0.2s;
   transition: background-color 0.5s;
   flex: none;
   background-color: rgba(0, 0, 0, 0.05);
   &:hover {
     background-color: rgba(0, 0, 0, 0.15);
-  }
-  &.is-collapsed {
-    transform: rotate(-90deg);
   }
 `;
 
@@ -425,12 +419,10 @@ function CollapseToggleButton({
         e.preventDefault();
         onClick();
       }}
-      className={classNames("button--reset collapse-toggle-button", {
-        "is-collapsed": isCollapsed,
-      })}
+      className="button--reset collapse-toggle-button"
       css={collapseButtonCSS}
     >
-      <Icon svg={<Icons.ArrowIosDownwardOutline />} />
+      <DisclosureArrow isExpanded={!isCollapsed} />
     </button>
   );
 }

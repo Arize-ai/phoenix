@@ -86,7 +86,7 @@ test.describe("Feature Name", () => {
    **constant regardless of state** — state is exposed via a sibling `data-*`
    attribute (`data-mode`, `data-state`, …), so never key a `getByTestId` off a value
    that only exists in one mode. If you need a `data-testid` that doesn't exist yet,
-   add it following `rules/test-ids.md` in the `phoenix-frontend` skill (pattern:
+   add it following `references/test-ids.md` in the `phoenix-frontend` skill (pattern:
    `<scope>-<subject>-<role>`).
 
 5. **CSS locators** (last resort):

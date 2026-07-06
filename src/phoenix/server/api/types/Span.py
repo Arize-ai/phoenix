@@ -322,7 +322,10 @@ class Span(Node):
         )
         return cast(int, value)
 
-    @strawberry.field
+    @strawberry.field(
+        description="Total LLM token count for this span only (prompt plus completion). "
+        "Typically populated on LLM spans."
+    )  # type: ignore
     async def token_count_total(
         self,
         info: Info[Context, None],
@@ -334,7 +337,9 @@ class Span(Node):
         )
         return cast(Optional[int], value)
 
-    @strawberry.field
+    @strawberry.field(
+        description="Prompt token count for this span only. Typically populated on LLM spans."
+    )  # type: ignore
     async def token_count_prompt(
         self,
         info: Info[Context, None],
@@ -346,7 +351,9 @@ class Span(Node):
         )
         return cast(Optional[int], value)
 
-    @strawberry.field
+    @strawberry.field(
+        description="Completion token count for this span only. Typically populated on LLM spans."
+    )  # type: ignore
     async def token_count_completion(
         self,
         info: Info[Context, None],
@@ -358,7 +365,11 @@ class Span(Node):
         )
         return cast(Optional[int], value)
 
-    @strawberry.field
+    @strawberry.field(
+        description="Breakdown of this span's prompt tokens by kind (e.g., cache reads, "
+        "cache writes, audio). These counts are a decomposition of `tokenCountPrompt`, "
+        "not additive on top of it, and are typically used for cost analysis.",
+    )  # type: ignore
     async def token_prompt_details(
         self,
         info: Info[Context, None],
@@ -492,7 +503,7 @@ class Span(Node):
         return float(value) if value is not None else None
 
     @strawberry.field(
-        description="Cumulative (prompt) token count from self and all descendant "
+        description="Cumulative prompt token count from self and all descendant "
         "spans (children, grandchildren, etc.)",
     )  # type: ignore
     async def cumulative_token_count_prompt(
@@ -507,7 +518,7 @@ class Span(Node):
         return float(value) if value is not None else None
 
     @strawberry.field(
-        description="Cumulative (completion) token count from self and all descendant "
+        description="Cumulative completion token count from self and all descendant "
         "spans (children, grandchildren, etc.)",
     )  # type: ignore
     async def cumulative_token_count_completion(

@@ -47,6 +47,9 @@ class Experiment(Node):
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.Experiment]] = None
     cached_sequence_number: Private[Optional[int]] = None
+    # Mutation payloads may resolve isBaseline after the request-scoped dataloader
+    # has already cached the old tag state, so carry the post-write value directly.
+    cached_is_baseline: Private[Optional[bool]] = None
 
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
@@ -163,6 +166,15 @@ class Experiment(Node):
                 (self.id, models.Experiment.metadata_),
             )
         return JSON(val)
+
+    @strawberry.field
+    async def is_baseline(
+        self,
+        info: Info[Context, None],
+    ) -> bool:
+        if self.cached_is_baseline is not None:
+            return self.cached_is_baseline
+        return await info.context.data_loaders.experiment_baseline_tags.load(self.id)
 
     @strawberry.field
     async def created_at(
@@ -421,6 +433,7 @@ class Experiment(Node):
 def to_gql_experiment(
     experiment: models.Experiment,
     sequence_number: Optional[int] = None,
+    is_baseline: Optional[bool] = None,
 ) -> Experiment:
     """
     Converts an ORM experiment to a GraphQL Experiment.
@@ -429,4 +442,5 @@ def to_gql_experiment(
         id=experiment.id,
         db_record=experiment,
         cached_sequence_number=sequence_number,
+        cached_is_baseline=is_baseline,
     )

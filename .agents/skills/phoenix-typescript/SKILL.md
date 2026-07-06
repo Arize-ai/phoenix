@@ -47,6 +47,37 @@ const isDisabled = !hasPermission || isSubmitting;
 - Object parameters should be documented with JSDoc using `@param` dot notation so editors surface descriptions on hover and during autocomplete.
 - Behavior should be built from composition (functions and hooks), not inheritance.
 - Transforms should prefer functional purity over mutation — use `map` not `reduce` for element-wise transforms, return new objects instead of mutating.
+- Pure utilities must not reach for hardcoded module constants or ambient state (`Date.now()`, `new Date()`, config singletons) deep inside their bodies. Expose every such value as an optional parameter whose default is the constant, so callers — and especially tests — can override it and the function's output depends only on its inputs. The module constant becomes the default, prefixed `DEFAULT_`.
+
+```ts
+const DEFAULT_ZOOM_FACTOR = 2;
+const DEFAULT_MIN_WINDOW_MS = 60_000;
+
+// Bad — reads a module constant and the clock internally; output isn't
+// determined by inputs, so tests can't pin the window or the factor.
+function zoomOut(value: TimeRange): TimeRange {
+  const now = new Date();
+  return widen(value, ZOOM_FACTOR, now);
+}
+
+// Good — constants are overridable defaults; pass `now` to make it pure.
+function zoomOut({
+  value,
+  now = new Date(),
+  zoomFactor = DEFAULT_ZOOM_FACTOR,
+  minWindowMs = DEFAULT_MIN_WINDOW_MS,
+}: {
+  value: TimeRange;
+  /** Reference "now". Defaults to the current time. */
+  now?: Date;
+  /** Multiplier applied to the window duration. */
+  zoomFactor?: number;
+  /** Smallest window the zoom will produce. */
+  minWindowMs?: number;
+}): TimeRange {
+  return widen(value, zoomFactor, now, minWindowMs);
+}
+```
 
 ```ts
 /**
@@ -84,6 +115,10 @@ const value = map["missing"]; // typed as string, actually undefined
 const map: Partial<Record<string, string>> = {};
 const value = map["missing"]; // typed as string | undefined
 ```
+
+## Imports
+
+- Import lodash utilities via path imports so bundles only carry what's used: `import debounce from "lodash/debounce"`, not `import { debounce } from "lodash"` — the barrel import defeats tree shaking.
 
 ## Reuse
 

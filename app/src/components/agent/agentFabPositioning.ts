@@ -29,10 +29,13 @@ export const FAB_STREAMING_SIZE: Size = {
 };
 
 // Distance from each edge of the positioning boundary to the corresponding
-// edge of the FAB when pinned. Mirrors the original `floatingButtonCSS`
-// `bottom: 24px; right: 36px` values so the corner placement matches the
-// pre-drag location pixel-for-pixel.
-export const FAB_INSET: Inset = { horizontal: 36, vertical: 24 };
+// edge of the FAB when pinned. The floating panel uses this same inset for its
+// bounds so the FAB and panel share a symmetrical gutter.
+const FAB_BOUNDARY_INSET_PX = 24;
+export const FAB_INSET: Inset = {
+  horizontal: FAB_BOUNDARY_INSET_PX,
+  vertical: FAB_BOUNDARY_INSET_PX,
+};
 
 const FAB_PLACEMENTS: AgentFabPlacement[] = [
   "top-start",

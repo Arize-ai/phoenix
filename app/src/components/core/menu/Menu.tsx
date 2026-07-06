@@ -16,7 +16,6 @@ import { Heading, Text } from "../content";
 import { Icon, Icons } from "../icon";
 import { Flex } from "../layout";
 import { Popover } from "../overlay";
-import { View } from "../view";
 
 const menuCSS = css`
   --menu-min-width: 250px;
@@ -28,10 +27,11 @@ const menuCSS = css`
   overflow-y: auto;
   overflow-x: hidden;
   padding: var(--global-menu-item-gap);
+  /* The menu container itself takes focus when opened before focus moves to an
+     item. Suppress the container-level focus ring — keyboard focus is already
+     indicated on the focused item — so the whole menu doesn't get outlined. */
   &:focus-visible {
-    border-radius: var(--global-rounding-small);
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: 0px;
+    outline: none;
   }
   &[data-empty] {
     align-items: center;
@@ -102,6 +102,7 @@ const menuItemCss = css`
   outline: none;
   cursor: default;
   color: var(--global-text-color-900);
+  text-decoration: none;
   position: relative;
   display: flex;
 
@@ -175,7 +176,7 @@ export const MenuItem = <T extends object>({
             {isSelected && <Icon svg={<Icons.Checkmark />} />}
             {selectionMode !== "none" && !isSelected && (
               <Icon
-                svg={<Icons.CheckmarkOutline />}
+                svg={<Icons.Checkmark />}
                 css={css`
                   visibility: hidden;
                 `}
@@ -191,7 +192,7 @@ export const MenuItem = <T extends object>({
             </MenuItemContent>
             {/* TODO: this doesn't have a good way to reserve space for the chevron
             in menus where only some items are nestable */}
-            {hasSubmenu && <Icon svg={<Icons.ChevronRight />} />}
+            {hasSubmenu && <Icon svg={<Icons.ChevronRightSmall />} />}
           </>
         );
       }}
@@ -221,7 +222,7 @@ const MenuItemContent = ({
       `}
     >
       {leadingContent ? (
-        <Flex alignItems="center" gap="var(--global-menu-item-gap)">
+        <Flex alignItems="center" gap="var(--global-menu-item-content-gap)">
           {leadingContent} {children}
         </Flex>
       ) : (
@@ -343,13 +344,17 @@ export const MenuHeader = ({ children }: PropsWithChildren) => {
         /* Add vertical padding to quiet SearchFields in header */
         .search-field[data-variant="quiet"] .react-aria-Input,
         .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
+          .react-aria-Input[data-hovered]:not([data-disabled]):not(
+            [data-invalid]
+          ) {
           border-bottom-color: var(--global-menu-border-color);
         }
         * + .search-field[data-variant="quiet"] .react-aria-Input,
         *
           + .search-field[data-variant="quiet"]
-          .react-aria-Input[data-hovered]:not([data-disabled]):not([data-invalid]) {
+          .react-aria-Input[data-hovered]:not([data-disabled]):not(
+            [data-invalid]
+          ) {
           border-top-color: var(--global-menu-border-color);
         }
       `}
@@ -446,24 +451,6 @@ export const MenuFooter = ({ children }: PropsWithChildren) => {
     >
       {children}
     </div>
-  );
-};
-
-/**
- * A component to render a consistent empty state message inside a Menu.
- * Use this with the `renderEmptyState` prop on Menu or ListBox components.
- * @example
- * <Menu renderEmptyState={() => <MenuEmpty>No items found</MenuEmpty>}>
- *   ...
- * </Menu>
- */
-export const MenuEmpty = ({ children }: PropsWithChildren) => {
-  return (
-    <View padding="size-200">
-      <Text color="text-700" size="S">
-        {children}
-      </Text>
-    </View>
   );
 };
 

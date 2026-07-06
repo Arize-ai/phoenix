@@ -11,7 +11,8 @@ import {
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
 
-type FeatureFlag = "agents" | "tracing_ux";
+type FeatureFlag = "agent-experimental-settings";
+
 export type FeatureFlagsContextType = {
   featureFlags: Record<FeatureFlag, boolean>;
   setFeatureFlags: (featureFlags: Record<FeatureFlag, boolean>) => void;
@@ -20,9 +21,7 @@ export type FeatureFlagsContextType = {
 export const LOCAL_STORAGE_FEATURE_FLAGS_KEY = "arize-phoenix-feature-flags";
 
 const DEFAULT_FEATURE_FLAGS: Record<FeatureFlag, boolean> = {
-  // TODO: when this flag is removed, update agentStore.ts by resetting / removing the persistence migration
-  agents: false,
-  tracing_ux: false,
+  "agent-experimental-settings": false,
 };
 
 function getFeatureFlags(): Record<FeatureFlag, boolean> {
@@ -44,7 +43,7 @@ function getFeatureFlags(): Record<FeatureFlag, boolean> {
     for (const key of Object.keys(DEFAULT_FEATURE_FLAGS) as FeatureFlag[]) {
       const v = parsedFeatureFlags[key];
       if (typeof v === "boolean") {
-        next[key] = v;
+        (next as Record<string, boolean>)[key] = v;
       }
     }
     if (hasUnknownFeatureFlags) {

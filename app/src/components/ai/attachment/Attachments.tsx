@@ -14,9 +14,12 @@ import type { AttachmentsProps } from "./types";
  * - `"inline"` — compact bordered chips, ideal for context pills.
  * - `"list"` — full-width rows, ideal for file lists.
  *
+ * Pass `collapsible` (inline only) to render the items as an overlapping stack
+ * that fans out on hover/focus — see {@link AttachmentsProps.collapsible}.
+ *
  * @example
  * ```tsx
- * <Attachments variant="inline">
+ * <Attachments variant="inline" collapsible>
  *   <Attachment data={contextData}>
  *     <AttachmentPreview />
  *     <AttachmentInfo />
@@ -28,12 +31,19 @@ export function Attachments({
   children,
   ref,
   variant = "grid",
+  collapsible = false,
   ...restProps
 }: AttachmentsProps) {
   const value = useMemo(() => ({ variant }), [variant]);
   return (
     <AttachmentsContext.Provider value={value}>
-      <div ref={ref} css={attachmentsCSS} data-variant={variant} {...restProps}>
+      <div
+        ref={ref}
+        css={attachmentsCSS}
+        data-variant={variant}
+        data-collapsible={collapsible || undefined}
+        {...restProps}
+      >
         {children}
       </div>
     </AttachmentsContext.Provider>

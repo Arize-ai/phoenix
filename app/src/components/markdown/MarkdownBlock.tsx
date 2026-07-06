@@ -25,9 +25,9 @@ const plugins: PluginConfig = {
 // ---------------------------------------------------------------------------
 
 const streamdownIcons: Partial<IconMap> = {
-  CopyIcon: () => <Icons.DuplicateOutline />,
-  CheckIcon: () => <Icons.CheckmarkOutline />,
-  DownloadIcon: () => <Icons.DownloadOutline />,
+  CopyIcon: () => <Icons.Duplicate />,
+  CheckIcon: () => <Icons.Checkmark />,
+  DownloadIcon: () => <Icons.Download />,
 };
 
 export function MarkdownBlock({

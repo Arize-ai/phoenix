@@ -1,0 +1,96 @@
+---
+title: "OpenTelemetry and OpenInference"
+sidebarTitle: "Overview"
+description: "How Phoenix tracing is built on OpenTelemetry and OpenInference — the two open standards that make AI observability vendor-agnostic and portable."
+keywords: ['OpenTelemetry', 'OpenInference', 'observability', 'AI tracing', 'concepts', 'reference']
+---
+
+Reliability is trust at scale. Users expect AI systems to work — every time. Downtime, latency, and quietly degraded behavior erode trust faster than any single outage. Modern AI applications are some of the hardest systems to keep reliable: a single request can call a model, hit a vector store, invoke a tool, and chain back through more LLM calls before producing an answer. When something goes wrong, the failure is distributed and often silent.
+
+The goal isn't zero failures. It's **fast detection, clear visibility, and quick recovery** — and that requires observability.
+
+This video contains a walkthrough of every topic in this section:
+
+<iframe
+  className="w-full aspect-video rounded-xl"
+  src="https://www.youtube.com/embed/fHGSxOhWO-g"
+  title="OpenTelemetry 101 for AI Tracing"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+></iframe>
+
+# The Silent Failures Problem
+
+AI systems are inherently black boxes. When an answer is wrong, the cause is rarely obvious:
+
+- Was it a bad retrieval?
+- The wrong tool call?
+- A model that picked the wrong path through an agent loop?
+- A subtle regression after a prompt change?
+
+You can't fix what you can't see. Observability turns those black boxes into something you can read — every LLM call, every tool invocation, every retrieval, captured as structured data you can query, evaluate, and debug.
+
+Phoenix is built on two open standards that make AI observability work: **OpenTelemetry** and **OpenInference**.
+
+# What is OpenTelemetry?
+
+> *"OpenTelemetry is an observability framework and toolkit designed to facilitate the generation, export, and collection of telemetry data."*
+
+[OpenTelemetry](https://opentelemetry.io) (OTel) is the industry-standard, vendor-neutral framework for collecting telemetry from any kind of software system. A few terms it's worth pinning down:
+
+- **Observability** — the ability to understand the internal state of a system by examining its outputs.
+- **Telemetry** — the data emitted by a system. The main signals are traces, metrics, and logs; the OTel spec also covers baggage and is adding events and profiles.
+- **Instrumentation** — the code that generates and exports telemetry.
+- **Auto-instrumentation** — libraries that emit telemetry without any code changes from you.
+
+## What OpenTelemetry Is and Isn't
+
+| OpenTelemetry **is** | OpenTelemetry **is not** |
+| :--- | :--- |
+| A framework | A backend |
+| Open source | A storage layer |
+| Vendor-agnostic | A frontend or UI |
+| Tool-agnostic | A visualization tool |
+| Language-agnostic | |
+| Infrastructure-agnostic | |
+| An industry standard | |
+
+That last column is why OTel pairs with a backend like Phoenix — OTel handles the collection, Phoenix handles the storage, visualization, evaluation, and the rest of the AI engineering loop.
+
+# What is OpenInference?
+
+> *"OpenInference is a set of conventions and plugins that is complementary to OpenTelemetry to enable tracing of AI applications."*
+
+[OpenInference](https://github.com/Arize-ai/openinference) is an open standard for AI/LLM observability, built on top of OpenTelemetry and maintained by Arize. Where OTel gives you the generic span and trace primitives, OpenInference adds the **AI-specific semantic conventions** — span kinds (LLM, Tool, Agent, Retriever, etc.), attribute names (`llm.input_messages`, `llm.token_count.total`), and the auto-instrumentor libraries that wrap popular AI frameworks.
+
+OpenInference has the most extensive collection of auto-instrumentors for AI/LLM applications. Supported languages include **Python, JavaScript, and Java**, with auto-instrumentors covering:
+
+LangChain, LangGraph, LlamaIndex, AutoGen, CrewAI, BeeAI, Vercel AI SDK, OpenAI, AWS Bedrock, Anthropic, Groq, LiteLLM, Portkey, Google ADK, Pydantic AI, Mistral, VertexAI, DSPy, Instructor, Haystack, Guardrails AI, Semantic Kernel, Microsoft Agent Framework, Smolagents, AWS Strands, Together AI, Pipecat, MCP — and more.
+
+For the full list, see [Integrations](/docs/phoenix/integrations).
+
+# How OpenTelemetry and OpenInference Fit Together
+
+OTel defines *how* telemetry is shaped, transported, and exported. OpenInference defines *what* AI-specific data to put inside it. Together they give you:
+
+1. **30+ native integrations** across LLM providers and agent frameworks.
+1. **Portability** — your instrumentation isn't locked to Phoenix. It works with any OTel-compatible backend.
+1. **A standardized format** for AI trace data, so tools and backends understand it without custom mapping.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/concepts-how-to-tracing.avif" alt="How tracing works: instrumentation produces spans following OpenInference conventions, exports them over OTLP, and Phoenix ingests and visualizes them" />
+</Frame>
+
+# What's in This Section
+
+The rest of the pages in this section are a conceptual reference. They explain the **what** and **why** of each piece of the OTel + OpenInference stack. For step-by-step setup, see [Set up tracing](/docs/phoenix/tracing/how-to-tracing).
+
+All code examples are in Python. The same concepts apply in any OpenTelemetry-supported language — see the [OpenTelemetry documentation](https://opentelemetry.io/docs/languages/) for examples in JavaScript, Go, Java, and others.
+
+---
+
+## Next step
+
+Start with the fundamental data shapes — signals, spans, traces, and sessions:
+
+<Card title="Next: Signals, Spans, Traces, and Sessions" icon="arrow-right" href="/docs/phoenix/tracing/concepts-tracing/otel-openinference/signals" />

@@ -45,8 +45,15 @@ export type AttachmentSourceData = SourceDocumentUIPart & { id: string };
 export type AttachmentContextData = {
   type: "context";
   id: string;
-  /** Visible label, e.g. `"Project"` or `"Trace: 1a2b3c4d…"`. */
+  /** Visible label, typically the context type, e.g. `"Project"` or `"Trace"`. */
   label: string;
+  /**
+   * Optional secondary detail (e.g. a trace id or filter condition). Rendered
+   * beside the label, dimmed, and — in a collapsible group — revealed only when
+   * the stack is expanded (hovered / focused) so the chip reads as just its
+   * type + icon at rest.
+   */
+  detail?: string;
   /**
    * Optional category — drives the default icon. Free string so callers can
    * extend with their own categories without changing this union.
@@ -89,6 +96,15 @@ export interface AttachmentsProps
    * @default "grid"
    */
   variant?: AttachmentVariant;
+  /**
+   * When true (and `variant="inline"`), collapse the items into an overlapping
+   * stack — the last item stays fully visible on top, earlier items tuck behind
+   * it as icon-only chips, and every item's `detail` is hidden. Hovering or
+   * focusing the group fans the stack out into a wrapping row and reveals each
+   * detail. Ignored for non-inline variants.
+   * @default false
+   */
+  collapsible?: boolean;
   children: ReactNode;
 }
 

@@ -28,7 +28,7 @@ export function DeleteAPIKeyButton({
       <Button
         variant="danger"
         size="S"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         aria-label="Delete System Key"
       />
       <ModalOverlay isDismissable>

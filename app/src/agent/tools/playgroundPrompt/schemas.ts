@@ -2,6 +2,7 @@ import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import {
   chatMessageRolesSchema,
   chatMessageSchema,
@@ -29,6 +30,25 @@ export const clonePromptInstanceInputSchema = z
   .transform(({ instanceId }) => {
     return typeof instanceId === "number" ? { instanceId } : {};
   });
+
+export const addPromptInstanceInputSchema = emptyToolInputSchema;
+
+export const removePromptInstanceInputSchema = z
+  .preprocess(
+    (input) => normalizeAliases(input, { instanceId: ["instance_id"] }),
+    z.object({
+      instanceId: z.number().int(),
+    })
+  )
+  .transform((input) => input);
+
+export const removePromptInstanceOutputSchema = z.object({
+  status: z.enum(["removed", "rejected"]),
+  instanceId: z.number().int().optional(),
+  label: z.string().optional(),
+  acceptedBy: z.string().optional(),
+  message: z.string(),
+});
 
 const updatePromptMessageOperationSchema = z
   .object({

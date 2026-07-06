@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b3cecfe51b85eafa8af3b254238af2d7>>
+ * @generated SignedSource<<181ee79c92bd4c208e168c5781dc55d3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,6 +31,7 @@ export type LLMSpanCountTimeSeriesQuery$data = {
         readonly errorCount: number | null;
         readonly okCount: number | null;
         readonly timestamp: string;
+        readonly totalCount: number | null;
         readonly unsetCount: number | null;
       }>;
     };
@@ -131,6 +132,13 @@ v5 = {
               "kind": "ScalarField",
               "name": "unsetCount",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -210,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d53f83979a3c6e1c08999f5b6ac8a3f7",
+    "cacheID": "6a6e7489667ea6980a05555ca5062468",
     "id": null,
     "metadata": {},
     "name": "LLMSpanCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query LLMSpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query LLMSpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "514bda0696087b04a30995ca559b80c1";
+(node as any).hash = "fc7a69871588b337becde160b829aa8e";
 
 export default node;

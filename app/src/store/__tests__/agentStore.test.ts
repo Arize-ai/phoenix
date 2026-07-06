@@ -1,10 +1,46 @@
-import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+import {
+  createDefaultAgentCapabilities,
+  type AgentCapabilities,
+} from "@phoenix/agent/extensions/capabilities";
 
-import { createAgentStore } from "../agentStore";
+import {
+  createAgentStore,
+  hasAcknowledgedCurrentTraceConsent,
+  resolveAssistantStorageKey,
+} from "../agentStore";
+
+installTestStorage();
 
 describe("agentStore", () => {
   beforeEach(() => {
-    localStorage.removeItem("arize-phoenix-agent");
+    localStorage.removeItem("arize-phoenix-assistant");
+  });
+
+  describe("resolveAssistantStorageKey", () => {
+    const originalBasename = window.Config.basename;
+    afterEach(() => {
+      window.Config.basename = originalBasename;
+    });
+
+    it("uses the base unscoped key when there is no root path", () => {
+      window.Config.basename = "/";
+      expect(resolveAssistantStorageKey()).toBe("arize-phoenix-assistant");
+      window.Config.basename = "";
+      expect(resolveAssistantStorageKey()).toBe("arize-phoenix-assistant");
+    });
+
+    it("scopes the key to the deployment root path", () => {
+      window.Config.basename = "/s/phoenix-devs";
+      expect(resolveAssistantStorageKey()).toBe(
+        "arize-phoenix-assistant:/s/phoenix-devs"
+      );
+      // Trailing slashes are normalized so the key is stable.
+      window.Config.basename = "/s/phoenix-devs/";
+      expect(resolveAssistantStorageKey()).toBe(
+        "arize-phoenix-assistant:/s/phoenix-devs"
+      );
+    });
   });
 
   describe("createSession", () => {
@@ -40,6 +76,59 @@ describe("agentStore", () => {
       // active is sessionId2
       store.getState().deleteSession(sessionId2);
       expect(store.getState().activeSessionId).toBe(sessionId1);
+    });
+  });
+
+  describe("pendingPatchExperiment cleanup", () => {
+    function setPendingPatch(
+      store: ReturnType<typeof createAgentStore>,
+      toolCallId: string,
+      sessionId: string
+    ) {
+      store.getState().setPendingPatchExperiment(toolCallId, {
+        toolCallId,
+        sessionId,
+        experimentId: "exp-1",
+        experimentName: "baseline",
+        expectedUpdatedAt: "2026-06-10T00:00:00Z",
+        payload: { name: "renamed" },
+        diff: [{ field: "name", previous: "baseline", next: "renamed" }],
+      });
+    }
+
+    it("drops a session's pending patch when that session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      setPendingPatch(store, "tool-call-1", sessionId);
+
+      store.getState().deleteSession(sessionId);
+
+      expect(
+        store.getState().pendingPatchExperimentsByToolCallId["tool-call-1"]
+      ).toBeUndefined();
+    });
+
+    it("clears all pending patches when all sessions are cleared", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      setPendingPatch(store, "tool-call-1", sessionId);
+
+      store.getState().clearAllSessions();
+
+      expect(store.getState().pendingPatchExperimentsByToolCallId).toEqual({});
+    });
+
+    it("prunes pending patches owned by sessions dropped on retention", () => {
+      const store = createAgentStore();
+      const firstSessionId = store.getState().createSession();
+      setPendingPatch(store, "tool-call-1", firstSessionId);
+
+      // Creating a new session without recent-session storage drops the first.
+      store.getState().createSession();
+
+      expect(
+        store.getState().pendingPatchExperimentsByToolCallId["tool-call-1"]
+      ).toBeUndefined();
     });
   });
 
@@ -144,6 +233,254 @@ describe("agentStore", () => {
     });
   });
 
+  describe("forkSession", () => {
+    it("creates a new active session retaining the source session", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const sourceId = store.getState().createSession();
+      const messages = [{ id: "user-1", role: "user" as const, parts: [] }];
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages,
+      });
+
+      expect(forkId).not.toBeNull();
+      const state = store.getState();
+      expect(state.activeSessionId).toBe(forkId);
+      // Source session is preserved alongside the fork.
+      expect(state.sessionMap[sourceId]).toBeDefined();
+      expect(state.sessionMap[forkId!].messages).toEqual(messages);
+    });
+
+    it("copies the source session's model config and context", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+      store
+        .getState()
+        .updateSessionModelConfig(sourceId, { modelName: "gpt-4o" });
+      store.getState().addSessionContext(sourceId, "span:123");
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+
+      const forked = store.getState().sessionMap[forkId!];
+      expect(forked.modelConfig.modelName).toBe("gpt-4o");
+      expect(forked.context).toEqual(["span:123"]);
+    });
+
+    it("stages restored input as the forked session draft", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+        restoredInput: "edit me",
+      });
+
+      expect(store.getState().draftInputBySessionId[forkId!]).toBe("edit me");
+    });
+
+    it("prefixes the source summary with (fork)", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+      store.getState().updateSessionSummary(sourceId, "Debugging traces");
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+
+      expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
+        "(fork) Debugging traces"
+      );
+    });
+
+    it("derives the fork summary from the first user message when unsummarized", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [
+          {
+            id: "user-1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "How do I trace OpenAI?" }],
+          },
+        ],
+      });
+
+      // The source session still has the messages too (fork copies them), but
+      // here we assert the fork derives its own label from its messages.
+      store.getState().setSessionMessages(sourceId, [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "How do I trace OpenAI?" }],
+        },
+      ]);
+      const refork = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+      expect(store.getState().sessionMap[refork!].shortSummary).toBe(
+        "(fork) How do I trace OpenAI?"
+      );
+      expect(forkId).not.toBeNull();
+    });
+
+    it("does not stack the (fork) prefix when forking a fork", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+      store.getState().updateSessionSummary(sourceId, "(fork) Original");
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+
+      expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
+        "(fork) Original"
+      );
+    });
+
+    it("returns null and no-ops for an unknown source session", () => {
+      const store = createAgentStore();
+      const before = store.getState().sessions;
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: "missing",
+        messages: [],
+      });
+
+      expect(forkId).toBeNull();
+      expect(store.getState().sessions).toBe(before);
+    });
+  });
+
+  describe("draft input", () => {
+    it("sets and clears draft input", () => {
+      const store = createAgentStore();
+      store.getState().setDraftInput("session-1", "hello");
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe("hello");
+
+      store.getState().setDraftInput("session-1", "");
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe(
+        undefined
+      );
+    });
+
+    it("clears draft input when set to null", () => {
+      const store = createAgentStore();
+      store.getState().setDraftInput("session-1", "hello");
+      store.getState().setDraftInput("session-1", null);
+      expect(store.getState().draftInputBySessionId["session-1"]).toBe(
+        undefined
+      );
+    });
+
+    it("drops a session draft when that session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setDraftInput(sessionId, "hello");
+
+      store.getState().deleteSession(sessionId);
+
+      expect(store.getState().draftInputBySessionId[sessionId]).toBeUndefined();
+    });
+
+    it("clears all drafts when all sessions are cleared", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setDraftInput(sessionId, "hello");
+
+      store.getState().clearAllSessions();
+
+      expect(store.getState().draftInputBySessionId).toEqual({});
+    });
+
+    it("prunes drafts owned by sessions dropped on retention", () => {
+      const store = createAgentStore();
+      const firstSessionId = store.getState().createSession();
+      store.getState().setDraftInput(firstSessionId, "old draft");
+
+      const secondSessionId = store.getState().createSession();
+      store.getState().setDraftInput(secondSessionId, "new draft");
+
+      expect(
+        store.getState().draftInputBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
+        "new draft"
+      );
+    });
+
+    it("prunes inactive drafts when recent session storage is disabled", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const firstSessionId = store.getState().createSession();
+      store.getState().setDraftInput(firstSessionId, "old draft");
+      const secondSessionId = store.getState().createSession();
+      store.getState().setDraftInput(secondSessionId, "new draft");
+
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: false,
+      });
+
+      expect(
+        store.getState().draftInputBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(store.getState().draftInputBySessionId[secondSessionId]).toBe(
+        "new draft"
+      );
+    });
+  });
+
+  describe("pending message", () => {
+    it("sets and consumes a pending message once", () => {
+      const store = createAgentStore();
+      const message = {
+        text: "fix this bug",
+        requestedSkills: ["debug-trace"],
+      };
+      store.getState().setPendingMessage("session-1", message);
+      expect(store.getState().consumePendingMessage("session-1")).toEqual(
+        message
+      );
+      expect(store.getState().consumePendingMessage("session-1")).toBeNull();
+    });
+
+    it("clears a pending message when set to null", () => {
+      const store = createAgentStore();
+      store
+        .getState()
+        .setPendingMessage("session-1", { text: "hi", requestedSkills: [] });
+      store.getState().setPendingMessage("session-1", null);
+      expect(store.getState().consumePendingMessage("session-1")).toBeNull();
+    });
+
+    it("drops a pending message when its session is deleted", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store
+        .getState()
+        .setPendingMessage(sessionId, { text: "hi", requestedSkills: [] });
+      store.getState().deleteSession(sessionId);
+      expect(store.getState().consumePendingMessage(sessionId)).toBeNull();
+    });
+  });
+
   describe("toggleOpen", () => {
     it("toggles isOpen", () => {
       const store = createAgentStore();
@@ -192,13 +529,23 @@ describe("agentStore", () => {
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,
         exportRemoteTraces: false,
-        hasAcknowledgedConsent: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
       });
       expect(store.getState().fabPlacement).toBe("bottom-end");
     });
 
-    it("acknowledges consent without changing trace toggles", () => {
-      const store = createAgentStore();
+    it("acknowledges consent for the current server trace settings", () => {
+      const store = createAgentStore({
+        agentsConfig: {
+          collectorEndpoint: "https://collector.example.com",
+          assistantProjectName: "assistant_agent",
+          webAccessEnabled: false,
+          assistantEnabled: true,
+          allowLocalTraces: true,
+          allowRemoteExport: true,
+        },
+      });
 
       store.getState().setObservability({
         storeLocalTraces: false,
@@ -209,7 +556,83 @@ describe("agentStore", () => {
       expect(store.getState().observability).toEqual({
         storeLocalTraces: false,
         exportRemoteTraces: true,
-        hasAcknowledgedConsent: true,
+        attachUserId: false,
+        acknowledgedTraceConsent: {
+          allowLocalTraces: true,
+          allowRemoteExport: true,
+        },
+      });
+    });
+
+    it("requires renewed consent when server trace settings broaden", () => {
+      const store = createAgentStore();
+
+      store.getState().acknowledgeConsent();
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(true);
+
+      store.getState().setAgentsConfig({ allowLocalTraces: true });
+
+      expect(
+        hasAcknowledgedCurrentTraceConsent({
+          agentsConfig: store.getState().agentsConfig,
+          observability: store.getState().observability,
+        })
+      ).toBe(false);
+    });
+  });
+
+  describe("persisted capabilities", () => {
+    it("backfills missing capability keys when rehydrating persisted state", () => {
+      const persistedCapabilities: Partial<AgentCapabilities> = {
+        "graphql.mutations": true,
+        "web.access": true,
+      };
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: { capabilities: persistedCapabilities },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().capabilities).toEqual({
+        ...createDefaultAgentCapabilities(),
+        "graphql.mutations": true,
+        "web.access": true,
+      });
+    });
+  });
+
+  describe("persisted observability", () => {
+    it("backfills missing observability keys when rehydrating persisted state", () => {
+      localStorage.setItem(
+        resolveAssistantStorageKey(),
+        JSON.stringify({
+          state: {
+            observability: {
+              storeLocalTraces: false,
+              exportRemoteTraces: true,
+              acknowledgedTraceConsent: null,
+            },
+          },
+          version: 0,
+        })
+      );
+
+      const store = createAgentStore();
+
+      expect(store.getState().observability).toEqual({
+        storeLocalTraces: false,
+        exportRemoteTraces: true,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
       });
     });
   });
@@ -238,98 +661,6 @@ describe("agentStore", () => {
 
         expect(store.getState().capabilities[capabilityKey]).toBe(enabled);
       }
-    });
-  });
-
-  describe("persist migration", () => {
-    it("migrates legacy debug flags into capabilities", async () => {
-      localStorage.setItem(
-        "arize-phoenix-agent",
-        JSON.stringify({
-          state: {
-            isOpen: false,
-            position: "detached",
-            sessions: [],
-            activeSessionId: null,
-            sessionMap: {},
-            defaultModelConfig: {
-              provider: "ANTHROPIC",
-              modelName: "claude-opus-4-6",
-              invocationParameters: [],
-              supportedInvocationParameters: [],
-            },
-            debug: {
-              retainInactiveBashSessions: true,
-              dangerouslyEnableMutations: true,
-            },
-          },
-          version: 1,
-        })
-      );
-
-      const store = createAgentStore();
-      await store.persist.rehydrate();
-
-      expect(store.getState().capabilities).toEqual({
-        ...createDefaultAgentCapabilities(),
-        "bash.retainInactiveSessions": true,
-        "graphql.mutations": true,
-        "session.storeSessions": false,
-        "web.access": false,
-      });
-      expect(store.getState().observability).toEqual({
-        storeLocalTraces: true,
-        exportRemoteTraces: false,
-        hasAcknowledgedConsent: false,
-      });
-    });
-
-    it("drops legacy pending prompt edits during migration", async () => {
-      localStorage.setItem(
-        "arize-phoenix-agent",
-        JSON.stringify({
-          state: {
-            sessions: [],
-            sessionMap: {},
-            pendingPromptEditsByToolCallId: {
-              "tool-call-1": {
-                toolCallId: "tool-call-1",
-                sessionId: "session-1",
-                instanceId: 0,
-                expectedRevision: "prompt-old",
-                before: { messages: [] },
-                after: { messages: [] },
-                operations: [],
-              },
-            },
-          },
-          version: 5,
-        })
-      );
-
-      const store = createAgentStore();
-      await store.persist.rehydrate();
-
-      expect(store.getState().pendingPromptEditsByToolCallId).toEqual({});
-    });
-
-    it("migrates legacy detached position to pinned", async () => {
-      localStorage.setItem(
-        "arize-phoenix-agent",
-        JSON.stringify({
-          state: {
-            position: "detached",
-            sessions: [],
-            sessionMap: {},
-          },
-          version: 7,
-        })
-      );
-
-      const store = createAgentStore();
-      await store.persist.rehydrate();
-
-      expect(store.getState().position).toBe("pinned");
     });
   });
 });

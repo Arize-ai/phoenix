@@ -280,7 +280,7 @@ async function createCustomCodeEvaluator({
   ).toBeVisible();
 
   await dialog
-    .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
+    .getByRole("textbox", { name: /^Name(\s*\*)?$/, disabled: false })
     .fill(evaluatorName);
 
   if (description) {
@@ -447,6 +447,7 @@ test.describe.serial("Code Evaluators", () => {
     const dialog = page.getByTestId("dialog");
     const nameInput = dialog.getByRole("textbox", {
       name: /^Name(\s*\*)?$/,
+      disabled: false,
     });
     await expect(nameInput).toHaveValue(pythonEvaluatorName);
 
@@ -462,7 +463,7 @@ test.describe.serial("Code Evaluators", () => {
     await expect(
       page
         .getByTestId("dialog")
-        .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
+        .getByRole("textbox", { name: /^Name(\s*\*)?$/, disabled: false })
     ).toHaveValue(updatedPythonEvaluatorName);
     await page
       .getByTestId("dialog")
@@ -619,7 +620,7 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
 
     await dialog
-      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
+      .getByRole("textbox", { name: /^Name(\s*\*)?$/, disabled: false })
       .fill("test-no-sandbox-eval");
 
     // Sandbox is intentionally left empty.

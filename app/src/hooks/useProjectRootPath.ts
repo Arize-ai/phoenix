@@ -1,5 +1,13 @@
 import { useLocation, useParams } from "react-router";
 
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 /**
  * Returns the root path for a project url and the tab segment directly after it
  * @example "/projects/123/spans/456" -> "/projects/123" and "spans"
@@ -12,7 +20,9 @@ export const useProjectRootPath = () => {
   }
   const location = useLocation();
   const pathParts = location.pathname.split("/");
-  const projectIndex = pathParts.indexOf(projectId);
+  const projectIndex = pathParts
+    .map((pathPart) => decodePathSegment(pathPart))
+    .indexOf(projectId);
   if (projectIndex === -1) {
     throw new Error("projectId not found in path");
   }

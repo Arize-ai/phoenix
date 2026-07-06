@@ -1,8 +1,14 @@
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
 import {
+  createAddPromptInstanceClientAction,
   createClonePromptInstanceClientAction,
   createEditPromptClientAction,
   createReadPromptClientAction,
+  createRemovePromptInstanceClientAction,
   EDIT_PROMPT_TOOL_NAME,
+  parseRemovePromptInstanceOutput,
+  REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
   type PromptSnapshot,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
@@ -10,11 +16,25 @@ import {
   _resetInstanceId,
   _resetMessageId,
   createPlaygroundStore,
+  type Tool,
 } from "@phoenix/store/playground";
+
+installTestStorage();
+
+const functionTool = (id: number, name: string): Tool => ({
+  kind: "function",
+  id,
+  editorType: "json",
+  definition: { name },
+});
+
+function getFirstToolOutput(addToolOutput: ReturnType<typeof vi.fn>) {
+  return addToolOutput.mock.calls[0]?.[0].output;
+}
 
 describe("playground prompt agent tools", () => {
   beforeEach(() => {
-    localStorage.removeItem("arize-phoenix-agent");
+    localStorage.removeItem("arize-phoenix-assistant");
     _resetInstanceId();
     _resetMessageId();
   });
@@ -106,6 +126,405 @@ describe("playground prompt agent tools", () => {
       })
     );
     expect(playgroundStore.getState().instances).toHaveLength(4);
+  });
+
+  it("adds a default prompt instance with inherited runnable config", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().updateInstance({
+      instanceId: 0,
+      patch: {
+        model: {
+          ...playgroundStore.getState().instances[0]!.model,
+          modelName: "configured-model",
+        },
+        tools: [functionTool(7, "lookup_account")],
+        toolChoice: {
+          type: "SPECIFIC_FUNCTION",
+          functionName: "lookup_account",
+        },
+      },
+      dirty: false,
+    });
+    const addAction = createAddPromptInstanceClientAction({ playgroundStore });
+
+    const addResult = await addAction({});
+
+    expect(addResult.ok).toBe(true);
+    if (!addResult.ok) return;
+    const addOutput = JSON.parse(addResult.output ?? "") as {
+      status: "added";
+      addedInstance: PromptSnapshot;
+    };
+    expect(addOutput.status).toBe("added");
+    expect(addOutput.addedInstance.label).toBe("B");
+    expect(addOutput.addedInstance.revision).toMatch(/^prompt-/);
+    expect(playgroundStore.getState().instances).toHaveLength(2);
+    const addedInstance = playgroundStore
+      .getState()
+      .instances.find(
+        (instance) => instance.id === addOutput.addedInstance.instanceId
+      );
+    expect(addedInstance?.model.modelName).toBe("configured-model");
+    expect(addedInstance?.tools).toEqual([functionTool(7, "lookup_account")]);
+    expect(addedInstance?.toolChoice).toEqual({
+      type: "SPECIFIC_FUNCTION",
+      functionName: "lookup_account",
+    });
+    expect(addedInstance?.prompt).toBeNull();
+    expect(addOutput.addedInstance.prompt).toBeNull();
+    expect(addOutput.addedInstance.messages).toEqual([
+      expect.objectContaining({ role: "system", content: "You are a chatbot" }),
+      expect.objectContaining({ role: "user", content: "{{question}}" }),
+    ]);
+  });
+
+  it("rejects add_prompt_instance when the playground already has four instances", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const addAction = createAddPromptInstanceClientAction({ playgroundStore });
+    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance();
+
+    const result = await addAction({});
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining("at most 4"),
+      })
+    );
+    expect(playgroundStore.getState().instances).toHaveLength(4);
+  });
+
+  it("rejects add_prompt_instance while playground instances are running", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const addAction = createAddPromptInstanceClientAction({ playgroundStore });
+    playgroundStore.getState().runPlaygroundInstances();
+
+    const result = await addAction({});
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining("while the playground is running"),
+      })
+    );
+    expect(playgroundStore.getState().instances).toHaveLength(1);
+  });
+
+  it("rejects remove_prompt_instance for missing, unknown, and last instances", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+    });
+    const addToolOutput = vi.fn();
+
+    await expect(
+      removeAction({}, { toolCallId: "tc", sessionId: "s", addToolOutput })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Invalid remove_prompt_instance input.",
+      })
+    );
+    await expect(
+      removeAction(
+        { instanceId: 999 },
+        { toolCallId: "tc", sessionId: "s", addToolOutput }
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining("at least one instance"),
+      })
+    );
+    playgroundStore.getState().addInstance();
+    await expect(
+      removeAction(
+        { instanceId: 999 },
+        { toolCallId: "tc", sessionId: "s", addToolOutput }
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining("was not found"),
+      })
+    );
+  });
+
+  it("queues remove_prompt_instance until the user accepts", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().addInstance();
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+    });
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const instanceId = playgroundStore.getState().instances[1]!.id;
+
+    const result = await removeAction(
+      { instanceId },
+      { toolCallId: "tool-call-remove", sessionId: "session-1", addToolOutput }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(addToolOutput).not.toHaveBeenCalled();
+    const pendingRemoval =
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-remove"
+      ];
+    expect(pendingRemoval).toBeDefined();
+
+    await pendingRemoval!.accept!();
+
+    expect(
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-remove"
+      ]
+    ).toBeUndefined();
+    expect(playgroundStore.getState().instances).toHaveLength(1);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-remove",
+        output: expect.objectContaining({
+          status: "removed",
+          instanceId,
+          label: "B",
+          acceptedBy: "user",
+        }),
+      })
+    );
+    expect(
+      parseRemovePromptInstanceOutput(getFirstToolOutput(addToolOutput))
+    ).toEqual(
+      expect.objectContaining({
+        status: "removed",
+        instanceId,
+        label: "B",
+        acceptedBy: "user",
+        message: "Prompt instance removed.",
+      })
+    );
+  });
+
+  it("preserves the instance when remove_prompt_instance is rejected", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().addInstance();
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+    });
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const instanceId = playgroundStore.getState().instances[1]!.id;
+
+    await removeAction(
+      { instanceId },
+      { toolCallId: "tool-call-reject", sessionId: "session-1", addToolOutput }
+    );
+    const pendingRemoval =
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-reject"
+      ];
+    expect(pendingRemoval).toBeDefined();
+
+    await pendingRemoval!.reject!();
+
+    expect(playgroundStore.getState().instances).toHaveLength(2);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-reject",
+        output: expect.objectContaining({
+          status: "rejected",
+          instanceId,
+          label: "B",
+        }),
+      })
+    );
+    expect(
+      parseRemovePromptInstanceOutput(getFirstToolOutput(addToolOutput))
+    ).toEqual(
+      expect.objectContaining({
+        status: "rejected",
+        instanceId,
+        label: "B",
+        message: "User rejected the prompt instance removal.",
+      })
+    );
+  });
+
+  it("auto-removes prompt instances when edit approvals are bypassed", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().addInstance();
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+      shouldAutoAccept: () => true,
+    });
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const instanceId = playgroundStore.getState().instances[1]!.id;
+
+    const result = await removeAction(
+      { instanceId },
+      { toolCallId: "tool-call-auto", sessionId: "session-1", addToolOutput }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(playgroundStore.getState().instances).toHaveLength(1);
+    expect(
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-auto"
+      ]
+    ).toBeUndefined();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-auto",
+        output: expect.objectContaining({
+          status: "removed",
+          acceptedBy: "auto",
+        }),
+      })
+    );
+    expect(
+      parseRemovePromptInstanceOutput(getFirstToolOutput(addToolOutput))
+    ).toEqual(
+      expect.objectContaining({
+        status: "removed",
+        instanceId,
+        label: "B",
+        acceptedBy: "auto",
+        message: "Prompt instance removal auto-approved.",
+      })
+    );
+  });
+
+  it("fails stale remove_prompt_instance approvals when the instance can no longer be removed", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().addInstance();
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+    });
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const instanceId = playgroundStore.getState().instances[1]!.id;
+
+    await removeAction(
+      { instanceId },
+      { toolCallId: "tool-call-stale", sessionId: "session-1", addToolOutput }
+    );
+    const pendingRemoval =
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-stale"
+      ];
+    playgroundStore.getState().deleteInstance(instanceId);
+
+    await pendingRemoval!.accept!();
+
+    expect(playgroundStore.getState().instances).toHaveLength(1);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-stale",
+        errorText: expect.stringContaining("at least one instance"),
+      })
+    );
+  });
+
+  it("cancels a pending remove_prompt_instance approval when the playground becomes unavailable", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().addInstance();
+    const agentStore = createAgentStore();
+    const removeAction = createRemovePromptInstanceClientAction({
+      playgroundStore,
+      setPendingPromptInstanceRemoval:
+        agentStore.getState().setPendingPromptInstanceRemoval,
+    });
+    let resolveToolOutput: (() => void) | undefined;
+    const toolOutputPromise = new Promise<void>((resolve) => {
+      resolveToolOutput = resolve;
+    });
+    const addToolOutput = vi.fn().mockReturnValue(toolOutputPromise);
+    const instanceId = playgroundStore.getState().instances[1]!.id;
+
+    const result = await removeAction(
+      { instanceId },
+      {
+        toolCallId: "tool-call-remove-cancel",
+        sessionId: "session-1",
+        addToolOutput,
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    const pendingRemoval =
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-remove-cancel"
+      ];
+    expect(pendingRemoval).toBeDefined();
+
+    const cancelPromise = pendingRemoval!.cancel!();
+
+    expect(
+      agentStore.getState().pendingPromptInstanceRemovalsByToolCallId[
+        "tool-call-remove-cancel"
+      ]
+    ).toBeUndefined();
+    expect(playgroundStore.getState().instances).toHaveLength(2);
+    resolveToolOutput?.();
+    await cancelPromise;
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+        toolCallId: "tool-call-remove-cancel",
+        errorText: REMOVE_PROMPT_INSTANCE_NAVIGATION_CANCEL_ERROR,
+      })
+    );
   });
 
   it("queues edit_prompt_instance until the user accepts, then applies the edit and completes the tool", async () => {

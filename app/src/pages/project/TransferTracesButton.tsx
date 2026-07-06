@@ -16,7 +16,6 @@ import {
   Input,
   Loading,
   Menu,
-  MenuEmpty,
   MenuHeader,
   MenuHeaderTitle,
   MenuItem,
@@ -25,6 +24,7 @@ import {
   SearchField,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { TransferTracesButtonTransferMutation } from "@phoenix/pages/project/__generated__/TransferTracesButtonTransferMutation.graphql";
 
@@ -78,7 +78,7 @@ export function TransferTracesButton({
   return (
     <DialogTrigger>
       <Button
-        leadingVisual={<Icon svg={<Icons.CornerUpRightOutline />} />}
+        leadingVisual={<Icon svg={<Icons.ArrowUpRightCorner />} />}
         isDisabled={isTransferring}
       >
         {isTransferring ? "Transferring" : "Transfer"}
@@ -194,7 +194,12 @@ function ProjectsList({
             onProjectSelect(projectId);
           }
         }}
-        renderEmptyState={() => <MenuEmpty>No projects found</MenuEmpty>}
+        renderEmptyState={() => (
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Folder />} />}
+            description="No projects"
+          />
+        )}
       >
         {(item) => (
           <MenuItem

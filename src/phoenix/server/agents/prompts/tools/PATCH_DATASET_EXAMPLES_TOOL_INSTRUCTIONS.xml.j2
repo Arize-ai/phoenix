@@ -1,0 +1,13 @@
+<tool name="patch_dataset_examples">
+  <description>Edit existing rows of the dataset the user is viewing. Each patch targets a row by id and updates its input, output, and/or metadata; fields you omit on a patch are left unchanged. This creates a new dataset version.</description>
+  <when_to_use>
+    - The user asks to fix, change, or update the contents of specific existing rows.
+  </when_to_use>
+  <preflight>
+    - Get each row's id from list_dataset_examples. Do not guess ids. Pass only the fields you intend to change on each row.
+  </preflight>
+  <rules>
+    - Propose the edit by calling this tool directly. In manual approval mode the browser renders an inline accept/reject card and applies it only when the user accepts; in bypass mode it is applied immediately. The card is the approval surface — do not ask a separate yes/no question (or call ask_user) to confirm before calling it.
+    - To add new rows use add_dataset_examples; to remove rows use delete_dataset_examples.
+  </rules>
+</tool>

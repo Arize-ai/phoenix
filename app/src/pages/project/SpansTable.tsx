@@ -48,11 +48,22 @@ import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotatio
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { CellWithControlsWrap, LoadMoreRow } from "@phoenix/components/table";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  CellWithControlsWrap,
+  createRowSelectionColumn,
+  LoadMoreRow,
+} from "@phoenix/components/table";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TextCell } from "@phoenix/components/table/TextCell";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { TraceTokenCosts } from "@phoenix/components/trace";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
@@ -61,13 +72,13 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpansTable_spans$key,
@@ -142,7 +153,11 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
             data-selected={isSelected}
             onClick={() =>
               navigate(
-                `${row.original.trace.traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${row.original.id}`
+                getTraceDetailsPath({
+                  traceId: row.original.trace.traceId,
+                  spanNodeId: row.original.id,
+                  searchParams,
+                })
               )
             }
           >
@@ -152,6 +167,7 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                 <td
                   key={cell.id}
                   style={{
+                    ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
@@ -159,6 +175,10 @@ const TableBody = <T extends { trace: { traceId: string }; id: string }>({
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    userSelect:
+                      cell.column.id === CHECKBOX_COLUMN_ID
+                        ? "none"
+                        : undefined,
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -203,6 +223,7 @@ function SpansTableAsideSkeleton() {
 }
 
 export function SpansTable(props: SpansTableProps) {
+  const [searchParams] = useSearchParams();
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -212,7 +233,6 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
   const projectId = useTracingContext((state) => state.projectId);
-  const isTracingUxEnabled = useFeatureFlag("tracing_ux");
 
   // Advertise the current rootSpansOnly state so the agent's context message
   // reflects whether the toggle is mounted on this tab.
@@ -254,7 +274,10 @@ export function SpansTable(props: SpansTableProps) {
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
           rootSpansOnly: { type: "Boolean", defaultValue: true }
-          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
+          sort: {
+            type: "SpanSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
@@ -277,6 +300,7 @@ export function SpansTable(props: SpansTableProps) {
                 name
                 metadata
                 statusCode
+                statusMessage
                 startTime
                 latencyMs
                 tokenCountTotal @skip(if: $rootSpansOnly)
@@ -384,6 +408,9 @@ export function SpansTable(props: SpansTableProps) {
     return tableData;
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
 
   const dynamicAnnotationColumns: ColumnDef<TableRow>[] =
     visibleAnnotationColumnNames.map((name) => {
@@ -550,29 +577,12 @@ export function SpansTable(props: SpansTableProps) {
     ...dynamicTraceAnnotationColumns,
   ];
   const columns: ColumnDef<TableRow>[] = [
-    {
-      id: "select",
+    createRowSelectionColumn<TableRow>({
+      selectRow,
+      size: 24,
+      minSize: 24,
       maxSize: 24,
-      header: ({ table }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: table.getIsAllRowsSelected(),
-            isIndeterminate: table.getIsSomeRowsSelected(),
-            onChange: table.toggleAllRowsSelected,
-          }}
-        />
-      ),
-      cell: ({ row }) => (
-        <IndeterminateCheckboxCell
-          {...{
-            isSelected: row.getIsSelected(),
-            isDisabled: !row.getCanSelect(),
-            isIndeterminate: row.getIsSomeSelected(),
-            onChange: row.toggleSelected,
-          }}
-        />
-      ),
-    },
+    }),
     {
       header: "status",
       accessorKey: "statusCode",
@@ -601,7 +611,13 @@ export function SpansTable(props: SpansTableProps) {
         const span = row.original;
         const { traceId } = span.trace;
         return (
-          <Link to={`${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${span.id}`}>
+          <Link
+            to={getTraceDetailsPath({
+              traceId,
+              spanNodeId: span.id,
+              searchParams,
+            })}
+          >
             {getValue() as string}
           </Link>
         );
@@ -655,6 +671,32 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "output.value",
       cell: TextCell,
       enableSorting: false,
+    },
+    {
+      header: () => (
+        <Flex direction="row" gap="size-50">
+          <span>error</span>
+          <ContextualHelp>
+            <Heading level={3} weight="heavy">
+              Error
+            </Heading>
+            <Text>
+              The status message recorded on the span when its status code is
+              ERROR, e.g. an exception message.
+            </Text>
+          </ContextualHelp>
+        </Flex>
+      ),
+      accessorKey: "statusMessage",
+      id: "error",
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const value = getValue() as string;
+        if (!value) {
+          return "--";
+        }
+        return <Text color="danger">{value}</Text>;
+      },
     },
     {
       header: "notes",
@@ -815,6 +857,7 @@ export function SpansTable(props: SpansTableProps) {
       columnVisibility,
       rowSelection,
       columnSizing,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
     defaultColumn: defaultColumnSettings,
     columnResizeMode: "onChange",
@@ -870,20 +913,20 @@ export function SpansTable(props: SpansTableProps) {
     <Group orientation="horizontal" id="spans-table-layout">
       <Panel>
         <div css={spansTableCSS}>
-          {isTracingUxEnabled ? (
-            <View
-              paddingStart="size-200"
-              paddingEnd="size-200"
-              paddingTop="size-200"
-              paddingBottom="size-50"
-              flex="none"
-              overflow="visible"
-            >
-              <Suspense fallback={<ProjectTraceCountSparklineSkeleton />}>
-                <ProjectTraceCountSparkline />
-              </Suspense>
-            </View>
-          ) : null}
+          <View
+            paddingStart="size-200"
+            paddingEnd="size-200"
+            paddingTop="size-200"
+            paddingBottom="size-50"
+            flex="none"
+            overflow="visible"
+            position="relative"
+            zIndex={2}
+          >
+            <Suspense fallback={<ProjectTraceCountSparklineSkeleton />}>
+              <ProjectTraceCountSparkline projectId={projectId} />
+            </Suspense>
+          </View>
           <View
             paddingTop="size-100"
             paddingBottom="size-100"
@@ -969,6 +1012,7 @@ export function SpansTable(props: SpansTableProps) {
                       <th
                         colSpan={header.colSpan}
                         style={{
+                          ...getCommonPinningStyles(header.column),
                           width: `calc(var(--header-${header.id}-size) * 1px)`,
                         }}
                         key={header.id}
@@ -999,9 +1043,9 @@ export function SpansTable(props: SpansTableProps) {
                                   className="sort-icon"
                                   svg={
                                     header.column.getIsSorted() === "asc" ? (
-                                      <Icons.ArrowUpFilled />
+                                      <Icons.CaretUpFilled />
                                     ) : (
-                                      <Icons.ArrowDownFilled />
+                                      <Icons.CaretDownFilled />
                                     )
                                   }
                                 />
@@ -1030,7 +1074,7 @@ export function SpansTable(props: SpansTableProps) {
                 // can result in isEmpty=true and hasNext=true when traces exist but lack matching root
                 // spans. This is an undesirable edge case. The optimization is a stopgap solution that
                 // will be replaced to eliminate this condition.
-                <ProjectTableEmpty projectName={data.name} />
+                <ProjectTableEmpty />
               ) : columnSizingInfo.isResizingColumn ? (
                 <MemoizedTableBody
                   table={table}

@@ -12,7 +12,7 @@ import {
 import {
   SET_SPANS_FILTER_TOOL_NAME,
   type SetSpansFilterInput,
-} from "@phoenix/agent/extensions/toolRegistry";
+} from "@phoenix/agent/tools/spansFilter";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";

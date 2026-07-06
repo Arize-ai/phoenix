@@ -3,11 +3,12 @@ import {
   startTransition,
   Suspense,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
 } from "react";
 import { graphql, useLazyLoadQuery, useQueryLoader } from "react-relay";
-import { Outlet, useNavigate, useParams } from "react-router";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router";
 
 import { LazyTabPanel, Loading, Tab, TabList, Tabs } from "@phoenix/components";
 import {
@@ -18,6 +19,7 @@ import { TopNavActions } from "@phoenix/components/nav";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { useProjectRootPath } from "@phoenix/hooks/useProjectRootPath";
+import { clearSelectionScopedParams } from "@phoenix/utils/urlUtils";
 
 import type { ProjectPageQueriesProjectConfigQuery as ProjectPageProjectConfigQueryType } from "./__generated__/ProjectPageQueriesProjectConfigQuery.graphql";
 import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } from "./__generated__/ProjectPageQueriesSessionsQuery.graphql";
@@ -31,7 +33,7 @@ import {
   ProjectPageQueriesTracesQuery,
   ProjectPageQueryReferenceContext,
 } from "./ProjectPageQueries";
-import { StreamToggle } from "./StreamToggle";
+import { ProjectTimeRangeControls } from "./ProjectTimeRangeControls";
 
 const mainCSS = css`
   flex: 1 1 auto;
@@ -64,6 +66,7 @@ const mainCSS = css`
 export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
+  const deferredTimeRange = useDeferredValue(timeRange);
   return (
     <>
       <TopNavActions>
@@ -71,8 +74,9 @@ export function ProjectPage() {
       </TopNavActions>
       <Suspense fallback={<Loading />}>
         <ProjectPageContent
+          key={projectId}
           projectId={projectId as string}
-          timeRange={timeRange}
+          timeRange={deferredTimeRange}
         />
       </Suspense>
     </>
@@ -95,6 +99,10 @@ const TAB_INDEX_MAP: Record<(typeof TABS)[number], number> = {
   metrics: 3,
   config: 4,
 };
+
+const TAB_PATH_BY_INDEX = Object.fromEntries(
+  Object.entries(TAB_INDEX_MAP).map(([tab, index]) => [index, tab])
+) as Record<number, (typeof TABS)[number]>;
 
 export function ProjectPageContent({
   projectId,
@@ -134,7 +142,7 @@ function ProjectPageContentBody({
         project: node(id: $id) {
           ... on Project {
             ...ProjectStats_project
-            ...StreamToggle_data
+            ...ProjectTimeRangeControls_data
           }
         }
       }
@@ -148,22 +156,20 @@ function ProjectPageContentBody({
       fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
     }
   );
-  const [tracesQueryReference, loadTracesQuery, disposeTracesQuery] =
+  const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
-  const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
+  const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
-  const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
+  const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
-  const [
-    projectConfigQueryReference,
-    loadProjectConfigQuery,
-    disposeProjectConfigQuery,
-  ] = useQueryLoader<ProjectPageProjectConfigQueryType>(
-    ProjectPageQueriesProjectConfigQuery
-  );
+  const [projectConfigQueryReference, loadProjectConfigQuery] =
+    useQueryLoader<ProjectPageProjectConfigQueryType>(
+      ProjectPageQueriesProjectConfigQuery
+    );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
+  const location = useLocation();
   useEffect(() => {
     startTransition(() => {
       if (tabIndex === TAB_INDEX_MAP.spans) {
@@ -188,56 +194,36 @@ function ProjectPageContentBody({
         });
       }
     });
-
-    return () => {
-      disposeSpansQuery();
-      disposeSessionsQuery();
-      disposeTracesQuery();
-      disposeProjectConfigQuery();
-    };
   }, [
     loadTracesQuery,
     projectId,
     timeRangeVariable,
     tabIndex,
-    disposeSpansQuery,
-    disposeSessionsQuery,
-    disposeTracesQuery,
     loadSpansQuery,
     loadSessionsQuery,
     loadProjectConfigQuery,
-    disposeProjectConfigQuery,
     treatOrphansAsRoots,
   ]);
 
   const onTabChange = useCallback(
     (index: number) => {
       startTransition(() => {
-        if (index === 1) {
-          // navigate to the traces tab
-          navigate(`${rootPath}/traces`);
-        } else if (index === 2) {
-          // navigate to the sessions tab
-          navigate(`${rootPath}/sessions`);
-        } else if (index === 3) {
-          // navigate to the metrics tab
-          navigate(`${rootPath}/metrics`);
-        } else if (index === 4) {
-          // navigate to the config tab
-          navigate(`${rootPath}/config`);
-        } else {
-          // navigate to the spans tab
-          navigate(`${rootPath}/spans`);
-        }
+        const search = clearSelectionScopedParams(location.search);
+        const tab = TAB_PATH_BY_INDEX[index] ?? "spans";
+        navigate({
+          pathname: `${rootPath}/${tab}`,
+          search,
+          hash: location.hash,
+        });
       });
     },
-    [navigate, rootPath]
+    [location.hash, location.search, navigate, rootPath]
   );
 
   return (
     <main css={mainCSS}>
-      <TopNavActions order={-1}>
-        <StreamToggle project={data.project} />
+      <TopNavActions order={1}>
+        <ProjectTimeRangeControls project={data.project} />
       </TopNavActions>
       <ProjectPageQueryReferenceContext.Provider
         value={{

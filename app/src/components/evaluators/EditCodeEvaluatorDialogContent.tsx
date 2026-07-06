@@ -2,11 +2,35 @@ import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { createEvaluatorHostSubmit } from "@phoenix/agent/tools/approval";
+import {
+  applyDraftOperations,
+  type CodeEvaluatorDraftHost,
+  type CodeEvaluatorDraftSnapshot,
+  createEditCodeEvaluatorDraftClientAction,
+  createReadCodeEvaluatorDraftClientAction,
+  createSubmitCodeEvaluatorDraftClientAction,
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  type EditCodeEvaluatorDraftOperation,
+  type EvaluatorSubmitResult,
+  fromOutputConfigDraft,
+  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  type SandboxConfigIndex,
+  SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  toOutputConfigDrafts,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -24,8 +48,10 @@ import {
   SectionHeading,
   Switch,
   Text,
+  TextField,
   View,
 } from "@phoenix/components";
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import {
   DialogContent,
   DialogHeader,
@@ -61,6 +87,7 @@ import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorName
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -92,12 +119,13 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode,
   sandboxConfigs,
   initialSandboxConfigId,
+  evaluatorNodeId,
 }: {
   onSubmit: (payload: {
     language: CodeEvaluatorLanguage;
     sourceCode: string;
     sandboxConfigId?: string | null;
-  }) => void;
+  }) => Promise<EvaluatorSubmitResult>;
   /**
    * Called when the user clicks Cancel. Parent overlays can use this to
    * centralize close behavior such as unsaved-change confirmation.
@@ -114,6 +142,7 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode: string;
   sandboxConfigs: SandboxConfigOption[];
   initialSandboxConfigId?: string | null;
+  evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
   const [showValidationError, setShowValidationError] = useState(false);
@@ -130,8 +159,11 @@ export const EditCodeEvaluatorDialogContent = ({
   // Track initial store state for dirty checking
   const initialStoreStateRef = useRef<{
     name: string;
+    globalName: string;
+    description: string;
     outputConfigs: string;
     inputMapping: string;
+    evaluatorMappingSource: string;
   } | null>(null);
 
   // Track last reported dirty state to avoid redundant callbacks
@@ -142,8 +174,11 @@ export const EditCodeEvaluatorDialogContent = ({
     const state = store.getState();
     initialStoreStateRef.current = {
       name: state.evaluator.name,
+      globalName: state.evaluator.globalName,
+      description: state.evaluator.description,
       outputConfigs: JSON.stringify(state.outputConfigs),
       inputMapping: JSON.stringify(state.evaluator.inputMapping),
+      evaluatorMappingSource: JSON.stringify(state.evaluatorMappingSource),
     };
   }, [store]);
 
@@ -162,18 +197,27 @@ export const EditCodeEvaluatorDialogContent = ({
     const languageChanged = language !== initialLanguage;
     const sandboxChanged = sandboxConfigId !== (initialSandboxConfigId ?? null);
     const nameChanged = state.evaluator.name !== initial.name;
+    const globalNameChanged = state.evaluator.globalName !== initial.globalName;
+    const descriptionChanged =
+      state.evaluator.description !== initial.description;
     const outputConfigsChanged =
       JSON.stringify(state.outputConfigs) !== initial.outputConfigs;
     const inputMappingChanged =
       JSON.stringify(state.evaluator.inputMapping) !== initial.inputMapping;
+    const evaluatorMappingSourceChanged =
+      JSON.stringify(state.evaluatorMappingSource) !==
+      initial.evaluatorMappingSource;
 
     const isDirty =
       codeChanged ||
       languageChanged ||
       sandboxChanged ||
       nameChanged ||
+      globalNameChanged ||
+      descriptionChanged ||
       outputConfigsChanged ||
-      inputMappingChanged;
+      inputMappingChanged ||
+      evaluatorMappingSourceChanged;
 
     if (isDirty !== lastDirtyRef.current) {
       lastDirtyRef.current = isDirty;
@@ -192,6 +236,194 @@ export const EditCodeEvaluatorDialogContent = ({
       checkForDirtyChanges();
     });
   }, [store]);
+
+  const agentStore = useAgentStore();
+
+  const advertisedCodeEvaluatorContext = useMemo(
+    () => ({
+      type: "code_evaluator" as const,
+      evaluatorNodeId: evaluatorNodeId ?? null,
+    }),
+    [evaluatorNodeId]
+  );
+  useAdvertiseAgentContext(advertisedCodeEvaluatorContext);
+
+  const localFieldsRef = useRef({ sourceCode, language, sandboxConfigId });
+  useEffect(() => {
+    localFieldsRef.current = { sourceCode, language, sandboxConfigId };
+  }, [sourceCode, language, sandboxConfigId]);
+
+  const sandboxConfigIndex: SandboxConfigIndex = useMemo(() => {
+    const index: SandboxConfigIndex = {};
+    for (const config of sandboxConfigs) {
+      index[config.id] = { language: config.language };
+    }
+    return index;
+  }, [sandboxConfigs]);
+  const sandboxConfigIndexRef = useRef(sandboxConfigIndex);
+  useEffect(() => {
+    sandboxConfigIndexRef.current = sandboxConfigIndex;
+  }, [sandboxConfigIndex]);
+
+  const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
+  const isDraftMounted = useCallback(() => draftHostRef.current != null, []);
+
+  const handleSubmitRef = useRef<(() => Promise<EvaluatorSubmitResult>) | null>(
+    null
+  );
+
+  useEffect(() => {
+    const buildSnapshot = (): CodeEvaluatorDraftSnapshot => {
+      const local = localFieldsRef.current;
+      const state = store.getState();
+      const firstOutputConfigName = state.outputConfigs[0]?.name ?? "";
+      const draftName =
+        state.evaluator.name ||
+        state.evaluator.globalName ||
+        firstOutputConfigName;
+      return {
+        mode: mode === "create" ? "create" : "edit",
+        evaluatorNodeId: evaluatorNodeId ?? null,
+        name: draftName,
+        description: state.evaluator.description,
+        language: local.language,
+        sourceCode: local.sourceCode,
+        sandboxConfigId: local.sandboxConfigId,
+        inputMapping: state.evaluator.inputMapping,
+        testPayload: state.evaluatorMappingSource,
+        outputConfigs: toOutputConfigDrafts(state.outputConfigs),
+      };
+    };
+
+    const previewOperations = (
+      snapshot: CodeEvaluatorDraftSnapshot,
+      operations: EditCodeEvaluatorDraftOperation[]
+    ) =>
+      applyDraftOperations({
+        snapshot,
+        operations,
+        sandboxConfigs: sandboxConfigIndexRef.current,
+      });
+
+    const applyOperations = (operations: EditCodeEvaluatorDraftOperation[]) => {
+      const current = buildSnapshot();
+      const proposed = previewOperations(current, operations);
+      if (!proposed.ok) return proposed;
+      const next = proposed.output;
+      localFieldsRef.current = {
+        sourceCode: next.sourceCode,
+        language: next.language,
+        sandboxConfigId: next.sandboxConfigId,
+      };
+      if (next.sourceCode !== current.sourceCode) {
+        setSourceCode(next.sourceCode);
+      }
+      if (next.language !== current.language) {
+        setLanguage(next.language);
+      }
+      if (next.sandboxConfigId !== current.sandboxConfigId) {
+        setSandboxConfigId(next.sandboxConfigId);
+      }
+      const state = store.getState();
+      const currentStoredName =
+        state.evaluator.name || state.evaluator.globalName;
+      const proposedOutputConfigName = next.outputConfigs[0]?.name ?? "";
+      const hasExplicitNameOperation = operations.some(
+        (operation) => operation.type === "set_name"
+      );
+      const nextStoredName =
+        mode === "create" && !currentStoredName && !hasExplicitNameOperation
+          ? proposedOutputConfigName || next.name
+          : next.name;
+      if (nextStoredName && nextStoredName !== currentStoredName) {
+        if (mode === "create") {
+          state.setEvaluatorGlobalName(nextStoredName);
+        }
+        state.setEvaluatorName(nextStoredName);
+      }
+      if (next.description !== current.description) {
+        state.setEvaluatorDescription(next.description);
+      }
+      if (
+        JSON.stringify(next.outputConfigs) !==
+        JSON.stringify(current.outputConfigs)
+      ) {
+        state.setOutputConfigs(next.outputConfigs.map(fromOutputConfigDraft));
+      }
+      if (
+        JSON.stringify(next.inputMapping.pathMapping) !==
+        JSON.stringify(current.inputMapping.pathMapping)
+      ) {
+        state.setPathMapping(next.inputMapping.pathMapping);
+      }
+      if (
+        JSON.stringify(next.inputMapping.literalMapping) !==
+        JSON.stringify(current.inputMapping.literalMapping)
+      ) {
+        state.setLiteralMapping(next.inputMapping.literalMapping);
+      }
+      if (
+        JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
+      ) {
+        state.setEvaluatorMappingSource(next.testPayload);
+      }
+      return { ok: true as const, output: buildSnapshot() };
+    };
+
+    const host: CodeEvaluatorDraftHost = {
+      getSnapshot: buildSnapshot,
+      previewOperations,
+      applyOperations,
+      submit: createEvaluatorHostSubmit({
+        getHandleSubmit: () => handleSubmitRef.current,
+        unmountedError:
+          "The code-evaluator form is not mounted; cannot submit.",
+      }),
+    };
+    draftHostRef.current = host;
+
+    const {
+      registerClientAction,
+      unregisterClientAction,
+      setPendingCodeEvaluatorEdit,
+    } = agentStore.getState();
+    const getDraftHost = () => draftHostRef.current;
+    registerClientAction(
+      READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createReadCodeEvaluatorDraftClientAction({ getDraftHost })
+    );
+    registerClientAction(
+      EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createEditCodeEvaluatorDraftClientAction({
+        getDraftHost,
+        setPendingCodeEvaluatorEdit,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
+    registerClientAction(
+      SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createSubmitCodeEvaluatorDraftClientAction({
+        getDraftHost,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
+    );
+    return () => {
+      draftHostRef.current = null;
+      handleSubmitRef.current = null;
+      unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterClientAction(SUBMIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      for (const pendingEdit of Object.values(
+        agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
+      )) {
+        if (pendingEdit) {
+          void pendingEdit.cancel?.();
+        }
+      }
+    };
+  }, [agentStore, store, mode, evaluatorNodeId]);
 
   const handleCancel = () => {
     onCancel?.();
@@ -226,7 +458,7 @@ export const EditCodeEvaluatorDialogContent = ({
       (sandboxConfig) => sandboxConfig.id === selectedSandboxConfigId
     ) ?? null;
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (): Promise<EvaluatorSubmitResult> => {
     const isValid = await store.getState().validateAll();
     const configError = getCodeEvaluatorValidationError({
       outputConfigs: store.getState().outputConfigs,
@@ -237,7 +469,11 @@ export const EditCodeEvaluatorDialogContent = ({
     if (!isValid || configError) {
       setShowValidationError(true);
       setLocalValidationError(configError);
-      return;
+      return {
+        ok: false,
+        error:
+          configError ?? "Please fix the highlighted errors before submitting.",
+      };
     }
     setShowValidationError(false);
     setLocalValidationError(undefined);
@@ -249,12 +485,13 @@ export const EditCodeEvaluatorDialogContent = ({
         : mode === "create" || hasSandboxChanged
           ? null
           : undefined;
-    onSubmit({
+    return onSubmit({
       language,
       sourceCode,
       sandboxConfigId: nextSandboxConfigId,
     });
   };
+  handleSubmitRef.current = handleSubmit;
 
   return (
     <DialogContent>
@@ -318,8 +555,8 @@ export const EditCodeEvaluatorDialogContent = ({
               </LinkButton>
             }
           >
-            No sandboxes configured. You can still draft and save this evaluator
-            now. Configure a sandbox later to test or execute it.
+            No sandboxes configured. Configure a sandbox before creating,
+            testing, or executing a code evaluator.
           </Alert>
         ) : null}
 
@@ -376,6 +613,7 @@ export const EditCodeEvaluatorDialogContent = ({
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   sourceCode={sourceCode}
                   language={language}
+                  isDraftMounted={isDraftMounted}
                 />
               </div>
             </Panel>
@@ -441,11 +679,13 @@ const ConfiguratorSidebar = ({
   selectedSandboxConfigId,
   sourceCode,
   language,
+  isDraftMounted,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
   selectedSandboxConfigId: string | null;
   sourceCode: string;
   language: CodeEvaluatorLanguage;
+  isDraftMounted: () => boolean;
 }) => {
   return (
     <>
@@ -462,6 +702,7 @@ const ConfiguratorSidebar = ({
               sourceCode={sourceCode}
               language={language}
               sandboxConfigId={selectedSandboxConfigId}
+              isDraftMounted={isDraftMounted}
             />
           </View>
           <View paddingX="size-200" paddingTop="size-50">
@@ -584,7 +825,7 @@ const CodeEditor = ({
   onChange: (value: string) => void;
 }) => {
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
 
@@ -839,6 +1080,31 @@ const OutputConfigSection = () => {
     return null;
   }
 
+  if ("values" in outputConfig) {
+    return (
+      <Flex direction="column" gap="size-200">
+        <Flex direction="row" gap="size-200" alignItems="start">
+          <TextField isDisabled value={outputConfig.name}>
+            <Label>Name</Label>
+            <Input />
+          </TextField>
+          <OptimizationDirectionField description="Whether higher or lower scores are better." />
+        </Flex>
+        <Flex direction="column" gap="size-100">
+          <OutputConfigValuesHeader />
+          {outputConfig.values.map((value, index) => (
+            <OutputConfigValuesRow
+              key={`${value.label}-${index}`}
+              label={value.label}
+              score={value.score ?? null}
+              index={index}
+            />
+          ))}
+        </Flex>
+      </Flex>
+    );
+  }
+
   const threshold =
     "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
   const lowerBound =
@@ -858,6 +1124,10 @@ const OutputConfigSection = () => {
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="row" gap="size-200" alignItems="start">
+        <TextField isDisabled value={outputConfig.name}>
+          <Label>Name</Label>
+          <Input />
+        </TextField>
         <OptimizationDirectionField description="Whether higher or lower scores are better." />
         <NumberField
           value={threshold ?? undefined}
@@ -907,6 +1177,40 @@ const OutputConfigSection = () => {
         </NumberField>
       </Flex>
     </Flex>
+  );
+};
+
+const OutputConfigValuesHeader = () => {
+  return (
+    <div css={outputConfigValuesGridCSS}>
+      <Text>Choice</Text>
+      <Text>Score</Text>
+    </div>
+  );
+};
+
+const OutputConfigValuesRow = ({
+  label,
+  score,
+  index,
+}: {
+  label: string;
+  score: number | null;
+  index: number;
+}) => {
+  return (
+    <div css={outputConfigValuesGridCSS}>
+      <TextField isDisabled value={label} aria-label={`Choice ${index + 1}`}>
+        <Input />
+      </TextField>
+      <TextField
+        isDisabled
+        value={score != null ? String(score) : ""}
+        aria-label={`Score ${index + 1}`}
+      >
+        <Input />
+      </TextField>
+    </div>
   );
 };
 
@@ -981,6 +1285,14 @@ const sidebarPanelCSS = css`
   box-sizing: border-box;
   overflow: hidden;
   border-left: 1px solid var(--global-border-color-default);
+`;
+
+const outputConfigValuesGridCSS = css`
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: var(--global-dimension-static-size-100);
+  align-items: start;
 `;
 
 // The "Test Evaluator" region grows to fill the panel and scrolls on overflow.

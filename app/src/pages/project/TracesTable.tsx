@@ -25,7 +25,7 @@ import React, {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import {
   CopyToClipboardButton,
@@ -42,11 +42,22 @@ import { MeanScore } from "@phoenix/components/annotation/MeanScore";
 import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { ContextualHelp } from "@phoenix/components/core/tooltip/ContextualHelp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  CellWithControlsWrap,
+  createRowSelectionColumn,
+  TextCell,
+} from "@phoenix/components/table";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TableExpandButton } from "@phoenix/components/table/TableExpandButton";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { useShiftClickRowSelection } from "@phoenix/components/table/useShiftClickRowSelection";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanKindToken } from "@phoenix/components/trace/SpanKindToken";
 import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon";
@@ -55,12 +66,12 @@ import { TraceTokenCount } from "@phoenix/components/trace/TraceTokenCount";
 import type { ISpanItem } from "@phoenix/components/trace/types";
 import type { SpanTreeNode } from "@phoenix/components/trace/utils";
 import { createSpanTree } from "@phoenix/components/trace/utils";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { SummaryValueLabels } from "@phoenix/pages/project/AnnotationSummary";
 import { MetadataTableCell } from "@phoenix/pages/project/MetadataTableCell";
 import { useTracePagination } from "@phoenix/pages/trace/TracePaginationContext";
+import { getTraceDetailsPath } from "@phoenix/utils/urlUtils";
 
 import type {
   SpanStatusCode,
@@ -119,6 +130,7 @@ const TableBody = <
   "use no memo";
   const navigate = useNavigate();
   const { traceId } = useParams();
+  const [searchParams] = useSearchParams();
   return (
     <tbody>
       {table.getRowModel().rows.map((row) => {
@@ -126,7 +138,14 @@ const TableBody = <
         return (
           <tr
             key={row.id}
-            onClick={() => navigate(`${row.original.trace.traceId}`)}
+            onClick={() =>
+              navigate(
+                getTraceDetailsPath({
+                  traceId: row.original.trace.traceId,
+                  searchParams,
+                })
+              )
+            }
             data-is-additional-row={row.original.__additionalRow}
             data-selected={isSelected}
             css={css(trCSS)}
@@ -137,6 +156,7 @@ const TableBody = <
                 <td
                   key={cell.id}
                   style={{
+                    ...getCommonPinningStyles(cell.column),
                     width: `calc(var(${colSizeVar}) * 1px)`,
                     maxWidth: `calc(var(${colSizeVar}) * 1px)`,
                     // prevent all wrapping, just show an ellipsis and let users expand if necessary
@@ -144,6 +164,10 @@ const TableBody = <
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
+                    userSelect:
+                      cell.column.id === CHECKBOX_COLUMN_ID
+                        ? "none"
+                        : undefined,
                   }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -200,6 +224,7 @@ function spanTreeToNestedSpanTableRows<TSpan extends ISpanItem>(params: {
 }
 
 export function TracesTable(props: TracesTableProps) {
+  const [searchParams] = useSearchParams();
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isFirstRender = useRef<boolean>(true);
@@ -215,7 +240,10 @@ export function TracesTable(props: TracesTableProps) {
         @argumentDefinitions(
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
-          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
+          sort: {
+            type: "SpanSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
           filterCondition: { type: "String", defaultValue: null }
           numDescendants: { type: "Int", defaultValue: 50 }
         ) {
@@ -237,6 +265,7 @@ export function TracesTable(props: TracesTableProps) {
                 name
                 metadata
                 statusCode
+                statusMessage
                 startTime
                 endTime
                 latencyMs
@@ -298,6 +327,7 @@ export function TracesTable(props: TracesTableProps) {
                       spanKind
                       name
                       statusCode: propagatedStatusCode
+                      statusMessage
                       startTime
                       endTime
                       latencyMs
@@ -395,6 +425,9 @@ export function TracesTable(props: TracesTableProps) {
     });
   }, [data]);
   type TableRow = (typeof tableData)[number];
+  const { selectRow } = useShiftClickRowSelection<TableRow>({
+    resetKey: tableData,
+  });
 
   const dynamicAnnotationColumns: ColumnDef<TableRow>[] = useMemo(
     () =>
@@ -605,34 +638,13 @@ export function TracesTable(props: TracesTableProps) {
 
   const columns: ColumnDef<TableRow>[] = useMemo(
     () => [
-      {
-        id: "select",
+      createRowSelectionColumn<TableRow>({
+        selectRow,
+        shouldRenderCell: (row) => !row.original.__additionalRow,
+        size: 24,
+        minSize: 24,
         maxSize: 24,
-        header: ({ table }) => (
-          <IndeterminateCheckboxCell
-            {...{
-              isSelected: table.getIsAllRowsSelected(),
-              isIndeterminate: table.getIsSomeRowsSelected(),
-              onChange: table.toggleAllRowsSelected,
-            }}
-          />
-        ),
-        cell: ({ row }) => {
-          if (row.original.__additionalRow) {
-            return null;
-          }
-          return (
-            <IndeterminateCheckboxCell
-              {...{
-                isSelected: row.getIsSelected(),
-                isDisabled: !row.getCanSelect(),
-                isIndeterminate: row.getIsSomeSelected(),
-                onChange: row.toggleSelected,
-              }}
-            />
-          );
-        },
-      },
+      }),
       {
         header: "status",
         accessorKey: "statusCode",
@@ -675,7 +687,7 @@ export function TracesTable(props: TracesTableProps) {
                   padding-left: ${props.row.depth * 2}rem;
                 `}
               >
-                <Icon svg={<Icons.MoreHorizontalOutline />} />
+                <Icon svg={<Icons.MoreHorizontal />} />
               </div>
             );
           }
@@ -713,7 +725,11 @@ export function TracesTable(props: TracesTableProps) {
           const spanId = row.original.__additionalRow ? null : row.original.id;
           return (
             <Link
-              to={`${traceId}${spanId ? `?${SELECTED_SPAN_NODE_ID_PARAM}=${spanId}` : ""}`}
+              to={getTraceDetailsPath({
+                traceId,
+                spanNodeId: spanId,
+                searchParams,
+              })}
             >
               {getValue() as string}
             </Link>
@@ -770,6 +786,35 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "output.value",
         enableSorting: false,
         cell: TextCell,
+      },
+      {
+        header: () => (
+          <Flex direction="row" gap="size-50" alignItems="center">
+            <span>error</span>
+            <ContextualHelp>
+              <Heading level={3} weight="heavy">
+                Error
+              </Heading>
+              <Text>
+                The status message recorded on the span when its status code is
+                ERROR, e.g. an exception message.
+              </Text>
+            </ContextualHelp>
+          </Flex>
+        ),
+        accessorKey: "statusMessage",
+        id: "error",
+        enableSorting: false,
+        cell: ({ getValue, row }) => {
+          if (row.original.__additionalRow) {
+            return null;
+          }
+          const value = getValue() as string;
+          if (!value) {
+            return "--";
+          }
+          return <Text color="danger">{value}</Text>;
+        },
       },
       {
         header: "metadata",
@@ -844,7 +889,7 @@ export function TracesTable(props: TracesTableProps) {
         },
       },
     ],
-    [annotationColumns]
+    [annotationColumns, searchParams, selectRow]
   );
 
   useEffect(() => {
@@ -921,9 +966,11 @@ export function TracesTable(props: TracesTableProps) {
       columnVisibility,
       rowSelection,
       columnSizing,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
     columnResizeMode: "onChange",
     onRowSelectionChange: setRowSelection,
+    enableRowSelection: (row) => !row.original.__additionalRow,
     enableSubRowSelection: false,
     onSortingChange: setSorting,
     onColumnSizingChange: setColumnSizing,
@@ -1008,6 +1055,7 @@ export function TracesTable(props: TracesTableProps) {
                 {headerGroup.headers.map((header) => (
                   <th
                     style={{
+                      ...getCommonPinningStyles(header.column),
                       width: `calc(var(--header-${header.id}-size) * 1px)`,
                     }}
                     colSpan={header.colSpan}
@@ -1037,9 +1085,9 @@ export function TracesTable(props: TracesTableProps) {
                               className="sort-icon"
                               svg={
                                 header.column.getIsSorted() === "asc" ? (
-                                  <Icons.ArrowUpFilled />
+                                  <Icons.CaretUpFilled />
                                 ) : (
-                                  <Icons.ArrowDownFilled />
+                                  <Icons.CaretDownFilled />
                                 )
                               }
                             />
@@ -1062,7 +1110,7 @@ export function TracesTable(props: TracesTableProps) {
             ))}
           </thead>
           {isEmpty ? (
-            <ProjectTableEmpty projectName={data.name} />
+            <ProjectTableEmpty />
           ) : columnSizingInfo.isResizingColumn ? (
             <MemoizedTableBody
               table={

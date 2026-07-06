@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, cast
+from typing import Any, Callable, cast
 
 from phoenix.server.agents.capabilities.skills import (
     ContentSkillResource,
@@ -32,11 +32,12 @@ def _make_skill(
     name: str,
     description: str,
     content: str,
-    resources: list[SkillResource] | None = None,
+    resources: list[SkillResource[Any]] | None = None,
 ) -> Skill:
     return Skill(
         name=name,
         description=description,
+        summary=f"{name} summary",
         content=content,
         path=Path("/tmp/unused"),
         resources=resources or [],

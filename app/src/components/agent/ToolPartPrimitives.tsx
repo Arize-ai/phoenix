@@ -1,6 +1,11 @@
-import { keyframes } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
+import type { ReactNode } from "react";
+import { useCallback, useRef, useState } from "react";
 
-import { CopyToClipboardButton } from "@phoenix/components";
+import { Button, CopyToClipboardButton, Flex } from "@phoenix/components";
+import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
+
+import { useScrollAnchor } from "./scrollAnchor";
 
 export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
   from {
@@ -56,7 +61,9 @@ export function ToolPartCodeBlock({
 }) {
   return (
     <div
-      className={`tool-part__line${allowCopy ? " tool-part__line--copyable" : ""}`}
+      className={`tool-part__line${
+        allowCopy ? " tool-part__line--copyable" : ""
+      }`}
     >
       <code className="tool-part__code">{children || "(empty)"}</code>
       {allowCopy ? (
@@ -104,6 +111,107 @@ export function ToolPartMeta({
           <code className="tool-part__meta-value">{value}</code>
         </span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Canonical inset for the Accept/Reject footer shared by every approval-style
+ * tool part (prompt edits, dataset writes, span annotations, experiment
+ * patches, …). Centralizing it here keeps the footer padding identical across
+ * all PXI tools instead of each detail component re-specifying its own.
+ */
+const approvalActionsRowCSS = css`
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-200)
+    var(--global-dimension-size-150);
+`;
+
+/**
+ * The right-aligned Accept/Reject buttons rendered at the bottom of a tool part
+ * awaiting user approval. When the proposal can no longer be acted on (e.g. it
+ * was made in an earlier session), pass `staleMessage` to explain why the
+ * disabled buttons can't be used.
+ */
+export function ToolPartApprovalActions({
+  onAccept,
+  onReject,
+  isDisabled = false,
+  staleMessage,
+}: {
+  onAccept: () => void;
+  onReject: () => void;
+  isDisabled?: boolean;
+  staleMessage?: string;
+}) {
+  return (
+    <>
+      <div css={approvalActionsRowCSS}>
+        <Flex direction="row-reverse" gap="size-100">
+          <Button
+            size="S"
+            variant="primary"
+            isDisabled={isDisabled}
+            onPress={onAccept}
+          >
+            Accept
+          </Button>
+          <Button size="S" isDisabled={isDisabled} onPress={onReject}>
+            Reject
+          </Button>
+        </Flex>
+      </div>
+      {isDisabled && staleMessage ? (
+        <ToolPartCodeBlock>{staleMessage}</ToolPartCodeBlock>
+      ) : null}
+    </>
+  );
+}
+
+const COLLAPSED_HEIGHT_PX = 320;
+
+const expandableSectionCSS = css`
+  --expandable-content-overlay-background-color: var(
+    --tool-call-body-background-color
+  );
+`;
+
+/**
+ * Wrapper for tool part input/output sections. Automatically collapses content
+ * that exceeds the collapsed height, showing an expand/collapse button.
+ *
+ * Drives `ExpandableContent` in controlled mode so we can bracket each toggle
+ * with scroll anchoring — recording the section's position before it grows or
+ * shrinks and restoring it afterward — without `ExpandableContent` needing to
+ * know anything about the surrounding scroll container.
+ */
+export function ToolPartExpandableSection({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const scrollAnchor = useScrollAnchor();
+
+  const handleExpandedChange = useCallback(
+    (nextIsExpanded: boolean) => {
+      scrollAnchor.capture(containerRef.current);
+      setIsExpanded(nextIsExpanded);
+      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+    },
+    [scrollAnchor]
+  );
+
+  return (
+    <div ref={containerRef} css={expandableSectionCSS}>
+      <ExpandableContent
+        height={COLLAPSED_HEIGHT_PX}
+        expandedBehavior="grow"
+        isExpanded={isExpanded}
+        onExpandedChange={handleExpandedChange}
+      >
+        {children}
+      </ExpandableContent>
     </div>
   );
 }

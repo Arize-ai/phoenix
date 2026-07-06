@@ -10,6 +10,7 @@ import {
 } from "recharts";
 
 import {
+  ChartEmptyStateOverlay,
   GRAYSCALE_CATEGORICAL_COLORS,
   useGrayscaleCategoricalColors,
 } from "@phoenix/components/chart";
@@ -107,66 +108,61 @@ export function LineChart({
 
   const hasLegend = lines.some((line) => line.label);
   const hasXAxis = xLabels != null && xLabels.length > 0;
-
-  if (data.length === 0) {
-    return (
-      <ChartFrame title={title}>
-        <NoData />
-      </ChartFrame>
-    );
-  }
+  const hasData = data.length > 0;
 
   return (
     <ChartFrame title={title}>
-      <ResponsiveContainer
-        width="100%"
-        height={hasXAxis ? CHART_HEIGHT_WITH_XAXIS : CHART_HEIGHT}
-      >
-        <RechartsLineChart
-          data={data}
-          margin={hasXAxis ? CHART_MARGINS_WITH_XAXIS : CHART_MARGINS}
+      <ChartEmptyStateOverlay isEmpty={!hasData}>
+        <ResponsiveContainer
+          width="100%"
+          height={hasXAxis ? CHART_HEIGHT_WITH_XAXIS : CHART_HEIGHT}
         >
-          <CartesianGrid
-            horizontal
-            vertical={false}
-            stroke="var(--global-color-gray-200)"
-          />
-          <YAxis
-            width={24}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
-            tickCount={3}
-          />
-          {hasXAxis && (
-            <XAxis
-              dataKey="x"
+          <RechartsLineChart
+            data={data}
+            margin={hasXAxis ? CHART_MARGINS_WITH_XAXIS : CHART_MARGINS}
+          >
+            <CartesianGrid
+              horizontal
+              vertical={false}
+              stroke="var(--global-color-gray-200)"
+            />
+            <YAxis
+              width={24}
               axisLine={false}
               tickLine={false}
-              tick={<CustomXAxisTick />}
-              interval="preserveStartEnd"
-              minTickGap={20}
+              tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
+              tickCount={3}
             />
-          )}
-          {seriesKeys.map((key, index) => {
-            const colorKey =
-              GRAYSCALE_CATEGORICAL_COLORS[
-                index % GRAYSCALE_CATEGORICAL_COLORS.length
-              ];
-            return (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                stroke={colors[colorKey]}
-                strokeWidth={2}
-                dot={false}
-                activeDot={false}
+            {hasXAxis && (
+              <XAxis
+                dataKey="x"
+                axisLine={false}
+                tickLine={false}
+                tick={<CustomXAxisTick />}
+                interval="preserveStartEnd"
+                minTickGap={20}
               />
-            );
-          })}
-        </RechartsLineChart>
-      </ResponsiveContainer>
+            )}
+            {seriesKeys.map((key, index) => {
+              const colorKey =
+                GRAYSCALE_CATEGORICAL_COLORS[
+                  index % GRAYSCALE_CATEGORICAL_COLORS.length
+                ];
+              return (
+                <Line
+                  key={key}
+                  type="monotone"
+                  dataKey={key}
+                  stroke={colors[colorKey]}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={false}
+                />
+              );
+            })}
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      </ChartEmptyStateOverlay>
       {hasLegend && (
         <div css={legendCSS}>
           {lines
@@ -191,8 +187,4 @@ export function LineChart({
       )}
     </ChartFrame>
   );
-}
-
-function NoData() {
-  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }

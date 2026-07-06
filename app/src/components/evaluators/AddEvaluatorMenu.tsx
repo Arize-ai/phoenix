@@ -5,6 +5,7 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
+import { useSearchParams } from "react-router";
 import z from "zod";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
@@ -28,6 +29,10 @@ import {
 import type { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
+import {
+  CREATE_CODE_EVALUATOR_PARAM,
+  CREATE_LLM_EVALUATOR_PARAM,
+} from "@phoenix/constants/searchParams";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -47,12 +52,47 @@ export const AddEvaluatorMenu = ({
   ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const shouldOpenCreateCodeEvaluator =
+    searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
+  const shouldOpenCreateLLMEvaluator =
+    searchParams.get(CREATE_LLM_EVALUATOR_PARAM) === "true";
   const [isCreateCodeEvaluatorOpen, setIsCreateCodeEvaluatorOpen] =
     useState(false);
+  const isCreateCodeEvaluatorSlideoverOpen =
+    isCreateCodeEvaluatorOpen || shouldOpenCreateCodeEvaluator;
   const associateBuiltinEvaluatorDialogOpen =
     builtinEvaluatorIdToAssociate != null;
   const onCloseAssociateBuiltinEvaluatorDialog = () => {
     setBuiltinEvaluatorIdToAssociate(null);
+  };
+  const setCreateCodeEvaluatorOpen = (isOpen: boolean) => {
+    setIsCreateCodeEvaluatorOpen(isOpen);
+    if (!isOpen && shouldOpenCreateCodeEvaluator) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(CREATE_CODE_EVALUATOR_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  };
+  const setCreateLLMEvaluatorOpen = (
+    nextState: CreateLLMDatasetEvaluatorInitialState | boolean | null
+  ) => {
+    setCreateLLMEvaluatorDialogInitialState(nextState);
+    if (!nextState && shouldOpenCreateLLMEvaluator) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(CREATE_LLM_EVALUATOR_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    }
   };
   const data = useFragment<AddEvaluatorMenu_query$key>(
     graphql`
@@ -69,7 +109,7 @@ export const AddEvaluatorMenu = ({
         <Button
           variant="primary"
           size={size}
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
         >
           Add evaluator
         </Button>
@@ -80,7 +120,7 @@ export const AddEvaluatorMenu = ({
             onCreateEvaluator={() =>
               setCreateLLMEvaluatorDialogInitialState(true)
             }
-            onCreateCodeEvaluator={() => setIsCreateCodeEvaluatorOpen(true)}
+            onCreateCodeEvaluator={() => setCreateCodeEvaluatorOpen(true)}
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={
               setCreateLLMEvaluatorDialogInitialState
@@ -89,8 +129,10 @@ export const AddEvaluatorMenu = ({
         </MenuContainer>
       </MenuTrigger>
       <CreateLLMDatasetEvaluatorSlideover
-        isOpen={!!createLLMEvaluatorDialogInitialState}
-        onOpenChange={setCreateLLMEvaluatorDialogInitialState}
+        isOpen={
+          !!createLLMEvaluatorDialogInitialState || shouldOpenCreateLLMEvaluator
+        }
+        onOpenChange={setCreateLLMEvaluatorOpen}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
         initialState={
@@ -113,8 +155,8 @@ export const AddEvaluatorMenu = ({
         updateConnectionIds={updateConnectionIds}
       />
       <CreateCodeDatasetEvaluatorSlideover
-        isOpen={isCreateCodeEvaluatorOpen}
-        onOpenChange={setIsCreateCodeEvaluatorOpen}
+        isOpen={isCreateCodeEvaluatorSlideoverOpen}
+        onOpenChange={setCreateCodeEvaluatorOpen}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
       />
@@ -158,7 +200,7 @@ export const AddEvaluatorMenuContents = ({
       <MenuSection>
         <MenuSectionTitle title="New LLM evaluator" />
         <MenuItem
-          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          leadingContent={<Icon svg={<Icons.Plus />} />}
           id="createEvaluator"
         >
           Create new LLM evaluator
@@ -167,7 +209,7 @@ export const AddEvaluatorMenuContents = ({
           query={query}
           onAction={onSelectBuiltInLLMEvaluator}
         >
-          <MenuItem leadingContent={<Icon svg={<Icons.TemplateOutline />} />}>
+          <MenuItem leadingContent={<Icon svg={<Icons.LLMOutput />} />}>
             Use LLM evaluator template
           </MenuItem>
         </LLMEvaluatorTemplateSubmenu>
@@ -175,7 +217,7 @@ export const AddEvaluatorMenuContents = ({
       <MenuSection>
         <MenuSectionTitle title="New code evaluator" />
         <MenuItem
-          leadingContent={<Icon svg={<Icons.PlusOutline />} />}
+          leadingContent={<Icon svg={<Icons.Plus />} />}
           id="createCodeEvaluator"
         >
           Create new code evaluator

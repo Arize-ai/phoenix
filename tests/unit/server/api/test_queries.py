@@ -172,7 +172,7 @@ async def test_prompts_without_filter(
     gql_client: AsyncGraphQLClient,
     prompts_for_filtering: Any,
 ) -> None:
-    """Test that prompts query returns all prompts when no filter is applied."""
+    """Test that prompts query returns all prompts by most recent creation."""
     query = """
       query {
         prompts {
@@ -191,9 +191,11 @@ async def test_prompts_without_filter(
     assert (data := response.data) is not None
     assert len(data["prompts"]["edges"]) == 3
     prompt_names = [edge["prompt"]["name"] for edge in data["prompts"]["edges"]]
-    assert "test_prompt_one" in prompt_names
-    assert "test_prompt_two" in prompt_names
-    assert "production_prompt" in prompt_names
+    assert prompt_names == [
+        "production_prompt",
+        "test_prompt_one",
+        "test_prompt_two",
+    ]
 
 
 async def test_prompt_version_is_latest(
@@ -571,16 +573,19 @@ async def prompts_for_filtering(
                 name=Identifier(root="test_prompt_one"),
                 description="First test prompt",
                 metadata_={"type": "test"},
+                created_at=datetime(2024, 1, 2, tzinfo=timezone.utc),
             ),
             models.Prompt(
                 name=Identifier(root="test_prompt_two"),
                 description="Second test prompt",
                 metadata_={"type": "test"},
+                created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
             ),
             models.Prompt(
                 name=Identifier(root="production_prompt"),
                 description="Production prompt",
                 metadata_={"type": "production"},
+                created_at=datetime(2024, 1, 3, tzinfo=timezone.utc),
             ),
         ]
 
@@ -2773,3 +2778,104 @@ async def test_sandbox_backends_capability_flags(
     assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
     assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
     assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type
+
+
+_AVAILABLE_AGENT_SKILLS_QUERY = """
+  query ($input: AvailableAgentSkillsInput) {
+    availableAgentSkills(input: $input) {
+      name
+      description
+      summary
+    }
+  }
+"""
+
+
+async def test_available_agent_skills_base_catalog(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(query=_AVAILABLE_AGENT_SKILLS_QUERY)
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # No context mounted: only the always-on skills, in catalog order, no gated ones.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql"]
+    # progressive-disclosure header is populated
+    assert all(skill["description"] for skill in response.data["availableAgentSkills"])
+    assert all(skill["summary"] for skill in response.data["availableAgentSkills"])
+
+
+async def test_available_agent_skills_playground_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasPlaygroundContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # Playground context adds the playground skill on top of the always-on base.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "playground"]
+
+
+async def test_available_agent_skills_dataset_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasDatasetContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # Dataset context unlocks the dataset-backed trio: datasets, experiments, evaluators.
+    assert names == [
+        "debug-trace",
+        "annotate-spans",
+        "phoenix-graphql",
+        "datasets",
+        "experiments",
+        "evaluators",
+    ]
+
+
+async def test_available_agent_skills_llm_evaluator_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasLlmEvaluatorContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # An evaluator context (without a dataset) unlocks only the evaluators skill.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+
+
+async def test_available_agent_skills_code_evaluator_context(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        query=_AVAILABLE_AGENT_SKILLS_QUERY,
+        variables={"input": {"hasCodeEvaluatorContext": True}},
+    )
+    assert not response.errors
+    assert response.data is not None
+    names = [skill["name"] for skill in response.data["availableAgentSkills"]]
+    # An evaluator context (without a dataset) unlocks only the evaluators skill.
+    assert names == ["debug-trace", "annotate-spans", "phoenix-graphql", "evaluators"]
+
+
+async def test_node_with_noninteger_payload_returns_bad_request(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    bad_id = str(GlobalID("Trace", "abc"))
+    response = await gql_client.execute(
+        query="query ($id: ID!) { node(id: $id) { __typename } }",
+        variables={"id": bad_id},
+    )
+    assert response.data is None
+    assert response.errors
+    assert f"Invalid node id: {bad_id}" in response.errors[0].message

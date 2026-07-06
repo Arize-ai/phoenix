@@ -1,6 +1,3 @@
-import { useState } from "react";
-import { ConnectionHandler, graphql, useMutation } from "react-relay";
-
 import {
   Alert,
   Dialog,
@@ -11,52 +8,16 @@ import {
 } from "@phoenix/components";
 import type { LabelParams } from "@phoenix/components/label";
 import { NewLabelForm } from "@phoenix/components/label";
-import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
-
-import type { NewPromptLabelDialogMutation } from "./__generated__/NewPromptLabelDialogMutation.graphql";
+import { usePromptLabelMutations } from "@phoenix/components/prompt/usePromptLabelMutations";
 
 type NewPromptLabelDialogProps = {
   onCompleted: () => void;
 };
 export function NewPromptLabelDialog(props: NewPromptLabelDialogProps) {
-  const [error, setError] = useState("");
   const { onCompleted } = props;
-  const [addLabel, isSubmitting] = useMutation<NewPromptLabelDialogMutation>(
-    graphql`
-      mutation NewPromptLabelDialogMutation(
-        $label: CreatePromptLabelInput!
-        $connections: [ID!]!
-      ) {
-        createPromptLabel(input: $label) {
-          promptLabels
-            @prependNode(connections: $connections, edgeTypeName: "PromptLabelEdge") {
-            id
-            name
-            color
-          }
-        }
-      }
-    `
-  );
+  const { addLabelMutation, isSubmitting, error } = usePromptLabelMutations();
   const onSubmit = (label: LabelParams) => {
-    const connections = [
-      ConnectionHandler.getConnectionID(
-        "client:root",
-        "PromptLabelConfigButtonAllLabels_promptLabels"
-      ),
-      ConnectionHandler.getConnectionID(
-        "client:root",
-        "PromptLabelsTable__promptLabels"
-      ),
-    ];
-    addLabel({
-      variables: { label, connections },
-      onCompleted,
-      onError: (error) => {
-        const formattedError = getErrorMessagesFromRelayMutationError(error);
-        setError(formattedError?.[0] ?? error.message);
-      },
-    });
+    addLabelMutation(label, onCompleted);
   };
   return (
     <Dialog>

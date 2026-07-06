@@ -1,7 +1,32 @@
 on:
   workflow_dispatch:
+    inputs:
+      feature_branch:
+        description: >-
+          Publish a SHA-based dev preview from this branch instead of running
+          the release flow. Leave empty to run the normal production release.
+        required: false
+        type: string
+        default: ""
 
 name: Publish Python packages
+
+# This workflow has two modes, both dispatched manually:
+#   - Release (feature_branch empty): the production flow — build from
+#     release-please tags and publish final versions to PyPI.
+#   - Preview (feature_branch set): publish PEP 440 development (dev) pre-releases
+#     for the packages changed on that branch (relative to main). Dev builds are
+#     stamped from the branch head commit SHA (<version>.dev<int(sha[:7], 16)>), so
+#     each commit maps to one deterministic version and pip ignores them unless
+#     explicitly requested (--pre or an exact pinned version).
+#
+# Both modes publish through the SAME PyPI Trusted Publishers — this workflow
+# file plus the `pypi` (arize-phoenix) and `pypi/<package>` environments — so
+# previews need no extra PyPI or GitHub environment configuration.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.feature_branch || github.run_id }}
+  cancel-in-progress: ${{ inputs.feature_branch != '' }}
 
 permissions:
   contents: read
@@ -9,6 +34,7 @@ permissions:
 jobs:
   list-python-packages:
     name: List Python packages from manifest
+    if: ${{ inputs.feature_branch == '' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,11 +183,14 @@ jobs:
     steps:
       - name: Check if package needs building
         id: check
+        env:
+          PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
+          MATRIX_PATH: ${{ matrix.path }}
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "$PACKAGE_PATHS" | jq -e --arg p "$MATRIX_PATH" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
-            echo "Skipping ${{ matrix.path }} — already on PyPI"
+            echo "Skipping $MATRIX_PATH — already on PyPI"
             echo "needed=false" >> $GITHUB_OUTPUT
           fi
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -228,8 +257,11 @@ jobs:
     steps:
       - name: Check if package needs publishing
         id: check
+        env:
+          PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
+          MATRIX_PATH: ${{ matrix.path }}
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "$PACKAGE_PATHS" | jq -e --arg p "$MATRIX_PATH" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
@@ -263,8 +295,11 @@ jobs:
     steps:
       - name: Check if package was published
         id: check
+        env:
+          PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
+          MATRIX_PATH: ${{ matrix.path }}
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "$PACKAGE_PATHS" | jq -e --arg p "$MATRIX_PATH" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
@@ -290,7 +325,7 @@ jobs:
   slack:
     name: Slack notification
     needs: [list-python-packages, publish-phoenix, publish-packages, trigger-version-updates]
-    if: always() && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped')
+    if: always() && inputs.feature_branch == '' && (needs.publish-phoenix.result != 'skipped' || needs.publish-packages.result != 'skipped')
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -327,3 +362,182 @@ jobs:
               "type": "mrkdwn",
               "text": ${{ toJSON(steps.notify.outputs.text) }}
             }
+
+  # ---------------------------------------------------------------------------
+  # Feature-branch preview flow — runs only when `feature_branch` is set. Builds
+  # dev pre-releases for the packages changed on that branch (vs main), stamped
+  # from the branch head SHA, and publishes via the same Trusted Publishers.
+  # ---------------------------------------------------------------------------
+
+  preview-changes:
+    name: Detect changed packages (preview)
+    if: ${{ inputs.feature_branch != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+      main: ${{ steps.filter.outputs.main }}
+      phoenix-client: ${{ steps.filter.outputs.phoenix-client }}
+      phoenix-evals: ${{ steps.filter.outputs.phoenix-evals }}
+      phoenix-otel: ${{ steps.filter.outputs.phoenix-otel }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.feature_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve branch head SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: filter
+        with:
+          base: main
+          # Diff against the dispatched feature branch, not the branch the
+          # workflow file was dispatched from (which is what paths-filter uses
+          # by default when `ref` is omitted).
+          ref: ${{ inputs.feature_branch }}
+          filters: |
+            main:
+              - 'src/phoenix/**'
+              - 'app/src/**'
+              - 'pyproject.toml'
+            phoenix-client:
+              - 'packages/phoenix-client/**'
+            phoenix-evals:
+              - 'packages/phoenix-evals/**'
+            phoenix-otel:
+              - 'packages/phoenix-otel/**'
+
+  preview-phoenix:
+    name: Preview publish arize-phoenix (PyPI dev)
+    needs: preview-changes
+    if: ${{ needs.preview-changes.outputs.main == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/arize-phoenix
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Pin to the exact commit detected by preview-changes so the build and
+          # the version suffix always refer to the same SHA, even if the branch
+          # advances mid-run.
+          ref: ${{ needs.preview-changes.outputs.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: app/package.json
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0  # zizmor: ignore[cache-poisoning]
+        with:
+          node-version: 22
+      - name: Build frontend
+        working-directory: ./app
+        run: pnpm install --frozen-lockfile && pnpm run build
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          python-version: "3.10"
+          version: "0.11.8"
+          enable-cache: false
+      - name: Stamp dev version
+        env:
+          HEAD_SHA: ${{ needs.preview-changes.outputs.sha }}
+        run: |
+          python - <<'PY'
+          import re, os
+          path = "src/phoenix/version.py"
+          suffix = int(os.environ["HEAD_SHA"][:7], 16)
+          content = open(path).read()
+          new = re.sub(
+              r'(__version__ = ")([^"]+)(")',
+              lambda m: f'{m.group(1)}{m.group(2)}.dev{suffix}{m.group(3)}',
+              content,
+          )
+          open(path, "w").write(new)
+          PY
+      - name: Build distribution
+        run: rm -rf dist && uv build
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        with:
+          skip-existing: true
+
+  preview-packages:
+    name: Preview publish ${{ matrix.package_name }} (PyPI dev)
+    needs: preview-changes
+    if: ${{ needs.preview-changes.outputs['phoenix-client'] == 'true' || needs.preview-changes.outputs['phoenix-evals'] == 'true' || needs.preview-changes.outputs['phoenix-otel'] == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ matrix.environment_name }}
+      url: https://pypi.org/p/${{ matrix.package_name }}
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - path: packages/phoenix-client
+            package_name: arize-phoenix-client
+            environment_name: pypi/arize-phoenix-client
+            changed_output: phoenix-client
+          - path: packages/phoenix-evals
+            package_name: arize-phoenix-evals
+            environment_name: pypi/arize-phoenix-evals
+            changed_output: phoenix-evals
+          - path: packages/phoenix-otel
+            package_name: arize-phoenix-otel
+            environment_name: pypi/arize-phoenix-otel
+            changed_output: phoenix-otel
+    steps:
+      - name: Check if package changed
+        id: check
+        env:
+          CHANGED: ${{ needs.preview-changes.outputs[matrix.changed_output] }}
+        run: |
+          if [ "$CHANGED" = "true" ]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.check.outputs.needed == 'true'
+        with:
+          # Pin to the exact commit detected by preview-changes (see preview-phoenix).
+          ref: ${{ needs.preview-changes.outputs.sha }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        if: steps.check.outputs.needed == 'true'
+        with:
+          python-version: "3.10"
+          version: "0.11.8"
+          enable-cache: false
+      - name: Stamp dev version
+        if: steps.check.outputs.needed == 'true'
+        env:
+          PYPROJECT_PATH: ${{ matrix.path }}/pyproject.toml
+          HEAD_SHA: ${{ needs.preview-changes.outputs.sha }}
+        run: |
+          python - <<'PY'
+          import re, os
+          path = os.environ["PYPROJECT_PATH"]
+          suffix = int(os.environ["HEAD_SHA"][:7], 16)
+          content = open(path).read()
+          new = re.sub(
+              r'(?m)^(version = ")([^"]+)(")',
+              lambda m: f'{m.group(1)}{m.group(2)}.dev{suffix}{m.group(3)}',
+              content,
+          )
+          open(path, "w").write(new)
+          PY
+      - name: Build distribution
+        if: steps.check.outputs.needed == 'true'
+        working-directory: ${{ matrix.path }}
+        run: uv build
+      - uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+        if: steps.check.outputs.needed == 'true'
+        with:
+          skip-existing: true

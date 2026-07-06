@@ -19,6 +19,7 @@ import {
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import {
   type ChatMessage,
+  type ExperimentScaffold,
   type GenAIOperationType,
   type InitialPlaygroundState,
   type PlaygroundChatTemplate,
@@ -259,6 +260,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     streaming: true,
     repetitions: 1,
     recordExperiments: true,
+    nextExperimentScaffold: null,
     operationType: "chat",
     inputMode: "manual",
     dirtyInstances: {},
@@ -273,6 +275,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     instances,
     allInstanceMessages: instanceMessages,
     externallyUpdatedMessageRevisionById: {},
+    externallyUpdatedToolRevisionById: {},
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
@@ -785,6 +788,20 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "updateInstance" }
       );
     },
+    markToolsExternallyUpdated: (toolIds) => {
+      if (toolIds.length === 0) return;
+      set(
+        (state) => {
+          const next = { ...state.externallyUpdatedToolRevisionById };
+          for (const toolId of toolIds) {
+            next[toolId] = (next[toolId] ?? 0) + 1;
+          }
+          return { externallyUpdatedToolRevisionById: next };
+        },
+        false,
+        { type: "markToolsExternallyUpdated" }
+      );
+    },
     runPlaygroundInstances: () => {
       const instances = get().instances;
       const repetitions = get().repetitions;
@@ -887,6 +904,25 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setVariableValue" }
       );
     },
+    setVariableValues: (values: { key: string; value: string }[]) => {
+      const input = get().input;
+      const variableValues = Object.fromEntries(
+        values.map(({ key, value }) => [key, value])
+      );
+      set(
+        {
+          input: {
+            ...input,
+            variablesValueCache: {
+              ...input.variablesValueCache,
+              ...variableValues,
+            },
+          },
+        },
+        false,
+        { type: "setVariableValues" }
+      );
+    },
     setStreaming: (streaming: boolean) => {
       set({ streaming }, false, { type: "setStreaming" });
     },
@@ -895,6 +931,22 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     },
     setRecordExperiments: (recordExperiments: boolean) => {
       set({ recordExperiments }, false, { type: "setRecordExperiments" });
+    },
+    setNextExperimentScaffold: (
+      nextExperimentScaffold: ExperimentScaffold | null
+    ) => {
+      set({ nextExperimentScaffold }, false, {
+        type: "setNextExperimentScaffold",
+      });
+    },
+    consumeNextExperimentScaffold: () => {
+      const { nextExperimentScaffold } = get();
+      if (nextExperimentScaffold != null) {
+        set({ nextExperimentScaffold: null }, false, {
+          type: "consumeNextExperimentScaffold",
+        });
+      }
+      return nextExperimentScaffold;
     },
     setMaxConcurrency: ({
       maxConcurrency,
@@ -1330,6 +1382,36 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "setRepetitionSpanId" }
+      );
+    },
+    setRepetitionTraceId: (
+      instanceId: number,
+      repetitionNumber: number,
+      traceId: string
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      traceId,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "setRepetitionTraceId" }
       );
     },
     initExperimentRunProgress: (instanceId, progress) => {

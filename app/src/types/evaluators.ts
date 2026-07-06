@@ -58,11 +58,19 @@ export type EvaluatorInputMapping = {
   pathMapping: Record<string, string>;
 };
 
+// Runtime tuple so the code-evaluator draft Zod schema derives its enum from this same source.
+export const EVALUATOR_OPTIMIZATION_DIRECTIONS = [
+  "MAXIMIZE",
+  "MINIMIZE",
+  "NONE",
+] as const;
+
 /**
  * The direction to optimize the numeric evaluation score
  * E.x. "MAXIMIZE" means that the higher the score, the better the evaluation
  */
-export type EvaluatorOptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type EvaluatorOptimizationDirection =
+  (typeof EVALUATOR_OPTIMIZATION_DIRECTIONS)[number];
 
 /**
  * The choice a classification form of evaluation may choose from
@@ -133,7 +141,10 @@ export type FreeformEvaluatorAnnotationConfig = {
  */
 export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
 
-export type CodeEvaluatorLanguage = "PYTHON" | "TYPESCRIPT";
+// Runtime tuple so the code-evaluator draft Zod schema derives its enum from this same source.
+export const CODE_EVALUATOR_LANGUAGES = ["PYTHON", "TYPESCRIPT"] as const;
+
+export type CodeEvaluatorLanguage = (typeof CODE_EVALUATOR_LANGUAGES)[number];
 
 export type SandboxBackendType =
   | "WASM"

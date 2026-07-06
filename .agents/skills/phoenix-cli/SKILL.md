@@ -272,10 +272,28 @@ px prompt get <name> --format text --no-progress   # plain text, ideal for pipin
 
 ## Annotation Configs
 
+Full CRUD: `list`, `get`, `create`, `update`, `delete`. Types are `CATEGORICAL` (labels + optional scores), `CONTINUOUS` (numeric range), `FREEFORM` (free text).
+
 ```bash
-px annotation-config list                                           # list all configs (table view)
-px annotation-config list --format raw --no-progress | jq '.[].name' # config names as JSON
+px annotation-config list                                                # all configs (table view)
+px annotation-config list --format raw --no-progress | jq -r '.[].name' # config names as JSON
+px annotation-config get response-quality --format raw --no-progress     # one config by name or ID
+
+# create — categorical (scored labels), continuous (numeric range), or freeform (free text)
+px annotation-config create --type CATEGORICAL --name response-quality --value good=1 --value bad=0
+px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1
+px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'
+
+# update by name or ID — only the fields you pass change; type is immutable
+px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE
+px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0
+px annotation-config update response-quality --description "Updated" --format raw --no-progress | jq -r '.id'
+
+# delete by ID — requires PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true; --yes skips the prompt
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
 ```
+
+Categorical values are specified the same way in `create` and `update`: repeatable `--value label[=score]` (score optional), or a single `--values '<json>'` payload — mutually exclusive. `update` fetches the existing config, merges your flags, and writes the full body back via `PUT /v1/annotation_configs/{id}`; it requires at least one field flag. Other type-specific flags: `--lower-bound`/`--upper-bound` (CONTINUOUS/FREEFORM), `--threshold` (FREEFORM). Invalid input (bad flags, type mismatches, malformed values) exits `3` (`INVALID_ARGUMENT`) with a `{error, code, hint?}` JSON envelope on stderr in `raw`/`json` mode. `get`/`create`/`update` output the config object (single object in `raw`/`json`, not an array).
 
 ## GraphQL
 
@@ -286,6 +304,8 @@ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
 px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }' | jq '.data.projects.edges[].node'
 px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | jq '.data.datasets.edges[].node'
 px api graphql '{ evaluators { edges { node { name kind } } } }' | jq '.data.evaluators.edges[].node'
+# evaluator kind values: "LLM" | "CODE" | "BUILTIN"
+# CODE = server-side code evaluator running in a sandbox; BUILTIN = pre-built server evaluator
 
 # Introspect any type
 px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | jq '.data.__type.fields[]'

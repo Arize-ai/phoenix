@@ -60,6 +60,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_identifier}/annotation_configs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List annotation configurations assigned to a project
+         * @description Retrieve a paginated list of the annotation configurations assigned to a project, identified by either project ID or project name.
+         */
+        get: operations["getProjectAnnotationConfigs"];
+        /**
+         * Replace the set of annotation configurations assigned to a project
+         * @description Replace the project's entire set of assigned annotation configurations with the provided set. The server diffs the desired set against the current set: configs in the body but not assigned are added, and configs assigned but not in the body are removed. An empty array clears all assignments.
+         */
+        put: operations["setProjectAnnotationConfigs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_identifier}/annotation_configs/{config_identifier}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Assign an annotation configuration to a project
+         * @description Assign an annotation configuration to a project. This operation is idempotent: re-assigning a config that is already assigned is a no-op that returns the config. Both the project and the config are identified by either ID or name.
+         */
+        put: operations["assignAnnotationConfigToProject"];
+        post?: never;
+        /**
+         * Unassign an annotation configuration from a project
+         * @description Unassign an annotation configuration from a project. This operation is idempotent: unassigning a config that is not currently assigned is a no-op. The underlying annotation config is not deleted. Both the project and the config are identified by either ID or name.
+         */
+        delete: operations["unassignAnnotationConfigFromProject"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_identifier}/span_annotations": {
         parameters: {
             query?: never;
@@ -193,6 +241,97 @@ export interface paths {
          *       rows.
          */
         delete: operations["deleteSessionAnnotations"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dataset_labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List dataset labels
+         * @description Retrieve a paginated list of all dataset labels in the system.
+         */
+        get: operations["listDatasetLabels"];
+        put?: never;
+        /** Create a dataset label */
+        post: operations["createDatasetLabel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dataset_labels/{label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a dataset label by ID */
+        get: operations["getDatasetLabel"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a dataset label by ID
+         * @description Delete a dataset label. This also removes the label from every dataset it is applied to.
+         */
+        delete: operations["deleteDatasetLabel"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a dataset label by ID
+         * @description Partially update a dataset label's name, color, and/or description. Only the fields included in the request body are changed; omitted fields are left as-is.
+         */
+        patch: operations["updateDatasetLabel"];
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/labels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the labels applied to a dataset */
+        get: operations["listDatasetLabelsForDataset"];
+        /**
+         * Replace the set of labels applied to a dataset
+         * @description Replace the entire set of labels applied to a dataset. Labels present in the request but not currently applied are added; labels currently applied but absent from the request are removed. An empty list removes all labels.
+         */
+        put: operations["setDatasetLabelsForDataset"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/datasets/{dataset_identifier}/labels/{label_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Apply a label to a dataset
+         * @description Apply an existing label to a dataset. This operation is idempotent: applying a label that is already applied is a no-op that returns the label.
+         */
+        put: operations["addDatasetLabelToDataset"];
+        post?: never;
+        /**
+         * Remove a label from a dataset
+         * @description Remove a label from a dataset without deleting the label itself. This operation is idempotent: removing a label that is not applied is a no-op.
+         */
+        delete: operations["removeDatasetLabelFromDataset"];
         options?: never;
         head?: never;
         patch?: never;
@@ -388,7 +527,11 @@ export interface paths {
         delete: operations["deleteExperiment"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update an experiment by ID
+         * @description Partially update an experiment's name, description, and/or metadata. Only the fields included in the request body are changed; omitted fields are left as-is. Patching an ephemeral experiment refreshes its last-update timestamp, which extends the window before it is swept away.
+         */
+        patch: operations["updateExperiment"];
         trace?: never;
     };
     "/v1/experiments/{experiment_id}/incomplete-runs": {
@@ -1294,6 +1437,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agents/server/sessions/{session_id}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Server Agent
+         * @description Stream a chat turn from the GraphQL server agent.
+         *
+         *     This is the endpoint the PXI CLI talks to directly (no pre-configured
+         *     agent record): it builds a fresh server agent per request from the
+         *     caller-supplied model and contexts, then streams the reply back as
+         *     Vercel-AI chunks.
+         *
+         *     The request contexts gate capabilities — GraphQL mutations, web access,
+         *     and subagents — and mutations are refused for viewer users. When trace
+         *     recording is enabled (and permitted by system settings), the run is
+         *     traced; locally ingested traces are persisted to the agent's project
+         *     once the stream completes.
+         *
+         *     Returns ``403`` if agents or the server agent are disabled, or if a
+         *     viewer requests mutations.
+         */
+        post: operations["run_server_agent_agents_server_sessions__session_id__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
@@ -1383,6 +1560,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AddDatasetLabelToDatasetResponseBody */
+        AddDatasetLabelToDatasetResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
+        };
         /**
          * AgentSpanContext
          * @description Span the user has selected.
@@ -1487,6 +1668,11 @@ export interface components {
             currentDateTime: string;
             /** Timezone */
             timeZone: string;
+        };
+        /** AssignAnnotationConfigToProjectResponseBody */
+        AssignAnnotationConfigToProjectResponseBody: {
+            /** Data */
+            data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
         /**
          * AssistantMessageMetadata
@@ -1610,7 +1796,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["SessionContext"] | components["schemas"]["PromptContext"] | components["schemas"]["PromptVersionContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["LlmEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"] | components["schemas"]["SubagentsContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -1637,8 +1823,25 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
+             */
+            requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
@@ -1673,12 +1876,42 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
+            /**
+             * Requestedskills
+             * @description Skills the user explicitly requested via the prompt's slash-command affordance. The server force-loads each available skill by injecting a synthetic load_skill tool call/result at the tail of the message history. Unknown or context-unavailable names are ignored.
+             */
+            requestedSkills?: string[];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * CodeEvaluatorContext
+         * @description Code-evaluator create/edit form mounted in the current browser route.
+         */
+        CodeEvaluatorContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "code_evaluator";
+            /** Evaluatornodeid */
+            evaluatorNodeId?: string | null;
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -1722,6 +1955,28 @@ export interface components {
         CreateAnnotationConfigResponseBody: {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
+        };
+        /** CreateDatasetLabelRequestBody */
+        CreateDatasetLabelRequestBody: {
+            /**
+             * Name
+             * @description The name of the dataset label
+             */
+            name: string;
+            /**
+             * Color
+             * @description A lowercase hex color code (e.g. '#00cc88') used to display the label
+             */
+            color: string;
+            /**
+             * Description
+             * @description An optional description of the dataset label
+             */
+            description?: string | null;
+        };
+        /** CreateDatasetLabelResponseBody */
+        CreateDatasetLabelResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
         };
         /**
          * CreateExperimentRequestBody
@@ -1947,6 +2202,26 @@ export interface components {
             /** Example Count */
             example_count: number;
         };
+        /**
+         * DatasetContext
+         * @description Dataset the user is currently viewing or has bound to a workflow.
+         *
+         *     Carries the dataset's relay node id and, when known, the active version
+         *     node id. These IDs scope the create-form handoff link and the sampling of
+         *     active dataset examples used as prompt context; the dataset schema itself
+         *     is open.
+         */
+        DatasetContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dataset";
+            /** Datasetnodeid */
+            datasetNodeId: string;
+            /** Datasetversionnodeid */
+            datasetVersionNodeId?: string | null;
+        };
         /** DatasetExample */
         DatasetExample: {
             /** Id */
@@ -1970,6 +2245,17 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** DatasetLabel */
+        DatasetLabel: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string | null;
+            /** Color */
+            color: string;
         };
         /** DatasetVersion */
         DatasetVersion: {
@@ -2040,6 +2326,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-requested
@@ -2048,6 +2336,8 @@ export interface components {
             state?: "approval-requested";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2072,6 +2362,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-responded
@@ -2080,6 +2372,8 @@ export interface components {
             state?: "approval-responded";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2104,6 +2398,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-available
@@ -2112,6 +2408,8 @@ export interface components {
             state?: "input-available";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2136,6 +2434,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-streaming
@@ -2144,6 +2444,8 @@ export interface components {
             state?: "input-streaming";
             /** Input */
             input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2168,6 +2470,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-available
@@ -2178,6 +2482,8 @@ export interface components {
             input: unknown;
             /** Output */
             output: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2204,6 +2510,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-denied
@@ -2212,6 +2520,8 @@ export interface components {
             state?: "output-denied";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2236,6 +2546,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-error
@@ -2246,6 +2558,8 @@ export interface components {
             input: unknown;
             /** Errortext */
             errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2272,6 +2586,16 @@ export interface components {
              * @description The ID of the dataset version associated with the experiment
              */
             dataset_version_id: string;
+            /**
+             * Name
+             * @description The name of the experiment
+             */
+            name: string;
+            /**
+             * Description
+             * @description The description of the experiment
+             */
+            description: string | null;
             /**
              * Repetitions
              * @description Number of times the experiment is repeated
@@ -2466,6 +2790,17 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** GetDatasetLabelResponseBody */
+        GetDatasetLabelResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
+        };
+        /** GetDatasetLabelsResponseBody */
+        GetDatasetLabelsResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetLabel"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
         /** GetDatasetResponseBody */
         GetDatasetResponseBody: {
             data: components["schemas"]["DatasetWithExampleCount"];
@@ -2485,6 +2820,13 @@ export interface components {
         GetIncompleteExperimentRunsResponseBody: {
             /** Data */
             data: components["schemas"]["IncompleteExperimentRun"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** GetProjectAnnotationConfigsResponseBody */
+        GetProjectAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
             /** Next Cursor */
             next_cursor: string | null;
         };
@@ -2695,6 +3037,11 @@ export interface components {
         ListDatasetExamplesResponseBody: {
             data: components["schemas"]["ListDatasetExamplesData"];
         };
+        /** ListDatasetLabelsForDatasetResponseBody */
+        ListDatasetLabelsForDatasetResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetLabel"][];
+        };
         /** ListDatasetVersionsResponseBody */
         ListDatasetVersionsResponseBody: {
             /** Data */
@@ -2722,6 +3069,19 @@ export interface components {
             data: components["schemas"]["Experiment"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /**
+         * LlmEvaluatorContext
+         * @description LLM-evaluator create/edit form mounted in the current browser route.
+         */
+        LlmEvaluatorContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "llm_evaluator";
+            /** Evaluatornodeid */
+            evaluatorNodeId?: string | null;
         };
         /** LocalUser */
         LocalUser: {
@@ -3045,6 +3405,21 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PlaygroundBuiltinModelContext
+         * @description Built-in playground model selection.
+         */
+        PlaygroundBuiltinModelContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "builtin";
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /**
          * PlaygroundContext
          * @description Playground prompt editor state mounted in the current browser route.
          */
@@ -3054,8 +3429,108 @@ export interface components {
              * @enum {string}
              */
             type: "playground";
-            /** Instanceids */
-            instanceIds: number[];
+            /**
+             * Recordexperiments
+             * @default true
+             */
+            recordExperiments?: boolean;
+            /**
+             * Repetitions
+             * @default 1
+             */
+            repetitions?: number;
+            nextExperimentScaffold?: components["schemas"]["PlaygroundExperimentScaffoldContext"] | null;
+            /** Instances */
+            instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            /** Evaluators */
+            evaluators?: components["schemas"]["PlaygroundEvaluatorContext"][];
+        };
+        /**
+         * PlaygroundCustomProviderModelContext
+         * @description Custom-provider playground model selection.
+         */
+        PlaygroundCustomProviderModelContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "custom";
+            /** Customproviderid */
+            customProviderId: string;
+            /** Customprovidername */
+            customProviderName: string;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /**
+         * PlaygroundEvaluatorContext
+         * @description One dataset evaluator on the mounted playground's roster. ``name`` is
+         *     user-controlled; sanitize at every model-visible boundary.
+         */
+        PlaygroundEvaluatorContext: {
+            /** Datasetevaluatorid */
+            datasetEvaluatorId: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "LLM" | "CODE" | "BUILTIN";
+            /** Isbuiltin */
+            isBuiltin: boolean;
+            /** Isapplied */
+            isApplied: boolean;
+        };
+        /**
+         * PlaygroundExperimentScaffoldContext
+         * @description Experiment name/description/metadata the user has staged for the playground's
+         *     *next* dataset-backed run, before that run has started.
+         *
+         *     The playground UI lets the user pre-set how the next recorded run's experiment
+         *     will be named, described, and tagged (via the ``set_playground_experiment_recording``
+         *     tool or the recording form). That staged state is surfaced here so the agent can
+         *     see what is already set and avoid re-staging it.
+         *
+         *     Field semantics:
+         *     - ``name`` / ``description``: the staged values, surfaced to the model verbatim,
+         *       or ``None`` when the user has not staged them.
+         *     - ``has_metadata``: a presence flag, not the value. Only *whether* metadata has
+         *       been staged is model-relevant (so the agent knows not to re-attach it); the
+         *       metadata object itself is deliberately kept out of the prompt.
+         *
+         *     A field left unstaged (``None`` / ``False``) falls back to the server default when
+         *     the run starts. The scaffold is consumed once that next run begins.
+         */
+        PlaygroundExperimentScaffoldContext: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Hasmetadata
+             * @default false
+             */
+            hasMetadata?: boolean;
+        };
+        /**
+         * PlaygroundInstanceContext
+         * @description One mounted playground instance and its current model selection.
+         *
+         *     ``experiment_id`` carries the relay node id of the experiment produced by
+         *     this instance's last dataset-backed run, or ``None`` when the instance has
+         *     not produced one. Ephemeral experiments are included: they remain queryable
+         *     until the server sweeps them ~24h after their last update.
+         */
+        PlaygroundInstanceContext: {
+            /** Instanceid */
+            instanceId: number;
+            /** Model */
+            model?: (components["schemas"]["PlaygroundBuiltinModelContext"] | components["schemas"]["PlaygroundCustomProviderModelContext"]) | null;
+            /** Experimentid */
+            experimentId?: string | null;
         };
         /** Project */
         Project: {
@@ -3280,6 +3755,19 @@ export interface components {
             type: "chat";
             /** Messages */
             messages: components["schemas"]["PromptMessage"][];
+        };
+        /**
+         * PromptContext
+         * @description Prompt the user is currently viewing.
+         */
+        PromptContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt";
+            /** Promptnodeid */
+            promptNodeId: string;
         };
         /** PromptData */
         PromptData: {
@@ -3781,6 +4269,21 @@ export interface components {
             /** Id */
             id: string;
         };
+        /**
+         * PromptVersionContext
+         * @description Prompt version the user is currently viewing.
+         */
+        PromptVersionContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "prompt_version";
+            /** Promptnodeid */
+            promptNodeId: string;
+            /** Promptversionnodeid */
+            promptVersionNodeId: string;
+        };
         /** PromptVersionData */
         PromptVersionData: {
             /** Description */
@@ -3982,6 +4485,21 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /**
+         * SessionContext
+         * @description Session the user is currently viewing.
+         */
+        SessionContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "session";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Sessionnodeid */
+            sessionNodeId: string;
+        };
         /** SessionData */
         SessionData: {
             /** Id */
@@ -4056,6 +4574,34 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+        };
+        /** SetDatasetLabelsForDatasetResponseBody */
+        SetDatasetLabelsForDatasetResponseBody: {
+            /** Data */
+            data: components["schemas"]["DatasetLabel"][];
+        };
+        /** SetDatasetLabelsRequestBody */
+        SetDatasetLabelsRequestBody: {
+            /**
+             * Dataset Label Ids
+             * @description The complete set of dataset label GlobalIDs to apply to the dataset. Labels not in this list are removed from the dataset; an empty list removes all labels.
+             */
+            dataset_label_ids?: string[];
+        };
+        /** SetProjectAnnotationConfigsRequestBody */
+        SetProjectAnnotationConfigsRequestBody: {
+            /**
+             * Annotation Config Ids
+             * @description The complete set of annotation configuration GlobalIDs that should be assigned to the project. Configs not in this list are unassigned; an empty list clears all assignments.
+             */
+            annotation_config_ids: string[];
+        };
+        /** SetProjectAnnotationConfigsResponseBody */
+        SetProjectAnnotationConfigsResponseBody: {
+            /** Data */
+            data: (components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"])[];
+            /** Next Cursor */
+            next_cursor: string | null;
         };
         /**
          * SourceDocumentUIPart
@@ -4408,6 +4954,19 @@ export interface components {
              */
             type?: "step-start";
         };
+        /**
+         * SubagentsContext
+         * @description User's per-turn request to expose the subagent-spawning tool.
+         */
+        SubagentsContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "subagents";
+            /** Enabled */
+            enabled: boolean;
+        };
         /** TextContentPart */
         TextContentPart: {
             /**
@@ -4457,6 +5016,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-requested
@@ -4497,6 +5058,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-responded
@@ -4549,6 +5112,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-available
@@ -4577,6 +5142,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-streaming
@@ -4605,6 +5172,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-available
@@ -4637,6 +5206,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-denied
@@ -4665,6 +5236,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-error
@@ -4913,6 +5486,58 @@ export interface components {
             /** Data */
             data: components["schemas"]["CategoricalAnnotationConfig"] | components["schemas"]["ContinuousAnnotationConfig"] | components["schemas"]["FreeformAnnotationConfig"];
         };
+        /**
+         * UpdateDatasetLabelRequestBody
+         * @description Fields to update on a dataset label. Omit a field to leave it unchanged.
+         */
+        UpdateDatasetLabelRequestBody: {
+            /**
+             * Name
+             * @description New name for the label (null is rejected; name is required)
+             */
+            name?: string | null;
+            /**
+             * Color
+             * @description New lowercase hex color code for the label (null is rejected)
+             */
+            color?: string | null;
+            /**
+             * Description
+             * @description New description for the label (null clears the description)
+             */
+            description?: string | null;
+        };
+        /** UpdateDatasetLabelResponseBody */
+        UpdateDatasetLabelResponseBody: {
+            data: components["schemas"]["DatasetLabel"];
+        };
+        /**
+         * UpdateExperimentRequestBody
+         * @description Fields to update on an experiment. Omit a field to leave it unchanged.
+         */
+        UpdateExperimentRequestBody: {
+            /**
+             * Name
+             * @description New name for the experiment (null is rejected; name is required)
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description New description for the experiment (null clears the description)
+             */
+            description?: string | null;
+            /**
+             * Metadata
+             * @description New metadata object for the experiment (replaces the existing metadata as a whole; null is rejected)
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** UpdateExperimentResponseBody */
+        UpdateExperimentResponseBody: {
+            data: components["schemas"]["Experiment"];
+        };
         /** UpdateProjectRequestBody */
         UpdateProjectRequestBody: {
             /** Description */
@@ -5063,6 +5688,12 @@ export interface components {
              * @default false
              */
             exportRemoteTraces?: boolean;
+            /**
+             * Attachuserid
+             * @description When true and the request is authenticated as a PhoenixUser, attaches the user's email as the OpenInference ``user.id`` span attribute on all traced work for this request.
+             * @default false
+             */
+            attachUserId?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
             /** Model */
@@ -5303,6 +5934,217 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getProjectAnnotationConfigs: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (base64-encoded annotation config ID) */
+                cursor?: string | null;
+                /** @description Maximum number of configs to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A list of the project's annotation configurations with pagination information */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetProjectAnnotationConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setProjectAnnotationConfigs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectAnnotationConfigsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description The resulting set of annotation configurations assigned to the project */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetProjectAnnotationConfigsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    assignAnnotationConfigToProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+                /** @description The annotation configuration identifier: either ID or name. */
+                config_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The annotation configuration assigned to the project */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssignAnnotationConfigToProjectResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    unassignAnnotationConfigFromProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. */
+                project_identifier: string;
+                /** @description The annotation configuration identifier: either ID or name. */
+                config_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content returned on successful unassignment */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -5669,6 +6511,467 @@ export interface operations {
                 };
             };
             /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listDatasetLabels: {
+        parameters: {
+            query?: {
+                /** @description Cursor for pagination (a dataset label GlobalID) */
+                cursor?: string | null;
+                /** @description The max number of dataset labels to return at a time. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDatasetLabelsResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    createDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDatasetLabelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateDatasetLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset label with the same name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    getDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the dataset label */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetDatasetLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset label ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the dataset label */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset label ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    updateDatasetLabel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The ID of the dataset label */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetLabelRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateDatasetLabelResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description A dataset label with the same name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset label ID or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    listDatasetLabelsForDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDatasetLabelsForDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    setDatasetLabelsForDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDatasetLabelsRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetDatasetLabelsForDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or one or more dataset labels not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    addDatasetLabelToDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+                /** @description The ID of the dataset label to apply */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddDatasetLabelToDatasetResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset or dataset label not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier or dataset label ID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    removeDatasetLabelFromDataset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The dataset identifier: either the dataset ID (GlobalID) or its name. */
+                dataset_identifier: string;
+                /** @description The ID of the dataset label to remove */
+                label_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Dataset not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid dataset identifier or dataset label ID */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6381,6 +7684,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateExperiment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateExperimentRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Experiment updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateExperimentResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Experiment not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid experiment ID or request body */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
                 };
             };
         };
@@ -7845,6 +9201,8 @@ export interface operations {
                 include_experiment_projects?: boolean;
                 /** @description Include dataset evaluator projects in the response. Dataset evaluator projects are created when running experiments with persisted evaluators. */
                 include_dataset_evaluator_projects?: boolean;
+                /** @description Return only projects whose name contains this substring (case-insensitive). */
+                name_contains?: string | null;
             };
             header?: never;
             path?: never;
@@ -8874,6 +10232,41 @@ export interface operations {
             };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_server_agent_agents_server_sessions__session_id__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

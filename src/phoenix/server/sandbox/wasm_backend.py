@@ -36,6 +36,8 @@ from typing import TYPE_CHECKING, Iterator, Mapping, Optional
 if TYPE_CHECKING:
     import wasmtime
 
+from phoenix.config import ENV_PHOENIX_WASM_BINARY_PATH, get_env_wasm_binary_path
+
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
@@ -47,8 +49,6 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
-
-_WASM_BINARY_PATH_ENV = "PHOENIX_WASM_BINARY_PATH"
 
 _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
@@ -336,11 +336,13 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
         if resolved is not None:
             return WASMBinaryProbe(available=True, detail=None, path=resolved)
 
-        env_path = os.environ.get(_WASM_BINARY_PATH_ENV)
-        if env_path:
+        env_path = get_env_wasm_binary_path()
+        if env_path is not None:
             return WASMBinaryProbe(
                 available=False,
-                detail=(f"{_WASM_BINARY_PATH_ENV}={env_path} is set but the file does not exist."),
+                detail=(
+                    f"{ENV_PHOENIX_WASM_BINARY_PATH}={env_path} is set but the file does not exist."
+                ),
                 path=None,
             )
         if _no_local_storage():

@@ -1,5 +1,46 @@
 # @arizeai/phoenix-mcp
 
+## 4.0.19
+
+### Patch Changes
+
+- Updated dependencies [7947440]
+  - @arizeai/phoenix-client@6.12.0
+
+## 4.0.18
+
+### Patch Changes
+
+- Updated dependencies [7afa183]
+  - @arizeai/phoenix-client@6.11.2
+
+## 4.0.17
+
+### Patch Changes
+
+- Updated dependencies [a027ada]
+  - @arizeai/phoenix-client@6.11.1
+
+## 4.0.16
+
+### Patch Changes
+
+- Updated dependencies [7efabf6]
+  - @arizeai/phoenix-client@6.11.0
+
+## 4.0.15
+
+### Patch Changes
+
+- 4ce1b7d: Send an explicit `User-Agent: phoenix-mcp` header on Phoenix REST requests. Node's global `fetch` (undici) defaults to `User-Agent: undici`, which some Phoenix Cloud edges 302-redirect to an HTML landing page, causing tool calls to fail with `Unexpected token < in JSON`. Caller-supplied headers still take precedence (#13742).
+
+## 4.0.14
+
+### Patch Changes
+
+- Updated dependencies [0347f22]
+  - @arizeai/phoenix-client@6.10.1
+
 ## 4.0.13
 
 ### Patch Changes

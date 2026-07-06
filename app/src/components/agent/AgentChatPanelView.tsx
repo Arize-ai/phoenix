@@ -1,15 +1,20 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
+import { Pressable } from "react-aria";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
+  Badge,
   Button,
   Flex,
   Icon,
   Icons,
   LinkButton,
+  RichTooltip,
   Text,
+  TooltipArrow,
+  TooltipTrigger,
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
@@ -24,11 +29,12 @@ import type { Size } from "@phoenix/types/geometry";
 import { PxiGlyph } from "./PxiGlyph";
 import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
+import { EMPTY_SESSION_DISPLAY_NAME } from "./sessionSummaryUtils";
 
 const PANEL_HEADER_Z_INDEX = 3;
-const FLOATING_PANEL_WIDTH_PX = 420;
+const FLOATING_PANEL_WIDTH_PX = 520;
 const FLOATING_PANEL_HEIGHT_PX = 720;
-const FLOATING_PANEL_MIN_WIDTH_PX = 360;
+const FLOATING_PANEL_MIN_WIDTH_PX = 480;
 const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
 
 export const DEFAULT_FLOATING_AGENT_CHAT_SIZE: Size = {
@@ -52,7 +58,9 @@ const panelHeaderCSS = css`
   column-gap: var(--global-dimension-size-100);
   min-height: var(--global-dimension-size-600);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  background: var(--global-background-color-default);
+  /* Inherit the panel surface so the header blends with whichever frame hosts
+     it: the darker docked panel or the lighter floating panel. */
+  background: transparent;
 `;
 
 const panelHeaderActionsCSS = css`
@@ -69,6 +77,9 @@ const sessionHeadingCSS = css`
 `;
 
 const panelContentCSS = css`
+  --agent-chat-panel-background-color: var(--global-background-color-default);
+  --prompt-input-background-color: var(--agent-chat-panel-background-color);
+
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -76,6 +87,11 @@ const panelContentCSS = css`
   min-width: 420px;
   overflow: hidden;
   border-top: 1px solid var(--global-border-color-default);
+  /* The docked panel is a sibling of the content frame, not a child, so it
+     would otherwise inherit the lighter body background. Pin it to the same
+     surface token the content frame uses so the chat panel reads as one
+     continuous surface with the main content area. */
+  background: var(--agent-chat-panel-background-color);
 `;
 
 /**
@@ -87,6 +103,7 @@ export function AgentChatHeader({
   activeSessionId,
   showSessionHistory,
   position,
+  isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
@@ -98,6 +115,7 @@ export function AgentChatHeader({
   activeSessionId: string | null;
   showSessionHistory: boolean;
   position?: AgentPosition;
+  isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
@@ -109,19 +127,46 @@ export function AgentChatHeader({
     position === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
+  // Only surface the beta badge on the empty/new session, where there is no
+  // summary yet competing for space in the header.
+  const showBetaBadge = sessionDisplayName === EMPTY_SESSION_DISPLAY_NAME;
 
   return (
-    <div css={panelHeaderCSS}>
+    <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiGlyph
           fill="var(--global-text-color-900)"
           css={css`
             transform: scale(0.7);
+            flex-shrink: 0;
           `}
         />
         <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
           {sessionDisplayName}
         </Text>
+        {showBetaBadge ? (
+          <TooltipTrigger delay={0}>
+            <Pressable>
+              <span
+                role="button"
+                tabIndex={0}
+                css={css`
+                  display: inline-flex;
+                  flex: none;
+                  cursor: default;
+                `}
+              >
+                <Badge variant="info">Beta</Badge>
+              </span>
+            </Pressable>
+            <RichTooltip>
+              <TooltipArrow />
+              <Text size="XS">
+                The assistant is in beta — expect changes as it evolves.
+              </Text>
+            </RichTooltip>
+          </TooltipTrigger>
+        ) : null}
       </Flex>
       <Flex
         direction="row"
@@ -142,36 +187,46 @@ export function AgentChatHeader({
           size="S"
           aria-label="New chat"
           onPress={onCreateSession}
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
+        />
+        <LinkButton
+          variant="quiet"
+          size="S"
+          to="/settings/agents"
+          aria-label="Assistant settings"
+          leadingVisual={<Icon svg={<Icons.Options />} />}
         />
         {position != null && onPositionChange != null ? (
           <Button
             variant="quiet"
             size="S"
             aria-label={positionToggleLabel}
-            onPress={() => onPositionChange(nextPosition)}
+            isDisabled={isPositionChangeDisabled}
+            onPress={() => {
+              if (isPositionChangeDisabled) {
+                return;
+              }
+              onPositionChange(nextPosition);
+            }}
             leadingVisual={
               <Icon
                 svg={
-                  position === "pinned" ? <Icons.SlideOut /> : <Icons.SlideIn />
+                  position === "pinned" ? (
+                    <Icons.Collapse />
+                  ) : (
+                    <Icons.SidebarAttachRight />
+                  )
                 }
               />
             }
           />
         ) : null}
-        <LinkButton
-          variant="quiet"
-          size="S"
-          to="/settings/agents"
-          aria-label="Agent settings"
-          leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
-        />
         <Button
           variant="quiet"
           size="S"
-          aria-label="Close agent chat"
+          aria-label="Close assistant"
           onPress={onClose}
-          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Close />} />}
         />
       </Flex>
     </div>
@@ -226,26 +281,35 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
  * Presentational shell for the floating assistant panel.
  */
 export function FloatingAgentChatFrame({
+  boundaryRef,
   children,
   layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
+  isForcedFloating = false,
 }: {
+  boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
   layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
+  isForcedFloating?: boolean;
 }) {
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
     <ResizableFloatingPanel
+      boundaryRef={boundaryRef}
       layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}
       size={size}
       onSizeChange={onSizeChange}
+      // Modal-layer surfaces share the modal-layer FAB's viewport positioning.
+      // Drawer-forced content-layer panels stay content-bound so they remain
+      // aligned with the content-layer FAB.
+      anchorToViewport={isForcedFloating && layer === "modal"}
     >
       {children}
     </ResizableFloatingPanel>

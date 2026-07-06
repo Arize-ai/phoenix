@@ -1,6 +1,7 @@
 import { motion, type MotionProps, useReducedMotion } from "motion/react";
 import React, { type JSX } from "react";
 
+import { getTextColor } from "@phoenix/components/core/content/textUtils";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { shimmerBaseCSS } from "./styles";
@@ -29,6 +30,8 @@ export function Shimmer({
   elementType = "p",
   size = "S",
   weight = "normal",
+  color = "text-700",
+  fontStyle = "normal",
   duration = 2,
   spread = 2,
   className,
@@ -63,6 +66,8 @@ export function Shimmer({
       style={
         {
           "--shimmer-spread": `${dynamicSpread}px`,
+          "--shimmer-color": getTextColor(color),
+          fontStyle,
           ...style,
         } as React.CSSProperties
       }

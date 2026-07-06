@@ -1247,6 +1247,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "name": f"auth_code_evaluator_{token_hex(8)}",
                     "language": "PYTHON",
                     "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
                 }
             },
@@ -1298,8 +1299,6 @@ class TestSandboxAndCodeEvaluatorPermissions:
             "UpdateSandboxProvider",
             {"input": {"id": provider_id, "enabled": True}},
         )
-        # Delete runs last so admins remove the already-exercised setup config.
-        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
 
         # Tier 2 — member-allowed code-evaluator writes & previews
         members_allowed = not is_viewer
@@ -1311,6 +1310,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "name": f"auth_code_evaluator_{token_hex(8)}",
                     "language": "PYTHON",
                     "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
                 }
             },
@@ -1372,6 +1372,11 @@ class TestSandboxAndCodeEvaluatorPermissions:
             if edge["node"].get("currentVersion")
         ]
         assert code_nodes and code_nodes[0]["currentVersion"]["sourceCode"]
+
+        # Delete the setup sandbox config last — after every evaluator write that
+        # references it. Deleting it earlier makes those creates fail the
+        # config-exists check for admins (who are allowed to delete it).
+        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
 
 
 class TestGenerativeModelCustomProviderMutations:

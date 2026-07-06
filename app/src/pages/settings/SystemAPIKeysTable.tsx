@@ -9,9 +9,10 @@ import { graphql, useMutation, useRefetchableFragment } from "react-relay";
 
 import { Alert, Flex, Icon, Icons } from "@phoenix/components";
 import { DeleteAPIKeyButton } from "@phoenix/components/auth";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { TextCell } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -50,7 +51,9 @@ export function SystemAPIKeysTable({
   const [error, setError] = useState<string | null>(null);
   const notifySuccess = useNotifySuccess();
   const [commit] = useMutation(graphql`
-    mutation SystemAPIKeysTableDeleteAPIKeyMutation($input: DeleteApiKeyInput!) {
+    mutation SystemAPIKeysTableDeleteAPIKeyMutation(
+      $input: DeleteApiKeyInput!
+    ) {
       deleteSystemApiKey(input: $input) {
         __typename
         apiKeyId
@@ -173,9 +176,9 @@ export function SystemAPIKeysTable({
                           className="sort-icon"
                           svg={
                             header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
+                              <Icons.CaretUpFilled />
                             ) : (
-                              <Icons.ArrowDownFilled />
+                              <Icons.CaretDownFilled />
                             )
                           }
                         />
@@ -188,7 +191,12 @@ export function SystemAPIKeysTable({
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty message="No Keys" />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="credential" />}
+              description="No system keys"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => {

@@ -74,8 +74,9 @@ class PrecisionRecallFScore(Evaluator):
           Defaults to 'macro'. Suffixes are only appended to metric names when a non-default
           average is used.
         - positive_label: When set, compute binary precision/recall/F exclusively for this label
-          (one-vs-rest). If None and labels are numeric with unique set {0,1}, the
-          positive label defaults to 1. Otherwise, multi-class averaging is used.
+          (one-vs-rest). If None, `average` is at its default 'macro', and labels are numeric
+          with unique set {0,1}, the positive label defaults to 1. Otherwise, multi-class
+          averaging is used.
         - zero_division: Value to use when a metric is undefined (e.g., 0/0). Defaults to 0.0.
 
     Args:
@@ -170,7 +171,7 @@ class PrecisionRecallFScore(Evaluator):
         counts_by_label = self._compute_counts(expected, output, labels)
 
         # Determine if we are in binary (positive_label) mode
-        pos_label = self._resolve_positive_label(self.positive_label, labels)
+        pos_label = self._resolve_positive_label(self.positive_label, labels, self.average)
 
         if pos_label is not None:
             class_counts = counts_by_label.get(pos_label)
@@ -185,11 +186,11 @@ class PrecisionRecallFScore(Evaluator):
                 class_counts.true_positive, class_counts.true_positive + class_counts.false_negative
             )
             suffix = ""
+            # Binary one-vs-rest: F is computed from this class's precision/recall.
+            f_score = self._compute_f_score(precision, recall, self.beta)
         else:
-            precision, recall = self._aggregate_precision_recall(counts_by_label)
+            precision, recall, f_score = self._aggregate_precision_recall(counts_by_label)
             suffix = "" if self.average == "macro" else f"_{self.average}"
-
-        f_score = self._compute_f_score(precision, recall, self.beta)
 
         beta_name = _format_beta_for_name(self.beta)
 
@@ -316,14 +317,20 @@ class PrecisionRecallFScore(Evaluator):
 
     def _aggregate_precision_recall(
         self, counts_by_label: Mapping[Hashable, _ClassCounts]
-    ) -> Tuple[float, float]:
-        """Aggregate precision and recall across all classes.
+    ) -> Tuple[float, float, float]:
+        """Aggregate precision, recall, and F-beta across all classes.
+
+        Mirrors scikit-learn's ``average`` semantics: for ``macro``/``weighted``
+        the F-beta is computed per class and then averaged (not derived from the
+        aggregated precision/recall). For ``micro`` the per-class confusion
+        counts are pooled first, so F-beta is computed from the pooled
+        precision/recall.
 
         Args:
             counts_by_label (Mapping[Hashable, _ClassCounts]): Counts for each label.
 
         Returns:
-            Tuple[float, float]: A tuple of (precision, recall).
+            Tuple[float, float, float]: A tuple of (precision, recall, f_score).
         """
         if self.average == "micro":
             tp = sum(c.true_positive for c in counts_by_label.values())
@@ -331,31 +338,35 @@ class PrecisionRecallFScore(Evaluator):
             fn = sum(c.false_negative for c in counts_by_label.values())
             precision = self._safe_div(tp, tp + fp)
             recall = self._safe_div(tp, tp + fn)
-            return precision, recall
+            return precision, recall, self._compute_f_score(precision, recall, self.beta)
 
         # per-class metrics
         per_class_precision: List[float] = []
         per_class_recall: List[float] = []
+        per_class_f: List[float] = []
         supports: List[int] = []
         for c in counts_by_label.values():
             p = self._safe_div(c.true_positive, c.true_positive + c.false_positive)
             r = self._safe_div(c.true_positive, c.true_positive + c.false_negative)
             per_class_precision.append(p)
             per_class_recall.append(r)
+            per_class_f.append(self._compute_f_score(p, r, self.beta))
             supports.append(c.support)
 
         if self.average == "macro":
             precision = sum(per_class_precision) / len(per_class_precision)
             recall = sum(per_class_recall) / len(per_class_recall)
-            return precision, recall
+            f_score = sum(per_class_f) / len(per_class_f)
+            return precision, recall, f_score
 
         # weighted
         total = sum(supports)
         if total == 0:
-            return float(self.zero_division), float(self.zero_division)
+            return float(self.zero_division), float(self.zero_division), float(self.zero_division)
         precision = sum(p * s for p, s in zip(per_class_precision, supports)) / total
         recall = sum(r * s for r, s in zip(per_class_recall, supports)) / total
-        return precision, recall
+        f_score = sum(f * s for f, s in zip(per_class_f, supports)) / total
+        return precision, recall, f_score
 
     def _compute_f_score(self, precision: float, recall: float, beta: float) -> float:
         """Compute the F-beta score from precision and recall.
@@ -376,23 +387,35 @@ class PrecisionRecallFScore(Evaluator):
         return self._safe_div(numerator, denominator)
 
     def _resolve_positive_label(
-        self, configured_positive: Optional[Hashable], labels: Sequence[Hashable]
+        self,
+        configured_positive: Optional[Hashable],
+        labels: Sequence[Hashable],
+        average: AverageType,
     ) -> Optional[Hashable]:
         """Decide whether to run in binary mode and which label is positive.
 
         - If a positive label is provided, use it.
-        - Else, if labels are a binary numeric set {0, 1}, use 1 as positive.
+        - Else, if `average` is at its default "macro" and labels are a binary
+          numeric set {0, 1}, use 1 as positive.
         - Otherwise, return None to indicate multi-class averaging mode.
+
+        Auto-detection is gated on the default "macro" average so an explicitly
+        configured "micro"/"weighted" average is never silently overridden by
+        the shape of the data.
 
         Args:
             configured_positive (Optional[Hashable]): The explicitly configured positive label.
             labels (Sequence[Hashable]): The set of all possible labels.
+            average (AverageType): The configured averaging strategy.
 
         Returns:
             Optional[Hashable]: The positive label to use, or None for multi-class mode.
         """
         if configured_positive is not None:
             return configured_positive
+
+        if average != "macro":
+            return None
 
         unique = set(labels)
         if unique.issubset({0, 1}) and len(unique) == 2:

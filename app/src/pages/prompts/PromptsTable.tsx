@@ -23,14 +23,23 @@ import {
   Icons,
   Link,
   LinkButton,
+  Text,
   Token,
 } from "@phoenix/components";
+import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { CellWithControlsWrap, TextCell } from "@phoenix/components/table";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
+import {
+  getCommonPinningStyles,
+  selectableTableCSS,
+} from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { useViewerCanModify } from "@phoenix/contexts";
+import { useInterval } from "@phoenix/hooks/useInterval";
+import { TagVersionLabel } from "@phoenix/pages/prompt/PromptVersionTagsList";
 import { usePromptsFilterContext } from "@phoenix/pages/prompts/PromptsFilterProvider";
+import { toggleArrayItem } from "@phoenix/utils/arrayUtils";
 
 import type { PromptsTable_prompts$key } from "./__generated__/PromptsTable_prompts.graphql";
 import type { PromptsTablePromptsQuery } from "./__generated__/PromptsTablePromptsQuery.graphql";
@@ -38,6 +47,15 @@ import { PromptActionMenu } from "./PromptActionMenu";
 import { PromptsEmpty } from "./PromptsEmpty";
 
 const PAGE_SIZE = 100;
+const PROMPTS_POLL_INTERVAL_MS = 60_000;
+
+const tokenListCSS = css`
+  display: flex;
+  flex-direction: row;
+  gap: var(--global-dimension-size-100);
+  min-width: 0;
+  flex-wrap: wrap;
+`;
 
 type PromptsTableProps = {
   query: PromptsTable_prompts$key;
@@ -45,8 +63,16 @@ type PromptsTableProps = {
 
 export function PromptsTable(props: PromptsTableProps) {
   "use no memo";
-  const { filter, selectedPromptLabelIds } = usePromptsFilterContext();
+  const { filter, selectedPromptLabelIds, setSelectedPromptLabelIds } =
+    usePromptsFilterContext();
   const navigate = useNavigate();
+
+  const toggleLabelFilter = useCallback(
+    (labelId: string) => {
+      setSelectedPromptLabelIds((prev) => toggleArrayItem(prev, labelId));
+    },
+    [setSelectedPromptLabelIds]
+  );
   //we need a reference to the scrolling element for logic down below
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
@@ -70,15 +96,28 @@ export function PromptsTable(props: PromptsTableProps) {
           filter: { type: "PromptFilter", defaultValue: null }
           labelIds: { type: "[ID!]", defaultValue: null }
         ) {
-          prompts(first: $first, after: $after, filter: $filter, labelIds: $labelIds)
-            @connection(key: "PromptsTable_prompts") {
+          prompts(
+            first: $first
+            after: $after
+            filter: $filter
+            labelIds: $labelIds
+          ) @connection(key: "PromptsTable_prompts") {
             edges {
               prompt: node {
                 id
                 name
                 description
                 version {
+                  id
                   createdAt
+                  modelName
+                  modelProvider
+                }
+                versionCount
+                versionTags {
+                  id
+                  name
+                  promptVersionId
                 }
                 labels {
                   id
@@ -93,20 +132,43 @@ export function PromptsTable(props: PromptsTableProps) {
       props.query
     );
 
+  const refreshPrompts = useCallback(
+    (variables?: Partial<PromptsTablePromptsQuery["variables"]>) => {
+      startTransition(() => {
+        refetch(
+          {
+            ...queryArgs,
+            ...variables,
+          },
+          {
+            fetchPolicy: "store-and-network",
+          }
+        );
+      });
+    },
+    [refetch, queryArgs]
+  );
+
   // Refetch when searchFilter changes
   useEffect(() => {
-    startTransition(() => {
-      refetch(queryArgs, {
-        fetchPolicy: "store-and-network",
-      });
+    refreshPrompts();
+  }, [refreshPrompts]);
+
+  useInterval(() => {
+    const loadedPromptCount = data.prompts.edges.length;
+    refreshPrompts({
+      first: Math.max(PAGE_SIZE, loadedPromptCount),
     });
-  }, [refetch, queryArgs]);
+  }, PROMPTS_POLL_INTERVAL_MS);
 
   const tableData = useMemo(
     () =>
       data.prompts.edges.map((edge) => {
         return {
           lastUpdatedAt: edge.prompt.version.createdAt,
+          modelName: edge.prompt.version.modelName,
+          modelProvider: edge.prompt.version.modelProvider,
+          latestVersionId: edge.prompt.version.id,
           ...edge.prompt,
         };
       }),
@@ -150,19 +212,24 @@ export function PromptsTable(props: PromptsTableProps) {
       {
         header: "labels",
         accessorKey: "labels",
+        enableSorting: false,
         cell: ({ row }) => {
           return (
-            <ul
-              css={css`
-                display: flex;
-                flex-direction: row;
-                gap: var(--global-dimension-size-100);
-              `}
-            >
+            <ul css={tokenListCSS}>
               {row.original.labels.map((label) => (
-                <Token key={label.id} color={label.color ?? undefined}>
-                  {label.name}
-                </Token>
+                <li key={label.id}>
+                  <StopPropagation>
+                    <Token
+                      color={label.color ?? undefined}
+                      onPress={() => toggleLabelFilter(label.id)}
+                      aria-label={`Filter prompts by label ${label.name}`}
+                    >
+                      <Truncate maxWidth={200} title={label.name}>
+                        {label.name}
+                      </Truncate>
+                    </Token>
+                  </StopPropagation>
+                </li>
               ))}
             </ul>
           );
@@ -173,7 +240,70 @@ export function PromptsTable(props: PromptsTableProps) {
         accessorKey: "description",
         cell: TextCell,
       },
-
+      {
+        header: "model",
+        accessorKey: "modelName",
+        cell: ({ row }) => {
+          const { modelName, modelProvider } = row.original;
+          if (!modelName) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <GenerativeProviderIcon provider={modelProvider} height={16} />
+              <Text minWidth={0}>
+                <Truncate>{modelName}</Truncate>
+              </Text>
+            </Flex>
+          );
+        },
+      },
+      {
+        header: "versions",
+        accessorKey: "versionCount",
+      },
+      {
+        header: "latest version",
+        accessorKey: "latestVersionId",
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <CellWithControlsWrap
+              controls={
+                <CopyToClipboardButton text={row.original.latestVersionId} />
+              }
+            >
+              <Link
+                to={`${row.original.id}/versions/${row.original.latestVersionId}`}
+              >
+                <Truncate maxWidth={200} title={row.original.latestVersionId}>
+                  {row.original.latestVersionId}
+                </Truncate>
+              </Link>
+            </CellWithControlsWrap>
+          );
+        },
+      },
+      {
+        header: "version tags",
+        accessorKey: "versionTags",
+        enableSorting: false,
+        cell: ({ row }) => {
+          return (
+            <ul css={tokenListCSS}>
+              {row.original.versionTags.map((tag) => (
+                <li key={tag.id}>
+                  <Link
+                    to={`${row.original.id}/versions/${tag.promptVersionId}`}
+                  >
+                    <TagVersionLabel maxWidth={200}>{tag.name}</TagVersionLabel>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      },
       {
         header: "last updated",
         accessorKey: "lastUpdatedAt",
@@ -184,7 +314,8 @@ export function PromptsTable(props: PromptsTableProps) {
       cols.push({
         id: "actions",
         header: "",
-        size: 5,
+        size: 150,
+        enableSorting: false,
         accessorKey: "id",
         cell: ({ row }) => {
           return (
@@ -196,7 +327,7 @@ export function PromptsTable(props: PromptsTableProps) {
             >
               <StopPropagation>
                 <LinkButton
-                  leadingVisual={<Icon svg={<Icons.PlayCircleOutline />} />}
+                  leadingVisual={<Icon svg={<Icons.PlayCircle />} />}
                   size="S"
                   aria-label="Open in playground"
                   to={`/playground?promptId=${encodeURIComponent(row.original.id)}`}
@@ -216,12 +347,17 @@ export function PromptsTable(props: PromptsTableProps) {
       });
     }
     return cols;
-  }, [refetch, queryArgs, canModify]);
+  }, [refetch, queryArgs, canModify, toggleLabelFilter]);
 
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
     data: tableData,
+    state: {
+      columnPinning: {
+        right: ["actions"],
+      },
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
@@ -242,12 +378,20 @@ export function PromptsTable(props: PromptsTableProps) {
       onScroll={(e) => fetchMoreOnBottomReached(e.target as HTMLDivElement)}
       ref={tableContainerRef}
     >
-      <table css={selectableTableCSS}>
+      <table css={selectableTableCSS} data-testid="prompts-table">
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={
+                    header.column.getIsPinned()
+                      ? getCommonPinningStyles(header.column)
+                      : undefined
+                  }
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
@@ -270,9 +414,9 @@ export function PromptsTable(props: PromptsTableProps) {
                           className="sort-icon"
                           svg={
                             header.column.getIsSorted() === "asc" ? (
-                              <Icons.ArrowUpFilled />
+                              <Icons.CaretUpFilled />
                             ) : (
-                              <Icons.ArrowDownFilled />
+                              <Icons.CaretDownFilled />
                             )
                           }
                         />
@@ -297,6 +441,11 @@ export function PromptsTable(props: PromptsTableProps) {
                   <td
                     key={cell.id}
                     align={cell.column.columnDef.meta?.textAlign}
+                    style={
+                      cell.column.getIsPinned()
+                        ? getCommonPinningStyles(cell.column)
+                        : undefined
+                    }
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

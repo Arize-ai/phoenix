@@ -145,6 +145,44 @@ console.log(relevanceResult);
 // Output: { label: "relevant", score: 1, explanation: "..." }
 ```
 
+### Code Evaluators
+
+The library also includes built-in, deterministic (non-LLM) code evaluators for common classification metrics: precision, recall, and F-beta (including F1). These are available from the `@arizeai/phoenix-evals/code` module and work over a batch of expected vs. predicted labels, supporting both binary classification (via `positiveLabel`) and multi-class classification (via `macro`/`micro`/`weighted` averaging).
+
+- **Precision** — of everything predicted as a class, the fraction that was actually that class (`TP / (TP + FP)`). Lower precision means more false alarms.
+- **Recall** — of everything that actually belongs to a class, the fraction the model found (`TP / (TP + FN)`). Lower recall means more misses.
+- **F-beta** — the weighted harmonic mean of precision and recall. `beta = 1` (F1, the default) weights them equally; `beta > 1` weights recall more (use when missing a true positive is costlier, e.g. medical screening); `beta < 1` weights precision more (use when a false alarm is costlier, e.g. spam filtering).
+
+```typescript
+import {
+  createPrecisionEvaluator,
+  createRecallEvaluator,
+  createF1Evaluator,
+  createPrecisionRecallFScoreEvaluators,
+} from "@arizeai/phoenix-evals/code";
+
+const f1 = createF1Evaluator();
+const result = await f1.evaluate({
+  expected: ["cat", "dog", "cat", "bird"],
+  output: ["cat", "cat", "cat", "bird"],
+});
+console.log(result);
+// Output: { score: 0.6 }
+
+// Or create matching precision/recall/F-score evaluators at once
+const { precision, recall, fScore } = createPrecisionRecallFScoreEvaluators({
+  average: "weighted",
+});
+```
+
+Use `createFBetaEvaluator({ beta })` for F-scores other than F1 (e.g. `beta: 2` weights recall higher than precision). `createPrecisionRecallFScoreEvaluators` returns three separate evaluators (`{ precision, recall, fScore }`) sharing one options object — each yields a single score, matching the individual factories.
+
+For multi-class data, `average` controls how per-class scores combine into one number: `"macro"` (default) weights every class equally — good for surfacing whether a rare class is being ignored; `"weighted"` weights each class by how often it occurs — good when overall performance matters more than parity across classes; `"micro"` pools every true/false positive and false negative across classes first — for single-label multi-class problems this equals overall accuracy.
+
+See [`examples/classification_metrics_example.ts`](examples/classification_metrics_example.ts) for a runnable walkthrough covering binary classification, F-beta tradeoffs, and all three averaging strategies. For the underlying formulas, the precision/recall tradeoff, and citations, see the [Precision / Recall / F-Score docs](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore).
+
+> **Note:** unlike the per-row LLM evaluators above, these classification-metric evaluators are batch/dataset-level: `expected`/`output` are the full sequence of labels across every example, not a single row's labels. Don't wire them directly into `runExperiment` as a per-row evaluator — instead, collect every row's expected/predicted label first, then call `.evaluate({ expected, output })` once over the full arrays.
+
 ### Data Mapping
 
 When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:

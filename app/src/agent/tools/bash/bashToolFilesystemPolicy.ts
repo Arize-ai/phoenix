@@ -10,52 +10,25 @@ import type {
 type WriteFileOptions = Parameters<IFileSystem["writeFile"]>[2];
 
 /**
- * The writable filesystem entrypoints that must be wrapped by the bash policy.
- */
-export const BASH_TOOL_FILESYSTEM_MUTATION_METHOD_NAMES = [
-  "appendFile",
-  "chmod",
-  "cp",
-  "link",
-  "mkdir",
-  "mv",
-  "rm",
-  "symlink",
-  "utimes",
-  "writeFile",
-] as const;
-
-export type BashToolFilesystemMutationMethod =
-  (typeof BASH_TOOL_FILESYSTEM_MUTATION_METHOD_NAMES)[number];
-
-export type BashToolFilesystemMutationMethods = Pick<
-  IFileSystem,
-  BashToolFilesystemMutationMethod
->;
-
-/**
- * Virtual root containing generated Phoenix context files for the current page.
- */
-export const BASH_TOOL_READONLY_ROOT = "/phoenix";
-/**
  * Virtual scratch space where the model is allowed to mutate files.
  */
 export const BASH_TOOL_WORKSPACE_ROOT = "/home/user/workspace";
 
 /**
- * Captures the current writable filesystem methods so internal setup code can
- * temporarily bypass policy wrappers and then restore them.
+ * Virtual temp directory for familiar shell scratch-file workflows.
  */
-export function captureBashToolFilesystemMutationMethods(
-  fs: BashToolFilesystemMutationMethods
-): BashToolFilesystemMutationMethods {
-  return Object.fromEntries(
-    BASH_TOOL_FILESYSTEM_MUTATION_METHOD_NAMES.map((methodName) => [
-      methodName,
-      fs[methodName].bind(fs),
-    ])
-  ) as BashToolFilesystemMutationMethods;
-}
+export const BASH_TOOL_TMP_ROOT = "/tmp";
+
+/**
+ * Null-sink device paths. just-bash has no real device files, so a redirect
+ * like `cmd >/dev/null 2>&1` resolves to an ordinary `writeFile("/dev/null")`.
+ * That idiom is ubiquitous in model-authored commands, so rather than block it
+ * (which aborts the whole command), we treat writes to these paths as silent
+ * discards — matching POSIX `/dev/null` semantics.
+ */
+export const BASH_TOOL_DISCARD_DEVICE_PATHS: ReadonlySet<string> = new Set([
+  "/dev/null",
+]);
 
 function normalizeVirtualPath(fs: IFileSystem, path: string) {
   return fs.resolvePath("/", path);
@@ -65,23 +38,27 @@ function isWithinRoot(path: string, root: string) {
   return path === root || path.startsWith(`${root}/`);
 }
 
+/**
+ * Returns true when `path` resolves to a null-sink device whose writes should
+ * be discarded rather than enforced against the workspace policy.
+ */
+function isDiscardDevicePath(fs: IFileSystem, path: string) {
+  return BASH_TOOL_DISCARD_DEVICE_PATHS.has(normalizeVirtualPath(fs, path));
+}
+
 function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
   const normalizedPath = normalizeVirtualPath(fs, path);
 
-  if (isWithinRoot(normalizedPath, BASH_TOOL_WORKSPACE_ROOT)) {
+  if (
+    isWithinRoot(normalizedPath, BASH_TOOL_WORKSPACE_ROOT) ||
+    isWithinRoot(normalizedPath, BASH_TOOL_TMP_ROOT)
+  ) {
     return normalizedPath;
   }
 
-  if (isWithinRoot(normalizedPath, BASH_TOOL_READONLY_ROOT)) {
-    throw new Error(
-      `${operation} is not allowed in ${BASH_TOOL_READONLY_ROOT}. ` +
-        `Phoenix context files are read-only; copy them into ${BASH_TOOL_WORKSPACE_ROOT} first.`
-    );
-  }
-
   throw new Error(
-    `${operation} is only allowed in ${BASH_TOOL_WORKSPACE_ROOT}. ` +
-      `Writes outside the workspace are blocked.`
+    `${operation} is only allowed in ${BASH_TOOL_WORKSPACE_ROOT} or ${BASH_TOOL_TMP_ROOT}. ` +
+      `Writes outside scratch directories are blocked.`
   );
 }
 
@@ -91,8 +68,8 @@ function assertWritablePath(fs: IFileSystem, path: string, operation: string) {
 export function applyBashToolFilesystemPolicy(fs: IFileSystem) {
   /**
    * Wrap filesystem mutation methods with a Phoenix-specific path policy.
-   * Writes are allowed under `/home/user/workspace`, denied under `/phoenix`,
-   * and rejected everywhere else with a clear error.
+   * Writes are allowed under `/home/user/workspace` and `/tmp`, and rejected
+   * everywhere else with a clear error.
    */
   const originalWriteFile = fs.writeFile.bind(fs);
   const originalAppendFile = fs.appendFile.bind(fs);
@@ -109,23 +86,31 @@ export function applyBashToolFilesystemPolicy(fs: IFileSystem) {
     path: string,
     content: FileContent,
     options?: WriteFileOptions | BufferEncoding
-  ) =>
-    originalWriteFile(
+  ) => {
+    if (isDiscardDevicePath(fs, path)) {
+      return Promise.resolve();
+    }
+    return originalWriteFile(
       assertWritablePath(fs, path, "writeFile"),
       content,
       options
     );
+  };
 
   fs.appendFile = (
     path: string,
     content: FileContent,
     options?: WriteFileOptions | BufferEncoding
-  ) =>
-    originalAppendFile(
+  ) => {
+    if (isDiscardDevicePath(fs, path)) {
+      return Promise.resolve();
+    }
+    return originalAppendFile(
       assertWritablePath(fs, path, "appendFile"),
       content,
       options
     );
+  };
 
   fs.mkdir = (path: string, options?: MkdirOptions) =>
     originalMkdir(assertWritablePath(fs, path, "mkdir"), options);

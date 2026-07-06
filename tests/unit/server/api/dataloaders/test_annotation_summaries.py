@@ -6,8 +6,7 @@ import pytest
 from sqlalchemy import func, select
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders import AnnotationSummaryDataLoader
-from phoenix.server.api.dataloaders.annotation_summaries import Key
+from phoenix.server.api.dataloaders.annotation_summaries import AnnotationSummaryDataLoader, Key
 from phoenix.server.api.input_types.TimeRange import TimeRange
 from phoenix.server.types import DbSessionFactory
 

@@ -1,9 +1,9 @@
 import { css } from "@emotion/react";
-import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror, { type BasicSetupOptions } from "@uiw/react-codemirror";
 import { useState } from "react";
 
 import { Flex, Icon, Icons } from "@phoenix/components";
+import { pierreDark, pierreLight } from "@phoenix/components/code";
 import { useTheme } from "@phoenix/contexts";
 
 import { useSessionSearchContext } from "./SessionSearchContext";
@@ -66,7 +66,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
   const { filterIoSubstringOrSessionId, setFilterIoSubstringOrSessionId } =
     useSessionSearchContext();
   const { theme } = useTheme();
-  const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const codeMirrorTheme = theme === "light" ? pierreLight : pierreDark;
 
   const hasSubstring = filterIoSubstringOrSessionId !== "";
   return (
@@ -99,7 +99,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
           onClick={() => setFilterIoSubstringOrSessionId("")}
           className="button--reset"
         >
-          <Icon svg={<Icons.CloseCircleOutline />} />
+          <Icon svg={<Icons.CloseCircle />} />
         </button>
       </Flex>
     </div>

@@ -65,7 +65,7 @@ class MinStartOrMaxEndTimeDataLoader(DataLoader[Key, Result]):
             select(
                 pid,
                 func.min(models.Trace.start_time).label("min_start"),
-                func.max(models.Trace.end_time).label("max_end"),
+                func.max(models.Trace.start_time).label("max_end"),
             )
             .where(pid.in_(arguments.keys()))
             .group_by(pid)

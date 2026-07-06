@@ -85,6 +85,17 @@ ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
 Disables PXI native web search and web fetch capabilities even when external
 resources are otherwise allowed.
 """
+ENV_PHOENIX_AGENTS_DISABLE_BASH = "PHOENIX_AGENTS_DISABLE_BASH"
+"""
+Disables the server-side bash tool by preventing subagents from being attached to
+the assistant. When true, the option to enable subagents is also hidden from the UI settings.
+"""
+ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
+"""
+Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
+meaning the assistant is enabled by default. Set to True on the Phoenix server to turn
+it off for the whole deployment.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -313,13 +324,6 @@ Whether or not to log migrations. Defaults to true.
 """
 
 ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
-
-ENV_PHOENIX_DANGEROUSLY_ENABLE_AGENTS = "PHOENIX_DANGEROUSLY_ENABLE_AGENTS"
-"""
-Whether or not to enable the agents feature (the /chat endpoint). Defaults to False.
-
-This is an unreleased feature and should only be enabled for development or testing.
-"""
 """
 Whether or not to disable migrations. Defaults to None / False.
 
@@ -786,6 +790,13 @@ Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
+ENV_PHOENIX_WASM_BINARY_PATH = "PHOENIX_WASM_BINARY_PATH"
+"""
+Override path to a pre-downloaded CPython WASM binary used by the WASM sandbox
+provider. When set, the binary at this path is used as-is (no SHA verification,
+no download). When unset, the binary is downloaded on first use under
+PHOENIX_WORKING_DIR/wasm. Primarily used in CI to point at a cached binary.
+"""
 
 
 @dataclass(frozen=True)
@@ -1237,6 +1248,27 @@ def validate_env_allowed_sandbox_providers() -> None:
         )
 
 
+def get_env_wasm_binary_path() -> Optional[Path]:
+    """Operator-supplied path to a pre-downloaded CPython WASM binary, if set."""
+    value = getenv(ENV_PHOENIX_WASM_BINARY_PATH)
+    return Path(value) if value else None
+
+
+def validate_env_wasm_binary_path() -> None:
+    """Raise ValueError if PHOENIX_WASM_BINARY_PATH is set but is not a readable, non-empty file."""
+    path = get_env_wasm_binary_path()
+    if path is None:
+        return
+    try:
+        _validate_file_exists_and_is_readable(path, description="WASM binary")
+    except ValueError as exc:
+        raise ValueError(
+            f"{ENV_PHOENIX_WASM_BINARY_PATH}={path} is invalid: {exc}. "
+            f"Either pre-download the CPython WASM binary to that path or unset the env "
+            f"var to fall back to the default download location under PHOENIX_WORKING_DIR."
+        ) from exc
+
+
 def get_env_disable_brute_force_login_protection() -> bool:
     """
     Gets the value of the PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION environment variable.
@@ -1328,6 +1360,10 @@ def get_env_phoenix_agents_disable_web_access() -> bool:
 
 def get_env_phoenix_agents_web_access_enabled() -> bool:
     return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_web_access()
+
+
+def get_env_phoenix_agents_disable_bash() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_BASH, False)
 
 
 class AuthSettings(NamedTuple):
@@ -1544,6 +1580,13 @@ class OAuth2ClientConfig:
     role_attribute_path: Optional[str]
     role_mapping: dict[str, AssignableUserRoleName]
     role_attribute_strict: bool
+    role_resync: bool = True
+    """When False, an existing user's role is never overwritten from IDP claims on login.
+
+    New users are still created with their IDP-mapped role, so role mapping stays active for
+    provisioning while existing users keep their current Phoenix role. Defaults to True
+    (the IDP re-syncs roles on every login).
+    """
 
     # Email extraction
     email_attribute_path: Optional[str] = None
@@ -1714,6 +1757,10 @@ class OAuth2ClientConfig:
         # Get role_attribute_strict setting (defaults to False)
         role_attribute_strict = _bool_val(f"{idp_prefix}_ROLE_ATTRIBUTE_STRICT", False)
 
+        # When False, preserve existing users' roles on login instead of re-syncing from the IDP.
+        # New users are still provisioned with their mapped role; only overwrites are suppressed.
+        role_resync = _bool_val(f"{idp_prefix}_ROLE_RESYNC", True)
+
         # Validate role configuration consistency
         if not role_attribute_path:
             # If ROLE_ATTRIBUTE_PATH is not configured, other role settings should not be set
@@ -1728,6 +1775,13 @@ class OAuth2ClientConfig:
                     f"Invalid configuration for {idp_name}: ROLE_ATTRIBUTE_STRICT is set to "
                     f"true but ROLE_ATTRIBUTE_PATH is not configured. ROLE_ATTRIBUTE_STRICT "
                     f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH."
+                )
+            if not role_resync:
+                raise ValueError(
+                    f"Invalid configuration for {idp_name}: ROLE_RESYNC is set to "
+                    f"false but ROLE_ATTRIBUTE_PATH is not configured. ROLE_RESYNC "
+                    f"only applies when role extraction is enabled via ROLE_ATTRIBUTE_PATH "
+                    f"(without it there is no role sync to disable)."
                 )
 
         # Email extraction configuration
@@ -1750,6 +1804,7 @@ class OAuth2ClientConfig:
             role_attribute_path=role_attribute_path,
             role_mapping=role_mapping,
             role_attribute_strict=role_attribute_strict,
+            role_resync=role_resync,
             email_attribute_path=email_attribute_path,
         )
 
@@ -2375,6 +2430,7 @@ _OAUTH2_CONFIG_SUFFIXES = (
     "ROLE_ATTRIBUTE_PATH",  # JMESPath expression to extract role from ID token
     "ROLE_MAPPING",  # Comma-separated list of IDP role to Phoenix role mappings
     "ROLE_ATTRIBUTE_STRICT",  # Whether to deny access if role cannot be extracted/mapped
+    "ROLE_RESYNC",  # Whether to re-sync existing users' roles from the IDP on every login
 )
 
 
@@ -2534,7 +2590,9 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           ⚠️ Role Update Behavior:
             • When ROLE_ATTRIBUTE_PATH IS configured: User roles are synchronized from the IDP on EVERY login.
-              This ensures Phoenix roles stay in sync with your IDP's role assignments.
+              This ensures Phoenix roles stay in sync with your IDP's role assignments. This re-sync of
+              existing users can be turned off with ROLE_RESYNC=false (new users are still provisioned
+              from the IDP); see ROLE_RESYNC below.
             • When ROLE_ATTRIBUTE_PATH is NOT configured: User roles are preserved as-is (backward compatibility).
               New users get VIEWER role (least privilege), existing users keep their current roles.
 
@@ -2584,6 +2642,23 @@ def get_env_oauth2_settings() -> list[OAuth2ClientConfig]:
 
           Example:
             PHOENIX_OAUTH2_OKTA_ROLE_ATTRIBUTE_STRICT=true
+
+        - PHOENIX_OAUTH2_{IDP_NAME}_ROLE_RESYNC: Controls whether existing users' roles are re-synchronized
+          from the IDP on every login. Defaults to true. Only applies when ROLE_ATTRIBUTE_PATH is
+          configured; setting it to false without ROLE_ATTRIBUTE_PATH is rejected at startup.
+
+          When true (default):
+            • An existing user's role is overwritten from IDP claims on every login (IDP is source of truth).
+
+          When false:
+            • An existing user's role is never overwritten from IDP claims; the user keeps their
+              current Phoenix role on re-login. New users are still provisioned with their IDP-mapped role.
+            • ⚠️ Security: with re-sync off, Phoenix owns existing users' roles. Revoking a role at the IDP
+              (including the non-strict VIEWER fail-safe for a missing/unmapped claim) will NOT auto-demote
+              an existing user — deprovision or downgrade them manually in the Phoenix UI.
+
+          Example:
+            PHOENIX_OAUTH2_OKTA_ROLE_RESYNC=false
 
     Multiple Identity Providers:
         You can configure multiple IDPs simultaneously. Users will see all configured providers
@@ -3280,8 +3355,8 @@ def get_env_disable_migrations() -> bool:
     return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
 
 
-def get_env_dangerously_enable_agents() -> bool:
-    return _bool_val(ENV_PHOENIX_DANGEROUSLY_ENABLE_AGENTS, False)
+def get_env_disable_agent_assistant() -> bool:
+    return _bool_val(ENV_PHOENIX_DISABLE_AGENT_ASSISTANT, False)
 
 
 def get_env_mask_internal_server_errors() -> bool:
@@ -3390,6 +3465,7 @@ def verify_server_environment_variables() -> None:
     validate_env_support_email()
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()
+    validate_env_wasm_binary_path()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

@@ -1,11 +1,15 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, isToolUIPart } from "ai";
-import { useEffect, useRef } from "react";
+import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
+import { useCallback, useEffect, useRef } from "react";
 
-import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
+import {
+  buildAgentChatRequestBody,
+  type AgentChatRequestBodyPatch,
+} from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
+import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
   shouldSendAutomaticallyAfterToolOutput,
   SYSTEM_INTERRUPT_ERROR,
@@ -13,11 +17,20 @@ import {
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
+import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
+import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import { EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/llmEvaluatorDraft";
+import { LOAD_DATASET_TOOL_NAME } from "@phoenix/agent/tools/playgroundLoadDataset";
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  REMOVE_PROMPT_INSTANCE_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
+import { WRITE_PROMPT_TOOLS_TOOL_NAME } from "@phoenix/agent/tools/playgroundPromptTools";
+import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -102,9 +115,8 @@ export function useAgentChat({
                     messageId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
-                    hasRemoteCollector: Boolean(
-                      store.getState().agentsConfig.collectorEndpoint
-                    ),
+                    agentsConfig: store.getState().agentsConfig,
+                    permissions: store.getState().permissions,
                     contexts: selectActiveContexts(store.getState()),
                     modelSelection: modelSelectionRef.current,
                   }),
@@ -183,9 +195,30 @@ export function useAgentChat({
 
     unresolvedToolCalls.forEach((toolCall) => {
       if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
-        // The generic interruption output resolves the AI SDK tool call; clear
-        // the live approval state too so stale Accept/Reject actions disappear.
         store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
+        store
+          .getState()
+          .setPendingPromptInstanceRemoval(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
+        store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === WRITE_PROMPT_TOOLS_TOOL_NAME) {
+        store.getState().setPendingPromptToolWrite(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
+        store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
+        store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === EDIT_LLM_EVALUATOR_DRAFT_TOOL_NAME) {
+        store.getState().setPendingLlmEvaluatorEdit(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === LOAD_DATASET_TOOL_NAME) {
+        store.getState().setPendingLoadDataset(toolCall.toolCallId, null);
       }
     });
 
@@ -269,6 +302,98 @@ export function useAgentChat({
     store.getState().setPendingElicitation(sessionId, null);
   };
 
+  // Releases approval/elicitation state owned by tool calls dropped by a rewind
+  // or fork, so stale Accept/Reject affordances don't dangle against tool calls
+  // the transcript no longer contains.
+  const clearDroppedToolState = useCallback(
+    ({
+      previous,
+      next,
+    }: {
+      previous: AgentUIMessage[];
+      next: AgentUIMessage[];
+    }) => {
+      if (!sessionId) {
+        return;
+      }
+      const retained = new Set(
+        next.flatMap((message) =>
+          message.parts.filter(isToolUIPart).map((part) => part.toolCallId)
+        )
+      );
+      const state = store.getState();
+      for (const message of previous) {
+        for (const part of message.parts) {
+          if (!isToolUIPart(part) || retained.has(part.toolCallId)) {
+            continue;
+          }
+          const toolName = getToolName(part);
+          if (toolName === EDIT_PROMPT_TOOL_NAME) {
+            state.setPendingPromptEdit(part.toolCallId, null);
+          } else if (toolName === REMOVE_PROMPT_INSTANCE_TOOL_NAME) {
+            state.setPendingPromptInstanceRemoval(part.toolCallId, null);
+          } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
+            state.setPendingBatchSpanAnnotate(part.toolCallId, null);
+          } else if (toolName === WRITE_PROMPT_TOOLS_TOOL_NAME) {
+            state.setPendingPromptToolWrite(part.toolCallId, null);
+          } else if (pendingElicitation?.toolCallId === part.toolCallId) {
+            state.setPendingElicitation(sessionId, null);
+          }
+        }
+      }
+    },
+    [pendingElicitation, sessionId, store]
+  );
+
+  // Rewinds the active session in place to the chosen message, truncating the
+  // transcript and releasing stale tool state. Returns the user message text to
+  // restore into the input (user target) or null (assistant target / no-op).
+  const rewindToMessage = useCallback(
+    (messageId: string): string | null => {
+      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
+        return null;
+      }
+      const result = rewindMessages({
+        messages: chatInstance.messages,
+        messageId,
+      });
+      if (!result) {
+        return null;
+      }
+      clearDroppedToolState({
+        previous: chatInstance.messages,
+        next: result.messages,
+      });
+      setMessages(result.messages);
+      store.getState().setSessionMessages(sessionId, result.messages);
+      return result.restoredInput;
+    },
+    [chatInstance, clearDroppedToolState, sessionId, setMessages, store]
+  );
+
+  // Forks the active session into a new session truncated to the chosen
+  // message, leaving the current session untouched. Returns the new session id.
+  const forkFromMessage = useCallback(
+    (messageId: string): string | null => {
+      if (!sessionId || !chatInstance) {
+        return null;
+      }
+      const result = rewindMessages({
+        messages: chatInstance.messages,
+        messageId,
+      });
+      if (!result) {
+        return null;
+      }
+      return store.getState().forkSession({
+        sourceSessionId: sessionId,
+        messages: result.messages,
+        restoredInput: result.restoredInput,
+      });
+    },
+    [chatInstance, sessionId, store]
+  );
+
   return {
     messages,
     sendMessage: handleSendMessage,
@@ -278,15 +403,22 @@ export function useAgentChat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    rewindToMessage,
+    forkFromMessage,
   } as {
     messages: AgentUIMessage[];
-    sendMessage: (message: { text: string }) => void;
+    sendMessage: (
+      message: { text: string },
+      options?: { body?: AgentChatRequestBodyPatch }
+    ) => void;
     stop: () => Promise<void>;
     status: ChatStatus;
     error: Error | undefined;
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
+    rewindToMessage: (messageId: string) => string | null;
+    forkFromMessage: (messageId: string) => string | null;
   };
 }
 

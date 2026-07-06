@@ -17,6 +17,7 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from jinja2 import Template
+from opentelemetry.trace import NoOpTracerProvider
 from pydantic_ai import RunContext, UserError
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
@@ -28,14 +29,27 @@ from typing_extensions import TypeIs, assert_never
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
+    build_anthropic_prompt_cache_capability,
 )
 from phoenix.server.agents.context import (
+    AgentSpanContext,
+    CodeEvaluatorContext,
+    DatasetContext,
+    LlmEvaluatorContext,
+    PlaygroundBuiltinModelContext,
     PlaygroundContext,
+    PlaygroundEvaluatorContext,
+    PlaygroundInstanceContext,
     ProjectContext,
     ResolvedContexts,
 )
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.types import AgentDependencies
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
+from phoenix.server.agents.types import (
+    AgentDependencies,
+    ModelProviderAvailability,
+    SandboxAvailability,
+)
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -44,15 +58,29 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.bash_tool.render(),
         _DEFAULT_PROMPTS.ask_user_tool.render(),
         _DEFAULT_PROMPTS.set_time_range_tool.render(),
+        _DEFAULT_PROMPTS.get_route_info_tool.render(),
     }
 )
 
 DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
         _DEFAULT_PROMPTS.set_spans_filter_tool.render(),
+        _DEFAULT_PROMPTS.set_playground_model_tool.render(),
+        _DEFAULT_PROMPTS.list_playground_model_targets_tool.render(),
         _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.read_playground_output_tool.render(),
         _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.add_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.remove_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.edit_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.save_prompt_tool.render(),
+        _DEFAULT_PROMPTS.run_playground_tool.render(),
+        _DEFAULT_PROMPTS.cancel_playground_run_tool.render(),
+        _DEFAULT_PROMPTS.set_variable_values_tool.render(),
+        _DEFAULT_PROMPTS.set_playground_experiment_recording_tool.render(),
+        _DEFAULT_PROMPTS.set_playground_repetitions_tool.render(),
+        _DEFAULT_PROMPTS.set_appended_messages_path_tool.render(),
+        _DEFAULT_PROMPTS.load_dataset_tool.render(),
     }
 )
 
@@ -109,6 +137,54 @@ def anthropic_model(
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     provider = AnthropicProvider(api_key=anthropic_api_key, http_client=http_client)
     return AnthropicModel("claude-haiku-4-5", provider=provider)
+
+
+@pytest.fixture
+def wrapped_anthropic_model(
+    anthropic_model: AnthropicModel,
+) -> OpenInferenceModelWrapper:
+    """An ``AnthropicModel`` wrapped as production wraps it — ``build_model``
+    always returns an ``OpenInferenceModelWrapper``."""
+    return OpenInferenceModelWrapper(
+        anthropic_model,
+        tracer=NoOpTracerProvider().get_tracer("test"),
+    )
+
+
+class TestPromptCacheCapabilityMounting:
+    """The prompt-cache capability mounts through the production model wrapper."""
+
+    def test_builder_returns_capability_for_bare_anthropic_model(
+        self, anthropic_model: AnthropicModel
+    ) -> None:
+        assert build_anthropic_prompt_cache_capability(anthropic_model) is not None
+
+    def test_builder_returns_capability_through_wrapper(
+        self, wrapped_anthropic_model: OpenInferenceModelWrapper
+    ) -> None:
+        assert build_anthropic_prompt_cache_capability(wrapped_anthropic_model) is not None
+
+    def test_builder_returns_none_for_non_anthropic_model(self) -> None:
+        assert build_anthropic_prompt_cache_capability(TestModel()) is None
+
+    def test_builder_returns_none_for_wrapped_non_anthropic_model(self) -> None:
+        wrapped = OpenInferenceModelWrapper(
+            TestModel(), tracer=NoOpTracerProvider().get_tracer("test")
+        )
+        assert build_anthropic_prompt_cache_capability(wrapped) is None
+
+    async def test_wrapped_model_emits_cache_breakpoint_end_to_end(
+        self,
+        wrapped_anthropic_model: OpenInferenceModelWrapper,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=wrapped_anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
+        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
 
 
 class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
@@ -261,7 +337,7 @@ class TestSystemBlockCacheBoundary:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(type="playground"),
                 project=ProjectContext(
                     type="project",
                     project_node_id="UHJvamVjdDox",
@@ -289,7 +365,7 @@ class TestSystemBlockCacheBoundary:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(type="playground"),
                 project=ProjectContext(
                     type="project",
                     project_node_id="UHJvamVjdDox",
@@ -322,7 +398,7 @@ class TestSystemBlockCacheBoundary:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                playground=PlaygroundContext(type="playground"),
                 project=ProjectContext(
                     type="project",
                     project_node_id="UHJvamVjdDox",
@@ -340,6 +416,46 @@ class TestSystemBlockCacheBoundary:
 
 
 class TestUIContextInstructions:
+    async def test_playground_context_selected_models_are_outside_cache_boundary(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[
+                        PlaygroundInstanceContext(
+                            instance_id=7,
+                            model=PlaygroundBuiltinModelContext(
+                                type="builtin",
+                                provider="OPENAI",
+                                model_name="gpt-5",
+                            ),
+                        )
+                    ],
+                )
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
+            captured_request.body
+        )
+        cached_text = _get_concatenated_text(cached_blocks)
+        uncached_text = _get_concatenated_text(uncached_blocks)
+        playground_context_fragments = (
+            '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>',
+            "list_playground_model_targets",
+            "set_playground_model",
+        )
+        for fragment in playground_context_fragments:
+            assert fragment in uncached_text
+            assert fragment not in cached_text
+
     async def test_ui_context_instructions_are_outside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
@@ -406,6 +522,487 @@ class TestUIContextInstructions:
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
 
 
+class TestRouteInfoTool:
+    async def test_get_route_info_tool_is_advertised_by_default(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "get_route_info" in _get_tool_names(captured_request.body)
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool name="get_route_info">' in joined_system
+        assert "do not render its `path` as a markdown link" in joined_system
+
+
+class TestAddDatasetExamplesTool:
+    async def test_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "add_dataset_examples" in _get_tool_names(captured_request.body)
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool name="add_dataset_examples">' in joined_system
+
+    async def test_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "add_dataset_examples" not in _get_tool_names(captured_request.body)
+
+    async def test_hidden_for_viewer_but_read_tool_remains(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "add_dataset_examples" not in tool_names
+        # Reads stay available to viewers.
+        assert "list_dataset_examples" in tool_names
+
+
+class TestListDatasetSplitsTool:
+    async def test_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "list_dataset_splits" in _get_tool_names(captured_request.body)
+
+    async def test_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "list_dataset_splits" not in _get_tool_names(captured_request.body)
+
+
+class TestDatasetSplitWriteTools:
+    _WRITE_TOOLS = ("create_dataset_split", "set_dataset_example_splits")
+
+    async def test_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        for name in self._WRITE_TOOLS:
+            assert name in tool_names
+
+    async def test_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        for name in self._WRITE_TOOLS:
+            assert name not in tool_names
+        # The split read tool stays available to viewers.
+        assert "list_dataset_splits" in tool_names
+
+    async def test_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        for name in self._WRITE_TOOLS:
+            assert name not in tool_names
+
+
+class TestDatasetLabelTools:
+    _WRITE_TOOLS = ("create_dataset_label", "set_dataset_labels")
+
+    async def test_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "list_dataset_labels" in tool_names
+        for name in self._WRITE_TOOLS:
+            assert name in tool_names
+
+    async def test_writes_hidden_for_viewer_but_read_remains(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "list_dataset_labels" in tool_names
+        for name in self._WRITE_TOOLS:
+            assert name not in tool_names
+
+    async def test_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "list_dataset_labels" not in tool_names
+        for name in self._WRITE_TOOLS:
+            assert name not in tool_names
+
+
+class TestAddSpanToDatasetTool:
+    async def test_advertised_with_span_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                span=AgentSpanContext(type="span", span_node_id="U3Bhbjox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "add_spans_to_dataset" in _get_tool_names(captured_request.body)
+
+    async def test_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                span=AgentSpanContext(type="span", span_node_id="U3Bhbjox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "add_spans_to_dataset" not in _get_tool_names(captured_request.body)
+
+    async def test_absent_without_span_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "add_spans_to_dataset" not in _get_tool_names(captured_request.body)
+
+
+class TestDatasetCrudTools:
+    _WRITE_TOOLS = (
+        "patch_dataset",
+        "delete_dataset",
+        "patch_dataset_examples",
+        "delete_dataset_examples",
+        "patch_dataset_split",
+        "delete_dataset_splits",
+        "delete_dataset_labels",
+    )
+
+    async def test_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        for name in self._WRITE_TOOLS:
+            assert name in tool_names
+
+    async def test_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        for name in self._WRITE_TOOLS:
+            assert name not in tool_names
+
+    async def test_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        for name in self._WRITE_TOOLS:
+            assert name not in tool_names
+
+
+class TestListDatasetsTool:
+    async def test_advertised_everywhere_including_for_viewers(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        # No context and a viewer: list_datasets, list_labels, and list_splits
+        # are read-only, so they stay available everywhere.
+        deps = AgentDependencies(contexts=ResolvedContexts(), is_viewer=True)
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "list_datasets" in tool_names
+        assert "list_labels" in tool_names
+        assert "list_splits" in tool_names
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool name="list_datasets">' in joined_system
+        assert '<tool name="list_labels">' in joined_system
+        assert '<tool name="list_splits">' in joined_system
+
+
+class TestListDatasetExamplesTool:
+    async def test_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "list_dataset_examples" in _get_tool_names(captured_request.body)
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool name="list_dataset_examples">' in joined_system
+
+    async def test_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "list_dataset_examples" not in _get_tool_names(captured_request.body)
+
+
+class TestCreateDatasetTool:
+    async def test_advertised_without_any_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        # create_dataset is advertised everywhere (a new dataset has no context
+        # to resolve a target from) — except to viewers, who cannot write.
+        assert "create_dataset" in _get_tool_names(captured_request.body)
+        joined_system = "\n".join(_get_system_texts(captured_request.body))
+        assert '<tool name="create_dataset">' in joined_system
+
+    async def test_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts(), is_viewer=True)
+
+        await agent.run("hello", deps=deps)
+
+        assert "create_dataset" not in _get_tool_names(captured_request.body)
+
+
+class TestPlaygroundTools:
+    async def test_run_playground_tool_is_absent_without_playground_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "run_playground" not in _get_tool_names(captured_request.body)
+        assert "cancel_playground_run" not in _get_tool_names(captured_request.body)
+        assert "read_playground_output" not in _get_tool_names(captured_request.body)
+        assert "add_prompt_instance" not in _get_tool_names(captured_request.body)
+        assert "remove_prompt_instance" not in _get_tool_names(captured_request.body)
+        assert "save_prompt" not in _get_tool_names(captured_request.body)
+        assert "set_variable_values" not in _get_tool_names(captured_request.body)
+        assert "set_playground_experiment_recording" not in _get_tool_names(captured_request.body)
+        assert "set_playground_repetitions" not in _get_tool_names(captured_request.body)
+        assert "set_template_variables_path" not in _get_tool_names(captured_request.body)
+        assert "set_appended_messages_path" not in _get_tool_names(captured_request.body)
+        assert "list_playground_model_targets" not in _get_tool_names(captured_request.body)
+        assert "set_playground_model" not in _get_tool_names(captured_request.body)
+        assert "load_dataset" not in _get_tool_names(captured_request.body)
+
+    async def test_run_playground_tool_is_advertised_with_playground_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[
+                        PlaygroundInstanceContext(
+                            instance_id=1,
+                            model=PlaygroundBuiltinModelContext(
+                                type="builtin",
+                                provider="OPENAI",
+                                model_name="gpt-5",
+                            ),
+                        )
+                    ],
+                )
+            )
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "run_playground" in _get_tool_names(captured_request.body)
+        assert "cancel_playground_run" in _get_tool_names(captured_request.body)
+        assert "read_playground_output" in _get_tool_names(captured_request.body)
+        assert "add_prompt_instance" in _get_tool_names(captured_request.body)
+        assert "remove_prompt_instance" in _get_tool_names(captured_request.body)
+        assert "save_prompt" in _get_tool_names(captured_request.body)
+        assert "set_variable_values" in _get_tool_names(captured_request.body)
+        assert "set_playground_experiment_recording" in _get_tool_names(captured_request.body)
+        assert "set_playground_repetitions" in _get_tool_names(captured_request.body)
+        assert "set_template_variables_path" in _get_tool_names(captured_request.body)
+        assert "set_appended_messages_path" in _get_tool_names(captured_request.body)
+        assert "list_playground_model_targets" in _get_tool_names(captured_request.body)
+        assert "set_playground_model" in _get_tool_names(captured_request.body)
+        assert "load_dataset" in _get_tool_names(captured_request.body)
+
+
 class TestDocsMCPToolset:
     """The optional docs MCP toolset is wired into the system blocks only
     when supplied by the caller."""
@@ -440,7 +1037,7 @@ class TestDocsMCPToolset:
 
 
 class TestSkillsCapability:
-    async def test_bundled_trace_debugging_skill_advertised_inside_cache_boundary(
+    async def test_global_bundled_skills_advertised_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -453,7 +1050,10 @@ class TestSkillsCapability:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
-        assert "<name>trace-debugging</name>" in cached_text
+        assert "<name>debug-trace</name>" in cached_text
+        assert "<name>annotate-spans</name>" in cached_text
+        assert "<name>playground</name>" not in cached_text
+        assert "<name>experiments</name>" not in cached_text
 
     async def test_skill_tools_are_advertised(
         self,
@@ -468,6 +1068,539 @@ class TestSkillsCapability:
         tool_names = _get_tool_names(captured_request.body)
         assert "load_skill" in tool_names
         assert "read_skill_resource" in tool_names
+
+
+class TestCodeEvaluatorFormToolGates:
+    @staticmethod
+    def _sandbox_availability() -> SandboxAvailability:
+        return SandboxAvailability(has_usable=True)
+
+    async def test_open_form_advertised_for_dataset_backed_playground(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_code_evaluator_form" in tool_names
+        assert "read_code_evaluator_draft" not in tool_names
+        assert "edit_code_evaluator_draft" not in tool_names
+        assert "test_code_evaluator_draft" not in tool_names
+
+    async def test_open_form_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_code_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_without_usable_sandbox(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[PlaygroundInstanceContext(instance_id=1)],
+                ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            sandbox_availability=SandboxAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_code_evaluator_form" not in tool_names
+
+    async def test_form_tools_advertised_for_mounted_code_evaluator_form(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_code_evaluator_form" not in tool_names
+        assert "read_code_evaluator_draft" in tool_names
+        assert "edit_code_evaluator_draft" in tool_names
+        assert "test_code_evaluator_draft" in tool_names
+        assert "submit_code_evaluator_draft" in tool_names
+
+    async def test_create_form_hides_write_tools_without_usable_sandbox(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            sandbox_availability=SandboxAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_code_evaluator_draft" in tool_names
+        assert "edit_code_evaluator_draft" not in tool_names
+        assert "test_code_evaluator_draft" not in tool_names
+        assert "submit_code_evaluator_draft" not in tool_names
+
+    async def test_edit_form_advertises_edit_without_usable_sandbox(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id="Q29kZUV2YWx1YXRvcjox",
+                ),
+            ),
+            sandbox_availability=SandboxAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_code_evaluator_draft" in tool_names
+        assert "edit_code_evaluator_draft" in tool_names
+        assert "test_code_evaluator_draft" not in tool_names
+        assert "submit_code_evaluator_draft" in tool_names
+
+    async def test_write_and_preview_tools_hidden_for_viewers(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            is_viewer=True,
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_code_evaluator_draft" in tool_names
+        assert "edit_code_evaluator_draft" not in tool_names
+        assert "test_code_evaluator_draft" not in tool_names
+        assert "submit_code_evaluator_draft" not in tool_names
+
+
+class TestLlmEvaluatorFormToolGates:
+    async def test_open_form_advertised_for_dataset_backed_playground(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" in tool_names
+        assert "read_llm_evaluator_draft" not in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
+
+    async def test_open_form_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_without_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_without_playground(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+
+    async def test_open_form_hidden_when_llm_evaluator_form_mounted(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_llm_evaluator_form" not in tool_names
+        assert "read_llm_evaluator_draft" in tool_names
+
+    async def test_form_tools_absent_without_llm_evaluator_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" not in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
+
+    async def test_edit_form_advertises_edit_but_hides_test_without_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id="TGxtRXZhbHVhdG9yOjE=",
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" in tool_names
+
+    async def test_create_form_hides_write_tools_without_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
+
+    async def test_create_form_advertises_write_tools_with_usable_model_provider(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" in tool_names
+        assert "test_llm_evaluator_draft" in tool_names
+        assert "submit_llm_evaluator_draft" in tool_names
+
+    async def test_write_tools_hidden_for_viewer(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id="TGxtRXZhbHVhdG9yOjE=",
+                ),
+            ),
+            is_viewer=True,
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_llm_evaluator_draft" in tool_names
+        assert "edit_llm_evaluator_draft" not in tool_names
+        assert "test_llm_evaluator_draft" not in tool_names
+        assert "submit_llm_evaluator_draft" not in tool_names
+
+
+class TestEvaluatorsSkillLoadContract:
+    """The evaluators skill is only reachable if a live surface both advertises
+    it in the catalog and directs the agent to ``load_skill`` it. These assert
+    that contract so the skill cannot silently become inert."""
+
+    async def test_llm_evaluator_context_directs_load_skill(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                llm_evaluator=LlmEvaluatorContext(
+                    type="llm_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "load_skill" in all_text
+        assert "evaluators" in all_text
+
+    async def test_evaluators_skill_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            model_provider_availability=ModelProviderAvailability(has_usable=True),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>evaluators</name>" in all_text
+
+    async def test_evaluators_skill_advertised_with_code_evaluator_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>evaluators</name>" in all_text
+
+    async def test_evaluators_skill_absent_without_authoring_surface(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>evaluators</name>" not in all_text
+        assert "<name>llm-evaluator-authoring</name>" not in all_text
+
+
+class TestExperimentsSkillGate:
+    """The experiments skill is dataset-scoped: it advertises iff a dataset
+    context is mounted, and stays absent on evaluator-only or empty surfaces."""
+
+    async def test_experiments_skill_advertised_with_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>experiments</name>" in all_text
+
+    async def test_experiments_skill_absent_for_evaluator_only_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>experiments</name>" not in all_text
+
+    async def test_experiments_skill_absent_without_dataset_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        assert "<name>experiments</name>" not in all_text
 
 
 class TestCapabilityInstructionsOverride:
@@ -553,3 +1686,148 @@ class TestWebAccessCapabilities:
         native_tool_types = self._get_native_tool_types(model_without_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
+
+
+class TestDatasetEvaluatorSelectAndEditToolGates:
+    @staticmethod
+    def _roster_playground(
+        evaluators: list[PlaygroundEvaluatorContext],
+    ) -> PlaygroundContext:
+        return PlaygroundContext(
+            type="playground",
+            instances=[PlaygroundInstanceContext(instance_id=1)],
+            evaluators=evaluators,
+        )
+
+    @staticmethod
+    def _code_evaluator() -> PlaygroundEvaluatorContext:
+        return PlaygroundEvaluatorContext(
+            dataset_evaluator_id="RXY6MQ==",
+            name="Exact Match",
+            kind="CODE",
+            is_builtin=False,
+            is_applied=True,
+        )
+
+    @staticmethod
+    def _builtin_evaluator() -> PlaygroundEvaluatorContext:
+        return PlaygroundEvaluatorContext(
+            dataset_evaluator_id="RXY6Mg==",
+            name="Hallucination",
+            kind="BUILTIN",
+            is_builtin=True,
+            is_applied=False,
+        )
+
+    async def test_both_tools_advertised_with_editable_roster(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([self._code_evaluator()]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" in tool_names
+        assert "open_dataset_evaluator_for_edit" in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
+
+    async def test_edit_open_absent_when_only_builtin_evaluators(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground(
+                    [
+                        self._builtin_evaluator(),
+                        PlaygroundEvaluatorContext(
+                            dataset_evaluator_id="RXY6Mw==",
+                            name="Builtin Code",
+                            kind="CODE",
+                            is_builtin=True,
+                            is_applied=True,
+                        ),
+                    ]
+                ),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+
+    async def test_both_tools_absent_for_empty_roster(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" not in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names
+
+    async def test_write_tools_hidden_for_viewer_but_read_remains(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([self._code_evaluator()]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            is_viewer=True,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        # Selection and edit-open mutate state, so they stay viewer-gated; reading
+        # a definition is a pure read and remains available to viewers.
+        assert "set_dataset_evaluator_selection" not in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" in tool_names
+
+    async def test_both_tools_hidden_without_dataset(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=self._roster_playground([self._code_evaluator()]),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "set_dataset_evaluator_selection" not in tool_names
+        assert "open_dataset_evaluator_for_edit" not in tool_names
+        assert "read_dataset_evaluator_definition" not in tool_names

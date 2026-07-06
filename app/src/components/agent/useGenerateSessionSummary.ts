@@ -4,6 +4,7 @@ import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
 
 const SUMMARIZE_PATH =
   "/agents/{agent_id}/sessions/{session_id}/summary" as const satisfies keyof paths;
@@ -19,18 +20,26 @@ async function fetchSummary({
   messages,
   ingestTraces,
   exportRemoteTraces,
+  attachUserId,
 }: {
   sessionId: string;
   modelSelection: AgentModelSelection;
   messages: AgentUIMessage[];
   ingestTraces: boolean;
   exportRemoteTraces: boolean;
+  attachUserId: boolean;
 }): Promise<string> {
   const { data, response } = await authApiFetch.POST(SUMMARIZE_PATH, {
     params: {
       path: { agent_id: ASSISTANT_AGENT_ID, session_id: sessionId },
     },
-    body: { messages, ingestTraces, exportRemoteTraces, model: modelSelection },
+    body: {
+      messages,
+      ingestTraces,
+      exportRemoteTraces,
+      attachUserId,
+      model: modelSelection,
+    },
   });
   if (!response.ok || !data) {
     throw new Error(`summarize request failed: ${response.status}`);
@@ -69,15 +78,18 @@ export function useGenerateSessionSummary() {
 
       requestedSessionsRef.current.add(sessionId);
 
-      const hasRemoteCollector = Boolean(state.agentsConfig.collectorEndpoint);
+      const traceRecording = getEffectiveTraceRecordingSettings({
+        agentsConfig: state.agentsConfig,
+        observability: state.observability,
+      });
 
       void fetchSummary({
         sessionId,
         modelSelection,
         messages: session.messages,
-        ingestTraces: state.observability.storeLocalTraces,
-        exportRemoteTraces:
-          state.observability.exportRemoteTraces && hasRemoteCollector,
+        ingestTraces: traceRecording.ingestTraces,
+        exportRemoteTraces: traceRecording.exportRemoteTraces,
+        attachUserId: state.observability.attachUserId,
       })
         .then((summary) => {
           if (summary) {

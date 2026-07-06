@@ -44,48 +44,36 @@ const headingCSS = (level: 1 | 2 | 3 | 4 | 5 | 6) => css`
   color: var(--global-text-color-900);
   font-weight: var(--global-font-weight-semibold);
 
-  ${
-    level === 1 &&
-    css`
-      font-size: var(--global-font-size-xl);
-      line-height: var(--global-line-height-xl);
-    `
-  }
-  ${
-    level === 2 &&
-    css`
-      font-size: var(--global-font-size-l);
-      line-height: var(--global-line-height-l);
-    `
-  }
-  ${
-    level === 3 &&
-    css`
-      font-size: var(--global-font-size-m);
-      line-height: var(--global-line-height-m);
-    `
-  }
-  ${
-    level === 4 &&
-    css`
-      font-size: var(--global-font-size-s);
-      line-height: var(--global-line-height-s);
-    `
-  }
-  ${
-    level === 5 &&
-    css`
-      font-size: var(--global-font-size-xs);
-      line-height: var(--global-line-height-xs);
-    `
-  }
-  ${
-    level === 6 &&
-    css`
-      font-size: var(--global-font-size-xxs);
-      line-height: var(--global-line-height-xxs);
-    `
-  }
+  ${level === 1 &&
+  css`
+    font-size: var(--global-font-size-xl);
+    line-height: var(--global-line-height-xl);
+  `}
+  ${level === 2 &&
+  css`
+    font-size: var(--global-font-size-l);
+    line-height: var(--global-line-height-l);
+  `}
+  ${level === 3 &&
+  css`
+    font-size: var(--global-font-size-m);
+    line-height: var(--global-line-height-m);
+  `}
+  ${level === 4 &&
+  css`
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  `}
+  ${level === 5 &&
+  css`
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+  `}
+  ${level === 6 &&
+  css`
+    font-size: var(--global-font-size-xxs);
+    line-height: var(--global-line-height-xxs);
+  `}
 `;
 
 const paragraphCSS = css`
@@ -280,6 +268,7 @@ const tableCellCSS = css`
   padding: var(--global-table-cell-padding-y) var(--global-table-cell-padding-x);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: break-word;
 `;
 
 const tableHeaderCellCSS = css`
@@ -287,6 +276,7 @@ const tableHeaderCellCSS = css`
   background: var(--global-table-header-background-color);
   color: var(--global-text-color-900);
   font-weight: var(--global-font-weight-semibold);
+  white-space: nowrap;
 `;
 
 // ---------------------------------------------------------------------------
@@ -390,7 +380,7 @@ function TableCopyButton({
   return (
     <ActionIconButton
       label={copied ? "Copied table" : "Copy table as markdown"}
-      icon={copied ? <Icons.CheckmarkOutline /> : <Icons.DuplicateOutline />}
+      icon={copied ? <Icons.Checkmark /> : <Icons.Duplicate />}
       onPress={() => void onPress()}
     />
   );
@@ -411,7 +401,7 @@ function TableDownloadButton({
   return (
     <ActionIconButton
       label="Download table as CSV"
-      icon={<Icons.DownloadOutline />}
+      icon={<Icons.Download />}
       onPress={onPress}
     />
   );
@@ -426,7 +416,7 @@ function TableFullscreenButton({ children }: PropsWithChildren) {
         css={actionButtonCSS}
         size="S"
       >
-        <Icon svg={<Icons.ExpandOutline />} />
+        <Icon svg={<Icons.Expand />} />
       </IconButton>
       <ModalOverlay isDismissable>
         <Modal size="L">

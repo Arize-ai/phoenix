@@ -1,11 +1,18 @@
+import asyncio
 import logging
-from collections.abc import AsyncGenerator, AsyncIterator, Iterable
-from contextlib import aclosing
+from collections.abc import (
+    AsyncGenerator,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+)
+from contextlib import AbstractContextManager, aclosing, nullcontext
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
-from openinference.instrumentation import using_metadata, using_session
+from openinference.instrumentation import using_metadata, using_session, using_user
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
@@ -13,7 +20,7 @@ from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
-from pydantic_ai import AgentRunResult, RunUsage
+from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
@@ -24,18 +31,23 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     BaseChunk,
     MessageMetadataChunk,
     ProviderMetadata,
+    StartChunk,
     ToolInputAvailableChunk,
+    ToolOutputAvailableChunk,
 )
-from sqlalchemy import Insert, func, select
+from pydantic_ai.usage import RunUsage
+from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
+from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
     get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_disable_bash,
     get_env_phoenix_agents_web_access_enabled,
 )
 from phoenix.db import models
@@ -43,18 +55,44 @@ from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
+from phoenix.server.agents.capabilities.skills import Skill
 from phoenix.server.agents.context import (
     ChatContext,
+    ResolvedContexts,
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.prompts import AgentPrompts, ServerAgentPrompts
+from phoenix.server.agents.server_agents import build_server_agent
+from phoenix.server.agents.skill_requests import (
+    inject_requested_skills,
+    iter_requested_skill_response_chunks,
+    resolve_requested_skills,
+)
+from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.summarization import summarize_messages
-from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.agents.types import (
+    AgentDependencies,
+    AgentOutput,
+    ModelProviderAvailability,
+    SandboxAvailability,
+)
+from phoenix.server.api.helpers.playground_registry import (
+    PLAYGROUND_CLIENT_REGISTRY,
+    PROVIDER_DEFAULT,
+)
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.bearer_auth import is_authenticated
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.SandboxConfig import (
+    SandboxBackendStatus,
+    get_sandbox_backend_info,
+)
+from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
+from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
+from phoenix.server.sandbox import SecretsContext
+from phoenix.server.types import CanPutItem, DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
@@ -151,6 +189,15 @@ class _ObservabilityMixin(BaseModel):
 
     ingest_traces: bool = Field(default=False, alias="ingestTraces")
     export_remote_traces: bool = Field(default=False, alias="exportRemoteTraces")
+    attach_user_id: bool = Field(
+        default=False,
+        alias="attachUserId",
+        description=(
+            "When true and the request is authenticated as a PhoenixUser, attaches "
+            "the user's email as the OpenInference ``user.id`` span attribute on "
+            "all traced work for this request."
+        ),
+    )
 
 
 class _ChatMessageMixin(_ObservabilityMixin):
@@ -161,6 +208,20 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
+    edit_permission: Literal["manual", "bypass"] = Field(
+        default="manual",
+        alias="editPermission",
+    )
+    requested_skills: list[str] = Field(
+        default_factory=list,
+        alias="requestedSkills",
+        description=(
+            "Skills the user explicitly requested via the prompt's slash-command "
+            "affordance. The server force-loads each available skill by injecting a "
+            "synthetic load_skill tool call/result at the tail of the message history. "
+            "Unknown or context-unavailable names are ignored."
+        ),
+    )
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
 
@@ -289,6 +350,18 @@ def _build_message_metadata_chunk(
         if span_context is not None
         else None
     )
+    return MessageMetadataChunk(
+        message_metadata=AssistantMessageMetadata(
+            session_id=session_id,
+            trace=trace_ids,
+            usage=_build_usage_payload(usage),
+        )
+    )
+
+
+def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
+    """Convert a run's token usage into the metadata payload, including cache
+    read/write details only when the run actually used the prompt cache."""
     usage_payload = AssistantMessageMetadataUsage(
         tokens=AssistantMessageMetadataUsageTokens(
             prompt=usage.input_tokens,
@@ -301,20 +374,15 @@ def _build_message_metadata_chunk(
             cache_read=usage.cache_read_tokens,
             cache_write=usage.cache_write_tokens,
         )
-    return MessageMetadataChunk(
-        message_metadata=AssistantMessageMetadata(
-            session_id=session_id,
-            trace=trace_ids,
-            usage=usage_payload,
-        )
-    )
+    return usage_payload
 
 
 async def _persist_db_traces(
     *,
     session: AsyncSession,
     db_traces: list[models.Trace],
-) -> None:
+) -> tuple[int, ...]:
+    project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
@@ -328,6 +396,184 @@ async def _persist_db_traces(
         # from the relationship and doesn't try to cascade-insert a duplicate.
         db_trace.project_session = persistent_by_session_id[project_session.session_id]
     session.add_all(db_traces)
+    await session.flush()
+    return project_ids
+
+
+async def _persist_db_traces_and_emit_event(
+    *,
+    db: DbSessionFactory,
+    event_queue: CanPutItem[DmlEvent],
+    db_traces: list[models.Trace],
+) -> None:
+    if not db_traces:
+        return
+    async with db() as session:
+        project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
+    if project_ids:
+        event_queue.put(SpanInsertEvent(project_ids))
+
+
+async def _load_available_sandbox_backend_types(
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+) -> frozenset[models.SandboxBackendType]:
+    backend_info = await get_sandbox_backend_info(
+        secrets=SecretsContext(session=session, decrypt=decrypt),
+    )
+    return frozenset(
+        info.backend_type.value
+        for info in backend_info
+        if info.status is SandboxBackendStatus.AVAILABLE
+    )
+
+
+async def _load_sandbox_availability(
+    session: AsyncSession,
+    *,
+    available_backend_types: frozenset[models.SandboxBackendType] | None = None,
+) -> SandboxAvailability:
+    """Compute the pre-turn ``has_usable`` gate for sandbox-backed capabilities.
+
+    ``has_usable`` is true when at least one enabled ``SandboxConfig`` sits
+    under an enabled provider. When ``available_backend_types`` is supplied it
+    mirrors the code-evaluator form's backend-status filter, so the gate matches
+    the set the mounted form can actually select. The selectable inventory is
+    fetched on-demand by the agent via ``phoenix-gql``, not loaded here."""
+    if available_backend_types is not None and not available_backend_types:
+        return SandboxAvailability(has_usable=False)
+    condition = (
+        models.SandboxConfig.enabled.is_(True)
+        & models.SandboxProvider.enabled.is_(True)
+        & (models.SandboxProvider.backend_type == models.SandboxConfig.backend_type)
+    )
+    if available_backend_types is not None:
+        condition &= models.SandboxConfig.backend_type.in_(available_backend_types)
+    has_usable = bool(await session.scalar(select(exists().where(condition))))
+    return SandboxAvailability(has_usable=has_usable)
+
+
+def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int | None:
+    if node_id is None:
+        return None
+    try:
+        return from_global_id_with_expected_type(
+            GlobalID.from_id(node_id),
+            expected_type_name,
+        )
+    except ValueError:
+        return None
+
+
+def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
+    return contexts.dataset is not None or contexts.code_evaluator is not None
+
+
+def _subagents_enabled(contexts: ResolvedContexts) -> bool:
+    """Whether the server-side subagent should be attached."""
+    if get_env_phoenix_agents_disable_bash():
+        return False
+    return contexts.subagents is not None and contexts.subagents.enabled
+
+
+def _load_model_provider_availability() -> ModelProviderAvailability:
+    """Compute the pre-turn ``has_usable`` gate for model-provider-backed capabilities.
+
+    ``has_usable`` is true when at least one generative provider has its SDK
+    installed. This is env-independent (it checks installed packages, not
+    credentials), so it is computed over the provider registry rather than the
+    database. Per-request credentials can arrive at run time, so the gate
+    deliberately ignores ``credentials_set`` to avoid hiding the tool."""
+    has_usable = any(
+        (client := PLAYGROUND_CLIENT_REGISTRY.get_client(provider_key, PROVIDER_DEFAULT))
+        is not None
+        and client.dependencies_are_installed()
+        for provider_key in PLAYGROUND_CLIENT_REGISTRY.list_all_providers()
+    )
+    return ModelProviderAvailability(has_usable=has_usable)
+
+
+def _contexts_need_model_provider_availability(contexts: ResolvedContexts) -> bool:
+    # ``open_llm_evaluator_form`` gates on model-provider availability with no
+    # ``llm_evaluator`` context, so a dataset-backed playground must also trigger the load.
+    return contexts.dataset is not None or contexts.llm_evaluator is not None
+
+
+class _SubagentMessageChunksClosed:
+    """Sentinel marking the subagent message chunk queue as closed."""
+
+
+_SUBAGENT_MESSAGE_CHUNKS_CLOSED = _SubagentMessageChunksClosed()
+
+
+async def _interleave_agent_and_subagent_message_chunks(
+    *,
+    agent_message_chunks: AsyncIterator[BaseChunk],
+    subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed],
+    final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk],
+) -> AsyncIterator[BaseChunk]:
+    async def _next_agent_message_chunk() -> BaseChunk:
+        return await anext(agent_message_chunks)
+
+    agent_task: asyncio.Task[BaseChunk] | None = asyncio.create_task(_next_agent_message_chunk())
+    subagent_task: asyncio.Task[BaseChunk | _SubagentMessageChunksClosed] | None = (
+        asyncio.create_task(subagent_message_chunks.get())
+    )
+    completed_tool_call_ids: set[str] = set()
+    try:
+        while agent_task is not None or subagent_task is not None:
+            pending_tasks = {task for task in (agent_task, subagent_task) if task is not None}
+            done_tasks, _ = await asyncio.wait(
+                pending_tasks,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if agent_task is not None and agent_task in done_tasks:
+                try:
+                    agent_message_chunk = agent_task.result()
+                except StopAsyncIteration:
+                    agent_task = None
+                    await subagent_message_chunks.put(_SUBAGENT_MESSAGE_CHUNKS_CLOSED)
+                else:
+                    if isinstance(agent_message_chunk, ToolOutputAvailableChunk):
+                        final_tool_output = final_tool_outputs_by_tool_call_id.pop(
+                            agent_message_chunk.tool_call_id,
+                            None,
+                        )
+                        if final_tool_output is not None:
+                            agent_message_chunk = agent_message_chunk.model_copy(
+                                update={"output": final_tool_output.output}
+                            )
+                        if agent_message_chunk.preliminary is not True:
+                            completed_tool_call_ids.add(agent_message_chunk.tool_call_id)
+                    yield agent_message_chunk
+                    agent_task = asyncio.create_task(_next_agent_message_chunk())
+
+            if subagent_task is not None and subagent_task in done_tasks:
+                subagent_message_chunk = subagent_task.result()
+                if isinstance(subagent_message_chunk, _SubagentMessageChunksClosed):
+                    subagent_task = None
+                else:
+                    # A queued progress chunk can arrive after the parent stream
+                    # has emitted the terminal tool output. Do not let stale
+                    # preliminary state overwrite the completed tool part.
+                    if not (
+                        isinstance(subagent_message_chunk, ToolOutputAvailableChunk)
+                        and subagent_message_chunk.preliminary is True
+                        and subagent_message_chunk.tool_call_id in completed_tool_call_ids
+                    ):
+                        yield subagent_message_chunk
+                    subagent_task = asyncio.create_task(subagent_message_chunks.get())
+    finally:
+        tasks_to_cancel: list[asyncio.Task[Any]] = []
+        if agent_task is not None:
+            tasks_to_cancel.append(agent_task)
+        if subagent_task is not None:
+            tasks_to_cancel.append(subagent_task)
+        for task in tasks_to_cancel:
+            task.cancel()
+        if tasks_to_cancel:
+            await asyncio.gather(*tasks_to_cancel, return_exceptions=True)
 
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
@@ -416,28 +662,86 @@ async def _upsert_project_sessions(
     return {row.session_id: row for row in returned_rows}
 
 
+def _maybe_using_user(
+    attach_user_id: bool,
+    phoenix_user_email: str | None,
+) -> AbstractContextManager[Any]:
+    """Return a ``using_user`` context manager when the opt-in is set and the
+    authenticated PhoenixUser has an email; otherwise return a no-op.
+
+    Attaches the Phoenix user email as the ``user.id`` OpenInference attribute
+    to all spans created inside the context so traces can be filtered by user.
+    """
+    if attach_user_id and phoenix_user_email:
+        return using_user(phoenix_user_email)
+    return nullcontext()
+
+
+async def _load_phoenix_user_email(
+    *,
+    session: AsyncSession,
+    phoenix_user: PhoenixUser | None,
+) -> str | None:
+    if phoenix_user is None:
+        return None
+    return await session.scalar(
+        select(models.User.email).where(models.User.id == int(phoenix_user.identity))
+    )
+
+
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
-    async def chat(
-        agent_id: str,
+    @router.post("/agents/server/sessions/{session_id}/chat")
+    async def run_server_agent(
         session_id: str,
         request: Request,
         request_body: ChatRequest,
     ) -> Response:
-        if agent_id != _ASSISTANT_AGENT_ID:
-            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        """Stream a chat turn from the GraphQL server agent.
+
+        This is the endpoint the PXI CLI talks to directly (no pre-configured
+        agent record): it builds a fresh server agent per request from the
+        caller-supplied model and contexts, then streams the reply back as
+        Vercel-AI chunks.
+
+        The request contexts gate capabilities — GraphQL mutations, web access,
+        and subagents — and mutations are refused for viewer users. When trace
+        recording is enabled (and permitted by system settings), the run is
+        traced; locally ingested traces are persisted to the agent's project
+        once the stream completes.
+
+        Returns ``403`` if agents or the server agent are disabled, or if a
+        viewer requests mutations.
+        """
+        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+            raise HTTPException(status_code=403, detail="Agents are disabled")
+        if get_env_phoenix_agents_disable_bash():
+            raise HTTPException(status_code=403, detail="Server agent is disabled")
+
         body = request_body.root
+        resolved_contexts = resolve_contexts(body.contexts)
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        graphql_mutations_enabled = (
+            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
+        )
+        if graphql_mutations_enabled and is_viewer:
+            raise HTTPException(status_code=403, detail="Viewer users cannot enable mutations")
+
+        recording = request.app.state.system_settings.agent_trace_recording
+        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
+        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
                 span_cost_calculator=request.app.state.span_cost_calculator,
-                enable_remote_export=body.export_remote_traces,
+                enable_remote_export=export_remote_traces,
                 project_name=project_name,
             )
-            if (body.ingest_traces or body.export_remote_traces)
+            if (ingest_traces or export_remote_traces)
             else None
         )
         tracer_provider = tracer.tracer_provider if tracer is not None else None
@@ -457,44 +761,41 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        logger.info(
-            "agent model: %s.%s settings=%r",
-            type(model).__module__,
-            type(model).__qualname__,
-            getattr(model, "settings", None),
-        )
-
-        resolved_contexts = resolve_contexts(body.contexts)
         web_access_enabled = (
             resolved_contexts.web_access is not None
             and resolved_contexts.web_access.enabled
             and get_env_phoenix_agents_web_access_enabled()
         )
-        agent = build_agent(
+        subagents_enabled = _subagents_enabled(resolved_contexts)
+        server_agent = build_server_agent(
             model=model,
+            schema=request.app.state.graphql_schema,
+            build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+            prompts=ServerAgentPrompts(base=AgentPrompts().base),
             docs_mcp_server=request.app.state.docs_mcp_server,
             enable_web_access=web_access_enabled,
+            allow_mutations=graphql_mutations_enabled,
             tracer_provider=tracer_provider,
+            enable_subagents=subagents_enabled,
         )
-        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
-            agent=agent,
+        adapter: VercelAIAdapter[None, str] = VercelAIAdapter(
+            agent=server_agent,
             run_input=body,
             accept=request.headers.get("accept"),
         )
-        deps = AgentDependencies(contexts=resolved_contexts)
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield _build_message_metadata_chunk(
                 span_context=agent_span_recorder.span_context if agent_span_recorder else None,
                 session_id=session_id,
-                usage=result.usage(),
+                usage=result.usage,
             )
             _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with detached_otel_context(), using_session(session_id=session_id):
-                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    raw_stream = adapter.run_stream(deps=None, on_complete=_on_complete)
                     assert _is_async_generator(raw_stream)
                     async with aclosing(raw_stream) as stream:
                         async for chunk in stream:
@@ -507,15 +808,258 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
-                    if body.ingest_traces:
+                    if ingest_traces:
                         project_id = await _ensure_project_exists(
                             request.app.state.db, project_name
                         )
                         db_traces = tracer.get_db_traces(project_id=project_id)
-                        if db_traces:
-                            async with request.app.state.db() as session:
-                                await _persist_db_traces(session=session, db_traces=db_traces)
-                                await session.flush()
+                        await _persist_db_traces_and_emit_event(
+                            db=request.app.state.db,
+                            event_queue=request.state.event_queue,
+                            db_traces=db_traces,
+                        )
+                    tracer.tracer_provider.shutdown()
+
+        return adapter.streaming_response(_stream_with_session())
+
+    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
+    async def chat(
+        agent_id: str,
+        session_id: str,
+        request: Request,
+        request_body: ChatRequest,
+    ) -> Response:
+        if agent_id != _ASSISTANT_AGENT_ID:
+            raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+            raise HTTPException(status_code=403, detail="Agents are disabled")
+        body = request_body.root
+        recording = request.app.state.system_settings.agent_trace_recording
+        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
+        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
+        project_name = get_env_phoenix_agents_assistant_project_name()
+        tracer = (
+            Tracer(
+                span_cost_calculator=request.app.state.span_cost_calculator,
+                enable_remote_export=export_remote_traces,
+                project_name=project_name,
+            )
+            if (ingest_traces or export_remote_traces)
+            else None
+        )
+        tracer_provider = tracer.tracer_provider if tracer is not None else None
+        agent_span_recorder: _AgentSpanContextRecorder | None = None
+        if tracer is not None:
+            agent_span_recorder = _AgentSpanContextRecorder()
+            tracer.tracer_provider.add_span_processor(agent_span_recorder)
+
+        resolved_contexts = resolve_contexts(body.contexts)
+        user = request.user if "user" in request.scope else None
+        phoenix_user = user if isinstance(user, PhoenixUser) else None
+        phoenix_user_email: str | None = None
+        try:
+            async with request.app.state.db() as session:
+                model = await build_model(
+                    body.model,
+                    session=session,
+                    decrypt=request.app.state.decrypt,
+                    tracer_provider=tracer_provider,
+                )
+                sandbox_availability = SandboxAvailability()
+                if _contexts_need_sandbox_availability(resolved_contexts):
+                    available_backend_types = await _load_available_sandbox_backend_types(
+                        session=session,
+                        decrypt=request.app.state.decrypt,
+                    )
+                    sandbox_availability = await _load_sandbox_availability(
+                        session,
+                        available_backend_types=available_backend_types,
+                    )
+                model_provider_availability = ModelProviderAvailability()
+                if _contexts_need_model_provider_availability(resolved_contexts):
+                    model_provider_availability = _load_model_provider_availability()
+                phoenix_user_email = await _load_phoenix_user_email(
+                    session=session,
+                    phoenix_user=phoenix_user,
+                )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+        logger.info(
+            "agent model: %s.%s settings=%r",
+            type(model).__module__,
+            type(model).__qualname__,
+            getattr(model, "settings", None),
+        )
+
+        web_access_enabled = (
+            resolved_contexts.web_access is not None
+            and resolved_contexts.web_access.enabled
+            and get_env_phoenix_agents_web_access_enabled()
+        )
+        is_viewer = phoenix_user.is_viewer if phoenix_user is not None else False
+        subagents_enabled = _subagents_enabled(resolved_contexts)
+        graphql_mutations_enabled = (
+            resolved_contexts.graphql is not None and resolved_contexts.graphql.mutations_enabled
+        )
+        server_agent = (
+            build_server_agent(
+                model=model,
+                schema=request.app.state.graphql_schema,
+                build_graphql_context=lambda: request.app.state.build_graphql_context(phoenix_user),
+                docs_mcp_server=request.app.state.docs_mcp_server,
+                enable_web_access=web_access_enabled,
+                allow_mutations=graphql_mutations_enabled,
+                tracer_provider=tracer_provider,
+                enable_subagents=False,
+            )
+            if subagents_enabled
+            else None
+        )
+        subagent_message_chunks: asyncio.Queue[BaseChunk | _SubagentMessageChunksClosed] = (
+            asyncio.Queue()
+        )
+        final_tool_outputs_by_tool_call_id: dict[str, ToolOutputAvailableChunk] = {}
+        publish_subagent_message_chunk: (
+            Callable[[ToolOutputAvailableChunk], Awaitable[None]] | None
+        ) = None
+        set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None
+
+        if server_agent is not None:
+
+            async def _publish_subagent_message_chunk(
+                subagent_message_chunk: ToolOutputAvailableChunk,
+            ) -> None:
+                await subagent_message_chunks.put(subagent_message_chunk)
+
+            def _set_subagent_final_tool_output(
+                final_tool_output: ToolOutputAvailableChunk,
+            ) -> None:
+                final_tool_outputs_by_tool_call_id[final_tool_output.tool_call_id] = (
+                    final_tool_output
+                )
+
+            publish_subagent_message_chunk = _publish_subagent_message_chunk
+            set_subagent_final_tool_output = _set_subagent_final_tool_output
+
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=web_access_enabled,
+            tracer_provider=tracer_provider,
+            server_agent=server_agent,
+            publish_subagent_message_chunk=publish_subagent_message_chunk,
+            set_subagent_final_tool_output=set_subagent_final_tool_output,
+        )
+        agent_prompts = AgentPrompts()
+        forced_skills: list[Skill] = []
+        if body.requested_skills:
+            available_skills = get_skills_for_contexts(resolved_contexts)
+            forced_skills = resolve_requested_skills(
+                messages=body.messages,
+                requested_skill_names=body.requested_skills,
+                available_skills=available_skills,
+            )
+            if forced_skills:
+                body.messages = inject_requested_skills(
+                    messages=body.messages,
+                    requested_skill_names=body.requested_skills,
+                    available_skills=available_skills,
+                    load_skill_template=agent_prompts.load_skill,
+                    message_factory=AssistantMetadataUIMessage,
+                )
+        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
+            agent=agent,
+            run_input=body,
+            accept=request.headers.get("accept"),
+        )
+        deps = AgentDependencies(
+            contexts=resolved_contexts,
+            edit_permission=body.edit_permission,
+            is_viewer=is_viewer,
+            sandbox_availability=sandbox_availability,
+            model_provider_availability=model_provider_availability,
+        )
+
+        async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            yield _build_message_metadata_chunk(
+                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                session_id=session_id,
+                usage=result.usage,
+            )
+            _log_run_complete(result)
+
+        async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            try:
+                with (
+                    detached_otel_context(),
+                    using_session(session_id=session_id),
+                    _maybe_using_user(body.attach_user_id, phoenix_user_email),
+                ):
+                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    assert _is_async_generator(raw_stream)
+
+                    async def _agent_message_chunks() -> AsyncIterator[BaseChunk]:
+                        # Forced skills are streamed as their own `load_skill` steps so
+                        # the browser transcript matches what the model received. They
+                        # are emitted once, right after the stream's opening `start`
+                        # message chunk and before the model's own output.
+                        forced_skills_streamed = not forced_skills
+                        async with aclosing(raw_stream) as stream:
+                            async for agent_message_chunk in stream:
+                                if isinstance(agent_message_chunk, ToolInputAvailableChunk):
+                                    agent_message_chunk.provider_metadata = (
+                                        _get_updated_provider_metadata(
+                                            provider_metadata=agent_message_chunk.provider_metadata
+                                            or {},
+                                            tool_name=agent_message_chunk.tool_name,
+                                        )
+                                    )
+                                yield agent_message_chunk
+                                if not forced_skills_streamed and isinstance(
+                                    agent_message_chunk,
+                                    StartChunk,
+                                ):
+                                    forced_skill_message_chunks = (
+                                        iter_requested_skill_response_chunks(
+                                            skills=forced_skills,
+                                            load_skill_template=agent_prompts.load_skill,
+                                        )
+                                    )
+                                    for forced_skill_message_chunk in forced_skill_message_chunks:
+                                        if isinstance(
+                                            forced_skill_message_chunk, ToolInputAvailableChunk
+                                        ):
+                                            provider_metadata = _get_updated_provider_metadata(
+                                                provider_metadata=forced_skill_message_chunk.provider_metadata
+                                                or {},
+                                                tool_name=forced_skill_message_chunk.tool_name,
+                                            )
+                                            forced_skill_message_chunk.provider_metadata = (
+                                                provider_metadata
+                                            )
+                                        yield forced_skill_message_chunk
+                                    forced_skills_streamed = True
+
+                    async for message_chunk in _interleave_agent_and_subagent_message_chunks(
+                        agent_message_chunks=_agent_message_chunks(),
+                        subagent_message_chunks=subagent_message_chunks,
+                        final_tool_outputs_by_tool_call_id=final_tool_outputs_by_tool_call_id,
+                    ):
+                        yield message_chunk
+            finally:
+                if tracer is not None:
+                    tracer.tracer_provider.force_flush()
+                    if ingest_traces:
+                        project_id = await _ensure_project_exists(
+                            request.app.state.db, project_name
+                        )
+                        db_traces = tracer.get_db_traces(project_id=project_id)
+                        await _persist_db_traces_and_emit_event(
+                            db=request.app.state.db,
+                            event_queue=request.state.event_queue,
+                            db_traces=db_traces,
+                        )
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -532,14 +1076,19 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     ) -> _SummarizeResponse:
         if agent_id != _ASSISTANT_AGENT_ID:
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
+        if not request.app.state.system_settings.agent_assistant_enabled.enabled:
+            raise HTTPException(status_code=403, detail="Agents are disabled")
+        recording = request.app.state.system_settings.agent_trace_recording
+        ingest_traces = bool(body.ingest_traces and recording.allow_local_traces)
+        export_remote_traces = bool(body.export_remote_traces and recording.allow_remote_export)
         project_name = get_env_phoenix_agents_assistant_project_name()
         tracer = (
             Tracer(
                 span_cost_calculator=request.app.state.span_cost_calculator,
-                enable_remote_export=body.export_remote_traces,
+                enable_remote_export=export_remote_traces,
                 project_name=project_name,
             )
-            if (body.ingest_traces or body.export_remote_traces)
+            if (ingest_traces or export_remote_traces)
             else None
         )
         tracer_provider = tracer.tracer_provider if tracer is not None else None
@@ -552,25 +1101,36 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
                 )
+                user = request.user if "user" in request.scope else None
+                phoenix_user = user if isinstance(user, PhoenixUser) else None
+                phoenix_user_email = await _load_phoenix_user_email(
+                    session=session,
+                    phoenix_user=phoenix_user,
+                )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         history = VercelAIAdapter.load_messages(body.messages)
         try:
-            with detached_otel_context(), using_metadata({"session_id": session_id}):
+            with (
+                detached_otel_context(),
+                using_metadata({"session_id": session_id}),
+                _maybe_using_user(body.attach_user_id, phoenix_user_email),
+            ):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         finally:
             if tracer is not None:
                 tracer.tracer_provider.force_flush()
-                if body.ingest_traces:
+                if ingest_traces:
                     project_id = await _ensure_project_exists(request.app.state.db, project_name)
                     db_traces = tracer.get_db_traces(project_id=project_id)
-                    if db_traces:
-                        async with request.app.state.db() as session:
-                            await _persist_db_traces(session=session, db_traces=db_traces)
-                            await session.flush()
+                    await _persist_db_traces_and_emit_event(
+                        db=request.app.state.db,
+                        event_queue=request.state.event_queue,
+                        db_traces=db_traces,
+                    )
                 tracer.tracer_provider.shutdown()
         return _SummarizeResponse(summary=result.summary.strip())
 
