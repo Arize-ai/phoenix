@@ -11,6 +11,7 @@ import {
 
 import {
   ChartEmptyStateOverlay,
+  defaultCartesianGridProps,
   useGrayscaleCategoricalColors,
 } from "@phoenix/components/chart";
 
@@ -121,11 +122,7 @@ export function VerticalBarChart({
       <ChartEmptyStateOverlay isEmpty={!hasData}>
         <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
           <RechartsBarChart data={chartData} margin={CHART_MARGINS}>
-            <CartesianGrid
-              horizontal
-              vertical={false}
-              stroke="var(--chart-cartesian-grid-stroke-color)"
-            />
+            <CartesianGrid {...defaultCartesianGridProps} />
             <YAxis
               width={yAxisWidth}
               axisLine={false}

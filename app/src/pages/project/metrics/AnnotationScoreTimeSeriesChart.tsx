@@ -15,19 +15,17 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  compactChartMargin,
+  compactLegendProps,
+  compactTimeXAxisProps,
+  compactYAxisProps,
+  defaultCartesianGridProps,
+  defaultTooltipProps,
   InteractiveLegend,
   TimeRangeChartBrush,
   useBinTimeTickFormatter,
   useInteractiveLegend,
 } from "@phoenix/components/chart";
-import {
-  compactChartMargin,
-  compactTimeXAxisProps,
-  compactYAxisProps,
-  defaultCartesianGridProps,
-  defaultTooltipProps,
-  compactLegendProps,
-} from "@phoenix/components/chart/defaults";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
@@ -51,11 +49,11 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
-          if (!entry.value) return null;
+          if (entry.value == null) return null;
           return (
             <ChartTooltipItem
               key={index}
-              color={entry.color || "#FF00FF"} // hot pink, fail loudly.
+              color={entry.color}
               shape="line"
               name={String(entry.dataKey || "unknown")}
               value={Number(entry.value).toFixed(2)}
@@ -149,7 +147,7 @@ export function AnnotationScoreTimeSeriesChart({
                 {...compactYAxisProps}
                 tickFormatter={(x) => formatFloat(x)}
               />
-              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <Tooltip content={TooltipContent} {...defaultTooltipProps} />
 
               {names.map((name) => {

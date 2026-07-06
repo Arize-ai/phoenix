@@ -219,7 +219,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
               <stop offset="95%" stopColor={gray300} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid {...defaultCartesianGridProps} />
+          <CartesianGrid {...defaultCartesianGridProps} vertical />
           <XAxis {...defaultXAxisProps} dataKey="iteration" />
           <YAxis
             {...defaultYAxisProps}

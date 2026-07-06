@@ -1,5 +1,6 @@
 export * from "./ChartEmptyStateOverlay";
 export * from "./ChartTooltip";
+export * from "./SegmentChart";
 export * from "./InteractiveLegend";
 export * from "./SparklineSkeleton";
 export * from "./TimeRangeChartBrush";

@@ -127,7 +127,7 @@ export function TopModelsByToken({
           layout="vertical"
           barSize={10}
         >
-          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <CartesianGrid {...defaultCartesianGridProps} />
           <Tooltip
             content={TooltipContent}
             // TODO formalize this

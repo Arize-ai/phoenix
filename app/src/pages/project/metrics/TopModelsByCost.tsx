@@ -125,7 +125,7 @@ export function TopModelsByCost({
           layout="vertical"
           barSize={10}
         >
-          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <CartesianGrid {...defaultCartesianGridProps} />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
           <XAxis
             {...defaultXAxisProps}

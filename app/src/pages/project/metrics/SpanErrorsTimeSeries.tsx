@@ -113,7 +113,7 @@ export function SpanErrorsTimeSeries({
                 allowDecimals={false}
                 tickFormatter={(x) => intShortFormatter(x)}
               />
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <Tooltip
                 content={CountTimeSeriesTooltipContent}
                 {...defaultTooltipProps}

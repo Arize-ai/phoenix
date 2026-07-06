@@ -15,20 +15,18 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
-  InteractiveLegend,
-  TimeRangeChartBrush,
-  useInteractiveLegend,
-  useBinTimeTickFormatter,
-  useSequentialChartColors,
-} from "@phoenix/components/chart";
-import {
   compactChartMargin,
+  compactLegendProps,
   compactTimeXAxisProps,
   compactYAxisProps,
   defaultCartesianGridProps,
   defaultTooltipProps,
-  compactLegendProps,
-} from "@phoenix/components/chart/defaults";
+  InteractiveLegend,
+  TimeRangeChartBrush,
+  useBinTimeTickFormatter,
+  useInteractiveLegend,
+  useSequentialChartColors,
+} from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -52,11 +50,11 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
-          if (!entry.value) return null;
+          if (entry.value == null) return null;
           return (
             <ChartTooltipItem
               key={index}
-              color={entry.color || "#ffffff"}
+              color={entry.color}
               shape="line"
               name={String(entry.dataKey || "unknown")}
               value={`${formatFloat(Number(entry.value))} s`}
@@ -154,7 +152,7 @@ export function TraceLatencyPercentilesTimeSeries({
               syncId={"projectMetrics"}
               {...chartProps}
             >
-              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
                 {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}

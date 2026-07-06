@@ -1,14 +1,18 @@
 import type {
   CartesianGridProps,
-  LabelProps,
   LegendProps,
   TooltipProps,
   XAxisProps,
   YAxisProps,
 } from "recharts";
 
+/**
+ * Charts render horizontal gridlines only — the y scale needs the guide while
+ * vertical lines just add noise. Pass `vertical` to opt back into a full grid.
+ */
 export const defaultCartesianGridProps: CartesianGridProps = {
   stroke: "var(--chart-cartesian-grid-stroke-color)",
+  vertical: false,
 };
 
 /**
@@ -94,19 +98,6 @@ export const compactChartMargin = {
   right: 8,
   left: 2,
   bottom: 0,
-};
-
-export const defaultSelectedTimestampReferenceLineProps = {
-  stroke: "var(--global-color-gray-900)",
-};
-
-export const defaultSelectedTimestampReferenceLineLabelProps: LabelProps = {
-  value: "▼",
-  position: "top",
-  style: {
-    fill: "#fabe32",
-    fontSize: "var(--global-font-size-xs)",
-  },
 };
 
 /**

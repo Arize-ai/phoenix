@@ -5,7 +5,7 @@ const chartContainerCSS = css`
   display: flex;
   flex-direction: row;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--global-rounding-medium);
   gap: 2px;
 `;
 

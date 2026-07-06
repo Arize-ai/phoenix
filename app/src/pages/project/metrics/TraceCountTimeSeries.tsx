@@ -123,7 +123,7 @@ export function TraceCountTimeSeries({
                 allowDecimals={false}
                 tickFormatter={(x) => intFormatter(x)}
               />
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <Tooltip
                 content={CountTimeSeriesTooltipContent}
                 // TODO formalize this

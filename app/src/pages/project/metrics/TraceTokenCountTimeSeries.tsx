@@ -315,7 +315,7 @@ export function TraceTokenCountTimeSeries({
               syncId={"projectMetrics"}
               {...chartProps}
             >
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
                 {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
@@ -419,7 +419,7 @@ function TraceTokenDetailsTimeSeries({
               syncId={"projectMetrics"}
               {...chartProps}
             >
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <CartesianGrid {...defaultCartesianGridProps} />
               <XAxis
                 {...compactTimeXAxisProps}
                 domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
