@@ -11,7 +11,6 @@ import {
   Icon,
   Icons,
   MatchText,
-  Text,
   useFilter,
 } from "@phoenix/components";
 import type {
@@ -93,7 +92,7 @@ const DESTINATIONS: SearchDestination[] = [
 ];
 
 const RESOURCE_ICONS: Record<RecentlyViewedResourceType, React.ReactNode> = {
-  project: <Icon svg={<Icons.Grid />} />,
+  project: <Icon svg={<Icons.Trace />} />,
   dataset: <Icon svg={<Icons.Database />} />,
   experiment: <Icon svg={<Icons.Experiment />} />,
   prompt: <Icon svg={<Icons.MessageSquare />} />,
@@ -153,9 +152,6 @@ export function GlobalSearchPalette({
             setInputValue(value);
             debouncedSetSearchQuery(value);
           }}
-          renderEmptyState={() => (
-            <Text color="text-500">No results for “{inputValue}”</Text>
-          )}
         >
           {matchingRecentlyViewed.length > 0 && (
             <CommandPaletteSection title="Recently viewed">
