@@ -13,7 +13,9 @@ import {
 
 import { Text } from "@phoenix/components/core/content";
 import { Dialog } from "@phoenix/components/core/dialog";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchField, SearchIcon } from "@phoenix/components/core/field";
+import { Icon, Icons } from "@phoenix/components/core/icon";
 import { KeyboardToken } from "@phoenix/components/core/KeyboardToken";
 import { Menu } from "@phoenix/components/core/menu";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay";
@@ -79,9 +81,15 @@ const commandPaletteCSS = css`
     align-items: center;
     flex: none;
     gap: var(--global-dimension-static-size-200);
-    padding: var(--global-dimension-static-size-100)
+    padding: var(--global-dimension-static-size-150)
       var(--global-dimension-static-size-200);
     border-top: 1px solid var(--global-border-color-default);
+  }
+
+  .command-palette__hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--global-dimension-static-size-100);
   }
 
   .command-palette__empty-state {
@@ -185,21 +193,26 @@ export function CommandPalette({
                 <SearchIcon />
                 <Input placeholder={placeholder} />
               </SearchField>
-              <KeyboardToken aria-hidden="true">Esc</KeyboardToken>
             </div>
             <Menu
               className="command-palette__menu"
               aria-label={ariaLabel}
               onAction={onAction}
-              renderEmptyState={() => (
-                <div className="command-palette__empty-state">
-                  {renderEmptyState ? (
-                    renderEmptyState()
-                  ) : (
-                    <Text color="text-500">No results</Text>
-                  )}
-                </div>
-              )}
+              renderEmptyState={() =>
+                renderEmptyState ? (
+                  <div className="command-palette__empty-state">
+                    {renderEmptyState()}
+                  </div>
+                ) : (
+                  // CompactEmptyState reads the Autocomplete's live query from
+                  // context, so a non-empty search renders the search icon +
+                  // "No results" automatically.
+                  <CompactEmptyState
+                    icon={<Icon svg={<Icons.Search />} />}
+                    description="No results"
+                  />
+                )
+              }
             >
               {children}
             </Menu>
@@ -216,18 +229,24 @@ export function CommandPalette({
 function CommandPaletteHints() {
   return (
     <>
-      <Text size="XS" color="text-500">
+      <span className="command-palette__hint">
         <KeyboardToken>↑↓</KeyboardToken>
-        &nbsp;to navigate
-      </Text>
-      <Text size="XS" color="text-500">
+        <Text size="XS" color="text-500">
+          to navigate
+        </Text>
+      </span>
+      <span className="command-palette__hint">
         <KeyboardToken>↵</KeyboardToken>
-        &nbsp;to select
-      </Text>
-      <Text size="XS" color="text-500">
+        <Text size="XS" color="text-500">
+          to select
+        </Text>
+      </span>
+      <span className="command-palette__hint">
         <KeyboardToken>esc</KeyboardToken>
-        &nbsp;to close
-      </Text>
+        <Text size="XS" color="text-500">
+          to close
+        </Text>
+      </span>
     </>
   );
 }

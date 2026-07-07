@@ -28,7 +28,11 @@ const searchButtonCSS = css`
   font-size: inherit;
 
   .keyboard-token {
+    // Match the trailing counter geometry (Navbar's .counter) so the ⌘K
+    // hint right-aligns with the numeric counts on sibling nav items: same
+    // trailing margin and same horizontal padding.
     margin-inline-end: var(--global-dimension-size-100);
+    padding-inline: var(--global-dimension-size-50);
   }
 `;
 
@@ -73,7 +77,7 @@ export function GlobalSearch({ isExpanded }: { isExpanded: boolean }) {
           >
             <Icon svg={<Icons.Search />} />
             <Text>Search</Text>
-            <KeyboardToken className="keyboard-token">
+            <KeyboardToken variant="quiet" className="keyboard-token">
               <VisuallyHidden>{modifierKey}</VisuallyHidden>
               <span aria-hidden="true">{modifierGlyph}</span>K
             </KeyboardToken>
