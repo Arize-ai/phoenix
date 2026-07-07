@@ -81,7 +81,7 @@ export const AnnotationConfigSelectionToolbar = ({
               }}
             >
               <Button variant="danger" size="S">
-                <Icon svg={<Icons.TrashOutline />} />
+                <Icon svg={<Icons.Trash />} />
                 Delete
               </Button>
               <ModalOverlay>
@@ -142,7 +142,7 @@ export const AnnotationConfigSelectionToolbar = ({
               }}
             >
               <Button size="S" variant="primary">
-                <Icon svg={<Icons.EditOutline />} />
+                <Icon svg={<Icons.Edit />} />
                 Edit
               </Button>
               <ModalOverlay>

@@ -976,6 +976,7 @@ const menuCSS = (theme: Theme) => css`
       --global-dimension-static-size-300
     );
     --global-menu-item-gap: var(--global-dimension-static-size-50);
+    --global-menu-item-content-gap: var(--global-dimension-static-size-100);
   }
 `;
 
@@ -1387,16 +1388,25 @@ const codeMirrorOverridesCSS = css`
   .cm-gutters {
     background-color: var(--code-mirror-gutters-background-color) !important;
   }
+  /* Keep fold arrows subtle so they read as secondary to the code */
+  .cm-foldGutter .cm-gutterElement {
+    color: var(--global-text-color-300);
+    transition: color 200ms ease-in-out;
+    &:hover {
+      color: var(--global-text-color-900);
+    }
+  }
 `;
 
 const chartCSS = css`
   .theme {
+    /* Gridlines are solid and rely on low opacity to stay subtle */
     --chart-cartesian-grid-stroke-color: rgba(
       var(--global-color-gray-500-rgb),
-      0.24
+      0.16
     );
     --chart-axis-stroke-color: var(--global-color-gray-300);
-    --chart-axis-text-color: var(--global-text-color-700);
+    --chart-axis-text-color: var(--global-text-color-500);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
     --chart-time-range-brush-fill-color: var(--global-color-primary-100);
@@ -1404,11 +1414,14 @@ const chartCSS = css`
       var(--global-color-gray-75-rgb),
       0.84
     );
-    --chart-empty-state-text-color: var(--global-text-color-500);
+    --chart-panel-background-color: var(--global-color-gray-75);
+    --chart-panel-border-color: var(--global-border-color-default);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
-    --chart-empty-state-text-color: var(--global-text-color-700);
+    /* Panels sit on a same-colored background, so a full-strength border
+       reads as a heavy frame in dark mode; soften it */
+    --chart-panel-border-color: rgba(var(--global-color-gray-200-rgb), 0.6);
   }
   .theme--light {
     --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.02);

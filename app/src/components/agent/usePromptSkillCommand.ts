@@ -182,6 +182,14 @@ export function getSelectedTokenNames(
   return selected;
 }
 
+/** The text produced by completing a slash token in the prompt. */
+export type SkillCompletion = {
+  /** Textarea value with the active `/query` replaced by `/name `. */
+  value: string;
+  /** Caret offset to restore, just past the inserted token. */
+  caret: number;
+};
+
 export type PromptSkillCommandState = {
   /** Whether the slash menu should be shown. */
   isOpen: boolean;
@@ -204,13 +212,10 @@ export type PromptSkillCommandState = {
   dismiss: () => void;
   /**
    * Apply a menu selection to `value`, replacing the active `/query` with
-   * `/name ` and returning the new value plus the caret position to restore.
-   * Returns null when there is no active query to replace.
+   * `/name ` and returning the completed text. Returns null when there is no
+   * active query to replace.
    */
-  selectItem: (
-    value: string,
-    item: SlashMenuItem
-  ) => { value: string; caret: number } | null;
+  selectItem: (value: string, item: SlashMenuItem) => SkillCompletion | null;
 };
 
 /**

@@ -1,0 +1,263 @@
+---
+title: "CI Eval Tests"
+description: "Run dataset-backed Phoenix evaluations as Vitest or Jest tests"
+---
+
+`@arizeai/phoenix-client/vitest` and `@arizeai/phoenix-client/jest` let
+you write evaluations as ordinary Vitest or Jest tests that fit cleanly
+into local development and CI. Each `describe()`
+block becomes a Phoenix dataset and a new experiment; each `test()`
+becomes a dataset example plus a recorded experiment run; the assertion
+outcome is captured as a `pass` boolean annotation. Anything you log via
+`logOutput()` / `logAnnotation()` / `evaluate()` lands on the run.
+Suite-level `acceptanceCriteria` can fail CI on aggregate annotation metrics,
+for example when average quality drops below `0.8`.
+
+Tracing is provided by `@arizeai/phoenix-otel` (OpenInference). LLM and
+agent calls instrumented with OpenInference appear as child spans of
+each test's task span.
+
+## Install
+
+```bash
+npm install -D @arizeai/phoenix-client @arizeai/phoenix-evals vitest dotenv
+# or, for jest:
+npm install -D @arizeai/phoenix-client @arizeai/phoenix-evals jest dotenv
+```
+
+## Minimal Example
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+px.describe("generate sql demo", () => {
+  px.test(
+    "generates select all",
+    {
+      input: { userQuery: "Get all users from the customers table" },
+      expected: { sql: "SELECT * FROM customers;" },
+    },
+    async ({ input, expected }) => {
+      const sql = await myApp(input.userQuery);
+      px.logOutput({ sql });
+      expect(sql).toEqual(expected?.sql);
+    },
+  );
+});
+```
+
+## Docs And Source In `node_modules`
+
+After install, a coding agent can inspect the installed package directly:
+
+```text
+node_modules/@arizeai/phoenix-client/docs/
+node_modules/@arizeai/phoenix-client/src/
+```
+
+That gives the agent version-matched docs plus the exact implementation
+that shipped with your project.
+
+## Module Map
+
+| Import | Purpose |
+|--------|---------|
+| `@arizeai/phoenix-client/vitest` | Vitest entrypoint (`describe`, `test`, `it`, `logOutput`, `logAnnotation`, `evaluate`) |
+| `@arizeai/phoenix-client/vitest/reporter` | Vitest reporter that prints a Phoenix-flavored summary at the end of the run |
+| `@arizeai/phoenix-client/jest` | Same API surface, wired to Jest globals |
+| `@arizeai/phoenix-client/jest/reporter` | Jest reporter |
+
+## Phoenix Terminology
+
+The public API uses Phoenix terms end-to-end — what you read in this package
+matches what shows up in the Phoenix UI and the REST API.
+
+| Test field                  | Phoenix concept                          |
+| --------------------------- | ---------------------------------------- |
+| `input`                     | `Example.input`                          |
+| `expected`                  | `Example.output` (reference)             |
+| `metadata`                  | `Example.metadata`                       |
+| `id`                        | `Example.id` (stable upsert id)          |
+| `logOutput(value)`          | `ExperimentRun.output`                   |
+| `Annotation.name`           | `ExperimentEvaluation.name`              |
+| `Annotation.score`          | `ExperimentEvaluationResult.score`       |
+| `Annotation.label`          | `ExperimentEvaluationResult.label`       |
+| `Annotation.explanation`    | `ExperimentEvaluationResult.explanation` |
+| `Annotation.annotatorKind`  | `annotator_kind` (`LLM` / `CODE` / `HUMAN`) |
+
+## Configuration
+
+The Vitest and Jest submodules reuse the standard `@arizeai/phoenix-client`
+and `@arizeai/phoenix-otel` configuration, so setup goes through the
+standard Phoenix env vars.
+
+| Variable | Purpose |
+| --- | --- |
+| `PHOENIX_HOST` | Phoenix base URL |
+| `PHOENIX_API_KEY` | Bearer token for Phoenix |
+| `PHOENIX_CLIENT_HEADERS` | Optional JSON headers forwarded to the Phoenix client and tracer |
+| `PHOENIX_TEST_TRACKING=false` | Disable sync to Phoenix for the current run (tracking is on by default) |
+| `PHOENIX_TEST_REPETITIONS` | Default number of times to run each test |
+| `PHOENIX_TEST_REPORTER=verbose` | Show every test row plus per-test `output:` detail (default is the compact view) |
+| `PHOENIX_TEST_REPORTER_MAX_ROWS` | Max test rows shown per suite in compact mode (default `10`; failures are never hidden) |
+| `PHOENIX_TEST_COLOR` | Force ANSI color on/off (otherwise auto: on for a TTY, off in CI / `NO_COLOR`) |
+
+`describe()` also accepts `repetitions` and `dryRun` on its config object,
+plus `acceptanceCriteria` for aggregate score thresholds. `test()` accepts
+`repetitions` and `dryRun` on its params — see
+[CI Eval Tests: Vitest](./ci-evals-vitest) /
+[CI Eval Tests: Jest](./ci-evals-jest).
+
+## Repetitions
+
+Run a test (or a whole suite) more than once to measure non-determinism.
+Each repetition is a separate experiment run against the same dataset
+example, carrying its own `repetition_number`, so the Phoenix compare view
+lines them up. Resolution order: per-test `repetitions` → suite
+`repetitions` → `PHOENIX_TEST_REPETITIONS` → `1`.
+
+## Dry-Run Mode
+
+Dry-run executes test bodies (and tracing, when a tracer is attached) but
+creates no dataset, experiment, run, or annotations in Phoenix. The
+reporter still prints a local summary.
+
+- **Whole process** — `PHOENIX_TEST_TRACKING=false`.
+- **One suite** — `describe(name, fn, { dryRun: true })`.
+- **One test** — `test(name, { input, dryRun: true }, fn)`; that case runs
+  as an ordinary local test, with no dataset example and nothing uploaded,
+  even when the rest of the suite syncs.
+
+## Reporter Output
+
+The Vitest and Jest reporters print a Phoenix-flavored summary at the end of a
+run. By default the output is **compact** and scales to large suites:
+
+- A **scoreboard** across all suites — passed count, the gated metric average,
+  the acceptance verdict, and the experiment link, one row per suite.
+- A per-suite **results table** showing only failures and evaluator *misses*
+  (a run whose annotation score falls below its acceptance bar), with an
+  `AGGREGATE` row over the whole suite. Passing rows are hidden behind a
+  `… N passing rows hidden` footer — their full detail (input, output,
+  annotations) is always written to the JSON artifacts (see
+  `PHOENIX_TEST_REPORT_DIR`).
+
+Set `PHOENIX_TEST_REPORTER=verbose` to expand every test row and restore the
+per-test `output:` detail block. `PHOENIX_TEST_REPORTER_MAX_ROWS` caps the rows
+shown per suite in compact mode (failures are never hidden).
+
+## Acceptance Criteria
+
+Acceptance criteria turn a suite into a CI gate. After every test runs, Phoenix
+aggregates the annotation scores you logged and fails the suite if any criterion
+misses its bar. Because they run *after* all tests, every case still executes
+and the reporter prints the full scorecard before failing — you see every
+regression in one run, not just the first.
+
+Each criterion aggregates one annotation (by `annotationName`) with one
+`metric`:
+
+- **`average`** — gate on overall quality. The mean score across all runs must
+  clear `threshold` (compared in `direction`). A few weak runs are tolerated as
+  long as the mean holds.
+- **`passRate`** — gate on consistency. Each run *passes* when its `passFn`
+  predicate returns `true`, and the suite passes when the **fraction** of
+  passing runs is at least `minPassRate` (e.g. `minPassRate: 0.9` ⇒ 90% must
+  pass; `minPassRate: 1` ⇒ all of them).
+
+`passFn` receives the run's annotation (`score`, `label`, `explanation`,
+`metadata`, …) and returns a boolean, so it can express any pass rule — a score
+bar, a score range, a label match, a metadata check, etc.
+
+```ts
+px.describe("text-to-sql", () => {
+  // each test logs `token_f1` (0–1), `valid_sql` (boolean), and `latency_ms`
+}, {
+  acceptanceCriteria: [
+    // overall quality: the mean token_f1 across the suite must be >= 0.8
+    { annotationName: "token_f1", metric: "average", threshold: 0.8 },
+    // consistency: at least 90% of runs must score >= 0.7 on token_f1
+    {
+      annotationName: "token_f1",
+      metric: "passRate",
+      passFn: (a) => typeof a.score === "number" && a.score >= 0.7,
+      minPassRate: 0.9,
+    },
+    // hard floor: every run must produce valid SQL (boolean must be true)
+    {
+      annotationName: "valid_sql",
+      metric: "passRate",
+      passFn: (a) => a.score === true,
+      minPassRate: 1,
+    },
+    // budget: lower is better, so the mean latency must stay <= 800ms
+    {
+      annotationName: "latency_ms",
+      metric: "average",
+      threshold: 800,
+      direction: "minimize",
+    },
+  ],
+});
+```
+
+### Direction
+
+`direction` applies to the `average` metric only — `passRate` encodes its own
+comparison inside `passFn`:
+
+- `"maximize"` (default) — higher is better; the mean clears `threshold` when it
+  is `>=` it.
+- `"minimize"` — lower is better; the mean clears `threshold` when it is `<=`
+  it. Use it for cost, latency, or error-rate annotations.
+
+### Scoring details
+
+- **`passFn` flexibility** — because `passFn` receives the whole annotation, a
+  `passRate` criterion can gate on a score bar (`a.score >= 0.7`), a range
+  (`a.score >= 0.5 && a.score <= 0.9`), a label (`a.label === "correct"`), or
+  any combination. Booleans arrive as `a.score === true` / `false`.
+- **Booleans in `average`** count as `1` (`true`) / `0` (`false`) when computing
+  the mean.
+- **Duplicate annotations** — if a run logs the same `annotationName` more than
+  once, the last one counts.
+- **Missing annotations** — an `average` criterion with no numeric/boolean
+  scores, or a `passRate` criterion whose annotation was never logged, fails
+  with a "no … found" reason rather than passing vacuously.
+- **Skipped vs dry-run** — skipped tests are excluded from the aggregate;
+  dry-run tests are included because they still execute locally.
+
+### Reporter output
+
+Criteria are evaluated once, after all tests finish. If any fail, the suite
+throws a single aggregated error and the reporter prints an `Acceptance
+Criteria` block listing each criterion's observed value, the bar it needed to
+clear, and its sample count. The reported value is the **mean** for `average`,
+and the **fraction of runs that passed** for `passRate` (so a fully-passing
+`passRate` criterion reads `1.000`).
+
+## Where To Start
+
+- [CI Eval Tests: Vitest](./ci-evals-vitest) — config, reporter, and the full `describe` /
+  `test` / `test.each` API as it surfaces in Vitest
+- [CI Eval Tests: Jest](./ci-evals-jest) — the same API surface in a Jest project
+- [CI Eval Test Annotations](./ci-evals-annotations) — `logAnnotation`, `evaluate`, and
+  the `Annotation` shape
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/vitest/index.ts</code></li>
+    <li><code>src/vitest/reporter.ts</code></li>
+    <li><code>src/jest/index.ts</code></li>
+    <li><code>src/jest/reporter.ts</code></li>
+    <li><code>src/testing/runner.ts</code></li>
+    <li><code>src/testing/acceptance.ts</code></li>
+    <li><code>src/testing/helpers.ts</code></li>
+    <li><code>src/testing/phoenix-test-tracking.ts</code></li>
+    <li><code>src/testing/state.ts</code></li>
+    <li><code>src/testing/types.ts</code></li>
+    <li><code>src/testing/reporter-format.ts</code></li>
+  </ul>
+</section>

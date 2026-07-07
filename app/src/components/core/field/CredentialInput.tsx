@@ -96,9 +96,7 @@ function CredentialInput({
         isDisabled={disabled || readOnly}
         aria-label={isVisible ? "Hide credential" : "Show credential"}
       >
-        <Icon
-          svg={isVisible ? <Icons.EyeOutline /> : <Icons.EyeOffOutline />}
-        />
+        <Icon svg={isVisible ? <Icons.Eye /> : <Icons.EyeOff />} />
       </Button>
     </div>
   );

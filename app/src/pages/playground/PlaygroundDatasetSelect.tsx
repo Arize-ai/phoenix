@@ -97,7 +97,7 @@ export function PlaygroundDatasetSelect({
           className="dataset-clear-button"
           size="S"
           isDisabled={isDisabled}
-          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Close />} />}
           onPress={() => {
             setDatasetId(null);
             setSearchParams((prev) => {

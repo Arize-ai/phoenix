@@ -25,30 +25,29 @@ import {
   TriggerWrap,
 } from "@phoenix/components";
 import { AnnotationLabel } from "@phoenix/components/annotation";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { IndeterminateCheckboxCell } from "@phoenix/components/table/IndeterminateCheckboxCell";
-import { tableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
+import { createRowSelectionColumn } from "@phoenix/components/table";
+import {
+  CHECKBOX_COLUMN_ID,
+  CHECKBOX_COLUMN_PINNING,
+} from "@phoenix/components/table/constants";
+import {
+  getCommonPinningStyles,
+  tableCSS,
+} from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import type { AnnotationConfigTableFragment$key } from "@phoenix/pages/settings/__generated__/AnnotationConfigTableFragment.graphql";
 import { AnnotationConfigSelectionToolbar } from "@phoenix/pages/settings/AnnotationConfigSelectionToolbar";
 import type { AnnotationConfig } from "@phoenix/pages/settings/types";
 
 const columns = [
-  {
-    id: "select",
-    maxSize: 10,
-    header: () => null,
-    cell: ({ row }: CellContext<AnnotationConfig, unknown>) => (
-      <IndeterminateCheckboxCell
-        {...{
-          isSelected: row.getIsSelected(),
-          isDisabled: !row.getCanSelect(),
-          isIndeterminate: row.getIsSomeSelected(),
-          onChange: row.toggleSelected,
-        }}
-      />
-    ),
-  },
+  createRowSelectionColumn<AnnotationConfig>({
+    showSelectAllHeader: false,
+    size: 24,
+    minSize: 24,
+    maxSize: 24,
+  }),
   {
     id: "name",
     header: "Name",
@@ -231,6 +230,7 @@ export const AnnotationConfigTable = ({
     enableMultiRowSelection: false,
     state: {
       rowSelection,
+      columnPinning: CHECKBOX_COLUMN_PINNING,
     },
   });
   const isEmpty = table.getRowCount() === 0;
@@ -260,7 +260,11 @@ export const AnnotationConfigTable = ({
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
+                <th
+                  colSpan={header.colSpan}
+                  key={header.id}
+                  style={getCommonPinningStyles(header.column)}
+                >
                   {header.isPlaceholder ? null : (
                     <div
                       {...{
@@ -296,7 +300,12 @@ export const AnnotationConfigTable = ({
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty message="No Annotation Configs" />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="config" />}
+              description="No annotation configs"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => (
@@ -312,8 +321,13 @@ export const AnnotationConfigTable = ({
                   <td
                     key={cell.id}
                     style={{
+                      ...getCommonPinningStyles(cell.column),
                       width: cell.column.getSize(),
                       maxWidth: cell.column.getSize(),
+                      userSelect:
+                        cell.column.id === CHECKBOX_COLUMN_ID
+                          ? "none"
+                          : undefined,
                     }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

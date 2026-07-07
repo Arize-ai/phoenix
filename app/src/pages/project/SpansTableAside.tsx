@@ -3,11 +3,8 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group } from "react-resizable-panels";
 
 import {
-  CopyField,
-  CopyInput,
   ErrorBoundary,
   Flex,
-  Label,
   RichTooltip,
   Text,
   TextErrorBoundaryFallback,
@@ -15,11 +12,10 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useCategoryChartColors } from "@phoenix/components/chart/colors";
+import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
-import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -27,6 +23,14 @@ import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 import type { SpansTableAsideQuery } from "./__generated__/SpansTableAsideQuery.graphql";
 import { AnnotationSummary } from "./AnnotationSummary";
 import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
+import { getNonNoteAnnotationNames } from "./spanAnnotationUtils";
+import {
+  LatencyStatItem,
+  ProjectInfoTitledPanel,
+  StatItem,
+  StatsSection,
+} from "./TableAside";
+import { TraceAnnotationSummary } from "./TraceAnnotationSummary";
 
 export function SpansTableAside(props: { filterCondition?: string | null }) {
   const filterCondition = props.filterCondition || null;
@@ -73,6 +77,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
               filterCondition: $filterCondition
             )
             spanAnnotationNames
+            traceAnnotationsNames
             documentEvaluationNames
           }
         }
@@ -90,123 +95,111 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
   );
 
   const project = data?.project;
-  const latencyMsP50 = project?.latencyMsP50;
-  const latencyMsP99 = project?.latencyMsP99;
-  const spanAnnotationNames =
-    project?.spanAnnotationNames?.filter((name) => name !== "note") ?? [];
+  const spanAnnotationNames = getNonNoteAnnotationNames(
+    project?.spanAnnotationNames ?? []
+  );
+  const traceAnnotationNames = getNonNoteAnnotationNames(
+    project?.traceAnnotationsNames ?? []
+  );
   const documentEvaluationNames = project?.documentEvaluationNames ?? [];
   const colors = useCategoryChartColors();
 
   return (
     <Group orientation="vertical">
-      <TitledPanel
-        title="Project Info"
-        panelProps={{
-          defaultSize: "0%",
-          minSize: 240,
-        }}
-      >
-        <View padding="size-200" overflow="auto" height="100%">
-          <Flex direction="column" gap="size-100" minWidth="size-3400">
-            <CopyField value={project?.name ?? ""}>
-              <Label>Name</Label>
-              <CopyInput />
-            </CopyField>
-            <CopyField value={projectId}>
-              <Label>ID</Label>
-              <CopyInput />
-            </CopyField>
-            <CopyField value={project?.description ?? ""}>
-              <Label>Description</Label>
-              <CopyInput />
-            </CopyField>
-          </Flex>
-        </View>
-      </TitledPanel>
+      <ProjectInfoTitledPanel
+        projectId={projectId}
+        name={project?.name}
+        description={project?.description}
+      />
       <TitledPanel resizable title="Stats" panelProps={{ minSize: "10%" }}>
         <View padding="size-200" overflow="auto" height="100%">
-          <Flex
-            direction="column"
-            gap="size-200"
-            minWidth="size-3400"
-            alignItems="start"
-          >
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Total Traces
-              </Text>
-              <Text size="L" fontFamily="mono">
-                {intFormatter(project?.timeRangeTraceCount)}
-              </Text>
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Total Cost
-              </Text>
-              <TooltipTrigger delay={0}>
-                <Focusable>
-                  <Text size="L" role="button" fontFamily="mono">
-                    {costFormatter(project?.costSummary?.total?.cost ?? 0)}
-                  </Text>
-                </Focusable>
-                <RichTooltip placement="bottom">
-                  <TooltipArrow />
-                  <View width="size-3600">
-                    <RichTokenBreakdown
-                      valueLabel="cost"
-                      totalValue={project?.costSummary?.total?.cost ?? 0}
-                      formatter={costFormatter}
-                      segments={[
-                        {
-                          name: "Prompt",
-                          value: project?.costSummary?.prompt?.cost ?? 0,
-                          color: colors.category1,
-                        },
-                        {
-                          name: "Completion",
-                          value: project?.costSummary?.completion?.cost ?? 0,
-                          color: colors.category2,
-                        },
-                      ]}
-                    />
-                  </View>
-                </RichTooltip>
-              </TooltipTrigger>
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Latency P50
-              </Text>
-              {latencyMsP50 != null ? (
-                <LatencyText latencyMs={latencyMsP50} size="L" />
-              ) : (
-                <Text size="L">--</Text>
-              )}
-            </Flex>
-            <Flex direction="column" flex="none">
-              <Text elementType="h3" size="S" color="text-700">
-                Latency P99
-              </Text>
-              {latencyMsP99 != null ? (
-                <LatencyText latencyMs={latencyMsP99} size="L" />
-              ) : (
-                <Text size="L">--</Text>
-              )}
-            </Flex>
-            {spanAnnotationNames.map((name) => (
-              <ErrorBoundary key={name} fallback={TextErrorBoundaryFallback}>
-                <AnnotationSummary
-                  annotationName={name}
-                  filterCondition={filterCondition}
-                />
-              </ErrorBoundary>
-            ))}
-            {documentEvaluationNames.map((name) => (
-              <DocumentEvaluationSummary
-                key={`document-${name}`}
-                evaluationName={name}
+          <Flex direction="column" gap="size-300" minWidth="size-3400">
+            <Flex direction="column" gap="size-200" alignItems="start">
+              <StatItem label="Total Traces">
+                <Text size="L" fontFamily="mono">
+                  {intFormatter(project?.timeRangeTraceCount)}
+                </Text>
+              </StatItem>
+              <StatItem label="Total Cost">
+                <TooltipTrigger delay={0}>
+                  <Focusable>
+                    <Text size="L" role="button" fontFamily="mono">
+                      {costFormatter(project?.costSummary?.total?.cost ?? 0)}
+                    </Text>
+                  </Focusable>
+                  <RichTooltip placement="bottom">
+                    <TooltipArrow />
+                    <View width="size-3600">
+                      <RichTokenBreakdown
+                        valueLabel="cost"
+                        totalValue={project?.costSummary?.total?.cost ?? 0}
+                        formatter={costFormatter}
+                        segments={[
+                          {
+                            name: "Prompt",
+                            value: project?.costSummary?.prompt?.cost ?? 0,
+                            color: colors.category1,
+                          },
+                          {
+                            name: "Completion",
+                            value: project?.costSummary?.completion?.cost ?? 0,
+                            color: colors.category2,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </RichTooltip>
+                </TooltipTrigger>
+              </StatItem>
+              <LatencyStatItem
+                label="Latency P50"
+                latencyMs={project?.latencyMsP50}
               />
-            ))}
+              <LatencyStatItem
+                label="Latency P99"
+                latencyMs={project?.latencyMsP99}
+              />
+            </Flex>
+            {spanAnnotationNames.length > 0 ? (
+              <StatsSection title="Span Annotations">
+                {spanAnnotationNames.map((name) => (
+                  <ErrorBoundary
+                    key={name}
+                    fallback={TextErrorBoundaryFallback}
+                  >
+                    <AnnotationSummary
+                      annotationName={name}
+                      filterCondition={filterCondition}
+                    />
+                  </ErrorBoundary>
+                ))}
+              </StatsSection>
+            ) : null}
+            {documentEvaluationNames.length > 0 ? (
+              <StatsSection title="Document Annotations">
+                {documentEvaluationNames.map((name) => (
+                  <DocumentEvaluationSummary
+                    key={`document-${name}`}
+                    evaluationName={name}
+                  />
+                ))}
+              </StatsSection>
+            ) : null}
+            {traceAnnotationNames.length > 0 ? (
+              <StatsSection title="Trace Annotations">
+                {traceAnnotationNames.map((name) => (
+                  <ErrorBoundary
+                    key={`trace-${name}`}
+                    fallback={TextErrorBoundaryFallback}
+                  >
+                    <TraceAnnotationSummary
+                      annotationName={name}
+                      filterCondition={filterCondition}
+                    />
+                  </ErrorBoundary>
+                ))}
+              </StatsSection>
+            ) : null}
           </Flex>
         </View>
       </TitledPanel>

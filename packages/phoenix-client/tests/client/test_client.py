@@ -1,6 +1,6 @@
 import pytest
 
-from phoenix.client import Client
+from phoenix.client import AsyncClient, Client
 
 
 @pytest.mark.parametrize(
@@ -19,3 +19,14 @@ def test_url_sanitization(input: str, expected: str) -> None:
     """
     client = Client(base_url=input)
     assert str(client._client.base_url) == expected  # pyright: ignore[reportPrivateUsage]
+
+
+@pytest.mark.asyncio
+async def test_async_client_uses_sync_client_default_timeout_policy() -> None:
+    client = Client(base_url="http://localhost:6006")
+    async_client = AsyncClient(base_url="http://localhost:6006")
+
+    try:
+        assert async_client._client.timeout == client._client.timeout  # pyright: ignore[reportPrivateUsage]
+    finally:
+        await async_client._client.aclose()  # pyright: ignore[reportPrivateUsage]

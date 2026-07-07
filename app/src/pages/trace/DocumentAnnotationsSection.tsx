@@ -64,7 +64,7 @@ export function DocumentAnnotationsSection({
             <Button
               size="S"
               variant="primary"
-              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
               onPress={() => setIsCreating(true)}
               isDisabled={isEditing}
               aria-label="Add Annotation"

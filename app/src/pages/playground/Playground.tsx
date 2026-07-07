@@ -244,7 +244,7 @@ function AddPromptButton() {
     <Button
       size="S"
       aria-label="add prompt"
-      leadingVisual={<Icon svg={<Icons.PlusCircleOutline />} />}
+      leadingVisual={<Icon svg={<Icons.PlusCircle />} />}
       isDisabled={numInstances >= NUM_MAX_PLAYGROUND_INSTANCES || isRunning}
       onPress={() => {
         addInstance();

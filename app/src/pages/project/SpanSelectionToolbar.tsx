@@ -167,7 +167,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             onPress={onClearSelection}
             aria-label="Clear selection"
           >
-            <Icon svg={<Icons.CloseOutline />} />
+            <Icon svg={<Icons.Close />} />
           </IconButton>
           <View paddingEnd="size-100">
             <Text>{`${selectedSpans.length} span${isPlural ? "s" : ""} selected`}</Text>
@@ -183,7 +183,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             <Button
               variant="primary"
               size="M"
-              leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Plus />} />}
               onPress={() => {
                 setIsDatasetPopoverOpen(true);
               }}
@@ -242,7 +242,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
                           onPress={() => {
                             setIsCreatingDataset(false);
                           }}
-                          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+                          leadingVisual={<Icon svg={<Icons.Close />} />}
                         ></Button>
                       </DialogTitleExtra>
                     </DialogHeader>
@@ -274,7 +274,7 @@ export function SpanSelectionToolbar(props: SpanSelectionToolbarProps) {
             isDisabled={isDeletingTraces}
             onPress={onDeletePress}
             variant="danger"
-            leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+            leadingVisual={<Icon svg={<Icons.Trash />} />}
           ></Button>
           {/* Delete traces dialog */}
           <DialogTrigger

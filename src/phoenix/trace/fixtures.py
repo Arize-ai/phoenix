@@ -475,6 +475,7 @@ def send_dataset_fixtures(
                     "metadata_keys[]": sorted(keys.metadata),
                 },
                 params={"sync": True},
+                timeout=30,
             ).raise_for_status()
         except HTTPStatusError as e:
             print(e.response.content.decode())

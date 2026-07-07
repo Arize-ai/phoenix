@@ -1,5 +1,49 @@
 # @arizeai/phoenix-cli
 
+## 1.7.0
+
+### Minor Changes
+
+- d4282c5: Improve PXI tool call rendering in the terminal: each tool call now shows a state glyph (spinner while running, then ✓/✗/?/⊘), a per-tool icon, and a one-line summary of what the tool is doing, derived from its input. Bash calls display the model-written summary, an excerpt of the executing command, and on failure the exit code plus a stderr excerpt; `load_skill` and `read_skill_resource` collapse to quiet one-liners once complete.
+
+## 1.6.2
+
+### Patch Changes
+
+- Updated dependencies [7947440]
+  - @arizeai/phoenix-client@6.12.0
+
+## 1.6.1
+
+### Patch Changes
+
+- 6240c13: fix(cli): improve pxi preflight network errors
+- f3809ed: **PXI:** Add slash command support to the `pxi` terminal client. Type `/clear` to reset the conversation history, `/exit` to quit, or `/help` to list available commands. The input prompt now syntax-highlights command tokens in yellow and shows a live completion list while you type.
+- Updated dependencies [7afa183]
+  - @arizeai/phoenix-client@6.11.2
+
+## 1.6.0
+
+### Minor Changes
+
+- 70246e9: **Beta:** Add the `pxi` terminal client to `@arizeai/phoenix-cli`. Launch an interactive PXI (Phoenix Intelligence) chat from your shell with `npx -y @arizeai/phoenix-cli pxi` (or the `pxi` binary). It connects to a running Phoenix instance's server-agent endpoint — the same agent that powers the in-browser experience — and runs a model preflight on launch so configuration problems surface as a clean error. Configure the endpoint via `PHOENIX_HOST`/`--endpoint` and select a model with `--provider`/`--model` (defaults to Anthropic `claude-opus-4-8`).
+
+  This feature is in beta and may change in a future release.
+
+## 1.5.3
+
+### Patch Changes
+
+- Updated dependencies [a027ada]
+  - @arizeai/phoenix-client@6.11.1
+
+## 1.5.2
+
+### Patch Changes
+
+- Updated dependencies [7efabf6]
+  - @arizeai/phoenix-client@6.11.0
+
 ## 1.5.1
 
 ### Patch Changes

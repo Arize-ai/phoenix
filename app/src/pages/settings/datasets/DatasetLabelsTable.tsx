@@ -8,9 +8,10 @@ import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, Token } from "@phoenix/components";
-import { TableEmpty } from "@phoenix/components/table";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import { IntCell } from "@phoenix/components/table/IntCell";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 
 import type { DatasetLabelsTableFragment$key } from "./__generated__/DatasetLabelsTableFragment.graphql";
 import { DeleteDatasetLabelButton } from "./DeleteDatasetLabelButton";
@@ -100,7 +101,12 @@ export function DatasetLabelsTable({
       })}
     </tbody>
   ) : (
-    <TableEmpty />
+    <TableEmptyWrap>
+      <EmptyState
+        graphic={<EmptyStateGraphic variant="label" />}
+        description="No dataset labels"
+      />
+    </TableEmptyWrap>
   );
   return (
     <table css={tableCSS}>

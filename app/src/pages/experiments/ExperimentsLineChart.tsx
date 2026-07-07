@@ -22,8 +22,13 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  compactChartMargin,
+  compactLegendProps,
+  compactYAxisProps,
+  defaultCartesianGridProps,
+  defaultTooltipProps,
+  defaultXAxisProps,
   InteractiveLegend,
-  defaultLegendProps,
   useInteractiveLegend,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -38,8 +43,6 @@ export type ExperimentsLineChartData = {
   avgLatency: number;
   [scoreKey: string]: number | string;
 };
-
-const chartMargins = { top: 8, right: 18, left: 18, bottom: 12 };
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 4,
@@ -206,7 +209,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={chartData}
-          margin={chartMargins}
+          margin={compactChartMargin}
           syncId="dimensionDetails"
         >
           <defs>
@@ -215,43 +218,13 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
               <stop offset="95%" stopColor={gray300} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid
-            strokeDasharray="4 4"
-            stroke="var(--global-color-gray-500)"
-            strokeOpacity={0.5}
-          />
-          <XAxis
-            dataKey="iteration"
-            tick={{ fontSize: 12, fill: "var(--global-text-color-700)" }}
-          />
+          <CartesianGrid {...defaultCartesianGridProps} />
+          <XAxis {...defaultXAxisProps} dataKey="iteration" />
+          <YAxis {...compactYAxisProps} domain={yDomain} />
           <YAxis
-            stroke="var(--global-color-gray-500)"
-            label={{
-              value: "Score",
-              angle: -90,
-              position: "insideLeft",
-              style: {
-                textAnchor: "middle",
-                fill: "var(--global-text-color-900)",
-              },
-            }}
-            style={{ fill: "var(--global-text-color-700)" }}
-            domain={yDomain}
-          />
-          <YAxis
+            {...compactYAxisProps}
             yAxisId="right"
             orientation="right"
-            stroke="var(--global-color-gray-500)"
-            label={{
-              value: "avg latency",
-              angle: 90,
-              position: "insideRight",
-              style: {
-                textAnchor: "middle",
-                fill: "var(--global-text-color-900)",
-              },
-            }}
-            style={{ fill: "var(--global-text-color-700)" }}
             tickFormatter={latencyFormatter}
           />
 
@@ -277,12 +250,12 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
             />
           ))}
           <InteractiveLegend
-            {...defaultLegendProps}
+            {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
           />
-          <Tooltip content={TooltipContent} />
+          <Tooltip {...defaultTooltipProps} content={TooltipContent} />
         </ComposedChart>
       </ResponsiveContainer>
     </ChartEmptyStateOverlay>

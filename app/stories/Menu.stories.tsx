@@ -19,7 +19,6 @@ import {
   MenuButton,
   MenuButtonValue,
   MenuContainer,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuHeaderTitle,
@@ -34,6 +33,7 @@ import {
   Token,
   View,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
@@ -288,7 +288,7 @@ export const FilterMenu = () => {
         Generic filter menu with search and multi-select functionality
       </Text>
       <MenuTrigger>
-        <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+        <Button leadingVisual={<Icon svg={<Icons.PriceTags />} />}>
           Filter Categories
           {selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
         </Button>
@@ -303,7 +303,7 @@ export const FilterMenu = () => {
                 }
                 trailingContent={
                   <IconButton size="S">
-                    <Icon svg={<Icons.PlusCircleOutline />} />
+                    <Icon svg={<Icons.PlusCircle />} />
                   </IconButton>
                 }
               >
@@ -387,7 +387,7 @@ export const MenuHeaderTitleWithSearch = () => {
         between them.
       </Text>
       <MenuTrigger>
-        <Button leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}>
+        <Button leadingVisual={<Icon svg={<Icons.PriceTags />} />}>
           Select Categories
           {selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
         </Button>
@@ -397,7 +397,7 @@ export const MenuHeaderTitleWithSearch = () => {
               <MenuHeaderTitle
                 trailingContent={
                   <IconButton size="S">
-                    <Icon svg={<Icons.PlusCircleOutline />} />
+                    <Icon svg={<Icons.PlusCircle />} />
                   </IconButton>
                 }
               >
@@ -416,7 +416,10 @@ export const MenuHeaderTitleWithSearch = () => {
               items={FILTER_OPTIONS}
               selectionMode="multiple"
               renderEmptyState={() => (
-                <MenuEmpty>No categories found</MenuEmpty>
+                <CompactEmptyState
+                  icon={<Icon svg={<Icons.PriceTags />} />}
+                  description="No categories"
+                />
               )}
               selectedKeys={selectedIds}
               onSelectionChange={(keys) => {

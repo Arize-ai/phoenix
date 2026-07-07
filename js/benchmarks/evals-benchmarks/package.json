@@ -2,20 +2,24 @@
   "name": "evals-benchmarks",
   "version": "1.0.0",
   "private": true,
-  "description": "",
+  "description": "Benchmark suites for the Phoenix evaluators, run as Phoenix eval tests with vitest.",
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx index.ts"
+    "evals": "vitest run --config phoenix.vitest.config.ts",
+    "evals:local": "PHOENIX_TEST_TRACKING=false vitest run --config phoenix.vitest.config.ts",
+    "evals:watch": "vitest watch --config phoenix.vitest.config.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.71",
+    "@ai-sdk/openai": "^3.0.80",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "@types/node": "^25.9.4",
+    "dotenv": "^16.6.1",
+    "tsx": "^4.22.5",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
   }
 }

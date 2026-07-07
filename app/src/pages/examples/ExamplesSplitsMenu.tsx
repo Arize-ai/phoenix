@@ -11,7 +11,6 @@ import {
   Loading,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuHeader,
   MenuItem,
   MenuTrigger,
@@ -19,6 +18,7 @@ import {
   Token,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { ExamplesSplitsMenuQuery } from "@phoenix/pages/examples/__generated__/ExamplesSplitsMenuQuery.graphql";
 import type { Mutable } from "@phoenix/typeUtils";
@@ -39,10 +39,7 @@ export const ExamplesSplitsMenu = ({
 }: ExamplesSplitsMenuProps) => {
   return (
     <MenuTrigger>
-      <Button
-        leadingVisual={<Icon svg={<Icons.PieChartOutline />} />}
-        size={size}
-      >
+      <Button leadingVisual={<Icon svg={<Icons.PieChart />} />} size={size}>
         Splits
         {selectedSplitIds.length > 0 ? ` (${selectedSplitIds.length})` : ""}
       </Button>
@@ -124,7 +121,12 @@ const SplitMenuFilterContent = ({
     <Menu
       items={splits}
       selectionMode="multiple"
-      renderEmptyState={() => <MenuEmpty>No splits found</MenuEmpty>}
+      renderEmptyState={() => (
+        <CompactEmptyState
+          icon={<Icon svg={<Icons.Split />} />}
+          description="No splits"
+        />
+      )}
       selectedKeys={selectedSplitIds}
       onSelectionChange={(keys) => {
         if (keys === "all") {

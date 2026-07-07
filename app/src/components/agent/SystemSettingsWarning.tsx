@@ -10,7 +10,7 @@ const warningCSS = css`
 export function SystemSettingsWarning() {
   return (
     <Flex direction="row" gap="size-75" alignItems="center" css={warningCSS}>
-      <Icon svg={<Icons.LockOutline />} />
+      <Icon svg={<Icons.Lock />} />
       <Text color="inherit" size="S">
         Disabled by system settings. An administrator needs to turn this on.
       </Text>

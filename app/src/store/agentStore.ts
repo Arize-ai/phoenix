@@ -73,6 +73,14 @@ export type AgentObservabilitySettings = {
   storeLocalTraces: boolean;
   /** Whether PXI traces should also be exported to a remote collector. */
   exportRemoteTraces: boolean;
+  /**
+   * Whether the authenticated Phoenix user's email should be attached to PXI
+   * traces as the OpenInference `user.id` attribute. Defaults to false so
+   * user attribution is opt-in. The backend only honours this flag for
+   * authenticated PhoenixUser requests — the browser cannot supply an
+   * arbitrary user value.
+   */
+  attachUserId: boolean;
   acknowledgedTraceConsent: AgentTraceConsentSettings | null;
 };
 
@@ -149,6 +157,7 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
   storeLocalTraces: true,
   exportRemoteTraces: false,
+  attachUserId: false,
   acknowledgedTraceConsent: null,
 };
 
@@ -158,16 +167,16 @@ const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
 
 const MAX_STORED_AGENT_SESSIONS = 3;
 
-/** Prefix applied to a forked session's summary to denote its origin. */
-const FORK_SUMMARY_PREFIX = "(fork) ";
+/** Prefix applied to a branched session's summary to denote its origin. */
+const FORK_SUMMARY_PREFIX = "(branch) ";
 
 /** Max length for a derived (non-LLM) fork summary before truncation. */
 const FORK_SUMMARY_MAX_LENGTH = 50;
 
 /**
- * Builds the summary for a session forked from `source`. Reuses the source's
+ * Builds the summary for a session branched from `source`. Reuses the source's
  * LLM-generated summary when available, otherwise derives a short label from
- * its first user message, then prefixes it with `(fork)`. Seeding a non-empty
+ * its first user message, then prefixes it with `(branch)`. Seeding a non-empty
  * summary here also prevents the async summarizer from overwriting it.
  */
 function buildForkSummary(source: AgentSession): string {
@@ -187,7 +196,7 @@ function buildForkSummary(source: AgentSession): string {
         : text
       : "";
   }
-  // Avoid stacking "(fork) (fork) ..." when forking a fork.
+  // Avoid stacking "(branch) (branch) ..." when branching from a branch.
   if (base.startsWith(FORK_SUMMARY_PREFIX)) {
     return base;
   }
@@ -327,22 +336,20 @@ export interface AgentState extends AgentProps {
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
 
   /**
-   * Prompt-input text staged for a session that has not yet (re)mounted its
-   * chat view. Used when forking from a user message: the new session opens
-   * with the rewound user message restored into the input so it can be edited
-   * and re-sent. Ephemeral and consumed once by the view on mount.
+   * Current unsent prompt-input draft keyed by session ID. Ephemeral and kept
+   * out of local-storage persistence, but survives remounts while the app is
+   * alive so moving the panel between docked and floating layouts does not
+   * clear the composer.
    */
-  pendingInputBySessionId: Record<string, string>;
-  setPendingInput: (sessionId: string, input: string | null) => void;
-  consumePendingInput: (sessionId: string) => string | null;
+  draftInputBySessionId: Record<string, string>;
+  setDraftInput: (sessionId: string, input: string | null) => void;
 
   /**
    * A message staged to be sent as soon as a session's chat view mounts. Used
    * by local prompt commands (e.g. `/clear fix this`): the command creates a
    * fresh session, and the rest of the submitted message is carried over and
-   * sent there. Unlike {@link pendingInputBySessionId} — which only seeds the
-   * textarea — a consumed pending message is sent immediately. Ephemeral and
-   * consumed once by the view on mount.
+   * sent there. A consumed pending message is sent immediately rather than
+   * placed in the textarea. Ephemeral and consumed once by the view on mount.
    */
   pendingMessageBySessionId: Record<string, PendingAgentMessage>;
   setPendingMessage: (
@@ -500,6 +507,10 @@ function mergeAgentPersistedState(
   return {
     ...currentState,
     ...persisted,
+    observability: {
+      ...currentState.observability,
+      ...persisted.observability,
+    },
     capabilities: normalizeAgentCapabilities({
       capabilities: persisted.capabilities,
       defaultCapabilities: currentState.capabilities,
@@ -581,7 +592,7 @@ function buildSessionRetentionPatch({
   | "sessionMap"
   | "pendingElicitationBySessionId"
   | "chatStatusBySessionId"
-  | "pendingInputBySessionId"
+  | "draftInputBySessionId"
   | "pendingMessageBySessionId"
   | "pendingPatchExperimentsByToolCallId"
 > {
@@ -601,8 +612,8 @@ function buildSessionRetentionPatch({
       record: state.chatStatusBySessionId,
       retainedSessionIds: retainedSessionIdSet,
     }),
-    pendingInputBySessionId: pruneSessionScopedRecord({
-      record: state.pendingInputBySessionId,
+    draftInputBySessionId: pruneSessionScopedRecord({
+      record: state.draftInputBySessionId,
       retainedSessionIds: retainedSessionIdSet,
     }),
     pendingMessageBySessionId: pruneSessionScopedRecord({
@@ -757,20 +768,19 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           const nextSessionIds = [...state.sessions, sessionId].slice(
             -MAX_STORED_AGENT_SESSIONS
           );
-          const pendingInputBySessionId = { ...state.pendingInputBySessionId };
-          if (restoredInput) {
-            pendingInputBySessionId[sessionId] = restoredInput;
-          }
+          const draftInputBySessionId = restoredInput
+            ? { ...state.draftInputBySessionId, [sessionId]: restoredInput }
+            : state.draftInputBySessionId;
           return {
             ...buildSessionRetentionPatch({
               state: {
                 ...state,
                 sessionMap: { ...state.sessionMap, [sessionId]: session },
+                draftInputBySessionId,
               },
               retainedSessionIds: nextSessionIds,
               activeSessionId: sessionId,
             }),
-            pendingInputBySessionId,
           };
         },
         false,
@@ -791,10 +801,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           delete newPendingElicitationBySessionId[sessionId];
           const newChatStatusBySessionId = { ...state.chatStatusBySessionId };
           delete newChatStatusBySessionId[sessionId];
-          const newPendingInputBySessionId = {
-            ...state.pendingInputBySessionId,
-          };
-          delete newPendingInputBySessionId[sessionId];
+          const newDraftInputBySessionId = { ...state.draftInputBySessionId };
+          delete newDraftInputBySessionId[sessionId];
           const newPendingMessageBySessionId = {
             ...state.pendingMessageBySessionId,
           };
@@ -815,7 +823,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             activeSessionId: newActiveSessionId,
             pendingElicitationBySessionId: newPendingElicitationBySessionId,
             chatStatusBySessionId: newChatStatusBySessionId,
-            pendingInputBySessionId: newPendingInputBySessionId,
+            draftInputBySessionId: newDraftInputBySessionId,
             pendingMessageBySessionId: newPendingMessageBySessionId,
             pendingPatchExperimentsByToolCallId:
               newPendingPatchExperimentsByToolCallId,
@@ -971,7 +979,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           sessionMap: {},
           pendingElicitationBySessionId: {},
           chatStatusBySessionId: {},
-          pendingInputBySessionId: {},
+          draftInputBySessionId: {},
           pendingMessageBySessionId: {},
           pendingPatchExperimentsByToolCallId: {},
         },
@@ -1020,39 +1028,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
-    pendingInputBySessionId: {},
-    setPendingInput: (sessionId, input) => {
+    draftInputBySessionId: {},
+    setDraftInput: (sessionId, input) => {
       set(
         (state) => {
-          const next = { ...state.pendingInputBySessionId };
+          const next = { ...state.draftInputBySessionId };
           if (input) {
             next[sessionId] = input;
           } else {
             delete next[sessionId];
           }
-          return { pendingInputBySessionId: next };
+          return { draftInputBySessionId: next };
         },
         false,
-        { type: "setPendingInput" }
+        { type: "setDraftInput" }
       );
-    },
-    consumePendingInput: (sessionId) => {
-      const input = get().pendingInputBySessionId[sessionId] ?? null;
-      if (input != null) {
-        set(
-          (state) => {
-            if (!(sessionId in state.pendingInputBySessionId)) {
-              return state;
-            }
-            const next = { ...state.pendingInputBySessionId };
-            delete next[sessionId];
-            return { pendingInputBySessionId: next };
-          },
-          false,
-          { type: "consumePendingInput" }
-        );
-      }
-      return input;
     },
 
     pendingMessageBySessionId: {},

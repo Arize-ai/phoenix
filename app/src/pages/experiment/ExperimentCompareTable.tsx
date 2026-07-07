@@ -20,6 +20,7 @@ import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import { useSearchParams } from "react-router";
 
 import {
+  Alert,
   Empty,
   ExpandableContent,
   Flex,
@@ -28,7 +29,6 @@ import {
   Icons,
   Modal,
   ModalOverlay,
-  Text,
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
@@ -224,6 +224,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                     id
                     name
                     sequenceNumber
+                    isBaseline
+                    isEphemeral
                     metadata
                     datasetVersion {
                       id
@@ -424,10 +426,17 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                 <ExperimentNameWithColorSwatch
                   name={name}
                   color={experimentColor}
+                  isBaseline={experiment?.isBaseline}
                 />
                 <div css={actionMenuContainerCSS}>
                   <ExperimentActionMenu
                     experimentId={experimentId}
+                    {...(experiment && !experiment.isEphemeral
+                      ? {
+                          canSetBaseline: true as const,
+                          isBaseline: experiment.isBaseline,
+                        }
+                      : { canSetBaseline: false as const })}
                     metadata={metadata}
                     projectId={projectId}
                     size="S"
@@ -846,7 +855,7 @@ function ExperimentRunOutput(
     props;
 
   if (error) {
-    return <RunError error={error} />;
+    return <RunError error={error} height={height} />;
   }
   const annotationsList = annotations?.edges.length
     ? annotations.edges.map((edge) => edge.annotation)
@@ -879,11 +888,14 @@ function ExperimentRunOutput(
   );
 }
 
-function RunError({ error }: { error: string }) {
+function RunError({ error, height }: { error: string; height: number }) {
   return (
-    <Flex direction="row" gap="size-50" alignItems="center">
-      <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
-      <Text color="danger">{error}</Text>
+    <Flex direction="column" height="100%">
+      <ExpandableContent height={height}>
+        <div css={outputContentCSS}>
+          <Alert variant="danger">{error}</Alert>
+        </div>
+      </ExpandableContent>
     </Flex>
   );
 }
@@ -952,7 +964,7 @@ function ExperimentRunOutputCell({
             setSelectedExampleIndex(rowIndex);
           }}
         >
-          <Icon svg={<Icons.ExpandOutline />} />
+          <Icon svg={<Icons.Expand />} />
         </IconButton>
         <Tooltip>
           <TooltipArrow />

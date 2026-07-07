@@ -88,7 +88,7 @@ export function PlaygroundExperimentToolbar({
               size="S"
               isDisabled={isRunning}
               variant="quiet"
-              trailingVisual={<Icon svg={<Icons.ExternalLinkOutline />} />}
+              trailingVisual={<Icon svg={<Icons.ExternalLink />} />}
               href={prependBasename(
                 `/datasets/${datasetId}/compare?${experimentIds.map((id) => `experimentId=${id}`).join("&")}`
               )}

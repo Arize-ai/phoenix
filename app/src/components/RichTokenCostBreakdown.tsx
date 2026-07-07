@@ -1,8 +1,8 @@
 import {
   getChartColor,
+  SegmentChart,
   useSequentialChartColors,
-} from "@phoenix/components/chart/colors";
-import { SegmentChart } from "@phoenix/components/chart/SegmentChart";
+} from "@phoenix/components/chart";
 import { Text } from "@phoenix/components/core/content";
 import { Flex } from "@phoenix/components/core/layout";
 

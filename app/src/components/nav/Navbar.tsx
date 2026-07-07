@@ -1,25 +1,16 @@
 import { css } from "@emotion/react";
 import type { PropsWithChildren, ReactNode } from "react";
-import { useMemo } from "react";
-import { Button, Pressable } from "react-aria-components";
+import { Pressable } from "react-aria-components";
 import { Link, NavLink as RRNavLink } from "react-router";
 
 import {
-  Flex,
   Icon,
   Icons,
-  Menu,
-  MenuItem,
-  MenuTrigger,
-  Popover,
-  PopoverArrow,
   Text,
   Tooltip,
   TooltipTrigger,
 } from "@phoenix/components";
 import { GitHubStarCount } from "@phoenix/components/nav/GitHubStarCount";
-import { isProviderThemeMode, useTheme, useViewer } from "@phoenix/contexts";
-import { assertUnreachable } from "@phoenix/typeUtils";
 
 import { Logo, LogoText } from "./Logo";
 
@@ -67,7 +58,7 @@ const sideNavCSS = css`
   }
 `;
 
-const navLinkCSS = css`
+export const navLinkCSS = css`
   --nav-link-icon-size: calc(
     var(--nav-collapsed-width) - var(--global-dimension-static-size-200)
   );
@@ -169,17 +160,6 @@ function ExternalLink(props: {
   );
 }
 
-export function DocsLink({ isExpanded }: { isExpanded: boolean }) {
-  return (
-    <ExternalLink
-      href="https://arize.com/docs/phoenix"
-      leadingVisual={<Icon svg={<Icons.BookOutline />} />}
-      text="Documentation"
-      isExpanded={isExpanded}
-    />
-  );
-}
-
 export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
   return (
     <ExternalLink
@@ -189,97 +169,6 @@ export function GitHubLink({ isExpanded }: { isExpanded: boolean }) {
       text="Star on GitHub"
       isExpanded={isExpanded}
     />
-  );
-}
-
-export function ThemeSelector({ isExpanded }: { isExpanded: boolean }) {
-  const { theme, systemTheme, themeMode, setThemeMode } = useTheme();
-  const { themeText, themeIcon } = useMemo(() => {
-    let themeIcon: ReactNode;
-    let themeText: string;
-    switch (themeMode) {
-      case "light":
-        themeIcon = <Icons.SunOutline />;
-        themeText = "Light";
-        break;
-      case "dark":
-        themeIcon = <Icons.MoonOutline />;
-        themeText = "Dark";
-        break;
-      case "system":
-        themeIcon = <Icons.HalfMoonHalfSunOutline />;
-        themeText = `${theme === "light" ? "Light" : "Dark"} (auto)`;
-        break;
-      default:
-        assertUnreachable(themeMode);
-    }
-    return {
-      themeIcon,
-      themeText,
-    };
-  }, [theme, themeMode]);
-
-  return (
-    <TooltipTrigger delay={0} isDisabled={isExpanded}>
-      <MenuTrigger>
-        <Button css={navLinkCSS} className="button--reset">
-          <Icon svg={themeIcon} />
-          <Text>{themeText}</Text>
-        </Button>
-        <Popover placement="right top">
-          <PopoverArrow />
-          <Menu
-            aria-label="Theme selection"
-            selectedKeys={new Set([themeMode])}
-            selectionMode="single"
-            onSelectionChange={(keys) => {
-              const selectedKey =
-                keys instanceof Set ? Array.from(keys)[0] : null;
-              if (selectedKey && isProviderThemeMode(selectedKey)) {
-                setThemeMode(selectedKey);
-              }
-            }}
-          >
-            <MenuItem id="system">
-              <Flex
-                direction="row"
-                gap="size-100"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.HalfMoonHalfSunOutline />} />
-                <Text>{`Auto (${systemTheme})`}</Text>
-              </Flex>
-            </MenuItem>
-            <MenuItem id="dark">
-              <Flex
-                direction="row"
-                gap="size-100"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.MoonOutline />} />
-                <Text>Dark</Text>
-              </Flex>
-            </MenuItem>
-            <MenuItem id="light">
-              <Flex
-                direction="row"
-                gap="size-100"
-                justifyContent="start"
-                alignItems="center"
-              >
-                <Icon svg={<Icons.SunOutline />} />
-                <Text>Light</Text>
-              </Flex>
-            </MenuItem>
-          </Menu>
-        </Popover>
-      </MenuTrigger>
-      <Tooltip placement="right" offset={10}>
-        {themeText}
-      </Tooltip>
-    </TooltipTrigger>
   );
 }
 
@@ -337,35 +226,3 @@ export function NavLink(props: {
     </TooltipTrigger>
   );
 }
-
-export function NavButton(props: {
-  text: string;
-  leadingVisual: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button className="button--reset" css={navLinkCSS} onClick={props.onClick}>
-      {props.leadingVisual}
-      <Text>{props.text}</Text>
-    </button>
-  );
-}
-
-export const ManagementLink = ({ isExpanded }: { isExpanded: boolean }) => {
-  const { viewer } = useViewer();
-
-  if (viewer?.isManagementUser && window.Config.managementUrl) {
-    return (
-      <li key="management">
-        <ExternalLink
-          href={window.Config.managementUrl}
-          leadingVisual={<Icon svg={<Icons.Server />} />}
-          text="Management Console"
-          replaceTab
-          isExpanded={isExpanded}
-        />
-      </li>
-    );
-  }
-  return null;
-};

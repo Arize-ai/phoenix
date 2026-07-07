@@ -50,7 +50,7 @@ export function PromptInputSubmit({
       onPress={handlePress}
       aria-label={computedAriaLabel}
     >
-      <Icon svg={showSend ? <Icons.ArrowUp /> : <Icons.StopOutline />} />
+      <Icon svg={showSend ? <Icons.ArrowUp /> : <Icons.Stop />} />
     </Button>
   );
 }

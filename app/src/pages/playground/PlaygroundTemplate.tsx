@@ -182,7 +182,7 @@ function DeleteButton(props: PlaygroundInstanceProps) {
       <Button
         size="S"
         aria-label="Delete this instance of the playground"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Trash />} />}
         onPress={() => {
           deleteInstance(props.playgroundInstanceId);
         }}
@@ -212,7 +212,7 @@ function SaveButton({ instanceId, dirty }: SaveButtonProps) {
       <Button
         variant={dirty ? "primary" : undefined}
         size="S"
-        leadingVisual={<Icon svg={<Icons.SaveOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Save />} />}
         aria-label="Save prompt"
       >
         Prompt

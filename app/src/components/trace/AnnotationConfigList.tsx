@@ -9,9 +9,10 @@ import {
 
 import {
   Autocomplete,
+  Icon,
+  Icons,
   Input,
   Menu,
-  MenuEmpty,
   MenuHeader,
   MenuItem,
   SearchField,
@@ -20,6 +21,7 @@ import {
   useFilter,
 } from "@phoenix/components";
 import { AnnotationColorSwatch } from "@phoenix/components/annotation";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { AnnotationConfigListAssociateAnnotationConfigWithProjectMutation } from "@phoenix/components/trace/__generated__/AnnotationConfigListAssociateAnnotationConfigWithProjectMutation.graphql";
 import type { AnnotationConfigListProjectAnnotationConfigFragment$key } from "@phoenix/components/trace/__generated__/AnnotationConfigListProjectAnnotationConfigFragment.graphql";
@@ -271,7 +273,10 @@ export function AnnotationConfigList(props: {
         selectedKeys={annotationConfigIdsInProject}
         onSelectionChange={handleSelectionChange}
         renderEmptyState={() => (
-          <MenuEmpty>No annotation configs found.</MenuEmpty>
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.List />} />}
+            description="No annotation configs"
+          />
         )}
       >
         {({ id, name, annotationType }) => (

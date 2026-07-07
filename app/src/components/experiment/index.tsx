@@ -18,3 +18,5 @@ export * from "./ExperimentOutputContent";
 export * from "./experimentTableUtils";
 export * from "./ExperimentNameWithColorSwatch";
 export * from "./ExperimentStatus";
+export * from "./BaselineExperimentBadge";
+export * from "./useSetExperimentBaseline";

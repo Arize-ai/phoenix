@@ -298,6 +298,68 @@ const experiment = await runExperiment({
 
 > **Hint:** Tasks and evaluators are instrumented using [OpenTelemetry](https://opentelemetry.io/). You can view detailed traces of experiment runs and evaluations directly in the Phoenix UI for debugging and performance analysis.
 
+## Eval Tests
+
+The package also exposes Vitest and Jest submodules for writing
+dataset-backed evaluations as normal test suites.
+
+```bash
+npm install -D @arizeai/phoenix-client vitest dotenv
+```
+
+```ts
+import * as px from "@arizeai/phoenix-client/vitest";
+import { expect } from "vitest";
+
+px.describe(
+  "text-to-sql",
+  () => {
+    px.test(
+      "select all",
+      {
+        input: { userQuery: "Get all users" },
+        expected: { sql: "SELECT * FROM users;" },
+      },
+      async ({ input, expected }) => {
+        const sql = await generateSql(input.userQuery);
+        px.logOutput({ sql });
+        expect(sql).toEqual(expected?.sql);
+      }
+    );
+  },
+  {
+    acceptanceCriteria: [
+      // every test must pass (100% of the auto-logged `pass` boolean is true)
+      {
+        annotationName: "pass",
+        metric: "passRate",
+        passFn: (a) => a.score === true,
+        minPassRate: 1,
+      },
+    ],
+  }
+);
+```
+
+The reference output can be supplied under any one of three interchangeable
+keys — `expected`, `reference`, or `output` — so you can match whichever name
+your evaluators expect. They all resolve to the same slot: the dataset
+example's `output`, exposed to evaluators and the test body as `expected`.
+Supplying more than one at a time is a type error.
+
+Use `@arizeai/phoenix-client/vitest/reporter` or
+`@arizeai/phoenix-client/jest/reporter` to print Phoenix dataset and
+experiment links, annotation aggregates, and acceptance criteria at the end
+of a run. Acceptance criteria gate the suite after it finishes — `average`
+checks an aggregate bar (so CI can allow a mean of 80% while still running
+every case), and `passRate` requires a minimum fraction of runs to satisfy a
+per-run `passFn` predicate.
+
+See the [`docs/`](./docs) folder — `ci-evals.mdx`, `ci-evals-vitest.mdx`,
+`ci-evals-jest.mdx`, and `ci-evals-annotations.mdx` — for setup, the full
+`describe` / `test` / `test.each` API, acceptance criteria, repetitions,
+dry-run mode, and annotation details.
+
 ## Traces
 
 The `@arizeai/phoenix-client` package provides a `traces` export for retrieving trace data from Phoenix projects.
@@ -481,6 +543,32 @@ const rootSpans = await getSpans({
 | `name`       | `string \| string[] \| null`         | Filter by span name(s)                                          |
 | `spanKind`   | `SpanKindFilter \| SpanKindFilter[]` | Filter by span kind (`LLM`, `CHAIN`, `TOOL`, `RETRIEVER`, etc.) |
 | `statusCode` | `SpanStatusCode \| SpanStatusCode[]` | Filter by status code (`OK`, `ERROR`, `UNSET`)                  |
+
+### Logging Spans
+
+Use `logSpans` to submit spans directly to a project using Phoenix's simplified span structure — the same shape returned by `getSpans`. This is useful for backfilling or migrating spans without going through OpenTelemetry. If your application is already instrumented with OpenTelemetry, export spans via `@arizeai/phoenix-otel` instead.
+
+```ts
+import { logSpans } from "@arizeai/phoenix-client/spans";
+
+const result = await logSpans({
+  project: { projectName: "my-project" },
+  spans: [
+    {
+      name: "chat_completion",
+      context: { trace_id: "abc123", span_id: "def456" },
+      span_kind: "LLM",
+      start_time: "2024-01-01T00:00:00Z",
+      end_time: "2024-01-01T00:00:01Z",
+      status_code: "OK",
+      attributes: { "llm.model_name": "gpt-4" },
+    },
+  ],
+});
+console.log(`Queued ${result.totalQueued} of ${result.totalReceived} spans`);
+```
+
+If any span in the request is invalid or a duplicate of a span that already exists, none of the spans are queued and `logSpans` throws a `SpanCreationError` with `invalidSpans` and `duplicateSpans` details.
 
 ## Span Annotations
 

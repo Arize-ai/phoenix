@@ -3,7 +3,7 @@ name: phoenix-graphql
 description: >
   Write efficient GraphQL queries against the Phoenix API. Load this skill in two cases:
   (1) before composing any non-trivial GraphQL query yourself for data analysis (via
-  `phoenix-gql` or `run_graphql_query`) — it contains schema entrypoints and patterns
+  the `phoenix-gql` bash command) — it contains schema entrypoints and patterns
   that eliminate the need for introspection; (2) when the user asks for help writing
   GraphQL queries for their own scripts, tools, or integrations against Phoenix —
   it covers the endpoint, authentication, and client examples.
@@ -83,8 +83,7 @@ query Overview($name: String!, $timeRange: TimeRange) {
 
 ### Execution surfaces (internal mode)
 
-- `phoenix-gql` (bash): run `phoenix-gql --help` for flags and current permissions. Use `--data-only` when piping to `jq`, `--output <file>` for large results, `--vars '<json>'` for variables. Mutations are allowed only when runtime permissions say so; the tool reports its permissions on every invocation. If a bash filesystem is available, `/phoenix/graphql/` contains a live `schema.json` plus route-specific recipe `.graphql` files and prefetched starter data — prefer recipes over writing queries from scratch.
-- `run_graphql_query` (server sub-agent): strictly read-only — queries only, no mutations or subscriptions. Pass variables via `variable_values`.
+- `phoenix-gql` (bash): run `phoenix-gql --help` for flags and current permissions. Use `--data-only` when piping to `jq`, `--output <file>` for large results, `--vars '<json>'` for variables. Mutations are allowed only when runtime permissions say so; the tool reports its permissions on every invocation.
 
 ### External API usage (user-facing mode)
 

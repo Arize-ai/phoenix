@@ -38,7 +38,7 @@ import type {
   AnnotationConfig,
 } from "@phoenix/components/annotation";
 import { AnnotationConfigDialog } from "@phoenix/components/annotation/AnnotationConfigDialog";
-import { Empty } from "@phoenix/components/core/Empty";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { FocusHotkey } from "@phoenix/components/FocusHotkey";
 import type { SpanAnnotationsEditorAddAnnotationConfigToProjectMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorAddAnnotationConfigToProjectMutation.graphql";
 import type { SpanAnnotationsEditorCreateAnnotationMutation } from "@phoenix/components/trace/__generated__/SpanAnnotationsEditorCreateAnnotationMutation.graphql";
@@ -235,7 +235,7 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
           variant={disabled ? "default" : "primary"}
           isDisabled={disabled}
           size="S"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          leadingVisual={<Icon svg={<Icons.Plus />} />}
           aria-label="Add Annotation"
         >
           Annotation
@@ -689,7 +689,10 @@ function SpanAnnotationsList(props: {
           justifyContent="center"
           height="100%"
         >
-          <Empty message="No annotation configurations for this project." />
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Settings />} />}
+            description="No annotation configurations for this project."
+          />
         </Flex>
       )}
       {!!annotationConfigsLength && (

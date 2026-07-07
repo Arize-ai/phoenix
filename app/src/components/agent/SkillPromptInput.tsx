@@ -9,6 +9,7 @@ import { usePromptInputContext } from "@phoenix/components/ai/prompt-input/Promp
 import { SkillHighlightOverlay } from "./SkillHighlightOverlay";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { AvailableAgentSkill } from "./useAvailableAgentSkills";
+import type { SkillCompletion, SlashMenuItem } from "./usePromptSkillCommand";
 import { usePromptSkillCommand } from "./usePromptSkillCommand";
 
 const wrapperCSS = css`
@@ -161,21 +162,32 @@ export function SkillPromptInput({
     );
   };
 
+  // Apply a menu selection, then run `afterCommit` once React has flushed the
+  // new value. Deferring past the frame lets `afterCommit` observe the
+  // completed token (e.g. a submit reads it, not the partial query).
+  const commitItem = (
+    item: SlashMenuItem,
+    afterCommit: (completion: SkillCompletion) => void
+  ) => {
+    const completion = skillCommand.selectItem(value, item);
+    if (!completion) return;
+    setValue(completion.value);
+    requestAnimationFrame(() => afterCommit(completion));
+  };
+
+  // Put the caret just after the inserted token so the user can keep typing.
+  const restoreCaret = ({ value, caret }: SkillCompletion) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(caret, caret);
+    skillCommand.syncFromInput(value, caret);
+  };
+
+  // Complete the highlighted token in place — the menu's default click action.
   const commitSelection = (index: number) => {
     const item = skillCommand.filteredItems[index];
-    if (!item) return;
-    const result = skillCommand.selectItem(value, item);
-    if (!result) return;
-    setValue(result.value);
-    // Restore the caret after React applies the new value.
-    requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(result.caret, result.caret);
-        skillCommand.syncFromInput(result.value, result.caret);
-      }
-    });
+    if (item) commitItem(item, restoreCaret);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -199,10 +211,19 @@ export function SkillPromptInput({
           );
           return;
         case "Enter":
-        case "Tab":
+        case "Tab": {
           event.preventDefault();
-          commitSelection(skillCommand.activeIndex);
+          const item = skillCommand.filteredItems[skillCommand.activeIndex];
+          if (!item) return;
+          // Enter invokes a highlighted command outright (commands carry no
+          // follow-on text); Tab and skills just complete the token in place.
+          if (event.key === "Enter" && item.kind === "command") {
+            commitItem(item, () => onSubmit());
+          } else {
+            commitItem(item, restoreCaret);
+          }
           return;
+        }
         case "Escape":
           event.preventDefault();
           skillCommand.dismiss();

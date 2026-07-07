@@ -371,7 +371,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
           {numInstanceRepetitions > 1 && numRepetitionErrors > 0 && (
             <TooltipTrigger>
               <TriggerWrap>
-                <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+                <Icon svg={<Icons.AlertTriangle />} color="danger" />
               </TriggerWrap>
               <Tooltip>
                 <Text>{`${numRepetitionErrors} repetition ${numRepetitionErrors > 1 ? "s" : ""} failed`}</Text>

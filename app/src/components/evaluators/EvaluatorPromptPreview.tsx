@@ -136,7 +136,7 @@ function EvaluatorPromptPreviewErrorFallback(
   return (
     <View padding="size-200">
       <Flex direction="row" gap="size-100" alignItems="start">
-        <Icon svg={<Icons.AlertCircleOutline />} color="danger" />
+        <Icon svg={<Icons.AlertCircle />} color="danger" />
         <Flex direction="column" gap="size-50">
           <Text weight="heavy" color="danger">
             Unable to render template preview

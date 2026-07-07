@@ -48,13 +48,13 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
 > = {
   playground: [
     {
-      icon: <Icons.EditOutline />,
+      icon: <Icons.Edit />,
       label: "Enhance the prompt",
       prompt:
         "Improve the prompt in the playground to be clearer and more effective.",
     },
     {
-      icon: <Icons.PlayCircleOutline />,
+      icon: <Icons.PlayCircle />,
       label: "Run the playground",
       prompt: "Run the playground and summarize the results.",
     },
@@ -71,7 +71,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
       prompt: "Find critical issues in my traces.",
     },
     {
-      icon: <Icons.FunnelOutline />,
+      icon: <Icons.ListFilter />,
       label: "Filter to errors",
       prompt: "Filter the spans to show only the ones with errors.",
     },
@@ -83,7 +83,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
   ],
   trace: [
     {
-      icon: <Icons.BookOutline />,
+      icon: <Icons.Book />,
       label: "Explain this trace",
       prompt: "Explain what happened in this trace.",
     },
@@ -95,7 +95,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
   ],
   session: [
     {
-      icon: <Icons.MessageSquareOutline />,
+      icon: <Icons.MessageSquare />,
       label: "Summarize this session",
       prompt: "Summarize what happened in this session.",
     },
@@ -107,7 +107,7 @@ const QUICK_ACTIONS_BY_CONTEXT: Partial<
   ],
   span: [
     {
-      icon: <Icons.BulbOutline />,
+      icon: <Icons.Bulb />,
       label: "Explain this span",
       prompt: "Explain what this span is doing.",
     },

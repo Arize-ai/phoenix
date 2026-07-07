@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import pytest
 
 from phoenix.otel.otel import _construct_http_endpoint
-from phoenix.otel.settings import get_env_collector_endpoint
+from phoenix.otel.settings import get_env_collector_endpoint, parse_env_headers
 
 
 @pytest.mark.parametrize(
@@ -41,3 +41,17 @@ def test_construct_http_endpoint(endpoint: str, expected: str) -> None:
     parsed = urlparse(endpoint)
     result = _construct_http_endpoint(parsed)
     assert result.geturl() == expected
+
+
+@pytest.mark.parametrize(
+    "headers, expected",
+    [
+        ("x=a,y=b", {"x": "a", "y": "b"}),
+        # Malformed segment without "=" is skipped rather than crashing
+        ("Authorization", {}),
+        # Mixed valid/invalid: valid entries are kept, invalid ones skipped
+        ("x=a,bad", {"x": "a"}),
+    ],
+)
+def test_parse_env_headers_skips_malformed_segments(headers: str, expected: dict[str, str]) -> None:
+    assert parse_env_headers(headers) == expected

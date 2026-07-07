@@ -194,7 +194,7 @@ function Token({
       disabled={isDisabled}
       aria-label="Remove"
     >
-      <Icon svg={<Icons.CloseOutline />} />
+      <Icon svg={<Icons.Close />} />
     </button>
   ) : null;
 

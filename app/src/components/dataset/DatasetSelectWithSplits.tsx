@@ -17,7 +17,6 @@ import {
   LinkButton,
   Menu,
   MenuContainer,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuItem,
@@ -27,6 +26,7 @@ import {
   Text,
   Token,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 
@@ -178,7 +178,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
         `}
         data-testid="dataset-picker"
         className="dataset-picker-button"
-        leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Database />} />}
         trailingVisual={<SelectChevronUpDownIcon />}
         size={props.size ?? "S"}
         isDisabled={props.isDisabled}
@@ -231,7 +231,12 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
             selectionMode="single"
             selectedKeys={selectedDatasetKeys}
             items={datasetItems}
-            renderEmptyState={() => <MenuEmpty>No datasets found</MenuEmpty>}
+            renderEmptyState={() => (
+              <CompactEmptyState
+                icon={<Icon svg={<Icons.Database />} />}
+                description="No datasets"
+              />
+            )}
           >
             {({
               id,
@@ -479,7 +484,7 @@ export function DatasetSelectWithSplits(props: DatasetSelectWithSplitsProps) {
               to={`/datasets/${selectedDataset.id}`}
               size="S"
               variant="quiet"
-              leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
+              leadingVisual={<Icon svg={<Icons.Database />} />}
             >
               View <Truncate maxWidth="10rem">{selectedDataset.name}</Truncate>
             </LinkButton>

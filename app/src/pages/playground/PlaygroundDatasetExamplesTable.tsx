@@ -222,7 +222,7 @@ function CellRunStatus({
         color: var(--global-text-color-500);
       `}
     >
-      <Icon svg={<Icons.MinusCircleOutline />} />
+      <Icon svg={<Icons.MinusCircle />} />
       <Text color="inherit">Cancelled</Text>
     </Flex>
   );
@@ -293,7 +293,7 @@ function EmptyExampleOutput({
     content = <ParagraphSkeleton lines={4} />;
     cellTopContent = (
       <Flex direction="row" gap="size-100" alignItems="center">
-        <Icon svg={<Icons.LoaderOutline />} />
+        <Icon svg={<Icons.Loader />} />
         <Text color="text-500">Queued</Text>
       </Flex>
     );
@@ -385,7 +385,7 @@ function ExampleOutputContent({
             isDisabled={!hasExperimentRun}
             onPress={onViewExperimentRunDetailsPress}
           >
-            <Icon svg={<Icons.ExpandOutline />} />
+            <Icon svg={<Icons.Expand />} />
           </IconButton>
           <Tooltip>
             <TooltipArrow />
@@ -1276,7 +1276,7 @@ export function PlaygroundDatasetExamplesTable({
   // This is subject to a race condition where a new dataset version is created after the playground experiments were run.
   // We ignore this edge case for now.
   const datasetVersionId = useMemo(() => {
-    return dataset.latestVersions?.edges[0].version.id ?? "";
+    return dataset.latestVersions?.edges[0]?.version.id ?? "";
   }, [dataset.latestVersions?.edges]);
 
   const playgroundInstanceOutputColumns = useMemo((): ColumnDef<TableRow>[] => {

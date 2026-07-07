@@ -31,7 +31,7 @@ export function ExperimentRepetitionSelector({
       <TooltipTrigger>
         <TriggerWrap>
           <Flex direction="row" alignItems="center">
-            <Icon svg={<Icons.RepeatOutline />} />
+            <Icon svg={<Icons.Repeat />} />
             <Text
               css={css`
                 margin-inline-start: var(--global-dimension-size-100);

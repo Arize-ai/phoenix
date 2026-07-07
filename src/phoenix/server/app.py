@@ -37,7 +37,7 @@ from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
 from pydantic import SecretStr
-from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.mcp import MCPToolset
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.authentication import UnauthenticatedUser
@@ -73,6 +73,7 @@ from phoenix.config import (
     get_env_grpc_port,
     get_env_host,
     get_env_max_spans_queue_size,
+    get_env_phoenix_agents_disable_bash,
     get_env_port,
     get_env_support_email,
     server_instrumentation_is_enabled,
@@ -93,6 +94,7 @@ from phoenix.server.api.routers import (
     create_v1_router,
     oauth2_router,
 )
+from phoenix.server.api.routers.auth_md import router as auth_md_router
 from phoenix.server.api.routers.v1 import REST_API_VERSION
 from phoenix.server.api.schema import build_graphql_schema
 from phoenix.server.bearer_auth import BearerTokenAuthBackend, PhoenixUser, is_authenticated
@@ -227,6 +229,8 @@ class AppConfig(NamedTuple):
     """ Whether to allow external resources like Google Fonts in the web interface """
     agent_assistant_disabled: bool = False
     """ Whether the agent assistant feature is disabled at the deployment level"""
+    agent_bash_disabled: bool = False
+    """ Whether the server-side bash tool (subagents) is disabled at the deployment level"""
     dev_vite_port: int = 5173
     """ Port the Vite dev server runs on. Only used in development mode. """
 
@@ -292,6 +296,7 @@ class Static(StaticFiles):
                     "has_db_threshold": self._app_config.has_db_threshold,
                     "allow_external_resources": self._app_config.allow_external_resources,
                     "agent_assistant_disabled": self._app_config.agent_assistant_disabled,
+                    "agent_bash_disabled": self._app_config.agent_bash_disabled,
                     "auth_error_messages": self._app_config.auth_error_messages,
                 },
             )
@@ -585,7 +590,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
-    docs_mcp_server: Optional[MCPServerStreamableHTTP] = None,
+    docs_mcp_server: Optional[MCPToolset[Any]] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -779,7 +784,14 @@ async def plain_text_http_exception_handler(request: Request, exc: HTTPException
     response instead of a JSON response. For the original source code, see
     https://github.com/tiangolo/fastapi/blob/d3cdd3bbd14109f3b268df7ca496e24bb64593aa/fastapi/exception_handlers.py#L11
     """
-    headers = getattr(exc, "headers", None)
+    headers = dict(getattr(exc, "headers", None) or {})
+    if exc.status_code == 401 and getattr(request.app.state, "authentication_enabled", False):
+        base_url = str(request.base_url).rstrip("/")
+        prm_url = f"{base_url}/.well-known/oauth-protected-resource"
+        headers.setdefault(
+            "WWW-Authenticate",
+            f'Bearer realm="Arize Phoenix", resource_metadata="{prm_url}"',
+        )
     if not is_body_allowed_for_status_code(exc.status_code):
         return Response(status_code=exc.status_code, headers=headers)
     return PlainTextResponse(str(exc.detail), status_code=exc.status_code, headers=headers)
@@ -1021,13 +1033,18 @@ def create_app(
         app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
+    app.include_router(auth_md_router)
     if authentication_enabled:
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
 
-    def _v1_only_openapi() -> dict[str, Any]:
-        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+    def _openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI.
+
+        In production, only routes under ``/v1`` are included. In dev mode,
+        agent routes (``/agents``) are also exposed so they appear in Swagger UI.
+        """
         if app.openapi_schema:
             return app.openapi_schema
         schema = get_openapi(
@@ -1038,13 +1055,14 @@ def create_app(
             routes=app.routes,
             separate_input_output_schemas=False,
         )
+        prefixes = ("/v1", "/agents") if dev else ("/v1",)
         schema["paths"] = {
-            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+            path: ops for path, ops in schema["paths"].items() if path.startswith(prefixes)
         }
         app.openapi_schema = schema
         return schema
 
-    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
+    app.openapi = _openapi  # type: ignore[method-assign]
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1091,6 +1109,7 @@ def create_app(
                     ),
                     allow_external_resources=get_env_allow_external_resources(),
                     agent_assistant_disabled=get_env_disable_agent_assistant(),
+                    agent_bash_disabled=get_env_phoenix_agents_disable_bash(),
                     auth_error_messages=dict(AUTH_ERROR_MESSAGES) if authentication_enabled else {},
                     dev_vite_port=dev_vite_port,
                 ),

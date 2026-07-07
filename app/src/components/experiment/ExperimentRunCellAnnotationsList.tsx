@@ -300,7 +300,7 @@ export function ExperimentRunCellAnnotationsList(
               <DialogTrigger>
                 <TooltipTrigger>
                   <IconButton size="S" aria-label="Filter by annotation">
-                    <Icon svg={<Icons.FunnelOutline />} />
+                    <Icon svg={<Icons.ListFilter />} />
                   </IconButton>
                   <Tooltip>
                     <TooltipArrow />
@@ -420,7 +420,7 @@ function AnnotationErrorItem({
               <Text weight="heavy" color="danger" css={nameTextCSS}>
                 {error.evaluatorName}
               </Text>
-              <Icon svg={<Icons.AlertTriangleOutline />} color="danger" />
+              <Icon svg={<Icons.AlertTriangle />} color="danger" />
             </Flex>
           </button>
         </Pressable>

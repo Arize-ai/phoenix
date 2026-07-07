@@ -202,12 +202,12 @@ export const appRouteObjects = createRoutesFromElements(
                 {
                   name: "Project Name",
                   value: data?.project?.name,
-                  iconKey: "TextOutline" as const,
+                  iconKey: "Text" as const,
                 },
                 {
                   name: "Project ID",
                   value: data?.project?.id,
-                  iconKey: "IDOutline" as const,
+                  iconKey: "ID" as const,
                 },
               ],
             }}
@@ -222,7 +222,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Traces",
                     description:
-                      "Inspect project traces in the trace table and open trace details.",
+                      "Inspect project traces in the trace table and open trace details. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >
@@ -245,7 +245,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Spans",
                     description:
-                      "Inspect the project span table and filter spans for a project.",
+                      "Inspect the project span table and filter spans for a project. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >
@@ -268,7 +268,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Sessions",
                     description:
-                      "Browse user or application sessions and the session list for a project.",
+                      "Browse user or application sessions and the session list for a project. Supports configurable metric charts shown above the table, with a stats side panel showing session count, average session duration, and session annotation summaries.",
                   },
                 }}
               >
@@ -374,12 +374,12 @@ export const appRouteObjects = createRoutesFromElements(
                 {
                   name: "Dataset Name",
                   value: data?.dataset?.name,
-                  iconKey: "TextOutline" as const,
+                  iconKey: "Text" as const,
                 },
                 {
                   name: "Dataset ID",
                   value: data?.dataset?.id,
-                  iconKey: "IDOutline" as const,
+                  iconKey: "ID" as const,
                 },
               ],
             }}
@@ -615,12 +615,12 @@ export const appRouteObjects = createRoutesFromElements(
                     {
                       name: "Prompt Name",
                       value: data.prompt.name,
-                      iconKey: "TextOutline" as const,
+                      iconKey: "Text" as const,
                     },
                     {
                       name: "Prompt ID",
                       value: data.prompt.id,
-                      iconKey: "IDOutline" as const,
+                      iconKey: "ID" as const,
                     },
                   ];
                 }

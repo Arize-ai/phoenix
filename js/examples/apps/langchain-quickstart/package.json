@@ -11,8 +11,8 @@
     "start": "npx tsx src/index.ts"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.71",
-    "@arizeai/openinference-instrumentation-langchain": "^4.0.12",
+    "@ai-sdk/openai": "^3.0.80",
+    "@arizeai/openinference-instrumentation-langchain": "^4.0.14",
     "@arizeai/phoenix-client": "workspace:*",
     "@arizeai/phoenix-evals": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
@@ -23,8 +23,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "tsx": "^4.22.4",
+    "@types/node": "^25.9.4",
+    "tsx": "^4.22.5",
     "typescript": "^6.0.3"
   }
 }

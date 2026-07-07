@@ -57,6 +57,12 @@ class CodeEvaluatorContext(TypedDict):
     evaluatorNodeId: NotRequired[str]
 
 
+class CreateDatasetLabelRequestBody(TypedDict):
+    name: str
+    color: str
+    description: NotRequired[str]
+
+
 class CreateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -127,6 +133,13 @@ class DatasetExample(TypedDict):
     updated_at: str
 
 
+class DatasetLabel(TypedDict):
+    id: str
+    name: str
+    description: Optional[str]
+    color: str
+
+
 class DatasetVersion(TypedDict):
     version_id: str
     description: Optional[str]
@@ -189,6 +202,15 @@ class FileUIPart(TypedDict):
     url: str
     filename: NotRequired[str]
     providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class GetDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
+class GetDatasetLabelsResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+    next_cursor: Optional[str]
 
 
 class GetDatasetResponseBody(TypedDict):
@@ -257,6 +279,10 @@ class ListDatasetExamplesData(TypedDict):
 
 class ListDatasetExamplesResponseBody(TypedDict):
     data: ListDatasetExamplesData
+
+
+class ListDatasetLabelsForDatasetResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
 
 
 class ListDatasetVersionsResponseBody(TypedDict):
@@ -430,6 +456,11 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     extra_body: NotRequired[Mapping[str, Any]]
 
 
+class PromptContext(TypedDict):
+    type: Literal["prompt"]
+    promptNodeId: str
+
+
 class PromptDeepSeekInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     max_tokens: NotRequired[int]
@@ -581,6 +612,12 @@ class PromptToolRaw(TypedDict):
     raw: Mapping[str, Any]
 
 
+class PromptVersionContext(TypedDict):
+    type: Literal["prompt_version"]
+    promptNodeId: str
+    promptVersionNodeId: str
+
+
 class PromptVersionTag(TypedDict):
     name: str
     id: str
@@ -662,6 +699,18 @@ class SessionTraceData(TypedDict):
     trace_id: str
     start_time: str
     end_time: str
+
+
+class SetDatasetLabelsForDatasetResponseBody(TypedDict):
+    data: Sequence[DatasetLabel]
+
+
+class SetDatasetLabelsRequestBody(TypedDict):
+    dataset_label_ids: NotRequired[Sequence[str]]
+
+
+class SetProjectAnnotationConfigsRequestBody(TypedDict):
+    annotation_config_ids: Sequence[str]
 
 
 class SourceDocumentUIPart(TypedDict):
@@ -894,6 +943,16 @@ class TraceSpanData(TypedDict):
     end_time: str
 
 
+class UpdateDatasetLabelRequestBody(TypedDict):
+    name: NotRequired[str]
+    color: NotRequired[str]
+    description: NotRequired[str]
+
+
+class UpdateDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
+
+
 class UpdateExperimentRequestBody(TypedDict):
     name: NotRequired[str]
     description: NotRequired[str]
@@ -968,6 +1027,10 @@ class FieldSummarizeResponse(TypedDict):
 
 class ToolCallProviderMetadata(TypedDict):
     tool_execution_environment: Literal["client", "server"]
+
+
+class AddDatasetLabelToDatasetResponseBody(TypedDict):
+    data: DatasetLabel
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -1063,6 +1126,10 @@ class ContinuousAnnotationConfigData(TypedDict):
     description: NotRequired[str]
     lower_bound: NotRequired[float]
     upper_bound: NotRequired[float]
+
+
+class CreateDatasetLabelResponseBody(TypedDict):
+    data: DatasetLabel
 
 
 class CreateExperimentResponseBody(TypedDict):
@@ -1239,6 +1306,13 @@ class GetIncompleteExperimentRunsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class GetProjectAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
+
+
 class GetProjectResponseBody(TypedDict):
     data: Project
 
@@ -1407,6 +1481,13 @@ class SessionData(TypedDict):
     token_count_total: NotRequired[int]
 
 
+class SetProjectAnnotationConfigsResponseBody(TypedDict):
+    data: Sequence[
+        Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+    ]
+    next_cursor: Optional[str]
+
+
 class Span(TypedDict):
     name: str
     context: SpanContext
@@ -1499,6 +1580,11 @@ class FieldSummarizeRequest(TypedDict):
     model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
+
+
+class AssignAnnotationConfigToProjectResponseBody(TypedDict):
+    data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
 
 
 class AssistantMessageMetadata(TypedDict):
@@ -1546,6 +1632,7 @@ class ChatRegenerateMessage(TypedDict):
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -1553,6 +1640,8 @@ class ChatRegenerateMessage(TypedDict):
                 ProjectContext,
                 TraceContext,
                 SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
@@ -1575,6 +1664,7 @@ class ChatSubmitMessage(TypedDict):
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
+    attachUserId: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
             Union[
@@ -1582,6 +1672,8 @@ class ChatSubmitMessage(TypedDict):
                 ProjectContext,
                 TraceContext,
                 SessionContext,
+                PromptContext,
+                PromptVersionContext,
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,

@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import { Suspense } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group, Panel, Separator } from "react-resizable-panels";
@@ -12,12 +13,25 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { resizeHandleCSS } from "@phoenix/components/resize";
+import { ChartPanel } from "@phoenix/components/chart";
+import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { ExperimentsChart } from "@phoenix/pages/experiments/ExperimentsChart";
 
 import type { ExperimentsPageQuery } from "./__generated__/ExperimentsPageQuery.graphql";
 import { ExperimentsEmpty } from "./ExperimentsEmpty";
 import { ExperimentsTable } from "./ExperimentsTable";
+
+/**
+ * Pull the table content up by the handle's height so the transparent resize
+ * handle adds no layout height of its own — it overlays the top of the table
+ * content's padding instead, keeping the gap between the chart panel and the
+ * filter bar tight and consistent with the tracing charts strip.
+ */
+const chartsResizeHandleCSS = css`
+  margin-bottom: calc(-1 * var(--resize-handle-size));
+  position: relative;
+  z-index: 1;
+`;
 
 export function ExperimentsPage() {
   const { datasetId } = useParams();
@@ -49,17 +63,30 @@ export function ExperimentsPage() {
   return (
     <>
       <Group orientation="vertical">
-        <Panel minSize="20%" maxSize="30%" defaultSize="25%">
-          <Flex direction="column" height="100%">
-            <View paddingX="size-200" paddingY="size-100">
-              <Heading level={2}>Experiments Analysis</Heading>
-            </View>
-            <View flex="1 1 auto" overflow="hidden">
+        <Panel
+          minSize="20%"
+          maxSize="30%"
+          defaultSize="25%"
+          style={{ overflow: "visible" }}
+        >
+          <View
+            paddingStart="size-200"
+            paddingEnd="size-200"
+            paddingTop="size-200"
+            height="100%"
+            overflow="visible"
+          >
+            <ChartPanel
+              title="Experiments Analysis"
+              subtitle="Annotation scores and latency by experiment"
+              headingLevel={2}
+              fillHeight
+            >
               <ExperimentsChart datasetId={datasetId} />
-            </View>
-          </Flex>
+            </ChartPanel>
+          </View>
         </Panel>
-        <Separator css={resizeHandleCSS} />
+        <Separator css={[transparentResizeHandleCSS, chartsResizeHandleCSS]} />
         <Panel>
           <View height="100%" overflow="hidden" flex="1 1 auto">
             <ErrorBoundary fallback={ErrorBoundaryFallback}>

@@ -105,6 +105,25 @@ For VS Code project-wide association add to `.vscode/settings.json`:
 
 ## Commands
 
+### `pxi`
+
+Open **PXI** (Phoenix Intelligence), an interactive terminal chat with the Phoenix
+agent. It connects to a running Phoenix instance and is the same server-side agent
+that powers the in-browser assistant — investigate failing traces, iterate on
+prompts, and drive Phoenix from your terminal.
+
+```bash
+pxi                                                          # uses PHOENIX_HOST / PHOENIX_API_KEY
+pxi --endpoint http://localhost:6006 --provider OPENAI --model gpt-5.4
+npx -y @arizeai/phoenix-cli pxi                              # run without installing
+```
+
+Inside the chat, `/help`, `/clear`, and `/exit` are handled locally. See the
+[PXI documentation](https://arize.com/docs/phoenix/pxi) for the full flag and
+slash-command reference, model setup, and privacy controls.
+
+---
+
 ### `px self update`
 
 Check the npm registry for the latest CLI release and update the installed
@@ -476,18 +495,168 @@ px session-annotations delete --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
 
 ---
 
+Annotation configs come in three types — `CATEGORICAL` (a fixed set of labels, each with an optional numeric score), `CONTINUOUS` (a numeric range), and `FREEFORM` (free text). The `create`, `get`, `update`, and `delete` commands round out full CRUD alongside `list`.
+
+#### Specifying categorical values
+
+`create` and `update` accept categorical labels the same way, so you only learn it once. Prefer the repeatable, shell-friendly flag; the JSON form is a bulk/agent alternative.
+
+```bash
+# Repeatable flag: label with an optional score (label=score, or just label)
+--value good=1 --value bad=0 --value needs-review
+
+# JSON payload (handy for agents or large label sets)
+--values '[{"label":"good","score":1},{"label":"bad","score":0}]'
+```
+
+The two forms are mutually exclusive — pass one or the other, not both.
+
+---
+
 ### `px annotation-config list`
 
 List annotation configurations defined in your Phoenix instance.
 
 ```bash
-px annotation-config list --format raw --no-progress | jq '.[].name'
+# Show all annotation configs as a table
+px annotation-config list
+
+# Extract config names as JSON (agent-friendly)
+px annotation-config list --format raw --no-progress | jq -r '.[].name'
+
+# Fetch at most 10 configs
+px annotation-config list --limit 10
 ```
 
 | Option              | Description                | Default  |
 | ------------------- | -------------------------- | -------- |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress`     | Suppress progress output   | —        |
+
+---
+
+### `px annotation-config get <config-identifier>`
+
+Fetch a single annotation configuration by name or ID. The config is written to stdout in the selected `--format` (a single object for `raw`/`json`).
+
+```bash
+# Look up a config by name
+px annotation-config get response-quality
+
+# Resolve a config name to its ID (agent-friendly)
+px annotation-config get response-quality --format raw --no-progress | jq -r '.id'
+
+# Inspect the labels of a categorical config
+px annotation-config get response-quality --format raw --no-progress | jq '.values'
+```
+
+| Option              | Description                | Default  |
+| ------------------- | -------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress`     | Suppress progress output   | —        |
+
+---
+
+### `px annotation-config create`
+
+Create a new annotation configuration via `POST /v1/annotation_configs`. The created config is written to stdout in the selected `--format`.
+
+```bash
+# Pass/fail quality rating with scored labels (higher is better)
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --value good=1 --value bad=0 --optimization-direction MAXIMIZE
+
+# Sentiment labels without scores
+px annotation-config create --type CATEGORICAL --name sentiment \
+  --value positive --value neutral --value negative
+
+# Confidence score between 0 and 1
+px annotation-config create --type CONTINUOUS --name confidence --lower-bound 0 --upper-bound 1
+
+# Free-text feedback from human reviewers
+px annotation-config create --type FREEFORM --name reviewer-notes --description 'Free-form reviewer feedback'
+
+# Create from a JSON payload and capture the new config ID (agent-friendly)
+px annotation-config create --type CATEGORICAL --name response-quality \
+  --values '[{"label":"good","score":1},{"label":"bad","score":0}]' \
+  --format raw --no-progress | jq -r '.id'
+```
+
+| Option                           | Description                                           | Default  |
+| -------------------------------- | ----------------------------------------------------- | -------- |
+| `--type <type>`                  | `CATEGORICAL`, `CONTINUOUS`, or `FREEFORM` (required) | —        |
+| `--name <name>`                  | Annotation config name (required)                     | —        |
+| `--description <description>`    | Description                                           | —        |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE`                     | `NONE`   |
+| `--value <label[=score]>`        | Categorical label (repeatable; CATEGORICAL configs)   | —        |
+| `--values <json>`                | Categorical values as JSON (CATEGORICAL configs)      | —        |
+| `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)             | —        |
+| `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)             | —        |
+| `--threshold <number>`           | Threshold (FREEFORM configs)                          | —        |
+| `--format <format>`              | `pretty`, `json`, or `raw`                            | `pretty` |
+| `--no-progress`                  | Suppress progress output                              | —        |
+
+`--type` and `--name` are required; a `CATEGORICAL` config also requires at least one value. `--type` and `--optimization-direction` are case-insensitive. Invalid input — including flags that don't apply to the chosen type — exits with `INVALID_ARGUMENT`.
+
+---
+
+### `px annotation-config update <config-identifier>`
+
+Update an annotation configuration by name or ID. Only the fields you pass are changed — the command fetches the existing config, merges your flags, and writes the result back via `PUT /v1/annotation_configs/{id}`. The config `type` is immutable; to change it, delete and recreate the config. The updated config is written to stdout in the selected `--format`.
+
+```bash
+# Change only the description; every other field is preserved
+px annotation-config update response-quality --description 'Pass/fail rating from human review'
+
+# Rename a config and set its optimization direction
+px annotation-config update response-quality --name answer-quality --optimization-direction MAXIMIZE
+
+# Replace the label set of a categorical config
+px annotation-config update response-quality --value good=1 --value acceptable=0.5 --value bad=0
+
+# Widen the range of a continuous config
+px annotation-config update confidence --lower-bound -1 --upper-bound 1
+
+# Update and capture the config ID (agent-friendly)
+px annotation-config update response-quality --description 'Updated' --format raw --no-progress | jq -r '.id'
+```
+
+| Option                           | Description                                         | Default  |
+| -------------------------------- | --------------------------------------------------- | -------- |
+| `--name <name>`                  | New name                                            | —        |
+| `--description <description>`    | New description                                     | —        |
+| `--optimization-direction <dir>` | `MINIMIZE`, `MAXIMIZE`, or `NONE`                   | —        |
+| `--value <label[=score]>`        | Categorical label (repeatable; CATEGORICAL configs) | —        |
+| `--values <json>`                | Categorical values as JSON (CATEGORICAL configs)    | —        |
+| `--lower-bound <number>`         | Lower bound (CONTINUOUS/FREEFORM configs)           | —        |
+| `--upper-bound <number>`         | Upper bound (CONTINUOUS/FREEFORM configs)           | —        |
+| `--threshold <number>`           | Threshold (FREEFORM configs)                        | —        |
+| `--format <format>`              | `pretty`, `json`, or `raw`                          | `pretty` |
+| `--no-progress`                  | Suppress progress output                            | —        |
+
+At least one field flag is required. Invalid input — including flags that don't apply to the config's type (e.g. `--value` on a continuous config) — exits with `INVALID_ARGUMENT`.
+
+---
+
+### `px annotation-config delete <config-id>`
+
+Delete an annotation configuration by ID. Like all delete commands, this is disabled unless `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` is set, and prompts for confirmation unless `--yes` is passed.
+
+```bash
+# Delete with an interactive confirmation prompt
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM=
+
+# Skip the confirmation prompt (for scripts and agents)
+px annotation-config delete QW5ub3RhdGlvbkNvbmZpZzoxMjM= --yes
+
+# Resolve a name to its ID, then delete it
+px annotation-config get response-quality --format raw --no-progress | jq -r '.id' | xargs px annotation-config delete --yes
+```
+
+| Option          | Description              | Default |
+| --------------- | ------------------------ | ------- |
+| `-y, --yes`     | Skip confirmation prompt | —       |
+| `--no-progress` | Suppress progress output | —       |
 
 ---
 

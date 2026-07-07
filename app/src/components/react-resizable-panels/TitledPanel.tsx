@@ -8,7 +8,7 @@ import type {
 } from "react-resizable-panels";
 import { Panel, Separator } from "react-resizable-panels";
 
-import { Icon, Icons } from "@phoenix/components";
+import { DisclosureArrow } from "@phoenix/components";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 
 /**
@@ -155,18 +155,7 @@ export const PanelTitle = ({
       css={panelTitleCSS}
       disabled={collapsed === undefined || disabled}
     >
-      {collapsed !== undefined && (
-        <Icon
-          data-collapsed={collapsed}
-          svg={<Icons.ChevronDown />}
-          css={css`
-            transition: transform 0.2s ease-in-out;
-            &[data-collapsed="true"] {
-              transform: rotate(-90deg);
-            }
-          `}
-        />
-      )}
+      {collapsed !== undefined && <DisclosureArrow isExpanded={!collapsed} />}
       {children}
     </button>
   );

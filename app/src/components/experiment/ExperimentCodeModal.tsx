@@ -62,7 +62,7 @@ export function RunExperimentButton({
       <Button
         size={size}
         variant={variant}
-        leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Plus />} />}
       >
         Experiment
       </Button>

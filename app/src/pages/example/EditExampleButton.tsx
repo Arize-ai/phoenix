@@ -16,7 +16,7 @@ export function EditExampleButton(props: EditExampleButtonProps) {
   const { onCompleted, ...dialogProps } = props;
   return (
     <DialogTrigger>
-      <Button size="S" leadingVisual={<Icon svg={<Icons.EditOutline />} />}>
+      <Button size="S" leadingVisual={<Icon svg={<Icons.Edit />} />}>
         Edit Example
       </Button>
       <ModalOverlay>

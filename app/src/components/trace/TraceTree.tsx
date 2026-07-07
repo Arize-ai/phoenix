@@ -2,7 +2,14 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import { Flex, Icon, Icons } from "@phoenix/components";
+import {
+  DisclosureArrow,
+  Empty,
+  Flex,
+  Icon,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -17,7 +24,7 @@ import { useTraceTree } from "./TraceTreeContext";
 import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
 import type { SpanTreeNode } from "./utils";
-import { createSpanTree } from "./utils";
+import { createSpanTree, filterSpanTree } from "./utils";
 
 export type TraceTreeProps = {
   spans: ISpanItem[];
@@ -35,11 +42,15 @@ export function TraceTree(props: TraceTreeProps) {
     selectedSpanNodeId,
     scrollSelectedSpanIntoView = true,
   } = props;
+  const { searchQuery } = useTraceTree();
   const spanTree = createSpanTree(spans);
-  const rootSpan = spanTree[0].span;
+  const filteredSpanTree = filterSpanTree(spanTree, searchQuery);
+  const rootSpan = spanTree[0]?.span;
+  const hasSearchQuery = searchQuery.length > 0;
+  const noSearchResults = hasSearchQuery && filteredSpanTree.length === 0;
   const overallTimeRange = {
-    start: new Date(rootSpan.startTime),
-    end: rootSpan.endTime ? new Date(rootSpan.endTime) : new Date(),
+    start: rootSpan ? new Date(rootSpan.startTime) : new Date(),
+    end: rootSpan?.endTime ? new Date(rootSpan.endTime) : new Date(),
   };
   return (
     <div
@@ -61,7 +72,17 @@ export function TraceTree(props: TraceTreeProps) {
         ]}
         data-testid="trace-tree"
       >
-        {spanTree.map((spanNode) => (
+        {noSearchResults ? (
+          <li aria-live="polite">
+            <TraceTreeSearchEmpty searchQuery={searchQuery} />
+          </li>
+        ) : null}
+        {!rootSpan ? (
+          <li>
+            <Empty message="No spans" size="S" />
+          </li>
+        ) : null}
+        {filteredSpanTree.map((spanNode) => (
           <SpanTreeItem
             key={spanNode.span.id}
             node={spanNode}
@@ -72,6 +93,39 @@ export function TraceTree(props: TraceTreeProps) {
           />
         ))}
       </ul>
+    </div>
+  );
+}
+
+function TraceTreeSearchEmpty({ searchQuery }: { searchQuery: string }) {
+  return (
+    <div
+      className="trace-tree-search-empty"
+      css={css`
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--global-dimension-static-size-50);
+        padding: var(--global-dimension-static-size-300)
+          var(--global-dimension-static-size-200);
+        color: var(--global-text-color-700);
+        text-align: center;
+
+        .icon-wrap {
+          font-size: var(--global-font-size-l);
+          color: var(--global-text-color-500);
+        }
+
+        .text {
+          max-width: 180px;
+          text-wrap: balance;
+        }
+      `}
+    >
+      <Icon svg={<Icons.Trace />} />
+      <Text color="inherit" size="XS">
+        {`No spans match "${searchQuery}"`}
+      </Text>
     </div>
   );
 }
@@ -111,8 +165,10 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   } = props;
   const childNodes = node.children;
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { isCollapsed: treeIsCollapsed } = useTraceTree();
+  const { isCollapsed: treeIsCollapsed, searchQuery } = useTraceTree();
   const hasChildren = childNodes.length > 0;
+  const isSearching = searchQuery.length > 0;
+  const effectiveIsCollapsed = isSearching ? false : isCollapsed;
   const showMetricsInTraceTree = usePreferencesContext(
     (state) => state.showMetricsInTraceTree
   );
@@ -211,7 +267,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
             data-testid="span-controls"
             className="span-controls"
           >
-            {hasChildren ? (
+            {hasChildren && !isSearching ? (
               <CollapseToggleButton
                 isCollapsed={isCollapsed}
                 onClick={() => {
@@ -225,7 +281,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
       {childNodes.length ? (
         <ul
           css={css`
-            display: ${isCollapsed ? "none" : "flex"};
+            display: ${effectiveIsCollapsed ? "none" : "flex"};
             flex-direction: column;
           `}
         >
@@ -397,15 +453,11 @@ const collapseButtonCSS = css`
   cursor: pointer;
   color: var(--global-text-color-900);
   border-radius: 4px;
-  transition: transform 0.2s;
   transition: background-color 0.5s;
   flex: none;
   background-color: rgba(0, 0, 0, 0.05);
   &:hover {
     background-color: rgba(0, 0, 0, 0.15);
-  }
-  &.is-collapsed {
-    transform: rotate(-90deg);
   }
 `;
 
@@ -423,12 +475,10 @@ function CollapseToggleButton({
         e.preventDefault();
         onClick();
       }}
-      className={classNames("button--reset collapse-toggle-button", {
-        "is-collapsed": isCollapsed,
-      })}
+      className="button--reset collapse-toggle-button"
       css={collapseButtonCSS}
     >
-      <Icon svg={<Icons.ChevronDown />} />
+      <DisclosureArrow isExpanded={!isCollapsed} />
     </button>
   );
 }

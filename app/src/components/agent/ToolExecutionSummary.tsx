@@ -148,7 +148,7 @@ export function ToolExecutionSummary({
                 segment.state === "completed" ? (
                   <Icons.Checkmark />
                 ) : (
-                  <Icons.CloseOutline />
+                  <Icons.Close />
                 )
               }
               className="tool-exec-summary__icon"

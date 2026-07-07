@@ -82,11 +82,7 @@ export function SpanImage(props: SpanImageProps) {
           size="S"
           onPress={() => setIsExpanded(!isExpanded)}
           leadingVisual={
-            <Icon
-              svg={
-                isExpanded ? <Icons.CollapseOutline /> : <Icons.ExpandOutline />
-              }
-            />
+            <Icon svg={isExpanded ? <Icons.Collapse /> : <Icons.Expand />} />
           }
           aria-label="Expand / Collapse Image"
         />

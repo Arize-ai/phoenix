@@ -315,7 +315,7 @@ export function EditCustomProviderButton({
     >
       <Button
         variant="default"
-        leadingVisual={<Icon svg={<Icons.EditOutline />} />}
+        leadingVisual={<Icon svg={<Icons.Edit />} />}
         aria-label="Edit provider"
         onPress={handleOpen}
         size="S"

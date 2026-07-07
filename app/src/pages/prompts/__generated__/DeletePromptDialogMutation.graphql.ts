@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa97cb2ce61df2aef89a2a29183d34e2>>
+ * @generated SignedSource<<695b50d684088cc7f7aa83081fc4b323>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -168,6 +168,7 @@ return {
                             "name": "version",
                             "plural": false,
                             "selections": [
+                              (v3/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -188,8 +189,34 @@ return {
                                 "kind": "ScalarField",
                                 "name": "modelProvider",
                                 "storageKey": null
-                              },
-                              (v3/*: any*/)
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "versionCount",
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "PromptVersionTag",
+                            "kind": "LinkedField",
+                            "name": "versionTags",
+                            "plural": true,
+                            "selections": [
+                              (v3/*: any*/),
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "promptVersionId",
+                                "storageKey": null
+                              }
                             ],
                             "storageKey": null
                           },
@@ -294,12 +321,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f98bcfbed3d7b46df48d0ca35974cd02",
+    "cacheID": "39d8a2aa1c6e3f060dfd6855744d2a22",
     "id": null,
     "metadata": {},
     "name": "DeletePromptDialogMutation",
     "operationKind": "mutation",
-    "text": "mutation DeletePromptDialogMutation(\n  $promptId: ID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          createdAt\n          modelName\n          modelProvider\n          id\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "mutation DeletePromptDialogMutation(\n  $promptId: ID!\n) {\n  deletePrompt(input: {promptId: $promptId}) {\n    query {\n      ...PromptsTable_prompts\n    }\n  }\n}\n\nfragment PromptsTable_prompts on Query {\n  prompts(first: 100) {\n    edges {\n      prompt: node {\n        id\n        name\n        description\n        version {\n          id\n          createdAt\n          modelName\n          modelProvider\n        }\n        versionCount\n        versionTags {\n          id\n          name\n          promptVersionId\n        }\n        labels {\n          id\n          name\n          color\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

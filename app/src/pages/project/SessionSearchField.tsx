@@ -99,7 +99,7 @@ export function SessionSearchField(props: SessionsSubstringFieldProps) {
           onClick={() => setFilterIoSubstringOrSessionId("")}
           className="button--reset"
         >
-          <Icon svg={<Icons.CloseCircleOutline />} />
+          <Icon svg={<Icons.CloseCircle />} />
         </button>
       </Flex>
     </div>

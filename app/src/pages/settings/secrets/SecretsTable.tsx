@@ -10,13 +10,14 @@ import { useMemo, useState } from "react";
 import { Focusable } from "react-aria";
 
 import { Card, Flex, Icon, Icons, Text } from "@phoenix/components";
+import { EmptyState, EmptyStateGraphic } from "@phoenix/components/core/empty";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
-import { TableEmpty } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 
@@ -66,10 +67,7 @@ export function SecretsTable({
                       tabIndex={0}
                       aria-label="Secret could not be decrypted"
                     >
-                      <Icon
-                        svg={<Icons.AlertTriangleOutline />}
-                        color="warning"
-                      />
+                      <Icon svg={<Icons.AlertTriangle />} color="warning" />
                     </span>
                   </Focusable>
                   <Tooltip>
@@ -210,7 +208,12 @@ export function SecretsTable({
           ))}
         </thead>
         {isEmpty ? (
-          <TableEmpty message="No Secrets" />
+          <TableEmptyWrap>
+            <EmptyState
+              graphic={<EmptyStateGraphic variant="credential" />}
+              description="No secrets"
+            />
+          </TableEmptyWrap>
         ) : (
           <tbody>
             {rows.map((row) => (

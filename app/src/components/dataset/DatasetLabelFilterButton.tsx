@@ -11,7 +11,6 @@ import {
   Input,
   Loading,
   Menu,
-  MenuEmpty,
   MenuFooter,
   MenuHeader,
   MenuItem,
@@ -21,6 +20,7 @@ import {
   type Selection,
   useFilter,
 } from "@phoenix/components";
+import { CompactEmptyState } from "@phoenix/components/core/empty";
 import { SearchIcon } from "@phoenix/components/core/field";
 
 import type { DatasetLabelFilterButtonQuery } from "./__generated__/DatasetLabelFilterButtonQuery.graphql";
@@ -38,7 +38,7 @@ export function DatasetLabelFilterButton(props: DatasetLabelFilterButtonProps) {
       <Button
         variant="default"
         size="M"
-        leadingVisual={<Icon svg={<Icons.PriceTagsOutline />} />}
+        leadingVisual={<Icon svg={<Icons.PriceTags />} />}
         trailingVisual={
           selectedLabelIds.length > 0 ? (
             <Counter>{selectedLabelIds.length}</Counter>
@@ -118,7 +118,12 @@ function DatasetLabelFilterContent({
           selectionMode="multiple"
           selectedKeys={selectedLabelIds}
           onSelectionChange={handleSelectionChange}
-          renderEmptyState={() => <MenuEmpty>No labels found</MenuEmpty>}
+          renderEmptyState={() => (
+            <CompactEmptyState
+              icon={<Icon svg={<Icons.PriceTags />} />}
+              description="No labels"
+            />
+          )}
         >
           {({ id, name, color }) => (
             <MenuItem

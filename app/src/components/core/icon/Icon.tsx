@@ -29,7 +29,7 @@ interface IconWithSvgProps extends IconBaseProps {
 interface IconWithKeyProps extends IconBaseProps {
   svg?: never;
   /**
-   * The name of an icon exported from Icons (e.g. "CloseOutline", "Search").
+   * The name of an icon exported from Icons (e.g. "Close", "Search").
    */
   svgKey: keyof typeof Icons;
 }
