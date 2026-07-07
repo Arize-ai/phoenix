@@ -31,7 +31,10 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
 import {
   formatFloat,
   latencyMsFormatter,
@@ -144,12 +147,13 @@ export function TraceLatencyPercentilesTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="line"
         >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart
               data={chartData}
               margin={compactChartMargin}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <CartesianGrid {...defaultCartesianGridProps} />

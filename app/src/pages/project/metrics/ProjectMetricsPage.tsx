@@ -3,10 +3,10 @@ import { memo } from "react";
 import { useParams } from "react-router";
 
 import { Flex, useTimeRange } from "@phoenix/components";
+import { ChartPanel } from "@phoenix/components/chart";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 
 import { getProjectMetricChart } from "./chartCatalog";
-import { MetricPanel } from "./MetricPanel";
 import { useClosedTimeRange } from "./useClosedTimeRange";
 
 /**
@@ -75,13 +75,13 @@ const MetricPanels = memo(function MetricPanels({
             const { name, description, Component } =
               getProjectMetricChart(chartKey);
             return (
-              <MetricPanel key={chartKey} title={name} subtitle={description}>
+              <ChartPanel key={chartKey} title={name} subtitle={description}>
                 <Component
                   projectId={projectId}
                   timeRange={timeRange}
                   onTimeRangeSelected={onTimeRangeSelected}
                 />
-              </MetricPanel>
+              </ChartPanel>
             );
           })}
         </Flex>

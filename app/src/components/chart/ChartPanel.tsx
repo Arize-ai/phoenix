@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 import React, { Suspense } from "react";
 
+import type { HeadingProps } from "@phoenix/components";
 import { Heading, Loading, Text } from "@phoenix/components";
 import { ErrorBoundary } from "@phoenix/components/exception";
 
@@ -8,11 +9,11 @@ const DEFAULT_CHART_HEIGHT = 190;
 
 /**
  * Below this panel height the subtitle is dropped so the chart keeps the
- * space; the title alone still identifies the metric.
+ * space; the title alone still identifies the chart.
  */
 const COMPACT_HEIGHT_BREAKPOINT = "200px";
 
-const metricPanelCSS = css`
+const chartPanelCSS = css`
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -22,7 +23,7 @@ const metricPanelCSS = css`
   border-radius: var(--global-rounding-medium);
   background-color: var(--chart-panel-background-color);
 
-  .metric-panel__header {
+  .chart-panel__header {
     flex: none;
     display: flex;
     flex-direction: column;
@@ -31,8 +32,8 @@ const metricPanelCSS = css`
       var(--global-dimension-size-150);
   }
 
-  .metric-panel__title,
-  .metric-panel__subtitle {
+  .chart-panel__title,
+  .chart-panel__subtitle {
     display: block;
     min-width: 0;
     overflow: hidden;
@@ -40,7 +41,12 @@ const metricPanelCSS = css`
     text-overflow: ellipsis;
   }
 
-  .metric-panel__chart {
+  .chart-panel__title.heading {
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  }
+
+  .chart-panel__chart {
     flex: 1 1 auto;
     min-height: 0;
     /* Share the header's horizontal gutter so the chart's left edge (y-axis
@@ -57,32 +63,42 @@ const metricPanelCSS = css`
 `;
 
 /**
- * In a fill-height context (the resizable charts strip) the panel's size is
- * imposed by its parent, so it can be a size query container and shed the
- * subtitle as it gets short.
+ * In a fill-height context (e.g. a resizable charts strip or panel) the panel's
+ * size is imposed by its parent, so it can be a size query container and shed
+ * the subtitle as it gets short.
  */
 const fillHeightPanelCSS = css`
   container-type: size;
 
   @container (max-height: ${COMPACT_HEIGHT_BREAKPOINT}) {
-    .metric-panel__subtitle {
+    .chart-panel__subtitle {
       display: none;
     }
   }
 `;
 
-interface MetricPanelHeaderProps {
+interface ChartPanelHeaderProps {
   title: string;
   subtitle?: string;
+  /**
+   * Semantic heading level for the chart title. The visual size remains
+   * consistent with the compact chart panel title treatment.
+   * @default 4
+   */
+  headingLevel?: HeadingProps["level"];
 }
 
-function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
+function ChartPanelHeader({
+  title,
+  subtitle,
+  headingLevel = 4,
+}: ChartPanelHeaderProps) {
   return (
-    <div className="metric-panel__header">
+    <div className="chart-panel__header">
       <Heading
-        level={4}
+        level={headingLevel}
         weight="heavy"
-        className="metric-panel__title"
+        className="chart-panel__title"
         title={title}
       >
         {title}
@@ -91,7 +107,7 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
         <Text
           size="XS"
           color="gray-600"
-          className="metric-panel__subtitle"
+          className="chart-panel__subtitle"
           title={subtitle}
         >
           {subtitle}
@@ -101,7 +117,7 @@ function MetricPanelHeader({ title, subtitle }: MetricPanelHeaderProps) {
   );
 }
 
-interface MetricPanelProps extends MetricPanelHeaderProps {
+interface ChartPanelProps extends ChartPanelHeaderProps {
   children: React.ReactNode;
   /**
    * Stretch the chart area to the panel's available height (e.g. inside a
@@ -110,21 +126,34 @@ interface MetricPanelProps extends MetricPanelHeaderProps {
   fillHeight?: boolean;
 }
 
-export function MetricPanel({
+/**
+ * A titled container for a single chart, rendering a header (title + optional
+ * subtitle) above a bordered chart surface. The chart is wrapped in an error
+ * boundary and suspense boundary so an individual chart can fail or load
+ * independently. Used across the project metrics page, the metric charts strip
+ * above tables, and the experiments analysis view so charts read consistently
+ * wherever they appear.
+ */
+export function ChartPanel({
   title,
   subtitle,
+  headingLevel,
   fillHeight = false,
   children,
-}: MetricPanelProps) {
+}: ChartPanelProps) {
   return (
     <section
-      css={[metricPanelCSS, fillHeight && fillHeightPanelCSS]}
-      className="metric-panel"
-      data-testid="metric-panel"
+      css={[chartPanelCSS, fillHeight && fillHeightPanelCSS]}
+      className="chart-panel"
+      data-testid="chart-panel"
     >
-      <MetricPanelHeader title={title} subtitle={subtitle} />
+      <ChartPanelHeader
+        title={title}
+        subtitle={subtitle}
+        headingLevel={headingLevel}
+      />
       <div
-        className="metric-panel__chart"
+        className="chart-panel__chart"
         style={fillHeight ? undefined : { height: DEFAULT_CHART_HEIGHT }}
       >
         <ErrorBoundary>

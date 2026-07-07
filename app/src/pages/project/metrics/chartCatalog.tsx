@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import type { ChartTypeIconType } from "@phoenix/components/chart";
 import type { ProjectMetricChartKey } from "@phoenix/pages/project/constants";
 import { PROJECT_METRIC_CHART_KEYS } from "@phoenix/pages/project/constants";
 
@@ -34,6 +35,11 @@ export type ProjectMetricChart = {
    * chart pickers
    */
   description: string;
+  /**
+   * The chart's visual archetype, used to render a small preview glyph in
+   * chart pickers so a chart can be recognized by its shape.
+   */
+  chartType: ChartTypeIconType;
   Component: (props: ProjectMetricViewProps) => ReactNode;
 };
 
@@ -49,81 +55,97 @@ const CHART_DEFINITIONS: Record<
   traffic: {
     name: "Traffic",
     description: "Spans by status",
+    chartType: "bar",
     Component: SpanCountTimeSeries,
   },
   traces: {
     name: "Traces",
     description: "Overall volume of traces",
+    chartType: "bar",
     Component: TraceCountTimeSeries,
   },
   latency: {
     name: "Trace latency",
     description: "Latency percentiles",
+    chartType: "line",
     Component: TraceLatencyPercentilesTimeSeries,
   },
   cost: {
     name: "Cost",
     description: "Estimated cost in USD",
+    chartType: "bar",
     Component: TraceTokenCostTimeSeries,
   },
   top_models_by_cost: {
     name: "Top models by cost",
     description: "Models ranked by estimated cost",
+    chartType: "barHorizontal",
     Component: TopModelsByCost,
   },
   tokens: {
     name: "Token usage",
     description: "Tokens by prompt and completion",
+    chartType: "bar",
     Component: TraceTokenCountTimeSeries,
   },
   top_models_by_tokens: {
     name: "Top models by tokens",
     description: "Models ranked by token usage",
+    chartType: "barHorizontal",
     Component: TopModelsByToken,
   },
   prompt_token_details: {
     name: "Prompt token details",
     description: "Prompt tokens by input, cache, and audio parts",
+    chartType: "bar",
     Component: TracePromptTokenDetailsTimeSeries,
   },
   completion_token_details: {
     name: "Completion token details",
     description: "Completion tokens by output, reasoning, and audio parts",
+    chartType: "bar",
     Component: TraceCompletionTokenDetailsTimeSeries,
   },
   llm_spans: {
     name: "LLM spans",
     description: "LLM span count over time",
+    chartType: "bar",
     Component: LLMSpanCountTimeSeries,
   },
   llm_span_errors: {
     name: "LLM span errors",
     description: "LLM spans with errors over time",
+    chartType: "bar",
     Component: LLMSpanErrorsTimeSeries,
   },
   tool_spans: {
     name: "Tool spans",
     description: "Tool span count over time",
+    chartType: "bar",
     Component: ToolSpanCountTimeSeries,
   },
   tool_span_errors: {
     name: "Tool span errors",
     description: "Tool spans with errors over time",
+    chartType: "bar",
     Component: ToolSpanErrorsTimeSeries,
   },
   span_annotations: {
     name: "Span annotation scores",
     description: "Average span annotation scores",
+    chartType: "line",
     Component: SpanAnnotationScoreTimeSeries,
   },
   trace_annotations: {
     name: "Trace annotation scores",
     description: "Average trace annotation scores",
+    chartType: "line",
     Component: TraceAnnotationScoreTimeSeries,
   },
   session_annotations: {
     name: "Session annotation scores",
     description: "Average session annotation scores",
+    chartType: "line",
     Component: SessionAnnotationScoreTimeSeries,
   },
 };

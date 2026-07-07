@@ -31,7 +31,10 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
 import {
   intFormatter,
   intShortFormatter,
@@ -306,13 +309,14 @@ export function TraceTokenCountTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
               margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <CartesianGrid {...defaultCartesianGridProps} />
@@ -410,13 +414,14 @@ function TraceTokenDetailsTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
               margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <CartesianGrid {...defaultCartesianGridProps} />

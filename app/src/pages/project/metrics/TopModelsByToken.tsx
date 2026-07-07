@@ -119,6 +119,7 @@ export function TopModelsByToken({
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
       message="No data in this time range"
+      chartType="barHorizontal"
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart

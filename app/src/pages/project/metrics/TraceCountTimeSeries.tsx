@@ -29,7 +29,10 @@ import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
 import { CountTimeSeriesTooltipContent } from "@phoenix/pages/project/metrics/CountTimeSeriesTooltipContent";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
-import { useMetricQueryFetchOptions } from "@phoenix/pages/project/metrics/types";
+import {
+  PROJECT_METRICS_CHART_SYNC_ID,
+  useMetricQueryFetchOptions,
+} from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
@@ -104,13 +107,14 @@ export function TraceCountTimeSeries({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="bar"
         >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
               margin={compactChartMargin}
               barSize={10}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <XAxis

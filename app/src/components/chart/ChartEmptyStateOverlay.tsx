@@ -4,6 +4,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 import { Text } from "@phoenix/components";
 
+import type { ChartTypeIconType } from "./ChartTypeIcon";
+import { ChartTypeIcon } from "./ChartTypeIcon";
+
 const DEFAULT_EMPTY_CHART_MESSAGE = "No data available";
 
 const chartEmptyStateOverlayCSS = css`
@@ -42,7 +45,11 @@ const chartEmptyStateOverlayCSS = css`
 
   .chart-empty-state-overlay__message-content {
     max-width: min(100%, 320px);
-    color: var(--chart-empty-state-text-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--global-dimension-static-size-100);
+    text-wrap: balance;
   }
 `;
 
@@ -88,6 +95,12 @@ type ChartEmptyStateOverlayProps = {
    * @default "No data available"
    */
   message?: ReactNode;
+  /**
+   * When provided, a {@link ChartTypeIcon} preview glyph is shown above the
+   * message so the empty plot still reads as the chart it would be — mirroring
+   * the icon-above-text layout of the app's empty states.
+   */
+  chartType?: ChartTypeIconType;
 };
 
 /**
@@ -100,6 +113,7 @@ export function ChartEmptyStateOverlay({
   children,
   isEmpty,
   message = DEFAULT_EMPTY_CHART_MESSAGE,
+  chartType,
 }: ChartEmptyStateOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [plotAreaInset, setPlotAreaInset] = useState<string | null>(null);
@@ -162,8 +176,11 @@ export function ChartEmptyStateOverlay({
             style={plotAreaInset ? { inset: plotAreaInset } : undefined}
           >
             <div className="chart-empty-state-overlay__message-content">
+              {chartType != null && (
+                <ChartTypeIcon type={chartType} size={28} />
+              )}
               {typeof message === "string" ? (
-                <Text color="inherit" size="M" weight="heavy">
+                <Text size="S" color="text-700">
                   {message}
                 </Text>
               ) : (

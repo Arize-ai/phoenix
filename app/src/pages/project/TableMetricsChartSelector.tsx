@@ -1,66 +1,22 @@
-import { css } from "@emotion/react";
-import type { Selection } from "react-aria-components";
-import { MenuSection } from "react-aria-components";
-
 import {
-  Autocomplete,
   Button,
   Flex,
   Icon,
   Icons,
-  Input,
-  Menu,
   MenuContainer,
-  MenuFooter,
-  MenuHeader,
-  MenuItem,
-  MenuSectionTitle,
   MenuTrigger,
-  SearchField,
-  Separator,
-  Text,
-  useFilter,
 } from "@phoenix/components";
-import { CompactEmptyState } from "@phoenix/components/core/empty";
-import { SearchIcon } from "@phoenix/components/core/field";
+import { MetricsChartSelector } from "@phoenix/components/chart";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 
 import type { MetricChartTableView } from "./constants";
-import {
-  MAX_SELECTED_METRIC_CHARTS,
-  PROJECT_METRIC_CHART_KEYS,
-} from "./constants";
-import type { ProjectMetricChart } from "./metrics/chartCatalog";
-import {
-  getProjectMetricCharts,
-  PROJECT_METRIC_CHARTS,
-} from "./metrics/chartCatalog";
-
-const chartMenuItemContentCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-static-size-25);
-  padding: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-100);
-`;
-
-function ChartMenuItem({ chart }: { chart: ProjectMetricChart }) {
-  return (
-    <MenuItem id={chart.key} textValue={`${chart.name} ${chart.description}`}>
-      <div css={chartMenuItemContentCSS}>
-        <Text>{chart.name}</Text>
-        <Text size="XS" color="text-700">
-          {chart.description}
-        </Text>
-      </div>
-    </MenuItem>
-  );
-}
+import { MAX_SELECTED_METRIC_CHARTS } from "./constants";
+import { PROJECT_METRIC_CHARTS } from "./metrics/chartCatalog";
 
 /**
- * A searchable menu to select which charts from the chart catalog are shown
- * above a project table. Allows up to MAX_SELECTED_METRIC_CHARTS charts to be
- * selected at once.
+ * The store-connected chart selector shown above a project table. Reads and
+ * writes the per-view chart selection from the project store, and feeds the
+ * project metric chart catalog into the generic {@link MetricsChartSelector}.
  */
 export function TableMetricsChartSelector({
   view,
@@ -76,90 +32,25 @@ export function TableMetricsChartSelector({
         </Flex>
       </Button>
       <MenuContainer placement="bottom end">
-        <ChartSelectorMenu view={view} />
+        <ConnectedChartSelectorMenu view={view} />
       </MenuContainer>
     </MenuTrigger>
   );
 }
 
-function ChartSelectorMenu({ view }: { view: MetricChartTableView }) {
-  const { contains } = useFilter({ sensitivity: "base" });
+function ConnectedChartSelectorMenu({ view }: { view: MetricChartTableView }) {
   const selectedChartKeys = useProjectContext(
     (state) => state.metricChartKeys[view]
   );
   const setMetricChartKeys = useProjectContext(
     (state) => state.setMetricChartKeys
   );
-  const selectedCharts = getProjectMetricCharts(selectedChartKeys);
-  const selectedKeySet = new Set(selectedChartKeys);
-  const unselectedCharts = PROJECT_METRIC_CHARTS.filter(
-    (chart) => !selectedKeySet.has(chart.key)
-  );
-  const isAtMax = selectedChartKeys.length >= MAX_SELECTED_METRIC_CHARTS;
-  const disabledKeys = isAtMax
-    ? unselectedCharts.map((chart) => chart.key)
-    : [];
-
-  const onSelectionChange = (selection: Selection) => {
-    // Normalize to the catalog order so the charts display in a stable order
-    const newSelectedKeys =
-      selection === "all"
-        ? PROJECT_METRIC_CHART_KEYS
-        : PROJECT_METRIC_CHART_KEYS.filter((key) => selection.has(key));
-    setMetricChartKeys(
-      view,
-      newSelectedKeys.slice(0, MAX_SELECTED_METRIC_CHARTS)
-    );
-  };
-
   return (
-    <>
-      <Autocomplete filter={contains}>
-        <MenuHeader>
-          <SearchField aria-label="Search charts" variant="quiet" autoFocus>
-            <SearchIcon />
-            <Input placeholder="Search charts" />
-          </SearchField>
-        </MenuHeader>
-        <Menu
-          aria-label="Metric charts"
-          selectionMode="multiple"
-          selectedKeys={selectedChartKeys}
-          disabledKeys={disabledKeys}
-          onSelectionChange={onSelectionChange}
-          renderEmptyState={() => (
-            <CompactEmptyState
-              icon={<Icon svg={<Icons.BarChart />} />}
-              description="No charts found"
-            />
-          )}
-        >
-          {selectedCharts.length > 0 && (
-            <>
-              <MenuSection>
-                <MenuSectionTitle title="Selected" />
-                {selectedCharts.map((chart) => (
-                  <ChartMenuItem key={chart.key} chart={chart} />
-                ))}
-              </MenuSection>
-              <Separator />
-            </>
-          )}
-          <MenuSection>
-            <MenuSectionTitle title="Available" />
-            {unselectedCharts.map((chart) => (
-              <ChartMenuItem key={chart.key} chart={chart} />
-            ))}
-          </MenuSection>
-        </Menu>
-      </Autocomplete>
-      <MenuFooter>
-        <Flex direction="row" justifyContent="end">
-          <Text size="XS" color="text-700">
-            Show up to {MAX_SELECTED_METRIC_CHARTS} charts
-          </Text>
-        </Flex>
-      </MenuFooter>
-    </>
+    <MetricsChartSelector
+      options={PROJECT_METRIC_CHARTS}
+      selectedKeys={selectedChartKeys}
+      maxSelected={MAX_SELECTED_METRIC_CHARTS}
+      onSelectionChange={(keys) => setMetricChartKeys(view, keys)}
+    />
   );
 }

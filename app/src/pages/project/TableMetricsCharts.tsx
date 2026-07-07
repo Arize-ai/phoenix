@@ -8,6 +8,7 @@ import {
 } from "react-resizable-panels";
 
 import { useTimeRange, View } from "@phoenix/components";
+import { ChartPanel } from "@phoenix/components/chart";
 import { transparentResizeHandleCSS } from "@phoenix/components/resize";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
@@ -15,7 +16,6 @@ import { useTracingContext } from "@phoenix/contexts/TracingContext";
 
 import type { MetricChartTableView } from "./constants";
 import { getProjectMetricCharts } from "./metrics/chartCatalog";
-import { MetricPanel } from "./metrics/MetricPanel";
 import { MetricFetchKeyProvider } from "./metrics/types";
 import { useClosedTimeRange } from "./metrics/useClosedTimeRange";
 
@@ -82,7 +82,7 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
         {/* Re-fetch the charts on each stream refresh so they stay live */}
         <MetricFetchKeyProvider value={fetchKey}>
           {charts.map(({ key, name, description, Component }) => (
-            <MetricPanel
+            <ChartPanel
               key={key}
               title={name}
               subtitle={description}
@@ -93,7 +93,7 @@ const TableMetricsCharts = memo(function TableMetricsCharts({
                 timeRange={timeRange}
                 onTimeRangeSelected={setCustomTimeRange}
               />
-            </MetricPanel>
+            </ChartPanel>
           ))}
         </MetricFetchKeyProvider>
       </div>

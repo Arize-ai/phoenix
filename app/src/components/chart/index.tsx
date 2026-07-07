@@ -1,4 +1,7 @@
 export * from "./ChartEmptyStateOverlay";
+export * from "./ChartPanel";
+export * from "./ChartTypeIcon";
+export * from "./MetricsChartSelector";
 export * from "./ChartTooltip";
 export * from "./SegmentChart";
 export * from "./InteractiveLegend";

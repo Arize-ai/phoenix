@@ -1,5 +1,12 @@
 import { createContext, useContext } from "react";
 
+/**
+ * Recharts syncId shared by every project metric chart so tooltip hover and
+ * brush interactions stay synchronized across chart panels. Every chart in
+ * the chart catalog must pass this to its chart container.
+ */
+export const PROJECT_METRICS_CHART_SYNC_ID = "projectMetrics";
+
 export interface ProjectMetricViewProps {
   projectId: string;
   /**

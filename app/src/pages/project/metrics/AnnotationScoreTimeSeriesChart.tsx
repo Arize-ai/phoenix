@@ -28,6 +28,7 @@ import {
 } from "@phoenix/components/chart";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useWordColor } from "@phoenix/hooks/useWordColor";
+import { PROJECT_METRICS_CHART_SYNC_ID } from "@phoenix/pages/project/metrics/types";
 import { formatFloat } from "@phoenix/utils/numberFormatUtils";
 
 export type AnnotationScoreTimeSeriesDatum = {
@@ -130,12 +131,13 @@ export function AnnotationScoreTimeSeriesChart({
         <ChartEmptyStateOverlay
           isEmpty={!hasData}
           message="No data in this time range"
+          chartType="line"
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={chartData}
               margin={compactChartMargin}
-              syncId={"projectMetrics"}
+              syncId={PROJECT_METRICS_CHART_SYNC_ID}
               {...chartProps}
             >
               <XAxis

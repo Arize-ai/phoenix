@@ -1405,13 +1405,11 @@ const chartCSS = css`
       var(--global-color-gray-75-rgb),
       0.84
     );
-    --chart-empty-state-text-color: var(--global-text-color-500);
     --chart-panel-background-color: var(--global-color-gray-75);
     --chart-panel-border-color: var(--global-border-color-default);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
-    --chart-empty-state-text-color: var(--global-text-color-700);
     /* Panels sit on a same-colored background, so a full-strength border
        reads as a heavy frame in dark mode; soften it */
     --chart-panel-border-color: rgba(var(--global-color-gray-200-rgb), 0.6);

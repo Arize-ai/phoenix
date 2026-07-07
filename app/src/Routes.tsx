@@ -222,7 +222,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Traces",
                     description:
-                      "Inspect project traces in the trace table and open trace details.",
+                      "Inspect project traces in the trace table and open trace details. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >
@@ -245,7 +245,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Spans",
                     description:
-                      "Inspect the project span table and filter spans for a project.",
+                      "Inspect the project span table and filter spans for a project. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >
@@ -268,7 +268,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Sessions",
                     description:
-                      "Browse user or application sessions and the session list for a project.",
+                      "Browse user or application sessions and the session list for a project. Supports configurable metric charts shown above the table.",
                   },
                 }}
               >

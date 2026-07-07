@@ -22,12 +22,13 @@ import {
   ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
-  InteractiveLegend,
+  compactChartMargin,
+  compactLegendProps,
+  compactYAxisProps,
   defaultCartesianGridProps,
-  defaultLegendProps,
   defaultTooltipProps,
   defaultXAxisProps,
-  defaultYAxisProps,
+  InteractiveLegend,
   useInteractiveLegend,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -42,8 +43,6 @@ export type ExperimentsLineChartData = {
   avgLatency: number;
   [scoreKey: string]: number | string;
 };
-
-const chartMargins = { top: 8, right: 18, left: 18, bottom: 12 };
 
 const numberFormatter = new Intl.NumberFormat([], {
   maximumFractionDigits: 4,
@@ -210,7 +209,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={chartData}
-          margin={chartMargins}
+          margin={compactChartMargin}
           syncId="dimensionDetails"
         >
           <defs>
@@ -219,34 +218,13 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
               <stop offset="95%" stopColor={gray300} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid {...defaultCartesianGridProps} vertical />
+          <CartesianGrid {...defaultCartesianGridProps} />
           <XAxis {...defaultXAxisProps} dataKey="iteration" />
+          <YAxis {...compactYAxisProps} domain={yDomain} />
           <YAxis
-            {...defaultYAxisProps}
-            label={{
-              value: "Score",
-              angle: -90,
-              position: "insideLeft",
-              style: {
-                textAnchor: "middle",
-                fill: "var(--chart-axis-label-color)",
-              },
-            }}
-            domain={yDomain}
-          />
-          <YAxis
-            {...defaultYAxisProps}
+            {...compactYAxisProps}
             yAxisId="right"
             orientation="right"
-            label={{
-              value: "avg latency",
-              angle: 90,
-              position: "insideRight",
-              style: {
-                textAnchor: "middle",
-                fill: "var(--chart-axis-label-color)",
-              },
-            }}
             tickFormatter={latencyFormatter}
           />
 
@@ -272,7 +250,7 @@ export function ExperimentsLineChart({ datasetId }: { datasetId: string }) {
             />
           ))}
           <InteractiveLegend
-            {...defaultLegendProps}
+            {...compactLegendProps}
             hiddenDataKeys={hiddenDataKeys}
             iconSize={8}
             onToggleDataKey={toggleDataKey}
