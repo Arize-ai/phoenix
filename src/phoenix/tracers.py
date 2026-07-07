@@ -48,8 +48,27 @@ def detached_otel_context(parent_context: otel_context.Context | None = None) ->
         otel_context.detach(token)
 
 
+# Phoenix-specific carrier headers sent by the browser alongside the standard
+# W3C ones. Hosting deployments may inject their own client tracing (e.g.
+# Datadog RUM) whose fetch instrumentation rewrites ``traceparent``; preferring
+# these headers keeps PXI spans parented to the browser's ``pxi.turn`` root.
+PHOENIX_TRACEPARENT_HEADER = "x-phoenix-traceparent"
+PHOENIX_TRACESTATE_HEADER = "x-phoenix-tracestate"
+
+
 def extract_otel_context(carrier: dict[str, str]) -> otel_context.Context:
-    """Extract W3C trace context into a clean context."""
+    """Extract W3C trace context into a clean context.
+
+    Prefers the ``x-phoenix-traceparent`` / ``x-phoenix-tracestate`` headers
+    over the standard W3C ones, falling back to ``traceparent`` /
+    ``tracestate`` for callers that don't send the Phoenix-specific pair.
+    """
+    normalized = {key.lower(): value for key, value in carrier.items()}
+    if phoenix_traceparent := normalized.get(PHOENIX_TRACEPARENT_HEADER):
+        phoenix_carrier = {"traceparent": phoenix_traceparent}
+        if phoenix_tracestate := normalized.get(PHOENIX_TRACESTATE_HEADER):
+            phoenix_carrier["tracestate"] = phoenix_tracestate
+        return propagate.extract(phoenix_carrier, context=otel_context.Context())
     return propagate.extract(carrier, context=otel_context.Context())
 
 

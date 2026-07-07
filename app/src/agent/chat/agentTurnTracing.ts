@@ -5,12 +5,13 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import {
   context,
-  propagation,
+  defaultTextMapSetter,
   SpanKind,
   SpanStatusCode,
   trace,
   type Context,
   type Span,
+  type Tracer,
 } from "@opentelemetry/api";
 import {
   ExportResultCode,
@@ -76,13 +77,25 @@ type FetchImplementation = (
   init?: RequestInit
 ) => Promise<Response>;
 
-let isProviderRegistered = false;
 let webTracerProvider: WebTracerProvider | null = null;
 
 const DEFAULT_FORCE_FLUSH_TIMEOUT_MS = 5_000;
 
 const PXI_TRACER_NAME = "phoenix-ui.pxi";
 const pxiProjectNameByTraceId = new Map<string, string>();
+
+// PXI-specific carrier headers, sent alongside the standard W3C ones. Cloud
+// deployments may inject their own client tracing (e.g. Datadog RUM) whose
+// fetch instrumentation rewrites `traceparent`; the server prefers these
+// headers so PXI spans always parent to the browser's `pxi.turn` root.
+const PHOENIX_TRACEPARENT_HEADER = "x-phoenix-traceparent";
+const PHOENIX_TRACESTATE_HEADER = "x-phoenix-tracestate";
+
+// A module-local propagator. Deliberately not registered as the OTel global
+// propagator: injection always passes the explicit turn context, and global
+// registration is first-wins, so it could silently lose to (or break)
+// instrumentation injected by the hosting deployment.
+const pxiPropagator = new W3CTraceContextPropagator();
 
 const createDefaultLocalTraceExporter: CreateLocalTraceExporter = (
   projectName
@@ -190,26 +203,20 @@ function stringifyAttributeValue(value: unknown): string {
   }
 }
 
-function ensureWebTracerProviderRegistered() {
-  if (isProviderRegistered) {
-    return;
+// PXI tracing deliberately never touches the global OTel singletons (tracer
+// provider, propagator, context manager): globals are first-registration-wins,
+// so a hosting deployment that injects its own client tracing (e.g. Datadog
+// RUM or another OTel distro) could silently displace ours — or be broken by
+// it. Every span here is parented explicitly (see `traceToolCall` /
+// `startTurn`) and trace-context injection uses the explicit turn context, so
+// ambient context propagation is never needed.
+function getPxiTracer(): Tracer {
+  if (!webTracerProvider) {
+    webTracerProvider = new WebTracerProvider({
+      spanProcessors: [new SimpleSpanProcessor(new PxiRootSpanExporter())],
+    });
   }
-  const provider = new WebTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(new PxiRootSpanExporter())],
-  });
-  // The default StackContextManager is sufficient: every span created here is
-  // parented explicitly (see `traceToolCall` / `startTurn`) and trace-context
-  // injection uses the explicit turn context, so ambient context does not need
-  // to survive across awaits. This deliberately avoids ZoneContextManager,
-  // whose Zone.js dependency monkey-patches every async primitive app-wide.
-  //
-  // This module owns the global OTel registration (tracer provider and
-  // propagator) for the Phoenix UI; any future browser instrumentation should
-  // reuse this provider rather than registering its own.
-  provider.register();
-  propagation.setGlobalPropagator(new W3CTraceContextPropagator());
-  webTracerProvider = provider;
-  isProviderRegistered = true;
+  return webTracerProvider.getTracer(PXI_TRACER_NAME);
 }
 
 function getInputHeaders(input: RequestInfo | URL): HeadersInit | undefined {
@@ -226,17 +233,22 @@ function injectTraceContextIntoRequest({
   traceContext: Context;
 }): RequestInit | undefined {
   const carrier: TraceCarrier = {};
-  propagation.inject(traceContext, carrier);
+  pxiPropagator.inject(traceContext, carrier, defaultTextMapSetter);
   if (!carrier.traceparent && !carrier.tracestate) {
     return init;
   }
 
+  // The standard W3C headers keep generic proxies/collectors working; the
+  // x-phoenix-* duplicates survive fetch instrumentation (RUM SDKs and the
+  // like) that rewrites `traceparent`, and the server prefers them.
   const headers = new Headers(init?.headers ?? getInputHeaders(input));
   if (carrier.traceparent) {
     headers.set("traceparent", carrier.traceparent);
+    headers.set(PHOENIX_TRACEPARENT_HEADER, carrier.traceparent);
   }
   if (carrier.tracestate) {
     headers.set("tracestate", carrier.tracestate);
+    headers.set(PHOENIX_TRACESTATE_HEADER, carrier.tracestate);
   }
   return { ...init, headers };
 }
@@ -290,8 +302,7 @@ export function createAgentTurnTracer({
       return;
     }
 
-    ensureWebTracerProviderRegistered();
-    const tracer = trace.getTracer(PXI_TRACER_NAME);
+    const tracer = getPxiTracer();
     const span = tracer.startSpan("pxi.turn", {
       kind: SpanKind.CLIENT,
       attributes: {
@@ -421,7 +432,7 @@ export function createAgentTurnTracer({
       return execute(() => undefined);
     }
 
-    const tracer = trace.getTracer(PXI_TRACER_NAME);
+    const tracer = getPxiTracer();
     const span = tracer.startSpan(
       toolCall.toolName,
       {

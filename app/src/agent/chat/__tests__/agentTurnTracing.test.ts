@@ -1,4 +1,4 @@
-import { SpanStatusCode } from "@opentelemetry/api";
+import { propagation, SpanStatusCode, trace } from "@opentelemetry/api";
 import { ExportResultCode } from "@opentelemetry/core";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
@@ -38,6 +38,13 @@ function getTraceId(traceparent: string): string {
 
 function readTraceparent(init: RequestInit | undefined): string | null {
   return new Headers(init?.headers).get("traceparent");
+}
+
+function readHeader(
+  init: RequestInit | undefined,
+  name: string
+): string | null {
+  return new Headers(init?.headers).get(name);
 }
 
 function createMockFetch() {
@@ -89,6 +96,50 @@ describe("createAgentTurnTracer", () => {
     });
 
     expect(readTraceparent(fetch.mock.calls[0]?.[1])).toBeNull();
+    expect(
+      readHeader(fetch.mock.calls[0]?.[1], "x-phoenix-traceparent")
+    ).toBeNull();
+  });
+
+  it("mirrors the trace context into x-phoenix-* headers that survive traceparent rewrites", async () => {
+    const fetch = createMockFetch();
+    const tracer = createAgentTurnTracer({
+      sessionId: "session-1",
+      fetch,
+      getAgentsConfig: () => agentsConfig,
+      getObservability: () => observability,
+      forceFlushTimeoutMs: 0,
+    });
+
+    tracer.startTurn("submit-message");
+    await tracer.fetch("/agents/assistant/sessions/session-1/chat", {
+      method: "POST",
+    });
+
+    const init = fetch.mock.calls[0]?.[1];
+    const traceparent = readTraceparent(init);
+    expect(traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-0[01]$/);
+    expect(readHeader(init, "x-phoenix-traceparent")).toBe(traceparent);
+  });
+
+  it("does not register global OpenTelemetry providers or propagators", () => {
+    const globalProviderBefore = trace.getTracerProvider();
+    const globalPropagationFieldsBefore = propagation.fields();
+    const tracer = createAgentTurnTracer({
+      sessionId: "session-1",
+      fetch: createMockFetch(),
+      getAgentsConfig: () => agentsConfig,
+      getObservability: () => observability,
+      forceFlushTimeoutMs: 0,
+    });
+
+    tracer.startTurn("submit-message");
+
+    // PXI tracing must stay inert to host-injected instrumentation (e.g.
+    // Datadog RUM): OTel globals are first-registration-wins, so registering
+    // here could silently displace or be displaced by the host's tracing.
+    expect(trace.getTracerProvider()).toBe(globalProviderBefore);
+    expect(propagation.fields()).toEqual(globalPropagationFieldsBefore);
   });
 
   it("injects the same trace context across requests in one active turn", async () => {
