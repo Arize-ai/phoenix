@@ -142,6 +142,15 @@ class OnlineEvalProducer(DaemonTask):
         self._producer_id = f"producer-{token_hex(8)}"
         # Config knobs are hardcoded to their defaults until the online-eval env-var surface lands.
         self._frontier_lag_seconds = 60.0
+        # The backstop's coverage guarantee is rate-dependent: gap-free re-coverage
+        # requires lookback_span_ids >= instance_wide_ingest_rate * interval_seconds.
+        # Spans draw from a single id sequence, so the rate that matters is the sum
+        # across all projects and tenants — 100k ids per 3600s sweep only protects
+        # deployments ingesting under ~28 spans/sec instance-wide. Above that, rows
+        # can age out of the lookback between sweeps and the backstop stops bounding
+        # the exceptional loss modes it exists to catch (late-visible spans, skipped
+        # criteria). The reaper's floor (``_reap``) is aligned to this lookback, so
+        # any change here must move both together.
         self._backstop_interval_seconds = 3600.0
         self._backstop_lookback_span_ids = 100_000
         self._pending_ttl_seconds = 0.0
@@ -195,7 +204,7 @@ class OnlineEvalProducer(DaemonTask):
                 produced_through = frontier
 
         if not pending_observation or advanced:
-            await self._record_observation(produced_through, now)
+            await self._record_observation(produced_through)
 
         if gate_open and time.monotonic() - self._last_backstop_at >= (
             self._backstop_interval_seconds
@@ -314,24 +323,50 @@ class OnlineEvalProducer(DaemonTask):
             )
 
     async def _admission_gate_open(self) -> bool:
+        # The gate bounds the backlog that will eventually demand consumer
+        # capacity — every non-terminal row, not just PENDING: RUNNING rows are
+        # claimed but unfinished, and retryable ERROR rows return to the claim
+        # pool after cooldown. Under a provider outage the entire pending
+        # population migrates into retryable ERROR; a PENDING-only count would
+        # see an empty queue and keep materializing into the outage. Exhausted
+        # ERROR rows are terminal (awaiting the reaper) and excluded.
         async with self._db() as session:
-            pending_count = (
+            outstanding_count = (
                 await session.scalar(
                     select(func.count())
                     .select_from(models.EvalWorkUnit)
-                    .where(models.EvalWorkUnit.status == "PENDING")
+                    .where(
+                        or_(
+                            models.EvalWorkUnit.status.in_(("PENDING", "RUNNING")),
+                            and_(
+                                models.EvalWorkUnit.status == "ERROR",
+                                models.EvalWorkUnit.attempts < MAX_ATTEMPTS,
+                            ),
+                        )
+                    )
                 )
                 or 0
             )
-        if pending_count > self._max_pending:
+        if outstanding_count > self._max_pending:
             logger.warning(
                 f"Online-eval producer admission gate closed: "
-                f"{pending_count} pending work units exceeds {self._max_pending}"
+                f"{outstanding_count} outstanding work units exceeds {self._max_pending}"
             )
             return False
         return True
 
     async def _load_active_criteria(self) -> list[_ActiveCriteria]:
+        """Load and resolve enabled criteria into scan-ready form.
+
+        Skip policy: only *persistent* per-criteria conditions (no resolvable
+        version, filter fails to compile) are logged and skipped, so one bad
+        criteria cannot stall the shared cursor forever. Anything else — e.g. a
+        transient DB error during version resolution — propagates and aborts
+        the tick without advancing the cursor (fail closed): advancing is an
+        implicit claim that every enabled criteria either materialized or
+        deliberately skipped the window, and a criteria that failed to load
+        transiently did neither.
+        """
         polymorphic_evaluator = with_polymorphic(
             models.Evaluator,
             [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
@@ -349,17 +384,27 @@ class OnlineEvalProducer(DaemonTask):
                 )
             ).all()
             for criteria, evaluator in rows:
+                # NOT wrapped in a per-criteria except: an unexpected exception
+                # here (e.g. a transient DB error on a version lookup) must
+                # abort the tick so the cursor cannot advance past a window
+                # this criteria never scanned. See the docstring's skip policy.
+                resolved = await resolve_criteria(session, criteria, evaluator)
+                if resolved is None:
+                    logger.warning(
+                        f"Skipping criteria {criteria.id}: "
+                        f"no resolvable version for evaluator {evaluator.id}"
+                    )
+                    continue
                 try:
-                    resolved = await resolve_criteria(session, criteria, evaluator)
-                    if resolved is None:
-                        logger.warning(
-                            f"Skipping criteria {criteria.id}: "
-                            f"no resolvable version for evaluator {evaluator.id}"
-                        )
-                        continue
                     span_filter = SpanFilter(resolved.filter_condition)
                 except Exception:
-                    logger.exception(f"Skipping criteria {criteria.id}")
+                    # SpanFilter construction is pure parsing (no I/O), so a
+                    # failure here is deterministic — a persistent condition,
+                    # same as an unresolvable version: skip-and-advance rather
+                    # than stalling every other criteria on one bad DSL string.
+                    logger.exception(
+                        f"Skipping criteria {criteria.id}: filter_condition failed to compile"
+                    )
                     continue
                 fingerprint = config_fingerprint(resolved)
                 active.append(
@@ -401,11 +446,19 @@ class OnlineEvalProducer(DaemonTask):
             return False
         return True
 
-    async def _record_observation(self, produced_through_id: int, now: datetime) -> None:
+    async def _record_observation(self, produced_through_id: int) -> None:
         async with self._db() as session:
             high_water = await session.scalar(select(func.max(models.Span.id)))
             if high_water is None or high_water <= produced_through_id:
                 return
+            # Stamp the observation with a timestamp taken AFTER the high-water
+            # read, never the tick-start time: the reap/gate/materialize work
+            # preceding this call can consume a large fraction of the frontier
+            # lag (unboundedly so on a first-run backfill), and a stale stamp
+            # makes the next tick over-age the observation — eroding the
+            # commit-visibility guard that is the only defense against the
+            # id-vs-commit-order race. A post-read stamp errs conservative.
+            observed_at = datetime.now(timezone.utc)
             await session.execute(
                 update(models.EvalWorkCursor)
                 .where(
@@ -413,7 +466,7 @@ class OnlineEvalProducer(DaemonTask):
                     models.EvalWorkCursor.consumer_group == self._consumer_group,
                     models.EvalWorkCursor.claimed_by == self._producer_id,
                 )
-                .values(observed_high_water_id=high_water, observed_at=now)
+                .values(observed_high_water_id=high_water, observed_at=observed_at)
             )
 
     async def _backstop_sweep(self, active: list[_ActiveCriteria], watermark: int) -> None:

@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from secrets import token_hex
+from typing import Any
 
+import pytest
 from sqlalchemy import func, select, update
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.online_eval import producer as producer_module
 from phoenix.server.online_eval.db_coordinator import MAX_ATTEMPTS
 from phoenix.server.online_eval.derivation import config_fingerprint
 from phoenix.server.online_eval.producer import (
@@ -362,6 +365,118 @@ async def test_admission_gate_skips_materialization(db: DbSessionFactory) -> Non
     assert unit_count == 1
     cursor = await _get_cursor(db, cursor_id)
     assert cursor.produced_through_id == 0
+
+
+async def test_admission_gate_counts_nonterminal_backlog(db: DbSessionFactory) -> None:
+    """The gate bounds all backlog that will eventually demand consumer
+    capacity: RUNNING and retryable-ERROR rows count alongside PENDING (under
+    a provider outage the pending population migrates into retryable ERROR),
+    while exhausted ERROR is terminal and must not hold the gate closed."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    evaluator_id, criteria_id = await _seed_criteria(db, project.id)
+
+    def _unit(status: str, **kwargs: Any) -> models.EvalWorkUnit:
+        return models.EvalWorkUnit(
+            span_rowid=span.id,
+            evaluator_id=evaluator_id,
+            criteria_id=criteria_id,
+            config_fingerprint=f"fp-{token_hex(8)}",
+            status=status,
+            **kwargs,
+        )
+
+    producer = OnlineEvalProducer(db)
+    producer._max_pending = 0
+    assert await producer._admission_gate_open()
+
+    async with db() as session:
+        session.add(_unit("ERROR", attempts=MAX_ATTEMPTS))
+    assert await producer._admission_gate_open()  # exhausted ERROR is terminal
+
+    async with db() as session:
+        session.add(_unit("RUNNING", claimed_by="consumer-1", claimed_at=_now()))
+        await session.flush()
+        running_id = (
+            await session.scalars(
+                select(models.EvalWorkUnit.id).order_by(models.EvalWorkUnit.id.desc()).limit(1)
+            )
+        ).one()
+    assert not await producer._admission_gate_open()  # RUNNING counts
+
+    async with db() as session:
+        await session.execute(
+            update(models.EvalWorkUnit)
+            .where(models.EvalWorkUnit.id == running_id)
+            .values(status="DONE")
+        )
+    assert await producer._admission_gate_open()
+
+    async with db() as session:
+        session.add(_unit("ERROR", attempts=1))
+    assert not await producer._admission_gate_open()  # retryable ERROR counts
+
+
+async def test_unexpected_criteria_load_error_fails_closed(
+    db: DbSessionFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unexpected exception during criteria resolution (e.g. a transient DB
+    error) must abort the tick without advancing the cursor — advancing would
+    silently skip the window for the criteria that failed to load."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    await _seed_criteria(db, project.id)
+    cursor_id = await _seed_cursor(
+        db,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    async def _transient_boom(*args: Any, **kwargs: Any) -> None:
+        raise RuntimeError("transient version-lookup failure")
+
+    monkeypatch.setattr(producer_module, "resolve_criteria", _transient_boom)
+
+    producer = OnlineEvalProducer(db)
+    with pytest.raises(RuntimeError, match="transient version-lookup failure"):
+        await producer._tick()
+
+    assert await _work_unit_span_rowids(db) == []
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == 0
+
+
+async def test_uncompilable_filter_is_skipped_without_stalling(db: DbSessionFactory) -> None:
+    """A filter_condition that fails to compile is a persistent per-criteria
+    condition: the criteria is skipped (operator-visibly, via log) while the
+    cursor still advances for the healthy criteria — one bad DSL string must
+    not stall the shared cursor forever."""
+    async with db() as session:
+        project = await _add_project(session)
+        trace = await _add_trace(session, project)
+        span = await _add_span(session, trace)
+    good_evaluator_id, _ = await _seed_criteria(db, project.id)
+    bad_evaluator_id, _ = await _seed_criteria(db, project.id, filter_condition="span_kind ==")
+    cursor_id = await _seed_cursor(
+        db,
+        observed_high_water_id=span.id,
+        observed_at=_now() - timedelta(seconds=120),
+    )
+
+    producer = OnlineEvalProducer(db)
+    await producer._tick()
+
+    async with db() as session:
+        units = list(await session.scalars(select(models.EvalWorkUnit)))
+    assert {unit.evaluator_id for unit in units} == {good_evaluator_id}
+    assert bad_evaluator_id not in {unit.evaluator_id for unit in units}
+    cursor = await _get_cursor(db, cursor_id)
+    assert cursor.produced_through_id == span.id
 
 
 async def test_lease_stand_down_and_stale_reclaim(db: DbSessionFactory) -> None:
