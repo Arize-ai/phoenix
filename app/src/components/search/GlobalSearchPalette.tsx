@@ -98,6 +98,18 @@ const RESOURCE_ICONS: Record<RecentlyViewedResourceType, React.ReactNode> = {
   prompt: <Icon svg={<Icons.MessageSquare />} />,
 };
 
+/**
+ * Search result sections, in the order they render. Results are collected into
+ * a map keyed by resource type and flattened against this list at render time,
+ * so no code depends on a section's position in an array.
+ */
+const RESULT_SECTIONS: { title: string; type: RecentlyViewedResourceType }[] = [
+  { title: "Projects", type: "project" },
+  { title: "Datasets", type: "dataset" },
+  { title: "Experiments", type: "experiment" },
+  { title: "Prompts", type: "prompt" },
+];
+
 export function GlobalSearchPalette({
   isOpen,
   onOpenChange,
@@ -141,7 +153,7 @@ export function GlobalSearchPalette({
 
   return (
     <SearchResultsLoader searchQuery={searchQuery.trim()}>
-      {(resultSections) => (
+      {(resultsByType) => (
         <CommandPalette
           isOpen={isOpen}
           onOpenChange={onOpenChange}
@@ -187,11 +199,14 @@ export function GlobalSearchPalette({
               ))}
             </CommandPaletteSection>
           )}
-          {resultSections
-            .filter((section) => section.resources.length > 0)
-            .map((section) => (
-              <CommandPaletteSection key={section.title} title={section.title}>
-                {section.resources.map(({ resource, description }) => (
+          {RESULT_SECTIONS.map((section) => {
+            const entries = resultsByType.get(section.type) ?? [];
+            if (entries.length === 0) {
+              return null;
+            }
+            return (
+              <CommandPaletteSection key={section.type} title={section.title}>
+                {entries.map(({ resource, description }) => (
                   <CommandPaletteItem
                     key={`result:${resource.id}`}
                     id={`result:${resource.id}`}
@@ -208,20 +223,26 @@ export function GlobalSearchPalette({
                   </CommandPaletteItem>
                 ))}
               </CommandPaletteSection>
-            ))}
+            );
+          })}
         </CommandPalette>
       )}
     </SearchResultsLoader>
   );
 }
 
-type ResultSection = {
-  title: string;
-  type: RecentlyViewedResourceType;
-  resources: { resource: RecentlyViewedResource; description?: string }[];
+type ResultEntry = {
+  resource: RecentlyViewedResource;
+  description?: string;
 };
 
-type SearchResultsChildren = (resultSections: ResultSection[]) => ReactNode;
+/**
+ * Search results grouped by resource type. Consumers flatten this against
+ * {@link RESULT_SECTIONS} to render sections in a stable order.
+ */
+type SearchResultsByType = Map<RecentlyViewedResourceType, ResultEntry[]>;
+
+type SearchResultsChildren = (results: SearchResultsByType) => ReactNode;
 
 /**
  * Loads server search results and hands them to `children` as plain data.
@@ -239,7 +260,7 @@ function SearchResultsLoader({
   children: SearchResultsChildren;
 }) {
   if (!searchQuery) {
-    return children([]);
+    return children(new Map());
   }
   return (
     <SearchResultsData searchQuery={searchQuery}>{children}</SearchResultsData>
@@ -290,16 +311,19 @@ function SearchResultsData({
     { fetchPolicy: "store-and-network" }
   );
 
-  const resultSections: ResultSection[] = [
-    { title: "Projects", type: "project", resources: [] },
-    { title: "Datasets", type: "dataset", resources: [] },
-    { title: "Experiments", type: "experiment", resources: [] },
-    { title: "Prompts", type: "prompt", resources: [] },
-  ];
+  const resultsByType: SearchResultsByType = new Map();
+  const addEntry = (entry: ResultEntry) => {
+    const entries = resultsByType.get(entry.resource.type);
+    if (entries) {
+      entries.push(entry);
+    } else {
+      resultsByType.set(entry.resource.type, [entry]);
+    }
+  };
   for (const result of data.searchResources) {
     switch (result.__typename) {
       case "Project":
-        resultSections[0].resources.push({
+        addEntry({
           resource: {
             id: result.id,
             type: "project",
@@ -310,7 +334,7 @@ function SearchResultsData({
         });
         break;
       case "Dataset":
-        resultSections[1].resources.push({
+        addEntry({
           resource: {
             id: result.id,
             type: "dataset",
@@ -321,7 +345,7 @@ function SearchResultsData({
         });
         break;
       case "Experiment":
-        resultSections[2].resources.push({
+        addEntry({
           resource: {
             id: result.id,
             type: "experiment",
@@ -332,7 +356,7 @@ function SearchResultsData({
         });
         break;
       case "Prompt":
-        resultSections[3].resources.push({
+        addEntry({
           resource: {
             id: result.id,
             type: "prompt",
@@ -345,5 +369,5 @@ function SearchResultsData({
     }
   }
 
-  return children(resultSections);
+  return children(resultsByType);
 }

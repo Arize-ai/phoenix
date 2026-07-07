@@ -10,5 +10,11 @@ from phoenix.server.api.types.Prompt import Prompt
 
 SearchResult: TypeAlias = Annotated[
     Union[Project, Dataset, Experiment, Prompt],
-    strawberry.union("SearchResult"),
+    strawberry.union(
+        "SearchResult",
+        description=(
+            "An entity returned by global search. One of the searchable "
+            "resource types: Project, Dataset, Experiment, or Prompt."
+        ),
+    ),
 ]
