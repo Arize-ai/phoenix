@@ -712,6 +712,7 @@
 - [Prompt Optimization Techniques](https://arize.com/docs/phoenix/cookbook/prompt-engineering/prompt-optimization): This tutorial will use Phoenix to compare the performance of different prompt optimization techniques
 - [ReAct Prompting](https://arize.com/docs/phoenix/cookbook/prompt-engineering/react-prompting): **ReAct (Reasoning + Acting)** is a prompting technique that enables LLMs to think step-by-step before taking
 - [Agentic RAG Tracing](https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing): Build and trace an agentic RAG system using LlamaIndex's ReAct agent with vector and SQL query tools
+- [RAG and Memory Recall Tracing](https://arize.com/docs/phoenix/cookbook/tracing/rag-memory-recall-tracing): Trace agents that combine document retrieval with long-term memory recall in the same turn
 - [OpenInference Best Practices](https://arize.com/docs/phoenix/cookbook/tracing/openinference-best-practices): Enrich auto-instrumented traces with LLM, tool, agent, chain, and session attributes using OpenInference span kinds
 - [More Cookbooks](https://arize.com/docs/phoenix/cookbook/tracing/cookbooks): Trace through the execution of your LLM application to understand its internal structure and to troubleshoot
 - [Generating Synthetic Datasets for LLM Evaluators & Agents](https://arize.com/docs/phoenix/cookbook/tracing/generating-synthetic-datasets-for-llm-evaluators-and-agents): Learn different strategies for dataset generation and show how they can be used to run experiments and test

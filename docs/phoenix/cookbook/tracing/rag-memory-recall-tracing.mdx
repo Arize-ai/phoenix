@@ -1,0 +1,97 @@
+---
+title: "RAG and Memory Recall Tracing"
+sidebarTitle: "RAG + memory tracing"
+description: "Trace the full agent flow when RAG retrieval and long-term memory recall run in the same turn — span hierarchy, naming, and metadata patterns."
+keywords: ['RAG', 'memory', 'tracing', 'retriever', 'memory.query', 'agent']
+---
+
+Modern agents often combine **document retrieval** (RAG) with **long-term memory** (facts from past sessions). Each path deserves its own span so Phoenix shows whether the model answered from docs, recalled memory, or both.
+
+<Info>
+This guide describes **example tracing patterns** for manual instrumentation. Span names like `memory.query` and metadata keys like `memory.hit` are illustrative conventions — not yet canonical OpenInference attributes.
+</Info>
+
+## Span hierarchy
+
+A typical turn looks like this in the trace tree:
+
+```
+AGENT  support-agent
+├── CHAIN   memory.query          ← long-term recall (hit/miss metadata)
+├── RETRIEVER  retrieve-docs        ← vector / keyword RAG
+├── CHAIN   compose-answer        ← merge memory + docs into context
+├── LLM     generate-answer       ← model call (often auto-instrumented)
+└── CHAIN   memory.store          ← persist new fact from this turn
+```
+
+**Retriever spans** answer "what do our documents say?" **Memory query spans** answer "what do we already know about this user?" Keep them separate — merging both into one retriever span hides which source failed.
+
+## When to query memory vs retrieve documents
+
+| Signal | Use `memory.query` | Use `RETRIEVER` |
+| :--- | :--- | :--- |
+| User-specific preferences from past chats | ✓ | |
+| Company policy from a PDF index | | ✓ |
+| Episodic summary of prior session | ✓ | |
+| Fresh web or SQL lookup | | ✓ (or `TOOL`) |
+
+Run memory recall **before** the LLM call when preferences should steer retrieval or prompting. Run `memory.store` **after** the model responds when the turn produced a durable fact.
+
+## TypeScript reference implementation
+
+The [`memory_agent_example.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-otel/examples/memory_agent_example.ts) wires the hierarchy with `@arizeai/phoenix-otel` helpers:
+
+```typescript
+import {
+  traceAgent,
+  traceChain,
+  traceRetriever,
+  withSpan,
+  OpenInferenceSpanKind,
+  getMetadataAttributes,
+} from "@arizeai/phoenix-otel";
+
+const queryMemory = withSpan(searchLongTermMemory, {
+  name: "memory.query",
+  kind: OpenInferenceSpanKind.CHAIN,
+  processOutput: (r) => getMetadataAttributes({
+    operation: "memory.query",
+    "memory.hit": r.hit,
+    "memory.result_count": r.entries.length,
+  }),
+});
+
+const retrieveDocs = traceRetriever(vectorSearch, { name: "retrieve-docs" });
+
+const agent = traceAgent(async (question) => {
+  const recall = await queryMemory(question);
+  const docs = await retrieveDocs(question);
+  const answer = await compose(recall, docs, question);
+  await storeMemory(`Last question: ${question}`);
+  return answer;
+}, { name: "support-agent" });
+```
+
+## Metadata checklist per turn
+
+| Span | Keys to set |
+| :--- | :--- |
+| `memory.query` | `memory.hit`, `memory.result_count`, `memory.latency_ms`, `namespace` |
+| `retrieve-docs` | `retrieval.documents` (via `getRetrieverAttributes`) |
+| `memory.store` | `memory.entry_id`, `memory.stored_bytes`, `namespace` |
+| Root `AGENT` | `session.id` via context — not memory content |
+
+## Debugging recall failures in Phoenix
+
+1. Open a trace and confirm `memory.query` appears **before** the LLM span.
+2. Check `metadata` for `"memory.hit": false` — the agent may have proceeded without user context.
+3. Compare sibling `retrieve-docs` — if retriever returned documents but memory missed, the issue is in the memory backend, not the vector index.
+4. Filter by `session.id` to see whether the same user hits memory misses across turns (see [Session vs memory metadata](/docs/phoenix/tracing/how-to-tracing/add-metadata/session-vs-memory-metadata)).
+
+## Related resources
+
+<CardGroup cols={2}>
+  <Card title="Agentic RAG tracing" href="/docs/phoenix/cookbook/tracing/agentic-rag-tracing" icon="robot" />
+  <Card title="Memory hit/miss attributes" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/memory-hit-miss-attributes" icon="bullseye" />
+  <Card title="OpenInference best practices" href="/docs/phoenix/cookbook/tracing/openinference-best-practices" icon="book" />
+</CardGroup>
