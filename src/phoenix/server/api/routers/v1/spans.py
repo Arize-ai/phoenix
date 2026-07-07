@@ -24,8 +24,14 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
+from phoenix.server.api.routers.v1.pagination import (
+    apply_tuple_cursor_filter,
+    encode_rest_cursor,
+    parse_rest_cursor,
+)
 from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.authorization import (
     is_not_locked,
     prevent_access_in_read_only_mode,
@@ -732,7 +738,10 @@ async def span_search_otlpv1(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Pagination cursor encoding the sort position of the next page",
+    ),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
@@ -761,55 +770,62 @@ async def span_search_otlpv1(
 
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        project_id = project.id
 
-    project_id: int = project.id
-    order_by = [models.Span.id.desc()]
-
-    stmt = (
-        select(
-            models.Span,
-            models.Trace.trace_id,
+        stmt = (
+            select(
+                models.Span,
+                models.Trace.trace_id,
+            )
+            .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+            .where(models.Trace.project_rowid == project_id)
+            .order_by(models.Span.start_time.desc(), models.Span.id.desc())
         )
-        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
-        .where(models.Trace.project_rowid == project_id)
-        .order_by(*order_by)
-    )
 
-    if start_time:
-        stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
-    if end_time:
-        stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
-    if trace_id:
-        stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
-    if parent_id is not None:
-        if parent_id == "null":
-            stmt = stmt.where(models.Span.parent_id.is_(None))
-        else:
-            stmt = stmt.where(models.Span.parent_id == parent_id)
-    if name:
-        stmt = stmt.where(models.Span.name.in_(name))
-    if status_code:
-        stmt = stmt.where(
-            models.Span.status_code.in_(
-                validate_enum_filter(
-                    values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+        if start_time:
+            stmt = stmt.where(
+                models.Span.start_time >= normalize_datetime(start_time, timezone.utc)
+            )
+        if end_time:
+            stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+        if trace_id:
+            stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+        if parent_id is not None:
+            if parent_id == "null":
+                stmt = stmt.where(models.Span.parent_id.is_(None))
+            else:
+                stmt = stmt.where(models.Span.parent_id == parent_id)
+        if name:
+            stmt = stmt.where(models.Span.name.in_(name))
+        if status_code:
+            stmt = stmt.where(
+                models.Span.status_code.in_(
+                    validate_enum_filter(
+                        values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+                    )
                 )
             )
-        )
-    if attribute:
-        for af in attribute:
-            stmt = stmt.where(_parse_attribute(af))
+        if attribute:
+            for af in attribute:
+                stmt = stmt.where(_parse_attribute(af))
 
-    if cursor:
-        try:
-            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-            stmt = stmt.where(models.Span.id <= cursor_rowid)
-        except Exception:
-            raise HTTPException(status_code=422, detail="Invalid cursor")
+        if cursor:
+            parsed_cursor = await parse_rest_cursor(
+                session,
+                cursor,
+                model=models.Span,
+                sort_attr="start_time",
+                sort_column_type=CursorSortColumnDataType.DATETIME,
+            )
+            stmt = apply_tuple_cursor_filter(
+                stmt,
+                sort_column=models.Span.start_time,
+                id_column=models.Span.id,
+                cursor=parsed_cursor,
+                order="desc",
+            )
 
-    stmt = stmt.limit(limit + 1)
-
-    async with request.app.state.db.read() as session:
+        stmt = stmt.limit(limit + 1)
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
@@ -817,9 +833,13 @@ async def span_search_otlpv1(
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
-        *rows, extra = rows  # extra is first item of next page
+        *rows, extra = rows
         span_extra, _ = extra
-        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+        next_cursor = encode_rest_cursor(
+            span_extra.id,
+            span_extra.start_time,
+            CursorSortColumnDataType.DATETIME,
+        )
 
     # Convert ORM rows -> OTLP-style spans
     result_spans: list[OtlpSpan] = []
@@ -909,7 +929,10 @@ async def span_search(
             "it cannot contain slash (/), question mark (?), or pound sign (#) characters."
         )
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Span Global ID)"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Pagination cursor encoding the sort position of the next page",
+    ),
     limit: int = Query(default=100, gt=0, le=1000, description="Maximum number of spans to return"),
     start_time: Optional[datetime] = Query(default=None, description="Inclusive lower bound time"),
     end_time: Optional[datetime] = Query(default=None, description="Exclusive upper bound time"),
@@ -943,63 +966,70 @@ async def span_search(
 ) -> SpansResponseBody:
     async with request.app.state.db.read() as session:
         project = await get_project_by_identifier(session, project_identifier)
+        project_id = project.id
 
-    project_id: int = project.id
-    order_by = [models.Span.id.desc()]
-
-    stmt = (
-        select(
-            models.Span,
-            models.Trace.trace_id,
+        stmt = (
+            select(
+                models.Span,
+                models.Trace.trace_id,
+            )
+            .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
+            .where(models.Trace.project_rowid == project_id)
+            .order_by(models.Span.start_time.desc(), models.Span.id.desc())
         )
-        .join(models.Trace, onclause=models.Trace.id == models.Span.trace_rowid)
-        .where(models.Trace.project_rowid == project_id)
-        .order_by(*order_by)
-    )
 
-    if start_time:
-        stmt = stmt.where(models.Span.start_time >= normalize_datetime(start_time, timezone.utc))
-    if end_time:
-        stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
-    if trace_id:
-        stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
-    if parent_id is not None:
-        if parent_id == "null":
-            stmt = stmt.where(models.Span.parent_id.is_(None))
-        else:
-            stmt = stmt.where(models.Span.parent_id == parent_id)
-    if name:
-        stmt = stmt.where(models.Span.name.in_(name))
-    if span_kind:
-        stmt = stmt.where(
-            models.Span.span_kind.in_(
-                validate_enum_filter(
-                    values=span_kind, valid=_VALID_SPAN_KINDS, param_name="span_kind"
+        if start_time:
+            stmt = stmt.where(
+                models.Span.start_time >= normalize_datetime(start_time, timezone.utc)
+            )
+        if end_time:
+            stmt = stmt.where(models.Span.start_time < normalize_datetime(end_time, timezone.utc))
+        if trace_id:
+            stmt = stmt.where(models.Trace.trace_id.in_(trace_id))
+        if parent_id is not None:
+            if parent_id == "null":
+                stmt = stmt.where(models.Span.parent_id.is_(None))
+            else:
+                stmt = stmt.where(models.Span.parent_id == parent_id)
+        if name:
+            stmt = stmt.where(models.Span.name.in_(name))
+        if span_kind:
+            stmt = stmt.where(
+                models.Span.span_kind.in_(
+                    validate_enum_filter(
+                        values=span_kind, valid=_VALID_SPAN_KINDS, param_name="span_kind"
+                    )
                 )
             )
-        )
-    if status_code:
-        stmt = stmt.where(
-            models.Span.status_code.in_(
-                validate_enum_filter(
-                    values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+        if status_code:
+            stmt = stmt.where(
+                models.Span.status_code.in_(
+                    validate_enum_filter(
+                        values=status_code, valid=_VALID_STATUS_CODES, param_name="status_code"
+                    )
                 )
             )
-        )
-    if attribute:
-        for af in attribute:
-            stmt = stmt.where(_parse_attribute(af))
+        if attribute:
+            for af in attribute:
+                stmt = stmt.where(_parse_attribute(af))
 
-    if cursor:
-        try:
-            cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-        except Exception:
-            raise HTTPException(status_code=422, detail="Invalid cursor")
-        stmt = stmt.where(models.Span.id <= cursor_rowid)
+        if cursor:
+            parsed_cursor = await parse_rest_cursor(
+                session,
+                cursor,
+                model=models.Span,
+                sort_attr="start_time",
+                sort_column_type=CursorSortColumnDataType.DATETIME,
+            )
+            stmt = apply_tuple_cursor_filter(
+                stmt,
+                sort_column=models.Span.start_time,
+                id_column=models.Span.id,
+                cursor=parsed_cursor,
+                order="desc",
+            )
 
-    stmt = stmt.limit(limit + 1)
-
-    async with request.app.state.db.read() as session:
+        stmt = stmt.limit(limit + 1)
         rows: list[tuple[models.Span, str]] = [r async for r in await session.stream(stmt)]
 
     if not rows:
@@ -1007,9 +1037,13 @@ async def span_search(
 
     next_cursor: Optional[str] = None
     if len(rows) == limit + 1:
-        *rows, extra = rows  # extra is first item of next page
+        *rows, extra = rows
         span_extra, _ = extra
-        next_cursor = str(GlobalID("Span", str(span_extra.id)))
+        next_cursor = encode_rest_cursor(
+            span_extra.id,
+            span_extra.start_time,
+            CursorSortColumnDataType.DATETIME,
+        )
 
     # Convert ORM rows -> Phoenix spans
     result_spans: list[Span] = []

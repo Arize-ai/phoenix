@@ -25,6 +25,7 @@ from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
@@ -41,6 +42,7 @@ from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
 
 from .models import V1RoutesBaseModel
+from .pagination import apply_tuple_cursor_filter, encode_rest_cursor, parse_rest_cursor
 from .utils import (
     PaginatedResponseBody,
     RequestBody,
@@ -137,7 +139,10 @@ async def list_project_traces(
     limit: int = Query(
         default=100, gt=0, le=1000, description="Maximum number of traces to return"
     ),
-    cursor: Optional[str] = Query(default=None, description="Pagination cursor (Trace GlobalID)"),
+    cursor: Optional[str] = Query(
+        default=None,
+        description="Pagination cursor encoding the sort position of the next page",
+    ),
     include_spans: bool = Query(
         default=False,
         description=(
@@ -206,15 +211,28 @@ async def list_project_traces(
         if end_time:
             stmt = stmt.where(models.Trace.start_time < normalize_datetime(end_time, timezone.utc))
 
+        sort_column_type = (
+            CursorSortColumnDataType.FLOAT
+            if sort == "latency_ms"
+            else CursorSortColumnDataType.DATETIME
+        )
+        sort_attr = "latency_ms" if sort == "latency_ms" else "start_time"
+
         if cursor:
-            try:
-                cursor_rowid = int(GlobalID.from_id(cursor).node_id)
-                if order == "desc":
-                    stmt = stmt.where(models.Trace.id <= cursor_rowid)
-                else:
-                    stmt = stmt.where(models.Trace.id >= cursor_rowid)
-            except (ValueError, TypeError):
-                raise HTTPException(status_code=422, detail=f"Invalid cursor format: {cursor}")
+            parsed_cursor = await parse_rest_cursor(
+                session,
+                cursor,
+                model=models.Trace,
+                sort_attr=sort_attr,
+                sort_column_type=sort_column_type,
+            )
+            stmt = apply_tuple_cursor_filter(
+                stmt,
+                sort_column=sort_col,
+                id_column=models.Trace.id,
+                cursor=parsed_cursor,
+                order=order,
+            )
 
         stmt = stmt.limit(limit + 1)
         traces = (await session.scalars(stmt)).all()
@@ -225,7 +243,12 @@ async def list_project_traces(
         next_cursor: Optional[str] = None
         if len(traces) == limit + 1:
             last_trace = traces[-1]
-            next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
+            sort_value = last_trace.latency_ms if sort == "latency_ms" else last_trace.start_time
+            next_cursor = encode_rest_cursor(
+                last_trace.id,
+                sort_value,
+                sort_column_type,
+            )
             traces = traces[:-1]
 
         trace_rowids = [t.id for t in traces]

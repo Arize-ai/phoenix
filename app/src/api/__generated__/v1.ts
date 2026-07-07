@@ -8130,7 +8130,7 @@ export interface operations {
                 order?: "asc" | "desc";
                 /** @description Maximum number of traces to return */
                 limit?: number;
-                /** @description Pagination cursor (Trace GlobalID) */
+                /** @description Pagination cursor encoding the sort position of the next page */
                 cursor?: string | null;
                 /** @description If true, include full span details for each trace. This significantly increases response size and query latency, especially with large page sizes. Prefer fetching spans lazily for individual traces when possible. */
                 include_spans?: boolean;
@@ -8340,7 +8340,7 @@ export interface operations {
     spanSearch: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor encoding the sort position of the next page */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
@@ -8409,7 +8409,7 @@ export interface operations {
     getSpans: {
         parameters: {
             query?: {
-                /** @description Pagination cursor (Span Global ID) */
+                /** @description Pagination cursor encoding the sort position of the next page */
                 cursor?: string | null;
                 /** @description Maximum number of spans to return */
                 limit?: number;
