@@ -422,11 +422,8 @@ async def _persist_db_traces(
     traces_to_insert: list[models.Trace] = []
     spans_to_insert: list[models.Span] = []
     for db_trace in db_traces:
-        # Resolve the transient ProjectSession (built by Tracer) to the
-        # persistent one loaded from the upsert, but only associate it with
-        # traces that are actually inserted: putting a transient Trace into a
-        # persistent ProjectSession.traces collection without adding it to the
-        # session makes every autoflush warn that the add "will not proceed".
+        # Only inserted traces should point at the persistent ProjectSession;
+        # associating skipped transient traces causes autoflush warnings.
         persistent_project_session = (
             persistent_by_session_id[db_trace.project_session.session_id]
             if db_trace.project_session is not None
@@ -1067,7 +1064,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model_provider_availability=model_provider_availability,
         )
 
-        request_parent_span_context: SpanContext | None = None
+        parent_context = extract_otel_context(dict(request.headers))
+        request_parent_span_context = _get_span_context(parent_context)
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             span_context = (
@@ -1083,9 +1081,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             _log_run_complete(result)
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
-            nonlocal request_parent_span_context
-            parent_context = extract_otel_context(dict(request.headers))
-            request_parent_span_context = _get_span_context(parent_context)
             try:
                 with (
                     detached_otel_context(parent_context),
