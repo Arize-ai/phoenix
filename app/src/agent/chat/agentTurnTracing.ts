@@ -37,11 +37,6 @@ type AgentTurnTrace = {
   traceId: string;
 };
 
-type ClientIterationTrace = {
-  span: Span;
-  context: Context;
-};
-
 type AgentToolCallTraceInput = {
   toolCallId: string;
   toolName: string;
@@ -279,49 +274,7 @@ export function createAgentTurnTracer({
   forceFlushTimeoutMs = DEFAULT_FORCE_FLUSH_TIMEOUT_MS,
 }: AgentTurnTracingOptions) {
   let activeTurnTrace: AgentTurnTrace | null = null;
-  let activeClientIteration: ClientIterationTrace | null = null;
   const activeToolSpansByToolCallId = new Map<string, Span>();
-
-  // A client iteration groups the client-side tool executions that happen
-  // between two server requests, mirroring the server's `pxi.iter.server`
-  // span. It starts lazily on the first client tool call after a server
-  // response and ends when the next request goes out (or the turn ends).
-  function getOrStartClientIteration(
-    turnTrace: AgentTurnTrace
-  ): ClientIterationTrace {
-    if (activeClientIteration) {
-      return activeClientIteration;
-    }
-    const tracer = trace.getTracer(PXI_TRACER_NAME);
-    const span = tracer.startSpan(
-      "pxi.iter.client",
-      {
-        kind: SpanKind.CLIENT,
-        attributes: {
-          [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
-            OpenInferenceSpanKind.AGENT,
-          [SemanticConventions.SESSION_ID]: sessionId,
-        },
-      },
-      turnTrace.context
-    );
-    activeClientIteration = {
-      span,
-      context: trace.setSpan(turnTrace.context, span),
-    };
-    return activeClientIteration;
-  }
-
-  function endClientIteration(error?: unknown) {
-    if (!activeClientIteration) {
-      return;
-    }
-    if (error == null) {
-      activeClientIteration.span.setStatus({ code: SpanStatusCode.OK });
-    }
-    activeClientIteration.span.end();
-    activeClientIteration = null;
-  }
 
   function startTurn(_trigger: "submit-message" | "regenerate-message") {
     if (activeTurnTrace) {
@@ -381,7 +334,6 @@ export function createAgentTurnTracer({
       span.end();
     }
     activeToolSpansByToolCallId.clear();
-    endClientIteration(error);
     activeTurnTrace.span.end();
     activeTurnTrace = null;
     try {
@@ -469,7 +421,6 @@ export function createAgentTurnTracer({
       return execute(() => undefined);
     }
 
-    const iteration = getOrStartClientIteration(turnTrace);
     const tracer = trace.getTracer(PXI_TRACER_NAME);
     const span = tracer.startSpan(
       toolCall.toolName,
@@ -487,10 +438,10 @@ export function createAgentTurnTracer({
           [SemanticConventions.SESSION_ID]: sessionId,
         },
       },
-      iteration.context
+      turnTrace.context
     );
 
-    const toolContext = trace.setSpan(iteration.context, span);
+    const toolContext = trace.setSpan(turnTrace.context, span);
     const recordToolOutput = (output: ToolOutputTraceInput) => {
       recordToolOutputForActiveSpan({
         ...output,
@@ -517,10 +468,6 @@ export function createAgentTurnTracer({
     if (!turnTrace) {
       return fetch(input, init);
     }
-    // Sending a request to the server closes out the current batch of
-    // client-side tool executions; the server work is parented directly
-    // under `pxi.turn` via the injected trace context.
-    endClientIteration();
     return context.with(turnTrace.context, () => {
       return fetch(
         input,

@@ -192,7 +192,7 @@ describe("createAgentTurnTracer", () => {
     });
   });
 
-  it("groups client tool spans under per-iteration pxi.iter.client spans", async () => {
+  it("parents client tool spans directly under the pxi.turn root", async () => {
     const exportedSpans: ReadableSpan[] = [];
     vi.spyOn(PxiRootSpanExporter.prototype, "export").mockImplementation(
       (spans, resultCallback) => {
@@ -226,7 +226,6 @@ describe("createAgentTurnTracer", () => {
         });
       },
     });
-    // Sending tool results back to the server ends the first client iteration.
     await tracer.fetch("/agents/assistant/sessions/session-1/chat", {
       method: "POST",
     });
@@ -243,30 +242,22 @@ describe("createAgentTurnTracer", () => {
     await tracer.endTurn();
 
     const turnSpan = exportedSpans.find((span) => span.name === "pxi.turn");
-    const iterSpans = exportedSpans.filter(
-      (span) => span.name === "pxi.iter.client"
-    );
     const firstToolSpan = exportedSpans.find((span) => span.name === "bash");
     const secondToolSpan = exportedSpans.find(
       (span) => span.name === "navigate"
     );
 
     expect(turnSpan).toBeDefined();
-    expect(iterSpans).toHaveLength(2);
-    for (const iterSpan of iterSpans) {
-      expect(iterSpan.parentSpanContext?.spanId).toBe(
-        turnSpan?.spanContext().spanId
-      );
-      expect(iterSpan.status.code).toBe(SpanStatusCode.OK);
-    }
-    expect(firstToolSpan?.status.code).toBe(SpanStatusCode.OK);
-    expect(secondToolSpan?.status.code).toBe(SpanStatusCode.OK);
+    // The turn is a flat trace: no intermediate grouping spans are created.
+    expect(exportedSpans).toHaveLength(3);
     expect(firstToolSpan?.parentSpanContext?.spanId).toBe(
-      iterSpans[0]?.spanContext().spanId
+      turnSpan?.spanContext().spanId
     );
     expect(secondToolSpan?.parentSpanContext?.spanId).toBe(
-      iterSpans[1]?.spanContext().spanId
+      turnSpan?.spanContext().spanId
     );
+    expect(firstToolSpan?.status.code).toBe(SpanStatusCode.OK);
+    expect(secondToolSpan?.status.code).toBe(SpanStatusCode.OK);
   });
 
   it("exports only PXI browser spans with registered projects by project", async () => {
