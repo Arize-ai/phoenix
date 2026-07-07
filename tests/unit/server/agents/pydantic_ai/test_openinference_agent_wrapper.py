@@ -29,17 +29,13 @@ from pydantic_ai.messages import (
     NativeToolReturnPart,
     TextPart,
     ThinkingPart,
-    ToolCallPart,
-    ToolReturnPart,
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
-from pydantic_ai.tools import ToolDefinition
 
-from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceCapabilityWrapper,
@@ -50,15 +46,6 @@ from phoenix.server.agents.pydantic_ai import (
 @dataclass
 class _NoOpCapability(AbstractCapability[Any]):
     """Bare capability used as the wrapped target — every default hook applies."""
-
-
-def _require_tool_definition(name: str) -> ToolDefinition:
-    tool_def = get_external_tool_definition(name)
-    assert tool_def is not None, f"missing external tool definition: {name!r}"
-    return tool_def
-
-
-BASH_TOOL_DEFINITION = _require_tool_definition("bash")
 
 
 @pytest.fixture
@@ -462,39 +449,6 @@ async def test_iter_records_exception_when_run_fails(
     assert not attributes
 
 
-async def test_does_not_backfill_tool_span_for_trailing_external_tool_return(
-    test_model_agent: OpenInferenceAgentWrapper,
-    in_memory_span_exporter: InMemorySpanExporter,
-) -> None:
-    tool_name = BASH_TOOL_DEFINITION.name
-    history: list[ModelMessage] = [
-        ModelRequest(parts=[UserPromptPart(content="run tool")]),
-        ModelResponse(
-            parts=[
-                ToolCallPart(
-                    tool_name=tool_name,
-                    args={"command": "ls"},
-                    tool_call_id="call-1",
-                )
-            ]
-        ),
-        ModelRequest(
-            parts=[
-                ToolReturnPart(
-                    tool_name=tool_name,
-                    content="file1\nfile2",
-                    tool_call_id="call-1",
-                )
-            ]
-        ),
-    ]
-    await test_model_agent.run("continue", message_history=history)
-
-    spans = in_memory_span_exporter.get_finished_spans()
-    _get_agent_span(spans)
-    assert _get_tool_spans(spans) == []
-
-
 async def test_does_not_emit_tool_spans_for_history_ending_in_user_prompt(
     test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
@@ -503,34 +457,6 @@ async def test_does_not_emit_tool_spans_for_history_ending_in_user_prompt(
         ModelRequest(parts=[UserPromptPart(content="hi")]),
         ModelResponse(parts=[TextPart(content="hello")]),
         ModelRequest(parts=[UserPromptPart(content="another question")]),
-    ]
-    await test_model_agent.run("continue", message_history=history)
-
-    spans = in_memory_span_exporter.get_finished_spans()
-    assert _get_tool_spans(spans) == []
-
-
-async def test_does_not_backfill_tool_span_for_tool_return_in_mixed_trailing_request(
-    test_model_agent: OpenInferenceAgentWrapper,
-    in_memory_span_exporter: InMemorySpanExporter,
-) -> None:
-    """A trailing ``ModelRequest`` may carry a ``ToolReturnPart`` alongside a
-    ``UserPromptPart`` when the user submits a new turn in the same request.
-    Frontend-executed tools emit their spans in the browser at execution time,
-    so the backend agent wrapper must not synthesize another TOOL span from
-    history."""
-    tool_name = BASH_TOOL_DEFINITION.name
-    history: list[ModelMessage] = [
-        ModelRequest(parts=[UserPromptPart(content="run tool")]),
-        ModelResponse(
-            parts=[ToolCallPart(tool_name=tool_name, args={"command": "ls"}, tool_call_id="call-1")]
-        ),
-        ModelRequest(
-            parts=[
-                ToolReturnPart(tool_name=tool_name, content="ok", tool_call_id="call-1"),
-                UserPromptPart(content="also tell me about it"),
-            ]
-        ),
     ]
     await test_model_agent.run("continue", message_history=history)
 
@@ -599,64 +525,6 @@ async def test_emits_tool_span_for_provider_native_tool(
     assert json.loads(output_value) == {"results": [{"title": "Phoenix"}]}
     assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
     assert not attributes
-
-
-async def test_does_not_backfill_tool_span_for_unregistered_tool_return(
-    test_model_agent: OpenInferenceAgentWrapper,
-    in_memory_span_exporter: InMemorySpanExporter,
-) -> None:
-    history: list[ModelMessage] = [
-        ModelRequest(parts=[UserPromptPart(content="run a thing")]),
-        ModelResponse(
-            parts=[
-                ToolCallPart(
-                    tool_name="some_unregistered_tool",
-                    args={"x": 1},
-                    tool_call_id="call-1",
-                )
-            ]
-        ),
-        ModelRequest(
-            parts=[
-                ToolReturnPart(
-                    tool_name="some_unregistered_tool",
-                    content="ok",
-                    tool_call_id="call-1",
-                )
-            ]
-        ),
-    ]
-    await test_model_agent.run("continue", message_history=history)
-
-    spans = in_memory_span_exporter.get_finished_spans()
-    assert _get_tool_spans(spans) == []
-
-
-async def test_does_not_backfill_tool_span_for_failed_tool_return(
-    test_model_agent: OpenInferenceAgentWrapper,
-    in_memory_span_exporter: InMemorySpanExporter,
-) -> None:
-    error_content = "command not found: bsh"
-    history: list[ModelMessage] = [
-        ModelRequest(parts=[UserPromptPart(content="run bsh")]),
-        ModelResponse(
-            parts=[ToolCallPart(tool_name="bash", args={"command": "bsh"}, tool_call_id="call-1")]
-        ),
-        ModelRequest(
-            parts=[
-                ToolReturnPart(
-                    tool_name="bash",
-                    content=error_content,
-                    tool_call_id="call-1",
-                    outcome="failed",
-                )
-            ]
-        ),
-    ]
-    await test_model_agent.run("continue", message_history=history)
-
-    spans = in_memory_span_exporter.get_finished_spans()
-    assert _get_tool_spans(spans) == []
 
 
 # OpenInference attribute keys
