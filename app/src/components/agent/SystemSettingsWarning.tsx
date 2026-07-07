@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Flex, Icon, Icons, Text } from "@phoenix/components";
+import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
 
 const warningCSS = css`
   margin: 0 var(--global-dimension-size-150) var(--global-dimension-size-150);
@@ -16,9 +16,14 @@ export function SystemSettingsWarning({
     <Flex direction="row" gap="size-75" alignItems="center" css={warningCSS}>
       <Icon svg={<Icons.Lock />} />
       <Text color="inherit" size="S">
-        {isAdmin
-          ? "Turning this on also enables it in system settings for all users."
-          : "Disabled by system settings. An administrator needs to turn this on."}
+        {isAdmin ? (
+          <>
+            Disabled by system settings. You can turn it on for all users in{" "}
+            <Link to="/settings/agents">Assistant settings</Link>.
+          </>
+        ) : (
+          "Disabled by system settings. An administrator needs to turn this on."
+        )}
       </Text>
     </Flex>
   );
