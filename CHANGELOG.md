@@ -1,5 +1,25 @@
 # Changelog
 
+## [17.20.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.19.0...arize-phoenix-v17.20.0) (2026-07-07)
+
+
+### Features
+
+* **ui:** user-selected metric charts above project tables ([#14068](https://github.com/Arize-ai/phoenix/issues/14068)) ([54f50e2](https://github.com/Arize-ai/phoenix/commit/54f50e2e181ba2055102100437f8fee74fa52ec7))
+
+
+### Bug Fixes
+
+* **agents:** improve chat error recovery ([#13833](https://github.com/Arize-ai/phoenix/issues/13833)) ([c8bf700](https://github.com/Arize-ai/phoenix/commit/c8bf700942b69ea32f692e72aa91e42d40d69b49))
+* **cost:** update built-in model token prices ([#14082](https://github.com/Arize-ai/phoenix/issues/14082)) ([7d19cfe](https://github.com/Arize-ai/phoenix/commit/7d19cfe6648ad7c7aac0677393a62b2632ee5c0d))
+* **ui:** guard against nullish projects connection on Projects page ([#14086](https://github.com/Arize-ai/phoenix/issues/14086)) ([7a88302](https://github.com/Arize-ai/phoenix/commit/7a88302686083b49e2d1eaa1016c0181f3ae6788))
+
+
+### Documentation
+
+* Add cookbook on "Identifying high-signal traces in production" ([#14085](https://github.com/Arize-ai/phoenix/issues/14085)) ([184811c](https://github.com/Arize-ai/phoenix/commit/184811c437770edd4554bfd2d210ab7f0dcae316))
+* add Vercel Eve integration guide for Phoenix ([#14075](https://github.com/Arize-ai/phoenix/issues/14075)) ([73a4fba](https://github.com/Arize-ai/phoenix/commit/73a4fbafd4d0a21d1d0e801cb6954e45a8700459))
+
 ## [17.19.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v17.18.0...arize-phoenix-v17.19.0) (2026-07-06)
 
 
