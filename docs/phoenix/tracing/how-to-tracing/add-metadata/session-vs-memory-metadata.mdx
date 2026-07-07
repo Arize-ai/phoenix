@@ -1,0 +1,82 @@
+---
+title: "Session Metadata vs Memory Metadata"
+sidebarTitle: "Session vs memory metadata"
+description: "Clarify when to use session.id for conversation grouping versus memory.* metadata on recall and store spans."
+keywords: ['session', 'memory', 'metadata', 'tracing', 'session.id', 'agent memory']
+---
+
+Agents use two different kinds of "memory" in traces, and conflating them makes debugging harder. **Session metadata** groups traces from one conversation. **Memory metadata** describes what your agent recalled or stored in a long-term memory backend.
+
+## Session metadata (`session.id`)
+
+| Attribute | Scope | Purpose |
+| :--- | :--- | :--- |
+| `session.id` | Trace / span (via context) | Groups all spans from one user conversation or task thread |
+
+Set `session.id` once per conversation — typically on the root agent span or via [`setSession`](/docs/phoenix/tracing/how-to-tracing/add-metadata/customize-spans) / `using_session`. Every child span (LLM, tool, retriever, memory) inherits it.
+
+Use `session.id` when you need to:
+
+- Reconstruct a multi-turn chat in Phoenix Sessions view
+- Correlate errors across turns in the same conversation
+- Filter traces for a single support ticket or workflow run
+
+`session.id` is **not** a memory key. It does not tell you *what* was recalled — only *which conversation* the recall happened in.
+
+## Memory metadata (`memory.*` in `metadata`)
+
+| Metadata key | Span name | Purpose |
+| :--- | :--- | :--- |
+| `operation` | `memory.query` / `memory.store` | Identifies recall vs write |
+| `memory.hit` | `memory.query` | Whether recall returned results |
+| `memory.result_count` | `memory.query` | How many entries matched |
+| `memory.entry_id` | `memory.store` | ID of the persisted entry |
+| `memory.latency_ms` | Both | Backend round-trip time |
+| `namespace` | Both | Logical partition (`user-facts`, `episodic`, etc.) |
+
+Memory metadata lives on **individual spans** inside a session. A single `session.id` may contain many `memory.query` spans — one per turn where the agent checks long-term memory.
+
+## Side-by-side example
+
+```typescript
+import { context, register, setSession, traceAgent, withSpan } from "@arizeai/phoenix-otel";
+
+register({ projectName: "agent-with-memory" });
+
+const queryMemory = withSpan(async () => ({ hit: true }), {
+  name: "memory.query",
+  kind: "CHAIN",
+});
+
+const agent = traceAgent(async (question: string) => {
+  const recall = await queryMemory();
+  return `Answer using recall hit=${recall.hit}`;
+}, { name: "support-agent" });
+
+// session.id groups the whole turn; memory.* metadata is on the child span
+await context.with(
+  setSession(context.active(), { sessionId: "chat-abc-123" }),
+  () => agent("What are my preferences?")
+);
+```
+
+In Phoenix:
+
+- **Sessions view** — filter by `session.id = chat-abc-123` to see the full conversation
+- **Trace tree** — expand `memory.query` and read `metadata` for `memory.hit` and `memory.result_count`
+
+## Common mistakes
+
+| Mistake | Fix |
+| :--- | :--- |
+| Putting recalled facts only in `session.id` | Use `memory.query` spans with `output.value` or redacted summaries |
+| Using `namespace` as `session.id` | Keep `session.id` stable per conversation; use `namespace` for memory partitioning |
+| Omitting `memory.hit` on misses | Always emit the span on miss — silent skips hide recall failures |
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Setup sessions" href="/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions" icon="comments" />
+  <Card title="Memory hit/miss attributes" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/memory-hit-miss-attributes" icon="bullseye" />
+  <Card title="RAG + memory recall flow" href="/docs/phoenix/cookbook/tracing/rag-memory-recall-tracing" icon="route" />
+</CardGroup>
