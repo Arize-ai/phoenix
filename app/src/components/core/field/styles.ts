@@ -43,6 +43,24 @@ export const fieldBaseCSS = css`
     &[data-hovered]:not([data-disabled]):not([data-invalid]) {
       border: 1px solid var(--global-input-field-border-color-active);
     }
+    &:is([data-readonly], [readonly]) {
+      background-color: transparent;
+      border-color: transparent;
+      color: var(--global-text-color-500);
+      -webkit-text-fill-color: var(--global-text-color-500);
+    }
+    &:is([data-readonly], [readonly])[data-focused]:not([data-invalid]) {
+      border-color: transparent;
+    }
+    &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
+      border-color: var(--global-color-gray-400);
+    }
+    &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
+        [data-focus-visible]
+      ) {
+      background-color: var(--global-color-primary-50);
+      border-color: transparent;
+    }
     &[data-disabled] {
       opacity: var(--global-opacity-disabled);
     }
@@ -52,6 +70,26 @@ export const fieldBaseCSS = css`
     &::placeholder {
       color: var(--text-color-placeholder);
       font-style: italic;
+    }
+  }
+  &[data-readonly] {
+    .react-aria-Input,
+    .react-aria-TextArea {
+      background-color: transparent;
+      border-color: transparent;
+      color: var(--global-text-color-500);
+      -webkit-text-fill-color: var(--global-text-color-500);
+
+      &[data-focused]:not([data-invalid]) {
+        border-color: transparent;
+      }
+      &[data-focus-visible]:not([data-invalid]) {
+        border-color: var(--global-color-gray-400);
+      }
+      &[data-hovered]:not([data-invalid]):not([data-focus-visible]) {
+        background-color: var(--global-color-primary-50);
+        border-color: transparent;
+      }
     }
   }
   [slot="description"],
@@ -149,6 +187,48 @@ export const textFieldCSS = css`
     }
     &[data-focused][data-invalid] {
       outline: 1px solid var(--global-color-danger);
+    }
+    &:is([data-readonly], [readonly]) {
+      background-color: transparent;
+      border-color: transparent;
+      color: var(--global-text-color-500);
+      -webkit-text-fill-color: var(--global-text-color-500);
+      outline-color: transparent;
+    }
+    &:is([data-readonly], [readonly])[data-focused]:not([data-invalid]) {
+      outline-color: transparent;
+    }
+    &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
+      outline-color: var(--global-color-gray-400);
+    }
+    &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
+        [data-focus-visible]
+      ) {
+      background-color: var(--global-color-primary-50);
+      border-color: transparent;
+    }
+  }
+
+  &[data-readonly] {
+    .react-aria-Input,
+    .react-aria-TextArea,
+    input {
+      background-color: transparent;
+      border-color: transparent;
+      color: var(--global-text-color-500);
+      -webkit-text-fill-color: var(--global-text-color-500);
+      outline-color: transparent;
+
+      &[data-focused]:not([data-invalid]) {
+        outline-color: transparent;
+      }
+      &[data-focus-visible]:not([data-invalid]) {
+        outline-color: var(--global-color-gray-400);
+      }
+      &[data-hovered]:not([data-invalid]):not([data-focus-visible]) {
+        background-color: var(--global-color-primary-50);
+        border-color: transparent;
+      }
     }
   }
 
