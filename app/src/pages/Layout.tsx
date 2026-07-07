@@ -6,7 +6,7 @@ import { Outlet, useLoaderData } from "react-router";
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
 import {
   AgentChatPanel,
-  AgentChatWidget,
+  AgentChatTopNavButton,
   FloatingAgentChatPanel,
   useAssistantAgentEnabled,
 } from "@phoenix/components/agent";
@@ -128,9 +128,9 @@ export function Layout() {
                 <SideNavToggleButton />
                 <NavBreadcrumb />
                 <TopNavActionsSlot />
+                <AgentChatTopNavButton />
               </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
-                <AgentChatWidget boundaryRef={contentRef} />
                 {shouldShowFloatingAgentPanel ? (
                   <FloatingAgentChatPanel
                     boundaryRef={contentRef}

@@ -24,7 +24,7 @@ import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
-const OPEN_AGENT_HOTKEY = "mod+i";
+export const OPEN_AGENT_HOTKEY = "mod+i";
 
 const thinkingBorderWipe = keyframes`
   0% {
@@ -538,7 +538,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   );
 }
 
-function AgentChatWidgetTooltip() {
+export function AgentChatWidgetTooltip() {
   const modifierKey = useModifierKey();
   const modifierGlyph = modifierKey === "Cmd" ? "⌘" : "Ctrl";
 

@@ -25,6 +25,21 @@ const topNavCSS = css`
   align-items: center;
   gap: var(--global-dimension-static-size-100);
 
+  /* The breadcrumb trail (an <ol> from the Breadcrumbs component) is the
+     nav's designated shrinking region: give the whole chain a min-width so
+     crumb links can compress to their ellipsis and right-aligned controls
+     (page actions, the PXI button) stay visible when the nav narrows —
+     e.g. while the docked assistant panel is open. */
+  & > ol {
+    flex: 0 1 auto;
+    min-width: 0;
+
+    .breadcrumb,
+    .breadcrumb > div {
+      min-width: 0;
+    }
+  }
+
   .copy-action-menu__button {
     opacity: 0;
     transition: none;
