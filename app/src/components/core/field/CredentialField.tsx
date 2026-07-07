@@ -9,6 +9,7 @@ import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { SizingProps } from "@phoenix/components/core/types";
 
 import { CredentialContext } from "./CredentialContext";
+import { selectReadOnlyInputOnFocus } from "./selectReadOnlyInputOnFocus";
 import { textFieldCSS } from "./styles";
 
 export interface CredentialFieldProps
@@ -20,7 +21,7 @@ function CredentialField({
   ref,
   ...props
 }: CredentialFieldProps & { ref?: Ref<HTMLDivElement> }) {
-  const { size = "M", children, ...otherProps } = props;
+  const { size = "M", children, onFocus, ...otherProps } = props;
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -32,6 +33,10 @@ function CredentialField({
           autoComplete="off"
           ref={ref}
           {...otherProps}
+          onFocus={(event) => {
+            onFocus?.(event);
+            selectReadOnlyInputOnFocus(event);
+          }}
           css={css(fieldBaseCSS, textFieldCSS)}
         >
           {children}
