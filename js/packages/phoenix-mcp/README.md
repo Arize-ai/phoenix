@@ -68,7 +68,7 @@ This MCP server can be used with `npx` and can be directly integrated with clien
 This package is managed via a pnpm workspace.
 
 ```sh
-// From the /js/ directory
+# From the /js/ directory
 pnpm install
 pnpm build
 ```
