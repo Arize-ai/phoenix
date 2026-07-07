@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -68,11 +69,7 @@ const traceDetailsTooltipCSS = css`
   max-width: 320px;
 `;
 
-function TraceExportInfoTip({
-  collectorEndpoint,
-}: {
-  collectorEndpoint: string;
-}) {
+function TraceInfoTip({ children }: { children: ReactNode }) {
   return (
     <span
       className="agent-observability__help"
@@ -88,10 +85,7 @@ function TraceExportInfoTip({
         placement="top"
         css={traceDetailsTooltipCSS}
       >
-        Exported traces are unredacted and include prompts, replies, tool calls,
-        tool results, and any Phoenix data the assistant read. They are sent
-        securely to <code css={codeCSS}>{collectorEndpoint}</code> and are
-        accessible only to the Phoenix development team.
+        {children}
       </ContextualHelp>
     </span>
   );
@@ -111,6 +105,9 @@ export function AgentObservabilitySettings() {
 
   return (
     <div css={settingsContainerCSS}>
+      <Text color="text-500" size="S">
+        These settings apply only to this browser.
+      </Text>
       <ul css={settingsListCSS}>
         <li css={settingRowCSS}>
           <Switch
@@ -125,15 +122,19 @@ export function AgentObservabilitySettings() {
             css={settingSwitchCSS}
           >
             <span className="agent-observability__label">
-              <Text weight="heavy" size="M">
-                Save assistant session traces in this Phoenix instance
-              </Text>
+              <span className="agent-observability__title">
+                <Text weight="heavy" size="M">
+                  Save assistant session traces in this Phoenix instance
+                </Text>
+                <TraceInfoTip>
+                  Traces are unredacted and include prompts, replies, tool
+                  calls, tool results, and any Phoenix data the assistant read.
+                </TraceInfoTip>
+              </span>
               <Text color="text-500">
-                Stores full, unredacted traces (prompts, replies, tool calls,
-                tool results, and any Phoenix data the assistant read) in the{" "}
+                Stores full, unredacted traces in the{" "}
                 <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
-                project. Anyone with access to that project can view them. This
-                setting applies only to this browser.
+                project, visible to anyone with access to that project.
               </Text>
             </span>
           </Switch>
@@ -161,17 +162,16 @@ export function AgentObservabilitySettings() {
                   <Text weight="heavy" size="M">
                     Exporting traces
                   </Text>
-                  <TraceExportInfoTip
-                    collectorEndpoint={agentsConfig.collectorEndpoint ?? ""}
-                  />
+                  <TraceInfoTip>
+                    Exported traces are unredacted and include prompts, replies,
+                    tool calls, tool results, and any Phoenix data the assistant
+                    read. They are sent to{" "}
+                    <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
+                  </TraceInfoTip>
                 </span>
                 <Text color="text-500">
-                  Shares your assistant session traces with the Phoenix team —
-                  the developers of Phoenix — to help improve the assistant.
-                  Traces are sent securely to{" "}
-                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>{" "}
-                  and are accessible only to the Phoenix team. This setting
-                  applies only to this browser.
+                  Share session traces with the developers of Phoenix to help
+                  improve the assistant. Sent securely and never shared.
                 </Text>
               </span>
             </Switch>
@@ -194,10 +194,9 @@ export function AgentObservabilitySettings() {
                 Attach your email to session traces
               </Text>
               <Text color="text-500">
-                Tags assistant session traces with your Phoenix account email so
-                sessions can be filtered by user. Only applies when trace saving
-                or export is enabled, and only when you are signed in. This
-                setting applies only to this browser.
+                Tags session traces with your Phoenix account email so sessions
+                can be filtered by user. Applies only when you are signed in and
+                saving or export is on.
               </Text>
             </span>
           </Switch>

@@ -22,17 +22,6 @@ const consentHeaderCSS = css`
   gap: var(--global-dimension-size-100);
 `;
 
-const consentListCSS = css`
-  margin: 0;
-  padding-left: 0;
-  list-style: none;
-  color: var(--global-text-color-700);
-
-  li + li {
-    margin-top: var(--global-dimension-size-75);
-  }
-`;
-
 const consentActionsCSS = css`
   display: flex;
   justify-content: flex-end;
@@ -50,9 +39,6 @@ export function AgentConsentGate() {
   const acknowledgeConsent = useAgentContext(
     (state) => state.acknowledgeConsent
   );
-  const hasRemoteCollector = useAgentContext((state) =>
-    Boolean(state.agentsConfig.collectorEndpoint)
-  );
 
   return (
     <div css={consentCSS}>
@@ -61,19 +47,11 @@ export function AgentConsentGate() {
           Before you use the assistant
         </Text>
         <Text color="text-700">
-          The assistant can and will make mistakes. What it can do may vary a
-          lot depending on the task and the context it has, so it should be used
-          with care.
+          The assistant can make mistakes, so use it with care. Review how your
+          session traces are handled below — you can change these settings
+          anytime.
         </Text>
       </div>
-      <ul css={consentListCSS}>
-        <li>
-          {hasRemoteCollector
-            ? "Review how your assistant session traces are saved and shared before you continue."
-            : "Review how your assistant session traces are saved before you continue."}
-        </li>
-        <li>You can change these settings later in Assistant settings.</li>
-      </ul>
       <div css={consentSectionCSS}>
         <Text elementType="h4" size="M" weight="heavy">
           Tracing
