@@ -1068,26 +1068,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         )
 
         request_parent_span_context: SpanContext | None = None
-        is_backend_trace_flushed = tracer is None
-
-        async def _flush_and_persist_backend_traces() -> bool:
-            nonlocal is_backend_trace_flushed
-            if is_backend_trace_flushed:
-                return True
-            if tracer is None:
-                is_backend_trace_flushed = True
-                return True
-            tracer.tracer_provider.force_flush()
-            if ingest_traces:
-                project_id = await _ensure_project_exists(request.app.state.db, project_name)
-                db_traces = tracer.get_db_traces(project_id=project_id)
-                await _persist_db_traces_and_emit_event(
-                    db=request.app.state.db,
-                    event_queue=request.state.event_queue,
-                    db_traces=db_traces,
-                )
-            is_backend_trace_flushed = True
-            return True
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             span_context = (
@@ -1101,7 +1081,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 usage=result.usage,
             )
             _log_run_complete(result)
-            await _flush_and_persist_backend_traces()
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             nonlocal request_parent_span_context
@@ -1166,7 +1145,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         yield message_chunk
             finally:
                 if tracer is not None:
-                    await _flush_and_persist_backend_traces()
+                    tracer.tracer_provider.force_flush()
+                    if ingest_traces:
+                        project_id = await _ensure_project_exists(
+                            request.app.state.db, project_name
+                        )
+                        db_traces = tracer.get_db_traces(project_id=project_id)
+                        await _persist_db_traces_and_emit_event(
+                            db=request.app.state.db,
+                            event_queue=request.state.event_queue,
+                            db_traces=db_traces,
+                        )
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
