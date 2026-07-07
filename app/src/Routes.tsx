@@ -268,7 +268,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Project Sessions",
                     description:
-                      "Browse user or application sessions and the session list for a project. Supports configurable metric charts shown above the table.",
+                      "Browse user or application sessions and the session list for a project. Supports configurable metric charts shown above the table, with a stats side panel showing session count, average session duration, and session annotation summaries.",
                   },
                 }}
               >

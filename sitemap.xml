@@ -973,6 +973,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/vercel/eve-tracing</loc>
+    <lastmod>2026-07-06T16:57:24+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/python/agentspec</loc>
     <lastmod>2026-02-15T00:07:42+00:00</lastmod>
   </url>
@@ -1839,6 +1843,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/cookbook/tracing/identify-high-signal-traces</loc>
+    <lastmod>2026-07-06T16:57:24+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/cookbook/tracing/agentic-rag-tracing</loc>

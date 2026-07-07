@@ -17,7 +17,7 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
+from opentelemetry.trace import SpanContext, format_span_id, format_trace_id, get_current_span
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult
@@ -93,7 +93,12 @@ from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.dml_event import DmlEvent, SpanInsertEvent
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import CanPutItem, DbSessionFactory
-from phoenix.tracers import Tracer, detached_otel_context
+from phoenix.tracers import (
+    Tracer,
+    detached_otel_context,
+    extract_otel_context,
+    get_cumulative_counts,
+)
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
 
@@ -377,26 +382,85 @@ def _build_usage_payload(usage: RunUsage) -> AssistantMessageMetadataUsage:
     return usage_payload
 
 
+def _get_span_context(context: Context | None) -> SpanContext | None:
+    if context is None:
+        return None
+    span_context = get_current_span(context).get_span_context()
+    return span_context if span_context.is_valid else None
+
+
 async def _persist_db_traces(
     *,
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> tuple[int, ...]:
     project_ids = tuple(dict.fromkeys(db_trace.project_rowid for db_trace in db_traces))
+    trace_ids = {db_trace.trace_id for db_trace in db_traces}
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
     persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
+
+    existing_traces_by_trace_id = {
+        trace.trace_id: trace
+        for trace in await session.scalars(
+            select(models.Trace).where(
+                models.Trace.trace_id.in_({db_trace.trace_id for db_trace in db_traces})
+            )
+        )
+    }
+    span_ids = {db_span.span_id for db_trace in db_traces for db_span in db_trace.spans}
+    existing_span_ids = (
+        set(
+            await session.scalars(
+                select(models.Span.span_id).where(models.Span.span_id.in_(span_ids))
+            )
+        )
+        if span_ids
+        else set()
+    )
+    traces_to_insert: list[models.Trace] = []
+    spans_to_insert: list[models.Span] = []
     for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
+        # Only inserted traces should point at the persistent ProjectSession;
+        # associating skipped transient traces causes autoflush warnings.
+        persistent_project_session = (
+            persistent_by_session_id[db_trace.project_session.session_id]
+            if db_trace.project_session is not None
+            else None
+        )
+        db_trace.spans = [
+            db_span for db_span in db_trace.spans if db_span.span_id not in existing_span_ids
+        ]
+        existing_trace = existing_traces_by_trace_id.get(db_trace.trace_id)
+        if existing_trace is None:
+            if db_trace.spans:
+                if persistent_project_session is not None:
+                    db_trace.project_session = persistent_project_session
+                traces_to_insert.append(db_trace)
             continue
-        # Replace the transient ProjectSession (built by Tracer) with the
-        # persistent one loaded from the upsert, so SQLAlchemy resolves the FK
-        # from the relationship and doesn't try to cascade-insert a duplicate.
-        db_trace.project_session = persistent_by_session_id[project_session.session_id]
-    session.add_all(db_traces)
+        if db_trace.start_time < existing_trace.start_time:
+            existing_trace.start_time = db_trace.start_time
+        if existing_trace.end_time < db_trace.end_time:
+            existing_trace.end_time = db_trace.end_time
+        if existing_trace.project_session_rowid is None and persistent_project_session is not None:
+            existing_trace.project_session = persistent_project_session
+        if existing_trace.project_session is not None:
+            if db_trace.start_time < existing_trace.project_session.start_time:
+                existing_trace.project_session.start_time = db_trace.start_time
+            if existing_trace.project_session.end_time < db_trace.end_time:
+                existing_trace.project_session.end_time = db_trace.end_time
+        # Copy before iterating: assigning `db_span.trace` back-populates
+        # `Trace.spans`, removing the span from `db_trace.spans` mid-iteration
+        # and silently skipping every other span in the batch.
+        for db_span in list(db_trace.spans):
+            db_span.trace = existing_trace
+            if db_span.span_cost is not None:
+                db_span.span_cost.trace = existing_trace
+            spans_to_insert.append(db_span)
+    session.add_all([*traces_to_insert, *spans_to_insert])
     await session.flush()
+    await _refresh_cumulative_span_counts(session=session, trace_ids=trace_ids)
     return project_ids
 
 
@@ -412,6 +476,25 @@ async def _persist_db_traces_and_emit_event(
         project_ids = await _persist_db_traces(session=session, db_traces=db_traces)
     if project_ids:
         event_queue.put(SpanInsertEvent(project_ids))
+
+
+async def _refresh_cumulative_span_counts(
+    *,
+    session: AsyncSession,
+    trace_ids: set[str],
+) -> None:
+    if not trace_ids:
+        return
+    spans = list(
+        await session.scalars(
+            select(models.Span).join(models.Trace).where(models.Trace.trace_id.in_(trace_ids))
+        )
+    )
+    counts = get_cumulative_counts(spans)
+    for span, count in zip(spans, counts):
+        span.cumulative_error_count = count.errors
+        span.cumulative_llm_token_count_prompt = count.prompt_tokens
+        span.cumulative_llm_token_count_completion = count.completion_tokens
 
 
 async def _load_available_sandbox_backend_types(
@@ -981,9 +1064,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             model_provider_availability=model_provider_availability,
         )
 
+        parent_context = extract_otel_context(dict(request.headers))
+        request_parent_span_context = _get_span_context(parent_context)
+
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
+            span_context = (
+                agent_span_recorder.span_context
+                if agent_span_recorder and agent_span_recorder.span_context is not None
+                else request_parent_span_context
+            )
             yield _build_message_metadata_chunk(
-                span_context=agent_span_recorder.span_context if agent_span_recorder else None,
+                span_context=span_context,
                 session_id=session_id,
                 usage=result.usage,
             )
@@ -992,7 +1083,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with (
-                    detached_otel_context(),
+                    detached_otel_context(parent_context),
                     using_session(session_id=session_id),
                     _maybe_using_user(body.attach_user_id, phoenix_user_email),
                 ):
@@ -1111,9 +1202,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
         history = VercelAIAdapter.load_messages(body.messages)
+        parent_context = extract_otel_context(dict(request.headers))
         try:
             with (
-                detached_otel_context(),
+                detached_otel_context(parent_context),
                 using_metadata({"session_id": session_id}),
                 _maybe_using_user(body.attach_user_id, phoenix_user_email),
             ):

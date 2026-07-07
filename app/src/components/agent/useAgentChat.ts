@@ -1,8 +1,14 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
+import {
+  DefaultChatTransport,
+  getToolName,
+  isTextUIPart,
+  isToolUIPart,
+} from "ai";
 import { useCallback, useEffect, useRef } from "react";
 
+import { createAgentTurnTracer } from "@phoenix/agent/chat/agentTurnTracing";
 import {
   buildAgentChatRequestBody,
   type AgentChatRequestBodyPatch,
@@ -11,10 +17,10 @@ import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
 import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
-  shouldSendAutomaticallyAfterToolOutput,
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
+import { createTurnCompletionGate } from "@phoenix/agent/chat/turnCompletion";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
@@ -39,6 +45,10 @@ import {
   useGenerateSessionSummary,
   type AgentModelSelection,
 } from "./useGenerateSessionSummary";
+
+type AgentTurnTracer = ReturnType<typeof createAgentTurnTracer>;
+
+const turnTracersByChat = new WeakMap<Chat<AgentUIMessage>, AgentTurnTracer>();
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
@@ -94,54 +104,15 @@ export function useAgentChat({
             // be recreated without losing visible conversation history.
             const initialMessages =
               store.getState().sessionMap[sessionId]?.messages ?? [];
-            const chat = new Chat<AgentUIMessage>({
-              id: sessionId,
-              messages: initialMessages,
-              transport: new DefaultChatTransport({
-                api: chatApiUrl,
-                fetch: authFetch,
-                prepareSendMessagesRequest: ({
-                  body,
-                  id,
-                  messages,
-                  trigger,
-                  messageId,
-                }) => ({
-                  body: buildAgentChatRequestBody({
-                    body,
-                    id,
-                    messages,
-                    trigger,
-                    messageId,
-                    capabilities: store.getState().capabilities,
-                    observability: store.getState().observability,
-                    agentsConfig: store.getState().agentsConfig,
-                    permissions: store.getState().permissions,
-                    contexts: selectActiveContexts(store.getState()),
-                    modelSelection: modelSelectionRef.current,
-                  }),
-                }),
-              }),
-              // Tool execution must target the runtime-owned chat instance so
-              // tool outputs continue to attach to the correct conversation
-              // even if the visible React surface remounts during the request.
-              onToolCall: ({ toolCall }) => {
-                void handleAgentToolCall({
-                  toolCall,
-                  sessionId,
-                  addToolOutput: chat.addToolOutput,
-                  appendMessagePart: (part) => {
-                    chat.messages = appendPartToToolMessage({
-                      messages: chat.messages,
-                      toolCallId: toolCall.toolCallId,
-                      part,
-                    });
-                  },
-                  agentStore: store,
-                });
-              },
-              sendAutomaticallyWhen: shouldSendAutomaticallyAfterToolOutput,
-              onFinish: ({ messages: finalMessages, message }) => {
+            const turnTracer = createAgentTurnTracer({
+              sessionId,
+              fetch: authFetch,
+              getAgentsConfig: () => store.getState().agentsConfig,
+              getObservability: () => store.getState().observability,
+            });
+            const turnCompletionGate = createTurnCompletionGate({
+              endTurn: (error) => turnTracer.endTurn(error),
+              finalize: ({ finalMessages, message }) => {
                 const usage = message.metadata?.usage;
                 if (usage != null) {
                   store.getState().setSessionUsage(sessionId, {
@@ -162,6 +133,77 @@ export function useAgentChat({
                 }
               },
             });
+            const chat = new Chat<AgentUIMessage>({
+              id: sessionId,
+              messages: initialMessages,
+              transport: new DefaultChatTransport({
+                api: chatApiUrl,
+                fetch: turnTracer.fetch,
+                prepareSendMessagesRequest: ({
+                  body,
+                  id,
+                  messages,
+                  trigger,
+                  messageId,
+                }) => {
+                  // The gate may flush a stale finished turn (ending its
+                  // trace) before the tracer opens a span for this one.
+                  turnCompletionGate.beginTurn();
+                  turnTracer.startTurn(trigger);
+                  turnTracer.setTurnInput(getLastUserText(messages));
+                  return {
+                    body: buildAgentChatRequestBody({
+                      body,
+                      id,
+                      messages,
+                      trigger,
+                      messageId,
+                      capabilities: store.getState().capabilities,
+                      observability: store.getState().observability,
+                      agentsConfig: store.getState().agentsConfig,
+                      permissions: store.getState().permissions,
+                      contexts: selectActiveContexts(store.getState()),
+                      modelSelection: modelSelectionRef.current,
+                    }),
+                  };
+                },
+              }),
+              // Tool execution must target the runtime-owned chat instance so
+              // tool outputs continue to attach to the correct conversation
+              // even if the visible React surface remounts during the request.
+              onToolCall: ({ toolCall }) => {
+                void turnTracer.traceToolCall({
+                  toolCall,
+                  execute: (recordToolOutput) =>
+                    handleAgentToolCall({
+                      toolCall,
+                      sessionId,
+                      addToolOutput: async (toolOutput) => {
+                        recordToolOutput(toolOutput);
+                        await chat.addToolOutput(toolOutput);
+                      },
+                      appendMessagePart: (part) => {
+                        chat.messages = appendPartToToolMessage({
+                          messages: chat.messages,
+                          toolCallId: toolCall.toolCallId,
+                          part,
+                        });
+                      },
+                      agentStore: store,
+                    }),
+                });
+              },
+              sendAutomaticallyWhen: ({ messages }) =>
+                turnCompletionGate.handleSendAutomaticallyWhen({ messages }),
+              onError: (error) => {
+                turnCompletionGate.fail(error);
+              },
+              onFinish: ({ messages: finalMessages, message }) => {
+                turnTracer.setTurnOutput(getMessageText(message));
+                turnCompletionGate.handleFinish({ finalMessages, message });
+              },
+            });
+            turnTracersByChat.set(chat, turnTracer);
             return chat;
           },
         });
@@ -224,27 +266,34 @@ export function useAgentChat({
       }
     });
 
+    const turnTracer = chatInstance
+      ? turnTracersByChat.get(chatInstance)
+      : undefined;
     await Promise.all(
-      unresolvedToolCalls.map((toolCall) =>
-        addToolOutput({
+      unresolvedToolCalls.map((toolCall) => {
+        const toolOutput = {
           tool: toolCall.tool,
           toolCallId: toolCall.toolCallId,
           errorText,
           state: "output-error",
-        })
-      )
+        } as const;
+        turnTracer?.recordToolOutput(toolOutput);
+        return addToolOutput(toolOutput);
+      })
     );
   };
 
   const handleStopWithToolCleanup = async () => {
     await stop();
-    setMessages(removeInterruptedToolInputParts);
-
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,
       errorText: USER_INTERRUPT_ERROR,
     });
+    if (chatInstance) {
+      await turnTracersByChat.get(chatInstance)?.endTurn(USER_INTERRUPT_ERROR);
+    }
+    setMessages(removeInterruptedToolInputParts);
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
@@ -252,13 +301,12 @@ export function useAgentChat({
       return;
     }
 
-    setMessages(removeInterruptedToolInputParts);
-
     const latestMessages = chatInstance?.messages ?? messages;
     await addInterruptedToolOutputs({
       messages: latestMessages,
       errorText: SYSTEM_INTERRUPT_ERROR,
     });
+    setMessages(removeInterruptedToolInputParts);
 
     await sendMessage(...args);
   };
@@ -283,6 +331,12 @@ export function useAgentChat({
     if (!pendingElicitation || !sessionId) {
       return;
     }
+    if (chatInstance) {
+      turnTracersByChat.get(chatInstance)?.recordToolOutput({
+        toolCallId: pendingElicitation.toolCallId,
+        output,
+      });
+    }
     void addToolOutput({
       tool: "ask_user",
       toolCallId: pendingElicitation.toolCallId,
@@ -294,6 +348,13 @@ export function useAgentChat({
   const handleElicitationCancel = () => {
     if (!pendingElicitation || !sessionId) {
       return;
+    }
+    if (chatInstance) {
+      turnTracersByChat.get(chatInstance)?.recordToolOutput({
+        toolCallId: pendingElicitation.toolCallId,
+        state: "output-error",
+        errorText: "User cancelled the question.",
+      });
     }
     void addToolOutput({
       state: "output-error",
@@ -464,6 +525,16 @@ function removeInterruptedToolInputParts(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+function getLastUserText(messages: AgentUIMessage[]): string | null {
+  const userMessage = messages.findLast((message) => message.role === "user");
+  return userMessage ? getMessageText(userMessage) : null;
+}
+
+function getMessageText(message: AgentUIMessage): string | null {
+  const text = message.parts.findLast(isTextUIPart)?.text.trim();
+  return text || null;
 }
 
 function appendPartToToolMessage({
