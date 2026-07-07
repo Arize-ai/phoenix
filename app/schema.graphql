@@ -3711,6 +3711,9 @@ type SandboxProviderCredentialSpec {
   isRequired: Boolean!
 }
 
+"""
+An entity returned by global search. One of the searchable resource types: Project, Dataset, Experiment, or Prompt.
+"""
 union SearchResult = Project | Dataset | Experiment | Prompt
 
 type Secret implements Node {
