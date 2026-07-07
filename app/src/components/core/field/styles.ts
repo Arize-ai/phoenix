@@ -53,6 +53,7 @@ export const fieldBaseCSS = css`
       border-color: transparent;
     }
     &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
+      background-color: var(--global-color-primary-50);
       border-color: var(--global-color-gray-400);
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
@@ -84,12 +85,21 @@ export const fieldBaseCSS = css`
         border-color: transparent;
       }
       &[data-focus-visible]:not([data-invalid]) {
+        background-color: var(--global-color-primary-50);
         border-color: var(--global-color-gray-400);
       }
       &[data-hovered]:not([data-invalid]):not([data-focus-visible]) {
         background-color: var(--global-color-primary-50);
         border-color: transparent;
       }
+    }
+  }
+  &[data-readonly]:has(button:hover),
+  &[data-readonly]:has(button[data-focus-visible]),
+  &[data-readonly]:has(button:focus-visible) {
+    .react-aria-Input,
+    .react-aria-TextArea {
+      background-color: var(--global-color-primary-50);
     }
   }
   [slot="description"],
@@ -199,6 +209,7 @@ export const textFieldCSS = css`
       outline-color: transparent;
     }
     &:is([data-readonly], [readonly])[data-focus-visible]:not([data-invalid]) {
+      background-color: var(--global-color-primary-50);
       outline-color: var(--global-color-gray-400);
     }
     &:is([data-readonly], [readonly])[data-hovered]:not([data-invalid]):not(
@@ -223,12 +234,23 @@ export const textFieldCSS = css`
         outline-color: transparent;
       }
       &[data-focus-visible]:not([data-invalid]) {
+        background-color: var(--global-color-primary-50);
         outline-color: var(--global-color-gray-400);
       }
       &[data-hovered]:not([data-invalid]):not([data-focus-visible]) {
         background-color: var(--global-color-primary-50);
         border-color: transparent;
       }
+    }
+  }
+
+  &[data-readonly]:has(button:hover),
+  &[data-readonly]:has(button[data-focus-visible]),
+  &[data-readonly]:has(button:focus-visible) {
+    .react-aria-Input,
+    .react-aria-TextArea,
+    input {
+      background-color: var(--global-color-primary-50);
     }
   }
 
