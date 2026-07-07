@@ -21,6 +21,7 @@ import {
   ExpandableContent,
   Icon,
   Icons,
+  IDBadge,
   LinkButton,
   ListBox,
   ListBoxItem,
@@ -316,16 +317,9 @@ function SessionTurnDivider({
       css={sessionTurnDividerCSS}
     >
       <Text fontFamily="mono" color="text-500">
-        {paddedIndex}
+        Turn {paddedIndex}
       </Text>
       <div className="session-turn-divider__rule" />
-      <CopyToClipboardButton
-        text={traceId}
-        size="S"
-        variant="quiet"
-        tooltipText="Copy trace ID"
-        aria-label="Copy trace ID"
-      />
       <LinkButton
         size="S"
         variant="quiet"
@@ -337,6 +331,16 @@ function SessionTurnDivider({
           traceId,
           spanNodeId: rootSpan.id,
         })}
+      >
+        Trace
+      </LinkButton>
+      <IDBadge id={traceId} />
+      <CopyToClipboardButton
+        text={traceId}
+        size="S"
+        variant="quiet"
+        tooltipText="Copy trace ID"
+        aria-label="Copy trace ID"
       />
     </Flex>
   );
@@ -543,6 +547,13 @@ function SessionTurnList({
 }
 
 const turnDetailRowCSS = css`
+  &[data-selected],
+  &[data-after-selected] {
+    .session-turn-divider__rule {
+      visibility: hidden;
+    }
+  }
+
   &[data-selected] {
     background-color: var(--global-list-detail-selected-background-color);
     border-bottom: var(--global-border-size-thin) solid
@@ -752,34 +763,41 @@ export function SessionDetailsTraceList({
             debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
           }
         >
-          {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
-            <div
-              key={rootSpan.spanId}
-              css={turnDetailRowCSS}
-              data-selected={traceId === selectedTraceId || undefined}
-              ref={(el) => {
-                if (el) {
-                  rowRefs.current.set(traceId, el);
-                } else {
-                  rowRefs.current.delete(traceId);
-                }
-              }}
-            >
-              <View
-                paddingTop="size-100"
-                paddingBottom="size-200"
-                paddingX="size-200"
+          {sessionRootSpans.map(({ traceId, rootSpan }, index) => {
+            const isSelected = traceId === selectedTraceId;
+            const isAfterSelected =
+              index > 0 &&
+              sessionRootSpans[index - 1]?.traceId === selectedTraceId;
+            return (
+              <div
+                key={rootSpan.spanId}
+                css={turnDetailRowCSS}
+                data-selected={isSelected || undefined}
+                data-after-selected={isAfterSelected || undefined}
+                ref={(el) => {
+                  if (el) {
+                    rowRefs.current.set(traceId, el);
+                  } else {
+                    rowRefs.current.delete(traceId);
+                  }
+                }}
               >
-                <View width="100%" maxWidth="size-8500" marginX="auto">
-                  <SessionTurnDetail
-                    index={index}
-                    traceId={traceId}
-                    rootSpan={rootSpan}
-                  />
+                <View
+                  paddingTop="size-100"
+                  paddingBottom="size-200"
+                  paddingX="size-200"
+                >
+                  <View width="100%" maxWidth="size-8500" marginX="auto">
+                    <SessionTurnDetail
+                      index={index}
+                      traceId={traceId}
+                      rootSpan={rootSpan}
+                    />
+                  </View>
                 </View>
-              </View>
-            </div>
-          ))}
+              </div>
+            );
+          })}
           {isLoadingNext && (
             <View
               borderBottomColor="default"
