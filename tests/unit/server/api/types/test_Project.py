@@ -5128,19 +5128,21 @@ async def test_session_count_returns_expected_count(
     async with db() as session:
         project = await _add_project(session, name="session-count-test")
         await _add_project_session(session, project, start_time=early)
-        await _add_project_session(session, project, start_time=late)
+        await _add_project_session(session, project, session_id="target-session", start_time=late)
 
     query = """
-      query ($projectId: ID!, $timeRange: TimeRange) {
+      query ($projectId: ID!, $timeRange: TimeRange, $sessionId: String) {
         project: node(id: $projectId) {
           ... on Project {
-            sessionCount(timeRange: $timeRange)
+            sessionCount(timeRange: $timeRange, sessionId: $sessionId)
           }
         }
       }
     """
 
     project_gid = str(GlobalID(type_name="Project", node_id=str(project.id)))
+
+    # Unfiltered: batched through the record_counts dataloader.
     response = await gql_client.execute(
         query=query,
         variables={
@@ -5152,6 +5154,7 @@ async def test_session_count_returns_expected_count(
     assert response.data is not None
     assert response.data["project"]["sessionCount"] == 2
 
+    # Time-range filter still routes through the dataloader.
     response = await gql_client.execute(
         query=query,
         variables={
@@ -5160,6 +5163,19 @@ async def test_session_count_returns_expected_count(
                 "start": late.isoformat(),
                 "end": (late + timedelta(days=1)).isoformat(),
             },
+        },
+    )
+
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["project"]["sessionCount"] == 1
+
+    # Exact session-ID match exercises the direct-query fallback branch.
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "sessionId": "target-session",
         },
     )
 
