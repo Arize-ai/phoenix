@@ -684,10 +684,7 @@ export function ChatView({
         <div className="chat__input">
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
-              <AgentConsentGate
-                modelMenuValue={modelMenuValue}
-                onModelChange={onModelChange}
-              />
+              <AgentConsentGate />
             </PromptInput>
           ) : rewindRequest ? (
             <PromptInput status={status} isDisabled mode="elicitation">

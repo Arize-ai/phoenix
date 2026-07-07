@@ -98,7 +98,7 @@ export function AgentModelCredentialForm({
           <>
             <Text size="XS" color="text-700">
               Add server-side credentials for {modelName} to use this model with
-              the assistant.
+              the assistant, or select a different model below.
             </Text>
             <ProviderServerCredentialsPanel
               provider={provider}
@@ -108,7 +108,8 @@ export function AgentModelCredentialForm({
         ) : (
           <Text size="XS" color="text-700">
             Contact an administrator to configure {provider.name} credentials
-            before using {modelName} with the assistant.
+            before using {modelName} with the assistant, or select a different
+            model below.
           </Text>
         )}
       </Flex>
