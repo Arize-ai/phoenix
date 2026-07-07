@@ -7,12 +7,18 @@ const warningCSS = css`
   color: var(--global-color-warning);
 `;
 
-export function SystemSettingsWarning() {
+export function SystemSettingsWarning({
+  isAdmin = false,
+}: {
+  isAdmin?: boolean;
+}) {
   return (
     <Flex direction="row" gap="size-75" alignItems="center" css={warningCSS}>
       <Icon svg={<Icons.Lock />} />
       <Text color="inherit" size="S">
-        Disabled by system settings. An administrator needs to turn this on.
+        {isAdmin
+          ? "Turning this on also enables it in system settings for all users."
+          : "Disabled by system settings. An administrator needs to turn this on."}
       </Text>
     </Flex>
   );

@@ -245,6 +245,16 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  /* Elicitation-style surfaces (consent gate, rewind confirmation, question
+     carousel) can be taller than the panel; let the input region shrink and
+     scroll internally instead of clipping at the panel edge. */
+  .chat__input:has([data-input-mode="elicitation"]) {
+    flex-shrink: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .chat__loading {
     color: var(--global-text-color-300);
   }
@@ -601,7 +611,7 @@ export function ChatView({
                     quickActions={quickActions}
                     onQuickAction={handleQuickAction}
                   >
-                    {missingCredentialsProvider ? (
+                    {hasAcknowledgedConsent && missingCredentialsProvider ? (
                       <AgentModelCredentialForm
                         modelName={modelMenuValue.modelName}
                         onCredentialsUpdated={refreshCredentialStatus}
@@ -674,7 +684,10 @@ export function ChatView({
         <div className="chat__input">
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
-              <AgentConsentGate />
+              <AgentConsentGate
+                modelMenuValue={modelMenuValue}
+                onModelChange={onModelChange}
+              />
             </PromptInput>
           ) : rewindRequest ? (
             <PromptInput status={status} isDisabled mode="elicitation">

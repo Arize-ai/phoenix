@@ -11,6 +11,13 @@ export const promptInputContainerCSS = css`
   &[data-input-mode="prompt"]:focus-within {
     border-color: var(--prompt-input-border-color-focus);
   }
+
+  /* Elicitation surfaces host tall content (consent gate, question carousel)
+     inside a height-constrained input region; shrink with the region so the
+     content can scroll instead of overflowing the panel. */
+  &[data-input-mode="elicitation"] {
+    min-height: 0;
+  }
 `;
 
 export const promptInputBodyCSS = css`

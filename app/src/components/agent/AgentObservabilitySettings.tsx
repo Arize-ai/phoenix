@@ -1,8 +1,11 @@
 import { css } from "@emotion/react";
+import { graphql, useMutation } from "react-relay";
 
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
-import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { useViewer } from "@phoenix/contexts/ViewerContext";
 
+import type { AgentObservabilitySettingsSetTraceRecordingMutation } from "./__generated__/AgentObservabilitySettingsSetTraceRecordingMutation.graphql";
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
 const settingsContainerCSS = css`
@@ -88,8 +91,9 @@ function TraceExportInfoTip({
         css={traceDetailsTooltipCSS}
       >
         Exported traces are unredacted and include prompts, replies, tool calls,
-        tool results, and any Phoenix data the assistant read. They are sent to{" "}
-        <code css={codeCSS}>{collectorEndpoint}</code>.
+        tool results, and any Phoenix data the assistant read. They are sent
+        securely to <code css={codeCSS}>{collectorEndpoint}</code> and are
+        accessible only to the Phoenix development team.
       </ContextualHelp>
     </span>
   );
@@ -99,10 +103,52 @@ export function AgentObservabilitySettings() {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
+  const store = useAgentStore();
+  const { viewer } = useViewer();
+  // Match IsAdminIfAuthEnabled server-side: no viewer => auth disabled => treat as admin
+  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
 
-  const localTracesDisabledByAdmin = !agentsConfig.allowLocalTraces;
-  const remoteExportDisabledByAdmin = !agentsConfig.allowRemoteExport;
+  const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
+  const remoteExportOffInSystemSettings = !agentsConfig.allowRemoteExport;
+
+  const [setTraceRecording, isUpdatingTraceRecording] =
+    useMutation<AgentObservabilitySettingsSetTraceRecordingMutation>(graphql`
+      mutation AgentObservabilitySettingsSetTraceRecordingMutation(
+        $input: SetAgentTraceRecordingInput!
+      ) {
+        setAgentTraceRecording(input: $input) {
+          allowLocalTraces
+          allowRemoteExport
+        }
+      }
+    `);
+
+  // Effective recording is `system setting AND personal setting`, so an admin
+  // turning a system-capped toggle on must also raise the workspace-level flag
+  // for the toggle to have any effect. Turning off only clears the personal
+  // setting — it never lowers the workspace-wide flag for everyone.
+  const raiseSystemSetting = (patch: {
+    allowLocalTraces?: boolean;
+    allowRemoteExport?: boolean;
+  }) => {
+    setTraceRecording({
+      variables: {
+        input: {
+          allowLocalTraces:
+            patch.allowLocalTraces ?? agentsConfig.allowLocalTraces,
+          allowRemoteExport:
+            patch.allowRemoteExport ?? agentsConfig.allowRemoteExport,
+        },
+      },
+      onCompleted: (response) => {
+        store.getState().setAgentsConfig({
+          allowLocalTraces: response.setAgentTraceRecording.allowLocalTraces,
+          allowRemoteExport: response.setAgentTraceRecording.allowRemoteExport,
+        });
+      },
+    });
+  };
 
   return (
     <div css={settingsContainerCSS}>
@@ -110,11 +156,17 @@ export function AgentObservabilitySettings() {
         <li css={settingRowCSS}>
           <Switch
             isSelected={
-              !localTracesDisabledByAdmin && observability.storeLocalTraces
+              !localTracesOffInSystemSettings && observability.storeLocalTraces
             }
-            isDisabled={localTracesDisabledByAdmin}
+            isDisabled={
+              (localTracesOffInSystemSettings && !isAdmin) ||
+              isUpdatingTraceRecording
+            }
             onChange={(storeLocalTraces) => {
               setObservability({ storeLocalTraces });
+              if (storeLocalTraces && localTracesOffInSystemSettings) {
+                raiseSystemSetting({ allowLocalTraces: true });
+              }
             }}
             labelPlacement="start"
             css={settingSwitchCSS}
@@ -132,19 +184,27 @@ export function AgentObservabilitySettings() {
               </Text>
             </span>
           </Switch>
-          {localTracesDisabledByAdmin ? <SystemSettingsWarning /> : null}
+          {localTracesOffInSystemSettings ? (
+            <SystemSettingsWarning isAdmin={isAdmin} />
+          ) : null}
         </li>
         {isRemoteCollectorConfigured ? (
           <li css={settingRowCSS}>
             <Switch
               isSelected={
                 isRemoteCollectorConfigured &&
-                !remoteExportDisabledByAdmin &&
+                !remoteExportOffInSystemSettings &&
                 observability.exportRemoteTraces
               }
-              isDisabled={remoteExportDisabledByAdmin}
+              isDisabled={
+                (remoteExportOffInSystemSettings && !isAdmin) ||
+                isUpdatingTraceRecording
+              }
               onChange={(exportRemoteTraces) => {
                 setObservability({ exportRemoteTraces });
+                if (exportRemoteTraces && remoteExportOffInSystemSettings) {
+                  raiseSystemSetting({ allowRemoteExport: true });
+                }
               }}
               labelPlacement="start"
               css={settingSwitchCSS}
@@ -159,13 +219,18 @@ export function AgentObservabilitySettings() {
                   />
                 </span>
                 <Text color="text-500">
-                  Exports assistant session traces to{" "}
-                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
-                  This setting applies only to this browser.
+                  Shares your assistant session traces with the Phoenix team —
+                  the developers of Phoenix — to help improve the assistant.
+                  Traces are sent securely to{" "}
+                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>{" "}
+                  and are accessible only to the Phoenix team. This setting
+                  applies only to this browser.
                 </Text>
               </span>
             </Switch>
-            {remoteExportDisabledByAdmin ? <SystemSettingsWarning /> : null}
+            {remoteExportOffInSystemSettings ? (
+              <SystemSettingsWarning isAdmin={isAdmin} />
+            ) : null}
           </li>
         ) : null}
         <li css={settingRowCSS}>
