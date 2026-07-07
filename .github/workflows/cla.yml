@@ -21,6 +21,16 @@ jobs:
       statuses: write # set the CLA commit status
     steps:
       # Existing CLA integration; replacing the service requires a separate CLA migration.
+      #
+      # Node 20 deprecation: this action's manifest declares `using: node20`, so GitHub
+      # emits a Node 20 deprecation warning and now runs it on the Node 24 runtime by
+      # default (per https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/).
+      # The action is functional on Node 24; the warning is informational only. Upstream
+      # (contributor-assistant/github-action) is archived and read-only as of March 2026,
+      # with v2.6.1 as its final release, so there is no Node 24 release to bump the pin to.
+      # We intentionally keep this vetted, SHA-pinned release rather than repoint to an
+      # unvetted community fork on this pull_request_target workflow (which holds write
+      # scopes). Revisit if/when a trusted Node 24 successor exists.
       - name: "CLA Assistant"
         if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
         uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # zizmor: ignore[archived-uses] v2.6.1
