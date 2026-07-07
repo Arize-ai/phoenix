@@ -26,7 +26,7 @@ import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 // `padding: static-size-100` (8px) and `padding-right: static-size-200`
 // (16px), so the detached pill rendered at these fixed offsets appears to
 // stay exactly where the in-flow pill was.
-const NAV_PILL_TOP_PX = 8;
+const NAV_PILL_TOP_PX = 4;
 const NAV_PILL_RIGHT_PX = 16;
 // Gap between the pill and an open drawer's left edge.
 const DRAWER_EDGE_GAP_PX = 12;
@@ -34,10 +34,24 @@ const DRAWER_EDGE_GAP_PX = 12;
 // drawer cannot push the pill off screen.
 const MIN_VIEWPORT_RIGHT_GAP_PX = 96;
 
-// The pill keeps its intrinsic size when the nav gets tight; the breadcrumb
-// is the nav's designated shrinking region (see topNavCSS in Navbar.tsx).
-const inlineNavPillCSS = css`
+// Height of the resting pill (see FAB_RESTING_SIZE in agentFabPositioning.ts).
+// The streaming state grows to FAB_STREAMING_SIZE.height (40px); pinning the
+// wrapper to the resting height with visible overflow lets the taller
+// streaming state bleed out without reflowing the nav row.
+const RESTING_PILL_HEIGHT_PX = 36;
+
+// Fixed-height, centered wrapper so the button's height animation (resting
+// 36px <-> streaming 40px) does not change the wrapper's box and reflow the
+// surrounding layout. The wrapper keeps its intrinsic size when the nav gets
+// tight; the breadcrumb is the nav's designated shrinking region (see
+// topNavCSS in Navbar.tsx).
+const pillWrapperCSS = css`
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: ${RESTING_PILL_HEIGHT_PX}px;
+  overflow: visible;
 `;
 
 const detachedPillCSS = css`
@@ -156,16 +170,17 @@ export function AgentChatTopNavButton() {
   }
 
   const button = (
-    <TooltipTrigger delay={1000} closeDelay={0}>
-      <AgentChatWidgetButton
-        ariaLabel="Open assistant"
-        aria-expanded={isOpen}
-        isStreaming={isStreaming}
-        onPress={() => toggleOpen()}
-        css={inlineNavPillCSS}
-      />
-      <AgentChatWidgetTooltip />
-    </TooltipTrigger>
+    <div css={pillWrapperCSS}>
+      <TooltipTrigger delay={1000} closeDelay={0}>
+        <AgentChatWidgetButton
+          ariaLabel="Open assistant"
+          aria-expanded={isOpen}
+          isStreaming={isStreaming}
+          onPress={() => toggleOpen()}
+        />
+        <AgentChatWidgetTooltip />
+      </TooltipTrigger>
+    </div>
   );
 
   // Modals cover the whole viewport with a backdrop; portal into the modal
