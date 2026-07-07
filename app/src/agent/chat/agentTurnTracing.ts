@@ -1,4 +1,9 @@
 import {
+  MimeType,
+  OpenInferenceSpanKind,
+  SemanticConventions,
+} from "@arizeai/openinference-semantic-conventions";
+import {
   context,
   propagation,
   SpanKind,
@@ -18,11 +23,6 @@ import {
   type SpanExporter,
 } from "@opentelemetry/sdk-trace-base";
 import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
-import {
-  MimeType,
-  OpenInferenceSpanKind,
-  SemanticConventions,
-} from "@arizeai/openinference-semantic-conventions";
 
 import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
 import type {
@@ -35,6 +35,11 @@ type AgentTurnTrace = {
   span: Span;
   context: Context;
   traceId: string;
+};
+
+type ClientIterationTrace = {
+  span: Span;
+  context: Context;
 };
 
 type AgentToolCallTraceInput = {
@@ -102,10 +107,8 @@ export class PxiRootSpanExporter implements SpanExporter {
   private exportersByProjectName = new Map<string, SpanExporter>();
 
   constructor(
-    private createLocalTraceExporter: CreateLocalTraceExporter =
-      createDefaultLocalTraceExporter,
-    private getProjectNameForSpan: GetProjectNameForSpan =
-      getPxiProjectNameForSpan
+    private createLocalTraceExporter: CreateLocalTraceExporter = createDefaultLocalTraceExporter,
+    private getProjectNameForSpan: GetProjectNameForSpan = getPxiProjectNameForSpan
   ) {}
 
   export(
@@ -276,7 +279,49 @@ export function createAgentTurnTracer({
   forceFlushTimeoutMs = DEFAULT_FORCE_FLUSH_TIMEOUT_MS,
 }: AgentTurnTracingOptions) {
   let activeTurnTrace: AgentTurnTrace | null = null;
+  let activeClientIteration: ClientIterationTrace | null = null;
   const activeToolSpansByToolCallId = new Map<string, Span>();
+
+  // A client iteration groups the client-side tool executions that happen
+  // between two server requests, mirroring the server's `pxi.iter.server`
+  // span. It starts lazily on the first client tool call after a server
+  // response and ends when the next request goes out (or the turn ends).
+  function getOrStartClientIteration(
+    turnTrace: AgentTurnTrace
+  ): ClientIterationTrace {
+    if (activeClientIteration) {
+      return activeClientIteration;
+    }
+    const tracer = trace.getTracer(PXI_TRACER_NAME);
+    const span = tracer.startSpan(
+      "pxi.iter.client",
+      {
+        kind: SpanKind.CLIENT,
+        attributes: {
+          [SemanticConventions.OPENINFERENCE_SPAN_KIND]:
+            OpenInferenceSpanKind.AGENT,
+          [SemanticConventions.SESSION_ID]: sessionId,
+        },
+      },
+      turnTrace.context
+    );
+    activeClientIteration = {
+      span,
+      context: trace.setSpan(turnTrace.context, span),
+    };
+    return activeClientIteration;
+  }
+
+  function endClientIteration(error?: unknown) {
+    if (!activeClientIteration) {
+      return;
+    }
+    if (error == null) {
+      activeClientIteration.span.setStatus({ code: SpanStatusCode.OK });
+    }
+    activeClientIteration.span.end();
+    activeClientIteration = null;
+  }
 
   function startTurn(_trigger: "submit-message" | "regenerate-message") {
     if (activeTurnTrace) {
@@ -327,11 +372,16 @@ export function createAgentTurnTracer({
         code: SpanStatusCode.ERROR,
         message: error,
       });
+    } else if (error == null) {
+      // Mirror the server-side agent span, which reports OK on success;
+      // leaving the status UNSET renders as "unknown" rather than "success".
+      activeTurnTrace.span.setStatus({ code: SpanStatusCode.OK });
     }
     for (const span of activeToolSpansByToolCallId.values()) {
       span.end();
     }
     activeToolSpansByToolCallId.clear();
+    endClientIteration(error);
     activeTurnTrace.span.end();
     activeTurnTrace = null;
     try {
@@ -393,6 +443,9 @@ export function createAgentTurnTracer({
       output.output !== undefined ||
       output.errorText
     ) {
+      if (!output.errorText && output.state !== "output-error") {
+        span.setStatus({ code: SpanStatusCode.OK });
+      }
       span.end();
       activeToolSpansByToolCallId.delete(output.toolCallId);
     }
@@ -416,6 +469,7 @@ export function createAgentTurnTracer({
       return execute(() => undefined);
     }
 
+    const iteration = getOrStartClientIteration(turnTrace);
     const tracer = trace.getTracer(PXI_TRACER_NAME);
     const span = tracer.startSpan(
       toolCall.toolName,
@@ -433,10 +487,10 @@ export function createAgentTurnTracer({
           [SemanticConventions.SESSION_ID]: sessionId,
         },
       },
-      turnTrace.context
+      iteration.context
     );
 
-    const toolContext = trace.setSpan(turnTrace.context, span);
+    const toolContext = trace.setSpan(iteration.context, span);
     const recordToolOutput = (output: ToolOutputTraceInput) => {
       recordToolOutputForActiveSpan({
         ...output,
@@ -463,6 +517,10 @@ export function createAgentTurnTracer({
     if (!turnTrace) {
       return fetch(input, init);
     }
+    // Sending a request to the server closes out the current batch of
+    // client-side tool executions; the server work is parented directly
+    // under `pxi.turn` via the injected trace context.
+    endClientIteration();
     return context.with(turnTrace.context, () => {
       return fetch(
         input,

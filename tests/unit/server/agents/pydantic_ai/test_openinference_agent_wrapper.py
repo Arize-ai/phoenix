@@ -273,6 +273,24 @@ async def test_iter_emits_agent_span_for_text_response(
     assert llm_span.parent.span_id == agent_span.context.span_id
 
 
+async def test_iter_uses_explicit_span_name_override(
+    wrapped_model: OpenInferenceModelWrapper,
+    tracer: Tracer,
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    """``span_name`` overrides the default ``{agent name}.iter`` naming."""
+    inner: Agent[None, str] = Agent(wrapped_model, name="TestAgent", deps_type=type(None))
+    agent = OpenInferenceAgentWrapper[None, str](inner, tracer=tracer, span_name="pxi.iter.server")
+
+    async with agent.iter("hello") as agent_run:
+        async for _ in agent_run:
+            pass
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    assert agent_span.name == "pxi.iter.server"
+
+
 async def test_agent_span_filters_empty_thinking_for_single_text_output(
     make_agent_with_response_parts: Callable[[list[Any]], OpenInferenceAgentWrapper],
     in_memory_span_exporter: InMemorySpanExporter,

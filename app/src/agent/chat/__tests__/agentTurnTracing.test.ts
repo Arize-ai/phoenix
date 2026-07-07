@@ -1,3 +1,4 @@
+import { SpanStatusCode } from "@opentelemetry/api";
 import { ExportResultCode } from "@opentelemetry/core";
 import type { ReadableSpan, SpanExporter } from "@opentelemetry/sdk-trace-base";
 import { WebTracerProvider } from "@opentelemetry/sdk-trace-web";
@@ -158,6 +159,114 @@ describe("createAgentTurnTracer", () => {
     // persists session state after endTurn and must never be blocked.
     await expect(tracer.endTurn()).resolves.toBeUndefined();
     expect(forceFlushSpy).toHaveBeenCalled();
+  });
+
+  it("sets an OK status on the turn span when the turn ends without error", async () => {
+    const exportedSpans: ReadableSpan[] = [];
+    vi.spyOn(PxiRootSpanExporter.prototype, "export").mockImplementation(
+      (spans, resultCallback) => {
+        exportedSpans.push(...spans);
+        resultCallback({ code: ExportResultCode.SUCCESS });
+      }
+    );
+    const tracer = createAgentTurnTracer({
+      sessionId: "session-1",
+      fetch: createMockFetch(),
+      getAgentsConfig: () => agentsConfig,
+      getObservability: () => observability,
+      forceFlushTimeoutMs: 0,
+    });
+
+    tracer.startTurn("submit-message");
+    await tracer.endTurn();
+    tracer.startTurn("submit-message");
+    await tracer.endTurn("user interrupted");
+
+    const [successTurnSpan, errorTurnSpan] = exportedSpans.filter(
+      (span) => span.name === "pxi.turn"
+    );
+    expect(successTurnSpan?.status.code).toBe(SpanStatusCode.OK);
+    expect(errorTurnSpan?.status).toEqual({
+      code: SpanStatusCode.ERROR,
+      message: "user interrupted",
+    });
+  });
+
+  it("groups client tool spans under per-iteration pxi.iter.client spans", async () => {
+    const exportedSpans: ReadableSpan[] = [];
+    vi.spyOn(PxiRootSpanExporter.prototype, "export").mockImplementation(
+      (spans, resultCallback) => {
+        exportedSpans.push(...spans);
+        resultCallback({ code: ExportResultCode.SUCCESS });
+      }
+    );
+    const tracer = createAgentTurnTracer({
+      sessionId: "session-1",
+      fetch: createMockFetch(),
+      getAgentsConfig: () => agentsConfig,
+      getObservability: () => observability,
+      forceFlushTimeoutMs: 0,
+    });
+
+    tracer.startTurn("submit-message");
+    await tracer.fetch("/agents/assistant/sessions/session-1/chat", {
+      method: "POST",
+    });
+    await tracer.traceToolCall({
+      toolCall: {
+        toolCallId: "tool-1",
+        toolName: "bash",
+        input: { cmd: "ls" },
+      },
+      execute: async (recordToolOutput) => {
+        recordToolOutput({
+          toolCallId: "tool-1",
+          state: "output-available",
+          output: "ok",
+        });
+      },
+    });
+    // Sending tool results back to the server ends the first client iteration.
+    await tracer.fetch("/agents/assistant/sessions/session-1/chat", {
+      method: "POST",
+    });
+    await tracer.traceToolCall({
+      toolCall: { toolCallId: "tool-2", toolName: "navigate", input: {} },
+      execute: async (recordToolOutput) => {
+        recordToolOutput({
+          toolCallId: "tool-2",
+          state: "output-available",
+          output: "done",
+        });
+      },
+    });
+    await tracer.endTurn();
+
+    const turnSpan = exportedSpans.find((span) => span.name === "pxi.turn");
+    const iterSpans = exportedSpans.filter(
+      (span) => span.name === "pxi.iter.client"
+    );
+    const firstToolSpan = exportedSpans.find((span) => span.name === "bash");
+    const secondToolSpan = exportedSpans.find(
+      (span) => span.name === "navigate"
+    );
+
+    expect(turnSpan).toBeDefined();
+    expect(iterSpans).toHaveLength(2);
+    for (const iterSpan of iterSpans) {
+      expect(iterSpan.parentSpanContext?.spanId).toBe(
+        turnSpan?.spanContext().spanId
+      );
+      expect(iterSpan.status.code).toBe(SpanStatusCode.OK);
+    }
+    expect(firstToolSpan?.status.code).toBe(SpanStatusCode.OK);
+    expect(secondToolSpan?.status.code).toBe(SpanStatusCode.OK);
+    expect(firstToolSpan?.parentSpanContext?.spanId).toBe(
+      iterSpans[0]?.spanContext().spanId
+    );
+    expect(secondToolSpan?.parentSpanContext?.spanId).toBe(
+      iterSpans[1]?.spanContext().spanId
+    );
   });
 
   it("exports only PXI browser spans with registered projects by project", async () => {

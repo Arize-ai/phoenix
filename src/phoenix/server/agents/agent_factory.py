@@ -143,4 +143,4 @@ def build_agent(
         instructions=resolved_prompts.base.render(),
         capabilities=[traced_capability],
     )
-    return OpenInferenceAgentWrapper(agent, tracer=tracer)
+    return OpenInferenceAgentWrapper(agent, tracer=tracer, span_name="pxi.iter.server")

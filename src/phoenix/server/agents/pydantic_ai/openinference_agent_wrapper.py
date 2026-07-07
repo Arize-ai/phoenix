@@ -69,18 +69,23 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
     ``run_sync``, ``run_stream``, ``run_stream_events``) ultimately delegates
     through ``iter`` in ``AbstractAgent``, so a single seam captures all
     execution paths.
+
+    ``span_name`` overrides the default ``{agent name}.iter`` span name.
     """
 
     tracer: Tracer
+    span_name: str | None
 
     def __init__(
         self,
         wrapped: AbstractAgent[AgentDepsT, OutputDataT],
         *,
         tracer: Tracer,
+        span_name: str | None = None,
     ) -> None:
         super().__init__(wrapped)
         self.tracer = tracer
+        self.span_name = span_name
 
     @asynccontextmanager
     async def iter(
@@ -123,7 +128,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         )
         metadata: dict[str, Any] = {"input": iter_method_arguments}
         attributes.update(get_metadata_attributes(metadata=metadata))
-        span_name = f"{self.name or type(self.wrapped).__name__}.iter"
+        span_name = self.span_name or f"{self.name or type(self.wrapped).__name__}.iter"
         with self.tracer.start_as_current_span(
             name=span_name,
             attributes=attributes,

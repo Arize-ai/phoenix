@@ -118,7 +118,7 @@ async def test_persist_db_traces_merge_keeps_all_spans_in_batch(db: DbSessionFac
     """Regression: the merge path iterated ``db_trace.spans`` while
     ``db_span.trace = existing_trace`` back-populated the same collection,
     skipping every other span. In production this dropped each follow-up
-    request's ``PXIAgent.iter`` span, orphaning its LLM child and rendering
+    request's ``pxi.iter.server`` span, orphaning its LLM child and rendering
     duplicate turns in the session view."""
     trace_id = "dd1221e156495558c48e177a21f84891"
     browser_root_span_id = "3789d49049f9d108"
@@ -148,7 +148,7 @@ async def test_persist_db_traces_merge_keeps_all_spans_in_batch(db: DbSessionFac
             _build_backend_span(
                 span_id="iter-2",
                 parent_id=browser_root_span_id,
-                name="PXIAgent.iter",
+                name="pxi.iter.server",
                 span_kind="AGENT",
             ),
         ],
