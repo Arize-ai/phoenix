@@ -88,15 +88,16 @@ export const compactTimeXAxisProps: XAxisProps = {
 /**
  * Category x axis for compact metric charts where each tick is a discrete
  * entity (e.g. one experiment per tick): keeps the baseline for bars to sit
- * on but drops the tick marks and trims the reserved height, matching the
- * compact time axis treatment.
+ * on but drops the tick marks, matching the compact time axis treatment.
+ * Category ticks are arbitrary strings (names), so unlike the numeric time
+ * axis the reserved height leaves room for descenders.
  */
 export const compactCategoryXAxisProps: XAxisProps = {
   ...defaultXAxisProps,
   type: "category",
   tickLine: false,
   tickMargin: 4,
-  height: 18,
+  height: 24,
 };
 
 /**
