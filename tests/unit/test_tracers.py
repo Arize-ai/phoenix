@@ -7,7 +7,13 @@ import pytest
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry.exporter.otlp.proto.http import trace_exporter as otlp_http_trace_exporter
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.trace import (
+    Status,
+    StatusCode,
+    format_span_id,
+    format_trace_id,
+    get_current_span,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
@@ -15,7 +21,63 @@ from phoenix.db import models
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.types import DbSessionFactory
-from phoenix.tracers import Tracer, _build_remote_http_span_exporter
+from phoenix.tracers import (
+    Tracer,
+    _build_remote_http_span_exporter,
+    detached_otel_context,
+    extract_otel_context,
+)
+
+
+class TestExtractOtelContext:
+    STANDARD_TRACE_ID = "11111111111111111111111111111111"
+    STANDARD_SPAN_ID = "2222222222222222"
+    PHOENIX_TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736"
+    PHOENIX_SPAN_ID = "00f067aa0ba902b7"
+
+    def test_prefers_phoenix_traceparent_over_standard(self) -> None:
+        """A RUM SDK or proxy may rewrite ``traceparent``; the Phoenix-specific
+        header must win so PXI spans stay parented to the browser root."""
+        extracted = extract_otel_context(
+            {
+                "traceparent": f"00-{self.STANDARD_TRACE_ID}-{self.STANDARD_SPAN_ID}-01",
+                "x-phoenix-traceparent": f"00-{self.PHOENIX_TRACE_ID}-{self.PHOENIX_SPAN_ID}-01",
+            }
+        )
+        span_context = get_current_span(extracted).get_span_context()
+        assert format_trace_id(span_context.trace_id) == self.PHOENIX_TRACE_ID
+        assert format_span_id(span_context.span_id) == self.PHOENIX_SPAN_ID
+
+    def test_phoenix_headers_are_case_insensitive(self) -> None:
+        extracted = extract_otel_context(
+            {"X-Phoenix-Traceparent": f"00-{self.PHOENIX_TRACE_ID}-{self.PHOENIX_SPAN_ID}-01"}
+        )
+        span_context = get_current_span(extracted).get_span_context()
+        assert format_trace_id(span_context.trace_id) == self.PHOENIX_TRACE_ID
+
+    def test_falls_back_to_standard_traceparent(self) -> None:
+        extracted = extract_otel_context(
+            {"traceparent": f"00-{self.STANDARD_TRACE_ID}-{self.STANDARD_SPAN_ID}-01"}
+        )
+        span_context = get_current_span(extracted).get_span_context()
+        assert format_trace_id(span_context.trace_id) == self.STANDARD_TRACE_ID
+        assert format_span_id(span_context.span_id) == self.STANDARD_SPAN_ID
+
+    def test_phoenix_tracestate_accompanies_phoenix_traceparent(self) -> None:
+        extracted = extract_otel_context(
+            {
+                "x-phoenix-traceparent": f"00-{self.PHOENIX_TRACE_ID}-{self.PHOENIX_SPAN_ID}-01",
+                "x-phoenix-tracestate": "phoenix=turn",
+                "tracestate": "dd=rum",
+            }
+        )
+        span_context = get_current_span(extracted).get_span_context()
+        assert span_context.trace_state.get("phoenix") == "turn"
+        assert span_context.trace_state.get("dd") is None
+
+    def test_returns_invalid_context_for_empty_carrier(self) -> None:
+        extracted = extract_otel_context({})
+        assert not get_current_span(extracted).get_span_context().is_valid
 
 
 class TestTracer:
@@ -114,6 +176,29 @@ class TestTracer:
         returned_traces = tracer.get_db_traces(project_id=project.id)
         assert len(returned_traces) == 1
         assert returned_traces[0].project_session is None
+
+    @pytest.mark.asyncio
+    async def test_detached_otel_context_can_use_propagated_remote_parent(
+        self, project: models.Project, tracer: Tracer
+    ) -> None:
+        trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"
+        parent_span_id = "00f067aa0ba902b7"
+        parent_context = extract_otel_context({"traceparent": f"00-{trace_id}-{parent_span_id}-01"})
+
+        with detached_otel_context(parent_context):
+            with tracer.start_as_current_span(
+                "child",
+                attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"},
+            ):
+                pass
+
+        returned_traces = tracer.get_db_traces(project_id=project.id)
+        assert len(returned_traces) == 1
+        returned_trace = returned_traces[0]
+        assert returned_trace.trace_id == trace_id
+        assert len(returned_trace.spans) == 1
+        returned_span = returned_trace.spans[0]
+        assert returned_span.parent_id == parent_span_id
 
     @pytest.mark.asyncio
     async def test_save_db_traces_persists_nested_spans(

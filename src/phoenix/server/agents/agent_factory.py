@@ -28,10 +28,7 @@ from phoenix.server.agents.capabilities.tools.external import (
 )
 from phoenix.server.agents.capabilities.tools.internal import CallSubAgentCapability
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.pydantic_ai import (
-    OpenInferenceAgentWrapper,
-    OpenInferenceCapabilityWrapper,
-)
+from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
 from phoenix.server.agents.skills import get_skills_for_contexts
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
@@ -69,7 +66,7 @@ def build_agent(
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     | None = None,
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
-) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
+) -> AbstractAgent[AgentDependencies, AgentOutput]:
     server_agent_args = (
         server_agent,
         publish_subagent_message_chunk,
@@ -135,6 +132,11 @@ def build_agent(
         tracer=tracer,
     )
 
+    # The top-level agent is deliberately not wrapped in an
+    # OpenInferenceAgentWrapper: per-request AGENT spans grouped each run into
+    # an iteration, but the PXI turn reads better as a flat list of model and
+    # tool spans parented directly under the browser's `pxi.turn` root (via
+    # the propagated trace context).
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
         model,
         name="PXIAgent",
@@ -143,4 +145,4 @@ def build_agent(
         instructions=resolved_prompts.base.render(),
         capabilities=[traced_capability],
     )
-    return OpenInferenceAgentWrapper(agent, tracer=tracer)
+    return agent
