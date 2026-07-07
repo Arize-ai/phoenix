@@ -134,6 +134,7 @@ from phoenix.server.api.types.SandboxConfig import (
     SandboxProvider,
     get_sandbox_backend_info,
 )
+from phoenix.server.api.types.SearchResult import SearchResult
 from phoenix.server.api.types.Secret import Secret
 from phoenix.server.api.types.ServerStatus import ServerStatus
 from phoenix.server.api.types.SortDir import SortDir
@@ -1148,6 +1149,108 @@ class Query:
                 data=data,
                 args=args,
             )
+
+    @strawberry.field(  # type: ignore[untyped-decorator]
+        description=(
+            "Search top-level resources (projects, datasets, experiments, and prompts) "
+            "by name or description."
+        )
+    )
+    async def search_resources(
+        self,
+        info: Info[Context, None],
+        query: str,
+        limit_per_type: int = 5,
+    ) -> list[SearchResult]:
+        search_term = query.strip()
+        if not search_term:
+            return []
+        if limit_per_type < 1:
+            raise BadRequest("limitPerType must be a positive integer")
+        limit_per_type = min(limit_per_type, 25)
+
+        # icontains(autoescape=True) matches a case-insensitive substring while
+        # escaping LIKE metacharacters (% and _) so they match literally rather
+        # than acting as wildcards.
+        projects_stmt = (
+            exclude_dataset_evaluator_projects(
+                exclude_experiment_projects(
+                    select(models.Project).where(
+                        or_(
+                            models.Project.name.icontains(search_term, autoescape=True),
+                            models.Project.description.icontains(search_term, autoescape=True),
+                        )
+                    )
+                )
+            )
+            .order_by(
+                case((models.Project.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Project.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        datasets_stmt = (
+            select(models.Dataset)
+            .where(
+                or_(
+                    models.Dataset.name.icontains(search_term, autoescape=True),
+                    models.Dataset.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((models.Dataset.name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Dataset.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        experiments_stmt = (
+            select(models.Experiment)
+            .where(models.Experiment.is_ephemeral.is_(False))
+            .where(
+                or_(
+                    models.Experiment.name.icontains(search_term, autoescape=True),
+                    models.Experiment.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case(
+                    (models.Experiment.name.icontains(search_term, autoescape=True), 0),
+                    else_=1,
+                ),
+                models.Experiment.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+        # Prompt.name is an Identifier column and must be cast to String for matching
+        prompt_name = cast(models.Prompt.name, String)
+        prompts_stmt = (
+            select(models.Prompt)
+            .where(
+                or_(
+                    prompt_name.icontains(search_term, autoescape=True),
+                    models.Prompt.description.icontains(search_term, autoescape=True),
+                )
+            )
+            .order_by(
+                case((prompt_name.icontains(search_term, autoescape=True), 0), else_=1),
+                models.Prompt.updated_at.desc(),
+            )
+            .limit(limit_per_type)
+        )
+
+        results: list[SearchResult] = []
+        async with info.context.db.read() as session:
+            projects = await session.scalars(projects_stmt)
+            results.extend(Project(id=project.id, db_record=project) for project in projects)
+            datasets = await session.scalars(datasets_stmt)
+            results.extend(Dataset(id=dataset.id, db_record=dataset) for dataset in datasets)
+            experiments = await session.scalars(experiments_stmt)
+            results.extend(
+                Experiment(id=experiment.id, db_record=experiment) for experiment in experiments
+            )
+            prompts = await session.scalars(prompts_stmt)
+            results.extend(Prompt(id=prompt.id, db_record=prompt) for prompt in prompts)
+        return results
 
     @strawberry.field
     async def prompt_labels(
