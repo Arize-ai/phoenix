@@ -1,49 +1,38 @@
 # Project Evaluators
 
 Project evaluators are project-level automations that run existing evaluators against live
-`spans`, `traces`, and `sessions` after ingestion. They provide continuous measurement of
-production traffic. "Online evals" is the colloquial term — it refers to evaluation happening on
-ingest — but we organize the feature around projects, so this spec calls them project evaluators
-(evaluators is already overloaded; we also have dataset evaluators).
+`spans`, `traces`, and `sessions` after ingestion, providing continuous measurement of
+production traffic. ("Online evals" is the colloquial term.)
 
-Project evaluators are one kind of *project automation*. Others we may build on the same
-foundation include automatically curating matching artifacts into datasets, routing them into
-annotation queues, or firing signals/webhooks when thresholds are crossed. This spec covers only
-the evaluation automation; the rest are downstream.
-
-This spec builds on [server_evaluators.md](./server_evaluators.md), which defines reusable
-evaluator definitions. This document covers how those evaluators are attached to projects and
-run against live data. Reusing that definition is deliberate: it compounds engineering, and it
-lets us eventually tell a "benchmark your evaluator on a dataset, then promote it to run online"
-story.
+This spec builds on [server_evaluators.md](./server_evaluators.md), which defines the reusable
+evaluator definitions; this document covers how those are attached to projects and run against
+live data.
 
 ## Status
 
 This document frames the problem — terminology, the hard parts, and the shape of the design — and
-in a few areas (deterministic sampling, queue semantics, error handling) it goes as far as
-proposing concrete mechanisms. It does not settle every decision. Before implementation, the
-[open questions](#open-questions) still need to be narrowed into an explicit v1 slice with chosen
-defaults for target type, readiness, filtering, extraction, sampling, queue semantics, and
-auditability.
+in a few areas (deterministic sampling, queue semantics, error handling) proposes concrete
+mechanisms. It does not settle every decision: before implementation, the
+[open questions](#open-questions) must be narrowed into an explicit v1 slice with chosen defaults
+for target type, readiness, filtering, extraction, sampling, queue semantics, and auditability.
 
-The forward-looking live path is the initial focus — an agent running, an evaluator added,
-metrics flowing — while traces and sessions add readiness, aggregation, and re-evaluation
-complexity that v1 should scope deliberately (spans are the easier case).
+The live path is the initial focus — an agent running, an evaluator added, metrics flowing. Spans
+are the easier case; traces and sessions add readiness, aggregation, and re-evaluation complexity
+that v1 should scope deliberately.
 
 ## Goals
 
-- Automatically evaluate spans, traces, and sessions as live data arrives, so production
-  traffic is scored continuously — categories, labels, and scores surfacing as artifacts come in.
-  The intent is to make Phoenix proactive: a trace shows up and already tells you whether it was
-  good or bad.
+- Automatically evaluate spans, traces, and sessions as live data arrives, so production traffic
+  is scored continuously. The intent is to make Phoenix proactive: a trace shows up and already
+  tells you whether it was good or bad.
 - Let users configure the scope of the data evaluated (filters).
-- Control evaluation volume with sampling for cost control; other heuristics (such as cost or
-  latency thresholds) may also narrow what gets evaluated.
+- Control evaluation volume with sampling for cost; other heuristics (cost or latency thresholds)
+  may also narrow what gets evaluated.
 - Persist results as annotations on spans, traces, and sessions.
 - Keep ingestion reliable.
-- Keep the experience automatic from the user's perspective: no jobs or cron to configure.
-  Evaluation should happen as quickly as possible — a trace arrives and, moments later, it has
-  been evaluated and you can filter on it. The system behaves like a queue, not a batch job.
+- Keep the experience automatic: no jobs or cron to configure, and evaluation happens as quickly
+  as possible — a trace arrives and moments later can be filtered on. The system behaves like a
+  queue, not a batch job.
 
 ## Non-Goals (initial release)
 
@@ -59,16 +48,14 @@ complexity that v1 should scope deliberately (spans are the easier case).
 Two capabilities are not the initial focus but are valuable and likely to follow. Both look
 backward at data that already exists rather than being ingestion-driven. Excluding them creates a
 usability gap: if you have traces, create an evaluator, and those traces cannot be evaluated,
-something is wrong. Design them with the live path in mind; they may not share the same execution
+something is wrong. Design them with the live path in mind; they may not share its execution
 mechanism.
 
-- **Backfilling** existing data with an evaluator — e.g. "run this evaluator over last week to
-  see whether something went bad on Black Friday." This is backward-looking, long-running, and
-  looks more like a scheduled job.
-- **Manual triggering** of an evaluator on a chosen artifact — immediate feedback while
-  developing or tuning an evaluator, distinct from backfill's fire-and-forget nature. Also
-  useful to us internally while the live path is still being built and evaluators are developed on a
-  parallel track. Architecturally this may be similar to or different from the live path.
+- **Backfilling** existing data — e.g. "run this evaluator over last week to see whether
+  something went bad on Black Friday." Backward-looking, long-running, more like a scheduled job.
+- **Manual triggering** on a chosen artifact — immediate feedback while developing or tuning an
+  evaluator, distinct from backfill's fire-and-forget nature. Also useful internally while the
+  live path is still being built.
 
 ## Terminology
 
@@ -81,48 +68,6 @@ mechanism.
   spans.
 - **Attachment point** — Where the resulting annotation is written, which is not necessarily the
   target. A span-level judgment may be attached to the enclosing trace so it isn't buried.
-
-## Current Building Blocks
-
-What already exists in Phoenix, so the rest of this spec is grounded in real primitives rather
-than greenfield assumptions (all references are current as of writing):
-
-- **Annotation tables.** `span_annotations`, `trace_annotations`, and `project_session_annotations`
-  all exist (`src/phoenix/db/models.py`), each with `label` / `score` / `explanation`, an
-  `annotator_kind` of `LLM` / `CODE` / `HUMAN`, a `source` of `API` / `APP`, and a
-  `UniqueConstraint(name, <target>_rowid, identifier)`. The `identifier` column is a built-in
-  upsert/override key: a project evaluator that writes with a stable `identifier` overwrites its
-  own prior annotation instead of stacking. These tables have **no `error` column and no
-  status/state column** today.
-- **Failure precedent on a different table.** `experiment_run_annotations` already has both an
-  `error` column and a `trace_id` linking to the run's trace (`models.py`), which is a precedent
-  for surfacing evaluator failure — but it does not exist on the live span/trace/session
-  annotation tables.
-- **Evaluator definitions and attachments are already shipped.** `evaluators` (with
-  `llm_evaluators` / `code_evaluators` / `builtin_evaluators` subtypes) stores reusable evaluator
-  definitions, so much of [server_evaluators.md](./server_evaluators.md) exists today rather than
-  being greenfield. `dataset_evaluators` is the existing *attachment* row and is structurally
-  close to what a project evaluator needs: it binds an `evaluator_id` to a parent (a dataset),
-  and already carries `input_mapping`, `output_configs`, a `project_id`, and a per-parent unique
-  `name` (`UniqueConstraint(dataset_id, name)`). A project evaluator is largely the same shape
-  attached to a project's live data, plus target type, filter, sampling rate, and readiness — so
-  the genuinely new surface is smaller than it first appears.
-- **Per-eval-job logging precedent.** `experiment_eval_logs` records a log row per eval job
-  (`experiment_run_id` + `dataset_evaluator_id`) inheriting a severity `level` (ERROR / WARN /
-  INFO), a `message`, and a `detail` — a precedent for the run/decision records this spec needs
-  (see [Run Records and Audit](#run-records-and-audit)).
-- **Span filtering.** The only filter language today is the span-scoped `SpanFilter` DSL
-  (`src/phoenix/trace/dsl/filter.py`): a Python expression evaluated over a single span — its
-  columns and `attributes[...]` / metadata, plus `trace_id` / `parent_id` as scalar values and
-  joined annotation `score` / `label` / `explanation`. It has **no parent/child/subtree
-  predicates**, and span **cost is not filterable** (costs live in a separate `span_costs` table).
-- **Sessions and traces are materialized.** `project_sessions` is a real table keyed on a unique
-  `session_id`, exposing `first_input` / `last_output` derived from the earliest/latest trace root
-  spans. A trace's root span is the span with `parent_id IS NULL` (with an orphan-span fallback).
-  There is **no "turn" concept** in the codebase.
-- **IDs.** `span_id` / `trace_id` are OpenTelemetry hex IDs; `session_id` is a user-supplied
-  string. All are stable per artifact, so any of them can back a deterministic hash for sampling —
-  a good hash makes the raw ID's distribution irrelevant.
 
 ## Use Cases
 
@@ -152,10 +97,9 @@ As a user with conversational agents, I want to evaluate a session after the use
 I can measure coherence, resolution, and trajectory over the full conversation — not just the
 last turn.
 
-A `project_sessions` row already exists (a materialized grouping of traces keyed on `session_id`),
-but it carries no evaluable content of its own beyond a derived `first_input` / `last_output`.
-Evaluating the whole conversation therefore requires an aggregation strategy over its traces and
-spans. Useful starting points include:
+A `project_sessions` row already exists (traces grouped by `session_id`) but carries no evaluable
+content beyond a derived `first_input` / `last_output`, so evaluating the whole conversation
+requires an aggregation strategy over its traces and spans. Useful starting points:
 
 - **Conversational coherency** — treat the conversation as an ordered list of turns (the chatbot
   use case).
@@ -226,39 +170,32 @@ Mapping target data into an evaluator's inputs is two steps, not one:
 1. **Extraction** — pull the values the evaluator needs out of the raw span/trace/session. This
    is more than reading attributes off a single span: the relevant data may live on a *different*
    span than the one being evaluated (e.g. a tool call sits on one span while the evaluator
-   judges the messages after it). Extraction may need to hoist nested fields — "give me all the
-   tool calls under this span as a list" — up to the entity under evaluation.
-   - A little hoisting already exists in spirit: the root span's I/O is reachable via
-     `Trace.root_span` (the `parent_id IS NULL` span), and `ProjectSession.first_input` /
-     `last_output` already hoist the earliest/latest root-span I/O to the session. There is no
-     generalized "turn" or aggregation abstraction, so anything deeper is new.
-   - Additional hoisting may eventually become user-definable (a custom hoisting / aggregation
-     strategy).
+   judges the messages after it), and extraction may need to hoist nested fields — "all the tool
+   calls under this span as a list" — up to the entity under evaluation. A little hoisting exists
+   already (`Trace.root_span`; `ProjectSession.first_input` / `last_output`), but there is no
+   generalized "turn" or aggregation abstraction, so anything deeper is new — and may eventually
+   become user-definable.
 2. **Mapping** — bind the extracted values into the evaluator's template inputs (the existing
    dataset-style dictionary mapping).
 
-For simple span evaluators, extraction is mostly a trivial attribute mapping; the complexity
-appears at the trace and session levels, where it becomes a *hoisting* problem — nested fields
-pulled up to the entity being looked at. There is an open ordering question: whether extraction
-happens before or after filtering (it interacts with how complex filters need to be). We are
-deliberately avoiding the "ETL" framing, but extraction + transformation is a generalization of
-the current evaluator input model and needs its own data model.
+For simple span evaluators extraction is a trivial attribute mapping; the complexity appears at
+the trace and session levels, where it becomes a *hoisting* problem. Whether extraction happens
+before or after filtering is open (it interacts with how complex filters need to be). We avoid
+the "ETL" framing, but extraction + transformation generalizes the current evaluator input model
+and needs its own data model.
 
 ## Queuing
 
-Project evaluators are queue-driven, not job-scheduled (see [Goals](#goals)). Matching artifacts
-should be evaluated asynchronously after ingestion. Queuing and filtering are co-equal hard
-problems: a mis-sized queue can blow up under high ingest, which is why the
+Project evaluators are queue-driven, not job-scheduled (see [Goals](#goals)): matching artifacts
+are evaluated asynchronously after ingestion. Queuing and filtering are co-equal hard problems — a
+mis-sized queue can blow up under high ingest, which is why the
 [overload backstop](#reliability-errors-and-auditability) exists.
 
-At this level, the important product requirements are that queued work is recoverable, duplicate
-work does not produce duplicate user-visible results, and skipped or failed work is explainable.
-The high-level design should not make transient queue state the only record of whether something
-was supposed to be evaluated.
-
-The live trigger is part of the latency story, not the whole correctness story. The system needs a
-way to recover eligible work that was missed because of restarts, overload, delayed data, or other
-ordinary operational failures.
+The product requirements: queued work is recoverable, duplicate work does not produce duplicate
+user-visible results, and skipped or failed work is explainable. Transient queue state must not be
+the only record of whether something was supposed to be evaluated. The live trigger is part of the
+latency story, not the whole correctness story — the system needs a way to recover eligible work
+missed because of restarts, overload, delayed data, or other ordinary operational failures.
 
 There are (at least) three trigger classes, and they are not all ingestion-driven: a span is
 stored (span targets); an artifact goes quiet after an idle period (trace/session targets); and a
@@ -410,28 +347,27 @@ Changing the sampling rate affects only future artifacts.
 ## Output
 
 Each successful run writes annotations to the configured attachment artifact using Phoenix's
-existing annotation model (label, score, explanation). In the simple case, the attachment artifact
-is the evaluated artifact. In the hoisting case, the target may be a span while the annotation is
-written to the trace so the result is visible at the workflow level. Automated annotations are
-already distinguishable from human ones at the data level via `annotator_kind` (`LLM` / `CODE`),
-so the remaining gap is UI treatment and traceability back to the specific project evaluator and
-run — which is *not* captured today (there is no FK from an annotation to a project evaluator).
+existing annotation model (label, score, explanation). Usually the attachment artifact is the
+evaluated artifact; in the hoisting case the target may be a span while the annotation is written
+to the trace so the result is visible at the workflow level. `annotator_kind` (`LLM` / `CODE`)
+already distinguishes automated annotations from human ones at the data level, so the remaining
+gap is UI treatment and traceability back to the specific project evaluator and run — not captured
+today (there is no FK from an annotation to a project evaluator).
 
-Re-evaluation maps onto an existing mechanism. The annotation tables already enforce
+Re-evaluation maps onto an existing mechanism: the annotation tables enforce
 `UniqueConstraint(name, <target>_rowid, identifier)`, so writing with a stable `identifier` gives
-upsert/override for free: a later run replaces its own prior annotation. Deriving that `identifier`
-takes care, because `<target>_rowid` is the *attachment* artifact, not the source. When the
-annotation lands on the artifact it evaluated, keying the `identifier` on the project evaluator
-configuration is enough. But when a span-level judgment is hoisted onto its enclosing trace, the
-`<target>_rowid` is the trace, so judgments from *different source spans* would overwrite each
-other unless the `identifier` also encodes the **source artifact's span ID**. Note this is not
-solved by "target": [Terminology](#terminology) defines Target as the artifact *type*, which is
-identical across those spans. So the override key = project evaluator configuration (not just the
-reusable evaluator definition) + attachment point + the specific source artifact — precise enough
-that concurrent judgments on one trace stay distinct and a re-run overwrites only its own prior
-result. This is the same uniqueness problem as [open question #5](#open-q-5)
-(auto-instrumented duplicate span names). Prior evaluations are preserved for audit not by the
-annotation row (which is overwritten) but by the run record (see
+upsert/override for free — a later run replaces its own prior annotation. Deriving that
+`identifier` takes care, because `<target>_rowid` is the *attachment* artifact, not the source.
+When the annotation lands on the artifact it evaluated, keying `identifier` on the project
+evaluator configuration is enough. But when a span-level judgment is hoisted onto its enclosing
+trace, `<target>_rowid` is the trace, so judgments from *different source spans* would overwrite
+each other unless the `identifier` also encodes the **source span's ID** — this is not solved by
+"target", which [Terminology](#terminology) defines as the artifact *type* (identical across those
+spans). So the override key = project evaluator configuration + attachment point + specific source
+artifact, precise enough that concurrent judgments on one trace stay distinct and a re-run
+overwrites only its own prior result. This is the same uniqueness problem as
+[open question #5](#open-q-5) (auto-instrumented duplicate span names). Prior evaluations are
+preserved for audit not by the annotation row (overwritten) but by the run record (see
 [Run Records and Audit](#run-records-and-audit)).
 
 ## Run Records and Audit
