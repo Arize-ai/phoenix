@@ -2737,24 +2737,24 @@ type Project implements Node {
   sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
 
   """
-  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output.
+  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessionCount(timeRange: TimeRange, filterIoSubstring: String): Int!
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Int!
 
   """
-  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output.
+  Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String): Float
+  averageSessionDurationMs(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
 
   """
-  Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range and a substring of the session input/output.
+  Average number of traces (e.g. conversation turns) per session, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String): Float
+  averageTracesPerSession(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
 
   """
-  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range and a substring of the session input/output.
+  Quantile (e.g. p50, p99) of session duration in milliseconds, i.e. end time minus start time, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String): Float
+  sessionDurationMsQuantile(probability: Float!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Float
 
   """
   Names of all available annotations for traces. (The list contains no duplicates.)
@@ -2790,7 +2790,11 @@ type Project implements Node {
   documentEvaluationNames(spanId: ID): [String!]!
   traceAnnotationSummary(annotationName: String!, filterCondition: String, sessionFilterCondition: String, timeRange: TimeRange): AnnotationSummary
   spanAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterCondition: String, sessionFilterCondition: String): AnnotationSummary
-  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterIoSubstring: String): AnnotationSummary
+
+  """
+  Summary (score and label fractions) of a session annotation across the project's sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  """
+  sessionAnnotationSummary(annotationName: String!, timeRange: TimeRange, filterIoSubstring: String, sessionId: String): AnnotationSummary
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!

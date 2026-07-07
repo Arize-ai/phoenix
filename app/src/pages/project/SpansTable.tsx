@@ -85,9 +85,9 @@ import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
 import { spansTableCSS } from "./styles";
+import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
-import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import {
   DEFAULT_SORT,
   getGqlSort,

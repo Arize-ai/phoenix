@@ -31,9 +31,15 @@ import {
  * tab gets the same collapsible stats panel as the spans tab.
  */
 export function SessionsTableAside(props: {
-  filterIoSubstring?: string | null;
+  /**
+   * The sessions table search text. Like the table, the stats treat it as
+   * both an input/output substring filter and an exact session-ID lookup,
+   * with an exact match taking precedence.
+   */
+  filterIoSubstringOrSessionId?: string | null;
 }) {
-  const filterIoSubstring = props.filterIoSubstring || null;
+  const filterIoSubstringOrSessionId =
+    props.filterIoSubstringOrSessionId || null;
   const projectId = useTracingContext((state) => state.projectId);
   const { timeRange } = useTimeRange();
   const { fetchKey } = useStreamState();
@@ -43,6 +49,7 @@ export function SessionsTableAside(props: {
         $id: ID!
         $timeRange: TimeRange!
         $filterIoSubstring: String
+        $sessionId: String
       ) {
         project: node(id: $id) {
           ... on Project {
@@ -51,24 +58,29 @@ export function SessionsTableAside(props: {
             sessionCount(
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
             averageSessionDurationMs(
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
             averageTracesPerSession(
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
             sessionAnnotationNames
           }
@@ -81,7 +93,8 @@ export function SessionsTableAside(props: {
         start: timeRange?.start?.toISOString(),
         end: timeRange?.end?.toISOString(),
       },
-      filterIoSubstring,
+      filterIoSubstring: filterIoSubstringOrSessionId,
+      sessionId: filterIoSubstringOrSessionId,
     },
     { fetchKey, fetchPolicy: "store-and-network" }
   );
@@ -134,7 +147,9 @@ export function SessionsTableAside(props: {
                   >
                     <SessionAnnotationSummary
                       annotationName={name}
-                      filterIoSubstring={filterIoSubstring}
+                      filterIoSubstringOrSessionId={
+                        filterIoSubstringOrSessionId
+                      }
                     />
                   </ErrorBoundary>
                 ))}

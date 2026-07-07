@@ -5379,6 +5379,7 @@ async def test_session_stats(
         session1 = await _add_project_session(
             session,
             project,
+            session_id="session-1-exact-id",
             start_time=base_time,
             end_time=base_time + timedelta(seconds=10),
         )
@@ -5400,21 +5401,40 @@ async def test_session_stats(
         await _add_span(session, trace2, attributes={"input": {"value": "beta task"}})
 
     query = """
-      query ($projectId: ID!, $timeRange: TimeRange, $filterIoSubstring: String) {
+      query (
+        $projectId: ID!
+        $timeRange: TimeRange
+        $filterIoSubstring: String
+        $sessionId: String
+      ) {
         node(id: $projectId) {
           ... on Project {
-            sessionCount(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)
-            averageSessionDurationMs(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)
-            averageTracesPerSession(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)
+            sessionCount(
+              timeRange: $timeRange
+              filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
+            )
+            averageSessionDurationMs(
+              timeRange: $timeRange
+              filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
+            )
+            averageTracesPerSession(
+              timeRange: $timeRange
+              filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
+            )
             sessionDurationMsP50: sessionDurationMsQuantile(
               probability: 0.5
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
             sessionDurationMsP99: sessionDurationMsQuantile(
               probability: 0.99
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
           }
         }
@@ -5478,6 +5498,60 @@ async def test_session_stats(
     assert response.data["node"]["sessionDurationMsP50"] is None
     assert response.data["node"]["sessionDurationMsP99"] is None
 
+    # The UI passes the search text as both the substring filter and an exact
+    # session-ID lookup; the exact match wins even though the ID appears
+    # nowhere in the input/output, mirroring the sessions table
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "filterIoSubstring": "session-1-exact-id",
+            "sessionId": "session-1-exact-id",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["sessionCount"] == 1
+    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
+    assert response.data["node"]["averageTracesPerSession"] == 2.0
+    assert response.data["node"]["sessionDurationMsP50"] == pytest.approx(10000.0)
+    assert response.data["node"]["sessionDurationMsP99"] == pytest.approx(10000.0)
+
+    # The exact session-ID match also ignores the time range, like the
+    # sessions table
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "timeRange": {
+                "start": (base_time + timedelta(days=1)).isoformat(),
+                "end": (base_time + timedelta(days=2)).isoformat(),
+            },
+            "filterIoSubstring": "session-1-exact-id",
+            "sessionId": "session-1-exact-id",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["sessionCount"] == 1
+    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
+
+    # When the search text matches no session ID exactly, the substring
+    # filter still applies
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "filterIoSubstring": "alpha",
+            "sessionId": "alpha",
+        },
+    )
+    assert not response.errors
+    assert response.data is not None
+    assert response.data["node"]["sessionCount"] == 1
+    assert response.data["node"]["averageSessionDurationMs"] == 10000.0
+    assert response.data["node"]["averageTracesPerSession"] == 2.0
+
 
 async def test_session_annotation_summary_returns_expected_results(
     gql_client: AsyncGraphQLClient,
@@ -5485,7 +5559,9 @@ async def test_session_annotation_summary_returns_expected_results(
 ) -> None:
     async with db() as session:
         project = await _add_project(session, name="session-annotation-summary-test")
-        session1 = await _add_project_session(session, project)
+        session1 = await _add_project_session(
+            session, project, session_id="annotated-session-exact-id"
+        )
         trace1 = await _add_trace(session, project, session1)
         await _add_span(session, trace1, attributes={"input": {"value": "priority task"}})
         session.add(
@@ -5517,12 +5593,13 @@ async def test_session_annotation_summary_returns_expected_results(
         )
 
     query = """
-      query ($projectId: ID!, $filterIoSubstring: String) {
+      query ($projectId: ID!, $filterIoSubstring: String, $sessionId: String) {
         node(id: $projectId) {
           ... on Project {
             sessionAnnotationSummary(
               annotationName: "test-annotation"
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             ) {
               name
               count
@@ -5557,6 +5634,25 @@ async def test_session_annotation_summary_returns_expected_results(
 
     response = await gql_client.execute(
         query=query, variables={"projectId": project_gid, "filterIoSubstring": "priority"}
+    )
+    assert not response.errors
+    assert response.data is not None
+    summary = response.data["node"]["sessionAnnotationSummary"]
+    assert summary is not None
+    assert summary["count"] == 1
+    assert summary["meanScore"] == 1.0
+    assert summary["labelFractions"] == [{"label": "important", "fraction": 1.0}]
+
+    # The UI passes the search text as both the substring filter and an exact
+    # session-ID lookup; the exact match wins even though the ID appears
+    # nowhere in the input/output, mirroring the sessions table
+    response = await gql_client.execute(
+        query=query,
+        variables={
+            "projectId": project_gid,
+            "filterIoSubstring": "annotated-session-exact-id",
+            "sessionId": "annotated-session-exact-id",
+        },
     )
     assert not response.errors
     assert response.data is not None

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<27b482a7bde6d3a69007948c922c1daa>>
+ * @generated SignedSource<<9a8cde80fd4f528a2c1bff6b0cdb4af6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type SessionAnnotationSummaryQuery$variables = {
   annotationName: string;
   filterIoSubstring?: string | null;
   id: string;
+  sessionId?: string | null;
   timeRange: TimeRange;
 };
 export type SessionAnnotationSummaryQuery$data = {
@@ -49,16 +50,21 @@ v2 = {
 v3 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "sessionId"
+},
+v4 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v4 = [
+v5 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v5 = [
+v6 = [
   {
     "kind": "Variable",
     "name": "annotationName",
@@ -71,39 +77,44 @@ v5 = [
   },
   {
     "kind": "Variable",
+    "name": "sessionId",
+    "variableName": "sessionId"
+  },
+  {
+    "kind": "Variable",
     "name": "timeRange",
     "variableName": "timeRange"
   }
 ],
-v6 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v7 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v8 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "annotationType",
   "storageKey": null
 },
-v9 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "name",
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -116,7 +127,8 @@ return {
       (v0/*: any*/),
       (v1/*: any*/),
       (v2/*: any*/),
-      (v3/*: any*/)
+      (v3/*: any*/),
+      (v4/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -124,14 +136,14 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
           {
-            "args": (v5/*: any*/),
+            "args": (v6/*: any*/),
             "kind": "FragmentSpread",
             "name": "SessionAnnotationSummaryValueFragment"
           }
@@ -147,22 +159,23 @@ return {
     "argumentDefinitions": [
       (v2/*: any*/),
       (v0/*: any*/),
-      (v3/*: any*/),
-      (v1/*: any*/)
+      (v4/*: any*/),
+      (v1/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Operation",
     "name": "SessionAnnotationSummaryQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v4/*: any*/),
+        "args": (v5/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v6/*: any*/),
           (v7/*: any*/),
+          (v8/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -190,11 +203,11 @@ return {
                         "name": "node",
                         "plural": false,
                         "selections": [
-                          (v6/*: any*/),
+                          (v7/*: any*/),
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v8/*: any*/)
+                              (v9/*: any*/)
                             ],
                             "type": "AnnotationConfigBase",
                             "abstractKey": "__isAnnotationConfigBase"
@@ -202,8 +215,8 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
+                              (v9/*: any*/),
                               (v8/*: any*/),
-                              (v7/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -211,7 +224,7 @@ return {
                                 "name": "optimizationDirection",
                                 "storageKey": null
                               },
-                              (v9/*: any*/),
+                              (v10/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -220,7 +233,7 @@ return {
                                 "name": "values",
                                 "plural": true,
                                 "selections": [
-                                  (v10/*: any*/),
+                                  (v11/*: any*/),
                                   {
                                     "alias": null,
                                     "args": null,
@@ -238,7 +251,7 @@ return {
                           {
                             "kind": "InlineFragment",
                             "selections": [
-                              (v7/*: any*/)
+                              (v8/*: any*/)
                             ],
                             "type": "Node",
                             "abstractKey": "__isNode"
@@ -254,13 +267,13 @@ return {
               },
               {
                 "alias": null,
-                "args": (v5/*: any*/),
+                "args": (v6/*: any*/),
                 "concreteType": "AnnotationSummary",
                 "kind": "LinkedField",
                 "name": "sessionAnnotationSummary",
                 "plural": false,
                 "selections": [
-                  (v9/*: any*/),
+                  (v10/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -290,7 +303,7 @@ return {
                     "name": "labelFractions",
                     "plural": true,
                     "selections": [
-                      (v10/*: any*/),
+                      (v11/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -321,16 +334,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9eb7657abae349d627df9a480614ae04",
+    "cacheID": "628935098135187711509c8d5cf27810",
     "id": null,
     "metadata": {},
     "name": "SessionAnnotationSummaryQuery",
     "operationKind": "query",
-    "text": "query SessionAnnotationSummaryQuery(\n  $id: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionAnnotationSummaryValueFragment_2saBdj\n    id\n  }\n}\n\nfragment SessionAnnotationSummaryValueFragment_2saBdj on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  sessionAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query SessionAnnotationSummaryQuery(\n  $id: ID!\n  $annotationName: String!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n  $sessionId: String\n) {\n  project: node(id: $id) {\n    __typename\n    ...SessionAnnotationSummaryValueFragment_1mBxVA\n    id\n  }\n}\n\nfragment SessionAnnotationSummaryValueFragment_1mBxVA on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  sessionAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "11058a43caffc2d27fdfe466fa956a4b";
+(node as any).hash = "960bc4d76b26fb5e314c5ebb4bfe7c0e";
 
 export default node;

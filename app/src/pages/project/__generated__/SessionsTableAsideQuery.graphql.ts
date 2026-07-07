@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9b8ccbfc5b29e4f9880229b830b76361>>
+ * @generated SignedSource<<ca061285c9f3adf69fd47d301c77d1f0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,7 @@ export type TimeRange = {
 export type SessionsTableAsideQuery$variables = {
   filterIoSubstring?: string | null;
   id: string;
+  sessionId?: string | null;
   timeRange: TimeRange;
 };
 export type SessionsTableAsideQuery$data = {
@@ -49,30 +50,41 @@ v1 = {
 v2 = {
   "defaultValue": null,
   "kind": "LocalArgument",
+  "name": "sessionId"
+},
+v3 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
   "name": "timeRange"
 },
-v3 = [
+v4 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v4 = {
+v5 = {
   "kind": "Variable",
   "name": "filterIoSubstring",
   "variableName": "filterIoSubstring"
 },
-v5 = {
+v6 = {
+  "kind": "Variable",
+  "name": "sessionId",
+  "variableName": "sessionId"
+},
+v7 = {
   "kind": "Variable",
   "name": "timeRange",
   "variableName": "timeRange"
 },
-v6 = [
-  (v4/*: any*/),
-  (v5/*: any*/)
+v8 = [
+  (v5/*: any*/),
+  (v6/*: any*/),
+  (v7/*: any*/)
 ],
-v7 = {
+v9 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -91,21 +103,21 @@ v7 = {
     },
     {
       "alias": null,
-      "args": (v6/*: any*/),
+      "args": (v8/*: any*/),
       "kind": "ScalarField",
       "name": "sessionCount",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v6/*: any*/),
+      "args": (v8/*: any*/),
       "kind": "ScalarField",
       "name": "averageSessionDurationMs",
       "storageKey": null
     },
     {
       "alias": null,
-      "args": (v6/*: any*/),
+      "args": (v8/*: any*/),
       "kind": "ScalarField",
       "name": "averageTracesPerSession",
       "storageKey": null
@@ -113,13 +125,14 @@ v7 = {
     {
       "alias": "sessionDurationMsP50",
       "args": [
-        (v4/*: any*/),
+        (v5/*: any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.5
         },
-        (v5/*: any*/)
+        (v6/*: any*/),
+        (v7/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "sessionDurationMsQuantile",
@@ -128,13 +141,14 @@ v7 = {
     {
       "alias": "sessionDurationMsP99",
       "args": [
-        (v4/*: any*/),
+        (v5/*: any*/),
         {
           "kind": "Literal",
           "name": "probability",
           "value": 0.99
         },
-        (v5/*: any*/)
+        (v6/*: any*/),
+        (v7/*: any*/)
       ],
       "kind": "ScalarField",
       "name": "sessionDurationMsQuantile",
@@ -156,7 +170,8 @@ return {
     "argumentDefinitions": [
       (v0/*: any*/),
       (v1/*: any*/),
-      (v2/*: any*/)
+      (v2/*: any*/),
+      (v3/*: any*/)
     ],
     "kind": "Fragment",
     "metadata": null,
@@ -164,13 +179,13 @@ return {
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v7/*: any*/)
+          (v9/*: any*/)
         ],
         "storageKey": null
       }
@@ -182,15 +197,16 @@ return {
   "operation": {
     "argumentDefinitions": [
       (v1/*: any*/),
-      (v2/*: any*/),
-      (v0/*: any*/)
+      (v3/*: any*/),
+      (v0/*: any*/),
+      (v2/*: any*/)
     ],
     "kind": "Operation",
     "name": "SessionsTableAsideQuery",
     "selections": [
       {
         "alias": "project",
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
@@ -203,7 +219,7 @@ return {
             "name": "__typename",
             "storageKey": null
           },
-          (v7/*: any*/),
+          (v9/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -217,16 +233,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "342f8e3cec6c060baee1de24c4e9a6b8",
+    "cacheID": "271432fa765dad968dfacd96dad900d6",
     "id": null,
     "metadata": {},
     "name": "SessionsTableAsideQuery",
     "operationKind": "query",
-    "text": "query SessionsTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      sessionCount(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)\n      averageSessionDurationMs(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)\n      averageTracesPerSession(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)\n      sessionDurationMsP50: sessionDurationMsQuantile(probability: 0.5, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)\n      sessionDurationMsP99: sessionDurationMsQuantile(probability: 0.99, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring)\n      sessionAnnotationNames\n    }\n    id\n  }\n}\n"
+    "text": "query SessionsTableAsideQuery(\n  $id: ID!\n  $timeRange: TimeRange!\n  $filterIoSubstring: String\n  $sessionId: String\n) {\n  project: node(id: $id) {\n    __typename\n    ... on Project {\n      name\n      description\n      sessionCount(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      averageSessionDurationMs(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      averageTracesPerSession(timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      sessionDurationMsP50: sessionDurationMsQuantile(probability: 0.5, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      sessionDurationMsP99: sessionDurationMsQuantile(probability: 0.99, timeRange: $timeRange, filterIoSubstring: $filterIoSubstring, sessionId: $sessionId)\n      sessionAnnotationNames\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "2d143007946e7d7441222f8a4e82bedb";
+(node as any).hash = "67d25925d174621807b12661e70110e6";
 
 export default node;

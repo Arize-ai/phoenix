@@ -15,11 +15,11 @@ import {
 type SessionAnnotationSummaryProps = {
   annotationName: string;
   /**
-   * Optional input/output substring filter. When set, the session annotation
-   * summary is restricted to sessions whose root span input/output contains
-   * the substring.
+   * The sessions table search text. Like the table, the summary treats it as
+   * both an input/output substring filter and an exact session-ID lookup,
+   * with an exact match taking precedence.
    */
-  filterIoSubstring?: string | null;
+  filterIoSubstringOrSessionId?: string | null;
 };
 
 /**
@@ -29,7 +29,7 @@ type SessionAnnotationSummaryProps = {
  */
 export function SessionAnnotationSummary({
   annotationName,
-  filterIoSubstring,
+  filterIoSubstringOrSessionId,
 }: SessionAnnotationSummaryProps) {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
@@ -40,6 +40,7 @@ export function SessionAnnotationSummary({
         $annotationName: String!
         $timeRange: TimeRange!
         $filterIoSubstring: String
+        $sessionId: String
       ) {
         project: node(id: $id) {
           ...SessionAnnotationSummaryValueFragment
@@ -47,6 +48,7 @@ export function SessionAnnotationSummary({
               annotationName: $annotationName
               timeRange: $timeRange
               filterIoSubstring: $filterIoSubstring
+              sessionId: $sessionId
             )
         }
       }
@@ -58,14 +60,15 @@ export function SessionAnnotationSummary({
         start: timeRange?.start?.toISOString(),
         end: timeRange?.end?.toISOString(),
       },
-      filterIoSubstring: filterIoSubstring || null,
+      filterIoSubstring: filterIoSubstringOrSessionId || null,
+      sessionId: filterIoSubstringOrSessionId || null,
     }
   );
   return (
     <Summary name={annotationName}>
       <SessionAnnotationSummaryValue
         annotationName={annotationName}
-        filterIoSubstring={filterIoSubstring || null}
+        filterIoSubstringOrSessionId={filterIoSubstringOrSessionId || null}
         project={data.project}
       />
     </Summary>
@@ -74,10 +77,10 @@ export function SessionAnnotationSummary({
 
 function SessionAnnotationSummaryValue(props: {
   annotationName: string;
-  filterIoSubstring: string | null;
+  filterIoSubstringOrSessionId: string | null;
   project: SessionAnnotationSummaryValueFragment$key;
 }) {
-  const { project, annotationName, filterIoSubstring } = props;
+  const { project, annotationName, filterIoSubstringOrSessionId } = props;
   const [data, refetch] = useRefetchableFragment<
     SessionAnnotationSummaryQuery,
     SessionAnnotationSummaryValueFragment$key
@@ -89,6 +92,7 @@ function SessionAnnotationSummaryValue(props: {
         annotationName: { type: "String!" }
         timeRange: { type: "TimeRange!" }
         filterIoSubstring: { type: "String", defaultValue: null }
+        sessionId: { type: "String", defaultValue: null }
       ) {
         annotationConfigs {
           edges {
@@ -113,6 +117,7 @@ function SessionAnnotationSummaryValue(props: {
           annotationName: $annotationName
           timeRange: $timeRange
           filterIoSubstring: $filterIoSubstring
+          sessionId: $sessionId
         ) {
           name
           count
@@ -131,7 +136,13 @@ function SessionAnnotationSummaryValue(props: {
 
   useRefetchOnStreamAdvance(() => {
     startTransition(() => {
-      refetch({ filterIoSubstring }, { fetchPolicy: "store-and-network" });
+      refetch(
+        {
+          filterIoSubstring: filterIoSubstringOrSessionId,
+          sessionId: filterIoSubstringOrSessionId,
+        },
+        { fetchPolicy: "store-and-network" }
+      );
     });
   });
 

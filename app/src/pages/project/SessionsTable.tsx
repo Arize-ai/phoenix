@@ -61,9 +61,9 @@ import { SessionSearchField } from "./SessionSearchField";
 import { SessionsTableAside } from "./SessionsTableAside";
 import { SessionsTableEmpty } from "./SessionsTableEmpty";
 import { spansTableCSS } from "./styles";
+import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import { TableMetricsChartsPanelGroup } from "./TableMetricsCharts";
 import { TableMetricsChartSelector } from "./TableMetricsChartSelector";
-import { TableAsidePanel, TableAsideToggleButton } from "./TableAside";
 import {
   DEFAULT_SESSION_SORT,
   getGqlSessionSort,
@@ -655,7 +655,9 @@ export function SessionsTable(props: SessionsTableProps) {
         </TableMetricsChartsPanelGroup>
       </Panel>
       <TableAsidePanel>
-        <SessionsTableAside filterIoSubstring={filterIoSubstringOrSessionId} />
+        <SessionsTableAside
+          filterIoSubstringOrSessionId={filterIoSubstringOrSessionId}
+        />
       </TableAsidePanel>
     </Group>
   );
