@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import {
   Bar,
   BarChart,
@@ -8,7 +9,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Group, Panel, Separator } from "react-resizable-panels";
 
 import {
   ChartPanel,
