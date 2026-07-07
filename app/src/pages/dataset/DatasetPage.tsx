@@ -123,8 +123,8 @@ const TABS_CONFIG = {
   0: "experiments",
   1: "examples",
   2: "evaluators",
-  3: "versions",
-  4: "metrics",
+  3: "metrics",
+  4: "versions",
 } as const;
 
 const TABS_LIST = Object.values(TABS_CONFIG);
@@ -240,8 +240,8 @@ function DatasetPageContent({
           <Tab id="evaluators">
             Evaluators <Counter>{dataset.evaluatorCount}</Counter>
           </Tab>
-          <Tab id="versions">Versions</Tab>
           <Tab id="metrics">Metrics</Tab>
+          <Tab id="versions">Versions</Tab>
         </TabList>
         <LazyTabPanel id="experiments">
           <Suspense>
@@ -258,12 +258,12 @@ function DatasetPageContent({
             <Outlet />
           </Suspense>
         </LazyTabPanel>
-        <LazyTabPanel id="versions">
+        <LazyTabPanel id="metrics">
           <Suspense>
             <Outlet />
           </Suspense>
         </LazyTabPanel>
-        <LazyTabPanel id="metrics">
+        <LazyTabPanel id="versions">
           <Suspense>
             <Outlet />
           </Suspense>
