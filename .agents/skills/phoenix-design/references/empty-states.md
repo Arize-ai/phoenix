@@ -50,24 +50,11 @@ so a search in an empty list wrongly stays on the topical state.
 
 ## Never render a bare `Text` as an empty state
 
-Any `renderEmptyState` — menus, comboboxes, and command palettes (`⌘K`) — must
+Any `renderEmptyState` — menus, comboboxes, and command palettes must
 render `CompactEmptyState`, never a lone `<Text>No results</Text>`. Bare text
 skips the topical/search icon, the subtle theme-aware color, the centering, and
 the faint glow, so it reads as a stray label rather than a considered empty
 state and drifts from every other empty surface.
-
-For a command palette the state is always a search, so let the shared default do
-the work — pass no `renderEmptyState` and `CommandPalette` renders the search
-icon + "No results" for you. Only override when the surface needs a genuinely
-different message, and even then reach for `CompactEmptyState`, not `Text`.
-
-```tsx
-// ✗ drifts from the system — no icon, no glow, wrong color
-renderEmptyState={() => <Text color="text-500">No results for “{query}”</Text>}
-
-// ✓ omit it entirely; the palette's default CompactEmptyState covers it
-<CommandPalette /* … */ >{items}</CommandPalette>
-```
 
 # Empty-State Graphics
 
