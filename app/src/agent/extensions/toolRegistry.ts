@@ -1,4 +1,3 @@
-import { bashAgentTool } from "@phoenix/agent/tools/bash";
 /**
  * Frontend registry for executing PXI tools whose model-facing definitions are
  * advertised by the server.
@@ -16,6 +15,7 @@ import {
   createAnnotationConfigAgentTool,
   updateAnnotationConfigAgentTool,
 } from "@phoenix/agent/tools/annotationConfig";
+import { bashAgentTool } from "@phoenix/agent/tools/bash";
 import { batchSpanAnnotateAgentTool } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   editCodeEvaluatorDraftAgentTool,

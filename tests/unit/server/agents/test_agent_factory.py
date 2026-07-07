@@ -4,6 +4,7 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
+from unittest.mock import Mock
 
 import httpx
 import pytest
@@ -50,6 +51,7 @@ from phoenix.server.agents.types import (
     ModelProviderAvailability,
     SandboxAvailability,
 )
+from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -1052,6 +1054,7 @@ class TestSkillsCapability:
         assert "<available_skills>" in cached_text
         assert "<name>debug-trace</name>" in cached_text
         assert "<name>annotate-spans</name>" in cached_text
+        assert "<name>span-coding</name>" in cached_text
         assert "<name>playground</name>" not in cached_text
         assert "<name>experiments</name>" not in cached_text
 
@@ -1068,6 +1071,25 @@ class TestSkillsCapability:
         tool_names = _get_tool_names(captured_request.body)
         assert "load_skill" in tool_names
         assert "read_skill_resource" in tool_names
+
+
+class TestWriteSpanNoteTool:
+    async def test_write_span_note_tool_is_advertised_with_db(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+        db: DbSessionFactory,
+    ) -> None:
+        agent = build_agent(
+            model=anthropic_model,
+            db=db,
+            event_queue=Mock(),
+        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "write_span_note" in _get_tool_names(captured_request.body)
 
 
 class TestCodeEvaluatorFormToolGates:

@@ -21,7 +21,8 @@ export function commitUpdateAnnotationConfig(
   if (draft.type === "categorical" && !draft.values?.length) {
     return Promise.resolve({
       ok: false,
-      error: "A categorical annotation config requires at least one label in `values`.",
+      error:
+        "A categorical annotation config requires at least one label in `values`.",
     });
   }
   return new Promise((resolve) => {

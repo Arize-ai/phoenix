@@ -15,9 +15,7 @@ import type {
 
 type CreatedConfig = { configId: string; name: string } | { error: string };
 
-function commitCreate(
-  draft: AnnotationConfigDraft
-): Promise<CreatedConfig> {
+function commitCreate(draft: AnnotationConfigDraft): Promise<CreatedConfig> {
   return new Promise((resolve) => {
     commitMutation<createAnnotationConfigToolMutation>(RelayEnvironment, {
       mutation: graphql`
@@ -105,7 +103,8 @@ export async function commitCreateAnnotationConfig(
   if (draft.type === "categorical" && !draft.values?.length) {
     return {
       ok: false,
-      error: "A categorical annotation config requires at least one label in `values`.",
+      error:
+        "A categorical annotation config requires at least one label in `values`.",
     };
   }
   const created = await commitCreate(draft);

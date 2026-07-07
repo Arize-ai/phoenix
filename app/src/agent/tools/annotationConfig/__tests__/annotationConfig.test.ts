@@ -44,7 +44,11 @@ describe("update_annotation_config input parser", () => {
       id: "QW5ub3RhdGlvbkNvbmZpZzox",
       type: "categorical",
       name: "tool_selection",
-      values: [{ label: "correct" }, { label: "incorrect" }, { label: "partial" }],
+      values: [
+        { label: "correct" },
+        { label: "incorrect" },
+        { label: "partial" },
+      ],
     });
     expect(result?.id).toBe("QW5ub3RhdGlvbkNvbmZpZzox");
     expect(result?.values).toHaveLength(3);

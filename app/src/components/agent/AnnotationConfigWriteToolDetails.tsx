@@ -39,9 +39,7 @@ export function AnnotationConfigWriteToolDetails({
   );
   return (
     <div className="tool-part__body">
-      {pending ? (
-        <AnnotationConfigWriteApprovalCard pending={pending} />
-      ) : null}
+      {pending ? <AnnotationConfigWriteApprovalCard pending={pending} /> : null}
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Result</ToolPartLabel>
