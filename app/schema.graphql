@@ -3498,6 +3498,11 @@ type Query {
   node(id: ID!): Node!
   viewer: User
   prompts(first: Int = 50, last: Int, after: String, before: String, filter: PromptFilter, labelIds: [ID!]): PromptConnection!
+
+  """
+  Search top-level resources (projects, datasets, experiments, and prompts) by name or description.
+  """
+  searchResources(query: String!, limitPerType: Int! = 5): [SearchResult!]!
   promptLabels(first: Int = 50, last: Int, after: String, before: String): PromptLabelConnection!
   datasetLabels(
     first: Int = 50
@@ -3705,6 +3710,8 @@ type SandboxProviderCredentialSpec {
   description: String!
   isRequired: Boolean!
 }
+
+union SearchResult = Project | Dataset | Experiment | Prompt
 
 type Secret implements Node {
   """The Globally Unique ID of this object"""

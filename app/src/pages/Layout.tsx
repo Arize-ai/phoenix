@@ -24,6 +24,7 @@ import {
   TopNavbar,
   VersionUpdateNotice,
 } from "@phoenix/components/nav";
+import { GlobalSearch } from "@phoenix/components/search";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import {
@@ -161,6 +162,9 @@ function SideNav() {
       <Brand />
       <Flex direction="column" justifyContent="space-between" flex="1 1 auto">
         <ul css={sideLinksCSS}>
+          <li key="search">
+            <GlobalSearch isExpanded={isSideNavExpanded} />
+          </li>
           <li>
             <NavLink
               to="/projects"

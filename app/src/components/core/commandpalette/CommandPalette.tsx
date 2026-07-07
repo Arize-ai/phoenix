@@ -1,0 +1,257 @@
+import { css } from "@emotion/react";
+import type { ReactNode } from "react";
+import type {
+  AutocompleteProps as AriaAutocompleteProps,
+  Key,
+} from "react-aria-components";
+import {
+  Autocomplete,
+  Header,
+  Input,
+  MenuSection,
+} from "react-aria-components";
+
+import { Text } from "@phoenix/components/core/content";
+import { Dialog } from "@phoenix/components/core/dialog";
+import { SearchField, SearchIcon } from "@phoenix/components/core/field";
+import { KeyboardToken } from "@phoenix/components/core/KeyboardToken";
+import { Menu } from "@phoenix/components/core/menu";
+import { Modal, ModalOverlay } from "@phoenix/components/core/overlay";
+
+const commandPaletteModalCSS = css`
+  /* Pin the palette near the top of the viewport instead of centering it so
+     the list can grow and shrink without the dialog jumping around */
+  &&[data-variant="default"] .react-aria-Dialog {
+    top: 15vh;
+    transform: translate(-50%, 0);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+`;
+
+const commandPaletteCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  .command-palette__field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex: none;
+    gap: var(--global-dimension-static-size-100);
+    padding-right: var(--global-dimension-static-size-100);
+    border-bottom: 1px solid var(--global-border-color-default);
+
+    .search-field {
+      flex: 1 1 auto;
+    }
+
+    .react-aria-Input {
+      font-size: var(--global-font-size-m);
+      height: var(--global-dimension-size-550);
+    }
+  }
+
+  .command-palette__menu {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  .command-palette__section:not(:first-child) {
+    margin-top: var(--global-dimension-static-size-100);
+  }
+
+  .command-palette__section-header {
+    padding: var(--global-dimension-static-size-50)
+      var(--global-dimension-static-size-100);
+    color: var(--global-text-color-500);
+    font-size: var(--global-font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .command-palette__footer {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex: none;
+    gap: var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-static-size-100)
+      var(--global-dimension-static-size-200);
+    border-top: 1px solid var(--global-border-color-default);
+  }
+
+  .command-palette__empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--global-dimension-static-size-300);
+  }
+`;
+
+export interface CommandPaletteProps {
+  /**
+   * Whether the command palette is open
+   */
+  isOpen: boolean;
+  /**
+   * Handler called when the open state changes (e.g. Escape, backdrop click)
+   */
+  onOpenChange: (isOpen: boolean) => void;
+  /**
+   * The search input value (controlled)
+   */
+  inputValue?: string;
+  /**
+   * Handler called when the search input value changes
+   */
+  onInputChange?: (value: string) => void;
+  /**
+   * An optional filter applied to the menu items based on the input value.
+   * Omit when the items are already filtered (e.g. server-side search).
+   */
+  filter?: AriaAutocompleteProps<object>["filter"];
+  /**
+   * Placeholder text for the search input
+   * @default "Search…"
+   */
+  placeholder?: string;
+  /**
+   * Accessible label for the palette
+   * @default "Command palette"
+   */
+  "aria-label"?: string;
+  /**
+   * Handler called when a menu item without its own handler is actioned
+   */
+  onAction?: (key: Key) => void;
+  /**
+   * Menu contents: CommandPaletteSection / CommandPaletteItem elements
+   */
+  children: ReactNode;
+  /**
+   * Content rendered when no items match. Receives no arguments; close over
+   * the input value for a contextual message.
+   */
+  renderEmptyState?: () => ReactNode;
+  /**
+   * Footer content. Defaults to keyboard navigation hints.
+   */
+  footer?: ReactNode;
+}
+
+/**
+ * A command palette (⌘K style) dialog: a search input wired to a menu of
+ * commands or search results via React Aria's Autocomplete, giving virtual
+ * focus — arrow keys move through results while focus stays in the input —
+ * along with Enter to select and Escape to dismiss.
+ */
+export function CommandPalette({
+  isOpen,
+  onOpenChange,
+  inputValue,
+  onInputChange,
+  filter,
+  placeholder = "Search…",
+  "aria-label": ariaLabel = "Command palette",
+  onAction,
+  children,
+  renderEmptyState,
+  footer,
+}: CommandPaletteProps) {
+  return (
+    <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable>
+      <Modal size="M" css={commandPaletteModalCSS}>
+        <Dialog
+          aria-label={ariaLabel}
+          className="command-palette"
+          css={commandPaletteCSS}
+        >
+          <Autocomplete
+            inputValue={inputValue}
+            onInputChange={onInputChange}
+            filter={filter}
+          >
+            <div className="command-palette__field">
+              <SearchField
+                aria-label={ariaLabel}
+                variant="quiet"
+                size="L"
+                autoFocus
+              >
+                <SearchIcon />
+                <Input placeholder={placeholder} />
+              </SearchField>
+              <KeyboardToken aria-hidden="true">Esc</KeyboardToken>
+            </div>
+            <Menu
+              className="command-palette__menu"
+              aria-label={ariaLabel}
+              onAction={onAction}
+              renderEmptyState={() => (
+                <div className="command-palette__empty-state">
+                  {renderEmptyState ? (
+                    renderEmptyState()
+                  ) : (
+                    <Text color="text-500">No results</Text>
+                  )}
+                </div>
+              )}
+            >
+              {children}
+            </Menu>
+            <div className="command-palette__footer">
+              {footer ?? <CommandPaletteHints />}
+            </div>
+          </Autocomplete>
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
+function CommandPaletteHints() {
+  return (
+    <>
+      <Text size="XS" color="text-500">
+        <KeyboardToken>↑↓</KeyboardToken>
+        &nbsp;to navigate
+      </Text>
+      <Text size="XS" color="text-500">
+        <KeyboardToken>↵</KeyboardToken>
+        &nbsp;to select
+      </Text>
+      <Text size="XS" color="text-500">
+        <KeyboardToken>esc</KeyboardToken>
+        &nbsp;to close
+      </Text>
+    </>
+  );
+}
+
+export interface CommandPaletteSectionProps {
+  /**
+   * The section heading, e.g. "Recently viewed"
+   */
+  title: string;
+  children: ReactNode;
+}
+
+/**
+ * A titled group of command palette items. Sections whose items are all
+ * filtered out are hidden automatically.
+ */
+export function CommandPaletteSection({
+  title,
+  children,
+}: CommandPaletteSectionProps) {
+  return (
+    <MenuSection className="command-palette__section">
+      <Header className="command-palette__section-header">{title}</Header>
+      {children}
+    </MenuSection>
+  );
+}
