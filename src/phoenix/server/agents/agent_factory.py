@@ -71,8 +71,8 @@ def build_agent(
     publish_subagent_message_chunk: Callable[[ToolOutputAvailableChunk], Awaitable[None]]
     | None = None,
     set_subagent_final_tool_output: Callable[[ToolOutputAvailableChunk], None] | None = None,
-    db: DbSessionFactory | None = None,
-    event_queue: CanPutItem[DmlEvent] | None = None,
+    db: DbSessionFactory,
+    event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
     auth_enabled: bool = False,
     user_id: int | None = None,
@@ -137,18 +137,17 @@ def build_agent(
                 set_subagent_final_tool_output=set_subagent_final_tool_output,
             )
         )
-    if db is not None and event_queue is not None:
-        capabilities.append(
-            WriteSpanNoteCapability(
-                db=db,
-                event_queue=event_queue,
-                instructions=resolved_prompts.write_span_note_tool.render(),
-                read_only=read_only,
-                auth_enabled=auth_enabled,
-                user_id=user_id,
-                is_viewer=is_viewer,
-            )
+    capabilities.append(
+        WriteSpanNoteCapability(
+            db=db,
+            event_queue=event_queue,
+            instructions=resolved_prompts.write_span_note_tool.render(),
+            read_only=read_only,
+            auth_enabled=auth_enabled,
+            user_id=user_id,
+            is_viewer=is_viewer,
         )
+    )
 
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),

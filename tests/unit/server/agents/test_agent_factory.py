@@ -27,7 +27,7 @@ from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from typing_extensions import TypeIs, assert_never
 
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import build_agent as _build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
     build_anthropic_prompt_cache_capability,
@@ -54,6 +54,13 @@ from phoenix.server.agents.types import (
 from phoenix.server.types import DbSessionFactory
 
 _DEFAULT_PROMPTS = AgentPrompts()
+
+
+def build_agent(**kwargs: Any) -> Any:
+    """Build an agent for factory tests with inert DB-backed tool dependencies."""
+    kwargs.setdefault("db", Mock(spec=DbSessionFactory))
+    kwargs.setdefault("event_queue", Mock())
+    return _build_agent(**kwargs)
 
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
@@ -1071,25 +1078,7 @@ class TestSkillsCapability:
         tool_names = _get_tool_names(captured_request.body)
         assert "load_skill" in tool_names
         assert "read_skill_resource" in tool_names
-
-
-class TestWriteSpanNoteTool:
-    async def test_write_span_note_tool_is_advertised_with_db(
-        self,
-        anthropic_model: AnthropicModel,
-        captured_request: CapturedRequest,
-        db: DbSessionFactory,
-    ) -> None:
-        agent = build_agent(
-            model=anthropic_model,
-            db=db,
-            event_queue=Mock(),
-        )
-        deps = AgentDependencies(contexts=ResolvedContexts())
-
-        await agent.run("hello", deps=deps)
-
-        assert "write_span_note" in _get_tool_names(captured_request.body)
+        assert "write_span_note" in tool_names
 
 
 class TestCodeEvaluatorFormToolGates:
