@@ -23,6 +23,9 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Resume / play | `Icons.Play` | Start or resume a paused activity (e.g. resume live streaming). Distinct from `PlayCircle` (used for video attachments). |
 | Pause | `Icons.Pause` | Pause an in-progress activity (e.g. pause live streaming). |
 | Mark / bookmark a selection | `Icons.BookmarkCheck` | Mark an item as a designated selection (e.g. mark an experiment as the baseline). Use `Icons.BookmarkX` for the corresponding remove/unset action. Prefer these over `PriceTags`, which reads as free-form tagging. |
+| Chart type: vertical bars | `Icons.ChartNoAxesColumn` | Lucide-style glyph (three ascending columns, no axis). Preview for a vertical bar / column chart in the metric chart picker. Distinct from `BarChart` (eva glyph used as the generic "charts" action icon). |
+| Chart type: horizontal / ranked bars | `Icons.ChartBarDecreasing` | Lucide-style chart glyph with axis and descending horizontal bars. Preview for a ranked "top N" horizontal bar chart. |
+| Chart type: line | `Icons.ChartLine` | Lucide-style chart glyph with axis. Preview for a line / time-series chart. |
 
 ## When you need an icon
 

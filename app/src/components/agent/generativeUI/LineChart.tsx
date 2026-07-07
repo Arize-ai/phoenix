@@ -11,6 +11,7 @@ import {
 
 import {
   ChartEmptyStateOverlay,
+  defaultCartesianGridProps,
   GRAYSCALE_CATEGORICAL_COLORS,
   useGrayscaleCategoricalColors,
 } from "@phoenix/components/chart";
@@ -64,7 +65,7 @@ function CustomXAxisTick(props: {
       y={y + 10}
       textAnchor={textAnchor}
       fontSize={9}
-      fill="var(--global-text-color-700)"
+      fill="var(--chart-axis-text-color)"
     >
       {payload?.value}
     </text>
@@ -88,9 +89,9 @@ export function LineChart({
     }
 
     const maxLength = Math.max(...lines.map((line) => line.data.length));
-    const seriesKeys = lines.map(
-      (line, index) => line.label ?? `series${index}`
-    );
+    // Index-based keys so lines with duplicate labels don't clobber each
+    // other's data points; labels are only used for the legend
+    const seriesKeys = lines.map((_, index) => `series${index}`);
 
     const data = Array.from({ length: maxLength }, (_, i) => {
       const point: Record<string, string | number> = {
@@ -121,16 +122,12 @@ export function LineChart({
             data={data}
             margin={hasXAxis ? CHART_MARGINS_WITH_XAXIS : CHART_MARGINS}
           >
-            <CartesianGrid
-              horizontal
-              vertical={false}
-              stroke="var(--global-color-gray-200)"
-            />
+            <CartesianGrid {...defaultCartesianGridProps} />
             <YAxis
               width={24}
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
+              tick={{ fontSize: 9, fill: "var(--chart-axis-text-color)" }}
               tickCount={3}
             />
             {hasXAxis && (
@@ -174,7 +171,7 @@ export function LineChart({
                   index % GRAYSCALE_CATEGORICAL_COLORS.length
                 ];
               return (
-                <div key={line.label} css={legendItemCSS}>
+                <div key={`${line.label}-${index}`} css={legendItemCSS}>
                   <div
                     css={legendSwatchCSS}
                     style={{ background: colors[colorKey] }}

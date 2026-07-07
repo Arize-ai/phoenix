@@ -17,7 +17,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { useCategoryChartColors } from "@phoenix/components/chart/colors";
+import { useCategoryChartColors } from "@phoenix/components/chart";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14ff25380b1ade07375796a583c4acf8>>
+ * @generated SignedSource<<f1c48ba3fb381643f8c9626d9262a397>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,13 +18,13 @@ export type TimeBinConfig = {
   scale?: TimeBinScale;
   utcOffsetMinutes?: number;
 };
-export type ToolSpanCountTimeSeriesQuery$variables = {
-  filterCondition: string;
+export type SpanCountTimeSeriesQuery$variables = {
+  filterCondition?: string | null;
   projectId: string;
   timeBinConfig: TimeBinConfig;
   timeRange: TimeRange;
 };
-export type ToolSpanCountTimeSeriesQuery$data = {
+export type SpanCountTimeSeriesQuery$data = {
   readonly project: {
     readonly spanCountTimeSeries?: {
       readonly data: ReadonlyArray<{
@@ -37,9 +37,9 @@ export type ToolSpanCountTimeSeriesQuery$data = {
     };
   };
 };
-export type ToolSpanCountTimeSeriesQuery = {
-  response: ToolSpanCountTimeSeriesQuery$data;
-  variables: ToolSpanCountTimeSeriesQuery$variables;
+export type SpanCountTimeSeriesQuery = {
+  response: SpanCountTimeSeriesQuery$data;
+  variables: SpanCountTimeSeriesQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -160,7 +160,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ToolSpanCountTimeSeriesQuery",
+    "name": "SpanCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -187,7 +187,7 @@ return {
       (v0/*: any*/)
     ],
     "kind": "Operation",
-    "name": "ToolSpanCountTimeSeriesQuery",
+    "name": "SpanCountTimeSeriesQuery",
     "selections": [
       {
         "alias": "project",
@@ -218,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ba44ceb51f7535384ba5f52ec2b75800",
+    "cacheID": "aeb47b6f9a26374cc88f9bf10ecac40e",
     "id": null,
     "metadata": {},
-    "name": "ToolSpanCountTimeSeriesQuery",
+    "name": "SpanCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query ToolSpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "91c3113c1baf69f4da181dbc4892e1c3";
+(node as any).hash = "e1620f4c69b60d3e19f6082f504c91b5";
 
 export default node;

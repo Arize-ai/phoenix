@@ -33,42 +33,59 @@ import {
   PROJECT_METRICS_CHART_SYNC_ID,
   useMetricQueryFetchOptions,
 } from "@phoenix/pages/project/metrics/types";
-import { intFormatter } from "@phoenix/utils/numberFormatUtils";
+import { intShortFormatter } from "@phoenix/utils/numberFormatUtils";
 
-import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSeriesQuery.graphql";
+import type { SpanCountTimeSeriesQuery } from "./__generated__/SpanCountTimeSeriesQuery.graphql";
 
-export function TraceCountTimeSeries({
-  projectId,
-  timeRange,
-  onTimeRangeSelected,
-}: ProjectMetricViewProps) {
-  const scale = useTimeBinScale({ timeRange });
-  const utcOffsetMinutes = useUTCOffsetMinutes();
-
-  const data = useLazyLoadQuery<TraceCountTimeSeriesQuery>(
-    graphql`
-      query TraceCountTimeSeriesQuery(
-        $projectId: ID!
-        $timeRange: TimeRange!
-        $timeBinConfig: TimeBinConfig!
-      ) {
-        project: node(id: $projectId) {
-          ... on Project {
-            traceCountByStatusTimeSeries(
-              timeRange: $timeRange
-              timeBinConfig: $timeBinConfig
-            ) {
-              data {
-                timestamp
-                okCount
-                errorCount
-                totalCount
-              }
-            }
+/**
+ * Shared with SpanErrorsTimeSeries so a count chart and its errors chart
+ * issue one identical query that Relay can dedupe and serve from the store.
+ */
+export const spanCountTimeSeriesQuery = graphql`
+  query SpanCountTimeSeriesQuery(
+    $projectId: ID!
+    $timeRange: TimeRange!
+    $timeBinConfig: TimeBinConfig!
+    $filterCondition: String
+  ) {
+    project: node(id: $projectId) {
+      ... on Project {
+        spanCountTimeSeries(
+          timeRange: $timeRange
+          timeBinConfig: $timeBinConfig
+          filterCondition: $filterCondition
+        ) {
+          data {
+            timestamp
+            okCount
+            errorCount
+            unsetCount
+            totalCount
           }
         }
       }
-    `,
+    }
+  }
+`;
+
+/**
+ * A time series of span counts in the project, broken down by status.
+ * Optionally scoped to the spans matching a filter condition, e.g.
+ * `span_kind == "LLM"`.
+ */
+export function SpanCountTimeSeries({
+  projectId,
+  timeRange,
+  onTimeRangeSelected,
+  filterCondition = null,
+}: ProjectMetricViewProps & {
+  filterCondition?: string | null;
+}) {
+  const scale = useTimeBinScale({ timeRange });
+  const utcOffsetMinutes = useUTCOffsetMinutes();
+
+  const data = useLazyLoadQuery<SpanCountTimeSeriesQuery>(
+    spanCountTimeSeriesQuery,
     {
       projectId,
       timeRange: {
@@ -79,19 +96,21 @@ export function TraceCountTimeSeries({
         scale,
         utcOffsetMinutes,
       },
+      filterCondition,
     },
     useMetricQueryFetchOptions()
   );
 
   const chartData = useMemo(
     () =>
-      (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
+      (data.project.spanCountTimeSeries?.data ?? []).map((datum) => ({
         timestamp: new Date(datum.timestamp).getTime(),
-        ok: datum.okCount,
         error: datum.errorCount,
-        total: datum.totalCount,
+        unset: datum.unsetCount,
+        ok: datum.okCount,
+        total: datum.totalCount ?? 0,
       })),
-    [data.project.traceCountByStatusTimeSeries?.data]
+    [data.project.spanCountTimeSeries?.data]
   );
   const hasData = chartData.some((datum) => datum.total > 0);
 
@@ -125,12 +144,11 @@ export function TraceCountTimeSeries({
               <YAxis
                 {...compactYAxisProps}
                 allowDecimals={false}
-                tickFormatter={(x) => intFormatter(x)}
+                tickFormatter={(x) => intShortFormatter(x)}
               />
               <CartesianGrid {...defaultCartesianGridProps} />
               <Tooltip
                 content={CountTimeSeriesTooltipContent}
-                // TODO formalize this
                 {...defaultTooltipProps}
               />
               <Bar
@@ -140,18 +158,23 @@ export function TraceCountTimeSeries({
                 hide={isDataKeyHidden("error")}
               />
               <Bar
+                dataKey="unset"
+                stackId="a"
+                fill={colors.gray500}
+                hide={isDataKeyHidden("unset")}
+              />
+              <Bar
                 dataKey="ok"
                 stackId="a"
                 fill={colors.gray300}
                 hide={isDataKeyHidden("ok")}
                 radius={[2, 2, 0, 0]}
               />
-
               <InteractiveLegend
-                iconType="circle"
-                iconSize={8}
                 {...compactLegendProps}
                 hiddenDataKeys={hiddenDataKeys}
+                iconType="circle"
+                iconSize={8}
                 onToggleDataKey={toggleDataKey}
               />
             </BarChart>
