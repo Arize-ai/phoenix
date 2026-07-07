@@ -112,6 +112,7 @@ from phoenix.server.grpc_server import GrpcServer
 from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
@@ -581,6 +582,7 @@ def _lifespan(
     experiment_runner: ExperimentRunner,
     sandbox_session_manager: SandboxSessionManager,
     online_eval_producer: Optional[OnlineEvalProducer] = None,
+    online_eval_consumer: Optional[OnlineEvalConsumer] = None,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -640,12 +642,13 @@ def _lifespan(
             # shutdown snapshot would leak a provider session past the daemon.
             await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
-            # Entered after sandbox_session_manager so the stacked consumer PR
-            # can enter its consumer next to the producer with the teardown
-            # ordering it needs (code evals run through sandbox sessions, so
-            # the consumer must stop before the manager does).
+            # Entered after sandbox_session_manager for the same teardown-order
+            # reason as experiment_runner: the consumer runs code evals through
+            # sandbox sessions, so it must stop before the manager does.
             if online_eval_producer is not None:
                 await stack.enter_async_context(online_eval_producer)
+            if online_eval_consumer is not None:
+                await stack.enter_async_context(online_eval_consumer)
             if docs_mcp_server is not None:
                 # The docs MCP server connects to an external host during
                 # startup. Never let its initialization (which can hang until a
@@ -963,8 +966,15 @@ def create_app(
         sandbox_session_manager=sandbox_session_manager,
     )
     online_eval_producer: Optional[OnlineEvalProducer] = None
+    online_eval_consumer: Optional[OnlineEvalConsumer] = None
     if get_env_online_eval_enabled():
         online_eval_producer = OnlineEvalProducer(db)
+        online_eval_consumer = OnlineEvalConsumer(
+            db,
+            decrypt=encryption_service.decrypt,
+            sandbox_session_manager=sandbox_session_manager,
+            event_queue=dml_event_handler,
+        )
     graphql_schema = build_graphql_schema(graphql_schema_extensions)
     graphql_router = create_graphql_router(
         db=db,
@@ -1014,6 +1024,7 @@ def create_app(
             experiment_runner=experiment_runner,
             sandbox_session_manager=sandbox_session_manager,
             online_eval_producer=online_eval_producer,
+            online_eval_consumer=online_eval_consumer,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1142,6 +1153,7 @@ def create_app(
     app.state.docs_mcp_server = docs_mcp_server
     app.state.sandbox_session_manager = sandbox_session_manager
     app.state.online_eval_producer = online_eval_producer
+    app.state.online_eval_consumer = online_eval_consumer
     app.state.graphql_schema = graphql_schema
     app.state.build_graphql_context = _get_build_graphql_context_function(
         db=db,

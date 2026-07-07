@@ -306,7 +306,39 @@ Defaults to 20000.
 """
 ENV_PHOENIX_ONLINE_EVAL_ENABLED = "PHOENIX_ONLINE_EVAL_ENABLED"
 """
-Whether to run the online-eval producer daemon. Defaults to false.
+Whether to run the online-eval producer and consumer daemons. Defaults to false.
+"""
+ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS = "PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS"
+"""
+How long an observed span high-water id must age before the online-eval producer scans up
+to it. Defaults to 60.
+"""
+ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS = "PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS"
+"""
+How often the online-eval producer re-sweeps recent spans for work units missed by the
+frontier scan. Defaults to 3600.
+"""
+ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS = (
+    "PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS"
+)
+"""
+How far behind the producer watermark, measured in span ids, the backstop sweep looks.
+Defaults to 100000.
+"""
+ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS = "PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS"
+"""
+How long a PENDING online-eval work unit may wait before the reaper marks it EXPIRED.
+Defaults to 0 (disabled).
+"""
+ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS = "PHOENIX_ONLINE_EVAL_RETENTION_SECONDS"
+"""
+How long terminal online-eval work units are kept before the reaper deletes them.
+Defaults to 604800 (7 days).
+"""
+ENV_PHOENIX_ONLINE_EVAL_MAX_PENDING = "PHOENIX_ONLINE_EVAL_MAX_PENDING"
+"""
+The pending work-unit count above which the online-eval producer stops materializing new
+work units. Defaults to 10000.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -3171,6 +3203,55 @@ def get_env_online_eval_enabled() -> bool:
     Gets the value of the PHOENIX_ONLINE_EVAL_ENABLED environment variable.
     """
     return _bool_val(ENV_PHOENIX_ONLINE_EVAL_ENABLED, False)
+
+
+def get_env_online_eval_frontier_lag_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS environment variable.
+    """
+    return _float_val(ENV_PHOENIX_ONLINE_EVAL_FRONTIER_LAG_SECONDS, 60.0)
+
+
+def get_env_online_eval_backstop_interval_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS environment variable.
+    """
+    return _float_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_INTERVAL_SECONDS, 3600.0)
+
+
+def get_env_online_eval_backstop_lookback_span_ids() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS environment variable.
+    """
+    return _int_val(ENV_PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS, 100_000)
+
+
+def get_env_online_eval_pending_ttl_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS environment variable.
+
+    Defaults to 0, which disables TTL-based shedding: pending work units wait
+    until a consumer claims them, however long that takes (the admission gate
+    bounds queue growth). Setting a positive TTL opts into load shedding —
+    pending units older than the TTL are expired terminally and are NEVER
+    evaluated or re-materialized, so only set this if dropping evals on old
+    spans under sustained backlog is acceptable.
+    """
+    return _float_val(ENV_PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS, 0.0)
+
+
+def get_env_online_eval_retention_seconds() -> float:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_RETENTION_SECONDS environment variable.
+    """
+    return _float_val(ENV_PHOENIX_ONLINE_EVAL_RETENTION_SECONDS, 604_800.0)
+
+
+def get_env_online_eval_max_pending() -> int:
+    """
+    Gets the value of the PHOENIX_ONLINE_EVAL_MAX_PENDING environment variable.
+    """
+    return _int_val(ENV_PHOENIX_ONLINE_EVAL_MAX_PENDING, 10_000)
 
 
 def get_env_client_headers() -> dict[str, str]:

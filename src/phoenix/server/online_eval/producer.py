@@ -24,6 +24,14 @@ from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
 
+from phoenix.config import (
+    get_env_online_eval_backstop_interval_seconds,
+    get_env_online_eval_backstop_lookback_span_ids,
+    get_env_online_eval_frontier_lag_seconds,
+    get_env_online_eval_max_pending,
+    get_env_online_eval_pending_ttl_seconds,
+    get_env_online_eval_retention_seconds,
+)
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.online_eval.derivation import (
@@ -153,24 +161,14 @@ class OnlineEvalProducer(DaemonTask):
         self._consumer_group = consumer_group
         self._tick_interval_seconds = tick_interval_seconds
         self._producer_id = f"producer-{token_hex(8)}"
-        # Config knobs are hardcoded to their defaults until the online-eval env-var surface lands.
-        self._frontier_lag_seconds = 60.0
-        # The backstop's coverage guarantee is rate-dependent: gap-free re-coverage
-        # requires lookback_span_ids >= instance_wide_ingest_rate * interval_seconds.
-        # Spans draw from a single id sequence, so the rate that matters is the sum
-        # across all projects and tenants — 100k ids per 3600s sweep only protects
-        # deployments ingesting under ~28 spans/sec instance-wide. Above that, rows
-        # can age out of the lookback between sweeps and the backstop stops bounding
-        # the exceptional loss modes it exists to catch (late-visible spans, skipped
-        # criteria). The reaper's floor (``_reap``) is aligned to this lookback, so
-        # any change here must move both together.
-        self._backstop_interval_seconds = 3600.0
-        self._backstop_lookback_span_ids = 100_000
+        self._frontier_lag_seconds = get_env_online_eval_frontier_lag_seconds()
+        self._backstop_interval_seconds = get_env_online_eval_backstop_interval_seconds()
+        self._backstop_lookback_span_ids = get_env_online_eval_backstop_lookback_span_ids()
         self._max_span_ids_per_tick = 10_000
-        # Disabled because expiry is terminal and blocks backstop re-materialization.
-        self._pending_ttl_seconds = 0.0
-        self._retention_seconds = 604_800.0
-        self._max_pending = 10_000
+        # Disabled by default because expiry is terminal and blocks backstop re-materialization.
+        self._pending_ttl_seconds = get_env_online_eval_pending_ttl_seconds()
+        self._retention_seconds = get_env_online_eval_retention_seconds()
+        self._max_pending = get_env_online_eval_max_pending()
         self._last_backstop_at = time.monotonic()
         self._lease_held = False
 

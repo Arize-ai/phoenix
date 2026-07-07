@@ -1,10 +1,10 @@
-"""End-to-end wiring test for the online-eval producer daemon behind
-``PHOENIX_ONLINE_EVAL_ENABLED``: the enabled app starts and stops the producer
+"""End-to-end wiring test for the online-eval daemons behind
+``PHOENIX_ONLINE_EVAL_ENABLED``: the enabled app starts and stops both daemons
 through the lifespan, and a seeded criteria + span flows producer tick →
-PENDING work unit. (The consumer daemon and its wiring land in the stacked
-follow-up PR; until then materialized units rest as PENDING.)
+consumer cycle → span annotation with the work unit DONE.
 """
 
+import asyncio
 from contextlib import AsyncExitStack
 from datetime import datetime, timedelta, timezone
 
@@ -16,6 +16,7 @@ from phoenix.config import ENV_PHOENIX_ONLINE_EVAL_ENABLED
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.app import create_app
+from phoenix.server.online_eval.consumer import OnlineEvalConsumer
 from phoenix.server.online_eval.producer import OnlineEvalProducer
 from phoenix.server.types import DbSessionFactory
 from tests.unit.conftest import (
@@ -25,7 +26,7 @@ from tests.unit.conftest import (
 )
 
 from ..._helpers import _add_project, _add_span, _add_trace
-from .test_producer import _seed_criteria
+from .test_consumer import _patch_playground_client, _seed_llm_criteria, _StubLLMClient
 
 
 def _create_app(db: DbSessionFactory):  # type: ignore[no-untyped-def]
@@ -37,22 +38,26 @@ def _create_app(db: DbSessionFactory):  # type: ignore[no-untyped-def]
     )
 
 
-async def test_online_eval_producer_absent_by_default(db: DbSessionFactory) -> None:
+async def test_online_eval_daemons_absent_by_default(db: DbSessionFactory) -> None:
     app = _create_app(db)
     assert app.state.online_eval_producer is None
+    assert app.state.online_eval_consumer is None
 
 
-async def test_enabled_app_materializes_seeded_criteria(
+async def test_enabled_app_runs_seeded_criteria_end_to_end(
     db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv(ENV_PHOENIX_ONLINE_EVAL_ENABLED, "true")
+    _patch_playground_client(monkeypatch, _StubLLMClient())
 
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(patch_batched_caller())
         await stack.enter_async_context(patch_grpc_server())
         app = _create_app(db)
         producer = app.state.online_eval_producer
+        consumer = app.state.online_eval_consumer
         assert isinstance(producer, OnlineEvalProducer)
+        assert isinstance(consumer, OnlineEvalConsumer)
         await stack.enter_async_context(LifespanManager(app))
 
         async with db() as session:
@@ -63,7 +68,7 @@ async def test_enabled_app_materializes_seeded_criteria(
                 trace,
                 attributes={"input": {"value": "hi"}, "output": {"value": "there"}},
             )
-        _, criteria_id = await _seed_criteria(db, project.id)
+        _, criteria_id = await _seed_llm_criteria(db, project.id)
 
         # Age the cursor's high-water observation past the frontier lag so the
         # next tick's scan window covers the seeded span. The daemon's own
@@ -98,4 +103,26 @@ async def test_enabled_app_materializes_seeded_criteria(
             )
         assert unit is not None
         assert unit.criteria_id == criteria_id
-        assert unit.status == "PENDING"
+
+        await consumer._cycle()
+
+        # The daemon's own background cycle may have claimed the unit ahead of
+        # the explicit cycle above; either path lands on DONE within moments.
+        deadline = asyncio.get_running_loop().time() + 10
+        while True:
+            async with db() as session:
+                refreshed = await session.get(models.EvalWorkUnit, unit.id)
+                assert refreshed is not None
+                status = refreshed.status
+            if status == "DONE" or asyncio.get_running_loop().time() > deadline:
+                break
+            await asyncio.sleep(0.05)
+        assert status == "DONE"
+
+        async with db() as session:
+            annotation = await session.scalar(
+                select(models.SpanAnnotation).where(models.SpanAnnotation.span_rowid == span.id)
+            )
+        assert annotation is not None
+        assert annotation.label == "good"
+        assert annotation.source == "API"

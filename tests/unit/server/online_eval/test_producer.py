@@ -322,7 +322,12 @@ async def test_backstop_catches_late_visible_span(db: DbSessionFactory) -> None:
     assert by_span[expired_span.id].status == "EXPIRED"
 
 
-async def test_reaper_transitions_and_deletes(db: DbSessionFactory) -> None:
+async def test_reaper_transitions_and_deletes(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS", "2")
+    # TTL shedding is opt-in (default off); this test exercises the opted-in path.
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", "3600")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -378,9 +383,6 @@ async def test_reaper_transitions_and_deletes(db: DbSessionFactory) -> None:
         }
 
     producer = OnlineEvalProducer(db)
-    producer._backstop_lookback_span_ids = 2
-    # TTL shedding is opt-in (default off); this test exercises the opted-in path.
-    producer._pending_ttl_seconds = 3600.0
     await producer._reap(now, produced_through)
 
     async with db() as session:
@@ -395,11 +397,15 @@ async def test_reaper_transitions_and_deletes(db: DbSessionFactory) -> None:
     assert remaining.get(ids["retryable_error_outside"]) == "ERROR"
 
 
-async def test_reaper_default_keeps_old_pending_work(db: DbSessionFactory) -> None:
+async def test_reaper_default_keeps_old_pending_work(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """With the pending TTL unset (the default), backlog never expires: a
     PENDING unit older than any drain window stays claimable instead of being
     shed. TTL expiry is terminal and blocks backstop re-materialization of the
     same fingerprint, so shedding must be an explicit operator opt-in."""
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_BACKSTOP_LOOKBACK_SPAN_IDS", "2")
+    monkeypatch.delenv("PHOENIX_ONLINE_EVAL_PENDING_TTL_SECONDS", raising=False)
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -421,7 +427,6 @@ async def test_reaper_default_keeps_old_pending_work(db: DbSessionFactory) -> No
         unit_id = old_pending.id
 
     producer = OnlineEvalProducer(db)
-    producer._backstop_lookback_span_ids = 2
     await producer._reap(now, span.id)
 
     async with db() as session:
@@ -430,7 +435,10 @@ async def test_reaper_default_keeps_old_pending_work(db: DbSessionFactory) -> No
     assert unit.status == "PENDING"
 
 
-async def test_admission_gate_skips_materialization(db: DbSessionFactory) -> None:
+async def test_admission_gate_skips_materialization(
+    db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PHOENIX_ONLINE_EVAL_MAX_PENDING", "0")
     async with db() as session:
         project = await _add_project(session)
         trace = await _add_trace(session, project)
@@ -453,7 +461,6 @@ async def test_admission_gate_skips_materialization(db: DbSessionFactory) -> Non
     )
 
     producer = OnlineEvalProducer(db)
-    producer._max_pending = 0
     await producer._tick()
 
     async with db() as session:
