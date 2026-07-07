@@ -397,14 +397,15 @@ def get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount]
     counts_by_span_id: dict[str, CumulativeCount] = {}
     span_ids = {span.span_id for span in spans}
     for span in spans:
-        is_root_span = span.parent_id is None
-        is_subtree_root_span = span.parent_id is not None and span.parent_id not in span_ids
-        if is_root_span or is_subtree_root_span:
+        parent_id = span.parent_id
+        # Roots (no parent) and subtree roots (parent outside this batch) both
+        # seed the post-order traversal below.
+        if parent_id is None or parent_id not in span_ids:
             root_span_ids.append(span.span_id)
         else:
-            if span.parent_id not in parent_to_children_ids:
-                parent_to_children_ids[span.parent_id] = []
-            parent_to_children_ids[span.parent_id].append(span.span_id)
+            if parent_id not in parent_to_children_ids:
+                parent_to_children_ids[parent_id] = []
+            parent_to_children_ids[parent_id].append(span.span_id)
         is_llm_span = (span.span_kind or "").upper() == "LLM"
         counts_by_span_id[span.span_id] = CumulativeCount(
             errors=int(span.status_code == "ERROR"),
