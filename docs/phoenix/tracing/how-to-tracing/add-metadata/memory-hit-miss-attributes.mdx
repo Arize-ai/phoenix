@@ -1,0 +1,100 @@
+---
+title: "Memory Hit and Miss Span Attributes"
+sidebarTitle: "Memory hit/miss attributes"
+description: "Recommended metadata attributes for tracing agent memory recall — record cache hits, misses, and result counts on memory.query spans."
+keywords: ['memory', 'tracing', 'hit', 'miss', 'metadata', 'agent memory', 'memory.query']
+---
+
+Agent memory systems often sit beside RAG retrieval: they recall facts the user shared in past sessions rather than documents from a vector store. Phoenix does not require a dedicated memory span kind today — use a **`CHAIN`** span named `memory.query` and record hit/miss signals in the OpenInference **`metadata`** attribute.
+
+<Info>
+These attribute names are **example conventions** for manual instrumentation. They are not yet part of the canonical OpenInference spec. Frame them as application metadata until a stable `MEMORY` span kind lands in OpenInference.
+</Info>
+
+## Recommended attributes
+
+| Metadata key | Type | When to set | Purpose |
+| :--- | :--- | :--- | :--- |
+| `operation` | string | Always | `"memory.query"` — distinguishes recall from `memory.store` |
+| `memory.hit` | boolean | On `memory.query` completion | `true` when at least one relevant entry was found |
+| `memory.result_count` | integer | On `memory.query` completion | Number of entries returned (0 on miss) |
+| `memory.latency_ms` | integer | On completion | Round-trip latency of the memory backend |
+| `namespace` | string | On start | Logical partition, e.g. `user-facts`, `session-summary` |
+
+On a **miss**, set `memory.hit` to `false` and `memory.result_count` to `0`. On a **hit**, include the recalled entries in `output.value` (or a redacted summary) so reviewers can see what context reached the model.
+
+## TypeScript example
+
+The [`memory_query_example.ts`](https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-otel/examples/memory_query_example.ts) in `@arizeai/phoenix-otel` shows the full pattern:
+
+```typescript
+import {
+  OpenInferenceSpanKind,
+  getMetadataAttributes,
+  getOutputAttributes,
+  withSpan,
+} from "@arizeai/phoenix-otel";
+
+const queryMemory = withSpan(
+  async (query: string, namespace: string) => {
+    const entries = await memoryClient.search(query, { namespace });
+    return { hit: entries.length > 0, entries, latencyMs: 42 };
+  },
+  {
+    name: "memory.query",
+    kind: OpenInferenceSpanKind.CHAIN,
+    processOutput: (result) => ({
+      ...getOutputAttributes(JSON.stringify({ entries: result.entries })),
+      ...getMetadataAttributes({
+        operation: "memory.query",
+        "memory.hit": result.hit,
+        "memory.result_count": result.entries.length,
+        "memory.latency_ms": result.latencyMs,
+      }),
+    }),
+  }
+);
+```
+
+## Python example
+
+Use the `metadata` JSON attribute on a manually created span:
+
+```python
+import json
+
+from openinference.instrumentation import using_attributes
+from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+
+with using_attributes(session_id="session-001"):
+    with tracer.start_as_current_span("memory.query") as span:
+        span.set_attribute(
+            SpanAttributes.OPENINFERENCE_SPAN_KIND,
+            OpenInferenceSpanKindValues.CHAIN.value,
+        )
+        entries = memory_client.search("dark mode")
+        hit = len(entries) > 0
+        span.set_attribute(
+            SpanAttributes.METADATA,
+            json.dumps({
+                "operation": "memory.query",
+                "memory.hit": hit,
+                "memory.result_count": len(entries),
+                "memory.latency_ms": 35,
+            }),
+        )
+```
+
+## What to look for in Phoenix
+
+Filter traces where `metadata` contains `"memory.hit": false` to find recall failures. Compare `memory.latency_ms` across namespaces to spot slow memory backends. Pair these spans with [`session.id`](/docs/phoenix/tracing/how-to-tracing/setup-tracing/setup-sessions) to see whether misses cluster in specific conversations.
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Memory latency example" href="https://github.com/Arize-ai/phoenix/blob/main/js/packages/phoenix-otel/examples/memory_latency_example.ts" icon="gauge" />
+  <Card title="Session vs memory metadata" href="/docs/phoenix/tracing/how-to-tracing/add-metadata/session-vs-memory-metadata" icon="layer-group" />
+</CardGroup>
