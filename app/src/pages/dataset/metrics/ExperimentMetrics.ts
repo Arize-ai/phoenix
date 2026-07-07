@@ -1,7 +1,10 @@
 import { graphql, useLazyLoadQuery } from "react-relay";
 import type { XAxisProps } from "recharts";
 
-import { compactCategoryXAxisProps } from "@phoenix/components/chart";
+import {
+  compactCategoryXAxisProps,
+  truncateText,
+} from "@phoenix/components/chart";
 import { EXPERIMENT_METRICS_EXPERIMENT_COUNT } from "@phoenix/pages/dataset/constants";
 
 import type { ExperimentMetricsQuery } from "./__generated__/ExperimentMetricsQuery.graphql";
@@ -46,7 +49,6 @@ export const experimentMetricsQuery = graphql`
 `;
 
 export type ExperimentMetricsDatum = {
-  id: string;
   name: string;
   sequenceNumber: number;
   averageRunLatencyMs: number | null;
@@ -76,7 +78,6 @@ export function useExperimentMetricsData(datasetId: string): {
   const experiments = (data.dataset.metricsExperiments?.edges ?? [])
     .map(
       ({ experiment }): ExperimentMetricsDatum => ({
-        id: experiment.id,
         name: experiment.name,
         sequenceNumber: experiment.sequenceNumber,
         averageRunLatencyMs: experiment.averageRunLatencyMs,
@@ -97,12 +98,6 @@ export function useExperimentMetricsData(datasetId: string): {
 
 const MAX_TICK_NAME_LENGTH = 12;
 
-function truncateExperimentName(name: string): string {
-  return name.length > MAX_TICK_NAME_LENGTH
-    ? `${name.slice(0, MAX_TICK_NAME_LENGTH - 1)}…`
-    : name;
-}
-
 /**
  * X axis props shared by every experiment metric chart: one category tick per
  * experiment labeled with its (truncated) name.
@@ -113,7 +108,7 @@ export function getExperimentXAxisProps(
   const namesBySequenceNumber = new Map(
     experiments.map((experiment) => [
       experiment.sequenceNumber,
-      truncateExperimentName(experiment.name),
+      truncateText(experiment.name, MAX_TICK_NAME_LENGTH),
     ])
   );
   return {

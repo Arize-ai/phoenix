@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import { graphql, useLazyLoadQuery } from "react-relay";
 import { useParams } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -8,11 +7,12 @@ import { ChartPanel } from "@phoenix/components/chart";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import { ExperimentsEmpty } from "@phoenix/pages/experiments/ExperimentsEmpty";
 
-import type { DatasetMetricsPageQuery } from "./__generated__/DatasetMetricsPageQuery.graphql";
 import { getExperimentMetricChart } from "./chartCatalog";
+import { useExperimentMetricsData } from "./ExperimentMetrics";
 
 /**
  * The charts from the chart catalog shown on the metrics tab, row by row.
+ * This layout, not the catalog key order, determines the display order.
  */
 const METRIC_PAGE_ROWS: ExperimentMetricChartKey[][] = [
   ["latency", "error_rate"],
@@ -23,25 +23,16 @@ export function DatasetMetricsPage() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required to view experiment metrics");
 
-  const data = useLazyLoadQuery<DatasetMetricsPageQuery>(
-    graphql`
-      query DatasetMetricsPageQuery($datasetId: ID!) {
-        dataset: node(id: $datasetId) {
-          ... on Dataset {
-            experimentCount
-          }
-        }
-      }
-    `,
-    { datasetId }
-  );
+  // The same query the charts read from — they resolve from the Relay store,
+  // so the page and all charts share a single network request
+  const { experiments } = useExperimentMetricsData(datasetId);
 
-  if (!data.dataset?.experimentCount) {
+  if (experiments.length === 0) {
     return <ExperimentsEmpty />;
   }
 
   return (
-    <main
+    <div
       css={css`
         width: 100%;
         height: 100%;
@@ -71,6 +62,6 @@ export function DatasetMetricsPage() {
           </Flex>
         ))}
       </div>
-    </main>
+    </div>
   );
 }

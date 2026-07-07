@@ -1,4 +1,3 @@
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -11,8 +10,6 @@ import {
 
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   compactChartMargin,
   compactYAxisProps,
   defaultCartesianGridProps,
@@ -25,32 +22,11 @@ import {
   getExperimentXAxisProps,
   useExperimentMetricsData,
 } from "./ExperimentMetrics";
-import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const { danger } = useSemanticChartColors();
-  if (active && payload && payload.length) {
-    const datum = payload[0]?.payload as { experimentName?: string };
-    return (
-      <ChartTooltip>
-        <ExperimentMetricsTooltipHeader
-          sequenceNumber={Number(label)}
-          name={datum?.experimentName}
-        />
-        <ChartTooltipItem
-          color={danger}
-          shape="circle"
-          name="error rate"
-          value={percentFormatter(Number(payload[0]?.value))}
-        />
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
+const TooltipContent = makeExperimentMetricsTooltipContent(percentFormatter);
 
 /**
  * The share of runs that errored per experiment.
@@ -95,6 +71,7 @@ export function ExperimentErrorRateChart({
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
           <Bar
             dataKey="errorRate"
+            name="error rate"
             fill={SemanticChartColors.danger}
             radius={[2, 2, 0, 0]}
           />

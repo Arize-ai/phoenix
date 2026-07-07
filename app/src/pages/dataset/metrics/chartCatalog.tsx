@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import type { ChartTypeIconType } from "@phoenix/components/chart";
 import type { ExperimentMetricChartKey } from "@phoenix/pages/dataset/constants";
 import { EXPERIMENT_METRIC_CHART_KEYS } from "@phoenix/pages/dataset/constants";
 
@@ -13,19 +12,13 @@ import type { ExperimentMetricViewProps } from "./types";
 export type ExperimentMetricChart = {
   key: ExperimentMetricChartKey;
   /**
-   * Shown as the chart panel title and as the chart's name in chart pickers
+   * Shown as the chart panel title
    */
   name: string;
   /**
-   * Shown as the chart panel subtitle and as the chart's description in
-   * chart pickers
+   * Shown as the chart panel subtitle
    */
   description: string;
-  /**
-   * The chart's visual archetype, used to render a small preview glyph in
-   * chart pickers so a chart can be recognized by its shape.
-   */
-  chartType: ChartTypeIconType;
   Component: (props: ExperimentMetricViewProps) => ReactNode;
 };
 
@@ -40,25 +33,21 @@ const CHART_DEFINITIONS: Record<
   latency: {
     name: "Run latency",
     description: "Average run latency by experiment",
-    chartType: "bar",
     Component: ExperimentLatencyChart,
   },
   cost: {
     name: "Cost",
     description: "Estimated cost in USD by prompt and completion",
-    chartType: "bar",
     Component: ExperimentCostChart,
   },
   tokens: {
     name: "Token usage",
     description: "Tokens by prompt and completion",
-    chartType: "bar",
     Component: ExperimentTokensChart,
   },
   error_rate: {
     name: "Error rate",
     description: "Share of runs that errored",
-    chartType: "bar",
     Component: ExperimentErrorRateChart,
   },
 };

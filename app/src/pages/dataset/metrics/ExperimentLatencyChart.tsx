@@ -1,4 +1,3 @@
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -11,8 +10,6 @@ import {
 
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   compactChartMargin,
   compactYAxisProps,
   defaultCartesianGridProps,
@@ -25,32 +22,11 @@ import {
   getExperimentXAxisProps,
   useExperimentMetricsData,
 } from "./ExperimentMetrics";
-import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const { blue500 } = useSequentialChartColors();
-  if (active && payload && payload.length) {
-    const datum = payload[0]?.payload as { experimentName?: string };
-    return (
-      <ChartTooltip>
-        <ExperimentMetricsTooltipHeader
-          sequenceNumber={Number(label)}
-          name={datum?.experimentName}
-        />
-        <ChartTooltipItem
-          color={blue500}
-          shape="circle"
-          name="average latency"
-          value={latencyMsFormatter(Number(payload[0]?.value))}
-        />
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
+const TooltipContent = makeExperimentMetricsTooltipContent(latencyMsFormatter);
 
 /**
  * Average run latency per experiment.
@@ -87,7 +63,12 @@ export function ExperimentLatencyChart({
             tickFormatter={(x) => latencyMsFormatter(x)}
           />
           <Tooltip content={TooltipContent} {...defaultTooltipProps} />
-          <Bar dataKey="latency" fill={blue500} radius={[2, 2, 0, 0]} />
+          <Bar
+            dataKey="latency"
+            name="average latency"
+            fill={blue500}
+            radius={[2, 2, 0, 0]}
+          />
         </BarChart>
       </ResponsiveContainer>
     </ChartEmptyStateOverlay>

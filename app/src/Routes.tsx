@@ -443,7 +443,7 @@ export const appRouteObjects = createRoutesFromElements(
                   agentRoute: {
                     label: "Dataset Experiment Metrics",
                     description:
-                      "View experiment metrics charts for a dataset: annotation scores, run latency, cost, token usage, error rate, and run counts across recent experiments.",
+                      "View experiment metrics charts for a dataset: run latency, error rate, cost, and token usage across recent experiments.",
                   },
                 }}
               />

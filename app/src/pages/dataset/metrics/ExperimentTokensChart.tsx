@@ -1,4 +1,3 @@
-import type { TooltipContentProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -11,8 +10,6 @@ import {
 
 import {
   ChartEmptyStateOverlay,
-  ChartTooltip,
-  ChartTooltipItem,
   InteractiveLegend,
   compactChartMargin,
   compactLegendProps,
@@ -31,37 +28,11 @@ import {
   getExperimentXAxisProps,
   useExperimentMetricsData,
 } from "./ExperimentMetrics";
-import { ExperimentMetricsTooltipHeader } from "./ExperimentMetricsTooltipHeader";
+import { makeExperimentMetricsTooltipContent } from "./ExperimentMetricsTooltipContent";
 import type { ExperimentMetricViewProps } from "./types";
 import { EXPERIMENT_METRICS_CHART_SYNC_ID } from "./types";
 
-function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  if (active && payload && payload.length) {
-    const datum = payload[0]?.payload as { experimentName?: string };
-    return (
-      <ChartTooltip>
-        <ExperimentMetricsTooltipHeader
-          sequenceNumber={Number(label)}
-          name={datum?.experimentName}
-        />
-        {payload.map((entry) => {
-          const name = String(entry.dataKey ?? entry.name ?? "unknown");
-          return (
-            <ChartTooltipItem
-              color={entry.color ?? "transparent"}
-              key={name}
-              shape="circle"
-              name={name}
-              value={intFormatter(Number(entry.value))}
-            />
-          );
-        })}
-      </ChartTooltip>
-    );
-  }
-
-  return null;
-}
+const TooltipContent = makeExperimentMetricsTooltipContent(intFormatter);
 
 /**
  * Token usage per experiment, stacked by prompt and completion tokens.
