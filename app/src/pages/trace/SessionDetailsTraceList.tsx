@@ -715,6 +715,13 @@ export function SessionDetailsTraceList({
     }
   }, [selectedTraceId, sessionRootSpans]);
 
+  const selectedIndex =
+    selectedTraceId == null
+      ? -1
+      : sessionRootSpans.findIndex(
+          ({ traceId }) => traceId === selectedTraceId
+        );
+
   const turnListPanel = (
     <div
       css={css`
@@ -764,10 +771,12 @@ export function SessionDetailsTraceList({
           }
         >
           {sessionRootSpans.map(({ traceId, rootSpan }, index) => {
-            const isSelected = traceId === selectedTraceId;
+            const isSelected = index === selectedIndex;
+            // Hide this row's top divider when the row directly above it is
+            // the selected one, since the selected row draws its own
+            // border-bottom and a divider here would double up.
             const isAfterSelected =
-              index > 0 &&
-              sessionRootSpans[index - 1]?.traceId === selectedTraceId;
+              selectedIndex >= 0 && index === selectedIndex + 1;
             return (
               <div
                 key={rootSpan.spanId}
