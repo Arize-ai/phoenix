@@ -6,6 +6,7 @@ import {
   CommandPalette,
   CommandPaletteItem,
   CommandPaletteSection,
+  CompactEmptyState,
   Icon,
   Icons,
   KeyboardToken,
@@ -115,7 +116,10 @@ const SearchTemplate: StoryFn<typeof CommandPalette> = () => {
         placeholder="Search datasets…"
         onAction={() => setOpen(false)}
         renderEmptyState={() => (
-          <Text color="text-500">No results for “{search}”</Text>
+          <CompactEmptyState
+            icon={<Icon svg={<Icons.Database />} />}
+            description="No datasets"
+          />
         )}
       >
         <CommandPaletteSection title="Datasets">
@@ -139,4 +143,110 @@ const SearchTemplate: StoryFn<typeof CommandPalette> = () => {
 
 export const WithMatchHighlighting = {
   render: SearchTemplate,
+};
+
+/**
+ * When the query matches nothing and no `renderEmptyState` is provided, the
+ * palette falls back to a `CompactEmptyState`. Because it lives inside the
+ * Autocomplete, the non-empty query flips it to the search icon + "No results"
+ * automatically. Opens pre-seeded with a query that matches none of the items.
+ */
+const EmptyStateTemplate: StoryFn<typeof CommandPalette> = () => {
+  const [isOpen, setOpen] = useState(true);
+  const { contains } = useFilter({ sensitivity: "base" });
+  return (
+    <>
+      <Button onPress={() => setOpen(true)}>Open Command Palette</Button>
+      <CommandPalette
+        isOpen={isOpen}
+        onOpenChange={setOpen}
+        inputValue="nothing matches this"
+        placeholder="Type a command…"
+        filter={(textValue, inputValue) => contains(textValue, inputValue)}
+        onAction={() => setOpen(false)}
+      >
+        <CommandPaletteSection title="Navigation">
+          <CommandPaletteItem
+            textValue="Go to projects"
+            icon={<Icon svg={<Icons.Grid />} />}
+            description="View all tracing projects"
+          >
+            Go to projects
+          </CommandPaletteItem>
+          <CommandPaletteItem
+            textValue="Go to datasets"
+            icon={<Icon svg={<Icons.Database />} />}
+            description="Datasets and experiments"
+          >
+            Go to datasets
+          </CommandPaletteItem>
+        </CommandPaletteSection>
+      </CommandPalette>
+    </>
+  );
+};
+
+export const EmptyState = {
+  render: EmptyStateTemplate,
+};
+
+/**
+ * The `footer` prop replaces the default navigation hints — here with a single
+ * action hint alongside the standard "select" affordance.
+ */
+const CustomFooterTemplate: StoryFn<typeof CommandPalette> = () => {
+  const [isOpen, setOpen] = useState(false);
+  const { contains } = useFilter({ sensitivity: "base" });
+  return (
+    <>
+      <Button onPress={() => setOpen(true)}>
+        Open Command Palette&nbsp;<KeyboardToken>⌘K</KeyboardToken>
+      </Button>
+      <CommandPalette
+        isOpen={isOpen}
+        onOpenChange={setOpen}
+        placeholder="Type a command…"
+        filter={(textValue, inputValue) => contains(textValue, inputValue)}
+        onAction={() => setOpen(false)}
+        footer={
+          <>
+            <span className="command-palette__hint">
+              <KeyboardToken>↵</KeyboardToken>
+              <Text size="XS" color="text-500">
+                to open
+              </Text>
+            </span>
+            <span className="command-palette__hint">
+              <KeyboardToken>⌘</KeyboardToken>
+              <KeyboardToken>↵</KeyboardToken>
+              <Text size="XS" color="text-500">
+                to open in a new tab
+              </Text>
+            </span>
+          </>
+        }
+      >
+        <CommandPaletteSection title="Recently viewed">
+          <CommandPaletteItem
+            textValue="chatbot-eval"
+            icon={<Icon svg={<Icons.Grid />} />}
+            description="Project"
+          >
+            chatbot-eval
+          </CommandPaletteItem>
+          <CommandPaletteItem
+            textValue="golden-questions"
+            icon={<Icon svg={<Icons.Database />} />}
+            description="Dataset"
+          >
+            golden-questions
+          </CommandPaletteItem>
+        </CommandPaletteSection>
+      </CommandPalette>
+    </>
+  );
+};
+
+export const WithCustomFooter = {
+  render: CustomFooterTemplate,
 };
