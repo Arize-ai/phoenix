@@ -3,7 +3,7 @@ from enum import Enum, auto
 from typing import Any, Optional
 
 import strawberry
-from sqlalchemy import and_, desc, func, nulls_last, select
+from sqlalchemy import and_, desc, nulls_last
 from sqlalchemy.orm import InstrumentedAttribute
 from sqlalchemy.sql.expression import Select
 from strawberry import UNSET
@@ -11,6 +11,12 @@ from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.helpers import truncate_name
+from phoenix.db.session_aggregates import (
+    SESSION_ROWID,
+    cost_summary_by_session,
+    num_traces_by_session,
+    token_counts_by_session,
+)
 from phoenix.server.api.types.pagination import CursorSortColumnDataType
 from phoenix.server.api.types.SortDir import SortDir
 
@@ -35,13 +41,13 @@ class ProjectSessionColumn(Enum):
             expr = models.ProjectSession.end_time
         elif self is ProjectSessionColumn.tokenCountTotal:
             assert joined_table is not None
-            expr = joined_table.c.key
+            expr = joined_table.c.total
         elif self is ProjectSessionColumn.numTraces:
             assert joined_table is not None
-            expr = joined_table.c.key
+            expr = joined_table.c.num_traces
         elif self is ProjectSessionColumn.costTotal:
             assert joined_table is not None
-            expr = joined_table.c.key
+            expr = joined_table.c.total_cost
         else:
             assert_never(self)
         return expr.label(self.column_name)
@@ -61,42 +67,15 @@ class ProjectSessionColumn(Enum):
         If needed, joins tables required for the sort column.
         """
         if self is ProjectSessionColumn.tokenCountTotal:
-            sort_subq = (
-                select(
-                    models.Trace.project_session_rowid.label("id"),
-                    func.sum(models.Span.llm_token_count_total).label("key"),
-                )
-                .join_from(models.Trace, models.Span)
-                .where(func.upper(models.Span.span_kind) == "LLM")
-                .group_by(models.Trace.project_session_rowid)
-            ).subquery()
-            stmt = stmt.join(sort_subq, models.ProjectSession.id == sort_subq.c.id)
-            return stmt, sort_subq
-        if self is ProjectSessionColumn.numTraces:
-            sort_subq = (
-                select(
-                    models.Trace.project_session_rowid.label("id"),
-                    func.count(models.Trace.id).label("key"),
-                ).group_by(models.Trace.project_session_rowid)
-            ).subquery()
-            stmt = stmt.join(sort_subq, models.ProjectSession.id == sort_subq.c.id)
-            return stmt, sort_subq
-        if self is ProjectSessionColumn.costTotal:
-            sort_subq = (
-                select(
-                    models.Trace.project_session_rowid.label("id"),
-                    func.sum(models.SpanCost.total_cost).label("key"),
-                )
-                .join_from(
-                    models.Trace,
-                    models.SpanCost,
-                    models.Trace.id == models.SpanCost.trace_rowid,
-                )
-                .group_by(models.Trace.project_session_rowid)
-            ).subquery()
-            stmt = stmt.join(sort_subq, models.ProjectSession.id == sort_subq.c.id)
-            return stmt, sort_subq
-        return stmt, None
+            sort_subq = token_counts_by_session().as_grouped_subquery().subquery()
+        elif self is ProjectSessionColumn.numTraces:
+            sort_subq = num_traces_by_session().as_grouped_subquery().subquery()
+        elif self is ProjectSessionColumn.costTotal:
+            sort_subq = cost_summary_by_session().as_grouped_subquery().subquery()
+        else:
+            return stmt, None
+        stmt = stmt.join(sort_subq, models.ProjectSession.id == sort_subq.c[SESSION_ROWID])
+        return stmt, sort_subq
 
 
 @strawberry.enum

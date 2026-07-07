@@ -1234,8 +1234,7 @@ def get_experiment_incomplete_runs_query(
     )
 
 
-# Token-count aggregation helpers.  Both sum `llm_token_count_{prompt,completion}`
-# from leaf LLM spans (`span_kind = 'LLM'`) and group by the requested key.
+# Sums `llm_token_count_{prompt,completion}` from leaf LLM spans (`span_kind = 'LLM'`).
 # Summing cumulative counts on root spans multi-counted tokens whenever frameworks
 # (e.g. smolagents) propagated LLM token attributes up through wrapping agent/tool
 # spans — the cumulative rollup at the root then included the same tokens at every
@@ -1245,24 +1244,7 @@ def get_experiment_incomplete_runs_query(
 # NULL columns coalesce to 0.  The GROUP BY emits no row for a key whose set of LLM
 # spans is empty (e.g. a trace whose spans are all non-LLM), so callers must
 # default missing keys to (0, 0) — an absent key means "zero", not "unknown".
-
-
-def token_counts_by_session(keys: Collection[int]) -> Select[Any]:
-    """Sum leaf-LLM token counts, grouped by session rowid.
-
-    Columns: `id_` (project_session_rowid), `prompt`, `completion`.
-    """
-    return (
-        select(
-            models.Trace.project_session_rowid.label("id_"),
-            func.sum(func.coalesce(models.Span.llm_token_count_prompt, 0)).label("prompt"),
-            func.sum(func.coalesce(models.Span.llm_token_count_completion, 0)).label("completion"),
-        )
-        .join_from(models.Span, models.Trace)
-        .where(func.upper(models.Span.span_kind) == "LLM")
-        .where(models.Trace.project_session_rowid.in_(keys))
-        .group_by(models.Trace.project_session_rowid)
-    )
+# The per-session sibling lives in `phoenix.db.session_aggregates`.
 
 
 def token_counts_by_trace(keys: Collection[int]) -> Select[Any]:

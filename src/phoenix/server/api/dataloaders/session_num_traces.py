@@ -1,8 +1,7 @@
-from sqlalchemy import func, select
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
-from phoenix.db import models
+from phoenix.db.session_aggregates import num_traces_by_session
 from phoenix.server.types import DbSessionFactory
 
 Key: TypeAlias = int
@@ -15,14 +14,7 @@ class SessionNumTracesDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        stmt = (
-            select(
-                models.Trace.project_session_rowid.label("id_"),
-                func.count(models.Trace.id).label("value"),
-            )
-            .group_by(models.Trace.project_session_rowid)
-            .where(models.Trace.project_session_rowid.in_(keys))
-        )
+        stmt = num_traces_by_session().as_grouped_subquery(keys)
         async with self._db.read() as session:
             result: dict[Key, int] = {
                 id_: value async for id_, value in await session.stream(stmt) if id_ is not None

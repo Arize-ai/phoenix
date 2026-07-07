@@ -2060,6 +2060,13 @@ type FailureDetail {
   errorType: String!
 }
 
+type FilterVocabularyTerm {
+  name: String!
+  type: String!
+  description: String!
+  category: String!
+}
+
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -2768,12 +2775,12 @@ type Project implements Node {
   """
   Sessions in the project. The time range filter uses interval-overlap semantics: a session is included iff [startTime, endTime] intersects [timeRange.start, timeRange.end), i.e. the session had activity inside the window. Long-running sessions therefore appear in every window they overlap.
   """
-  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionId: String): ProjectSessionConnection!
+  sessions(timeRange: TimeRange, first: Int = 30, after: String, sort: ProjectSessionSort, filterIoSubstring: String, sessionFilterCondition: String, sessionId: String): ProjectSessionConnection!
 
   """
-  Number of sessions in the project, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
+  Number of sessions in the project, optionally filtered by a time range, a substring of the session input/output, or a session filter expression. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
   """
-  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionId: String): Int!
+  sessionCount(timeRange: TimeRange, filterIoSubstring: String, sessionFilterCondition: String, sessionId: String): Int!
 
   """
   Average session duration in milliseconds, i.e. the mean of end time minus start time across sessions, optionally filtered by a time range and a substring of the session input/output. An exact session-ID match takes precedence over the other filters, mirroring the sessions table search.
@@ -2832,6 +2839,8 @@ type Project implements Node {
   documentEvaluationSummary(evaluationName: String!, timeRange: TimeRange, filterCondition: String): DocumentEvaluationSummary
   streamingLastUpdatedAt: DateTime
   validateSpanFilterCondition(condition: String!): ValidationResult!
+  validateSessionFilterCondition(condition: String!): ValidationResult!
+  sessionFilterVocabulary: [FilterVocabularyTerm!]!
   annotationConfigs(first: Int = 50, last: Int = null, after: String = null, before: String = null): AnnotationConfigConnection!
   traceRetentionPolicy: ProjectTraceRetentionPolicy!
   createdAt: DateTime!
