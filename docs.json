@@ -562,6 +562,13 @@
                 ]
               },
               {
+                "group": "OrcaRouter",
+                "pages": [
+                  "docs/phoenix/integrations/llm-providers/orcarouter",
+                  "docs/phoenix/integrations/llm-providers/orcarouter/openai-tracing"
+                ]
+              },
+              {
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
