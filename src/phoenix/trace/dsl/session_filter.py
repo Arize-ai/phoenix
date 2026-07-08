@@ -16,8 +16,9 @@ project-wide group-by.
 """
 
 import ast
+import hashlib
 import typing
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 
 from openinference.semconv.trace import SpanAttributes
@@ -93,6 +94,8 @@ _AGGREGATE_SPECS: typing.Mapping[str, _AggregateSpec] = MappingProxyType(
         ),
     }
 )
+_TOOL_CALL_COUNT_NAME = "tool_call_count"
+_TOOL_CALL_COUNT_BY_NAME_ALIAS_PREFIX = "__session_tool_call_count_by_name_"
 
 _ROOT_SPAN_ATTRIBUTES = "attributes"
 _ROOT_SPAN_INPUT_VALUE = tuple(SpanAttributes.INPUT_VALUE.split("."))
@@ -165,7 +168,7 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "prompt_cost": "Total prompt cost across the session's spans.",
         "completion_cost": "Total completion cost across the session's spans.",
         "total_cost": "Total cost across the session's spans.",
-        "tool_call_count": "Number of TOOL spans in the session.",
+        "tool_call_count": 'TOOL span count; subscript by name, e.g. tool_call_count["search"].',
         "llm_call_count": "Number of LLM spans in the session.",
         "any_input": (
             "Case-sensitive containment in some root span's input payload; "
@@ -201,6 +204,66 @@ def _referenced_names(translated: ast.Expression) -> set[str]:
 
 
 CandidateRowids: typing.TypeAlias = typing.Optional[typing.Collection[int]]
+
+
+def _tool_call_count_by_name_alias(span_name: str) -> str:
+    digest = hashlib.sha256(span_name.encode("utf-8")).hexdigest()
+    return f"{_TOOL_CALL_COUNT_BY_NAME_ALIAS_PREFIX}{digest}"
+
+
+class _ToolCallCountSubscriptAliasResult(typing.NamedTuple):
+    source: str
+    aggregate_specs: dict[str, _AggregateSpec]
+
+
+def _tool_call_count_by_name_builder(span_name: str) -> typing.Callable[[], SessionAggregate]:
+    def build() -> SessionAggregate:
+        return span_kind_count_by_session("TOOL", span_name=span_name)
+
+    return build
+
+
+class _ToolCallCountSubscriptAliaser(ast.NodeTransformer):
+    def __init__(self) -> None:
+        self._span_names_by_alias: dict[str, str] = {}
+
+    @property
+    def aggregate_specs(self) -> dict[str, _AggregateSpec]:
+        return {
+            alias: _AggregateSpec(
+                builder_key=alias,
+                builder=_tool_call_count_by_name_builder(span_name),
+                value_column="span_kind_count",
+            )
+            for alias, span_name in self._span_names_by_alias.items()
+        }
+
+    def visit_Name(self, node: ast.Name) -> ast.AST:
+        if node.id.startswith(_TOOL_CALL_COUNT_BY_NAME_ALIAS_PREFIX):
+            raise SyntaxError(f"invalid name `{node.id}`")
+        return node
+
+    def visit_Subscript(self, node: ast.Subscript) -> ast.AST:
+        if isinstance(node.value, ast.Name) and node.value.id == _TOOL_CALL_COUNT_NAME:
+            span_name = _tool_call_count_subscript_key(node)
+            alias = _tool_call_count_by_name_alias(span_name)
+            self._span_names_by_alias.setdefault(alias, span_name)
+            return ast.copy_location(ast.Name(id=alias, ctx=ast.Load()), node)
+        return self.generic_visit(node)
+
+
+def _tool_call_count_subscript_key(node: ast.Subscript) -> str:
+    if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+        return node.slice.value
+    raise SyntaxError("`tool_call_count[...]` expects a string literal")
+
+
+def _alias_tool_call_count_subscripts(source: str) -> _ToolCallCountSubscriptAliasResult:
+    root = ast.parse(source, mode="eval")
+    aliaser = _ToolCallCountSubscriptAliaser()
+    root = typing.cast(ast.Expression, aliaser.visit(root))
+    ast.fix_missing_locations(root)
+    return _ToolCallCountSubscriptAliasResult(ast.unparse(root), aliaser.aggregate_specs)
 
 
 def _exists_bindings(
@@ -248,6 +311,7 @@ class SessionFilter:
         init=False, repr=False
     )
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
+    _aggregate_specs: typing.Mapping[str, _AggregateSpec] = field(init=False, repr=False)
     _referenced_aggregates: frozenset[str] = field(init=False, repr=False)
     _referenced_exists_names: frozenset[str] = field(init=False, repr=False)
     _referenced_root_span_io_names: frozenset[str] = field(init=False, repr=False)
@@ -259,9 +323,14 @@ class SessionFilter:
     def __post_init__(self) -> None:
         if not (source := self.condition):
             return
-        compiled_condition = _compile_condition(
-            source, SESSION_BINDINGS, self.valid_annotation_names
-        )
+        aliased_tool_call_count = _alias_tool_call_count_subscripts(source)
+        source = aliased_tool_call_count.source
+        aggregate_specs = {
+            **_AGGREGATE_SPECS,
+            **aliased_tool_call_count.aggregate_specs,
+        }
+        bindings = replace(SESSION_BINDINGS, aggregate_names=frozenset(aggregate_specs))
+        compiled_condition = _compile_condition(source, bindings, self.valid_annotation_names)
         referenced = _referenced_names(compiled_condition.translated)
         object.__setattr__(self, "translated", compiled_condition.translated)
         object.__setattr__(self, "compiled", compiled_condition.compiled)
@@ -271,8 +340,9 @@ class SessionFilter:
         object.__setattr__(
             self, "_aliased_annotation_attributes", compiled_condition.aliased_annotation_attributes
         )
+        object.__setattr__(self, "_aggregate_specs", MappingProxyType(aggregate_specs))
         object.__setattr__(
-            self, "_referenced_aggregates", frozenset(referenced & set(_AGGREGATE_SPECS))
+            self, "_referenced_aggregates", frozenset(referenced & set(aggregate_specs))
         )
         object.__setattr__(
             self, "_referenced_exists_names", frozenset(referenced & set(_EXISTS_ATTRIBUTE_PATHS))
@@ -305,6 +375,7 @@ class SessionFilter:
         stmt, aggregate_bindings = _join_aggregates(
             stmt,
             self._referenced_aggregates,
+            self._aggregate_specs,
             candidate_session_rowids=candidate_session_rowids,
             project_rowids=project_rowids,
             start_time=start_time,
@@ -386,6 +457,7 @@ class SessionFilter:
 def _join_aggregates(
     stmt: Select[typing.Any],
     referenced_aggregates: typing.Iterable[str],
+    aggregate_specs: typing.Mapping[str, _AggregateSpec],
     candidate_session_rowids: CandidateRowids,
     project_rowids: typing.Optional[typing.Sequence[int]],
     start_time: typing.Optional[typing.Any],
@@ -394,7 +466,7 @@ def _join_aggregates(
 ) -> tuple[Select[typing.Any], dict[str, typing.Any]]:
     grouped: dict[str, tuple[typing.Callable[[], SessionAggregate], list[tuple[str, str]]]] = {}
     for name in referenced_aggregates:
-        spec = _AGGREGATE_SPECS[name]
+        spec = aggregate_specs[name]
         grouped.setdefault(spec.builder_key, (spec.builder, []))[1].append(
             (name, spec.value_column)
         )
