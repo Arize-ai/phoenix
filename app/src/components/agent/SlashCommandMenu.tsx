@@ -58,7 +58,7 @@ const slashCommandMenuItemCSS = css`
 `;
 
 const slashCommandMenuNameCSS = css`
-  font-family: "Geist Mono", monospace;
+  font-family: var(--global-font-family-mono);
   font-size: var(--global-font-size-s);
 `;
 
