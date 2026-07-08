@@ -160,6 +160,8 @@ class _FilterBindings:
     reserved keywords. ``aggregate_names`` are float-typed names whose SQL is a per-instance
     join (bound by the caller, not present as a static column) — they participate in type
     inference and reserved-keyword passthrough but carry no entry in ``names``.
+    ``exists_names`` are operator-restricted pseudo names that compile only from
+    ``<expr> in <name>`` / ``<expr> not in <name>`` into a callable eval-global.
     ``annotation_model``/``annotation_fk``/``entity_id``/``annotation_table_prefix`` retarget
     the annotation join. ``uppercase_names`` are names whose string comparands are folded to
     upper case (``span_kind``, ``status_code``). ``reject_unbound_names`` makes an unbound
@@ -180,6 +182,7 @@ class _FilterBindings:
     annotation_table_prefix: str
     reject_unbound_names: bool
     quantifiers: frozenset[str] = frozenset()
+    exists_names: frozenset[str] = frozenset()
 
     @property
     def names(self) -> NameMap:
@@ -202,6 +205,7 @@ class _FilterBindings:
                 self.float_names,
                 self.datetime_names,
                 self.aggregate_names,
+                self.exists_names,
             )
         )
 
@@ -225,6 +229,7 @@ SPAN_BINDINGS = _FilterBindings(
     annotation_table_prefix="span_annotation",
     reject_unbound_names=False,
     quantifiers=frozenset(),
+    exists_names=frozenset(),
 )
 
 
@@ -446,6 +451,54 @@ def _is_bool_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, bool)
 
 
+def _is_exists_name(node: typing.Any, bindings: _FilterBindings) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id in bindings.exists_names
+
+
+def _find_exists_name(node: ast.AST, bindings: _FilterBindings) -> typing.Optional[str]:
+    for child in ast.walk(node):
+        if _is_exists_name(child, bindings):
+            return child.id
+    return None
+
+
+def _raise_invalid_exists_name_usage(name: str) -> typing.NoReturn:
+    raise SyntaxError(f"`{name}` can only be used as the right-hand side of `in` or `not in`")
+
+
+class _ExistsNameUsageValidator(ast.NodeVisitor):
+    def __init__(self, bindings: _FilterBindings) -> None:
+        self._bindings = bindings
+
+    def visit_Compare(self, node: ast.Compare) -> None:
+        if len(node.comparators) != 1:
+            if name := _find_exists_name(node, self._bindings):
+                _raise_invalid_exists_name_usage(name)
+            self.generic_visit(node)
+            return
+        op = node.ops[0]
+        comparator = node.comparators[0]
+        if _is_exists_name(comparator, self._bindings):
+            if isinstance(op, (ast.In, ast.NotIn)) and not _find_exists_name(
+                node.left, self._bindings
+            ):
+                self.visit(node.left)
+                return
+            _raise_invalid_exists_name_usage(comparator.id)
+        if name := _find_exists_name(node, self._bindings):
+            _raise_invalid_exists_name_usage(name)
+        self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if _is_exists_name(node, self._bindings):
+            _raise_invalid_exists_name_usage(node.id)
+
+
+def _validate_exists_name_usage(expression: ast.Expression, bindings: _FilterBindings) -> None:
+    if bindings.exists_names:
+        _ExistsNameUsageValidator(bindings).visit(expression.body)
+
+
 def _is_string_attribute(node: typing.Any) -> TypeGuard[ast.Call]:
     return (
         isinstance(node, ast.Call)
@@ -608,6 +661,7 @@ class _ProjectionTranslator(ast.NodeTransformer):
                 bindings.float_names.keys(),
                 bindings.datetime_names.keys(),
                 bindings.aggregate_names,
+                bindings.exists_names,
             )
         )
 
@@ -643,6 +697,23 @@ class _ProjectionTranslator(ast.NodeTransformer):
 
 class _FilterTranslator(_ProjectionTranslator):
     def visit_Compare(self, node: ast.Compare) -> typing.Any:
+        if len(node.comparators) == 1 and _is_exists_name(
+            comparator := node.comparators[0], self._bindings
+        ):
+            op = node.ops[0]
+            if not isinstance(op, (ast.In, ast.NotIn)):
+                _raise_invalid_exists_name_usage(comparator.id)
+            left = self.visit(node.left)
+            call = ast.Call(
+                func=ast.Name(id=comparator.id, ctx=ast.Load()),
+                args=[left],
+                keywords=[],
+            )
+            if isinstance(op, ast.NotIn):
+                call = ast.Call(func=ast.Name(id="not_", ctx=ast.Load()), args=[call], keywords=[])
+            return call
+        if name := _find_exists_name(node, self._bindings):
+            _raise_invalid_exists_name_usage(name)
         if len(node.comparators) > 1:
             args: list[typing.Any] = []
             left = node.left
@@ -772,6 +843,7 @@ def _validate_expression(
     """
     if not isinstance(expression, ast.Expression):
         raise SyntaxError(f"invalid expression: {ast.unparse(expression)}")
+    _validate_exists_name_usage(expression, bindings)
     for i, node in enumerate(ast.walk(expression.body)):
         if i == 0:
             if (
