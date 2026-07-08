@@ -42,7 +42,7 @@ export function ExperimentLatencyChart({
   }));
   const hasData = chartData.some((datum) => typeof datum.latency === "number");
 
-  const { orange500 } = useSequentialChartColors();
+  const { gray300 } = useSequentialChartColors();
   return (
     <ChartEmptyStateOverlay
       isEmpty={!hasData}
@@ -66,7 +66,7 @@ export function ExperimentLatencyChart({
           <Bar
             dataKey="latency"
             name="average latency"
-            fill={orange500}
+            fill={gray300}
             radius={[2, 2, 0, 0]}
           />
         </BarChart>
