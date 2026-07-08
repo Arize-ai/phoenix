@@ -12,12 +12,6 @@ export interface PxiLabConfig {
   c1: string;
   c2: string;
   c3: string;
-  /** filled primary button background — its own gradient, related but independent */
-  bc1: string;
-  bc2: string;
-  bc3: string;
-  /** filled button gradient angle in degrees */
-  btnAngle: number;
   /** seconds per animation cycle */
   speed: number;
   /** ring/stroke width in px */
@@ -85,14 +79,10 @@ export const DEFAULT_PXI_LAB_CONFIG: PxiLabConfig = {
   c1: PXI_PALETTES[0].c1,
   c2: PXI_PALETTES[0].c2,
   c3: PXI_PALETTES[0].c3,
-  bc1: PXI_PALETTES[0].c1,
-  bc2: PXI_PALETTES[0].c2,
-  bc3: PXI_PALETTES[0].c3,
-  btnAngle: 135,
   speed: 3,
   ringWidth: 1.5,
   glow: 0.5,
-  spread: 10,
+  spread: 16,
   radius: 8,
   pill: false,
   ringState: "active",
@@ -133,14 +123,10 @@ export function parsePxiLabConfig(searchParams: URLSearchParams): PxiLabConfig {
     c1: parseHex(searchParams.get("c1"), defaults.c1),
     c2: parseHex(searchParams.get("c2"), defaults.c2),
     c3: parseHex(searchParams.get("c3"), defaults.c3),
-    bc1: parseHex(searchParams.get("bc1"), defaults.bc1),
-    bc2: parseHex(searchParams.get("bc2"), defaults.bc2),
-    bc3: parseHex(searchParams.get("bc3"), defaults.bc3),
-    btnAngle: parseNumber(searchParams.get("ba"), defaults.btnAngle, 0, 360),
     speed: parseNumber(searchParams.get("sp"), defaults.speed, 0.5, 12),
     ringWidth: parseNumber(searchParams.get("rw"), defaults.ringWidth, 0.5, 4),
     glow: parseNumber(searchParams.get("gl"), defaults.glow, 0, 1),
-    spread: parseNumber(searchParams.get("gs"), defaults.spread, 2, 32),
+    spread: parseNumber(searchParams.get("gs"), defaults.spread, 2, 48),
     radius: parseNumber(searchParams.get("rad"), defaults.radius, 0, 24),
     pill: searchParams.get("pill") === "1",
     ringState: isRingState(ringState) ? ringState : defaults.ringState,
@@ -154,10 +140,6 @@ export function serializePxiLabConfig(config: PxiLabConfig): URLSearchParams {
     c1: config.c1.replace("#", ""),
     c2: config.c2.replace("#", ""),
     c3: config.c3.replace("#", ""),
-    bc1: config.bc1.replace("#", ""),
-    bc2: config.bc2.replace("#", ""),
-    bc3: config.bc3.replace("#", ""),
-    ba: String(config.btnAngle),
     sp: String(config.speed),
     rw: String(config.ringWidth),
     gl: String(config.glow),

@@ -18,13 +18,19 @@ export interface SolveWithPxiButtonProps extends Omit<
   "children" | "className"
 > {
   /**
-   * primary = filled brand-gradient call-to-action;
+   * primary = inverted-button call-to-action, gradient-ringed & haloed;
    * secondary = bordered, subtly-tinted normal action;
    * quiet = icon-only toolbar form
    */
   variant?: "primary" | "secondary" | "quiet";
   size?: "S" | "M";
-  /** visible label (primary/secondary) / accessible name (quiet) */
+  /**
+   * Render only the glyph, no text (label becomes the accessible name).
+   * `quiet` is always icon-only; primary/secondary can opt in to keep their
+   * border/fill treatment while collapsing to a square icon button.
+   */
+  iconOnly?: boolean;
+  /** visible label / accessible name when icon-only */
   label?: string;
   ref?: Ref<HTMLButtonElement>;
 }
@@ -32,23 +38,26 @@ export interface SolveWithPxiButtonProps extends Omit<
 export function SolveWithPxiButton({
   variant = "primary",
   size = "M",
+  iconOnly = false,
   label = "Solve with PXI",
   ref,
   ...props
 }: SolveWithPxiButtonProps) {
+  const isIconOnly = variant === "quiet" || iconOnly;
   return (
     <AriaButton
       ref={ref}
       className="pxi-solve-button"
       data-pxi-variant={variant}
       data-size={size}
-      aria-label={variant === "quiet" ? label : undefined}
+      data-icon-only={isIconOnly ? "true" : undefined}
+      aria-label={isIconOnly ? label : undefined}
       {...props}
     >
       <span className="pxi-solve-button__glyph" aria-hidden="true">
         <PxiGlyph size={size === "S" ? 11 : 13} />
       </span>
-      {variant !== "quiet" && <span>{label}</span>}
+      {!isIconOnly && <span>{label}</span>}
     </AriaButton>
   );
 }
@@ -72,6 +81,11 @@ export interface PxiRingProps {
 export function PxiRing({ state = "idle", className, children }: PxiRingProps) {
   return (
     <div className={classNames("pxi-ring", className)} data-pxi-state={state}>
+      {/* Glow carrier: the masked band lives on this element's ::before and the
+          blur on the element itself, so the mask clips before the blur runs
+          (a single element always blurs before it masks, re-hardening the
+          edge). Purely decorative. */}
+      <span className="pxi-ring__glow" aria-hidden="true" />
       {children}
     </div>
   );

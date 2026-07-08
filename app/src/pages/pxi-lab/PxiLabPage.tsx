@@ -152,10 +152,6 @@ export function PxiLabPage() {
     "--pxi-c1": config.c1,
     "--pxi-c2": config.c2,
     "--pxi-c3": config.c3,
-    "--pxi-bc1": config.bc1,
-    "--pxi-bc2": config.bc2,
-    "--pxi-bc3": config.bc3,
-    "--pxi-btn-angle": `${config.btnAngle}deg`,
     "--pxi-speed": `${config.speed}s`,
     "--pxi-ring-width": `${config.ringWidth}px`,
     "--pxi-glow": config.glow,
@@ -256,40 +252,6 @@ export function PxiLabPage() {
             </Flex>
           </ControlGroup>
 
-          <ControlGroup label="Filled button background">
-            <Flex direction="row" gap="size-150" alignItems="start">
-              {(["bc1", "bc2", "bc3"] as const).map((key) => (
-                <Flex
-                  key={key}
-                  direction="column"
-                  gap="size-50"
-                  alignItems="center"
-                >
-                  <input
-                    type="color"
-                    aria-label={`Button gradient stop ${key}`}
-                    css={colorInputCSS}
-                    value={config[key]}
-                    onChange={(event) => update({ [key]: event.target.value })}
-                  />
-                  <Text size="XS" color="text-500">
-                    {config[key].toUpperCase()}
-                  </Text>
-                </Flex>
-              ))}
-            </Flex>
-            <Slider
-              label="Gradient angle"
-              minValue={0}
-              maxValue={360}
-              step={5}
-              value={config.btnAngle}
-              onChange={sliderChange("btnAngle")}
-            >
-              <SliderNumberField />
-            </Slider>
-          </ControlGroup>
-
           <ControlGroup label="Geometry & intensity">
             <Slider
               label="Ring width"
@@ -324,7 +286,7 @@ export function PxiLabPage() {
             <Slider
               label="Glow spread"
               minValue={2}
-              maxValue={32}
+              maxValue={48}
               step={1}
               value={config.spread}
               onChange={sliderChange("spread")}

@@ -112,6 +112,8 @@ export const pxiScopeCSS = css`
       inset: -2px;
       z-index: -1;
       opacity: var(--pxi-glow-alpha);
+      /* TEMP: glow layer disabled for evaluation */
+      display: none;
     }
   }
 
@@ -128,6 +130,10 @@ export const pxiScopeCSS = css`
     font-weight: 500;
     font-family: inherit;
     line-height: 1;
+    /* grayscale AA so the light-on-dark secondary label doesn't render a weight
+       heavier than the dark-on-light primary under macOS subpixel smoothing */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     border-radius: var(--pxi-button-radius, var(--global-rounding-small));
     transition:
       color 0.15s ease,
@@ -169,31 +175,77 @@ export const pxiScopeCSS = css`
       font-size: var(--global-font-size-xs);
     }
 
-    /* primary = the brand gradient IS the button; filled, no border.
-       Uses its own gradient (--pxi-bc*, --pxi-btn-angle), independent from the
-       shared treatment gradient that paints rings/borders/glows. */
-    &[data-pxi-variant="primary"] {
-      background: linear-gradient(
-        var(--pxi-btn-angle, 135deg),
-        var(--pxi-bc1),
-        var(--pxi-bc2),
-        var(--pxi-bc3)
-      );
-      color: #fff;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-      /* the fill carries the brand — drop the border band, keep a soft halo */
-      --pxi-stroke-alpha: 0;
-      --pxi-glow-alpha: calc(var(--pxi-glow) * 0.3);
-
-      .pxi-solve-button__glyph {
-        color: inherit;
+    /* icon-only collapses any variant to a square, glyph-centered button
+       while leaving its border/fill treatment intact */
+    &[data-icon-only="true"] {
+      padding: 0;
+      justify-content: center;
+      &[data-size="M"] {
+        width: var(--global-button-height-m);
       }
+      &[data-size="S"] {
+        width: var(--global-button-height-s);
+      }
+    }
+
+    /* primary = Phoenix's inverted button as the base — a neutral fill that
+       flips per theme (near-black + light text in light theme, whiteish +
+       dark text in dark theme) — dressed with the gradient treatment turned
+       up past the secondary hairline. The fill carries the action; the
+       animated stroke + halo carry the brand. On dark theme this reads like a
+       PxiRing-framed panel: a light surface ringed and haloed in gradient. */
+    &[data-pxi-variant="primary"] {
+      background-color: var(--global-button-primary-background-color);
+      /* Colored treatment overlay lives ON the fill, behind the text. Each
+         treatment sets --pxi-fill-overlay (a gradient) below; this is the
+         resting-state "glow" that used to be the ::after halo. It lifts away
+         on hover, leaving the clean bright fill. */
+      background-image: var(--pxi-fill-overlay, none);
+      /* Crisp inverted foreground by default. Only tint the label toward the
+         brand mid-stop in LIGHT theme: there the foreground is the light gray,
+         so a little --pxi-c2 reads as a cool cast at no contrast cost. In dark
+         theme the foreground is the dark gray on a light fill, where the same
+         mix only lifts its luminance and makes the text look thin — so leave it
+         crisp and let the colored glyph carry the brand. */
+      color: var(--global-button-primary-foreground-color);
+      [data-theme="light"] & {
+        color: color-mix(
+          in srgb,
+          var(--global-button-primary-foreground-color) 88%,
+          var(--pxi-c2)
+        );
+      }
+      /* the gradient border stuff, stronger than the secondary hairline */
+      --pxi-stroke-alpha: 1;
+      --pxi-glow-alpha: calc(var(--pxi-glow) * 0.55);
+
+      /* Face the gradient inward. A crisp hairline is stranded between two
+         high-contrast fields (the neutral fill and the canvas), so one edge
+         always washes out — but a *wide* band just reads as a rigid, thick
+         border that never fades. The fix is a thin band feathered by a blur
+         several times its own width: the band's flat core all but vanishes and
+         what's left is a soft halo that ramps off onto the fill and the canvas
+         alike. Keep blur >> band width or the border reads hard again. */
+      &::before {
+        padding: var(--pxi-ring-width);
+        filter: blur(5px) saturate(1.15);
+      }
+
+      /* glyph keeps its full brand color (--pxi-c2) against the inverted fill,
+         rather than collapsing to the foreground like it used to */
       &[data-hovered] {
-        --pxi-glow-alpha: var(--pxi-glow);
-        filter: brightness(1.06);
+        /* Hover resolves to the clean, bright resting fill — no dim toward
+           gray-800 — and drops the colored overlay. Rest is colored; hover is
+           crisp. */
+        background-color: var(--global-button-primary-background-color);
+        background-image: none;
+        --pxi-stroke-alpha: 1;
+        --pxi-anim-mult: 1;
       }
       &[data-pressed] {
-        filter: brightness(0.95);
+        --pxi-stroke-alpha: 1;
+        --pxi-glow-alpha: calc(var(--pxi-glow) * 0.6);
+        filter: brightness(0.98);
       }
     }
 
@@ -231,16 +283,6 @@ export const pxiScopeCSS = css`
       --pxi-stroke-alpha: 0;
       --pxi-glow-alpha: 0;
 
-      &[data-size="M"] {
-        width: var(--global-button-height-m);
-        padding: 0;
-        justify-content: center;
-      }
-      &[data-size="S"] {
-        width: var(--global-button-height-s);
-        padding: 0;
-        justify-content: center;
-      }
       &[data-hovered] {
         background-color: var(--hover-background);
         color: var(--global-text-color-900);
@@ -272,15 +314,6 @@ export const pxiScopeCSS = css`
       border-radius: calc(var(--pxi-radius) + 3px);
       z-index: 2;
     }
-    &::after {
-      inset: var(--pxi-ring-inset);
-      border-radius: calc(var(--pxi-radius) + 3px);
-      /* hosts (Card, Select) may be transparent — confine the glow to a band
-         around the edge so it halos the element instead of tinting its body */
-      padding: calc(var(--pxi-ring-width) * 4 + 6px);
-      ${ringMask}
-    }
-
     &[data-pxi-state="idle"] {
       --pxi-stroke-alpha: 0.3;
       --pxi-glow-alpha: 0;
@@ -295,6 +328,36 @@ export const pxiScopeCSS = css`
       --pxi-stroke-alpha: 1;
       --pxi-glow-alpha: var(--pxi-glow);
       --pxi-anim-mult: 1;
+    }
+  }
+
+  /* Glow carrier for the ring. The masked band is on ::before; the blur is on
+     this element so it runs AFTER the mask (a single box always applies filter
+     before mask, which re-hardens the clipped edge). Result: solid band, soft
+     feathered edges. Treatments paint ::before's background + animation and may
+     retune this element's opacity/blur/blend. */
+  .pxi-ring__glow {
+    --pxi-glow-band: calc(var(--pxi-ring-width) * 4 + 6px);
+    position: absolute;
+    inset: var(--pxi-ring-inset);
+    z-index: -1;
+    pointer-events: none;
+    /* Inner corner radius is (outer radius − padding), clamped at 0: once the
+       band is wider than the radius the inside corner squares off. Add the band
+       width back so the inner corner keeps ~--pxi-radius and stays round. */
+    border-radius: calc(var(--pxi-radius) + var(--pxi-glow-band));
+    opacity: var(--pxi-glow-alpha);
+    filter: blur(var(--pxi-spread));
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      /* hosts (Card, Select) may be transparent — confine the glow to a band
+         around the edge so it halos the element instead of tinting its body */
+      padding: var(--pxi-glow-band);
+      ${ringMask}
     }
   }
 
@@ -368,6 +431,19 @@ export const pxiScopeCSS = css`
   /* ====================================================================== */
 
   &[data-pxi-treatment="conic"] {
+    /* resting colored overlay painted over the primary fill, behind the text */
+    .pxi-solve-button[data-pxi-variant="primary"] {
+      --pxi-fill-overlay: conic-gradient(
+        from calc(var(--pxi-angle) + 45deg),
+        color-mix(in srgb, var(--pxi-c1) 60%, transparent),
+        color-mix(in srgb, var(--pxi-c2) 60%, transparent),
+        color-mix(in srgb, var(--pxi-c3) 60%, transparent),
+        color-mix(in srgb, var(--pxi-c1) 60%, transparent)
+      );
+      animation: ${pxiSpin} calc(var(--pxi-speed) * var(--pxi-anim-mult, 1))
+        linear infinite;
+      animation-play-state: var(--pxi-anim-play, running);
+    }
     .pxi-solve-button::before,
     .pxi-ring::before,
     .pxi-tag::before {
@@ -382,8 +458,10 @@ export const pxiScopeCSS = css`
         linear infinite;
       animation-play-state: var(--pxi-anim-play, running);
     }
-    .pxi-solve-button::after,
-    .pxi-ring::after {
+    .pxi-ring__glow {
+      filter: blur(var(--pxi-spread)) saturate(1.25);
+    }
+    .pxi-ring__glow::before {
       background: conic-gradient(
         from calc(var(--pxi-angle) + 45deg),
         var(--pxi-c1),
@@ -391,14 +469,12 @@ export const pxiScopeCSS = css`
         var(--pxi-c3),
         var(--pxi-c1)
       );
-      filter: blur(var(--pxi-spread)) saturate(1.25);
       animation: ${pxiSpin} calc(var(--pxi-speed) * var(--pxi-anim-mult, 1))
         linear infinite;
       animation-play-state: var(--pxi-anim-play, running);
     }
     &[data-theme="light"] {
-      .pxi-solve-button::after,
-      .pxi-ring::after {
+      .pxi-ring__glow {
         opacity: calc(var(--pxi-glow-alpha) * 0.75);
       }
     }
@@ -409,6 +485,33 @@ export const pxiScopeCSS = css`
   /* ====================================================================== */
 
   &[data-pxi-treatment="aurora"] {
+    /* resting colored overlay painted over the primary fill, behind the text */
+    .pxi-solve-button[data-pxi-variant="primary"] {
+      --pxi-fill-overlay:
+        radial-gradient(
+          80% 100% at 15% 0%,
+          color-mix(in srgb, var(--pxi-c1) 65%, transparent) 0%,
+          transparent 65%
+        ),
+        radial-gradient(
+          80% 100% at 85% 100%,
+          color-mix(in srgb, var(--pxi-c3) 65%, transparent) 0%,
+          transparent 65%
+        ),
+        radial-gradient(
+          60% 80% at 70% 10%,
+          color-mix(in srgb, var(--pxi-c2) 65%, transparent) 0%,
+          transparent 70%
+        );
+      background-size:
+        170% 170%,
+        170% 170%,
+        170% 170%;
+      animation: ${pxiAuroraDrift}
+        calc(var(--pxi-speed) * 3 * var(--pxi-anim-mult, 1)) ease-in-out
+        infinite;
+      animation-play-state: var(--pxi-anim-play, running);
+    }
     .pxi-solve-button::before,
     .pxi-ring::before,
     .pxi-tag::before {
@@ -420,8 +523,7 @@ export const pxiScopeCSS = css`
       );
       opacity: calc(var(--pxi-stroke-alpha) * 0.75);
     }
-    .pxi-solve-button::after,
-    .pxi-ring::after {
+    .pxi-ring__glow::before {
       background:
         radial-gradient(80% 100% at 15% 0%, var(--pxi-c1) 0%, transparent 65%),
         radial-gradient(
@@ -434,21 +536,18 @@ export const pxiScopeCSS = css`
         170% 170%,
         170% 170%,
         170% 170%;
-      filter: blur(var(--pxi-spread));
       animation: ${pxiAuroraDrift}
         calc(var(--pxi-speed) * 3 * var(--pxi-anim-mult, 1)) ease-in-out
         infinite;
       animation-play-state: var(--pxi-anim-play, running);
     }
     &[data-theme="dark"] {
-      .pxi-solve-button::after,
-      .pxi-ring::after {
+      .pxi-ring__glow {
         mix-blend-mode: plus-lighter;
       }
     }
     &[data-theme="light"] {
-      .pxi-solve-button::after,
-      .pxi-ring::after {
+      .pxi-ring__glow {
         opacity: calc(var(--pxi-glow-alpha) * 0.65);
         filter: blur(var(--pxi-spread)) saturate(1.4);
       }
@@ -469,6 +568,22 @@ export const pxiScopeCSS = css`
       backdrop-filter: blur(8px) saturate(1.5);
       color: var(--global-text-color-900);
     }
+    /* resting colored overlay painted over the primary fill, behind the text */
+    .pxi-solve-button[data-pxi-variant="primary"] {
+      --pxi-fill-overlay: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--pxi-c1) 55%, transparent),
+        color-mix(in srgb, var(--pxi-c2) 55%, transparent),
+        color-mix(in srgb, var(--pxi-c3) 55%, transparent),
+        color-mix(in srgb, var(--pxi-c2) 55%, transparent),
+        color-mix(in srgb, var(--pxi-c1) 55%, transparent)
+      );
+      background-size: 250% 100%;
+      animation: ${pxiGlassShimmer}
+        calc(var(--pxi-speed) * 2 * var(--pxi-anim-mult, 1)) ease-in-out
+        infinite;
+      animation-play-state: var(--pxi-anim-play, running);
+    }
     .pxi-solve-button::before,
     .pxi-ring::before,
     .pxi-tag::before {
@@ -487,16 +602,16 @@ export const pxiScopeCSS = css`
         infinite;
       animation-play-state: var(--pxi-anim-play, running);
     }
-    .pxi-solve-button::after,
-    .pxi-ring::after {
+    .pxi-ring__glow {
+      opacity: calc(var(--pxi-glow-alpha) * 0.6);
+    }
+    .pxi-ring__glow::before {
       background: radial-gradient(
         60% 100% at 50% 120%,
         var(--pxi-c2),
         transparent 70%
       );
       background-size: 200% 200%;
-      filter: blur(var(--pxi-spread));
-      opacity: calc(var(--pxi-glow-alpha) * 0.6);
       animation: ${pxiGlassShimmer}
         calc(var(--pxi-speed) * 2 * var(--pxi-anim-mult, 1)) ease-in-out
         infinite;
@@ -519,19 +634,21 @@ export const pxiScopeCSS = css`
   /* ====================================================================== */
 
   &[data-pxi-motion="off"] {
+    .pxi-solve-button[data-pxi-variant="primary"],
     .pxi-solve-button::before,
     .pxi-solve-button::after,
     .pxi-ring::before,
-    .pxi-ring::after,
+    .pxi-ring__glow::before,
     .pxi-tag::before {
       animation-play-state: paused !important;
     }
   }
   @media (prefers-reduced-motion: reduce) {
+    .pxi-solve-button[data-pxi-variant="primary"],
     .pxi-solve-button::before,
     .pxi-solve-button::after,
     .pxi-ring::before,
-    .pxi-ring::after,
+    .pxi-ring__glow::before,
     .pxi-tag::before {
       animation-play-state: paused !important;
     }

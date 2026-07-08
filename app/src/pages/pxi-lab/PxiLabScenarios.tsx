@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
+import { AgentChatWidgetButton } from "@phoenix/components/agent/AgentChatWidget";
 import { PxiGlyph } from "@phoenix/components/agent/PxiGlyph";
 
 import type { PxiRingState } from "./pxiLabConfig";
@@ -77,6 +78,13 @@ const fieldRowCSS = css`
 export function PxiLabScenarios({ ringState }: { ringState: PxiRingState }) {
   return (
     <Flex direction="column" gap="size-400">
+      <LabSection title="PXI FAB — reference (resting · thinking)">
+        <Flex direction="row" gap="size-400" alignItems="center">
+          <AgentChatWidgetButton isStreaming={false} />
+          <AgentChatWidgetButton isStreaming />
+        </Flex>
+      </LabSection>
+
       <LabSection title="Triggers — primary, secondary & quiet">
         <Flex direction="row" gap="size-200" alignItems="center" wrap>
           <SolveWithPxiButton size="M" />
@@ -117,7 +125,7 @@ export function PxiLabScenarios({ ringState }: { ringState: PxiRingState }) {
               tooltipText="Copy Span ID"
             />
             <TooltipTrigger>
-              <SolveWithPxiButton variant="quiet" size="S" />
+              <SolveWithPxiButton variant="secondary" size="S" iconOnly />
               <Tooltip>Solve with PXI</Tooltip>
             </TooltipTrigger>
           </Flex>
