@@ -6,6 +6,7 @@ from phoenix.db import models
 from phoenix.db.session_aggregates import (
     earliest_root_span_by_session,
     num_traces_by_session,
+    root_span_io_value_by_session,
     span_kind_count_by_session,
     token_counts_by_session,
 )
@@ -26,6 +27,7 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             session,
             earliest_trace,
             span_kind="LLM",
+            attributes={"input": {"value": "first input"}, "output": {"value": "first output"}},
             llm_token_count_prompt=1,
             llm_token_count_completion=2,
         )
@@ -38,6 +40,7 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
             session,
             later_trace,
             span_kind="LLM",
+            attributes={"input": {"value": "last input"}, "output": {"value": "last output"}},
             llm_token_count_prompt=3,
             llm_token_count_completion=4,
         )
@@ -45,8 +48,10 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
         rowid = project_session.id
 
         num_traces = (
-            await session.execute(num_traces_by_session().as_grouped_subquery([rowid]))
-        ).all()
+            (await session.execute(num_traces_by_session().as_grouped_subquery([rowid])))
+            .tuples()
+            .all()
+        )
         assert num_traces == [(rowid, 2)]
 
         # The correlated-scalar fallback returns the same value as the grouped shape.
@@ -63,13 +68,31 @@ async def test_session_aggregate_builders(db: DbSessionFactory) -> None:
         assert (token_row.prompt, token_row.completion, token_row.total) == (4, 6, 10)
 
         tool_count = (
-            await session.execute(span_kind_count_by_session("TOOL").as_grouped_subquery([rowid]))
-        ).all()
+            (await session.execute(span_kind_count_by_session("TOOL").as_grouped_subquery([rowid])))
+            .tuples()
+            .all()
+        )
         assert tool_count == [(rowid, 1)]
         llm_count = (
-            await session.execute(span_kind_count_by_session("LLM").as_grouped_subquery([rowid]))
-        ).all()
+            (await session.execute(span_kind_count_by_session("LLM").as_grouped_subquery([rowid])))
+            .tuples()
+            .all()
+        )
         assert llm_count == [(rowid, 2)]
 
-        earliest = (await session.execute(earliest_root_span_by_session([rowid]))).all()
+        earliest = (await session.execute(earliest_root_span_by_session([rowid]))).tuples().all()
         assert earliest == [(rowid, earliest_root_span.id)]
+
+        first_input = (
+            (await session.execute(root_span_io_value_by_session("first_input", [rowid])))
+            .tuples()
+            .all()
+        )
+        assert first_input == [(rowid, "first input")]
+
+        last_output = (
+            (await session.execute(root_span_io_value_by_session("last_output", [rowid])))
+            .tuples()
+            .all()
+        )
+        assert last_output == [(rowid, "last output")]

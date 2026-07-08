@@ -18,10 +18,11 @@ aggregate can be narrowed to the resolver's session universe rather than every s
 for session-level ``user.id`` / ``metadata`` reads.
 """
 
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import distinct, func, select
 from sqlalchemy.sql.elements import KeyedColumnElement
 from sqlalchemy.sql.expression import ColumnElement, Select
@@ -31,6 +32,7 @@ from phoenix.db import models
 
 SESSION_ROWID = "project_session_rowid"
 SPAN_ROWID = "span_rowid"
+VALUE = "value"
 _ROOT_SPAN_RANK = "rank"
 
 _GROUP_KEY = models.Trace.project_session_rowid
@@ -45,8 +47,11 @@ __all__ = [
     "cost_summary_by_session",
     "span_kind_count_by_session",
     "earliest_root_span_by_session",
+    "root_span_io_value_by_session",
     "root_span_attribute_text_contains_by_session",
 ]
+
+RootSpanIOKind = Literal["first_input", "last_output"]
 
 
 @dataclass(frozen=True)
@@ -255,14 +260,73 @@ def earliest_root_span_by_session(
     ``project_rowids``, and time bounds scope the derivation to the same candidate universe as the
     session filter.
     """
+    subquery = _ranked_root_span_values_by_session(
+        models.Span.id.label(SPAN_ROWID),
+        order_by=[models.Trace.start_time.asc(), models.Trace.id.asc()],
+        keys=keys,
+        project_rowids=project_rowids,
+        start_time=start_time,
+        end_time=end_time,
+    ).subquery()
+    return select(subquery.c[SESSION_ROWID], subquery.c[SPAN_ROWID]).where(
+        subquery.c[_ROOT_SPAN_RANK] == 1
+    )
+
+
+def root_span_io_value_by_session(
+    kind: RootSpanIOKind,
+    keys: Optional[Collection[int]] = None,
+    project_rowids: Optional[Collection[int]] = None,
+    start_time: Optional[Any] = None,
+    end_time: Optional[Any] = None,
+) -> Select[Any]:
+    """Select ``(project_session_rowid, value)`` for first input or last output.
+
+    ``first_input`` reads ``input.value`` from the earliest root span by
+    ``(Trace.start_time ASC, Trace.id ASC)``. ``last_output`` reads ``output.value`` from the
+    latest root span by ``(Trace.start_time DESC, Trace.id DESC)``. The window shape matches
+    :class:`~phoenix.server.api.dataloaders.session_io.SessionIODataLoader` and intentionally
+    avoids correlated LATERAL plans.
+    """
+    if kind == "first_input":
+        attribute_path = SpanAttributes.INPUT_VALUE.split(".")
+        order_by = [models.Trace.start_time.asc(), models.Trace.id.asc()]
+    elif kind == "last_output":
+        attribute_path = SpanAttributes.OUTPUT_VALUE.split(".")
+        order_by = [models.Trace.start_time.desc(), models.Trace.id.desc()]
+    else:
+        raise ValueError(f"Unknown root span IO kind: {kind}")
+
+    subquery = _ranked_root_span_values_by_session(
+        models.Span.attributes[attribute_path].as_string().label(VALUE),
+        order_by=order_by,
+        keys=keys,
+        project_rowids=project_rowids,
+        start_time=start_time,
+        end_time=end_time,
+    ).subquery()
+    return select(subquery.c[SESSION_ROWID], subquery.c[VALUE]).where(
+        subquery.c[_ROOT_SPAN_RANK] == 1
+    )
+
+
+def _ranked_root_span_values_by_session(
+    value: KeyedColumnElement[Any],
+    *,
+    order_by: Sequence[Any],
+    keys: Optional[Collection[int]],
+    project_rowids: Optional[Collection[int]],
+    start_time: Optional[Any],
+    end_time: Optional[Any],
+) -> Select[Any]:
     ranked = (
         select(
             _GROUP_KEY.label(SESSION_ROWID),
-            models.Span.id.label(SPAN_ROWID),
+            value,
             func.row_number()
             .over(
                 partition_by=_GROUP_KEY,
-                order_by=[models.Trace.start_time.asc(), models.Trace.id.asc()],
+                order_by=order_by,
             )
             .label(_ROOT_SPAN_RANK),
         )
@@ -271,8 +335,4 @@ def earliest_root_span_by_session(
     )
     if keys is not None:
         ranked = ranked.where(_GROUP_KEY.in_(keys))
-    ranked = _apply_scope(ranked, project_rowids, start_time, end_time)
-    subquery = ranked.subquery()
-    return select(subquery.c[SESSION_ROWID], subquery.c[SPAN_ROWID]).where(
-        subquery.c[_ROOT_SPAN_RANK] == 1
-    )
+    return _apply_scope(ranked, project_rowids, start_time, end_time)
