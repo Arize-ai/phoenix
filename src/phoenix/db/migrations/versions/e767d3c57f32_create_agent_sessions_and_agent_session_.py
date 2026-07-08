@@ -59,8 +59,7 @@ def upgrade() -> None:
             sa.ForeignKey("users.id", ondelete="CASCADE"),
             nullable=True,  # sessions may be created while auth is disabled
         ),
-        sa.Column("title", sa.String, nullable=True),
-        sa.Column("model_config", JSON_, nullable=False),
+        sa.Column("title", sa.String, nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
