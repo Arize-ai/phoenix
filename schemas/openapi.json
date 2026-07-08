@@ -5246,6 +5246,69 @@
       }
     },
     "/v1/spans/{span_identifier}": {
+      "get": {
+        "tags": [
+          "spans"
+        ],
+        "summary": "Get a single span by span_identifier",
+        "description": "Fetch a single span by identifier. The identifier may be either a relay GlobalID or an OpenTelemetry span_id. Returns the span in the same shape as the elements of the list-spans endpoint.",
+        "operationId": "getSpan",
+        "parameters": [
+          {
+            "name": "span_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The span identifier: either a relay GlobalID or OpenTelemetry span_id",
+              "title": "Span Identifier"
+            },
+            "description": "The span identifier: either a relay GlobalID or OpenTelemetry span_id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetSpanResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "spans"
@@ -11811,6 +11874,18 @@
           "next_cursor"
         ],
         "title": "GetSessionsResponseBody"
+      },
+      "GetSpanResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Span"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetSpanResponseBody"
       },
       "GetTracesResponseBody": {
         "properties": {
