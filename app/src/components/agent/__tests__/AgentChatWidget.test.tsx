@@ -44,6 +44,20 @@ function dispatchCommandI() {
   });
 }
 
+function dispatchCommandIFromElement(target: Element) {
+  act(() => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        code: "KeyI",
+        key: "i",
+        metaKey: true,
+      })
+    );
+  });
+}
+
 function appendModalOverlay() {
   const overlay = document.createElement("div");
   const modalRoot = document.createElement("div");
@@ -165,6 +179,30 @@ describe("AgentChatWidget", () => {
     expect(
       container.querySelector('[data-testid="agent-open"]')?.textContent
     ).toBe("false");
+  });
+
+  it("toggles PXI closed with Command+I while a form field is focused", () => {
+    renderWidget();
+
+    const textarea = document.createElement("textarea");
+    document.body.appendChild(textarea);
+    textarea.focus();
+
+    dispatchCommandIFromElement(textarea);
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("true");
+
+    // With the popover open, focus lives inside the chat's textarea. The
+    // shortcut must still fire from a form field so it can toggle closed.
+    dispatchCommandIFromElement(textarea);
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("false");
+
+    textarea.remove();
   });
 
   it("hides the mounted FAB while PXI is open", () => {
