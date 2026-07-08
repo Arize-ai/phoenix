@@ -55,6 +55,14 @@ _POSTGRESQL_DIALECT = cast(Dialect, postgresql.dialect())  # type: ignore[no-unt
             "'refund' not in any_output",
             "not_(any_output('refund'))",
         ),
+        (
+            "'refund' in first_input",
+            "TextContains(first_input, 'refund')",
+        ),
+        (
+            "'goodbye' not in last_output",
+            "not_(TextContains(last_output, 'goodbye'))",
+        ),
     ],
 )
 def test_session_filter_translated(condition: str, expected: str) -> None:
@@ -79,6 +87,8 @@ def test_session_bindings_flavor_audit() -> None:
     # Every session name keeps the SpanFilter flavor: `_ms` units-in-names, no per-grain drift.
     assert "duration_ms" in SESSION_BINDINGS.float_names
     assert not any(name.endswith("_seconds") for name in SESSION_BINDINGS.binding_names)
+    assert "first_input" in SESSION_BINDINGS.string_names
+    assert "last_output" in SESSION_BINDINGS.string_names
     # Function calls other than casts are rejected; the quantifier whitelist is empty for both grains.
     assert SESSION_BINDINGS.quantifiers == frozenset()
     assert SESSION_BINDINGS.exists_names == frozenset({"any_input", "any_output"})
@@ -108,6 +118,8 @@ def test_session_filter_rejects_any_input_misuse(condition: str) -> None:
 def test_session_filter_any_io_glosses_are_instrumentation_shaped() -> None:
     assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_input"]
     assert "instrumentation-shaped" in SESSION_FILTER_DESCRIPTIONS["any_output"]
+    assert "turn-1-only" in SESSION_FILTER_DESCRIPTIONS["first_input"]
+    assert "final-turn-only" in SESSION_FILTER_DESCRIPTIONS["last_output"]
     assert "user said" not in SESSION_FILTER_DESCRIPTIONS["any_input"].lower()
     assert "agent said" not in SESSION_FILTER_DESCRIPTIONS["any_output"].lower()
 
@@ -367,6 +379,35 @@ def test_session_filter_any_io_compiles_to_exists_on_supported_dialects(dialect:
     assert SpanAttributes.OUTPUT_VALUE not in compiled
 
 
+@pytest.mark.parametrize("dialect", [_SQLITE_DIALECT, _POSTGRESQL_DIALECT])
+def test_session_filter_first_last_io_compiles_to_window_shape(dialect: Dialect) -> None:
+    start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    subquery = SessionFilter(
+        "'refund' in first_input and 'goodbye' not in last_output"
+    ).as_session_rowids_subquery(
+        project_rowids=[1],
+        start_time=start,
+        end_time=start + timedelta(days=1),
+        candidate_session_rowids=[2, 3],
+    )
+    compiled = str(
+        select(models.ProjectSession.id)
+        .where(models.ProjectSession.id.in_(subquery))
+        .compile(dialect=dialect, compile_kwargs={"literal_binds": True})
+    ).lower()
+
+    assert "row_number() over" in compiled
+    assert "partition by traces.project_session_rowid order by traces.start_time asc" in compiled
+    assert "partition by traces.project_session_rowid order by traces.start_time desc" in compiled
+    assert "traces.id asc" in compiled
+    assert "traces.id desc" in compiled
+    assert "lateral" not in compiled
+    assert "spans.parent_id is null" in compiled
+    assert "traces.project_rowid in (1)" in compiled
+    assert "traces.project_session_rowid in (2, 3)" in compiled
+    assert "session_scope.start_time" in compiled
+
+
 async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFactory) -> None:
     start = datetime.now(timezone.utc)
     async with db() as session:
@@ -407,6 +448,91 @@ async def test_session_filter_any_io_returns_any_turn_matches(db: DbSessionFacto
             session, SessionFilter("'refund' not in any_output"), project
         )
         assert not_in_output == {input_match.id, no_match.id, case_mismatch.id}
+
+
+async def test_session_filter_first_last_io_returns_window_turn_matches(
+    db: DbSessionFactory,
+) -> None:
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        first_input_match = await _seed_io_session(
+            session,
+            project,
+            turns=[("refund please", "first"), ("hello", "done")],
+            start_time=start,
+        )
+        later_input_only = await _seed_io_session(
+            session,
+            project,
+            turns=[("hello", "first"), ("refund please", "done")],
+            start_time=start,
+        )
+        last_output_match = await _seed_io_session(
+            session,
+            project,
+            turns=[("hello", "refund pending"), ("question", "refund issued")],
+            start_time=start,
+        )
+        first_output_only = await _seed_io_session(
+            session,
+            project,
+            turns=[("hello", "refund pending"), ("question", "done")],
+            start_time=start,
+        )
+        case_mismatch = await _seed_io_session(
+            session,
+            project,
+            turns=[("REFUND please", "first"), ("question", "REFUND issued")],
+            start_time=start,
+        )
+
+        by_first_input = await _matched_rowids(
+            session, SessionFilter("'refund' in first_input"), project
+        )
+        assert by_first_input == {first_input_match.id}
+        assert later_input_only.id not in by_first_input
+        assert case_mismatch.id not in by_first_input
+
+        by_last_output = await _matched_rowids(
+            session, SessionFilter("'refund' in last_output"), project
+        )
+        assert by_last_output == {last_output_match.id}
+        assert first_output_only.id not in by_last_output
+        assert case_mismatch.id not in by_last_output
+
+
+async def test_session_filter_first_input_candidate_scoping(db: DbSessionFactory) -> None:
+    start = datetime.now(timezone.utc)
+    async with db() as session:
+        project = await _add_project(session)
+        candidate = await _seed_io_session(
+            session,
+            project,
+            turns=[("refund please", "done")],
+            start_time=start,
+        )
+        excluded = await _seed_io_session(
+            session,
+            project,
+            turns=[("refund please", "done")],
+            start_time=start,
+        )
+
+        subquery = SessionFilter("'refund' in first_input").as_session_rowids_subquery(
+            project_rowids=[project.id],
+            candidate_session_rowids=[candidate.id],
+        )
+        scoped = {
+            row
+            for row in (
+                await session.scalars(
+                    select(models.ProjectSession.id).where(models.ProjectSession.id.in_(subquery))
+                )
+            ).all()
+        }
+        assert scoped == {candidate.id}
+        assert excluded.id not in scoped
 
 
 async def test_session_filter_root_span_and_annotation(db: DbSessionFactory) -> None:
