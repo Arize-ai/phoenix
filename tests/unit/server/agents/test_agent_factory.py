@@ -62,6 +62,7 @@ def build_agent(**kwargs: Any) -> Any:
     kwargs.setdefault("event_queue", Mock())
     return _build_agent(**kwargs)
 
+
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
         _DEFAULT_PROMPTS.bash_tool.render(),
