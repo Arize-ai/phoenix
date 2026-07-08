@@ -25,7 +25,7 @@ export type TimerProps = {
 };
 
 const timerCSS = css`
-  font-family: "Geist Mono", monospace;
+  font-family: var(--global-font-family-mono);
   font-variant-numeric: tabular-nums;
   ${textSizeCSS};
 `;

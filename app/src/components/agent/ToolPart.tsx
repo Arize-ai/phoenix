@@ -199,7 +199,7 @@ export const toolPartCSS = css`
 
   .tool-part__body {
     background: var(--tool-call-body-background-color);
-    font-family: "Geist Mono", monospace;
+    font-family: var(--global-font-family-mono);
     font-size: var(--global-font-size-xs);
     line-height: var(--global-line-height-xs);
     white-space: pre-wrap;
@@ -210,7 +210,7 @@ export const toolPartCSS = css`
   }
 
   .tool-part__subagent-message {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
     padding: 0 var(--global-dimension-size-250) var(--global-dimension-size-125);
@@ -291,7 +291,7 @@ export const toolPartCSS = css`
   .tool-part__preview {
     flex: ${TOOL_CALL_SUMMARY_LANE_RULES.middleFlex};
     font-weight: 400;
-    font-family: "Geist Mono", monospace;
+    font-family: var(--global-font-family-mono);
     color: var(--tool-call-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;

@@ -161,7 +161,7 @@ const spanAnnotationTargetCSS = css`
 
 const spanAnnotationTargetLinkCSS = css`
   min-width: 0;
-  font-family: "Geist Mono", monospace;
+  font-family: var(--global-font-family-mono);
   overflow-wrap: anywhere;
 `;
 

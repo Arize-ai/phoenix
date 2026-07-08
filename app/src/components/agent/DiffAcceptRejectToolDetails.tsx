@@ -38,7 +38,7 @@ const diffAcceptRejectToolDetailsCSS = css`
   }
 
   .diff-accept-reject__diff {
-    font-family: "Geist", sans-serif;
+    font-family: var(--global-font-family-sans);
     white-space: normal;
   }
 `;

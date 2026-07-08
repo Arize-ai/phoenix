@@ -62,7 +62,7 @@ const credentialDescriptionCSS = css`
 
 const credentialEnvVarCSS = css`
   flex: 0 0 auto;
-  font-family: "Geist Mono", monospace;
+  font-family: var(--global-font-family-mono);
   font-size: var(--global-font-size-xs);
   color: var(--global-text-color-500);
   white-space: nowrap;
