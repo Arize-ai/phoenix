@@ -1,6 +1,7 @@
 import { css, keyframes } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import {
+  Fragment,
   useCallback,
   type CSSProperties,
   type ReactNode,
@@ -14,21 +15,31 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
-import type { AgentUIMessage } from "@phoenix/agent/chat/types";
+import {
+  getCompactionSummary,
+  isCompactionMessage,
+  type AgentUIMessage,
+} from "@phoenix/agent/chat/types";
 import { useAgentQuickActions } from "@phoenix/agent/quickActions/quickActions";
+import type { PromptCommandContext } from "@phoenix/agent/slashCommands/promptCommands";
 import { runPromptCommands } from "@phoenix/agent/slashCommands/runPromptCommands";
 import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
+import { Alert } from "@phoenix/components";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import { PromptInput } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
+import { ExpandableContent } from "@phoenix/components/core/content/ExpandableContent";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { MarkdownBlock } from "@phoenix/components/markdown";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
-import { hasAcknowledgedCurrentTraceConsent } from "@phoenix/store/agentStore";
+import {
+  DRAFT_SESSION_ID,
+  hasAcknowledgedCurrentTraceConsent,
+} from "@phoenix/store/agentStore";
 
 import { AgentChatInput } from "./AgentChatInput";
 import { AgentConsentGate } from "./AgentConsentGate";
@@ -60,9 +71,10 @@ import {
   type MessageRewindRole,
 } from "./MessageRewindDialog";
 import { PxiGlyph } from "./PxiGlyph";
+import { useScrollAnchor } from "./scrollAnchor";
+import { TemporaryChatToggle } from "./TemporaryChatToggle";
 import { isToolUIPart } from "./toolPartTypes";
-import { useAgentChat } from "./useAgentChat";
-import type { AgentModelSelection } from "./useGenerateSessionSummary";
+import type { AgentChatOperationError } from "./useAgentChat";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -132,6 +144,16 @@ const chatEmptyItemFadeUp = keyframes`
   }
 `;
 
+const compactionProgressPulse = keyframes`
+  0%, 100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+`;
+
 const chatCSS = css`
   display: flex;
   flex-direction: column;
@@ -144,7 +166,7 @@ const chatCSS = css`
     box-sizing: border-box;
     width: 100%;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     column-gap: var(--global-dimension-size-100);
     row-gap: 0;
@@ -219,6 +241,37 @@ const chatCSS = css`
     line-height: var(--global-line-height-s);
   }
 
+  .chat__compaction-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    width: 100%;
+    margin: var(--global-dimension-size-100) 0;
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
+  }
+
+  .chat__compaction-divider::before,
+  .chat__compaction-divider::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background-color: var(--global-border-color-default);
+  }
+
+  .chat__compaction-divider-label {
+    flex: none;
+  }
+
+  .chat__compaction-progress {
+    animation: ${compactionProgressPulse} 1.4s ease-in-out infinite;
+  }
+
+  .chat__compaction-summary {
+    margin-bottom: var(--global-dimension-size-100);
+    padding: 0 var(--global-dimension-size-100);
+  }
+
   &.chat--empty {
     .chat__messages {
       min-height: 100%;
@@ -245,6 +298,10 @@ const chatCSS = css`
     animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
+  .chat__operation-error {
+    margin-bottom: var(--global-dimension-size-100);
+  }
+
   /* Elicitation-style surfaces (consent gate, rewind confirmation, question
      carousel) can be taller than the panel; let the input region shrink and
      scroll internally instead of clipping at the panel edge. */
@@ -257,6 +314,12 @@ const chatCSS = css`
 
   .chat__loading {
     color: var(--global-text-color-300);
+  }
+
+  .chat__busy-elsewhere,
+  .chat__stale-refreshed {
+    color: var(--global-text-color-300);
+    font-size: var(--global-font-size-xs);
   }
 
   .chat__edit-permissions {
@@ -281,60 +344,96 @@ function getMessageText(message: AgentUIMessage): string {
     .join("");
 }
 
-/** Connects the presentational chat view to the agent chat controller hook. */
-export function Chat({
-  sessionId,
-  chatApiUrl,
-  modelSelection,
-  modelMenuValue,
-  onModelChange,
-  emptyStateSubtext,
-  emptyStateQuickActions,
-}: {
-  sessionId: string | null;
-  chatApiUrl: string;
-  modelSelection: AgentModelSelection;
-  modelMenuValue: ModelMenuValue;
-  onModelChange: (model: ModelMenuValue) => void;
-  emptyStateSubtext?: ReactNode;
-  emptyStateQuickActions?: EmptyStateQuickAction[];
-}) {
-  const {
-    messages,
-    sendMessage,
-    stop,
-    status,
-    error,
-    pendingElicitation,
-    handleElicitationSubmit,
-    handleElicitationCancel,
-    retryMessage,
-    rewindToMessage,
-    forkFromMessage,
-  } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
+const COMPACTION_SUMMARY_SECTIONS = [
+  ["objectives", "Objectives"],
+  ["constraints_and_preferences", "Constraints and preferences"],
+  ["decisions", "Decisions"],
+  ["completed_work", "Completed work"],
+  ["active_work", "Active work"],
+  ["blockers", "Blockers"],
+  ["next_steps", "Next steps"],
+  ["important_details", "Important details"],
+] as const;
+
+const COMPACTION_SUMMARY_COLLAPSED_HEIGHT_PX = 320;
+
+function getCompactionSummaryMarkdown(summary: string): string {
+  const sections = COMPACTION_SUMMARY_SECTIONS.flatMap(([key, label]) => {
+    const content = summary
+      .match(new RegExp(`<${key}>([\\s\\S]*?)</${key}>`))?.[1]
+      ?.trim();
+    if (!content) {
+      return [];
+    }
+    return [`### ${label}\n\n${content}`];
+  });
+  return sections.length > 0 ? sections.join("\n\n") : summary;
+}
+
+function ChatCompaction({ summary }: { summary: string }) {
+  const containerRef = useRef<HTMLElement>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const scrollAnchor = useScrollAnchor();
+  const markdown = getCompactionSummaryMarkdown(summary);
+  const handleExpandedChange = useCallback(
+    (nextIsExpanded: boolean) => {
+      scrollAnchor.capture(containerRef.current);
+      setIsExpanded(nextIsExpanded);
+      requestAnimationFrame(() => scrollAnchor.restore(containerRef.current));
+    },
+    [scrollAnchor]
+  );
 
   return (
-    <ChatView
-      key={sessionId ?? "no-session"}
-      sessionId={sessionId}
-      messages={messages}
-      sendMessage={sendMessage}
-      stop={stop}
-      status={status}
-      error={error}
-      pendingElicitation={pendingElicitation}
-      handleElicitationSubmit={handleElicitationSubmit}
-      handleElicitationCancel={handleElicitationCancel}
-      retryMessage={retryMessage}
-      rewindToMessage={rewindToMessage}
-      forkFromMessage={forkFromMessage}
-      modelMenuValue={modelMenuValue}
-      onModelChange={onModelChange}
-      emptyStateSubtext={emptyStateSubtext}
-      emptyStateQuickActions={emptyStateQuickActions}
+    <>
+      <div
+        className="chat__compaction-divider"
+        role="separator"
+        aria-label="Conversation context compacted"
+      >
+        <span className="chat__compaction-divider-label">
+          Context compacted
+        </span>
+      </div>
+      <section
+        ref={containerRef}
+        className="chat__compaction-summary"
+        aria-label="Compaction summary"
+      >
+        <ExpandableContent
+          height={COMPACTION_SUMMARY_COLLAPSED_HEIGHT_PX}
+          expandedBehavior="grow"
+          isExpanded={isExpanded}
+          onExpandedChange={handleExpandedChange}
+        >
+          <MarkdownBlock mode="markdown" margin="none">
+            {markdown}
+          </MarkdownBlock>
+        </ExpandableContent>
+      </section>
+    </>
+  );
+}
+
+function ChatCompactionProgress() {
+  return (
+    <div
+      className="chat__compaction-divider chat__compaction-progress"
+      role="status"
+      aria-live="polite"
     >
-      {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
-    </ChatView>
+      <span className="chat__compaction-divider-label">
+        Compacting conversation…
+      </span>
+    </div>
+  );
+}
+
+function ChatCompactionStatus({ children }: { children: string }) {
+  return (
+    <div className="chat__compaction-divider" role="status" aria-live="polite">
+      <span className="chat__compaction-divider-label">{children}</span>
+    </div>
   );
 }
 
@@ -352,7 +451,11 @@ export function ChatView({
   pendingElicitation,
   handleElicitationSubmit,
   handleElicitationCancel,
-  retryMessage,
+  compactSession,
+  isCompacting = false,
+  compactionStatus,
+  operationError,
+  clearOperationError,
   rewindToMessage,
   forkFromMessage,
   modelMenuValue,
@@ -374,15 +477,19 @@ export function ChatView({
   pendingElicitation: PendingElicitation | null;
   handleElicitationSubmit: (output: ElicitToolOutput) => void;
   handleElicitationCancel: () => void;
-  /** Retries an assistant response; absent on read-only surfaces. */
-  retryMessage?: (messageId?: string) => void;
+  compactSession: PromptCommandContext["compactSession"];
+  isCompacting?: boolean;
+  compactionStatus?: string | null;
+  operationError?: AgentChatOperationError | null;
+  clearOperationError?: () => void;
   /**
-   * Truncates the active session at a message; returns user text to restore.
-   * Absent on read-only surfaces, which hides the rewind/branch controls.
+   * Truncates the active session at a message; resolves to user text to
+   * restore. Absent on read-only surfaces, which hides the rewind/branch
+   * controls.
    */
-  rewindToMessage?: (messageId: string) => string | null;
+  rewindToMessage?: (messageId: string) => Promise<string | null>;
   /** Branches a new session from a message; absent hides the branch control. */
-  forkFromMessage?: (messageId: string) => string | null;
+  forkFromMessage?: (messageId: string) => Promise<void>;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -413,6 +520,14 @@ export function ChatView({
   const draftInput = useAgentContext((state) =>
     sessionId ? (state.draftInputBySessionId[sessionId] ?? "") : ""
   );
+  const isBusyElsewhere = useAgentContext((state) =>
+    sessionId ? (state.isBusyElsewhereBySessionId[sessionId] ?? false) : false
+  );
+  const wasRefreshedFromStale = useAgentContext((state) =>
+    sessionId
+      ? (state.wasRefreshedFromStaleBySessionId[sessionId] ?? false)
+      : false
+  );
   const setDraftInput = useAgentContext((state) => state.setDraftInput);
   const [elicitationDraft, setElicitationDraft] =
     useState<PendingElicitationDraft | null>(null);
@@ -426,9 +541,12 @@ export function ChatView({
     (state) => state.permissions.edits
   );
   const setPermissions = useAgentContext((state) => state.setPermissions);
-  const createSession = useAgentContext((state) => state.createSession);
-  const canForkSessions = useAgentContext(
-    (state) => state.capabilities["session.storeSessions"]
+  const setActiveSession = useAgentContext((state) => state.setActiveSession);
+  const isDraftSessionTemporary = useAgentContext(
+    (state) => state.isDraftSessionTemporary
+  );
+  const setIsDraftSessionTemporary = useAgentContext(
+    (state) => state.setIsDraftSessionTemporary
   );
 
   const setSessionDraftInput = (input: string | null) => {
@@ -465,19 +583,27 @@ export function ChatView({
     status === "submitted" || status === "streaming";
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
+  const isSubmitDisabled =
+    isSendDisabledForMissingCredentials || isCompacting || isBusyElsewhere;
   const showThinkingIndicator = shouldShowThinkingIndicator({
     status,
     messages,
   });
   const latestMessage = messages.at(-1);
   const shouldShowInterruptedMessage =
-    status === "ready" && !error && latestMessage?.role === "user";
+    status === "ready" &&
+    !error &&
+    !isBusyElsewhere &&
+    latestMessage?.role === "user" &&
+    !isCompactionMessage(latestMessage);
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
       ? createPendingElicitationDraft(pendingElicitation.toolCallId)
       : elicitationDraft;
   const canToggleEditPermission = hasAcknowledgedConsent && !pendingElicitation;
+  const canToggleTemporaryChat =
+    sessionId === DRAFT_SESSION_ID && showsEmptyState && !pendingElicitation;
 
   const toggleEditPermission = () => {
     setPermissions({ edits: getNextEditPermissionMode(editPermissionMode) });
@@ -520,6 +646,9 @@ export function ChatView({
     messageId: string;
     role: MessageRewindRole;
   } | null>(null);
+  const [historyActionError, setHistoryActionError] =
+    useState<AgentChatOperationError | null>(null);
+  const [isHistoryActionPending, setIsHistoryActionPending] = useState(false);
 
   // Rewind/branch changes finalized history, so these actions are only offered
   // once the chat has settled — never mid-request.
@@ -529,40 +658,81 @@ export function ChatView({
     if (!hasChatSettled || !rewindToMessage) {
       return undefined;
     }
-    return (request) => setRewindRequest(request);
+    return (request) => {
+      setHistoryActionError(null);
+      setRewindRequest(request);
+    };
   }, [hasChatSettled, rewindToMessage]);
 
-  const handleConfirmRewind = () => {
+  const handleConfirmRewind = async () => {
     if (!rewindRequest) {
       return;
     }
     const { mode, messageId } = rewindRequest;
-    setRewindRequest(null);
-    if (mode === "fork") {
-      // Forking switches the active session, which remounts this view; the
-      // forked session receives restored text through draftInputBySessionId.
-      forkFromMessage?.(messageId);
-    } else {
-      const restoredInput = rewindToMessage?.(messageId);
-      if (restoredInput != null) {
-        setSessionDraftInput(restoredInput);
-        textareaRef.current?.focus();
+    setHistoryActionError(null);
+    setIsHistoryActionPending(true);
+    try {
+      if (mode === "fork") {
+        // Forking switches the active session, which remounts this view; the
+        // forked session receives restored text through draftInputBySessionId.
+        await forkFromMessage?.(messageId);
+      } else {
+        const restoredInput = (await rewindToMessage?.(messageId)) ?? null;
+        if (restoredInput != null) {
+          setSessionDraftInput(restoredInput);
+          textareaRef.current?.focus();
+        }
       }
+      setRewindRequest(null);
+    } catch (error) {
+      setHistoryActionError({
+        title:
+          mode === "fork"
+            ? "Conversation could not be branched"
+            : "Conversation could not be rewound",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
+      });
+    } finally {
+      setIsHistoryActionPending(false);
     }
   };
 
-  const handleRetryInterruptedMessage = () => {
-    if (latestMessage?.role !== "user") {
+  const retryUserMessage = async (message: AgentUIMessage | undefined) => {
+    if (message?.role !== "user") {
       return;
     }
-    const messageText = getMessageText(latestMessage).trim();
+    const messageText = getMessageText(message).trim();
     if (!messageText) {
       return;
     }
-    rewindToMessage?.(latestMessage.id);
-    void scrollToBottom();
-    sendMessage({ text: messageText });
+    // The server-side truncation must land before re-sending, or the resent
+    // request would still carry the interrupted user turn.
+    setHistoryActionError(null);
+    try {
+      const restoredInput = await rewindToMessage?.(message.id);
+      if (restoredInput == null) {
+        return;
+      }
+      void scrollToBottom();
+      sendMessage({ text: messageText });
+    } catch (error) {
+      setHistoryActionError({
+        title: "Conversation could not be rewound",
+        message:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
+      });
+    }
   };
+
+  const handleRetryInterruptedMessage = () => retryUserMessage(latestMessage);
+
+  const handleRetryFailedMessage = () =>
+    retryUserMessage(messages.findLast((message) => message.role === "user"));
 
   useLayoutEffect(() => {
     if (
@@ -621,59 +791,97 @@ export function ChatView({
                   </ChatEmptyState>
                 )}
                 {messages.map((message, index) => {
-                  if (message.role === "user") {
+                  if (isCompactionMessage(message)) {
                     return (
-                      <UserMessage
+                      <ChatCompaction
                         key={message.id}
+                        summary={getCompactionSummary(message)}
+                      />
+                    );
+                  }
+                  let renderedMessage: ReactNode;
+                  if (message.role === "user") {
+                    renderedMessage = (
+                      <UserMessage
                         message={message}
                         onRewindRequest={onRewindRequest}
                       />
                     );
+                  } else {
+                    // Only the last assistant message can still be streaming — hide
+                    // its actions until the chat reports it is settled.
+                    const isLast = index === messages.length - 1;
+                    const showActions = !isLast || hasChatSettled;
+                    // Pin the most recent assistant turn's toolbar so its actions
+                    // stay visible; other turns reveal their toolbars on hover to
+                    // cut down on stacked-toolbar clutter.
+                    const pinToolbar = isLast && hasChatSettled;
+                    // Rewinding to the last assistant turn is a no-op: nothing
+                    // follows it to truncate and, once settled, it has no pending
+                    // tool calls to clear. Hide the rewind control there.
+                    renderedMessage = (
+                      <AssistantMessage
+                        message={message}
+                        showActions={showActions}
+                        pinToolbar={pinToolbar}
+                        onRewindRequest={onRewindRequest}
+                        allowRewind={!isLast}
+                      />
+                    );
                   }
-                  // Only the last assistant message can still be streaming — hide
-                  // its actions until the chat reports it is settled.
-                  const isLast = index === messages.length - 1;
-                  const showActions = !isLast || hasChatSettled;
-                  // Pin the most recent assistant turn's toolbar so its actions
-                  // stay visible; other turns reveal their toolbars on hover to
-                  // cut down on stacked-toolbar clutter.
-                  const pinToolbar = isLast && hasChatSettled;
-                  // Rewinding to the last assistant turn is a no-op: nothing
-                  // follows it to truncate and, once settled, it has no pending
-                  // tool calls to clear. Hide the rewind control there.
                   return (
-                    <AssistantMessage
-                      key={message.id}
-                      message={message}
-                      showActions={showActions}
-                      pinToolbar={pinToolbar}
-                      onRewindRequest={onRewindRequest}
-                      allowRewind={!isLast}
-                    />
+                    <Fragment key={message.id}>{renderedMessage}</Fragment>
                   );
                 })}
-                {showThinkingIndicator && <Loading />}
+                {isCompacting ? <ChatCompactionProgress /> : null}
+                {!isCompacting && compactionStatus ? (
+                  <ChatCompactionStatus>
+                    {compactionStatus}
+                  </ChatCompactionStatus>
+                ) : null}
+                {(showThinkingIndicator || isBusyElsewhere) && <Loading />}
+                {isBusyElsewhere ? (
+                  <div
+                    className="chat__busy-elsewhere"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Session is being used elsewhere, the chat will refresh when
+                    complete.
+                  </div>
+                ) : null}
+                {wasRefreshedFromStale && !isBusyElsewhere ? (
+                  <div
+                    className="chat__stale-refreshed"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Session was updated elsewhere, the chat has been refreshed.
+                    Your unsent message is still in the input below.
+                  </div>
+                ) : null}
                 {shouldShowInterruptedMessage ? (
                   <InterruptedChatMessage
                     latestUserMessageId={latestMessage.id}
-                    canFork={canForkSessions}
+                    canFork
                     onRetry={handleRetryInterruptedMessage}
                     onRewind={onRewindRequest}
                   />
                 ) : null}
-                {error && (
+                {/* A session-conflict rejection is not a failed response:
+                    busy-elsewhere mode owns the UI until the lock clears, and
+                    a stale send resolves into the refreshed-transcript notice. */}
+                {error && !isBusyElsewhere && !wasRefreshedFromStale && (
                   <ChatErrorMessage
                     error={error}
-                    latestAssistantMessageId={getLatestMessageId({
-                      messages,
-                      role: "assistant",
-                    })}
                     latestUserMessageId={getLatestMessageId({
                       messages,
                       role: "user",
                     })}
-                    canFork={canForkSessions}
-                    onRetry={retryMessage}
+                    canFork
+                    onRetry={
+                      rewindToMessage ? handleRetryFailedMessage : undefined
+                    }
                     onRewind={onRewindRequest}
                   />
                 )}
@@ -682,6 +890,21 @@ export function ChatView({
           </div>
         </ChatScrollContext.Provider>
         <div className="chat__input">
+          {(operationError || (!rewindRequest && historyActionError)) && (
+            <div className="chat__operation-error" role="alert">
+              <Alert
+                variant="danger"
+                title={(operationError ?? historyActionError)?.title}
+                dismissable
+                onDismissClick={() => {
+                  clearOperationError?.();
+                  setHistoryActionError(null);
+                }}
+              >
+                {(operationError ?? historyActionError)?.message}
+              </Alert>
+            </div>
+          )}
           {!hasAcknowledgedConsent ? (
             <PromptInput status={status} isDisabled mode="elicitation">
               <AgentConsentGate />
@@ -691,8 +914,13 @@ export function ChatView({
               <MessageRewindConfirmation
                 mode={rewindRequest.mode}
                 role={rewindRequest.role}
+                error={historyActionError?.message}
+                isPending={isHistoryActionPending}
                 onConfirm={handleConfirmRewind}
-                onCancel={() => setRewindRequest(null)}
+                onCancel={() => {
+                  setHistoryActionError(null);
+                  setRewindRequest(null);
+                }}
               />
             </PromptInput>
           ) : pendingElicitation ? (
@@ -735,7 +963,11 @@ export function ChatView({
                   runPromptCommands(
                     { commandNames, text, requestedSkills },
                     {
-                      createSession,
+                      compactSession,
+                      startNewSession: () => {
+                        setActiveSession(DRAFT_SESSION_ID);
+                        return DRAFT_SESSION_ID;
+                      },
                       setPendingMessage: store.getState().setPendingMessage,
                     }
                   );
@@ -757,24 +989,31 @@ export function ChatView({
               textareaRef={textareaRef}
               modelMenuValue={modelMenuValue}
               onModelChange={onModelChange}
-              isSubmitDisabled={isSendDisabledForMissingCredentials}
+              isInputDisabled={isCompacting || isBusyElsewhere}
+              isSubmitDisabled={isSubmitDisabled}
               onStop={() => {
                 void stop();
               }}
             />
           )}
-          {canToggleEditPermission ? (
+          {canToggleEditPermission || children || canToggleTemporaryChat ? (
             <div className="chat__input-meta">
-              <div className="chat__edit-permissions">
-                <AgentEditPermissionMenu />
-              </div>
+              {canToggleEditPermission ? (
+                <div className="chat__edit-permissions">
+                  <AgentEditPermissionMenu />
+                </div>
+              ) : null}
               {children ? (
                 <div className="chat__children">{children}</div>
               ) : null}
-            </div>
-          ) : children ? (
-            <div className="chat__input-meta">
-              <div className="chat__children">{children}</div>
+              {canToggleTemporaryChat ? (
+                <TemporaryChatToggle
+                  isTemporary={isDraftSessionTemporary}
+                  onToggle={() =>
+                    setIsDraftSessionTemporary(!isDraftSessionTemporary)
+                  }
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

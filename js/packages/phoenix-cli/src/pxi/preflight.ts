@@ -1,7 +1,11 @@
 import { buildGraphqlRequest } from "../commands/api";
 import type { PhoenixConfig } from "../config";
 import { InvalidArgumentError } from "../exitCodes";
-import type { ModelSelection, PxiRuntimeOptions } from "./types";
+import type {
+  BuiltInProvider,
+  ModelSelection,
+  PxiRuntimeOptions,
+} from "./types";
 
 /**
  * Pre-launch validation of the selected model.
@@ -67,7 +71,7 @@ type PxiCustomProvider = {
   modelNames: string[];
 };
 
-type PxiModelPreflightData = {
+export type PxiModelPreflightData = {
   modelProviders: PxiModelProvider[];
   playgroundModels: PxiPlaygroundModel[];
   generativeModelCustomProviders: {
@@ -76,6 +80,22 @@ type PxiModelPreflightData = {
     }>;
   };
 };
+
+const RECOMMENDED_PXI_MODELS = [
+  { provider: "ANTHROPIC", modelName: "claude-fable-5" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-4-8" },
+  { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
+  { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
+  { provider: "OPENAI", modelName: "gpt-5.6-sol" },
+  { provider: "OPENAI", modelName: "gpt-5.4" },
+  { provider: "OPENAI", modelName: "gpt-5.4-mini" },
+  { provider: "OPENAI", modelName: "gpt-5.5" },
+  { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
+  { provider: "GOOGLE", modelName: "gemini-3.5-flash" },
+] as const satisfies readonly {
+  provider: BuiltInProvider;
+  modelName: string;
+}[];
 
 type GraphqlError = {
   message?: string;
@@ -287,6 +307,44 @@ export async function fetchPxiModelPreflight({
   const payload =
     (await response.json()) as GraphqlResponse<PxiModelPreflightData>;
   return assertPreflightData({ payload });
+}
+
+/** Return the main app's recommended models that exist in this server's catalog. */
+export function getRecommendedPxiModels({
+  data,
+}: {
+  data: PxiModelPreflightData;
+}): ModelSelection[] {
+  return RECOMMENDED_PXI_MODELS.filter(({ provider, modelName }) =>
+    data.playgroundModels.some(
+      (model) => model.providerKey === provider && model.name === modelName
+    )
+  ).map(({ provider, modelName }) =>
+    provider === "OPENAI"
+      ? {
+          providerType: "builtin",
+          provider,
+          modelName,
+          openaiApiType: "responses",
+        }
+      : {
+          providerType: "builtin",
+          provider,
+          modelName,
+        }
+  );
+}
+
+/** Fetch the recommended model choices displayed by the interactive picker. */
+export async function fetchRecommendedPxiModels({
+  config,
+  fetchImpl = globalThis.fetch,
+}: {
+  config: PhoenixConfig;
+  fetchImpl?: typeof globalThis.fetch;
+}): Promise<ModelSelection[]> {
+  const data = await fetchPxiModelPreflight({ config, fetchImpl });
+  return getRecommendedPxiModels({ data });
 }
 
 /**

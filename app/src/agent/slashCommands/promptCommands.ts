@@ -31,8 +31,14 @@ export type PromptCommandSubmit = {
  * Session operations a chat surface must provide for commands to act on.
  */
 export type PromptCommandContext = {
-  /** Create and activate a fresh session, returning its id. */
-  createSession: () => string;
+  /** Compact older turns, then optionally submit the remaining prompt text. */
+  compactSession: (message?: PendingAgentMessage) => void;
+  /**
+   * Switch to a fresh draft chat surface, returning the key under which a
+   * pending message can be staged. The server session itself is created when
+   * the staged (or first typed) message is sent.
+   */
+  startNewSession: () => string;
   /**
    * Stage a message to be auto-sent when the given session's chat view
    * mounts.
@@ -67,12 +73,19 @@ export type PromptCommand = {
  */
 export const PROMPT_COMMANDS: PromptCommand[] = [
   {
+    name: "compact",
+    summary: "Compact older conversation context",
+    run: ({ text, requestedSkills }, context) => {
+      context.compactSession(text ? { text, requestedSkills } : undefined);
+    },
+  },
+  {
     name: "clear",
     summary: "Clear the conversation and start a new session",
     run: ({ text, requestedSkills }, context) => {
-      const newSessionId = context.createSession();
+      const stagingKey = context.startNewSession();
       if (text) {
-        context.setPendingMessage(newSessionId, { text, requestedSkills });
+        context.setPendingMessage(stagingKey, { text, requestedSkills });
       }
     },
   },

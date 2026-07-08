@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { resolvePxiRuntimeOptions } from "../src/pxi/options";
-import { runPxiModelPreflight } from "../src/pxi/preflight";
+import {
+  getRecommendedPxiModels,
+  runPxiModelPreflight,
+} from "../src/pxi/preflight";
 
 type FetchCall = {
   url: string;
@@ -100,6 +103,38 @@ function createFetch({
 }
 
 describe("PXI model preflight", () => {
+  it("returns available recommended models in the main app's curated order", () => {
+    const models = getRecommendedPxiModels({
+      data: createPreflightData({
+        playgroundModels: [
+          { providerKey: "GOOGLE", name: "gemini-3.5-flash" },
+          { providerKey: "OPENAI", name: "unrecommended-model" },
+          { providerKey: "OPENAI", name: "gpt-5.4" },
+          { providerKey: "ANTHROPIC", name: "claude-opus-4-8" },
+        ],
+      }),
+    });
+
+    expect(models).toEqual([
+      {
+        providerType: "builtin",
+        provider: "ANTHROPIC",
+        modelName: "claude-opus-4-8",
+      },
+      {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5.4",
+        openaiApiType: "responses",
+      },
+      {
+        providerType: "builtin",
+        provider: "GOOGLE",
+        modelName: "gemini-3.5-flash",
+      },
+    ]);
+  });
+
   it("uses configured endpoint, API key, and custom headers", async () => {
     const options = createRuntimeOptions({ apiKey: "secret" });
     options.config.headers = { "X-Phoenix": "pxi" };

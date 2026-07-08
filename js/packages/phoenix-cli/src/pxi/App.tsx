@@ -2,13 +2,20 @@ import type { EventEmitter } from "node:events";
 import { Box, Text, useApp, useInput, useStdin } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { createPxiChatClient, createUserMessage } from "./client";
+import {
+  createPxiChatClient,
+  createPxiSessionClient,
+  createUserMessage,
+  isSessionBusyError,
+  isSessionStaleError,
+} from "./client";
 import {
   getSlashCommandName,
   matchingCommands,
   runSlashCommand,
   SLASH_COMMANDS,
 } from "./commands";
+import { getCompactionSummary, isCompactionMessage } from "./compaction";
 import {
   deleteDraftTextAtCursor,
   deleteDraftTextBeforeCursor,
@@ -21,13 +28,21 @@ import {
   type DraftEditorState,
 } from "./draftEditor";
 import { Markdown } from "./inkMarkdown";
+import { fetchRecommendedPxiModels } from "./preflight";
 import { formatTokenUsageLine, getLatestAssistantUsage } from "./tokenUsage";
 import {
   getToolProgressFromPart,
   type ToolProgress,
   type ToolProgressState,
 } from "./toolProgress";
-import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
+import type {
+  ModelSelection,
+  PxiChatClient,
+  PxiMessage,
+  PxiRuntimeOptions,
+  PxiSessionClient,
+  PxiSessionSummary,
+} from "./types";
 
 /**
  * The PXI terminal chat UI.
@@ -40,6 +55,20 @@ import type { PxiChatClient, PxiMessage, PxiRuntimeOptions } from "./types";
 
 /** Whether the app is waiting on input (`idle`) or streaming a reply. */
 type PxiStatus = "idle" | "streaming";
+type SessionPickerState = {
+  status: "loading" | "ready" | "restoring" | "error";
+  sessions: PxiSessionSummary[];
+  query: string;
+  selectedIndex: number;
+  error: string | null;
+};
+type ModelPickerState = {
+  status: "loading" | "ready" | "error";
+  models: ModelSelection[];
+  query: string;
+  selectedIndex: number;
+  error: string | null;
+};
 type PxiMessagePart = PxiMessage["parts"][number];
 type DraftSegment = {
   text: string;
@@ -84,10 +113,30 @@ const KITTY_BACKSPACE_INPUT_PATTERN =
 const KITTY_FORWARD_DELETE_INPUT_PATTERN = /^\x1B\[3;\d+:[12]~$/;
 const KEYBOARD_PROTOCOL_RESPONSE_PATTERN = /^\[\?\d+u$/;
 const INTERRUPTED_MESSAGE_TEXT = "\n\n[Interrupted by user before completion.]";
+/** How often to re-fetch a session while another client's turn holds its lock. */
+const SESSION_BUSY_POLL_INTERVAL_MS = 3000;
+const SESSION_BUSY_STATUS_TEXT =
+  "Session is being used elsewhere, the chat will refresh when complete";
+const SESSION_STALE_STATUS_TEXT =
+  "Session was updated elsewhere, the chat has been refreshed";
+const COMPACTING_STATUS_TEXT = "Compacting conversation";
+const ALREADY_COMPACT_STATUS_TEXT =
+  "Conversation is already compact. There are no older complete turns to compact.";
+const COMPACT_WHILE_BUSY_ERROR_TEXT =
+  "Session is being used elsewhere. Try again when the other turn completes.";
+const COMPACT_DRAFT_SESSION_ERROR_TEXT =
+  "There is no persisted conversation to compact.";
+const COMPACTION_DIVIDER_TEXT = "── Conversation compacted ──";
 
 export type PxiAppProps = {
   options: PxiRuntimeOptions;
   client?: PxiChatClient;
+  clientFactory?: (options: {
+    options: PxiRuntimeOptions;
+    agentSessionId: string;
+  }) => PxiChatClient;
+  modelLoader?: () => Promise<ModelSelection[]>;
+  sessionClient?: PxiSessionClient;
   initialMessages?: PxiMessage[];
 };
 
@@ -134,12 +183,17 @@ function PxiBanner() {
   );
 }
 
-/** Format the active model for the status line (e.g. `ANTHROPIC/claude-opus-5`). */
-function getModelLabel(options: PxiRuntimeOptions): string {
-  if (options.modelSelection.providerType === "custom") {
-    return `custom:${options.modelSelection.providerId}/${options.modelSelection.modelName}`;
+
+/** Format a model selection for display (e.g. `ANTHROPIC/claude-opus-4-8`). */
+function getModelLabel({
+  modelSelection,
+}: {
+  modelSelection: ModelSelection;
+}): string {
+  if (modelSelection.providerType === "custom") {
+    return `custom:${modelSelection.providerId}/${modelSelection.modelName}`;
   }
-  return `${options.modelSelection.provider}/${options.modelSelection.modelName}`;
+  return `${modelSelection.provider}/${modelSelection.modelName}`;
 }
 
 /** Animated braille spinner shown while a tool call is still in flight. */
@@ -314,6 +368,18 @@ function Transcript({
   return (
     <Box flexDirection="column">
       {messages.map((message) => {
+        if (isCompactionMessage({ message })) {
+          // A compaction checkpoint is a persisted summary, not something the
+          // user typed: render it as a labeled divider with the summary dimmed.
+          return (
+            <Box key={message.id} flexDirection="column" marginBottom={1}>
+              <Text color="yellow" bold>
+                {COMPACTION_DIVIDER_TEXT}
+              </Text>
+              <Text dimColor>{getCompactionSummary({ message })}</Text>
+            </Box>
+          );
+        }
         const label = message.role === "user" ? "You" : "PXI";
         const color = message.role === "user" ? "cyan" : "green";
         return (
@@ -522,6 +588,169 @@ function InputPrompt({
   );
 }
 
+function getFilteredSessions({
+  sessions,
+  query,
+}: {
+  sessions: PxiSessionSummary[];
+  query: string;
+}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return sessions;
+  return sessions.filter((session) =>
+    session.title.toLowerCase().includes(normalizedQuery)
+  );
+}
+
+function getSessionTitle({ title }: { title: string }) {
+  return title.trim() || "Untitled session";
+}
+
+function getFilteredModels({
+  models,
+  query,
+}: {
+  models: ModelSelection[];
+  query: string;
+}) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return models;
+  return models.filter((modelSelection) =>
+    getModelLabel({ modelSelection }).toLowerCase().includes(normalizedQuery)
+  );
+}
+
+/** Model-selection mode rendered in place of the normal composer. */
+function ModelPicker({ state }: { state: ModelPickerState }) {
+  const filteredModels = getFilteredModels({
+    models: state.models,
+    query: state.query,
+  });
+  const selectedIndex = Math.min(
+    state.selectedIndex,
+    Math.max(filteredModels.length - 1, 0)
+  );
+  const firstVisibleIndex = Math.max(0, selectedIndex - 7);
+  const visibleModels = filteredModels.slice(
+    firstVisibleIndex,
+    firstVisibleIndex + 8
+  );
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="cyan"
+      paddingX={1}
+      marginTop={1}
+    >
+      <Text bold>Recommended models</Text>
+      {state.status === "loading" ? (
+        <Text dimColor>Loading models…</Text>
+      ) : null}
+      {state.error ? <Text color="red">{state.error}</Text> : null}
+      {state.status !== "loading" && state.models.length > 0 ? (
+        <Text>
+          <Text dimColor>Filter: </Text>
+          {state.query}
+          <Text color="cyan">█</Text>
+        </Text>
+      ) : null}
+      {state.status !== "loading" && filteredModels.length === 0 ? (
+        <Text dimColor>
+          {state.models.length === 0
+            ? "No recommended models are available."
+            : "No models match this filter."}
+        </Text>
+      ) : null}
+      {visibleModels.map((modelSelection, visibleIndex) => {
+        const modelIndex = firstVisibleIndex + visibleIndex;
+        const isSelected = modelIndex === selectedIndex;
+        const label = getModelLabel({ modelSelection });
+        return (
+          <Text key={label} color={isSelected ? "cyan" : undefined}>
+            {isSelected ? "› " : "  "}
+            <Text bold={isSelected}>{label}</Text>
+          </Text>
+        );
+      })}
+      <Text dimColor>
+        {state.status === "error"
+          ? "esc close and retry"
+          : "type to filter · ↑↓ navigate · enter select · esc cancel"}
+      </Text>
+    </Box>
+  );
+}
+
+/** Session-selection mode rendered in place of the normal composer. */
+function SessionPicker({ state }: { state: SessionPickerState }) {
+  const filteredSessions = getFilteredSessions({
+    sessions: state.sessions,
+    query: state.query,
+  });
+  const selectedIndex = Math.min(
+    state.selectedIndex,
+    Math.max(filteredSessions.length - 1, 0)
+  );
+  const firstVisibleIndex = Math.max(0, selectedIndex - 7);
+  const visibleSessions = filteredSessions.slice(
+    firstVisibleIndex,
+    firstVisibleIndex + 8
+  );
+
+  return (
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor="cyan"
+      paddingX={1}
+      marginTop={1}
+    >
+      <Text bold>Recent sessions</Text>
+      {state.status === "loading" ? (
+        <Text dimColor>Loading sessions…</Text>
+      ) : null}
+      {state.error ? <Text color="red">{state.error}</Text> : null}
+      {state.status !== "loading" && state.sessions.length > 0 ? (
+        <Text>
+          <Text dimColor>Filter: </Text>
+          {state.query}
+          <Text color="cyan">█</Text>
+        </Text>
+      ) : null}
+      {state.status !== "loading" && filteredSessions.length === 0 ? (
+        <Text dimColor>
+          {state.sessions.length === 0
+            ? "No persisted sessions yet."
+            : "No sessions match this filter."}
+        </Text>
+      ) : null}
+      {visibleSessions.map((session, visibleIndex) => {
+        const sessionIndex = firstVisibleIndex + visibleIndex;
+        const isSelected = sessionIndex === selectedIndex;
+        return (
+          <Text key={session.id} color={isSelected ? "cyan" : undefined}>
+            {isSelected ? "› " : "  "}
+            <Text bold={isSelected}>
+              {getSessionTitle({ title: session.title })}
+            </Text>
+            <Text dimColor>
+              {"  "}
+              {new Date(session.updatedAt).toLocaleString()}
+            </Text>
+          </Text>
+        );
+      })}
+      <Text dimColor>
+        {state.status === "restoring"
+          ? "restoring session…"
+          : "type to filter · ↑↓ navigate · enter restore · esc cancel"}
+      </Text>
+    </Box>
+  );
+}
+
 function isKeyboardProtocolResponseInput({ input }: { input: string }) {
   return KEYBOARD_PROTOCOL_RESPONSE_PATTERN.test(input);
 }
@@ -612,6 +841,27 @@ export function ThinkingIndicator() {
 }
 
 /**
+ * Spinner and status line for long-running session states — another client's
+ * turn holding the server-side lock, or an in-flight compaction.
+ */
+function StatusSpinnerLine({ text }: { text: string }) {
+  const [frameIndex, setFrameIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrameIndex((value) => (value + 1) % TOOL_SPINNER_FRAMES.length);
+    }, 250);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Text color="yellow">
+      {TOOL_SPINNER_FRAMES[frameIndex]} {text}
+    </Text>
+  );
+}
+
+/**
  * Root component for the PXI chat.
  *
  * Holds the conversation, draft input, streaming status, and any error, and
@@ -622,7 +872,14 @@ export function ThinkingIndicator() {
  * `initialMessages` props exist mainly so tests can drive the UI with a fake
  * client and seeded history.
  */
-export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
+export function PxiApp({
+  options,
+  client,
+  clientFactory,
+  modelLoader,
+  sessionClient,
+  initialMessages = [],
+}: PxiAppProps) {
   const { exit } = useApp();
   // ink v7 narrowed useStdin()'s return type to its public props, but the
   // context value still carries the internal raw-input emitter this app
@@ -637,12 +894,68 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   );
   const [status, setStatus] = useState<PxiStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Another client's turn holds the session's server-side lock (HTTP 409 on
+  // send, or `isActive` on restore); plain sends are blocked while set.
+  const [isSessionBusy, setIsSessionBusy] = useState(false);
+  // A send was rejected as stale (another client appended to the session) and
+  // the transcript was refreshed in place; shown until the next send.
+  const [showStaleRefreshNotice, setShowStaleRefreshNotice] = useState(false);
+  // A compaction request is in flight; plain sends are blocked while set.
+  const [isCompacting, setIsCompacting] = useState(false);
+  // One-shot notice after a no-op compaction; shown until the next send.
+  const [compactionNotice, setCompactionNotice] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<PxiSessionSummary | null>(
+    null
+  );
+  const [activeModelSelection, setActiveModelSelection] =
+    useState<ModelSelection>(options.modelSelection);
+  const [isDraftTemporary, setIsDraftTemporary] = useState(false);
+  const [modelPicker, setModelPicker] = useState<ModelPickerState | null>(null);
+  const [sessionPicker, setSessionPicker] = useState<SessionPickerState | null>(
+    null
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamingAssistantMessageRef = useRef<PxiMessage | null>(null);
-  const chatClient = useMemo(
-    () => client ?? createPxiChatClient({ options }),
-    [client, options]
+  const modelRequestIdRef = useRef(0);
+  const sessionRequestIdRef = useRef(0);
+  const serverSessionClient = useMemo(
+    () => sessionClient ?? createPxiSessionClient({ config: options.config }),
+    [options.config, sessionClient]
   );
+
+  // While another client's turn holds the session lock, poll the session until
+  // the turn completes, then swap in the persisted transcript. Transient fetch
+  // failures keep the poll alive; switching sessions, /new, and unmounting
+  // (process exit) stop it via the effect cleanup.
+  const busySessionId = isSessionBusy ? (activeSession?.id ?? null) : null;
+  useEffect(() => {
+    if (!busySessionId) {
+      return;
+    }
+    let isStale = false;
+    const pollSession = () => {
+      void serverSessionClient
+        .getSession({ sessionId: busySessionId })
+        .then((session) => {
+          if (isStale || session.isActive) {
+            return;
+          }
+          // The other client's turn completed and its transcript persisted;
+          // mirror the session-restore path by replacing the message list.
+          setActiveSession(session);
+          setMessages(session.messages);
+          setIsSessionBusy(false);
+        })
+        .catch(() => {
+          // Transient failure: wait for the next poll tick.
+        });
+    };
+    const intervalId = setInterval(pollSession, SESSION_BUSY_POLL_INTERVAL_MS);
+    return () => {
+      isStale = true;
+      clearInterval(intervalId);
+    };
+  }, [busySessionId, serverSessionClient]);
 
   const handleExit = () => {
     abortControllerRef.current?.abort();
@@ -671,10 +984,252 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     setStatus("idle");
   };
 
-  const clearMessages = () => {
+  const startNewSession = ({ temporary }: { temporary: boolean }) => {
+    modelRequestIdRef.current += 1;
+    sessionRequestIdRef.current += 1;
+    setActiveSession(null);
+    setIsDraftTemporary(temporary);
+    setIsSessionBusy(false);
+    setShowStaleRefreshNotice(false);
+    setCompactionNotice(null);
+    setModelPicker(null);
+    setSessionPicker(null);
     setMessages([]);
     setError(null);
     setDraft(EMPTY_DRAFT_EDITOR_STATE);
+  };
+
+  const closeSessionPicker = () => {
+    sessionRequestIdRef.current += 1;
+    setSessionPicker(null);
+  };
+
+  const openSessionPicker = () => {
+    modelRequestIdRef.current += 1;
+    setModelPicker(null);
+    const requestId = sessionRequestIdRef.current + 1;
+    sessionRequestIdRef.current = requestId;
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    setError(null);
+    setSessionPicker({
+      status: "loading",
+      sessions: [],
+      query: "",
+      selectedIndex: 0,
+      error: null,
+    });
+    void serverSessionClient
+      .listSessions()
+      .then((sessions) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setSessionPicker({
+          status: "ready",
+          sessions,
+          query: "",
+          selectedIndex: 0,
+          error: null,
+        });
+      })
+      .catch((sessionError: unknown) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setSessionPicker({
+          status: "error",
+          sessions: [],
+          query: "",
+          selectedIndex: 0,
+          error:
+            sessionError instanceof Error
+              ? sessionError.message
+              : String(sessionError),
+        });
+      });
+  };
+
+  const closeModelPicker = () => {
+    modelRequestIdRef.current += 1;
+    setModelPicker(null);
+  };
+
+  const openModelPicker = () => {
+    sessionRequestIdRef.current += 1;
+    setSessionPicker(null);
+    const requestId = modelRequestIdRef.current + 1;
+    modelRequestIdRef.current = requestId;
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    setError(null);
+    setModelPicker({
+      status: "loading",
+      models: [],
+      query: "",
+      selectedIndex: 0,
+      error: null,
+    });
+    const loadModels =
+      modelLoader ??
+      (() => fetchRecommendedPxiModels({ config: options.config }));
+    void loadModels()
+      .then((models) => {
+        if (modelRequestIdRef.current !== requestId) return;
+        setModelPicker({
+          status: "ready",
+          models,
+          query: "",
+          selectedIndex: 0,
+          error: null,
+        });
+      })
+      .catch((modelError: unknown) => {
+        if (modelRequestIdRef.current !== requestId) return;
+        setModelPicker({
+          status: "error",
+          models: [],
+          query: "",
+          selectedIndex: 0,
+          error:
+            modelError instanceof Error
+              ? modelError.message
+              : String(modelError),
+        });
+      });
+  };
+
+  const selectModel = () => {
+    if (!modelPicker || modelPicker.status !== "ready") return;
+    const filteredModels = getFilteredModels({
+      models: modelPicker.models,
+      query: modelPicker.query,
+    });
+    const selectedModel = filteredModels[modelPicker.selectedIndex];
+    if (!selectedModel) return;
+    setActiveModelSelection(selectedModel);
+    setModelPicker(null);
+    setError(null);
+  };
+
+  const restoreSelectedSession = () => {
+    if (!sessionPicker || sessionPicker.status !== "ready") return;
+    const filteredSessions = getFilteredSessions({
+      sessions: sessionPicker.sessions,
+      query: sessionPicker.query,
+    });
+    const selectedSession = filteredSessions[sessionPicker.selectedIndex];
+    if (!selectedSession) return;
+    const requestId = sessionRequestIdRef.current + 1;
+    sessionRequestIdRef.current = requestId;
+    setSessionPicker((current) =>
+      current ? { ...current, status: "restoring", error: null } : null
+    );
+    void serverSessionClient
+      .getSession({ sessionId: selectedSession.id })
+      .then((session) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setActiveSession(session);
+        setIsDraftTemporary(session.isTemporary);
+        // Another client's turn may already hold the restored session's lock;
+        // enter the busy state so the poll refreshes the transcript when it
+        // completes.
+        setIsSessionBusy(session.isActive === true);
+        setShowStaleRefreshNotice(false);
+        setCompactionNotice(null);
+        setMessages(session.messages);
+        setError(null);
+        setDraft(EMPTY_DRAFT_EDITOR_STATE);
+        setSessionPicker(null);
+      })
+      .catch((sessionError: unknown) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                status: "error",
+                error:
+                  sessionError instanceof Error
+                    ? sessionError.message
+                    : String(sessionError),
+              }
+            : null
+        );
+      });
+  };
+
+  /**
+   * Compact the persisted conversation into a checkpoint summary. Mirrors the
+   * web UI's `/compact`: rejected while the session is busy elsewhere, shows a
+   * one-shot notice when there is nothing to compact, and sends `pendingText`
+   * as a follow-up message once the compaction lands.
+   */
+  const compactSession = (pendingText?: string) => {
+    setCompactionNotice(null);
+    const restorePendingText = () => {
+      if (pendingText) {
+        setDraft((currentDraft) =>
+          currentDraft.value
+            ? currentDraft
+            : { value: pendingText, cursorIndex: pendingText.length }
+        );
+      }
+    };
+    if (!activeSession) {
+      restorePendingText();
+      setError(COMPACT_DRAFT_SESSION_ERROR_TEXT);
+      return;
+    }
+    if (isCompacting) {
+      restorePendingText();
+      return;
+    }
+    if (isSessionBusy) {
+      restorePendingText();
+      setError(COMPACT_WHILE_BUSY_ERROR_TEXT);
+      return;
+    }
+    const compactionSessionId = activeSession.id;
+    // A session switch (/new, restore) mid-compaction supersedes this request.
+    const requestId = sessionRequestIdRef.current;
+    const baseMessages = messages;
+    setError(null);
+    setIsCompacting(true);
+    void serverSessionClient
+      .compactSession({
+        sessionId: compactionSessionId,
+        model: activeModelSelection,
+      })
+      .then((result) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        const checkpoint = result.compactionMessage;
+        const nextMessages =
+          checkpoint &&
+          !baseMessages.some((message) => message.id === checkpoint.id)
+            ? [...baseMessages, checkpoint]
+            : baseMessages;
+        setMessages(nextMessages);
+        if (!result.compacted) {
+          setCompactionNotice(ALREADY_COMPACT_STATUS_TEXT);
+        }
+        if (pendingText) {
+          sendUserText({ text: pendingText, baseMessages: nextMessages });
+        }
+      })
+      .catch((compactError: unknown) => {
+        if (sessionRequestIdRef.current !== requestId) return;
+        restorePendingText();
+        if (isSessionBusyError({ error: compactError })) {
+          // Another client's turn holds the session lock (HTTP 409): enter
+          // the busy state; the poll refreshes the transcript once the other
+          // turn completes.
+          setIsSessionBusy(true);
+          return;
+        }
+        setError(
+          compactError instanceof Error
+            ? compactError.message
+            : String(compactError)
+        );
+      })
+      .finally(() => {
+        setIsCompacting(false);
+      });
   };
 
   const submitDraft = () => {
@@ -687,7 +1242,10 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     if (text.startsWith("/")) {
       setDraft(EMPTY_DRAFT_EDITOR_STATE);
       const result = runSlashCommand(text, {
-        clearMessages,
+        startNewSession,
+        openModelPicker,
+        openSessionPicker,
+        compactSession,
         exit: handleExit,
       });
       if (result.type === "help") {
@@ -715,24 +1273,76 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       return;
     }
 
+    // Plain sends are blocked while another client's turn holds the session
+    // lock or a compaction is in flight; keep the draft editable so nothing
+    // typed is lost.
+    if (isSessionBusy || isCompacting) {
+      return;
+    }
+
+    setDraft(EMPTY_DRAFT_EDITOR_STATE);
+    sendUserText({ text, baseMessages: messages });
+  };
+
+  /** Append a user message to `baseMessages` and stream the reply. */
+  const sendUserText = ({
+    text,
+    baseMessages,
+  }: {
+    text: string;
+    baseMessages: PxiMessage[];
+  }) => {
     const userMessage = createUserMessage({ text });
-    const nextMessages = [...messages, userMessage];
+    const nextMessages = [...baseMessages, userMessage];
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     streamingAssistantMessageRef.current = null;
-    setDraft(EMPTY_DRAFT_EDITOR_STATE);
     setError(null);
+    setShowStaleRefreshNotice(false);
+    setCompactionNotice(null);
     setStatus("streaming");
     setMessages(nextMessages);
-    void chatClient
-      .sendMessage({
+    void (async () => {
+      let resolvedClient = client;
+      const activeOptions = {
+        ...options,
+        modelSelection: activeModelSelection,
+      };
+      const createClient = clientFactory ?? createPxiChatClient;
+      if (!activeSession && (sessionClient || !resolvedClient)) {
+        const session = await serverSessionClient.createSession({
+          temporary: isDraftTemporary,
+        });
+        setActiveSession(session);
+        if (!resolvedClient) {
+          resolvedClient = createClient({
+            options: activeOptions,
+            agentSessionId: session.id,
+          });
+        }
+      } else if (!resolvedClient && activeSession) {
+        resolvedClient = createClient({
+          options: activeOptions,
+          agentSessionId: activeSession.id,
+        });
+      }
+      if (!resolvedClient) {
+        throw new Error("Could not initialize the PXI chat client.");
+      }
+      return resolvedClient.sendMessage({
         messages: nextMessages,
         abortSignal: abortController.signal,
         onAssistantMessage: (assistantMessage) => {
           streamingAssistantMessageRef.current = assistantMessage;
           setMessages([...nextMessages, assistantMessage]);
         },
-      })
+        onSessionTitle: (title) => {
+          setActiveSession((currentSession) =>
+            currentSession ? { ...currentSession, title } : currentSession
+          );
+        },
+      });
+    })()
       .then((assistantMessage) => {
         if (abortController.signal.aborted) {
           return;
@@ -743,6 +1353,59 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       })
       .catch((err: unknown) => {
         if (abortController.signal.aborted) {
+          return;
+        }
+        if (isSessionBusyError({ error: err })) {
+          // Another client's turn holds the session lock (HTTP 409). Withdraw
+          // the optimistic user message back into the composer (unless the
+          // user already typed something new) and enter the busy state; the
+          // poll refreshes the transcript once the other turn completes.
+          setMessages((currentMessages) =>
+            currentMessages.filter((message) => message.id !== userMessage.id)
+          );
+          setDraft((currentDraft) =>
+            currentDraft.value
+              ? currentDraft
+              : { value: text, cursorIndex: text.length }
+          );
+          setIsSessionBusy(true);
+          return;
+        }
+        if (isSessionStaleError({ error: err })) {
+          // The send was rejected because this client's transcript is out of
+          // date (HTTP 409: another client appended to the session). Withdraw
+          // the optimistic user message back into the composer and refetch
+          // the fresh transcript; if a turn is already running elsewhere,
+          // hand off to the busy poll instead of the one-shot notice.
+          setMessages((currentMessages) =>
+            currentMessages.filter((message) => message.id !== userMessage.id)
+          );
+          setDraft((currentDraft) =>
+            currentDraft.value
+              ? currentDraft
+              : { value: text, cursorIndex: text.length }
+          );
+          const staleSessionId = activeSession?.id;
+          if (!staleSessionId) {
+            return;
+          }
+          const requestId = sessionRequestIdRef.current;
+          void serverSessionClient
+            .getSession({ sessionId: staleSessionId })
+            .then((session) => {
+              // A session switch or /new superseded this refresh.
+              if (sessionRequestIdRef.current !== requestId) return;
+              setActiveSession(session);
+              setMessages(session.messages);
+              setShowStaleRefreshNotice(true);
+              if (session.isActive === true) {
+                setIsSessionBusy(true);
+              }
+            })
+            .catch(() => {
+              // Refresh failed; the draft is intact and the next send will
+              // hit the stale rejection again.
+            });
           return;
         }
         setError(err instanceof Error ? err.message : String(err));
@@ -765,10 +1428,35 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
       return;
     }
     if (isBackspaceInput({ input })) {
+      if (modelPicker) {
+        setModelPicker((current) =>
+          current
+            ? {
+                ...current,
+                query: current.query.slice(0, -1),
+                selectedIndex: 0,
+              }
+            : null
+        );
+        return;
+      }
+      if (sessionPicker) {
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                query: current.query.slice(0, -1),
+                selectedIndex: 0,
+              }
+            : null
+        );
+        return;
+      }
       setDraft((value) => deleteDraftTextBeforeCursor({ draft: value }));
       return;
     }
     if (isForwardDeleteInput({ input })) {
+      if (modelPicker || sessionPicker) return;
       setDraft((value) => deleteDraftTextAtCursor({ draft: value }));
     }
   };
@@ -786,18 +1474,172 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
   }, [inputEventEmitter]);
 
   useInput((input, key) => {
-    if (key.escape) {
-      interruptStream();
-      return;
-    }
     if ((key.ctrl && input === "c") || (key.ctrl && input === "d")) {
       handleExit();
+      return;
+    }
+    if (modelPicker) {
+      if (key.escape) {
+        closeModelPicker();
+        return;
+      }
+      if (modelPicker.status !== "ready") {
+        return;
+      }
+      const filteredModels = getFilteredModels({
+        models: modelPicker.models,
+        query: modelPicker.query,
+      });
+      if (key.upArrow) {
+        setModelPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.max(0, current.selectedIndex - 1),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.downArrow) {
+        setModelPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.min(
+                  Math.max(filteredModels.length - 1, 0),
+                  current.selectedIndex + 1
+                ),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.return) {
+        selectModel();
+        return;
+      }
+      if (
+        key.backspace ||
+        key.delete ||
+        isStrippedBracketedPasteMarkerInput({ input }) ||
+        isKeyboardProtocolResponseInput({ input })
+      ) {
+        return;
+      }
+      if (input) {
+        const text = getDraftInputText({ input }).replace(/\n/g, "");
+        if (text) {
+          setModelPicker((current) =>
+            current
+              ? {
+                  ...current,
+                  query: current.query + text,
+                  selectedIndex: 0,
+                  error: null,
+                  status: "ready",
+                }
+              : null
+          );
+        }
+      }
+      return;
+    }
+    if (sessionPicker) {
+      if (key.escape) {
+        closeSessionPicker();
+        return;
+      }
+      if (
+        sessionPicker.status === "loading" ||
+        sessionPicker.status === "restoring"
+      ) {
+        return;
+      }
+      const filteredSessions = getFilteredSessions({
+        sessions: sessionPicker.sessions,
+        query: sessionPicker.query,
+      });
+      if (key.upArrow) {
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.max(0, current.selectedIndex - 1),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.downArrow) {
+        setSessionPicker((current) =>
+          current
+            ? {
+                ...current,
+                selectedIndex: Math.min(
+                  Math.max(filteredSessions.length - 1, 0),
+                  current.selectedIndex + 1
+                ),
+              }
+            : null
+        );
+        return;
+      }
+      if (key.return) {
+        restoreSelectedSession();
+        return;
+      }
+      if (
+        key.backspace ||
+        key.delete ||
+        isStrippedBracketedPasteMarkerInput({ input }) ||
+        isKeyboardProtocolResponseInput({ input })
+      ) {
+        return;
+      }
+      if (input) {
+        const text = getDraftInputText({ input }).replace(/\n/g, "");
+        if (text) {
+          setSessionPicker((current) =>
+            current
+              ? {
+                  ...current,
+                  query: current.query + text,
+                  selectedIndex: 0,
+                  error: null,
+                  status: "ready",
+                }
+              : null
+          );
+        }
+      }
+      return;
+    }
+    if (key.escape) {
+      interruptStream();
       return;
     }
     if (status === "streaming") {
       return;
     }
     if (isKeyboardProtocolResponseInput({ input })) {
+      return;
+    }
+    if (key.tab) {
+      const commandName = getSlashCommandName(draft.value);
+      const suggestion =
+        commandName !== null &&
+        draft.value.length > 1 &&
+        !draft.value.includes(" ")
+          ? matchingCommands(commandName)[0]
+          : undefined;
+      if (suggestion) {
+        const completedCommand = `/${suggestion.name}`;
+        setDraft({
+          value: completedCommand,
+          cursorIndex: completedCommand.length,
+        });
+      }
       return;
     }
     if (key.ctrl && input === "a") {
@@ -866,8 +1708,13 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
     <Box flexDirection="column" paddingX={1}>
       <PxiBanner />
       <Text dimColor>
-        endpoint: {options.config.endpoint} | model: {getModelLabel(options)} |
-        session: {options.sessionId}
+        endpoint: {options.config.endpoint} | model:{" "}
+        {getModelLabel({ modelSelection: activeModelSelection })} | session:{" "}
+        {activeSession
+          ? getSessionTitle({ title: activeSession.title })
+          : isDraftTemporary
+            ? "new temporary session"
+            : "new session"}
       </Text>
       <Box marginTop={1} flexDirection="column">
         <Transcript
@@ -880,13 +1727,29 @@ export function PxiApp({ options, client, initialMessages = [] }: PxiAppProps) {
           <Text color="red">Error: {error}</Text>
         </Box>
       ) : null}
-      {status === "streaming" ? <ThinkingIndicator /> : null}
-      <InputPrompt
-        draft={draft}
-        status={status}
-        usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
-        modelLabel={options.modelSelection.modelName}
-      />
+      {status === "streaming" ? (
+        <ThinkingIndicator />
+      ) : isCompacting ? (
+        <StatusSpinnerLine text={COMPACTING_STATUS_TEXT} />
+      ) : isSessionBusy ? (
+        <StatusSpinnerLine text={SESSION_BUSY_STATUS_TEXT} />
+      ) : compactionNotice ? (
+        <Text color="yellow">{compactionNotice}</Text>
+      ) : showStaleRefreshNotice ? (
+        <Text color="yellow">{SESSION_STALE_STATUS_TEXT}</Text>
+      ) : null}
+      {modelPicker ? (
+        <ModelPicker state={modelPicker} />
+      ) : sessionPicker ? (
+        <SessionPicker state={sessionPicker} />
+      ) : (
+        <InputPrompt
+          draft={draft}
+          status={status}
+          usageLine={formatTokenUsageLine(getLatestAssistantUsage(messages))}
+          modelLabel={activeModelSelection.modelName}
+        />
+      )}
     </Box>
   );
 }

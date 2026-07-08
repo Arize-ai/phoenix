@@ -12,6 +12,12 @@ import {
 import { createClientToolTimingRecorder } from "../clientToolTimings";
 import type { AgentUIMessage } from "../types";
 
+const userMessage: AgentUIMessage = {
+  id: "user-1",
+  role: "user",
+  parts: [{ type: "text", text: "hello" }],
+};
+
 const agentsConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
@@ -20,6 +26,8 @@ const agentsConfig = {
   assistantEnabled: true,
   allowLocalTraces: false,
   allowRemoteExport: false,
+  sessionRetentionMaxIdleDays: 30,
+  sessionRetentionMaxCountPerUser: null,
 };
 
 describe("buildAgentChatRequestBody", () => {
@@ -32,9 +40,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: false,
@@ -58,11 +64,9 @@ describe("buildAgentChatRequestBody", () => {
 
   it("merges the transport body with PXI chat metadata and omits client-supplied prompt overrides", () => {
     const body = buildAgentChatRequestBody({
-      body: { existing: true },
+      body: { requestedSkills: ["debug-trace"] },
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -81,7 +85,7 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body).toMatchObject({
-      existing: true,
+      requestedSkills: ["debug-trace"],
       trigger: "submit-message",
       attachUserId: false,
       editPermission: "manual",
@@ -102,9 +106,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities,
       observability: {
         storeLocalTraces: false,
@@ -132,9 +134,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: {} as AgentCapabilities,
       observability: {
         storeLocalTraces: false,
@@ -170,9 +170,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -206,9 +204,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -237,9 +233,7 @@ describe("buildAgentChatRequestBody", () => {
     const body = buildAgentChatRequestBody({
       body: undefined,
       id: "session-1",
-      messages: [] as AgentUIMessage[],
-      trigger: "submit-message",
-      messageId: undefined,
+      messages: [userMessage],
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: false,
@@ -258,6 +252,148 @@ describe("buildAgentChatRequestBody", () => {
     });
 
     expect(body.attachUserId).toBe(true);
+  });
+
+  it("sends only the trailing message; the server owns the transcript", () => {
+    const earlierAssistant: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "earlier reply" }],
+    };
+    const newUserMessage: AgentUIMessage = {
+      id: "user-2",
+      role: "user",
+      parts: [{ type: "text", text: "follow-up" }],
+    };
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, earlierAssistant, newUserMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.trigger).toBe("submit-message");
+    expect(body).not.toHaveProperty("messages");
+    expect("message" in body && body.message.id).toBe("user-2");
+    // The message before the submitted one is the transcript's persisted
+    // tail — the send's optimistic-concurrency check.
+    expect(body.lastMessageId).toBe("assistant-1");
+  });
+
+  it("omits lastMessageId on a session's first message", () => {
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.lastMessageId).toBeUndefined();
+  });
+
+  it("treats a compaction checkpoint as the persisted tail for lastMessageId", () => {
+    const compactionMessage: AgentUIMessage = {
+      id: "compaction-1",
+      role: "user",
+      metadata: {
+        type: "user",
+        currentDateTime: "2026-01-01T00:00:00Z",
+        timeZone: "UTC",
+        isCompactionMessage: true,
+      },
+      parts: [{ type: "text", text: "Summary of the conversation so far." }],
+    };
+    const newUserMessage: AgentUIMessage = {
+      id: "user-2",
+      role: "user",
+      parts: [{ type: "text", text: "follow-up after compaction" }],
+    };
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, compactionMessage, newUserMessage],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    // Compaction checkpoints are persisted transcript messages and valid
+    // follow-up points — never skipped when computing the tail.
+    expect(body.lastMessageId).toBe("compaction-1");
+  });
+
+  it("uses the trailing assistant message's own id as lastMessageId on continuations", () => {
+    const continuationAssistant: AgentUIMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: [{ type: "text", text: "resolved tool output" }],
+    };
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [userMessage, continuationAssistant],
+      capabilities: createDefaultAgentCapabilities(),
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        attachUserId: false,
+        acknowledgedTraceConsent: null,
+      },
+      agentsConfig,
+      permissions: { edits: "manual" },
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    // The continued assistant message is itself the persisted transcript tail.
+    expect(body.lastMessageId).toBe("assistant-1");
   });
 });
 
@@ -285,8 +421,8 @@ describe("enrichMessagesWithClientToolTimings", () => {
             output: { name: "prompt" },
             callProviderMetadata: {
               phoenix: {
-                tool_execution_environment: "client",
-                tool_input_emitted_at: "2026-07-10T11:59:59Z",
+                toolExecutionEnvironment: "client",
+                toolInputEmittedAt: "2026-07-10T11:59:59Z",
               },
               provider: { retained: true },
             },
@@ -308,10 +444,10 @@ describe("enrichMessagesWithClientToolTimings", () => {
       callProviderMetadata: {
         provider: { retained: true },
         phoenix: {
-          tool_execution_environment: "client",
-          tool_input_emitted_at: "2026-07-10T11:59:59Z",
-          client_started_at: "2026-07-10T12:00:00.000Z",
-          client_ended_at: "2026-07-10T12:00:01.000Z",
+          toolExecutionEnvironment: "client",
+          toolInputEmittedAt: "2026-07-10T11:59:59Z",
+          clientStartedAt: "2026-07-10T12:00:00.000Z",
+          clientEndedAt: "2026-07-10T12:00:01.000Z",
         },
       },
     });

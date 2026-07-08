@@ -51,3 +51,15 @@ class AgentsConfig:
             "users cannot turn on remote trace export for themselves."
         ),
     )
+    session_retention_max_idle_days: Optional[int] = strawberry.field(
+        description=(
+            "Number of idle days after which agent sessions "
+            "are deleted. Null means idle sessions are never deleted."
+        ),
+    )
+    session_retention_max_count_per_user: Optional[int] = strawberry.field(
+        description=(
+            "Maximum number of agent sessions kept per user; "
+            "the most recently active sessions are retained. Null means no cap."
+        ),
+    )

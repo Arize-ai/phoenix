@@ -20,19 +20,21 @@ const commandByName = new Map(
 /**
  * Execute the local prompt commands parsed from a submitted message.
  *
- * Each command owns its run behavior in the catalog, so a command cannot appear
- * in the menu without execution wiring. Unknown names throw loudly rather than
- * silently dropping the submitted text.
+ * The first command owns the submit; later command tokens are stripped but not
+ * also executed, preventing one prompt from triggering conflicting session
+ * operations. Unknown names throw rather than silently dropping submitted text.
  */
 export function runPromptCommands(
   { commandNames, text, requestedSkills }: PromptCommandSubmit,
   context: PromptCommandContext
 ): void {
-  for (const commandName of commandNames) {
-    const command = commandByName.get(commandName);
-    if (!command) {
-      throw new Error(`Unknown prompt command: ${commandName}`);
-    }
-    command.run({ text, requestedSkills }, context);
+  const commandName = commandNames[0];
+  if (!commandName) {
+    return;
   }
+  const command = commandByName.get(commandName);
+  if (!command) {
+    throw new Error(`Unknown prompt command: ${commandName}`);
+  }
+  command.run({ text, requestedSkills }, context);
 }

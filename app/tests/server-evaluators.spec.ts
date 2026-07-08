@@ -272,7 +272,10 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByText("Case sensitive", { exact: true }).click();
 
     // Click Update button
-    await page.getByRole("button", { name: "Update" }).click();
+    await page
+      .getByTestId("dialog")
+      .getByRole("button", { name: "Update" })
+      .click();
 
     // Wait for dialog to close
     await expect(page.getByTestId("dialog")).not.toBeVisible();
@@ -379,7 +382,10 @@ test.describe.serial("Server Evaluators", () => {
     await descriptionInput.fill(updatedDescription);
 
     // Click Update button
-    await page.getByRole("button", { name: "Update" }).click();
+    await page
+      .getByTestId("dialog")
+      .getByRole("button", { name: "Update" })
+      .click();
 
     // Wait for dialog to close
     await expect(page.getByTestId("dialog")).not.toBeVisible();

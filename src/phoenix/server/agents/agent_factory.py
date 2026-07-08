@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
+import strawberry
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
@@ -32,6 +33,7 @@ from phoenix.server.agents.capabilities.tools.internal import (
     GetCurrentDatetimeCapability,
     WriteSpanNoteCapability,
 )
+from phoenix.server.agents.capabilities.tools.internal.bash import BashCapability
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
 from phoenix.server.agents.skills import get_skills_for_contexts
@@ -40,6 +42,7 @@ from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
     build_web_search_capability,
 )
+from phoenix.server.api.context import Context
 from phoenix.server.dml_event import DmlEvent
 from phoenix.server.types import CanPutItem, DbSessionFactory
 
@@ -79,6 +82,11 @@ def build_agent(
     auth_enabled: bool = False,
     user_id: int | None = None,
     is_viewer: bool = False,
+    schema: strawberry.Schema | None = None,
+    build_graphql_context: Callable[[], Context] | None = None,
+    allow_mutations: bool = False,
+    initial_bash_snapshot: bytes | None = None,
+    on_bash_snapshot: Callable[[bytes], None] | None = None,
 ) -> AbstractAgent[AgentDependencies, AgentOutput]:
     server_agent_args = (
         server_agent,
@@ -126,6 +134,17 @@ def build_agent(
             ),
         ),
     ]
+    if schema is not None and build_graphql_context is not None:
+        capabilities.append(
+            BashCapability[AgentDependencies](
+                schema=schema,
+                build_graphql_context=build_graphql_context,
+                instructions=resolved_prompts.bash_tool.render(),
+                allow_mutations=allow_mutations,
+                initial_snapshot=initial_bash_snapshot,
+                on_snapshot=on_bash_snapshot,
+            )
+        )
     if (prompt_cache := build_anthropic_prompt_cache_capability(model)) is not None:
         capabilities.append(prompt_cache)
     if docs_mcp_server is not None:
