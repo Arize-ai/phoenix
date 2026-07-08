@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-import { Button, Flex, LinkButton, Text } from "@phoenix/components";
+import { Button, Flex, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentObservabilitySettings } from "./AgentObservabilitySettings";
@@ -10,10 +10,6 @@ const consentCSS = css`
   flex-direction: column;
   gap: var(--global-dimension-size-200);
   padding: var(--global-dimension-size-200);
-  /* The gate can be taller than the chat panel; scroll inside the input
-     surface rather than clipping at the panel edge. */
-  min-height: 0;
-  overflow-y: auto;
 `;
 
 const consentHeaderCSS = css`
@@ -59,9 +55,6 @@ export function AgentConsentGate() {
       </div>
       <AgentObservabilitySettings />
       <Flex direction="row" css={consentActionsCSS}>
-        <LinkButton to="/settings/agents" variant="default">
-          Assistant settings
-        </LinkButton>
         <Button
           variant="primary"
           onPress={() => {

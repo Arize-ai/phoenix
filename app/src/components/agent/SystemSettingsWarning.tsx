@@ -8,17 +8,27 @@ const warningCSS = css`
 
 export function SystemSettingsWarning({
   isAdmin = false,
-  systemSettingsHint = "link",
+  isOnSettingsPage = false,
 }: {
   isAdmin?: boolean;
   /**
-   * How to direct admins to the system setting: "link" renders a button to
-   * the assistant settings page; "above" points at the system settings
-   * section rendered above (for use on the settings page itself).
+   * When rendered on the assistant settings page itself, admins are pointed
+   * at the system settings section above instead of a link to the page.
    */
-  systemSettingsHint?: "link" | "above";
+  isOnSettingsPage?: boolean;
 }) {
-  const showSettingsLink = isAdmin && systemSettingsHint === "link";
+  let message: string;
+  let showSettingsLink = false;
+  if (!isAdmin) {
+    message =
+      "Disabled by system settings. An administrator needs to turn this on.";
+  } else if (isOnSettingsPage) {
+    message =
+      "Disabled by system settings. You can enable it for all users in the system settings above.";
+  } else {
+    message = "Disabled by system settings.";
+    showSettingsLink = true;
+  }
   return (
     <div css={warningCSS}>
       <Alert
@@ -32,11 +42,7 @@ export function SystemSettingsWarning({
           ) : undefined
         }
       >
-        {!isAdmin
-          ? "Disabled by system settings. An administrator needs to turn this on."
-          : systemSettingsHint === "above"
-            ? "Disabled by system settings. You can enable it for all users in the system settings above."
-            : "Disabled by system settings."}
+        {message}
       </Alert>
     </div>
   );

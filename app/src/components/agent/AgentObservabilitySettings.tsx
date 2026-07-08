@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { useIsAdmin } from "@phoenix/contexts/ViewerContext";
 import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
@@ -93,17 +93,15 @@ function TraceInfoTip({ children }: { children: ReactNode }) {
 }
 
 export function AgentObservabilitySettings({
-  systemSettingsHint,
+  isOnSettingsPage = false,
 }: {
   /** See {@link SystemSettingsWarning}. */
-  systemSettingsHint?: "link" | "above";
+  isOnSettingsPage?: boolean;
 } = {}) {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
-  const { viewer } = useViewer();
-  // Match IsAdminIfAuthEnabled server-side: no viewer => auth disabled => treat as admin
-  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
+  const isAdmin = useIsAdmin();
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
 
   const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
@@ -120,15 +118,16 @@ export function AgentObservabilitySettings({
 
   return (
     <div css={settingsContainerCSS}>
-      <Text color="text-500" size="S">
-        These settings apply only to this browser.
-      </Text>
+      {/* The settings page already scopes its personal section to the browser. */}
+      {!isOnSettingsPage && (
+        <Text color="text-500" size="S">
+          These settings apply only to this browser.
+        </Text>
+      )}
       <ul css={settingsListCSS}>
         <li css={settingRowCSS}>
           <Switch
-            isSelected={
-              !localTracesOffInSystemSettings && observability.storeLocalTraces
-            }
+            isSelected={effectiveRecording.ingestTraces}
             isDisabled={localTracesOffInSystemSettings}
             onChange={(storeLocalTraces) => {
               setObservability({ storeLocalTraces });
@@ -156,18 +155,14 @@ export function AgentObservabilitySettings({
           {localTracesOffInSystemSettings ? (
             <SystemSettingsWarning
               isAdmin={isAdmin}
-              systemSettingsHint={systemSettingsHint}
+              isOnSettingsPage={isOnSettingsPage}
             />
           ) : null}
         </li>
         {isRemoteCollectorConfigured ? (
           <li css={settingRowCSS}>
             <Switch
-              isSelected={
-                isRemoteCollectorConfigured &&
-                !remoteExportOffInSystemSettings &&
-                observability.exportRemoteTraces
-              }
+              isSelected={effectiveRecording.exportRemoteTraces}
               isDisabled={remoteExportOffInSystemSettings}
               onChange={(exportRemoteTraces) => {
                 setObservability({ exportRemoteTraces });
@@ -196,14 +191,14 @@ export function AgentObservabilitySettings({
             {remoteExportOffInSystemSettings ? (
               <SystemSettingsWarning
                 isAdmin={isAdmin}
-                systemSettingsHint={systemSettingsHint}
+                isOnSettingsPage={isOnSettingsPage}
               />
             ) : null}
           </li>
         ) : null}
         <li css={settingRowCSS}>
           <Switch
-            isSelected={isTracingEnabled && observability.attachUserId}
+            isSelected={observability.attachUserId}
             isDisabled={!isTracingEnabled}
             onChange={(attachUserId) => {
               setObservability({ attachUserId });
@@ -217,7 +212,8 @@ export function AgentObservabilitySettings({
               </Text>
               <Text color="text-500">
                 Tags session traces with your Phoenix account email so sessions
-                can be filtered by user. Applies only when you are signed in.
+                can be filtered by user. Applies only when you are signed in and
+                trace saving or export is on.
               </Text>
             </span>
           </Switch>

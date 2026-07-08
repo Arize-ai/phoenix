@@ -38,8 +38,9 @@ export function useViewerCanModify() {
 /**
  * Returns true if the viewer is an admin.
  * Note: when the app is not configured with auth, we assume the user is an admin
+ * (matching IsAdminIfAuthEnabled server-side)
  */
-function useIsAdmin() {
+export function useIsAdmin() {
   const { viewer } = useViewer();
   return !viewer || viewer.role?.name === "ADMIN";
 }
