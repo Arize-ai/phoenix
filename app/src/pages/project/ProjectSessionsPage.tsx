@@ -8,9 +8,9 @@ import {
   ProjectPageQueriesSessionsQuery,
   useProjectPageQueryReferenceContext,
 } from "@phoenix/pages/project/ProjectPageQueries";
+import { SessionFiltersProvider } from "@phoenix/pages/project/SessionFiltersContext";
 import { SessionSearchProvider } from "@phoenix/pages/project/SessionSearchContext";
 import { SessionsTable } from "@phoenix/pages/project/SessionsTable";
-import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SessionPaginationProvider } from "@phoenix/pages/trace/SessionPaginationContext";
 import { TracingRoot } from "@phoenix/pages/TracingRoot";
 
@@ -40,14 +40,14 @@ export const ProjectSessionsPage = () => {
   return (
     <TracingRoot>
       <SessionPaginationProvider>
-        <SpanFiltersProvider>
+        <SessionFiltersProvider>
           <Suspense fallback={<Loading />}>
             <SessionsTabContent queryReference={sessionsQueryReference} />
           </Suspense>
-        </SpanFiltersProvider>
-        <Suspense>
-          <Outlet />
-        </Suspense>
+          <Suspense>
+            <Outlet />
+          </Suspense>
+        </SessionFiltersProvider>
       </SessionPaginationProvider>
     </TracingRoot>
   );
