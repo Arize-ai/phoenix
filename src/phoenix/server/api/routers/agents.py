@@ -56,7 +56,6 @@ from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.capabilities.skills import Skill
-from phoenix.server.agents.capabilities.tools.internal.bash import BashSnapshotStore
 from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
@@ -294,12 +293,6 @@ logger = logging.getLogger(__name__)
 
 _ASSISTANT_AGENT_ID = "assistant"
 
-# Cross-turn bash continuity for assistant chat sessions: files the agent wrote
-# in one turn stay readable in the next. In-memory by design (parity with the
-# retired browser runtime, which kept shell state per session until reload);
-# see BashSnapshotStore for the TTL/LRU bounds.
-_bash_snapshot_store = BashSnapshotStore()
-
 
 def _log_run_complete(result: AgentRunResult[Any]) -> None:
     """Log the full message history after an agent run completes."""
@@ -347,13 +340,13 @@ class _AgentSpanContextRecorder(SpanProcessor):
         return True
 
 
-def _build_message_metadata_chunk(
+def _build_assistant_message_metadata(
     *,
     span_context: SpanContext | None,
     session_id: str,
     usage: RunUsage,
-) -> MessageMetadataChunk:
-    """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
+) -> AssistantMessageMetadata:
+    """Build the metadata payload attached to the turn's assistant message."""
     trace_ids = (
         AssistantMessageMetadataTraceIds(
             trace_id=format_trace_id(span_context.trace_id),
@@ -362,11 +355,25 @@ def _build_message_metadata_chunk(
         if span_context is not None
         else None
     )
+    return AssistantMessageMetadata(
+        session_id=session_id,
+        trace=trace_ids,
+        usage=_build_usage_payload(usage),
+    )
+
+
+def _build_message_metadata_chunk(
+    *,
+    span_context: SpanContext | None,
+    session_id: str,
+    usage: RunUsage,
+) -> MessageMetadataChunk:
+    """Build the `MessageMetadataChunk` emitted at the end of an agent turn."""
     return MessageMetadataChunk(
-        message_metadata=AssistantMessageMetadata(
+        message_metadata=_build_assistant_message_metadata(
+            span_context=span_context,
             session_id=session_id,
-            trace=trace_ids,
-            usage=_build_usage_payload(usage),
+            usage=usage,
         )
     )
 
@@ -779,6 +786,168 @@ async def _load_phoenix_user_email(
     )
 
 
+_SESSION_TITLE_MAX_LENGTH = 50
+
+
+def _derive_session_title(messages: list[dict[str, Any]]) -> str:
+    """Initial title for a session row: the first user message's text,
+    truncated like the frontend's display-name fallback. The LLM-generated
+    summary overwrites it via the summary endpoint."""
+    for message in messages:
+        if message.get("role") != "user":
+            continue
+        text = " ".join(
+            stripped
+            for part in message.get("parts") or []
+            if isinstance(part, dict)
+            and part.get("type") == "text"
+            and (stripped := str(part.get("text") or "").strip())
+        ).strip()
+        if text:
+            if len(text) > _SESSION_TITLE_MAX_LENGTH:
+                return f"{text[:_SESSION_TITLE_MAX_LENGTH]}..."
+            return text
+    return ""
+
+
+async def _upsert_agent_session(
+    session: AsyncSession,
+    *,
+    session_uuid: str,
+    user_id: int | None,
+    title: str,
+    update_title_on_conflict: bool = False,
+) -> int:
+    """Insert the ``agent_sessions`` row if missing and return its rowid.
+
+    An existing row keeps its owner; ``updated_at`` is always bumped so the
+    session list orders by recency. The title is only overwritten when
+    ``update_title_on_conflict`` is set (LLM summaries win over the derived
+    first-message title).
+    """
+    set_: dict[str, Any] = {"updated_at": func.now()}
+    if update_title_on_conflict:
+        set_["title"] = title
+    await session.execute(
+        insert_on_conflict(
+            {"session_uuid": session_uuid, "user_id": user_id, "title": title},
+            table=models.AgentSession,
+            dialect=SupportedSQLDialect(session.bind.dialect.name),
+            unique_by=("session_uuid",),
+            on_conflict=OnConflict.DO_UPDATE,
+            set_=set_,
+        )
+    )
+    rowid = await session.scalar(
+        select(models.AgentSession.id).where(models.AgentSession.session_uuid == session_uuid)
+    )
+    assert rowid is not None
+    return rowid
+
+
+async def _persist_agent_session_turn(
+    db: DbSessionFactory,
+    *,
+    session_uuid: str,
+    user_id: int | None,
+    messages: list[dict[str, Any]],
+    bashkit_snapshot: bytes | None,
+) -> None:
+    """Persist a chat turn as a point-in-time session snapshot.
+
+    Sessions live only in the database — there is no in-memory or
+    browser-local copy — so this also runs when the stream ends early: the
+    incoming transcript (and any bash state captured before the interruption)
+    stays durable.
+    """
+    if not messages:
+        return
+    async with db() as session:
+        agent_session_rowid = await _upsert_agent_session(
+            session,
+            session_uuid=session_uuid,
+            user_id=user_id,
+            title=_derive_session_title(messages),
+        )
+        session.add(
+            models.AgentSessionSnapshot(
+                agent_session_id=agent_session_rowid,
+                messages=messages,
+                bashkit_snapshot=bashkit_snapshot,
+            )
+        )
+
+
+async def _load_latest_bash_snapshot(
+    session: AsyncSession,
+    *,
+    agent_session_rowid: int,
+) -> bytes | None:
+    """Latest persisted shell state for the session; turns without bash
+    activity store ``NULL`` and are skipped."""
+    return await session.scalar(
+        select(models.AgentSessionSnapshot.bashkit_snapshot)
+        .where(
+            models.AgentSessionSnapshot.agent_session_id == agent_session_rowid,
+            models.AgentSessionSnapshot.bashkit_snapshot.is_not(None),
+        )
+        .order_by(models.AgentSessionSnapshot.id.desc())
+        .limit(1)
+    )
+
+
+def _build_post_turn_transcript(
+    *,
+    request_messages: list[AssistantMetadataUIMessage],
+    result: AgentRunResult[Any] | None,
+    session_id: str,
+    span_context: SpanContext | None,
+) -> list[dict[str, Any]]:
+    """Assemble the post-turn transcript as Vercel AI UIMessage JSON.
+
+    The incoming messages are the client-assembled history (authoritative up
+    to this turn, including client-executed tool outputs); the run result
+    contributes this turn's new assistant messages. When the run failed or
+    was interrupted, the incoming history alone is persisted.
+    """
+    transcript = [
+        message.model_dump(mode="json", by_alias=True, exclude_none=True)
+        for message in request_messages
+    ]
+    if result is None:
+        return transcript
+    try:
+        new_ui_messages = VercelAIAdapter.dump_messages(result.new_messages())
+        # Replace dump_messages' internal metadata: a resumed session sends
+        # these messages back through AssistantMetadataUIMessage validation,
+        # which requires the Phoenix metadata shape or None. The turn's final
+        # assistant message carries the same payload the client received as a
+        # MessageMetadataChunk, so usage and trace ids survive a reload.
+        for message in new_ui_messages:
+            message.metadata = None
+        metadata = _build_assistant_message_metadata(
+            span_context=span_context,
+            session_id=session_id,
+            usage=result.usage,
+        ).model_dump(mode="json", by_alias=True, exclude_none=True)
+        for message in reversed(new_ui_messages):
+            if message.role == "assistant":
+                message.metadata = metadata
+                break
+        new_messages = [
+            message.model_dump(mode="json", by_alias=True, exclude_none=True)
+            for message in new_ui_messages
+        ]
+    except Exception:
+        logger.exception(
+            "Failed to serialize the turn's new messages for session %r; "
+            "persisting the incoming history only",
+            session_id,
+        )
+        return transcript
+    return [*transcript, *new_messages]
+
+
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
@@ -946,7 +1115,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         resolved_contexts = resolve_contexts(body.contexts)
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
+        request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
         phoenix_user_email: str | None = None
+        initial_bash_snapshot: bytes | None = None
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
@@ -972,6 +1143,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     session=session,
                     phoenix_user=phoenix_user,
                 )
+                existing_session_row = (
+                    await session.execute(
+                        select(models.AgentSession.id, models.AgentSession.user_id).where(
+                            models.AgentSession.session_uuid == session_id
+                        )
+                    )
+                ).first()
+                if existing_session_row is not None:
+                    agent_session_rowid, session_owner_id = existing_session_row
+                    # A persisted session is only usable by its owner: a foreign
+                    # session id must neither restore another user's shell state
+                    # nor append snapshots to their transcript.
+                    if phoenix_user is not None and session_owner_id != request_user_id:
+                        raise HTTPException(status_code=404, detail="Session not found")
+                    initial_bash_snapshot = await _load_latest_bash_snapshot(
+                        session,
+                        agent_session_rowid=agent_session_rowid,
+                    )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -1035,6 +1224,13 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             set_subagent_final_tool_output = _set_subagent_final_tool_output
 
         bash_enabled = not get_env_phoenix_agents_disable_bash()
+        captured_bash_snapshot: list[bytes] = []
+
+        def _capture_bash_snapshot(snapshot: bytes) -> None:
+            # Held until turn end and persisted with the transcript in a
+            # single agent_session_snapshots row.
+            captured_bash_snapshot[:] = [snapshot]
+
         agent = build_agent(
             model=model,
             docs_mcp_server=request.app.state.docs_mcp_server,
@@ -1050,8 +1246,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 else None
             ),
             allow_mutations=graphql_mutations_enabled,
-            initial_bash_snapshot=_bash_snapshot_store.get(session_id),
-            on_bash_snapshot=lambda snapshot: _bash_snapshot_store.set(session_id, snapshot),
+            initial_bash_snapshot=initial_bash_snapshot,
+            on_bash_snapshot=_capture_bash_snapshot,
         )
         agent_prompts = AgentPrompts()
         forced_skills: list[Skill] = []
@@ -1085,6 +1281,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         parent_context = extract_otel_context(dict(request.headers))
         request_parent_span_context = _get_span_context(parent_context)
+        completed_run: list[tuple[AgentRunResult[Any], SpanContext | None]] = []
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             span_context = (
@@ -1092,6 +1289,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 if agent_span_recorder and agent_span_recorder.span_context is not None
                 else request_parent_span_context
             )
+            completed_run[:] = [(result, span_context)]
             yield _build_message_metadata_chunk(
                 span_context=span_context,
                 session_id=session_id,
@@ -1158,6 +1356,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     ):
                         yield message_chunk
             finally:
+                result, span_context = completed_run[0] if completed_run else (None, None)
+                try:
+                    await _persist_agent_session_turn(
+                        request.app.state.db,
+                        session_uuid=session_id,
+                        user_id=request_user_id,
+                        messages=_build_post_turn_transcript(
+                            request_messages=body.messages,
+                            result=result,
+                            session_id=session_id,
+                            span_context=span_context,
+                        ),
+                        bashkit_snapshot=(
+                            captured_bash_snapshot[0] if captured_bash_snapshot else None
+                        ),
+                    )
+                except Exception:
+                    logger.exception("Failed to persist agent session %r", session_id)
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
                     if ingest_traces:
@@ -1243,6 +1459,30 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db_traces=db_traces,
                     )
                 tracer.tracer_provider.shutdown()
-        return _SummarizeResponse(summary=result.summary.strip())
+        summary = result.summary.strip()
+        if summary:
+            # The summary doubles as the persisted session title. Skip the
+            # write when the session row belongs to someone else.
+            request_user_id = int(phoenix_user.identity) if phoenix_user is not None else None
+            try:
+                async with request.app.state.db() as session:
+                    owner_row = (
+                        await session.execute(
+                            select(models.AgentSession.user_id).where(
+                                models.AgentSession.session_uuid == session_id
+                            )
+                        )
+                    ).first()
+                    if owner_row is None or phoenix_user is None or owner_row[0] == request_user_id:
+                        await _upsert_agent_session(
+                            session,
+                            session_uuid=session_id,
+                            user_id=request_user_id,
+                            title=summary,
+                            update_title_on_conflict=True,
+                        )
+            except Exception:
+                logger.exception("Failed to persist agent session title %r", session_id)
+        return _SummarizeResponse(summary=summary)
 
     return router

@@ -129,6 +129,11 @@ export type AgentSession = {
   shortSummary: string;
   /** Messages in AI SDK UIMessage format. */
   messages: AgentUIMessage[];
+  /**
+   * False for stubs hydrated from the server's session list, whose
+   * transcripts are fetched on activation.
+   */
+  messagesLoaded: boolean;
   /** Contextual references (e.g. trace IDs, span IDs) attached to the session. */
   context: string[];
   /** Model configuration scoped to this session. */
@@ -138,6 +143,23 @@ export type AgentSession = {
   /** Usage metrics returned as metadata from llm invocations */
   usage?: AgentSessionUsage;
 };
+
+/**
+ * A session entry from the server's persisted session list. Sessions are
+ * stored only in the database; the store holds an in-memory mirror hydrated
+ * through these stubs.
+ */
+export type ServerAgentSessionStub = {
+  id: string;
+  title: string;
+  /** Unix timestamp (ms). */
+  createdAt: number;
+  /** Unix timestamp (ms). */
+  updatedAt: number;
+};
+
+/** Hydration state of the server-backed session list. */
+export type ServerSessionsHydration = "idle" | "pending" | "done" | "error";
 
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
@@ -164,8 +186,6 @@ const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
 const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
   edits: "manual",
 };
-
-const MAX_STORED_AGENT_SESSIONS = 3;
 
 /** Prefix applied to a branched session's summary to denote its origin. */
 const FORK_SUMMARY_PREFIX = "(branch) ";
@@ -249,8 +269,9 @@ export function getEffectiveTraceRecordingSettings({
 }
 
 /**
- * Serializable properties that define the agent's state.
- * These are the values persisted to local storage.
+ * Serializable properties that define the agent's state. UI preferences are
+ * persisted to local storage; session state is not — sessions live in the
+ * server's database and are hydrated per app load.
  */
 export interface AgentProps {
   /** Whether the agent panel is currently visible. */
@@ -259,7 +280,7 @@ export interface AgentProps {
   position: AgentPosition;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /** Ordered list of session IDs. */
+  /** Ordered list of session IDs (oldest first; newest renders on top). */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
   activeSessionId: string | null;
@@ -302,6 +323,19 @@ export interface AgentState extends AgentProps {
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
+  /**
+   * Merges the server's persisted session list into the in-memory mirror.
+   * Locally created sessions keep their transcript and position; server-only
+   * sessions appear as message-less stubs loaded on activation.
+   */
+  hydrateServerSessions: (stubs: ServerAgentSessionStub[]) => void;
+  /**
+   * Progress of the once-per-app-load fetch of the server session list.
+   * Ephemeral: sessions are persisted only in the database, so each load
+   * starts at "idle" and hydrates over the network.
+   */
+  serverSessionsHydration: ServerSessionsHydration;
+  setServerSessionsHydration: (status: ServerSessionsHydration) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
@@ -503,7 +537,14 @@ function mergeAgentPersistedState(
   if (!persistedState || typeof persistedState !== "object") {
     return currentState;
   }
-  const persisted = persistedState as Partial<AgentState>;
+  const {
+    // Blobs written before sessions moved to server-side persistence still
+    // carry session state in localStorage; never rehydrate it.
+    sessions: _sessions,
+    activeSessionId: _activeSessionId,
+    sessionMap: _sessionMap,
+    ...persisted
+  } = persistedState as Partial<AgentState>;
   return {
     ...currentState,
     ...persisted,
@@ -533,37 +574,6 @@ export type AgentClientAction = (
   context?: unknown
 ) => Promise<AgentClientActionResult>;
 
-/**
- * Removes entries keyed by sessions that are no longer retained.
- */
-function pruneSessionScopedRecord<T>({
-  record,
-  retainedSessionIds,
-}: {
-  record: Record<string, T>;
-  retainedSessionIds: Set<string>;
-}): Record<string, T> {
-  return Object.fromEntries(
-    Object.entries(record).filter(([sessionId]) =>
-      retainedSessionIds.has(sessionId)
-    )
-  );
-}
-
-function pruneToolCallRecordBySession<T extends { sessionId: string }>({
-  record,
-  retainedSessionIds,
-}: {
-  record: Partial<Record<string, T>>;
-  retainedSessionIds: Set<string>;
-}): Partial<Record<string, T>> {
-  return Object.fromEntries(
-    Object.entries(record).filter(
-      ([, value]) => value != null && retainedSessionIds.has(value.sessionId)
-    )
-  );
-}
-
 function removeToolCallRecordForSession<T extends { sessionId: string }>(
   record: Partial<Record<string, T>>,
   sessionId: string
@@ -571,60 +581,6 @@ function removeToolCallRecordForSession<T extends { sessionId: string }>(
   return Object.fromEntries(
     Object.entries(record).filter(([, value]) => value?.sessionId !== sessionId)
   );
-}
-
-/**
- * Builds the persisted session-state patch after creating, pruning, or clearing
- * retained sessions, keeping sessionMap and related per-session UI state aligned.
- */
-function buildSessionRetentionPatch({
-  state,
-  retainedSessionIds,
-  activeSessionId,
-}: {
-  state: AgentState;
-  retainedSessionIds: string[];
-  activeSessionId: string | null;
-}): Pick<
-  AgentState,
-  | "sessions"
-  | "activeSessionId"
-  | "sessionMap"
-  | "pendingElicitationBySessionId"
-  | "chatStatusBySessionId"
-  | "draftInputBySessionId"
-  | "pendingMessageBySessionId"
-  | "pendingPatchExperimentsByToolCallId"
-> {
-  const retainedSessionIdSet = new Set(retainedSessionIds);
-  return {
-    sessions: retainedSessionIds,
-    activeSessionId,
-    sessionMap: pruneSessionScopedRecord({
-      record: state.sessionMap,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    pendingElicitationBySessionId: pruneSessionScopedRecord({
-      record: state.pendingElicitationBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    chatStatusBySessionId: pruneSessionScopedRecord({
-      record: state.chatStatusBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    draftInputBySessionId: pruneSessionScopedRecord({
-      record: state.draftInputBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    pendingMessageBySessionId: pruneSessionScopedRecord({
-      record: state.pendingMessageBySessionId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-    pendingPatchExperimentsByToolCallId: pruneToolCallRecordBySession({
-      record: state.pendingPatchExperimentsByToolCallId,
-      retainedSessionIds: retainedSessionIdSet,
-    }),
-  };
 }
 
 /**
@@ -716,28 +672,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             id: sessionId,
             shortSummary: "",
             messages: [],
+            messagesLoaded: true,
             context: [],
             modelConfig: { ...state.defaultModelConfig },
             createdAt: Date.now(),
           };
-          let nextSessionIds: string[];
-          if (state.capabilities["session.storeSessions"]) {
-            nextSessionIds = [...state.sessions, sessionId].slice(
-              -MAX_STORED_AGENT_SESSIONS
-            );
-          } else {
-            nextSessionIds = [sessionId];
-          }
-
           return {
-            ...buildSessionRetentionPatch({
-              state: {
-                ...state,
-                sessionMap: { ...state.sessionMap, [sessionId]: session },
-              },
-              retainedSessionIds: nextSessionIds,
-              activeSessionId: sessionId,
-            }),
+            sessions: [...state.sessions, sessionId],
+            sessionMap: { ...state.sessionMap, [sessionId]: session },
+            activeSessionId: sessionId,
           };
         },
         false,
@@ -757,30 +700,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             id: sessionId,
             shortSummary: buildForkSummary(source),
             messages,
+            messagesLoaded: true,
             // Carry over the source session's context and model so the fork
             // continues the same conversation under the same configuration.
             context: [...source.context],
             modelConfig: { ...source.modelConfig },
             createdAt: Date.now(),
           };
-          // Forking always retains the source session alongside the new one;
-          // the standard retention rule then trims to the most recent few.
-          const nextSessionIds = [...state.sessions, sessionId].slice(
-            -MAX_STORED_AGENT_SESSIONS
-          );
           const draftInputBySessionId = restoredInput
             ? { ...state.draftInputBySessionId, [sessionId]: restoredInput }
             : state.draftInputBySessionId;
           return {
-            ...buildSessionRetentionPatch({
-              state: {
-                ...state,
-                sessionMap: { ...state.sessionMap, [sessionId]: session },
-                draftInputBySessionId,
-              },
-              retainedSessionIds: nextSessionIds,
-              activeSessionId: sessionId,
-            }),
+            sessions: [...state.sessions, sessionId],
+            sessionMap: { ...state.sessionMap, [sessionId]: session },
+            activeSessionId: sessionId,
+            draftInputBySessionId,
           };
         },
         false,
@@ -815,7 +749,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           const newSessions = state.sessions.filter((id) => id !== sessionId);
           const newActiveSessionId =
             state.activeSessionId === sessionId
-              ? (newSessions[newSessions.length - 1] ?? null)
+              ? newSessions[newSessions.length - 1] ?? null
               : state.activeSessionId;
           return {
             sessions: newSessions,
@@ -917,13 +851,63 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           return {
             sessionMap: {
               ...state.sessionMap,
-              [sessionId]: { ...session, messages },
+              [sessionId]: { ...session, messages, messagesLoaded: true },
             },
           };
         },
         false,
         { type: "setSessionMessages" }
       );
+    },
+    hydrateServerSessions: (stubs) => {
+      set(
+        (state) => {
+          if (stubs.length === 0) return state;
+          const sessionMap = { ...state.sessionMap };
+          // Oldest-first so the newest server session ends up last, matching
+          // the list's local ordering (display reverses to newest-first).
+          const orderedStubs = [...stubs].sort(
+            (a, b) => a.updatedAt - b.updatedAt
+          );
+          for (const stub of orderedStubs) {
+            const existing = sessionMap[stub.id];
+            if (existing) {
+              // The local copy owns the transcript; only backfill the title.
+              sessionMap[stub.id] = {
+                ...existing,
+                shortSummary: existing.shortSummary || stub.title,
+              };
+              continue;
+            }
+            sessionMap[stub.id] = {
+              id: stub.id,
+              shortSummary: stub.title,
+              messages: [],
+              messagesLoaded: false,
+              context: [],
+              modelConfig: { ...state.defaultModelConfig },
+              createdAt: stub.createdAt,
+            };
+          }
+          const serverIds = orderedStubs.map((stub) => stub.id);
+          const serverIdSet = new Set(serverIds);
+          const localOnlyIds = state.sessions.filter(
+            (sessionId) => !serverIdSet.has(sessionId)
+          );
+          return {
+            sessions: [...serverIds, ...localOnlyIds],
+            sessionMap,
+          };
+        },
+        false,
+        { type: "hydrateServerSessions" }
+      );
+    },
+    serverSessionsHydration: "idle",
+    setServerSessionsHydration: (serverSessionsHydration) => {
+      set({ serverSessionsHydration }, false, {
+        type: "setServerSessionsHydration",
+      });
     },
     setDefaultModelConfig: (config) => {
       set({ defaultModelConfig: config }, false, {
@@ -989,22 +973,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setCapability: ({ key, enabled }) => {
       set(
-        (state) => {
-          const capabilities = { ...state.capabilities, [key]: enabled };
-          if (key !== "session.storeSessions" || enabled) {
-            return { capabilities };
-          }
-          return {
-            capabilities,
-            ...buildSessionRetentionPatch({
-              state,
-              retainedSessionIds: state.activeSessionId
-                ? [state.activeSessionId]
-                : [],
-              activeSessionId: state.activeSessionId,
-            }),
-          };
-        },
+        (state) => ({
+          capabilities: { ...state.capabilities, [key]: enabled },
+        }),
         false,
         { type: "setCapability" }
       );
@@ -1375,13 +1346,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: resolveAssistantStorageKey(),
       version: 0,
+      // Sessions are deliberately absent: they persist only in the server's
+      // database and are hydrated over the network on each app load.
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,
         fabPlacement: state.fabPlacement,
-        sessions: state.sessions,
-        activeSessionId: state.activeSessionId,
-        sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         permissions: state.permissions,

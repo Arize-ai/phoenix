@@ -4,7 +4,6 @@ import json
 import logging
 import posixpath
 import time
-from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Generic, Optional
@@ -342,47 +341,6 @@ class BashToolResult(TypedDict):
     stderrBytes: int
     stdoutTruncated: bool
     stderrTruncated: bool
-
-
-class BashSnapshotStore:
-    """In-memory, TTL-bounded LRU of bashkit snapshots keyed by chat session id.
-
-    Gives server-side bash the same cross-turn continuity the browser runtime
-    had (files written in one turn are readable in the next) with the same
-    durability: state survives only as long as the process, and idle sessions
-    are evicted. Concurrent turns on one session are last-writer-wins.
-    """
-
-    def __init__(self, *, max_sessions: int = 256, ttl_seconds: float = 3600.0) -> None:
-        self._max_sessions = max_sessions
-        self._ttl_seconds = ttl_seconds
-        self._snapshots: OrderedDict[str, tuple[float, bytes]] = OrderedDict()
-
-    def _evict(self, now: float) -> None:
-        expired = [
-            session_id
-            for session_id, (stored_at, _) in self._snapshots.items()
-            if now - stored_at > self._ttl_seconds
-        ]
-        for session_id in expired:
-            del self._snapshots[session_id]
-        while len(self._snapshots) > self._max_sessions:
-            self._snapshots.popitem(last=False)
-
-    def get(self, session_id: str) -> Optional[bytes]:
-        now = time.monotonic()
-        self._evict(now)
-        entry = self._snapshots.get(session_id)
-        if entry is None:
-            return None
-        self._snapshots.move_to_end(session_id)
-        return entry[1]
-
-    def set(self, session_id: str, snapshot: bytes) -> None:
-        now = time.monotonic()
-        self._snapshots[session_id] = (now, snapshot)
-        self._snapshots.move_to_end(session_id)
-        self._evict(now)
 
 
 def _build_shell(

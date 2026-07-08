@@ -1,10 +1,8 @@
-import type { Page } from "@playwright/test";
-
 import {
   persistPxiExperiment,
   PXI_EXPERIMENT_EXAMPLES,
 } from "./experimentPersistence";
-import { expect, test } from "./fixtures";
+import { expect, test, waitForPersistedAssistantTurn } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 import { getUiMessageToolNames } from "./utils";
@@ -22,55 +20,6 @@ const JUDGE_RUBRIC = [
 
 const JUDGE_SYSTEM =
   "You are judging a Phoenix PXI E2E answer. Return a label, score, and brief explanation.";
-
-async function waitForLatestAssistantTurnWithText(page: Page) {
-  const turnHandle = await page.waitForFunction(() => {
-    const stored = localStorage.getItem("arize-phoenix-assistant");
-    if (!stored) {
-      return null;
-    }
-    const parsed = JSON.parse(stored) as {
-      state?: {
-        activeSessionId?: string | null;
-        sessionMap?: Record<
-          string,
-          { messages?: Array<{ role?: string; parts?: unknown[] }> }
-        >;
-      };
-    };
-    const activeSessionId = parsed.state?.activeSessionId;
-    if (!activeSessionId) {
-      return null;
-    }
-    const messages =
-      parsed.state?.sessionMap?.[activeSessionId]?.messages ?? [];
-    const latestAssistant = [...messages]
-      .reverse()
-      .find((message) => message.role === "assistant");
-    if (!latestAssistant) {
-      return null;
-    }
-    const assistantText = (latestAssistant.parts ?? [])
-      .map((part) => {
-        if (typeof part !== "object" || part === null) {
-          return "";
-        }
-        const candidate = part as { type?: unknown; text?: unknown };
-        return candidate.type === "text" && typeof candidate.text === "string"
-          ? candidate.text
-          : "";
-      })
-      .join("");
-    if (!assistantText) {
-      return null;
-    }
-    return { assistantText, parts: latestAssistant.parts ?? [] };
-  });
-  return (await turnHandle.jsonValue()) as {
-    assistantText: string;
-    parts: unknown[];
-  };
-}
 
 test.describe("PXI route link smoke", () => {
   test("uses route info to link to data retention settings", async ({
@@ -109,7 +58,10 @@ test.describe("PXI route link smoke", () => {
     const startedAt = Date.now();
     await page.getByLabel("Message input").fill(USER_PROMPT);
     await page.getByRole("button", { name: "Send message" }).click();
-    const turn = await waitForLatestAssistantTurnWithText(page);
+    const turn = await waitForPersistedAssistantTurn({
+      request,
+      requireTraceId: false,
+    });
     const durationMs = Date.now() - startedAt;
     const calledTools = getUiMessageToolNames(turn.parts);
 

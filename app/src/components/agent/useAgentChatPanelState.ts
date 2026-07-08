@@ -5,6 +5,7 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
+import { useAgentServerSessions } from "./useAgentServerSessions";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 const CHAT_PATH_TEMPLATE =
@@ -17,7 +18,8 @@ const ASSISTANT_AGENT_ID = "assistant";
  * {@link AgentChatPanel}.
  *
  * Responsibilities:
- * - Creates a session automatically when the panel opens
+ * - Hydrates the session list from the server when the panel opens
+ * - Resumes the most recent persisted session, or starts a fresh one
  * - Derives the chat API URL and model menu value from the store
  */
 export function useAgentChatPanelState() {
@@ -27,10 +29,14 @@ export function useAgentChatPanelState() {
   const setPosition = useAgentContext((state) => state.setPosition);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const createSession = useAgentContext((state) => state.createSession);
-  const setActiveSession = useAgentContext((state) => state.setActiveSession);
-  const deleteSession = useAgentContext((state) => state.deleteSession);
+  const setActiveSessionInStore = useAgentContext(
+    (state) => state.setActiveSession
+  );
   const sessionIds = useAgentContext((state) => state.sessions);
   const sessionMap = useAgentContext((state) => state.sessionMap);
+  const serverSessionsHydration = useAgentContext(
+    (state) => state.serverSessionsHydration
+  );
   const showSessionHistory = useAgentContext(
     (state) => state.capabilities["session.storeSessions"]
   );
@@ -40,6 +46,8 @@ export function useAgentChatPanelState() {
   const setDefaultModelConfig = useAgentContext(
     (state) => state.setDefaultModelConfig
   );
+  const { hydrateSessions, activateSession, deleteSession } =
+    useAgentServerSessions();
 
   // Derive full session objects in newest-first order for the session list.
   const orderedSessions = useMemo(() => {
@@ -50,11 +58,53 @@ export function useAgentChatPanelState() {
     return sessions.reverse();
   }, [sessionIds, sessionMap]);
 
+  // Sessions persist only in the database, so the list must be hydrated over
+  // the network before deciding what to show. Kicked off on first open.
   useEffect(() => {
-    if (isOpen && activeSessionId === null) {
+    if (isOpen) {
+      void hydrateSessions();
+    }
+  }, [isOpen, hydrateSessions]);
+
+  // Once hydration settles, resume the most recent persisted session; when
+  // there is none (or hydration failed), start a fresh session.
+  useEffect(() => {
+    if (!isOpen || activeSessionId !== null) {
+      return;
+    }
+    if (
+      serverSessionsHydration === "idle" ||
+      serverSessionsHydration === "pending"
+    ) {
+      return;
+    }
+    const mostRecentSessionId = sessionIds[sessionIds.length - 1];
+    if (mostRecentSessionId) {
+      void activateSession(mostRecentSessionId);
+    } else {
       createSession();
     }
-  }, [isOpen, activeSessionId, createSession]);
+  }, [
+    isOpen,
+    activeSessionId,
+    serverSessionsHydration,
+    sessionIds,
+    activateSession,
+    createSession,
+  ]);
+
+  // Activating a session may need a network fetch of its transcript first;
+  // clearing the active session (null) stays synchronous.
+  const setActiveSession = useCallback(
+    (sessionId: string | null) => {
+      if (sessionId === null) {
+        setActiveSessionInStore(null);
+        return;
+      }
+      void activateSession(sessionId);
+    },
+    [activateSession, setActiveSessionInStore]
+  );
 
   const menuValue: ModelMenuValue = useMemo(
     () => ({

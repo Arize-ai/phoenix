@@ -45,9 +45,8 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
   },
   {
     key: "session.storeSessions",
-    label: "Store recent sessions",
-    description:
-      "Keeps the three most recent chat sessions instead of replacing session history when starting a new chat.",
+    label: "Show session history",
+    description: "Shows recent chat sessions.",
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",
