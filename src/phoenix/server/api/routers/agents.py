@@ -84,6 +84,7 @@ from phoenix.server.api.helpers.playground_registry import (
     PROVIDER_DEFAULT,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
+from phoenix.server.api.routers.v1.utils import ResponseBody
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendStatus,
@@ -187,10 +188,8 @@ class AssistantMetadataUIMessage(UIMessage):
     )
 
 
-class GetAgentSessionMessagesResponse(BaseModel):
+class GetAgentSessionMessagesResponse(ResponseBody[list[AssistantMetadataUIMessage]]):
     """Body for GET /agents/{agent_id}/sessions/{session_id}/messages"""
-
-    data: list[AssistantMetadataUIMessage]
 
 
 class _ObservabilityMixin(BaseModel):
@@ -1158,10 +1157,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 ).first()
                 if existing_session_row is not None:
                     agent_session_rowid, session_owner_id = existing_session_row
-                    # A persisted session is only usable by its owner: a foreign
-                    # session id must neither restore another user's shell state
-                    # nor append snapshots to their transcript.
-                    if phoenix_user is not None and session_owner_id != request_user_id:
+                    session_belongs_to_another_user = (
+                        phoenix_user is not None and session_owner_id != request_user_id
+                    )
+                    if session_belongs_to_another_user:
                         raise HTTPException(status_code=404, detail="Session not found")
                     initial_bash_snapshot = await _load_latest_bash_snapshot(
                         session,
