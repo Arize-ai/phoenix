@@ -117,7 +117,6 @@ const commandPaletteCSS = css`
     width: 100%;
     min-height: var(--global-dimension-size-1600);
     box-sizing: border-box;
-    padding: var(--global-dimension-static-size-300);
   }
 `;
 
