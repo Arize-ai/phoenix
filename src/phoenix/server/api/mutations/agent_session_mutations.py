@@ -30,10 +30,8 @@ class AgentSessionMutationMixin:
         info: Info[Context, None],
         input: DeleteAgentSessionInput,
     ) -> DeleteAgentSessionMutationPayload:
-        """Delete a persisted session and all of its snapshots."""
-        stmt = delete(models.AgentSession).where(
-            models.AgentSession.session_uuid == input.session_id
-        )
+        """Delete a persisted session along with its snapshot."""
+        stmt = delete(models.AgentSession).where(models.AgentSession.session_id == input.session_id)
         if (viewer_id := info.context.user_id) is not None:
             stmt = stmt.where(models.AgentSession.user_id == viewer_id)
         async with info.context.db() as session:

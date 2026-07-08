@@ -15,7 +15,7 @@ from phoenix.server.api.routers.agents import (
     _build_message_metadata_chunk,
     _derive_session_title,
     _get_span_context,
-    _load_latest_bash_snapshot,
+    _load_bash_snapshot,
     _persist_agent_session_turn,
     _persist_db_traces,
     _upsert_agent_session,
@@ -311,11 +311,11 @@ def test_derive_session_title_empty_without_user_text() -> None:
 
 
 async def test_persist_agent_session_turn_round_trip(db: DbSessionFactory) -> None:
-    session_uuid = "11111111-1111-4111-8111-111111111111"
+    session_id = "11111111-1111-4111-8111-111111111111"
     first_turn = [_user_message("first question")]
     await _persist_agent_session_turn(
         db,
-        session_uuid=session_uuid,
+        session_id=session_id,
         user_id=None,
         messages=first_turn,
         bashkit_snapshot=b"shell-state-1",
@@ -326,7 +326,7 @@ async def test_persist_agent_session_turn_round_trip(db: DbSessionFactory) -> No
     ]
     await _persist_agent_session_turn(
         db,
-        session_uuid=session_uuid,
+        session_id=session_id,
         user_id=None,
         messages=second_turn,
         bashkit_snapshot=None,
@@ -336,23 +336,38 @@ async def test_persist_agent_session_turn_round_trip(db: DbSessionFactory) -> No
         agent_sessions = (await session.scalars(select(models.AgentSession))).all()
         assert len(agent_sessions) == 1
         agent_session = agent_sessions[0]
-        assert agent_session.session_uuid == session_uuid
+        assert agent_session.session_id == session_id
         assert agent_session.title == "first question"
-        snapshots = (
-            await session.scalars(
-                select(models.AgentSessionSnapshot).order_by(models.AgentSessionSnapshot.id)
-            )
-        ).all()
-        assert [snapshot.messages for snapshot in snapshots] == [first_turn, second_turn]
-        # The latest bash snapshot skips turns that did not run bash.
-        latest = await _load_latest_bash_snapshot(session, agent_session_rowid=agent_session.id)
-        assert latest == b"shell-state-1"
+        assert agent_session.messages == second_turn
+        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        assert len(snapshots) == 1
+        # A turn without bash activity leaves the stored shell state intact.
+        stored = await _load_bash_snapshot(session, agent_session_rowid=agent_session.id)
+        assert stored == b"shell-state-1"
+
+    third_turn: list[dict[str, Any]] = [
+        *second_turn,
+        {"id": "m3", "role": "assistant", "parts": []},
+    ]
+    await _persist_agent_session_turn(
+        db,
+        session_id=session_id,
+        user_id=None,
+        messages=third_turn,
+        bashkit_snapshot=b"shell-state-2",
+    )
+    async with db() as session:
+        # A turn with bash activity overwrites the session's single snapshot
+        # row in place.
+        snapshots = (await session.scalars(select(models.AgentSessionSnapshot))).all()
+        assert len(snapshots) == 1
+        assert snapshots[0].bashkit_snapshot == b"shell-state-2"
 
 
 async def test_persist_agent_session_turn_skips_empty_transcript(db: DbSessionFactory) -> None:
     await _persist_agent_session_turn(
         db,
-        session_uuid="22222222-2222-4222-8222-222222222222",
+        session_id="22222222-2222-4222-8222-222222222222",
         user_id=None,
         messages=[],
         bashkit_snapshot=b"ignored",
@@ -362,28 +377,31 @@ async def test_persist_agent_session_turn_skips_empty_transcript(db: DbSessionFa
 
 
 async def test_upsert_agent_session_title_update_is_opt_in(db: DbSessionFactory) -> None:
-    session_uuid = "33333333-3333-4333-8333-333333333333"
+    session_id = "33333333-3333-4333-8333-333333333333"
     async with db() as session:
         await _upsert_agent_session(
             session,
-            session_uuid=session_uuid,
+            session_id=session_id,
             user_id=None,
             title="derived title",
+            messages=[_user_message("original transcript")],
         )
     async with db() as session:
         await _upsert_agent_session(
             session,
-            session_uuid=session_uuid,
+            session_id=session_id,
             user_id=None,
             title="ignored on conflict",
         )
         row = await session.scalar(select(models.AgentSession))
         assert row is not None
         assert row.title == "derived title"
+        # Omitting messages leaves the stored transcript alone.
+        assert row.messages == [_user_message("original transcript")]
     async with db() as session:
         await _upsert_agent_session(
             session,
-            session_uuid=session_uuid,
+            session_id=session_id,
             user_id=None,
             title="LLM summary",
             update_title_on_conflict=True,
@@ -393,14 +411,14 @@ async def test_upsert_agent_session_title_update_is_opt_in(db: DbSessionFactory)
         assert row.title == "LLM summary"
 
 
-async def test_chat_turn_persists_session_and_snapshot(
+async def test_chat_turn_persists_session_transcript(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A full chat turn writes the agent_sessions row and a snapshot whose
-    transcript contains the incoming history plus the streamed assistant
-    reply (with turn metadata), assembled entirely server-side."""
+    """A full chat turn writes the agent_sessions row whose transcript
+    contains the incoming history plus the streamed assistant reply (with
+    turn metadata), assembled entirely server-side."""
 
     async def _fake_build_model(*args: object, **kwargs: object) -> TestModel:
         return TestModel(call_tools=[])
@@ -409,10 +427,10 @@ async def test_chat_turn_persists_session_and_snapshot(
         "phoenix.server.api.routers.agents.build_model",
         _fake_build_model,
     )
-    session_uuid = "44444444-4444-4444-8444-444444444444"
+    session_id = "44444444-4444-4444-8444-444444444444"
     body = {
         "trigger": "submit-message",
-        "id": session_uuid,
+        "id": session_id,
         "messages": [_user_message("What datasets exist?")],
         "model": {
             "providerType": "builtin",
@@ -422,7 +440,7 @@ async def test_chat_turn_persists_session_and_snapshot(
     }
 
     response = await httpx_client.post(
-        f"/agents/assistant/sessions/{session_uuid}/chat",
+        f"/agents/assistant/sessions/{session_id}/chat",
         json=body,
     )
     assert response.status_code == 200
@@ -430,20 +448,18 @@ async def test_chat_turn_persists_session_and_snapshot(
     async with db() as session:
         agent_session = await session.scalar(select(models.AgentSession))
         assert agent_session is not None
-        assert agent_session.session_uuid == session_uuid
+        assert agent_session.session_id == session_id
         assert agent_session.user_id is None
         assert agent_session.title == "What datasets exist?"
-        snapshot = await session.scalar(select(models.AgentSessionSnapshot))
-        assert snapshot is not None
-        assert snapshot.agent_session_id == agent_session.id
-        assert snapshot.bashkit_snapshot is None  # no bash command this turn
+        messages = agent_session.messages
+        # No bash command this turn, so no shell-state snapshot row.
+        assert await session.scalar(select(models.AgentSessionSnapshot)) is None
 
-    messages = snapshot.messages
     assert messages[0]["role"] == "user"
     assistant_messages = [message for message in messages if message["role"] == "assistant"]
     assert assistant_messages
     metadata = assistant_messages[-1]["metadata"]
-    assert metadata["sessionId"] == session_uuid
+    assert metadata["sessionId"] == session_id
     assert metadata["usage"]["tokens"]["total"] > 0
     # Resuming a session sends the persisted transcript back through the chat
     # request's message validation, so every stored message must round-trip.
@@ -451,40 +467,33 @@ async def test_chat_turn_persists_session_and_snapshot(
         AssistantMetadataUIMessage.model_validate(message)
 
 
-async def test_get_agent_session_messages_returns_latest_snapshot(
+async def test_get_agent_session_messages_returns_transcript(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,
 ) -> None:
-    first_turn = [_user_message("first")]
-    second_turn: list[dict[str, Any]] = [
-        *first_turn,
+    transcript: list[dict[str, Any]] = [
+        _user_message("first"),
         {"id": "m2", "role": "assistant", "parts": [{"type": "text", "text": "reply"}]},
     ]
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
-        agent_session = models.AgentSession(
-            session_uuid="with-snapshots",
-            user_id=None,
-            title="session title",
-            created_at=now,
-            updated_at=now,
-        )
-        session.add(agent_session)
-        await session.flush()
-        for messages in (first_turn, second_turn):
-            session.add(
-                models.AgentSessionSnapshot(
-                    agent_session_id=agent_session.id,
-                    messages=messages,
-                )
+        session.add(
+            models.AgentSession(
+                session_id="with-transcript",
+                user_id=None,
+                title="session title",
+                messages=transcript,
+                created_at=now,
+                updated_at=now,
             )
+        )
 
-    response = await httpx_client.get("/agents/assistant/sessions/with-snapshots/messages")
+    response = await httpx_client.get("/agents/assistant/sessions/with-transcript/messages")
     assert response.status_code == 200
-    assert response.json()["data"] == second_turn
+    assert response.json()["data"] == transcript
 
     missing = await httpx_client.get("/agents/assistant/sessions/nonexistent/messages")
     assert missing.status_code == 404
 
-    unknown_agent = await httpx_client.get("/agents/other/sessions/with-snapshots/messages")
+    unknown_agent = await httpx_client.get("/agents/other/sessions/with-transcript/messages")
     assert unknown_agent.status_code == 404

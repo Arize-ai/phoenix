@@ -15,16 +15,17 @@ _DELETE_MUTATION = """
 """
 
 
-async def test_delete_agent_session_cascades_snapshots(
+async def test_delete_agent_session_cascades_snapshot(
     db: DbSessionFactory,
     gql_client: AsyncGraphQLClient,
 ) -> None:
     now = datetime(2026, 1, 1, tzinfo=timezone.utc)
     async with db() as session:
         agent_session = models.AgentSession(
-            session_uuid="doomed",
+            session_id="doomed",
             user_id=None,
             title="doomed session",
+            messages=[{"id": "m1", "role": "user", "parts": []}],
             created_at=now,
             updated_at=now,
         )
@@ -33,7 +34,7 @@ async def test_delete_agent_session_cascades_snapshots(
         session.add(
             models.AgentSessionSnapshot(
                 agent_session_id=agent_session.id,
-                messages=[{"id": "m1", "role": "user", "parts": []}],
+                bashkit_snapshot=b"shell-state",
             )
         )
 

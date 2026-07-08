@@ -22,7 +22,7 @@ class AgentSession(Node):
 def to_gql_agent_session(agent_session: models.AgentSession) -> AgentSession:
     return AgentSession(
         id=agent_session.id,
-        session_id=agent_session.session_uuid,
+        session_id=agent_session.session_id,
         title=agent_session.title,
         created_at=agent_session.created_at,
         updated_at=agent_session.updated_at,

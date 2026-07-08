@@ -818,33 +818,42 @@ def _derive_session_title(messages: list[dict[str, Any]]) -> str:
 async def _upsert_agent_session(
     session: AsyncSession,
     *,
-    session_uuid: str,
+    session_id: str,
     user_id: int | None,
     title: str,
+    messages: list[dict[str, Any]] | None = None,
     update_title_on_conflict: bool = False,
 ) -> int:
     """Insert the ``agent_sessions`` row if missing and return its rowid.
 
     An existing row keeps its owner; ``updated_at`` is always bumped so the
-    session list orders by recency. The title is only overwritten when
+    session list orders by recency. The transcript is only overwritten when
+    ``messages`` is provided, and the title only when
     ``update_title_on_conflict`` is set (LLM summaries win over the derived
     first-message title).
     """
     set_: dict[str, Any] = {"updated_at": func.now()}
+    if messages is not None:
+        set_["messages"] = messages
     if update_title_on_conflict:
         set_["title"] = title
     await session.execute(
         insert_on_conflict(
-            {"session_uuid": session_uuid, "user_id": user_id, "title": title},
+            {
+                "session_id": session_id,
+                "user_id": user_id,
+                "title": title,
+                "messages": messages or [],
+            },
             table=models.AgentSession,
             dialect=SupportedSQLDialect(session.bind.dialect.name),
-            unique_by=("session_uuid",),
+            unique_by=("session_id",),
             on_conflict=OnConflict.DO_UPDATE,
             set_=set_,
         )
     )
     rowid = await session.scalar(
-        select(models.AgentSession.id).where(models.AgentSession.session_uuid == session_uuid)
+        select(models.AgentSession.id).where(models.AgentSession.session_id == session_id)
     )
     assert rowid is not None
     return rowid
@@ -853,51 +862,57 @@ async def _upsert_agent_session(
 async def _persist_agent_session_turn(
     db: DbSessionFactory,
     *,
-    session_uuid: str,
+    session_id: str,
     user_id: int | None,
     messages: list[dict[str, Any]],
     bashkit_snapshot: bytes | None,
 ) -> None:
-    """Persist a chat turn as a point-in-time session snapshot.
+    """Persist a chat turn: the transcript onto the session row and any bash
+    state into the session's single snapshot row.
 
     Sessions live only in the database — there is no in-memory or
     browser-local copy — so this also runs when the stream ends early: the
     incoming transcript (and any bash state captured before the interruption)
-    stays durable.
+    stays durable. A turn without bash activity leaves the snapshot row
+    untouched so previously captured shell state survives.
     """
     if not messages:
         return
     async with db() as session:
         agent_session_rowid = await _upsert_agent_session(
             session,
-            session_uuid=session_uuid,
+            session_id=session_id,
             user_id=user_id,
             title=_derive_session_title(messages),
+            messages=messages,
         )
-        session.add(
-            models.AgentSessionSnapshot(
-                agent_session_id=agent_session_rowid,
-                messages=messages,
-                bashkit_snapshot=bashkit_snapshot,
+        if bashkit_snapshot is not None:
+            await session.execute(
+                insert_on_conflict(
+                    {
+                        "agent_session_id": agent_session_rowid,
+                        "bashkit_snapshot": bashkit_snapshot,
+                    },
+                    table=models.AgentSessionSnapshot,
+                    dialect=SupportedSQLDialect(session.bind.dialect.name),
+                    unique_by=("agent_session_id",),
+                    on_conflict=OnConflict.DO_UPDATE,
+                    set_={"bashkit_snapshot": bashkit_snapshot, "updated_at": func.now()},
+                )
             )
-        )
 
 
-async def _load_latest_bash_snapshot(
+async def _load_bash_snapshot(
     session: AsyncSession,
     *,
     agent_session_rowid: int,
 ) -> bytes | None:
-    """Latest persisted shell state for the session; turns without bash
-    activity store ``NULL`` and are skipped."""
+    """Persisted shell state for the session; a session whose turns never
+    touched bash has no snapshot row."""
     return await session.scalar(
-        select(models.AgentSessionSnapshot.bashkit_snapshot)
-        .where(
-            models.AgentSessionSnapshot.agent_session_id == agent_session_rowid,
-            models.AgentSessionSnapshot.bashkit_snapshot.is_not(None),
+        select(models.AgentSessionSnapshot.bashkit_snapshot).where(
+            models.AgentSessionSnapshot.agent_session_id == agent_session_rowid
         )
-        .order_by(models.AgentSessionSnapshot.id.desc())
-        .limit(1)
     )
 
 
@@ -1151,7 +1166,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 existing_session_row = (
                     await session.execute(
                         select(models.AgentSession.id, models.AgentSession.user_id).where(
-                            models.AgentSession.session_uuid == session_id
+                            models.AgentSession.session_id == session_id
                         )
                     )
                 ).first()
@@ -1162,7 +1177,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     )
                     if session_belongs_to_another_user:
                         raise HTTPException(status_code=404, detail="Session not found")
-                    initial_bash_snapshot = await _load_latest_bash_snapshot(
+                    initial_bash_snapshot = await _load_bash_snapshot(
                         session,
                         agent_session_rowid=agent_session_rowid,
                     )
@@ -1232,8 +1247,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         captured_bash_snapshot: list[bytes] = []
 
         def _capture_bash_snapshot(snapshot: bytes) -> None:
-            # Held until turn end and persisted with the transcript in a
-            # single agent_session_snapshots row.
+            # Held until turn end, then persisted alongside the transcript
+            # in the session's agent_session_snapshots row.
             captured_bash_snapshot[:] = [snapshot]
 
         agent = build_agent(
@@ -1365,7 +1380,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 try:
                     await _persist_agent_session_turn(
                         request.app.state.db,
-                        session_uuid=session_id,
+                        session_id=session_id,
                         user_id=request_user_id,
                         messages=_build_post_turn_transcript(
                             request_messages=body.messages,
@@ -1474,14 +1489,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     owner_row = (
                         await session.execute(
                             select(models.AgentSession.user_id).where(
-                                models.AgentSession.session_uuid == session_id
+                                models.AgentSession.session_id == session_id
                             )
                         )
                     ).first()
                     if owner_row is None or phoenix_user is None or owner_row[0] == request_user_id:
                         await _upsert_agent_session(
                             session,
-                            session_uuid=session_id,
+                            session_id=session_id,
                             user_id=request_user_id,
                             title=summary,
                             update_title_on_conflict=True,
@@ -1494,7 +1509,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         "/agents/{agent_id}/sessions/{session_id}/messages",
         response_model=GetAgentSessionMessagesResponse,
         # Match the transcript's wire format everywhere else (persisted
-        # snapshots and streamed messages omit absent optional fields).
+        # transcripts and streamed messages omit absent optional fields).
         response_model_exclude_none=True,
     )
     async def get_agent_session_messages(
@@ -1502,28 +1517,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         session_id: str,
         request: Request,
     ) -> GetAgentSessionMessagesResponse:
-        """The transcript from the session's latest persisted snapshot."""
+        """The session's persisted transcript."""
         if agent_id != _ASSISTANT_AGENT_ID:
             raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id!r}")
         if not request.app.state.system_settings.agent_assistant_enabled.enabled:
             raise HTTPException(status_code=403, detail="Agents are disabled")
         user = request.user if "user" in request.scope else None
         phoenix_user = user if isinstance(user, PhoenixUser) else None
-        stmt = select(models.AgentSession.id).where(models.AgentSession.session_uuid == session_id)
+        stmt = select(models.AgentSession.messages).where(
+            models.AgentSession.session_id == session_id
+        )
         if phoenix_user is not None:
             stmt = stmt.where(models.AgentSession.user_id == int(phoenix_user.identity))
         async with request.app.state.db() as session:
-            agent_session_rowid = await session.scalar(stmt)
-            if agent_session_rowid is None:
+            messages_row = (await session.execute(stmt)).first()
+            if messages_row is None:
                 raise HTTPException(status_code=404, detail="Session not found")
-            messages = await session.scalar(
-                select(models.AgentSessionSnapshot.messages)
-                .where(models.AgentSessionSnapshot.agent_session_id == agent_session_rowid)
-                .order_by(models.AgentSessionSnapshot.id.desc())
-                .limit(1)
-            )
         return GetAgentSessionMessagesResponse(
-            data=[AssistantMetadataUIMessage.model_validate(message) for message in messages or []]
+            data=[AssistantMetadataUIMessage.model_validate(message) for message in messages_row[0]]
         )
 
     return router
