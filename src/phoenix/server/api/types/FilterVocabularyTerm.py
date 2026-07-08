@@ -1,5 +1,6 @@
 """The bindable-name vocabulary served for filter DSL autocomplete, agent discovery, and docs."""
 
+import json
 from collections.abc import Sequence
 
 import strawberry
@@ -16,6 +17,8 @@ _INTRINSIC = "session"
 _AGGREGATE = "aggregate"
 _ATTRIBUTE = "attribute"
 _ANNOTATION = "annotation"
+
+_ATTRIBUTE_PROXY_TERMS = ("attributes[...]", "user.id", 'metadata["key"]')
 
 
 @strawberry.type
@@ -34,24 +37,31 @@ class FilterVocabularyTerm:
 
 def session_filter_vocabulary_terms(
     annotation_names: Sequence[str] = (),
+    root_span_attribute_paths: Sequence[Sequence[str]] = (),
 ) -> list[FilterVocabularyTerm]:
-    """Build the session-filter vocabulary from the compiler's frozen name maps and gloss dict.
+    """Build the session-filter vocabulary from compiler bindings and project-observed paths.
 
-    The intrinsic and aggregate term names are exactly ``SESSION_BINDINGS.binding_names``, and each
-    description is served verbatim from ``SESSION_FILTER_DESCRIPTIONS`` — so the vocabulary cannot
-    diverge from what the compiler accepts. ``annotation_names`` (from
-    ``Project.session_annotation_names``) are folded in as fully-typed ``annotations[...]`` terms.
+    Static term names derive from ``SESSION_BINDINGS.binding_names``, and each description is served
+    from ``SESSION_FILTER_DESCRIPTIONS`` — so the vocabulary cannot diverge from what the compiler
+    accepts. Accepted attribute proxy patterns and per-project dynamic names are folded in as
+    fully-typed terms.
     """
-    terms: list[FilterVocabularyTerm] = []
+    terms: dict[str, FilterVocabularyTerm] = {}
 
-    def add(name: str, value_type: str, category: str) -> None:
-        terms.append(
+    def add(
+        name: str,
+        value_type: str,
+        category: str,
+        description: str | None = None,
+    ) -> None:
+        terms.setdefault(
+            name,
             FilterVocabularyTerm(
                 name=name,
                 type=value_type,
-                description=SESSION_FILTER_DESCRIPTIONS[name],
+                description=description or SESSION_FILTER_DESCRIPTIONS[name],
                 category=category,
-            )
+            ),
         )
 
     for name in SESSION_BINDINGS.string_names:
@@ -62,27 +72,46 @@ def session_filter_vocabulary_terms(
         add(name, _NUMBER, _INTRINSIC)
     for name in sorted(SESSION_BINDINGS.aggregate_names):
         add(name, _NUMBER, _AGGREGATE)
+    for name in sorted(SESSION_BINDINGS.exists_names):
+        add(name, _STRING, _INTRINSIC)
 
-    # `user.id` / `metadata["key"]` read the session's earliest root span — documented access
-    # patterns rather than bare names, so they are not part of the drift-checked binding surface.
-    add("user.id", _STRING, _ATTRIBUTE)
-    add('metadata["key"]', _STRING, _ATTRIBUTE)
+    for name in _ATTRIBUTE_PROXY_TERMS:
+        add(name, _STRING, _ATTRIBUTE)
 
-    for annotation_name in annotation_names:
-        terms.append(
-            FilterVocabularyTerm(
-                name=f'annotations["{annotation_name}"].score',
-                type=_NUMBER,
-                description=f'Numeric score of the "{annotation_name}" session annotation.',
-                category=_ANNOTATION,
-            )
+    for attribute_path in sorted({tuple(path) for path in root_span_attribute_paths}):
+        name = _attribute_path_name(attribute_path)
+        add(
+            name,
+            _STRING,
+            _ATTRIBUTE,
+            description=(
+                f"Observed root-span attribute {name}; reads from the session's earliest "
+                "root span and is string-cast unless explicitly cast."
+            ),
         )
-        terms.append(
-            FilterVocabularyTerm(
-                name=f'annotations["{annotation_name}"].label',
-                type=_STRING,
-                description=f'Label of the "{annotation_name}" session annotation.',
-                category=_ANNOTATION,
-            )
+
+    for annotation_name in sorted(set(annotation_names)):
+        annotation_subscript = _subscript_literal(annotation_name)
+        add(
+            name=f"annotations[{annotation_subscript}].score",
+            value_type=_NUMBER,
+            description=f"Numeric score of the {annotation_subscript} session annotation.",
+            category=_ANNOTATION,
         )
-    return terms
+        add(
+            name=f"annotations[{annotation_subscript}].label",
+            value_type=_STRING,
+            description=f"Label of the {annotation_subscript} session annotation.",
+            category=_ANNOTATION,
+        )
+    return list(terms.values())
+
+
+def _attribute_path_name(attribute_path: Sequence[str]) -> str:
+    return "attributes" + "".join(
+        f"[{_subscript_literal(path_segment)}]" for path_segment in attribute_path
+    )
+
+
+def _subscript_literal(value: str) -> str:
+    return json.dumps(value)
