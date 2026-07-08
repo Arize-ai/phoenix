@@ -1272,6 +1272,12 @@
             "pages": [
               "docs/phoenix/release-notes",
               {
+                "group": "07.2026",
+                "pages": [
+                  "docs/phoenix/release-notes/07-2026/07-07-2026-metric-charts-trace-search-and-rest-api"
+                ]
+              },
+              {
                 "group": "06.2026",
                 "pages": [
                   "docs/phoenix/release-notes/06-2026/06-30-2026-pxi-terminal-client-and-annotation-summary",
