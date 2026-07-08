@@ -591,6 +591,7 @@ const PROJECT_METRICS_QUERY = graphql`
     project: node(id: $id) {
       ... on Project {
         traceCount(timeRange: $timeRange)
+        sessionCount(timeRange: $timeRange)
         latencyMsP50: latencyMsQuantile(probability: 0.5, timeRange: $timeRange)
       }
     }
@@ -603,6 +604,12 @@ function ProjectMetricsLoadingSkeleton() {
       <Flex direction="column" flex="none" gap="size-100">
         <Text elementType="h3" size="S" color="text-700">
           Total Traces
+        </Text>
+        <Skeleton width={60} height={20} animation="wave" />
+      </Flex>
+      <Flex direction="column" flex="none" gap="size-100">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Sessions
         </Text>
         <Skeleton width={60} height={20} animation="wave" />
       </Flex>
@@ -680,7 +687,7 @@ function ProjectMetricsRow({
   flexProps?: Partial<FlexProps>;
 }) {
   const {
-    project: { traceCount, latencyMsP50 },
+    project: { traceCount, sessionCount, latencyMsP50 },
   } = project;
   return (
     <Flex
@@ -695,6 +702,14 @@ function ProjectMetricsRow({
         </Text>
         <Text size="L" fontFamily="mono">
           {intFormatter(traceCount)}
+        </Text>
+      </Flex>
+      <Flex direction="column">
+        <Text elementType="h3" size="S" color="text-700">
+          Total Sessions
+        </Text>
+        <Text size="L" fontFamily="mono">
+          {intFormatter(sessionCount)}
         </Text>
       </Flex>
       <Flex direction="column">
