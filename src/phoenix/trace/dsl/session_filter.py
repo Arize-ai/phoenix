@@ -20,6 +20,7 @@ import typing
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
+from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Mapped, aliased
 from sqlalchemy.sql.expression import Select
@@ -35,6 +36,7 @@ from phoenix.db.session_aggregates import (
     earliest_root_span_by_session,
     num_traces_by_session,
     num_traces_with_error_by_session,
+    root_span_attribute_text_contains_by_session,
     span_kind_count_by_session,
     token_counts_by_session,
 )
@@ -91,6 +93,14 @@ _AGGREGATE_SPECS: typing.Mapping[str, _AggregateSpec] = MappingProxyType(
 )
 
 _ROOT_SPAN_ATTRIBUTES = "attributes"
+_ROOT_SPAN_INPUT_VALUE = tuple(SpanAttributes.INPUT_VALUE.split("."))
+_ROOT_SPAN_OUTPUT_VALUE = tuple(SpanAttributes.OUTPUT_VALUE.split("."))
+_EXISTS_ATTRIBUTE_PATHS: typing.Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        "any_input": _ROOT_SPAN_INPUT_VALUE,
+        "any_output": _ROOT_SPAN_OUTPUT_VALUE,
+    }
+)
 
 _SESSION_STRING_NAMES: NameMap = MappingProxyType(
     {
@@ -124,6 +134,7 @@ SESSION_BINDINGS = _FilterBindings(
     annotation_table_prefix="project_session_annotation",
     reject_unbound_names=True,
     quantifiers=frozenset(),
+    exists_names=frozenset(_EXISTS_ATTRIBUTE_PATHS),
 )
 
 # Served vocabulary glosses; each carries the metric's unit (`*_ms`) and a short semantic gloss
@@ -144,6 +155,14 @@ SESSION_FILTER_DESCRIPTIONS: typing.Mapping[str, str] = MappingProxyType(
         "total_cost": "Total cost across the session's spans.",
         "tool_call_count": "Number of TOOL spans in the session.",
         "llm_call_count": "Number of LLM spans in the session.",
+        "any_input": (
+            "Case-sensitive containment in some root span's input payload; "
+            "instrumentation-shaped, not a user-role message."
+        ),
+        "any_output": (
+            "Case-sensitive containment in some root span's output payload; "
+            "instrumentation-shaped, not an agent-role message."
+        ),
         "user.id": "user.id attribute read from the session's earliest root span.",
         'metadata["key"]': "A metadata value read from the session's earliest root span.",
         'annotations["name"].score': "Numeric score of a session annotation by name.",
@@ -157,6 +176,35 @@ def _referenced_names(translated: ast.Expression) -> set[str]:
 
 
 CandidateRowids: typing.TypeAlias = typing.Optional[typing.Collection[int]]
+
+
+def _exists_bindings(
+    referenced_exists_names: typing.Iterable[str],
+    candidate_session_rowids: CandidateRowids,
+    project_rowids: typing.Optional[typing.Sequence[int]],
+    start_time: typing.Optional[typing.Any],
+    end_time: typing.Optional[typing.Any],
+) -> dict[str, typing.Callable[[typing.Any], typing.Any]]:
+    bindings_map: dict[str, typing.Callable[[typing.Any], typing.Any]] = {}
+    for name in referenced_exists_names:
+        attribute_path = _EXISTS_ATTRIBUTE_PATHS[name]
+
+        def contains(
+            substring: typing.Any,
+            attribute_path: tuple[str, ...] = attribute_path,
+        ) -> typing.Any:
+            return root_span_attribute_text_contains_by_session(
+                attribute_path,
+                substring,
+                models.ProjectSession.id,
+                keys=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
+
+        bindings_map[name] = contains
+    return bindings_map
 
 
 @dataclass(frozen=True)
@@ -176,6 +224,7 @@ class SessionFilter:
     )
     _aliased_annotation_attributes: dict[str, Mapped[typing.Any]] = field(init=False, repr=False)
     _referenced_aggregates: frozenset[str] = field(init=False, repr=False)
+    _referenced_exists_names: frozenset[str] = field(init=False, repr=False)
     _references_root_span: bool = field(init=False, repr=False)
 
     def __bool__(self) -> bool:
@@ -198,6 +247,9 @@ class SessionFilter:
         )
         object.__setattr__(
             self, "_referenced_aggregates", frozenset(referenced & set(_AGGREGATE_SPECS))
+        )
+        object.__setattr__(
+            self, "_referenced_exists_names", frozenset(referenced & set(_EXISTS_ATTRIBUTE_PATHS))
         )
         object.__setattr__(self, "_references_root_span", _ROOT_SPAN_ATTRIBUTES in referenced)
 
@@ -229,6 +281,15 @@ class SessionFilter:
             aggregate_shape=aggregate_shape,
         )
         extra_bindings.update(aggregate_bindings)
+        extra_bindings.update(
+            _exists_bindings(
+                self._referenced_exists_names,
+                candidate_session_rowids=candidate_session_rowids,
+                project_rowids=project_rowids,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        )
         if self._references_root_span:
             stmt, root_span_attributes = _join_root_span(
                 stmt,
