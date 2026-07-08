@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useViewer } from "@phoenix/contexts/ViewerContext";
+import { getEffectiveTraceRecordingSettings } from "@phoenix/store/agentStore";
 
 import { SystemSettingsWarning } from "./SystemSettingsWarning";
 
@@ -103,6 +104,15 @@ export function AgentObservabilitySettings() {
   const localTracesOffInSystemSettings = !agentsConfig.allowLocalTraces;
   const remoteExportOffInSystemSettings = !agentsConfig.allowRemoteExport;
 
+  // Attaching an email only affects traces that are actually recorded, so the
+  // toggle is inert unless saving or exporting is effectively on.
+  const effectiveRecording = getEffectiveTraceRecordingSettings({
+    agentsConfig,
+    observability,
+  });
+  const isTracingEnabled =
+    effectiveRecording.ingestTraces || effectiveRecording.exportRemoteTraces;
+
   return (
     <div css={settingsContainerCSS}>
       <Text color="text-500" size="S">
@@ -182,7 +192,8 @@ export function AgentObservabilitySettings() {
         ) : null}
         <li css={settingRowCSS}>
           <Switch
-            isSelected={observability.attachUserId}
+            isSelected={isTracingEnabled && observability.attachUserId}
+            isDisabled={!isTracingEnabled}
             onChange={(attachUserId) => {
               setObservability({ attachUserId });
             }}
@@ -195,8 +206,7 @@ export function AgentObservabilitySettings() {
               </Text>
               <Text color="text-500">
                 Tags session traces with your Phoenix account email so sessions
-                can be filtered by user. Applies only when you are signed in and
-                saving or export is on.
+                can be filtered by user. Applies only when you are signed in.
               </Text>
             </span>
           </Switch>
