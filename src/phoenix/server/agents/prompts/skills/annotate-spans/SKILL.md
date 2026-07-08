@@ -62,44 +62,14 @@ Before writing any annotation:
    }
    ```
 2. **Reuse an existing config when one fits.** Annotate with the config's exact `name` and a `label` from its `values` (or a `score` within its bounds). This is what keeps `annotations['tool_selection'].label == 'incorrect'` filterable and aggregatable across runs. A config that already defines the scale also answers questions you would otherwise stop to ask the user (e.g. "what numeric range?") — don't `ask_user` for something a config already specifies.
-3. **When a new category emerges that no config covers, codify it before (or as) you annotate** — don't add an ad-hoc annotation and move on. Two cases:
-   - **No close config** → create a new config and associate it with *this* project, then annotate against it. Two calls — the second needs the new config's `id`:
+3. **When a new category emerges that no config covers, codify it before (or as) you annotate** — don't add an ad-hoc annotation and move on. Use the annotation-config tools rather than raw GraphQL mutations; the tools provide the approval surface and the frontend owns the write path.
+   - **No close config** → call `create_annotation_config` with the new rubric and the current project's `projectId`, then annotate against that config's `name` after the proposal is accepted.
+   - **A config is close but missing a label** → call `update_annotation_config` to replace it with the complete desired scheme, then annotate. Update is a full replace: pass the existing `values` plus the new one, keep the same `name`, and do not omit values you want to keep.
 
-     ```graphql
-     mutation CreateConfig($cfg: AnnotationConfigInput!) {
-       createAnnotationConfig(input: { annotationConfig: $cfg }) {
-         annotationConfig { ... on CategoricalAnnotationConfig { id name } }
-       }
-     }
-     # vars:
-     # { "cfg": { "categorical": {
-     #     "name": "tool_selection",
-     #     "description": "Did the agent pick the right tool for the step?",
-     #     "optimizationDirection": "NONE",
-     #     "values": [ { "label": "correct" }, { "label": "incorrect" } ] } } }
-
-     mutation AssociateConfig($projectId: GlobalID!, $configId: GlobalID!) {
-       addAnnotationConfigToProject(
-         input: [ { projectId: $projectId, annotationConfigId: $configId } ]
-       ) { project { id } }
-     }
-     ```
-   - **A config is close but missing a label** → update it to add the label (update is a full replace — pass the existing `values` plus the new one, keep the same `name`), then annotate:
-
-     ```graphql
-     mutation UpdateConfig($id: GlobalID!, $cfg: AnnotationConfigInput!) {
-       updateAnnotationConfig(input: { id: $id, annotationConfig: $cfg }) {
-         annotationConfig { ... on CategoricalAnnotationConfig { id name values { label score } } }
-       }
-     }
-     ```
-
-   Codifying first means the next visit to this project rediscovers the criteria instead of growing a second, differently-named rubric for the same thing. `AnnotationConfigInput` is a one-of: set exactly one of `categorical`, `continuous`, or `freeform`. `optimizationDirection` is `MINIMIZE | MAXIMIZE | NONE`.
+   Codifying first means the next visit to this project rediscovers the criteria instead of growing a second, differently-named rubric for the same thing. Use `type: "categorical" | "continuous" | "freeform"` and set `optimizationDirection` to `MINIMIZE`, `MAXIMIZE`, or `NONE` when it matters.
 4. **Surface the choice explicitly.** Tell the user when you reused a config versus proposed a new one or extended an existing one, and why. Naming or changing a rubric is a decision they may want to weigh in on.
 
 **Do not cross-contaminate projects.** Config names are global, and a same-named config may be bound to other projects with different semantics. Prefer configs already associated with *this* project; only create or associate configs for the project in context. Never repurpose another project's rubric just because its name looks right.
-
-**If mutations aren't permitted** (`phoenix-gql` reports its permissions on every call), don't fail — propose the config to the user (name, type, labels, why), and annotate with the proposed name so the judgment isn't lost; the config can be created later.
 
 ## Mode A: Coaching the User
 
